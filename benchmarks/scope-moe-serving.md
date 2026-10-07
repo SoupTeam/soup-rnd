@@ -28,7 +28,9 @@ Why:
   `kv_b_proj`. A draft of 18 added and 13 removed lines closes all four on tiny
   DeepSeek-V3-shaped models: the adapter's effect on the logits matches
   transformers + PEFT to `r` ≤ 1.4e-5, and a stock build made with the same
-  toolchain does not.
+  toolchain does not. With the draft's converter, a SYNTHETIC adapter for the
+  real DeepSeek-V3 and Kimi K2 configs exports from `config.json` alone and
+  passes llama.cpp's loader shape checks.
 - **Variant 1 is a new runtime.** Soup's streaming is built for training: it
   reads every layer once per step, has no KV cache, and refuses generation by
   design. Serving would need expert-granular storage and fetch, a generation
@@ -97,6 +99,9 @@ appendix are context from their sources.
 - **PEFT.** On Soup's pinned stack PEFT cannot build the shared-expert adapter
   for `deepseek_v3`: it retargets it onto the routed experts (record §3.2). Until
   that is worked around, the shape that can be trained today is attention only.
+- **The real model.** The comparison on the real Qwen3.5-35B-A3B has not run:
+  the cloud instances could not be reached (record §4e). Correctness rests on
+  the tiny models and on the export at real dimensions.
 - **Upstream acceptance.** The draft hook is not a pull request. Quantised base
   tensors, GPU backends and the review are untested.
 - **Fit on the dev box.** No engine has shown DeepSeek-V3 or K2 with experts on

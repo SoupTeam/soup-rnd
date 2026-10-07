@@ -89,14 +89,18 @@ DeepSeek-V3- and Qwen3.5-MoE-shaped models, f32 on CPU [RUN]:
   toolchain reproduces the unpatched verdicts, so the patch is what changed them.
 - Not covered by the measurement: quantised base tensors, GPU backends, the
   DeepSeek-V2-Lite and legacy `wkv_b` paths, upstream review.
-- Real Qwen3.5-35B-A3B (Part B of the record): see that record.
+- Real Qwen3.5-35B-A3B (Part B of the record): not run; the cloud instances
+  could not be reached over SSH (record §4e).
 
 Two pieces outside the engine:
 
 - **Soup has to export the adapter alone.** `convert_lora_to_gguf.py --base`
   reads only the base config ("actual model weights are not required",
-  `convert_lora_to_gguf.py` `--base` help at `b11476`) [CODE], so an
-  adapter-only export works without loading 671B parameters.
+  `convert_lora_to_gguf.py` `--base` help at `b11476`) [CODE]. Measured at real
+  dimensions with a SYNTHETIC adapter (record §4e) [RUN]: with the hook's
+  converter, adapters for the DeepSeek-V3 and Kimi K2 configs export from
+  `config.json` alone and every factor pair passes llama.cpp's loader shape
+  checks; the stock converter fails on `kv_b_proj`.
 - **PEFT cannot build the shared-expert adapter on Soup's stack.** peft 0.21.2
   rewrites `shared_experts.{gate,up,down}_proj` targets on `deepseek_v3` into
   the routed experts' fused parameters (record §3.2) [RUN]; the same code is in
