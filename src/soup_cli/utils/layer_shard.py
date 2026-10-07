@@ -2025,10 +2025,13 @@ def _validate_fp8_companions(
     scale_keys: Iterable[str],
     config: Any,
 ) -> None:
-    """Every float8 weight has exactly its scale, in the same file, and a config.
+    """Every float8 weight has exactly its scale, and the checkpoint has a config.
 
-    Runs after pass 1 and before any tensor is read, so a malformed FP8
-    checkpoint is refused before minutes of sharding, never half-written.
+    A weight and its scale may sit in different files: DeepSeek-V3 puts 155 of its
+    45,808 scales in the file after their weight, where a decoder layer crosses a
+    file boundary (measured from its ``model.safetensors.index.json``). Runs after
+    pass 1 and before any tensor is read, so a malformed FP8 checkpoint is refused
+    before minutes of sharding, never half-written.
     """
     from soup_cli.utils.fp8_source import SCALE_SUFFIX, scale_key_for, weight_key_for
 
@@ -2059,12 +2062,6 @@ def _validate_fp8_companions(
             raise ValueError(
                 f"{weight_key!r} has an FP8 scale ({scale_key!r}) but is not stored as float8"
             )
-        if where[weight_key][0] != where[scale_key][0]:
-            raise ValueError(
-                f"FP8 weight {weight_key!r} and its scale {scale_key!r} must sit in the "
-                f"same file; they are in {os.path.basename(where[weight_key][0])!r} and "
-                f"{os.path.basename(where[scale_key][0])!r}"
-            )
     scale_set = set(scales)
     for weight_key in weights:
         if scale_key_for(weight_key) not in scale_set:
@@ -2087,6 +2084,9 @@ def _read_fp8_tensor(
 
     path, source_key = where[key]
     scale_path, scale_source_key = where[scale_key_for(key)]
+    # The scale first: it is small and owned, so when it sits in another file the
+    # weight's handle is the most recently used one for the whole chunked read.
+    scale = _read_raw_tensor(handles[scale_path], scale_source_key)
     weight_slice = handles[path].get_slice(source_key)
     elements = math.prod(int(dim) for dim in weight_slice.get_shape())
     if elements > _MAX_TENSOR_ELEMENTS:
@@ -2094,7 +2094,6 @@ def _read_fp8_tensor(
             f"tensor {key} is too large for layer streaming "
             f"({elements} elements > {_MAX_TENSOR_ELEMENTS})"
         )
-    scale = _read_raw_tensor(handles[scale_path], scale_source_key)
     try:
         return dequantize_fp8_blockwise(
             weight_slice, scale, block=block, dtype=dtype, key=key

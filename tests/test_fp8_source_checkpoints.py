@@ -496,18 +496,31 @@ class TestRefusals:
         with pytest.raises(ValueError, match="ghost_proj"):
             _shard(tmp_path, tensors)
 
-    def test_companions_split_across_files(self, tmp_path):
-        from soup_cli.utils.layer_shard import shard_checkpoint
+    def test_scale_in_the_next_file_is_decoded(self, tmp_path, monkeypatch):
+        """Not a refusal: DeepSeek-V3 puts 155 of its 45,808 scales in the file
+        after their weight, where a layer crosses a file boundary. Found by the
+        first real-shard run, which this case would otherwise have refused.
+        Run with ONE live handle so the read cannot lean on both files staying
+        open."""
+        import torch
 
-        tensors, _ = _build_fp8_tensors()
+        from soup_cli.utils import layer_shard
+
+        class OneHandle(layer_shard._SourceHandles):
+            def __init__(self, shards, opener, capacity=1):
+                super().__init__(shards, opener, capacity=1)
+
+        monkeypatch.setattr(layer_shard, "_SourceHandles", OneHandle)
+        tensors, reference = _build_fp8_tensors()
         keys = list(tensors)
         files = {
             "model-00001-of-00002.safetensors": [k for k in keys if k != _Q_SCALE],
             "model-00002-of-00002.safetensors": [_Q_SCALE],
         }
         src = _write_checkpoint(tmp_path / "src", tensors, FP8_CONFIG, files)
-        with pytest.raises(ValueError, match="same file"):
-            shard_checkpoint(src, str(tmp_path / "out"), dtype="bfloat16", arch="llama")
+        out = str(tmp_path / "out")
+        layer_shard.shard_checkpoint(src, out, dtype="bfloat16", arch="llama")
+        assert torch.equal(_layer(out, 0)["self_attn.q_proj.weight"], reference[_Q])
 
     @pytest.mark.parametrize(
         "patch, message",
