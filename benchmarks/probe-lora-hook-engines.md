@@ -16,7 +16,9 @@ and `kv_a_proj_with_mqa`, and cannot convert one on `kv_b_proj`; `o_proj` and
 the shared expert are applied exactly. The positive control (Qwen3.5-shaped)
 passed. Runs 1 and 2 were void or without verdict, for instrument reasons
 recorded in §3, and are kept. Run 2 also found that PEFT, on Soup's pinned
-stack, cannot build the shared-expert adapter at all (§3.2).**
+stack, cannot build the shared-expert adapter at all (§3.2). Part A', a draft
+hook of 18 added and 13 removed lines, makes every one of those modules APPLIED
+on the same tiny models: SUFFICIENT under its own rule (§4a-§4b).**
 
 This record answers one question behind the serving-scope decision in
 [`scope-moe-serving.md`](scope-moe-serving.md): if an external engine serves the
@@ -345,6 +347,46 @@ run through the unchanged harness with §2's rule.
 A SUFFICIENT draft says nothing about upstream acceptance, quantised base
 tensors, the GPU backends or a real checkpoint; it measures whether the change
 is a few dozen lines or a project.
+
+## 4b. Part A': results
+
+Both local builds report `version: 0.6.0-dev (build 1, commit 9881906)`, GNU
+15.2.0; the harness is unchanged from run 3 (fingerprint `b0b17e1ea00dcbc4`).
+The patch's SHA-256 was checked again before the patched run and matched.
+
+- **Control, stock local build:** every verdict of both models equals run 3's,
+  with `e_base` 4.8e-7 (`qwen35moe-tiny`) and 4.5e-7 (`dsv3-tiny`). The local
+  toolchain does not change behaviour.
+- **Patched build and converter:** every `dsv3-tiny` variant is APPLIED:
+  `q_a_proj` r = 1.4e-5, `q_b_proj` 1.2e-5, `kv_a_proj_with_mqa` 1.4e-6,
+  `kv_b_proj` 7.4e-7, `o_proj` 1.5e-6, `shared` 2.6e-6, `soup-auto` 6.6e-7,
+  `all` 9.2e-7, `all-but-kv_b` 1.2e-6, all with `ρ` = 1.000. Every
+  `qwen35moe-tiny` verdict equals run 3's.
+
+**Verdict under §4a: SUFFICIENT.** On these tiny models the four failures of
+run 3 are closed by 18 added and 13 removed lines in three files. The patch is
+kept as [`mla-lora-hook-draft.patch`](results/probe-lora-hook-engines/mla-lora-hook-draft.patch)
+(llama.cpp code, MIT; its licence travels with it in
+[`LICENSE-llama.cpp.txt`](results/probe-lora-hook-engines/LICENSE-llama.cpp.txt)).
+It is a measurement instrument, not a proposed upstream change: a pull request
+would need llama.cpp's own tests, review of the DeepSeek-V2-Lite and legacy
+`wkv_b` paths it leaves alone, and the GPU backends.
+
+**An extra arm, decided after the verdict and not part of it.** Parts A and A'
+run without flash attention, so the flash-attention `wv_b` site of the patch was
+not exercised. The same patched build was run once more on `dsv3-tiny` with
+llama.cpp's CPU defaults restored (flash attention, f16 KV cache;
+`part-a2-hook-local-fa-on.*`). Base gap 3.0e-4, inside §2's line. `kv_b_proj`
+is APPLIED (r 7.0e-4), and so are `kv_a_proj_with_mqa`, `o_proj`, `shared`,
+`soup-auto`, `all` and `all-but-kv_b` (r 6.5e-4 to 1.7e-3). `q_a_proj` and
+`q_b_proj` come out WRONG by §2's f32 line, at r = 0.012 and 0.011 with
+`ρ` = 1.0003 and 1.0004 and a cosine of 0.99993 between the two effects. These
+are the two smallest effects in the table (`s_ref` 0.022 and 0.025), and with
+f16 storage in the KV cache the base gap is 600 times the f32 arm's, so an
+error of about 1% of so small an effect is the size the noise predicts. That
+reading is an inference, not a measurement, and the verdicts stand as printed.
+The harness's overall line for this arm reads NO VERDICT only because the
+positive-control model was not part of it.
 
 ## 5. Reproducing
 
