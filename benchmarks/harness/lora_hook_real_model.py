@@ -328,7 +328,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ctx.work.mkdir(parents=True, exist_ok=True)
     clock = Clock()
     result: Dict[str, Any] = {"meta": parity.provenance(ctx)}
-    result["meta"].update({"box": args.box, "machine_before": machine_state(),
+    # provenance() files the parity module's hash under the harness key; record both files.
+    result["meta"]["parity_sha256_16"] = result["meta"].pop("harness_sha256_16")
+    result["meta"].update({"harness_sha256_16": parity.file_sha256(pathlib.Path(__file__))[:16],
+                           "box": args.box, "machine_before": machine_state(),
                            "model": f"{MODEL_REPO}@{MODEL_REVISION}"})
     model_dir = download(args.model_dir)
     clock.mark("model downloaded")

@@ -172,8 +172,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
     parity.configure_logging(args.log)
     trees = [str(item).split("=", 1) for item in args.llama_src]
-    result: Dict[str, Any] = {"harness_sha256_16": parity.harness_fingerprint(),
-                              "reference_env": parity.reference_versions(), "configs": {}}
+    # parity.harness_fingerprint() hashes the imported module only; this file decides the run too.
+    result: Dict[str, Any] = {
+        "harness_sha256_16": parity.file_sha256(pathlib.Path(__file__))[:16],
+        "parity_sha256_16": parity.harness_fingerprint(),
+        "reference_env": parity.reference_versions(),
+        "configs": {},
+    }
     for seed, (label, (repo, revision)) in enumerate(CONFIGS.items()):
         base_dir = args.work_dir / f"{label}-config"
         config = fetch_config(repo, revision, base_dir)
