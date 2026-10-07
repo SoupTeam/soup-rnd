@@ -40,7 +40,8 @@ SHARED = {
 _READ_GGUF = (
     "import sys, json, gguf\n"
     "reader = gguf.GGUFReader(sys.argv[1])\n"
-    "print(json.dumps({t.name: [int(x) for x in t.shape] for t in reader.tensors}))\n"
+    "shapes = {t.name: [int(x) for x in t.shape] for t in reader.tensors}\n"
+    "open(sys.argv[2], 'w').write(json.dumps(shapes))\n"
 )
 
 
@@ -104,8 +105,11 @@ def write_adapter(tensors: Dict[str, Any], targets: Sequence[str], out_dir: path
 
 
 def read_shapes(convert_python: str, gguf_path: pathlib.Path) -> Dict[str, List[int]]:
-    step = parity.run_step([convert_python, "-c", _READ_GGUF, str(gguf_path)])
-    return json.loads(step.stderr_tail.strip().splitlines()[-1])
+    shapes_path = gguf_path.with_suffix(".shapes.json")
+    step = parity.run_step([convert_python, "-c", _READ_GGUF, str(gguf_path), str(shapes_path)])
+    if not step.ok:
+        raise RuntimeError(f"could not read {gguf_path}: {step.stderr_tail}")
+    return json.loads(shapes_path.read_text(encoding="utf-8"))
 
 
 def pair_problems(shapes: Dict[str, List[int]]) -> List[str]:

@@ -470,6 +470,34 @@ without the base weights, and whether the converter half of the hook holds at
 real dimensions. It does not run the engine: the graph half is measured only
 on the tiny models.
 
+## 4e. Part B0 results, and where Part B stands
+
+**Part B0, 2026-10-08.** The first attempt crashed inside the harness, before
+any verdict: the GGUF shape listing was read back from a stdout tail that cut
+it short. The listing now goes through a file; the rerun is the result
+(`part-b0-export-real-configs.*`, harness fingerprint `fef0de9e9bcad8e4`).
+
+| config | modules | stock `b11476` | hook tree |
+|---|---|---|---|
+| Qwen3.5-35B-A3B | 200 | PASS, 200 pairs | PASS, 200 pairs |
+| DeepSeek-V3 | 479 | FAIL, `NotImplementedError` at `kv_b` | PASS, 540 pairs, no problem |
+| Kimi K2 | 485 | FAIL, `NotImplementedError` at `kv_b` | PASS, 546 pairs, no problem |
+
+All three as expected. The hook's pair counts are the module counts plus one
+per layer, because each `kv_b_proj` becomes a `k_b` and a `v_b` pair; every one
+passes the loader's shape check at the real dimensions (128 heads and
+`kv_lora_rank` 512 for DeepSeek-V3, 64 heads for Kimi K2). An adapter for a 671B
+or 1T base therefore exports on a machine that holds only the base's config.
+
+**Part B is blocked, not run.** Two Brev instances were created and deleted
+on 2026-10-07 UTC: GCP `n2d-highmem-16`, from 22:08 to 22:22, and an AWS
+`m8a.medium` SSH probe, from 22:23 to 22:30. Neither could be reached: Brev's
+SSH gateway accepted the TCP connection and closed it before the SSH banner
+(`kex_exchange_identification: Connection closed by remote host`). Ordinary
+outbound SSH from the same machine works. Cost at list price is about $0.19:
+0.22 h × $0.72 plus 0.12 h × $0.08, with the disk negligible. No model was
+downloaded. Part B's rule stands as written in §4c and runs once access works.
+
 ## 5. Reproducing
 
 Two Python 3.12 environments: the reference one is Soup's
