@@ -18,7 +18,12 @@ passed. Runs 1 and 2 were void or without verdict, for instrument reasons
 recorded in §3, and are kept. Run 2 also found that PEFT, on Soup's pinned
 stack, cannot build the shared-expert adapter at all (§3.2). Part A', a draft
 hook of 18 added and 13 removed lines, makes every one of those modules APPLIED
-on the same tiny models: SUFFICIENT under its own rule (§4a-§4b).**
+on the same tiny models: SUFFICIENT under its own rule (§4a-§4b). Part B0, a
+SYNTHETIC adapter on the real DeepSeek-V3 and Kimi K2 configs: with the hook's
+converter it exports from the config alone and passes llama.cpp's loader shape
+checks at real dimensions; the stock converter fails on `kv_b_proj` (§4d-§4e).
+Part B, the real Qwen3.5-35B-A3B in the cloud, is blocked on access to the
+cloud instances and has not run (§4e).**
 
 This record answers one question behind the serving-scope decision in
 [`scope-moe-serving.md`](scope-moe-serving.md): if an external engine serves the
@@ -472,31 +477,50 @@ on the tiny models.
 
 ## 4e. Part B0 results, and where Part B stands
 
-**Part B0, 2026-10-08.** The first attempt crashed inside the harness, before
-any verdict: the GGUF shape listing was read back from a stdout tail that cut
-it short. The listing now goes through a file; the rerun is the result
-(`part-b0-export-real-configs.*`, harness fingerprint `fef0de9e9bcad8e4`).
+**Part B0, 2026-10-08, three runs.** Run 1 crashed inside the harness before
+any verdict: it read the GGUF shape listing back from a stdout tail that cut it
+short (`part-b0-export-real-configs-run1.log`, its console output, kept because
+run 2 overwrote its log file). The listing now goes through a file. Run 2
+completed (`-run2.*`), but the fingerprint it recorded, `fef0de9e9bcad8e4`, is
+that of the imported `lora_hook_parity.py`, not of this harness. The harness now
+records both, `harness_sha256_16` for itself and `parity_sha256_16` for the
+module, and run 3 is the result (`-run3.*`: `f38f10f090c03add` and
+`fef0de9e9bcad8e4`). Runs 2 and 3 agree on every verdict and count.
 
 | config | modules | stock `b11476` | hook tree |
 |---|---|---|---|
 | Qwen3.5-35B-A3B | 200 | PASS, 200 pairs | PASS, 200 pairs |
-| DeepSeek-V3 | 479 | FAIL, `NotImplementedError` at `kv_b` | PASS, 540 pairs, no problem |
-| Kimi K2 | 485 | FAIL, `NotImplementedError` at `kv_b` | PASS, 546 pairs, no problem |
+| DeepSeek-V3 | 479 | FAIL: `NotImplementedError` transposing `k_b` out of `kv_b_proj` | PASS, 540 pairs |
+| Kimi K2 | 485 | FAIL: the same | PASS, 546 pairs |
 
-All three as expected. The hook's pair counts are the module counts plus one
-per layer, because each `kv_b_proj` becomes a `k_b` and a `v_b` pair; every one
-passes the loader's shape check at the real dimensions (128 heads and
-`kv_lora_rank` 512 for DeepSeek-V3, 64 heads for Kimi K2). An adapter for a 671B
-or 1T base therefore exports on a machine that holds only the base's config.
+All six as expected. The stock converter fails at `k_b.transpose(1, 2)`
+(`conversion/deepseek.py` L446), which its LoRA tensor wrapper does not
+implement. With the hook, each `kv_b_proj` becomes a `k_b` and a `v_b` pair, so
+the pair counts are the module counts plus one per layer (61 layers in both
+configs), and every pair passes §4d's shape checks at the real dimensions
+(DeepSeek-V3: 128 heads, `kv_lora_rank` 512; Kimi K2: 64 heads, the same rank).
+With the hook's converter, then, an adapter for a 671B or 1T base exports on a
+machine that holds only the base's `config.json`.
 
-**Part B is blocked, not run.** Two Brev instances were created and deleted
-on 2026-10-07 UTC: GCP `n2d-highmem-16`, from 22:08 to 22:22, and an AWS
-`m8a.medium` SSH probe, from 22:23 to 22:30. Neither could be reached: Brev's
-SSH gateway accepted the TCP connection and closed it before the SSH banner
-(`kex_exchange_identification: Connection closed by remote host`). Ordinary
-outbound SSH from the same machine works. Cost at list price is about $0.19:
-0.22 h × $0.72 plus 0.12 h × $0.08, with the disk negligible. No model was
-downloaded. Part B's rule stands as written in §4c and runs once access works.
+**Part B is blocked and has not run.** Two Brev instances were created and
+deleted on 2026-10-07 (UTC); every command of the attempt and its output are in
+[`part-b-access-attempts.log`](results/probe-lora-hook-engines/part-b-access-attempts.log).
+
+| instance | create command | delete command | list price | cost at list price |
+|---|---|---|---|---|
+| GCP `n2d-highmem-16` (16 vCPU, 128 GB RAM), 300 GB disk | 22:08:45 | 22:22:10 | $0.72/h, disk $0.16 per GB-month | $0.16, disk $0.015 |
+| AWS `m8a.medium` (1 vCPU, 4 GB RAM), SSH probe | 22:23:08 | 22:29:56 | $0.08/h | $0.009 |
+
+About $0.18 in all, counted from each create command to its delete command; the
+bill itself was not seen. Brev reported both instances `READY`, but neither was
+ever reached, so no driver or software version was recorded and no model was
+downloaded. Brev's SSH gateway closed every connection before the SSH banner
+(`kex_exchange_identification: Connection closed by remote host`), and port 22
+of both instances timed out. `brev refresh` changed nothing; `brev enable-ssh`
+asks for `brev register`, which makes the local machine a Brev node and does
+not bear on reaching an instance. Outbound SSH from the same machine works
+(`github.com:22`). Part B's rule stands as written in §4c and runs once access
+works.
 
 ## 5. Reproducing
 

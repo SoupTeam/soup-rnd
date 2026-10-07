@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "C:\Users\sydyk\Downloads\soup-rnd\benchmarks\harness\lora_export_real_configs.py", line 197, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\Users\sydyk\Downloads\soup-rnd\benchmarks\harness\lora_export_real_configs.py", line 186, in main
+    entry[tag] = check(label, config, ctx, adapter_dir, base_dir, tag)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sydyk\Downloads\soup-rnd\benchmarks\harness\lora_export_real_configs.py", line 150, in check
+    shapes = read_shapes(ctx.convert_python, out_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sydyk\Downloads\soup-rnd\benchmarks\harness\lora_export_real_configs.py", line 108, in read_shapes
+    return json.loads(step.stderr_tail.strip().splitlines()[-1])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sydyk\AppData\Local\Python\pythoncore-3.12-64\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sydyk\AppData\Local\Python\pythoncore-3.12-64\Lib\json\decoder.py", line 341, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 1 column 3 (char 2)
