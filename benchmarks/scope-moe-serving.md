@@ -40,6 +40,22 @@ Why:
   not run), memory-maps GGUF files so routed experts can stay on SSD, loads
   adapters unmerged, and is MIT-licensed.
 
+Set aside, with the reason (details in the evidence appendix, §3):
+
+- **Strata.** It serves one model family of its own, needs 12 GB of VRAM or
+  more, and no adapter path was found in it. For Strata the "hook" would be a
+  DeepSeek-V3 port.
+- **ik_llama.cpp.** Its expert read-ahead is Linux-only, it refuses runtime LoRA
+  with flash attention, and its routing for DeepSeek-V3 is not V3's grouped
+  routing.
+- **KTransformers.** Its wheels are Linux x86-64 only. Its MLA `kv_b` adapter
+  correction runs only for composite routed-expert adapters; the fix is
+  estimated at 100-250 lines. This is the fallback if Linux is acceptable.
+- **SSD-LLaMA, Colibrì, SGLang SSD Expert Pack.** No released code, or no
+  DeepSeek-V3/K2 support.
+- **vLLM, SGLang, TensorRT-LLM.** No SSD tier: CPU offload is unified memory or
+  layer prefetch, so the experts would have to fit in RAM. Linux or WSL only.
+
 ## User scenario
 
 A Soup user fine-tunes an attention adapter (optionally with the shared expert)
