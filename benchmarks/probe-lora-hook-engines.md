@@ -319,6 +319,33 @@ its own (`soup export` merges today), and PEFT has to be stopped from rewriting
 shared-expert targets (§3.2) before a shared-expert adapter can be trained at
 all.
 
+## 4a. Part A': is a small hook enough? Rule written before the run
+
+A draft hook, written against `b11476` after run 3: 3 files, 18 lines added and
+13 removed (`convert_lora_to_gguf.py` +8/-3, `src/models/deepseek2.cpp` +8/-8,
+`src/llama-graph.cpp` +2/-2). It routes `wq_a`, `wq_b`, `wkv_a_mqa` and the
+absorbed `wk_b` through `build_lora_mm` in the main and MTP graphs, does the
+same for `wv_b` at both attention-helper sites, and teaches the adapter
+converter the batched transpose of the last two dimensions that `k_b` needs:
+`(B·A)ᵀ = Aᵀ·Bᵀ` per head, so the two factors swap roles. The patch under test
+is fixed by its SHA-256,
+`80851e0bcb5ac775e7918799333eb6e0210948132e9f8d18238caec0d5fe1c09`, and is not
+edited between the control and the patched run.
+
+Both builds come from the same local toolchain (MinGW-w64 GCC 15.2.0, CMake
+4.4.4, Ninja, CPU only, `GGML_NATIVE=ON`) out of the same `b11476` checkout, and
+run through the unchanged harness with §2's rule.
+
+| condition | outcome |
+|---|---|
+| the stock local build does not reproduce run 3's verdict for every variant of both models | **NO VERDICT**: the local build changes behaviour, so nothing about the patch can be read |
+| with the patched build and converter, every `dsv3-tiny` variant (the five MLA projections, `shared`, `soup-auto`, `all`, `all-but-kv_b`) is APPLIED and every `qwen35moe-tiny` verdict equals run 3's | **SUFFICIENT**: this hook alone serves the adapter shape on these tiny models |
+| otherwise | **INSUFFICIENT**: the variants that are not APPLIED name what is still missing |
+
+A SUFFICIENT draft says nothing about upstream acceptance, quantised base
+tensors, the GPU backends or a real checkpoint; it measures whether the change
+is a few dozen lines or a project.
+
 ## 5. Reproducing
 
 Two Python 3.12 environments: the reference one is Soup's
