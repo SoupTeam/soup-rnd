@@ -91,6 +91,14 @@ class LoraConfig(BaseModel):
         default="auto",
         description="Target modules for LoRA. 'auto' = let peft decide.",
     )
+    top_k_layers: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Apply LoRA only to the last K transformer layers. "
+            "None means all layers."
+        ),
+    )
     target_parameters: Optional[Union[Literal["auto"], List[str]]] = Field(
         default=None,
         description=(

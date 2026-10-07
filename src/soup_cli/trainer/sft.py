@@ -1828,12 +1828,21 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             target_modules = resolve_moe_lora_targets(
                 self.model, tcfg, target_modules, console
             )
+            from soup_cli.utils.peft_wiring import resolve_top_k_layers
 
+            layers_to_transform = None
+
+            if tcfg.lora.top_k_layers is not None:
+                layers_to_transform = resolve_top_k_layers(
+                    self.model,
+                    tcfg.lora.top_k_layers,
+                )
             lora_config = build_lora_config(
                 tcfg.lora,
                 target_modules=target_modules,
                 target_parameters=target_parameters,
                 task_type=TaskType.CAUSAL_LM,
+                layers_to_transform=layers_to_transform,
             )
             # v0.39.0 Part D / v0.40.6 #67 — surgical PEFT patches via shared helpers.
             from soup_cli.utils.peft_wiring import (
