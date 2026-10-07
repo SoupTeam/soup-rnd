@@ -20,6 +20,7 @@ statement about a trained model.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import logging
@@ -30,7 +31,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -47,6 +48,10 @@ LORA_ALPHA = 16
 B_STD = 0.02
 B_STD_RETRY_FACTOR = 4.0
 MAX_SEEDS = 3
+
+# llama.cpp's CPU defaults are flash attention and an f16 KV cache, which leave a ~3e-4
+# base gap on dsv3-tiny (diagnosed after run 1); these make the engine f32 end to end.
+ENGINE_F32_FLAGS = ("-fa", "off", "-ctk", "f32", "-ctv", "f32")
 
 DEFAULT_PROMPT = (
     "Soup trains the adapter on a laptop; the engine has to apply it to every "
@@ -89,6 +94,10 @@ class ModelSpec:
     tokenizer_files: Tuple[str, ...]
     vocab_size: int
     make_config: Callable[[int], Any]
+    # Keys the real checkpoint's config.json carries but transformers does not
+    # serialise from its own config class; llama.cpp's converter reads them.
+    config_extras: Tuple[Tuple[str, Any], ...] = ()
+    convert_flags: Tuple[str, ...] = ()
 
 
 def dsv3_tiny_config(vocab_size: int) -> Any:
@@ -144,7 +153,9 @@ def qwen35moe_tiny_config(vocab_size: int) -> Any:
         num_experts_per_tok=2,
         moe_intermediate_size=32,
         shared_expert_intermediate_size=32,
-        mtp_num_hidden_layers=0,
+        # As in the real config. transformers builds no MTP block from it, while
+        # convert_lora_to_gguf.py asserts the config declares one for Qwen3.5.
+        mtp_num_hidden_layers=1,
         max_position_embeddings=512,
         tie_word_embeddings=False,
         rope_parameters={
@@ -165,6 +176,10 @@ MODELS: Dict[str, ModelSpec] = {
         tokenizer_files=("tokenizer.json", "tokenizer_config.json"),
         vocab_size=129280,
         make_config=dsv3_tiny_config,
+        # deepseek-ai/DeepSeek-V3@e815299b config.json carries both; without
+        # scoring_func the converter writes no gating function and llama.cpp
+        # routes with softmax where the checkpoint routes with sigmoid.
+        config_extras=(("scoring_func", "sigmoid"), ("topk_method", "noaux_tc")),
     ),
     "qwen35moe-tiny": ModelSpec(
         label="qwen35moe-tiny",
@@ -173,6 +188,9 @@ MODELS: Dict[str, ModelSpec] = {
         tokenizer_files=("tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt"),
         vocab_size=248320,
         make_config=qwen35moe_tiny_config,
+        # The checkpoint holds no MTP weights (see above), so the base converter is
+        # told not to look for them.
+        convert_flags=("--no-mtp",),
     ),
 }
 
@@ -319,10 +337,44 @@ def build_model(spec: ModelSpec, seed: int, out_dir: pathlib.Path) -> None:
     import torch
     from transformers import AutoModelForCausalLM
 
+    config = spec.make_config(spec.vocab_size)
+    for key, value in spec.config_extras:
+        setattr(config, key, value)
     torch.manual_seed(seed)
-    model = AutoModelForCausalLM.from_config(spec.make_config(spec.vocab_size))
+    model = AutoModelForCausalLM.from_config(config)
     model.save_pretrained(out_dir, safe_serialization=True)
     fetch_tokenizer(spec, out_dir)
+
+
+@contextlib.contextmanager
+def targets_as_named() -> Iterator[None]:
+    """Keep LoRA targets exactly as named while PEFT builds or loads an adapter.
+
+    peft 0.21 rewrites, on transformers-v5 MoE model types (``deepseek_v3`` among
+    them), every target ending in ``gate_proj``/``up_proj``/``down_proj`` into the
+    ROUTED experts' fused parameters. ``shared_experts.gate_proj`` then adapts all
+    routed experts and not the shared expert (run 2 of the record). The probe tests
+    the engine on the adapter Soup's policy intends, so the rewrite is switched off.
+    """
+    from peft.utils import transformers_weight_conversion as conversion
+
+    original = conversion.convert_peft_config_for_transformers
+    conversion.convert_peft_config_for_transformers = lambda *args, **kwargs: None
+    try:
+        yield
+    finally:
+        conversion.convert_peft_config_for_transformers = original
+
+
+def adapter_modules(adapter_dir: pathlib.Path) -> List[str]:
+    """The base modules an adapter file actually carries LoRA factors for."""
+    from safetensors import safe_open
+
+    with safe_open(str(adapter_dir / "adapter_model.safetensors"), "np") as handle:
+        keys = list(handle.keys())
+    prefix = "base_model.model."
+    names = {key.split(".lora_")[0].removeprefix(prefix) for key in keys}
+    return sorted(names)
 
 
 def make_adapter(
@@ -338,14 +390,15 @@ def make_adapter(
         r=LORA_RANK, lora_alpha=LORA_ALPHA, lora_dropout=0.0, target_modules=list(targets)
     )
     torch.manual_seed(seed)  # PEFT draws lora_A from the global generator
-    peft_model = get_peft_model(model, config)
-    generator = torch.Generator().manual_seed(seed)
-    with torch.no_grad():
-        for name, param in sorted(peft_model.named_parameters()):
-            if ".lora_B." in name:
-                param.copy_(torch.randn(param.shape, generator=generator) * b_std)
-    peft_model.save_pretrained(out_dir)
-    return sorted(peft_model.targeted_module_names)
+    with targets_as_named():
+        peft_model = get_peft_model(model, config)
+        generator = torch.Generator().manual_seed(seed)
+        with torch.no_grad():
+            for name, param in sorted(peft_model.named_parameters()):
+                if ".lora_B." in name:
+                    param.copy_(torch.randn(param.shape, generator=generator) * b_std)
+        peft_model.save_pretrained(out_dir)
+    return adapter_modules(out_dir)
 
 
 def reference_logits(
@@ -362,7 +415,8 @@ def reference_logits(
             return model(input_ids=ids).logits[0].numpy(), None
     from peft import PeftModel
 
-    peft_model = PeftModel.from_pretrained(model, adapter_dir).eval()
+    with targets_as_named():
+        peft_model = PeftModel.from_pretrained(model, adapter_dir).eval()
     with torch.no_grad():
         on = peft_model(input_ids=ids).logits[0].numpy()
         with peft_model.disable_adapter():
@@ -370,11 +424,12 @@ def reference_logits(
     return on, off
 
 
-def convert_base(ctx: Context, model_dir: pathlib.Path, out: pathlib.Path) -> Step:
+def convert_base(
+    ctx: Context, model_dir: pathlib.Path, out: pathlib.Path, flags: Sequence[str] = ()
+) -> Step:
     script = ctx.llama_src / "convert_hf_to_gguf.py"
-    return run_step(
-        [ctx.convert_python, str(script), str(model_dir), "--outtype", "f32", "--outfile", str(out)]
-    )
+    command = [ctx.convert_python, str(script), str(model_dir), *flags]
+    return run_step(command + ["--outtype", "f32", "--outfile", str(out)])
 
 
 def convert_adapter(
@@ -405,7 +460,7 @@ def engine_logits(
 ) -> Tuple[Step, Optional[np.ndarray], Optional[np.ndarray]]:
     """Token ids and logits of every prompt position, as llama-results writes them."""
     command = [str(results_binary(ctx.llama_bin)), "-m", str(gguf), "-p", ctx.prompt]
-    command += ["-o", str(out), "-t", str(ctx.threads), "-c", "512"]
+    command += ["-o", str(out), "-t", str(ctx.threads), "-c", "512", *ENGINE_F32_FLAGS]
     if lora is not None:
         command += ["--lora", str(lora)]
     step = run_step(command)
@@ -447,6 +502,8 @@ def run_variant(
     for attempt, b_std in enumerate((B_STD, B_STD * B_STD_RETRY_FACTOR)):
         adapter_dir = ctx.work / f"{base.model_dir.name}-adapters" / f"{name}-b{attempt}"
         out["adapted_modules"] = make_adapter(base.model_dir, targets, seed, b_std, adapter_dir)
+        # The probe's premise: routed experts stay frozen. A target rewrite would break it.
+        out["touches_routed_experts"] = any(".mlp.experts" in m for m in out["adapted_modules"])
         z_ref1, z_off = reference_logits(base.model_dir, base.tokens, adapter_dir)
         out["lora_b_std"] = b_std
         out["reference_disabled_is_base"] = bool(np.array_equal(z_off, base.z_ref0))
@@ -485,7 +542,7 @@ def prepare_base(ctx: Context, spec: ModelSpec, seed: int) -> Tuple[Dict[str, An
     build_model(spec, seed, model_dir)
     gguf = model_dir.with_suffix(".f32.gguf")
     attempt: Dict[str, Any] = {"seed": seed, "model_dir": model_dir.name}
-    conversion = convert_base(ctx, model_dir, gguf)
+    conversion = convert_base(ctx, model_dir, gguf, spec.convert_flags)
     attempt["convert_base"] = vars(conversion)
     if not conversion.ok:
         attempt["status"] = "VOID"
