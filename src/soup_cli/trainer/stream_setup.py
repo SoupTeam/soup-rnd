@@ -1037,10 +1037,34 @@ class StreamingSetupMixin:
         if moe_targets:
             # Already announced by resolve_moe_lora_targets when the probe ran.
             target_modules = moe_targets
+        layers_to_transform = None
+
+        if tcfg.lora.top_k_layers is not None:
+            total_layers = getattr(model_config, "num_hidden_layers", None)
+
+            if not isinstance(total_layers, int) or total_layers < 1:
+                raise ValueError(
+                    "E2: Cannot determine decoder layer count "
+                    "from model configuration."
+                )
+
+            top_k = tcfg.lora.top_k_layers
+
+            if top_k > total_layers:
+                raise ValueError(
+                    f"E2: top_k_layers={top_k} exceeds "
+                    f"model layers={total_layers}"
+                )
+
+            layers_to_transform = list(
+                range(total_layers - top_k, total_layers)
+            )
+
         lora_config = build_lora_config(
             tcfg.lora,
             target_modules=target_modules,
             task_type=TaskType.CAUSAL_LM,
+            layers_to_transform=layers_to_transform,
         )
 
         # #366 / #434 — CUDA host pinning is inapplicable on every non-CUDA

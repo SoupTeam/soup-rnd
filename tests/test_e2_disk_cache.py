@@ -1,8 +1,9 @@
 
 import torch
-
+import pytest
 from soup_cli.utils.frozen_prefix_cache import (
     FrozenPrefixCache,
+    build_cache_metadata,
     cache_key,
 )
 
@@ -71,3 +72,88 @@ def test_cache_invalidated_when_input_changes(tmp_path):
     changed["input_ids"] = [1, 2, 3, 5]
 
     assert cache.load(changed) is None
+
+
+
+
+def test_automatic_cache_invalidation(tmp_path):
+    cache = FrozenPrefixCache(tmp_path)
+
+    inputs = torch.tensor([[1, 2, 3, 4]])
+    changed_inputs = torch.tensor([[1, 2, 3, 5]])
+
+    common = {
+        "model_revision": "tiny-mistral-v1",
+        "frozen_prefix_fingerprint": "weights-v1",
+        "config_fingerprint": "config-v1",
+        "cutoff": 2,
+    }
+
+    metadata = build_cache_metadata(
+        **common,
+        input_ids=inputs,
+    )
+
+    activation = torch.randn(1, 4, 64)
+    cache.save(activation, metadata)
+
+    assert torch.equal(cache.load(metadata), activation)
+
+    changed_metadata = build_cache_metadata(
+        **common,
+        input_ids=changed_inputs,
+    )
+
+    assert cache.load(changed_metadata) is None
+
+    changed_weights = build_cache_metadata(
+        **{**common, "frozen_prefix_fingerprint": "weights-v2"},
+        input_ids=inputs,
+    )
+
+    assert cache.load(changed_weights) is None
+
+    changed_mask = build_cache_metadata(
+        **common,
+        input_ids=inputs,
+        attention_mask=torch.tensor([[1, 1, 1, 0]]),
+    )
+
+    assert cache.load(changed_mask) is None
+
+
+def test_atomic_cache_save(tmp_path):
+    cache = FrozenPrefixCache(tmp_path)
+
+    metadata = {
+        "model": "tiny-mistral",
+        "revision": "v1",
+        "cutoff": 2,
+    }
+
+    activation = torch.randn(1, 4, 64)
+
+    path = cache.save(activation, metadata)
+
+    assert path.exists()
+    assert torch.equal(cache.load(metadata), activation)
+
+    temporary_files = list(tmp_path.glob(".e2-cache-*.tmp"))
+    assert temporary_files == []
+
+def test_corrupted_cache_is_rejected(tmp_path):
+    cache = FrozenPrefixCache(tmp_path)
+
+    metadata = {
+        "model": "tiny-mistral",
+        "revision": "v1",
+        "cutoff": 2,
+    }
+
+    path = cache.save(torch.randn(1, 4, 64), metadata)
+
+    # Simulate a corrupted cache file.
+    path.write_bytes(b"corrupted-cache")
+
+    with pytest.raises(Exception):
+        cache.load(metadata)
