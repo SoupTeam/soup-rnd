@@ -425,11 +425,15 @@ def reference_logits(
 
 
 def convert_base(
-    ctx: Context, model_dir: pathlib.Path, out: pathlib.Path, flags: Sequence[str] = ()
+    ctx: Context,
+    model_dir: pathlib.Path,
+    out: pathlib.Path,
+    flags: Sequence[str] = (),
+    outtype: str = "f32",
 ) -> Step:
     script = ctx.llama_src / "convert_hf_to_gguf.py"
     command = [ctx.convert_python, str(script), str(model_dir), *flags]
-    return run_step(command + ["--outtype", "f32", "--outfile", str(out)])
+    return run_step(command + ["--outtype", outtype, "--outfile", str(out)])
 
 
 def convert_adapter(

@@ -388,6 +388,61 @@ reading is an inference, not a measurement, and the verdicts stand as printed.
 The harness's overall line for this arm reads NO VERDICT only because the
 positive-control model was not part of it.
 
+## 4c. Part B: the real Qwen3.5-35B-A3B in the cloud. Rule written before the run
+
+Part A's verdicts come from tiny random models. Part B asks whether the same
+engine path holds on the real test model, with the adapter exported on its own
+and the routed experts served from host RAM.
+
+- **Model:** `Qwen/Qwen3.5-35B-A3B@59d61f3c` (bf16, 71.9 GB, Apache-2.0). For
+  this config transformers builds `Qwen3_5MoeForCausalLM`, the text tower.
+- **Adapters, SYNTHETIC:** Part A's recipe (PEFT LoRA, `r` 8, `lora_alpha` 16,
+  `lora_B` ~ N(0, 0.02) from a seeded generator, one 4x redraw if `s_ref` <
+  0.01). Two variants: `soup-auto`, Soup's Qwen3.5 policy (`q_proj`, `v_proj`,
+  `in_proj_qkv`, `out_proj`), and `soup-auto+shared`, which adds
+  `shared_expert.{gate,up,down}_proj`.
+- **Export:** adapter only, through `convert_lora_to_gguf.py --base <checkpoint>`,
+  which reads the base config and not its weights; f32.
+- **Engine:** llama.cpp `b11476`, built from the tag on the instance (Linux,
+  CPU). Base converted with `--outtype bf16 --no-mtp`, weights memory-mapped
+  from the local disk, so the routed experts are served from host RAM;
+  `-fa off -ctk f32 -ctv f32`.
+- **Reference:** transformers 5.19.0 + PEFT 0.21.2 on the CPU in bf16. An fp32
+  copy (about 140 GB) does not fit in the box's 128 GB.
+- **Box:** NVIDIA Brev, GCP `n2d-highmem-16` (16 vCPU, 128 GB RAM, no GPU),
+  disk of at least 300 GB.
+- **Harness:** [`lora_hook_real_model.py`](harness/lora_hook_real_model.py),
+  which reuses Part A's engine runner and metrics.
+
+Both sides run bf16, so §2's f32 lines do not apply. The tolerance is set by
+how much the two base models disagree:
+
+- `n_base = ‖z_eng⁰ − z_ref⁰‖ / ‖z_ref⁰‖`, and top-1 agreement over positions;
+- the floor `f = ‖z_eng⁰ − z_ref⁰‖ / ‖Δ_ref‖`, the base gap in units of the
+  adapter's effect, and the tolerance `t = 3f + 0.02`.
+
+| condition | verdict |
+|---|---|
+| top-1 agreement < 0.9, or `n_base` > 0.05, or either side not deterministic | **VOID** |
+| `s_ref` < 0.01 after the redraw | **TOO WEAK** |
+| the converter fails / the engine refuses the adapter | **CONVERT-FAILED** / **LOAD-FAILED** |
+| `t` > 0.5 | **TOO NOISY**: the band would admit a dropped adapter (`r` = 1) |
+| `r` ≤ `t` | **APPLIED** |
+| `ρ` ≤ 0.1 | **DROPPED** |
+| otherwise | **WRONG** |
+
+Why `3f`: an engine that applies the adapter correctly still differs from the
+reference by about one base gap with the adapter and one without, so its error
+on the effect is about `2f`. `3f + 0.02` leaves room for that and for nothing
+like a dropped (`r` = 1) or half-applied (`r` ≈ 0.5) adapter, as long as `t`
+stays at or below 0.5. Expected from Part A: both variants APPLIED.
+
+The stage's cloud budget is $10. The instance is deleted after the run and
+the record gives the instance type, versions, wall times and the cost
+(hours times list price, plus disk). If the reference cannot finish inside the
+budget, Part B records how the engine takes the adapter (steps, memory,
+versions) and correctness stays with Part A.
+
 ## 5. Reproducing
 
 Two Python 3.12 environments: the reference one is Soup's
