@@ -552,3 +552,66 @@ python benchmarks/harness/lora_hook_parity.py \
 The tokenizers are fetched from the Hub at the revisions in §1; the models and
 adapters are built from seeds, so nothing else is downloaded. Wall time on this
 box: about 6.5 minutes.
+
+Run 3 and every Part A' run used the harness as committed in `4552ce82`
+(fingerprint `b0b17e1ea00dcbc4`). Its one later change, in `5e1c34a7`, gives
+`convert_base` an `outtype` argument for Part B whose default, `f32`, is the
+value those runs used, so the current file takes the same steps under
+fingerprint `fef0de9e9bcad8e4`. The file those runs used is
+`git show 4552ce82:benchmarks/harness/lora_hook_parity.py`.
+
+**Part A'.** A second checkout of the same tag with the draft patch applied,
+and a CPU-only build of both trees (run here with MinGW-w64 GCC 15.2.0, and
+CMake 4.4.4 and Ninja 1.13.2 installed with pip):
+
+```bash
+git clone --depth 1 --branch b11476 https://github.com/ggml-org/llama.cpp <hook-src>
+git -C <hook-src> apply "$PWD/benchmarks/results/probe-lora-hook-engines/mla-lora-hook-draft.patch"
+# once for <llama-src> into <stock-build>, once for <hook-src> into <hook-build>
+cmake -S <tree> -B <build> -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON \
+  -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+  -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_CURL=OFF
+cmake --build <build> --target llama-results
+python benchmarks/harness/lora_hook_parity.py --llama-bin <stock-build>/bin \
+  --llama-src <llama-src> --convert-python <convert-venv>/bin/python \
+  --work-dir <scratch-stock> --models qwen35moe-tiny,dsv3-tiny --seed 17 --threads 4 \
+  --out benchmarks/results/probe-lora-hook-engines/part-a2-stock-local.json \
+  --log benchmarks/results/probe-lora-hook-engines/part-a2-stock-local.log
+python benchmarks/harness/lora_hook_parity.py --llama-bin <hook-build>/bin \
+  --llama-src <hook-src> --convert-python <convert-venv>/bin/python \
+  --work-dir <scratch-hook> --models qwen35moe-tiny,dsv3-tiny --seed 17 --threads 4 \
+  --out benchmarks/results/probe-lora-hook-engines/part-a2-hook-local.json \
+  --log benchmarks/results/probe-lora-hook-engines/part-a2-hook-local.log
+```
+
+The flash-attention arm (`part-a2-hook-local-fa-on.*`) is the same harness
+with `ENGINE_F32_FLAGS` replaced by `("-fa", "on")`, which also leaves the KV
+cache at llama.cpp's default f16. It ran on `dsv3-tiny` only:
+
+```bash
+python - --llama-bin <hook-build>/bin --llama-src <hook-src> \
+  --convert-python <convert-venv>/bin/python --work-dir <scratch-fa> \
+  --models dsv3-tiny --seed 17 --threads 4 \
+  --out benchmarks/results/probe-lora-hook-engines/part-a2-hook-local-fa-on.json \
+  --log benchmarks/results/probe-lora-hook-engines/part-a2-hook-local-fa-on.log <<'EOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location(
+    "lora_hook_parity", "benchmarks/harness/lora_hook_parity.py")
+harness = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = harness
+spec.loader.exec_module(harness)
+harness.ENGINE_F32_FLAGS = ("-fa", "on")
+raise SystemExit(harness.main(sys.argv[1:]))
+EOF
+```
+
+**Part B0.** No engine is needed; only the three configs are downloaded. Wall
+time on this box: about 100 seconds.
+
+```bash
+python benchmarks/harness/lora_export_real_configs.py \
+  --convert-python <convert-venv>/bin/python \
+  --llama-src stock=<llama-src> --llama-src hook=<hook-src> --work-dir <scratch> \
+  --out benchmarks/results/probe-lora-hook-engines/part-b0-export-real-configs-run3.json \
+  --log benchmarks/results/probe-lora-hook-engines/part-b0-export-real-configs-run3.log
+```
