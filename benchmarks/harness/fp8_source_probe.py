@@ -68,6 +68,51 @@ def _independent_decode(q, scale, block, table):
     return out
 
 
+def _stage_without(source: Path, staged: Path, exclude: set) -> dict:
+    """Copy ``source`` to ``staged`` with the ``exclude`` keys left out.
+
+    Tensor bytes are copied verbatim by offset (no decode, no re-encode); only
+    the header and the file layout change. Needed because no prefix of the
+    DeepSeek-V3 files is closed: each one leaves a weight whose scale is in the
+    next file, which the sharder rightly refuses.
+    """
+    import shutil
+    import struct
+
+    staged.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source / "config.json", staged / "config.json")
+    dropped = []
+    for path in sorted(source.glob("*.safetensors")):
+        with open(path, "rb") as src:
+            header_len = struct.unpack("<Q", src.read(8))[0]
+            header = json.loads(src.read(header_len))
+            base = 8 + header_len
+            metadata = header.pop("__metadata__", None)
+            kept = [(k, v) for k, v in header.items() if k not in exclude]
+            dropped += [k for k in header if k in exclude]
+            new_header, offset = {}, 0
+            for key, entry in kept:
+                size = entry["data_offsets"][1] - entry["data_offsets"][0]
+                new_header[key] = {**entry, "data_offsets": [offset, offset + size]}
+                offset += size
+            if metadata is not None:
+                new_header["__metadata__"] = metadata
+            blob = json.dumps(new_header, separators=(",", ":")).encode()
+            blob += b" " * (-len(blob) % 8)
+            with open(staged / path.name, "wb") as dst:
+                dst.write(struct.pack("<Q", len(blob)))
+                dst.write(blob)
+                for _key, entry in kept:
+                    start, stop = entry["data_offsets"]
+                    src.seek(base + start)
+                    remaining = stop - start
+                    while remaining:
+                        chunk = src.read(min(remaining, 64 * 2**20))
+                        dst.write(chunk)
+                        remaining -= len(chunk)
+    return {"excluded": sorted(dropped), "staged_dir": str(staged)}
+
+
 def _box(repo: Path, out_dir: Path) -> dict:
     import bitsandbytes
     import safetensors
@@ -120,6 +165,12 @@ def main(argv=None) -> int:
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--double-quant", choices=("on", "off"), default="on")
     parser.add_argument("--json", required=True, type=Path)
+    parser.add_argument(
+        "--exclude-key",
+        action="append",
+        default=[],
+        help="stage the source without this tensor (bytes of every other tensor kept)",
+    )
     args = parser.parse_args(argv)
 
     import torch
@@ -140,6 +191,14 @@ def main(argv=None) -> int:
     repo = Path(__file__).resolve().parents[2]
     result = {"rule": "benchmarks/gate-b3-fp8-source.md section 1", "label": "REAL"}
     result["box"] = _box(repo, args.out)
+    if args.exclude_key:
+        staged = args.out.parent / (args.out.name + "-staged-source")
+        result["staging"] = _stage_without(args.source, staged, set(args.exclude_key))
+        missing = set(args.exclude_key) - set(result["staging"]["excluded"])
+        if missing:
+            print(f"--exclude-key not found in source: {sorted(missing)}", file=sys.stderr)
+            return 2
+        args.source = staged
     config = load_fp8_source_config(str(args.source))
     if config is None:
         print("source has no fp8 quantization_config", file=sys.stderr)
