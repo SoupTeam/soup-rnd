@@ -443,6 +443,33 @@ the record gives the instance type, versions, wall times and the cost
 budget, Part B records how the engine takes the adapter (steps, memory,
 versions) and correctness stays with Part A.
 
+## 4d. Part B0: exporting the adapter alone for the real configs. Rule written before the run
+
+Soup's export has to work on a laptop for a 671B or 1T base whose weights are
+not on it. Part B0 checks the converter half of that, at real dimensions, with
+a directory that holds only the model's `config.json`.
+
+- **Configs:** `Qwen/Qwen3.5-35B-A3B@59d61f3c`, `deepseek-ai/DeepSeek-V3@e815299b`,
+  `moonshotai/Kimi-K2-Instruct@fd1984e2`.
+- **Adapters, SYNTHETIC:** factors drawn from a seeded generator for every layer
+  of Soup's `target_modules: auto` plus the shared expert, `r` 8. Shapes come
+  from a meta-device model of each config (no weights): 200 modules for
+  Qwen3.5, 479 for DeepSeek-V3, 485 for Kimi K2.
+- **Converters:** the stock `b11476` tree, and the Part A' hook tree (patch
+  SHA-256 `80851e0b…`), both run in the same converter environment.
+- **Harness:** [`lora_export_real_configs.py`](harness/lora_export_real_configs.py).
+
+| condition | verdict |
+|---|---|
+| the converter exits 0; every `lora_a` has its `lora_b` and both carry rank 8; and for the `deepseek2` configs, every layer has `attn_k_b` and `attn_v_b` pairs whose outer dimensions match the base tensors (`k_b`: ne0 = `qk_nope_head_dim`, ne1 = `kv_lora_rank`; `v_b`: ne0 = `kv_lora_rank`, ne1 = `v_head_dim`), which is llama.cpp's own loader check | **PASS** |
+| otherwise | **FAIL** |
+
+Expected: stock, Qwen3.5 PASS and both DeepSeek-family configs FAIL at
+`kv_b`; hook, all three PASS. This says whether an adapter-only export works
+without the base weights, and whether the converter half of the hook holds at
+real dimensions. It does not run the engine: the graph half is measured only
+on the tiny models.
+
 ## 5. Reproducing
 
 Two Python 3.12 environments: the reference one is Soup's
