@@ -1,6 +1,6 @@
 # B3 gate: block-scaled FP8 source checkpoints
 
-Branch `b3-fp8-source` on `SoupTeam/soup-rnd`, tree `71d4cd4` (base `9aa43bd`).
+Branch `b3-fp8-source` on `SoupTeam/soup-rnd`. Rule committed at `fcbd15a`, before any run; counted runs at `79a4d3f`. Base `9aa43bd`.
 Harness: [`harness/fp8_source_probe.py`](harness/fp8_source_probe.py).
 Card: B3 "Читать FP8 checkpoint и готовить NF4 веса" (rndTASK.pdf p. 5).
 
@@ -52,11 +52,119 @@ different box and source format: 138 GB -> 36.4 GB in 217 s.
 
 ## 2. Box
 
-_Filled from the harness JSON after the run._
+| Field | Value |
+|---|---|
+| Machine | Shared cloud sandbox, not the team dev box (rule V2) |
+| CPU | Intel Xeon @ 2.10 GHz, 2 logical CPUs, torch threads 2 |
+| RAM | 8.42 GB total |
+| Disk free at start | 17.8 GB (DQ on run), 9.0 GB (DQ off run) |
+| OS | Linux 6.18.44, glibc 2.39 |
+| Python / torch / bitsandbytes / safetensors | 3.12.3 / 2.14.1+cu130 (no GPU) / 0.50.2 / 0.8.0 |
+| Tree | `79a4d3f`, `src/` clean in both runs |
+| When | 2026-10-07 14:03 UTC (DQ on), 14:07 UTC (DQ off) |
+
+**Source (REAL).** `deepseek-ai/DeepSeek-V3`, `model-00001-of-000163.safetensors`
+(5,234,139,343 bytes, header and size checked complete) and its `config.json`
+(`quant_method: fp8`, `fmt: e4m3`, `weight_block_size: [128, 128]`).
+It holds layers 0 to 2 complete (dense) and layer 3 PARTIAL: attention, the
+shared expert and 32 of 256 routed experts (rule V3).
+
+**Staging.** No prefix of the DeepSeek-V3 files is closed: files 1, 1..2 and
+1..3 each leave exactly one weight whose scale is in the next file (from the
+official `model.safetensors.index.json`). For file 1 that weight is
+`model.layers.3.mlp.experts.31.up_proj.weight`. The harness copies the file
+byte for byte without that one tensor (`--exclude-key`, offsets rewritten,
+every other tensor's bytes verified identical on a synthetic copy). 126 FP8
+weights remain: 8 in each of layers 0 to 2, 102 in layer 3. 5,219,459,160
+source bytes.
 
 ## 3. Results
 
-_Filled after the run._
+### Void runs, kept (rule V4)
+
+| # | Tree | What happened | Measured |
+|---|---|---|---|
+| void-01 | `354f204` | The sharder refused `--out` outside `$HOME` / `$CWD` / `$TMPDIR` (here `$HOME` is `/root`). Harness invocation error. | Nothing |
+| void-02 | `354f204` | Refused: `experts.31.up_proj.weight` had no scale in file 1. Correct refusal of an incomplete source, and it exposed a design error (below). | Nothing |
+
+**Finding from void-02, fixed before any counted run.** The official index puts
+**155 of DeepSeek-V3's 45,808 scales in the file after their weight**, where a
+layer crosses a file boundary. The design's "weight and scale in the same file"
+refusal, copied from the oQ path, would have refused the full real checkpoint.
+The synthetic tests could not have shown it. Dropped in `1aadd15`, with a test
+that decodes a cross-file scale through a single live source handle.
+
+### G1, bit-exact FP8 -> bf16 (REAL)
+
+**PASS, both runs: 126 / 126 tensors `torch.equal`** to the independent decoder,
+including all 102 expert and attention weights of the partial layer 3.
+
+### G3, NF4 reconstruction of what the sharder wrote (REAL)
+
+| Double-quant | Tensors passing | Worst `e_b / a_b` | Zero blocks | Verdict |
+|---|---|---|---|---|
+| off | **126 / 126** | **0.1531** | 0 | **PASS** |
+| on (Soup's default) | **3 / 126** | **2.1503** (`layers.1.mlp.gate_proj`) | 0 | **FAIL** |
+
+Without double-quant the worst block sits at 0.1531, inside the analytic
+0.1558 (NF4 half-gap 0.1519 + bf16 rounding 0.0039). The bound holds where the
+design proved it.
+
+**The double-quant failure is the existing NF4 codec, not B3.** Checked on the
+worst tensor, outside the sharder:
+- The sharder's packed nibbles are **byte-identical** to `quantize_4bit` on the
+  G1 reference, and its dequantised output is identical too (G2 on REAL data).
+- `quantize_4bit` called directly on that reference gives the same 2.1503.
+- Mechanism: double-quant stores each block's absmax as an 8-bit code
+  relative to its 256-block group, after subtracting the group mean (0.0211
+  here). The worst block's true absmax is 0.000584 in a group spanning
+  0.000584 to 0.2012 (345x); it is stored as **-0.000673**, so the block comes
+  back sign-flipped. On this tensor 9.27% of blocks have an absmax stored more
+  than 10% off, and 6.39% of blocks exceed 0.17.
+- Whole-tensor context, same tensor: relative Frobenius error 0.0872 without
+  double-quant, 0.0880 with; maximum absolute error 0.03418 in both. The
+  failing blocks are the near-zero ones.
+
+Per the rule, **0.17 is not raised.** The finding is reported as: on real
+DeepSeek-V3 weights, the shipped double-quant NF4 path breaks a per-block
+`0.17 x absmax` bound in about 6% of blocks, through absmax sign flips in
+low-magnitude blocks. **Whether that affects fine-tuning quality is not
+measured here.** It is a quality question (Track E style: double-quant on vs
+off, same data and steps, scored on the gate suites), and it applies to every
+NF4 streamed model with a wide absmax spread, not only FP8 sources. The Gaussian
+fixtures the bound was chosen beside (0.1593 worst) did not show it.
+
+### G5, memory (REAL)
+
+| Double-quant | Peak RSS through sharding |
+|---|---|
+| on | 4.84 GB |
+| off | 5.96 GB |
+
+RSS counts the memory-mapped source pages the sharder has read, so these
+figures overstate anonymous allocation. They are kept as measured; no
+threshold (rule G5). The per-chunk bound itself is asserted structurally in
+`test_g5_no_fp32_intermediate_exceeds_one_chunk`.
+
+### G6, sharding time (REAL, this box only, rule V2)
+
+| Double-quant | Wall | FP8 dequant | NF4 quantise | Other | s / source GB | Cache written |
+|---|---|---|---|---|---|---|
+| on | 134.21 s | 30.56 s (23%) | 95.43 s (71%) | 8.23 s | **25.71** | 3.59 GB |
+| off | 122.11 s | 27.30 s (22%) | 84.78 s (69%) | 10.02 s | **23.39** | 3.75 GB |
+
+NF4 quantisation ran on CPU (`quant_device="cpu"`; this box has no GPU). On a
+CUDA box the sharder quantises on the GPU by default, so the 70% NF4 share does
+not carry over. FP8 dequantisation is about 5.4 to 5.9 s per source GB here.
+For scale only, different box and format: the brief's bf16 baseline was 138 GB
+-> 36.4 GB in 217 s (1.6 s per source GB). A full DeepSeek-V3 (about 690 GB of source across 163 files) at this
+box's rate would take about 4.9 hours; not a prediction for the dev box.
+
+Raw JSON and void logs: [`results/b3-fp8-source/`](results/b3-fp8-source/). The sandbox working
+directory is written as `$WORK/` in them; nothing else was edited. The
+JSON `tree` stamp `f9b6c80` is the branch's hash at run time; the branch was
+re-authored before it was pushed; the same code (`src/`, `tests/`, the
+harness) is now `79a4d3f`.
 
 ## 4. Limits recorded for B2 (checked 2026-10-07, before the run)
 
@@ -70,3 +178,7 @@ _Filled after the run._
 - Dense layers (0 to 2) and MoE layers (3 to 60) produce different key sets.
 - The pre-flight's shard-size estimate assumes a 16-bit source; for an FP8
   source it under-estimates the bf16 store by about 2x (planner, not B3).
+- Sharding holds one decoder layer's blob in RAM before writing it. A full
+  DeepSeek-V3 MoE layer is about 11 GB of FP8 source and about 6 GB as NF4, so
+  sharding the real model needs a box with well over 8 GB of RAM (this one was
+  8.4 GB and ran only the partial layer). Relevant to B1 and B6.
