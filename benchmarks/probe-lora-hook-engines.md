@@ -655,8 +655,8 @@ in f32, is in §4g-§4h.
 Run 1 was VOID in bf16 (§4f). Run 2 repeats §4c with one change, the
 precision, so that the base gap is no longer two different bf16 roundings.
 
-- **As in §4c:** the model, the SYNTHETIC adapters (same seeds, same redraw
-  rule), the adapter-only export, llama.cpp `b11476` with
+- **As in §4c:** the model, the SYNTHETIC adapters' recipe and seeds, the redraw
+  rule, the adapter-only export, llama.cpp `b11476` with
   `-fa off -ctk f32 -ctv f32`, the prompt, and the verdict table with its
   thresholds: top-1 agreement ≥ 0.9, `n_base` ≤ 0.05, `t` = 3f + 0.02 ≤ 0.5,
   DROPPED at `ρ` ≤ 0.1.
@@ -723,9 +723,15 @@ Soup-shaped adapters, exported adapter-only, unmerged, to the real
 Qwen3.5-35B-A3B in f32 on CPU, with `r` about a thousandth of the tolerance. It
 covers the standard attention and shared-expert paths only, not MLA (P4),
 quantised bases or GPU backends. The base gap came out below the expected 1e-5
-to 1e-4 [ESTIMATE]. With the same checkpoint, adapters and tokens agreeing to
-1.3e-6 in f32, run 1's 6.6% gap came from the two bf16 implementations, not
-from a mismatch in the model or its conversion [INFERENCE].
+to 1e-4 [ESTIMATE]. With the same checkpoint and tokens agreeing to 1.3e-6 in
+f32, run 1's 6.6% gap came from the two bf16 implementations, not from a
+mismatch in the model or its conversion [INFERENCE]. The two runs share the
+adapters' recipe and seeds, not the adapters bit for bit: every `lora_B` is
+equal, and every `lora_A` of run 1 is run 2's rounded to bf16 (280 of 280
+tensors; per tensor the largest |ΔA| is 2.8e-3 of the largest |A|), because
+PEFT casts a new adapter to its base layer's dtype, bf16 in run 1 (peft 0.21.2
+`tuners/lora/layer.py:312-314`, `tuners_utils.py:2210`); compared on the runs'
+archives, which are kept outside the repository [RUN].
 
 **Deadline.** The create command ran at 06:01:12 and the deadline was 07:30.
 The Windows scheduled task for it was armed at 06:01, after a test task had run
