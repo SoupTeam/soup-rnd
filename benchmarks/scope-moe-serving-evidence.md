@@ -89,10 +89,11 @@ DeepSeek-V3- and Qwen3.5-MoE-shaped models, f32 on CPU [RUN]:
   toolchain reproduces the unpatched verdicts, so the patch is what changed them.
 - Not covered by the measurement: quantised base tensors, GPU backends, the
   DeepSeek-V2-Lite and legacy `wkv_b` paths, upstream review.
-- Real Qwen3.5-35B-A3B (Part B of the record), bf16 on both sides: VOID. The
-  two bf16 base models differ by 6.6% (the line is 5%) and by 27-56% of the
-  adapters' effect, so no verdict; both adapters exported adapter-only and
-  loaded onto the real base (record §4f) [RUN].
+- Real Qwen3.5-35B-A3B (Part B of the record), which has no MLA: in f32 on
+  both sides both adapter variants are APPLIED, `r` ≤ 1.4e-5 with a base gap of
+  1.3e-6 (record §4h) [RUN]. In bf16 on both sides the run was VOID: the two
+  bf16 base models differ by 6.6% against a 5% line, 27-56% of the adapters'
+  effect (record §4f) [RUN].
 
 Two pieces outside the engine:
 

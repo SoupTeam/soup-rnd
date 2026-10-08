@@ -32,7 +32,9 @@ Why:
   real DeepSeek-V3 and Kimi K2 configs exports from `config.json` alone; every
   factor pair carries the adapter's rank, and the `k_b` and `v_b` pairs the
   hook writes have the outer dimensions llama.cpp's loader expects. The other
-  pairs' outer dimensions were not checked.
+  pairs' outer dimensions were not checked. On the real Qwen3.5-35B-A3B, which
+  has no MLA, the stock engine applies Soup-shaped attention and shared-expert
+  adapters, exported adapter-only, to `r` ≤ 1.4e-5 in f32 (record §4h).
 - **Variant 1 is a new runtime.** Soup's streaming is built for training: it
   reads every layer once per step, has no KV cache, and refuses generation by
   design. Serving would need expert-granular storage and fetch, a generation
@@ -79,9 +81,9 @@ module by module, and a silently dropped module is detected:
 - tiny models, f32: `r` ≤ 1e-2 for every target module; a dropped module shows
   as `ρ` ≤ 1e-2 (the record's §2);
 - real model: `r` within three times the base models' own disagreement, as in
-  the record's Part B. In bf16 on the real Qwen3.5-35B-A3B that disagreement
-  was too large for any verdict (record §4f), so the precision of this
-  comparison is still open.
+  the record's Part B, with both sides in f32. In bf16 on the real
+  Qwen3.5-35B-A3B that disagreement was too large for any verdict (record §4f);
+  in f32 it was 1.3e-6 and both variants passed (§4h).
 
 Generation speed is **not** a criterion. Engine speed figures in the evidence
 appendix are context from their sources.
@@ -105,11 +107,9 @@ appendix are context from their sources.
 - **PEFT.** On Soup's pinned stack PEFT cannot build the shared-expert adapter
   for `deepseek_v3`: it retargets it onto the routed experts (record §3.2). Until
   that is worked around, the shape that can be trained today is attention only.
-- **The real model.** The comparison on the real Qwen3.5-35B-A3B ran once, in
-  bf16, and is VOID: the two bf16 base models differ by 6.6% of the logits (the
-  line is 5%) and by 27-56% of the adapters' own effect, so the rule gives no
-  verdict (record §4f). Both adapters did export adapter-only and load onto the
-  real base. Correctness rests on the tiny models, and real MLA weights are P4.
+- **Real MLA weights.** The real-model comparison covers Qwen3.5-35B-A3B, which
+  has no MLA, in f32 on CPU (record §4h); the hook's tensors on real weights are
+  P4. A bf16 comparison on this model gave no verdict (§4f).
 - **Upstream acceptance.** The draft hook is not a pull request. Quantised base
   tensors, GPU backends and the review are untested.
 - **Fit on the dev box.** No engine has shown DeepSeek-V3 or K2 with experts on

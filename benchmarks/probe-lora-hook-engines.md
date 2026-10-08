@@ -24,9 +24,11 @@ converter it exports from the config alone, every factor pair carries the
 adapter's rank on both halves, and every layer's `k_b` and `v_b` pairs have the
 outer dimensions the config gives the base tensors; the other pairs' outer
 dimensions are not checked. The stock converter fails on `kv_b_proj` (§4d-§4e).
-Part B, the real Qwen3.5-35B-A3B in bf16 on a cloud CPU box, ran once and is
-VOID: the two bf16 base models differ by 6.6% (the line is 5%), and by 27-56% of
-the adapters' own effect, so the rule gives no verdict (§4e-§4f).**
+Part B, the real Qwen3.5-35B-A3B on a cloud CPU box: run 1, bf16 on both
+sides, is VOID (the two bf16 base models differ by 6.6% against a 5% line);
+run 2, f32 on both sides, finds both adapter variants APPLIED, `r` ≤ 1.4e-5 with
+a base gap of 1.3e-6 (§4e-§4h). Qwen3.5 has no MLA: this covers llama.cpp's
+standard attention and shared-expert adapter paths at real scale.**
 
 This record answers one question behind the serving-scope decision in
 [`scope-moe-serving.md`](scope-moe-serving.md): if an external engine serves the
@@ -636,8 +638,8 @@ and 0.98), where a dropped adapter gives `ρ` = 0 on this deterministic engine.
 
 With §4e's rows, about $0.94 for the stage so far; the bill itself was not seen.
 The archive of the outputs had the same SHA-256 on the box and after the copy,
-both printed before the delete command; `brev ls` was empty at 05:34:06. No
-second run has been made.
+both printed before the delete command; `brev ls` was empty at 05:34:06. Run 2,
+in f32, is in §4g-§4h.
 
 ## 4g. Part B run 2: f32 on both sides. Rule written before the run
 
@@ -679,6 +681,53 @@ precision, so that the base gap is no longer two different bf16 roundings.
   deadline, set right after the first successful `brev exec`. Whether Brev stops
   billing for a stopped instance was not checked, so the instance is deleted in
   every case.
+
+## 4h. Part B run 2: APPLIED
+
+**Run.** 2026-10-08 (UTC), under §4g's rule (`c46ab90b`), on GCP
+`n2d-highmem-48` through Brev: AMD EPYC 7B13, 48 vCPU, 377 GiB of RAM, no GPU,
+the 129 GB disk, `/dev/shm` 189 GB. Harness fingerprints `65161ef16679e79b`
+(`lora_hook_real_model.py` at `c46ab90b`) and `fef0de9e9bcad8e4`, with
+`"precision": "f32"` in the JSON; llama.cpp, reference and converter versions
+as in run 1; 48 threads. The harness took 11.4 minutes, 7.0 of them for the
+download and 1.8 for the f32 conversion. Raw output:
+`part-b-real-model-run2.{json,log,out}`, the box's setup output
+`part-b-setup-run2.log`, and every Brev command in
+[`part-b-cloud-run2.log`](results/probe-lora-hook-engines/part-b-cloud-run2.log).
+
+**Result: both variants APPLIED.** Both sides were deterministic and read the
+same 22 tokens as in run 1. Top-1 agreement 22 of 22; `n_base` = 1.3e-6,
+`e_base` 2.4e-6.
+
+| variant | `s_ref` | `ρ` | `r` | cos | `f` | `t` = 3f + 0.02 | verdict |
+|---|---|---|---|---|---|---|---|
+| `soup-auto` | 0.111 | 1.000 | 1.4e-5 | 1.000 | 1.2e-5 | 0.020 | **APPLIED** |
+| `soup-auto+shared` | 0.237 | 1.000 | 8.3e-6 | 1.000 | 5.5e-6 | 0.020 | **APPLIED** |
+
+This is §4g's APPLIED outcome: llama.cpp `b11476` applies these two
+Soup-shaped adapters, exported adapter-only, unmerged, to the real
+Qwen3.5-35B-A3B in f32 on CPU, with `r` about a thousandth of the tolerance. It
+covers the standard attention and shared-expert paths only, not MLA (P4),
+quantised bases or GPU backends. The base gap came out below the expected 1e-5
+to 1e-4 [ESTIMATE]. With the same checkpoint, adapters and tokens agreeing to
+1.3e-6 in f32, run 1's 6.6% gap came from the two bf16 implementations, not
+from a mismatch in the model or its conversion [INFERENCE].
+
+**Deadline.** The create command ran at 06:01:12 and the deadline was 07:30.
+The Windows scheduled task for it was armed at 06:01, after a test task had run
+WSL and `brev` through the same mechanism. The instance's shutdown was set at
+06:08:18 for 07:40:23. The harness finished at about 06:21:30, and the result
+was first seen at the status check of 06:22:34. The outputs' archive matched
+the box's SHA-256 before the delete command (06:26:44); `brev ls` was empty at
+06:29:06 and the scheduled task was removed at 06:29:23. Neither mechanism had
+to act.
+
+| date (UTC) | instance | create command | delete command | list price | cost at list price |
+|---|---|---|---|---|---|
+| 2026-10-08 | GCP `n2d-highmem-48` (48 vCPU, 384 GB RAM), 129 GB disk | 06:01:12 | 06:26:44 | $2.17/h, disk $0.16 per GB-month | $0.92, disk $0.012 |
+
+With the rows of §4e and §4f, about $1.87 for the stage; the bill itself was
+not seen.
 
 ## 5. Reproducing
 
@@ -815,4 +864,4 @@ Run 1 used the harness as committed in `f4375fa3` (fingerprint
 command above takes the same steps; the file run 1 used is
 `git show f4375fa3:benchmarks/harness/lora_hook_real_model.py`. Run 2 is the
 same command with `--precision f32` and `-run2` file names, on a box with
-384 GB of RAM (§4g).
+384 GB of RAM (§4g); it used the harness as committed in `c46ab90b`.
