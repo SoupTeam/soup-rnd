@@ -2294,6 +2294,59 @@ class SFTTrainerWrapper(StreamingSetupMixin):
         with self._training_context(
             offload_context(tcfg.activation_offloading, save_dir=offload_save_dir)
         ) as train_ctx:
+            if tcfg.frozen_prefix_cache:
+                from soup_cli.utils.frozen_prefix_cache import (
+                    FrozenPrefixCache,
+                    build_cache_metadata,
+                )
+                from soup_cli.utils.frozen_prefix_forward import (
+                    install_frozen_prefix_cache,
+                )
+                from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+                decoder = decoder_owner(self.trainer.model)
+                cutoff = len(decoder.layers) - tcfg.lora.top_k_layers
+
+                if cutoff <= 0:
+                    raise ValueError(
+                        "E2 requires at least one frozen decoder layer"
+                    )
+
+                cache = FrozenPrefixCache(
+                    Path(self._output_dir) / "_e2_frozen_prefix_cache"
+                )
+
+                def metadata_factory(
+                    *,
+                    input_ids,
+                    attention_mask,
+                    position_ids,
+                ):
+                    return build_cache_metadata(
+                        model_revision=str(self.config.base),
+                        frozen_prefix_fingerprint="runner-computed",
+                        config_fingerprint=(
+                            f"mistral-cutoff-{cutoff}-"
+                            f"sliding-{decoder.config.sliding_window}"
+                        ),
+                        cutoff=cutoff,
+                        input_ids=input_ids,
+                        attention_mask=attention_mask,
+                        position_ids=position_ids,
+                    )
+
+                e2_runner = train_ctx.enter_context(
+                    install_frozen_prefix_cache(
+                        model=self.trainer.model,
+                        cache=cache,
+                        cutoff=cutoff,
+                        metadata_factory=metadata_factory,
+                    )
+                )
+                console.print(
+                    f"[green]E2 frozen-prefix cache enabled:[/] "
+                    f"cutoff={cutoff}, top_k={tcfg.lora.top_k_layers}"
+                )
             # LongLoRA S² shifted-sparse attention (v0.49.0 schema). The override
             # monkeypatches attention.forward for the duration of training and
             # was previously never installed (use_longlora validated but shipped
@@ -2323,6 +2376,16 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             if resume_from_checkpoint is not None:
                 keep_trainable_dtype_on_resume(self.trainer)
             self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+            if tcfg.frozen_prefix_cache:
+                total = e2_runner.hits + e2_runner.misses
+                hit_rate = 100 * e2_runner.hits / total if total else 0
+
+                console.print(
+                    f"[green]E2 cache statistics:[/] "
+                    f"hits={e2_runner.hits}, "
+                    f"misses={e2_runner.misses}, "
+                    f"hit_rate={hit_rate:.1f}%"
+                )
         duration = time.time() - start
         self._report_rewind()
 

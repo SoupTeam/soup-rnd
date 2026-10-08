@@ -1129,6 +1129,14 @@ class TrainingConfig(BaseModel):
         default="auto",
         description="Batch size. 'auto' = find max that fits in memory.",
     )
+    frozen_prefix_cache: bool = Field(
+        default=False,
+        description=(
+            "E2 experimental frozen-prefix activation caching. "
+            "Requires deterministic frozen layers and Top-K LoRA. "
+            "Currently supported only for resident Transformers SFT."
+        ),
+    )
 
     @field_validator("batch_size")
     @classmethod
@@ -8027,6 +8035,48 @@ class SoupConfig(BaseModel):
             "'tts', which trains through the SFT trainer) freezes layers, so this run "
             f"would train every layer. Use task: sft, or remove {keys}."
         )
+
+    @model_validator(mode="after")
+    def _validate_e2_frozen_prefix_cache(self) -> "SoupConfig":
+        """Validate experimental E2 frozen-prefix caching."""
+        tcfg = self.training
+
+        if not tcfg.frozen_prefix_cache:
+            return self
+
+        if self.task != "sft":
+            raise ValueError("E2 requires task='sft'")
+
+        if self.backend != "transformers":
+            raise ValueError("E2 requires backend='transformers'")
+
+        if tcfg.lora.top_k_layers is None:
+            raise ValueError("E2 requires lora.top_k_layers")
+
+        if tcfg.lora.r < 1:
+            raise ValueError("E2 requires LoRA rank >= 1")
+
+        if tcfg.lora.dropout != 0.0:
+            raise ValueError("E2 requires lora.dropout=0")
+
+        if tcfg.stream_layers:
+            raise ValueError("E2 does not yet support stream_layers")
+
+        if tcfg.packing or tcfg.multipack:
+            raise ValueError("E2 does not support packing or multipack")
+
+        if tcfg.gradient_checkpointing is not False:
+            raise ValueError(
+                "E2 requires gradient_checkpointing=false"
+            )
+
+        if tcfg.lora.use_vera:
+            raise ValueError("E2 does not support VeRA")
+
+        if tcfg.lora.target_parameters is not None:
+            raise ValueError("E2 does not support target_parameters")
+
+        return self
 
     @model_validator(mode="after")
     def _validate_unsloth_has_a_setup(self) -> "SoupConfig":

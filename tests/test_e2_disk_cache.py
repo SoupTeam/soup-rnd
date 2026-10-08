@@ -1,10 +1,13 @@
 
-import torch
 import pytest
+import torch
+from transformers import MistralConfig, MistralModel
+
 from soup_cli.utils.frozen_prefix_cache import (
     FrozenPrefixCache,
     build_cache_metadata,
     cache_key,
+    fingerprint_frozen_prefix,
 )
 
 
@@ -157,3 +160,56 @@ def test_corrupted_cache_is_rejected(tmp_path):
 
     with pytest.raises(Exception):
         cache.load(metadata)
+
+def test_frozen_prefix_fingerprint_changes_with_weights():
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+    )
+
+    model = MistralModel(config)
+
+    original = fingerprint_frozen_prefix(model, cutoff=2)
+
+    # Repeated fingerprint must be stable.
+    assert fingerprint_frozen_prefix(model, cutoff=2) == original
+
+    # Upper trainable layers must not affect the fingerprint.
+    with torch.no_grad():
+        next(model.layers[3].parameters()).add_(0.01)
+
+    assert fingerprint_frozen_prefix(model, cutoff=2) == original
+
+    # Frozen-prefix changes must invalidate the fingerprint.
+    with torch.no_grad():
+        next(model.layers[0].parameters()).add_(0.01)
+
+    assert fingerprint_frozen_prefix(model, cutoff=2) != original
+
+
+def test_frozen_prefix_fingerprint_changes_with_embeddings():
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+    )
+
+    model = MistralModel(config)
+
+    original = fingerprint_frozen_prefix(model, cutoff=2)
+
+    with torch.no_grad():
+        model.embed_tokens.weight[0, 0].add_(0.01)
+
+    assert fingerprint_frozen_prefix(model, cutoff=2) != original

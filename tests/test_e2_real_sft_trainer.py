@@ -6,7 +6,10 @@ from unittest.mock import patch
 import torch
 from datasets import Dataset
 from peft import get_peft_model
-from transformers import MistralConfig, MistralForCausalLM
+from tokenizers import Tokenizer
+from tokenizers.models import WordLevel
+from tokenizers.pre_tokenizers import Whitespace
+from transformers import MistralConfig, MistralForCausalLM, PreTrainedTokenizerFast
 from trl import SFTConfig, SFTTrainer
 
 from soup_cli.config.schema import LoraConfig
@@ -16,10 +19,7 @@ from soup_cli.utils.frozen_prefix_cache import (
 )
 from soup_cli.utils.frozen_prefix_forward import FrozenPrefixRunner
 from soup_cli.utils.peft_wiring import build_lora_config, resolve_top_k_layers
-from tokenizers import Tokenizer
-from tokenizers.models import WordLevel
-from tokenizers.pre_tokenizers import Whitespace
-from transformers import PreTrainedTokenizerFast
+
 
 def test_real_sft_trainer_with_cache(tmp_path):
     torch.manual_seed(42)

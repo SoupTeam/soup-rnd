@@ -21,6 +21,54 @@ def cache_key(metadata: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def fingerprint_frozen_prefix(
+    decoder: Any,
+    cutoff: int,
+) -> str:
+    """SHA-256 fingerprint of embeddings and frozen decoder layers."""
+    import torch
+
+    if isinstance(cutoff, bool) or not isinstance(cutoff, int):
+        raise ValueError("cutoff must be an integer")
+
+    if not 0 < cutoff <= len(decoder.layers):
+        raise ValueError("Invalid frozen-prefix cutoff")
+
+    digest = hashlib.sha256()
+    digest.update(b"e2-frozen-prefix-v1")
+
+    modules = [
+        ("embed_tokens", decoder.embed_tokens),
+        *[
+            (f"layers.{i}", decoder.layers[i])
+            for i in range(cutoff)
+        ],
+    ]
+
+    with torch.no_grad():
+        for prefix, module in modules:
+            for name, tensor in sorted(module.state_dict().items()):
+                if not isinstance(tensor, torch.Tensor):
+                    raise TypeError(
+                        f"Unexpected state entry: {prefix}.{name}"
+                    )
+
+                if tensor.is_meta:
+                    raise ValueError(
+                        "Cannot fingerprint meta tensors; "
+                        "use a checkpoint/shard fingerprint instead"
+                    )
+
+                value = tensor.detach().cpu().contiguous()
+
+                digest.update(f"{prefix}.{name}".encode())
+                digest.update(str(value.dtype).encode())
+                digest.update(str(tuple(value.shape)).encode())
+                digest.update(value.view(torch.uint8).numpy().tobytes())
+
+    return digest.hexdigest()
+
+
 def build_cache_metadata(
     *,
     model_revision: str,

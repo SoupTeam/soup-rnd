@@ -7,9 +7,10 @@ Initial scope:
 - No KV cache
 - Deterministic frozen prefix
 """
-
 from __future__ import annotations
 
+import contextlib
+import types
 from typing import Any
 
 from transformers.masking_utils import (
@@ -18,7 +19,10 @@ from transformers.masking_utils import (
 )
 from transformers.modeling_outputs import BaseModelOutputWithPast
 
-from soup_cli.utils.frozen_prefix_cache import FrozenPrefixCache
+from soup_cli.utils.frozen_prefix_cache import (
+    FrozenPrefixCache,
+    fingerprint_frozen_prefix,
+)
 
 
 class FrozenPrefixRunner:
@@ -38,7 +42,10 @@ class FrozenPrefixRunner:
         self.cache = cache
         self.cutoff = cutoff
         self.metadata_factory = metadata_factory
-
+        self.frozen_prefix_fingerprint = fingerprint_frozen_prefix(
+            decoder,
+            cutoff,
+        )
         self.hits = 0
         self.misses = 0
 
@@ -113,7 +120,10 @@ class FrozenPrefixRunner:
             attention_mask=attention_mask,
             position_ids=position_ids,
         )
-
+        metadata = dict(metadata)
+        metadata["frozen_prefix_fingerprint"] = (
+            self.frozen_prefix_fingerprint
+        )
         hidden = self.cache.load(metadata)
 
         if hidden is None:
@@ -159,3 +169,52 @@ class FrozenPrefixRunner:
             past_key_values=None,
         )
 
+
+@contextlib.contextmanager
+def install_frozen_prefix_cache(
+    model: Any,
+    cache: FrozenPrefixCache,
+    cutoff: int,
+    metadata_factory: Any,
+):
+    """Temporarily install E2 cached forward on a resident Mistral."""
+
+    from transformers import MistralModel
+
+    from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+    decoder = decoder_owner(model)
+
+    if not isinstance(decoder, MistralModel):
+        raise ValueError(
+            "E2 frozen-prefix cache currently supports MistralModel only"
+        )
+
+    if not 0 < cutoff < len(decoder.layers):
+        raise ValueError("E2 requires a nonempty frozen prefix and upper stack")
+
+    if any(p.requires_grad for p in decoder.embed_tokens.parameters()):
+        raise ValueError("E2 requires frozen input embeddings")
+
+    for layer in decoder.layers[:cutoff]:
+        if any(p.requires_grad for p in layer.parameters()):
+            raise ValueError("E2 requires all prefix parameters frozen")
+
+    runner = FrozenPrefixRunner(
+        decoder=decoder,
+        cache=cache,
+        cutoff=cutoff,
+        metadata_factory=metadata_factory,
+    )
+
+    original_forward = decoder.forward
+
+    def cached_forward(self, *args, **kwargs):
+        return runner.forward(*args, **kwargs)
+
+    decoder.forward = types.MethodType(cached_forward, decoder)
+
+    try:
+        yield runner
+    finally:
+        decoder.forward = original_forward
