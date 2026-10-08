@@ -599,6 +599,7 @@ class StreamingSetupMixin:
             layer_paths,
             resolve_shard_dir,
             shard_checkpoint,
+            source_identity_includes_config,
             source_weight_bytes,
             stripe_dirs,
         )
@@ -705,7 +706,9 @@ class StreamingSetupMixin:
                 source_components = checkpoint_source_components(
                     weights_plan.weights_dir,
                     weights_plan.source_files,
-                    include_config=arch == "qwen4_exp",
+                    include_config=source_identity_includes_config(
+                        weights_plan.weights_dir, arch
+                    ),
                 )
                 cached, _reason = inspect_shard_cache(
                     shard_dir,
