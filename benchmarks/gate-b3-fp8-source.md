@@ -125,10 +125,7 @@ worst tensor, outside the sharder:
   double-quant, 0.0880 with; maximum absolute error 0.03418 in both. The
   failing blocks are the near-zero ones.
 
-Per the rule, **0.17 is not raised.** The finding is reported as: on real
-DeepSeek-V3 weights, the shipped double-quant NF4 path breaks a per-block
-`0.17 x absmax` bound in about 6% of blocks, through absmax sign flips in
-low-magnitude blocks. **Whether that affects fine-tuning quality is not
+Per the rule, **0.17 is not raised.** The finding is reported as (scoped after review, 2026-10-08): in one real DeepSeek-V3 file, the shipped double-quant NF4 path fails the per-block `0.17 x absmax` bound in 123 of 126 tensors; on the worst tensor (`layers.1.mlp.gate_proj`) about 6% of its blocks exceed it, through absmax sign flips in low-magnitude blocks. Other files and Kimi K2 are not measured. **Whether that affects fine-tuning quality is not
 measured here.** It is a quality question (Track E style: double-quant on vs
 off, same data and steps, scored on the gate suites), and it applies to every
 NF4 streamed model with a wide absmax spread, not only FP8 sources. The Gaussian

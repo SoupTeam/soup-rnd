@@ -555,7 +555,7 @@ DeepSeek-V3 and Kimi K2 publish their linear weights as `float8_e4m3fn` with an 
 
 - **Verified**: FP8 -> bf16 is bit-exact against an independent e4m3 decoder on 126 of 126 real DeepSeek-V3 weights. Record: [`benchmarks/gate-b3-fp8-source.md`](../benchmarks/gate-b3-fp8-source.md).
 - **Not yet**: `soup train` still refuses `model_type: deepseek_v3` at its architecture check (track B2), so a DeepSeek-V3 or K2 run does not reach the sharder from the CLI yet.
-- **Found along the way, not specific to FP8**: with double-quant on (the default), bitsandbytes stores some small block maxima sign-flipped when the blocks in a 256-block group span a wide range. On real DeepSeek-V3 weights about 6% of NF4 blocks exceed `0.17 x absmax` with double-quant and none without it; whole-tensor error barely moves (0.087 -> 0.088). The training-quality effect is not measured.
+- **Found along the way, not specific to FP8**: with double-quant on (the default), bitsandbytes stores some small block maxima sign-flipped when the blocks in a 256-block group span a wide range. On the worst tensor in one DeepSeek-V3 file (`layers.1.mlp.gate_proj`), about 6% of NF4 blocks exceed `0.17 x absmax` with double-quant and none do without it; its whole-tensor relative error barely moves (0.0872 -> 0.0880). Other tensors' share, other files and Kimi K2 are not measured. The training-quality effect is not measured.
 
 ### Forcing the pin (`training.stream_pin`)
 
