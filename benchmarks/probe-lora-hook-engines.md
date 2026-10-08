@@ -611,6 +611,15 @@ rule does not read them once the run is VOID:
 | `soup-auto` | 0.118 | 0.92 | 0.75 | 0.69 | 0.56 | 1.70 |
 | `soup-auto+shared` | 0.241 | 0.98 | 0.37 | 0.93 | 0.27 | 0.84 |
 
+The `t` column is computed from the recorded `f`; the JSON holds no `t` per
+variant. Its `meta.rule` is an inherited metadata error, not the rule the
+verdicts used: it holds Part A's constants (`E_BASE_MAX` 1e-3, `R_APPLIED_MAX`
+and `RHO_DROPPED_MAX` 1e-2), which `lora_hook_parity.provenance()` writes. The
+verdicts were computed by `verdict_b` with §4c's constants: top-1 ≥ 0.9,
+`n_base` ≤ 0.05, `t` = 3f + 0.02 ≤ 0.5, DROPPED at `ρ` ≤ 0.1. Recomputed from
+the recorded numbers, `verdict_b` gives the recorded verdicts. The raw file is
+kept as it was written.
+
 With a valid base both rows would still be TOO NOISY (`t` > 0.5): the two bf16
 base models differ by 27-56% of the adapters' own effect, so in bf16 this model
 cannot tell a correct adapter from a wrong one under this rule. Why the two
@@ -703,6 +712,11 @@ same 22 tokens as in run 1. Top-1 agreement 22 of 22; `n_base` = 1.3e-6,
 |---|---|---|---|---|---|---|---|
 | `soup-auto` | 0.111 | 1.000 | 1.4e-5 | 1.000 | 1.2e-5 | 0.020 | **APPLIED** |
 | `soup-auto+shared` | 0.237 | 1.000 | 8.3e-6 | 1.000 | 5.5e-6 | 0.020 | **APPLIED** |
+
+As in run 1 (§4f), the JSON's `meta.rule` holds Part A's constants, an
+inherited metadata error, and the JSON holds no `t` per variant; the verdicts
+come from `verdict_b` with §4c's constants, `t` above from the recorded `f`, and
+recomputing `verdict_b` from the recorded numbers gives the recorded verdicts.
 
 This is §4g's APPLIED outcome: llama.cpp `b11476` applies these two
 Soup-shaped adapters, exported adapter-only, unmerged, to the real
@@ -864,4 +878,7 @@ Run 1 used the harness as committed in `f4375fa3` (fingerprint
 command above takes the same steps; the file run 1 used is
 `git show f4375fa3:benchmarks/harness/lora_hook_real_model.py`. Run 2 is the
 same command with `--precision f32` and `-run2` file names, on a box with
-384 GB of RAM (§4g); it used the harness as committed in `c46ab90b`.
+384 GB of RAM (§4g); it used the harness as committed in `c46ab90b`
+(fingerprint `65161ef16679e79b`). The change after both runs only touches the
+JSON's metadata: `meta.rule` now holds Part B's constants and each variant
+carries its `t`; the steps and the verdicts are as they were.

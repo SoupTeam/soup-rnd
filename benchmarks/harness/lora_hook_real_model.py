@@ -108,6 +108,17 @@ def tolerance(floor: float) -> float:
     return APPLIED_FLOOR_FACTOR * floor + APPLIED_SLACK
 
 
+def rule_constants() -> Dict[str, Any]:
+    """The constants verdict_b and the adapter recipe use, for the result JSON."""
+    return {
+        "TOP1_MIN": TOP1_MIN, "N_BASE_MAX": N_BASE_MAX, "S_REF_MIN": parity.S_REF_MIN,
+        "APPLIED_FLOOR_FACTOR": APPLIED_FLOOR_FACTOR, "APPLIED_SLACK": APPLIED_SLACK,
+        "TOLERANCE_MAX": TOLERANCE_MAX, "RHO_DROPPED_MAX": RHO_DROPPED_MAX,
+        "LORA_RANK": parity.LORA_RANK, "LORA_ALPHA": parity.LORA_ALPHA,
+        "B_STD": parity.B_STD, "B_STD_RETRY_FACTOR": parity.B_STD_RETRY_FACTOR, "SEED": SEED,
+    }
+
+
 # =====================================================================
 # Steps
 # =====================================================================
@@ -256,6 +267,7 @@ def engine_variant(
     row["tokens_match"] = bool(np.array_equal(tokens, base["tokens"]))
     row.update(parity.effect_metrics(z_ref0, z_ref1, base["z_eng0"], z_eng1))
     row["floor"] = noise_floor(base["z_eng0"], z_ref0, z_ref1)
+    row["t"] = tolerance(row["floor"])
     row["digests"] = {"z_ref1": parity.digest(z_ref1), "z_eng1": parity.digest(z_eng1)}
     row["verdict"] = verdict_b(
         base_ok=base_ok and row["tokens_match"], s_ref=row["s_ref"], convert_ok=True,
@@ -337,8 +349,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ctx.work.mkdir(parents=True, exist_ok=True)
     clock = Clock()
     result: Dict[str, Any] = {"meta": parity.provenance(ctx)}
-    # provenance() files the parity module's hash under the harness key; record both files.
+    # provenance() files the parity module's hash under the harness key, and Part A's rule
+    # under "rule"; record both files, and the rule this harness's verdicts apply.
     result["meta"]["parity_sha256_16"] = result["meta"].pop("harness_sha256_16")
+    result["meta"]["rule"] = rule_constants()
     result["meta"].update({"harness_sha256_16": parity.file_sha256(pathlib.Path(__file__))[:16],
                            "box": args.box, "machine_before": machine_state(),
                            "model": f"{MODEL_REPO}@{MODEL_REVISION}",
