@@ -4,9 +4,12 @@ probe-lora-hook-engines.md, Part B0. For each real config (Qwen3.5-35B-A3B,
 DeepSeek-V3, Kimi K2) this builds a SYNTHETIC adapter file covering every layer
 of Soup's target policy plus the shared expert, with shapes read from a
 meta-device model of that config, and runs llama.cpp's ``convert_lora_to_gguf.py``
-against a directory that holds only ``config.json``. It then checks every
-written factor pair the way llama.cpp's adapter loader would: the rank matches
-and the outer dimensions match the base tensor.
+against a directory that holds only ``config.json``. It then checks the written
+pairs with what the config alone can settle: every pair carries the adapter's
+rank on both halves, and for ``deepseek2`` every layer's ``attn_k_b`` and
+``attn_v_b`` pairs have the outer dimensions the config gives the base tensors.
+The other pairs' outer dimensions are not checked: there is no base GGUF to
+compare them with.
 
 Converter only. Whether the engine then applies the adapter is Parts A and A'.
 """

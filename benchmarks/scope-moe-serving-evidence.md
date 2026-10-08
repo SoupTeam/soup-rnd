@@ -99,8 +99,11 @@ Two pieces outside the engine:
   `convert_lora_to_gguf.py` `--base` help at `b11476`) [CODE]. Measured at real
   dimensions with a SYNTHETIC adapter (record §4e) [RUN]: with the hook's
   converter, adapters for the DeepSeek-V3 and Kimi K2 configs export from
-  `config.json` alone and every factor pair passes llama.cpp's loader shape
-  checks; the stock converter fails on `kv_b_proj`.
+  `config.json` alone. Every factor pair carries the adapter's rank (the
+  loader's rank check), and every layer's `k_b` and `v_b` pairs have the outer
+  dimensions the config gives the base tensors (the loader's shape check, for
+  the two tensors the hook writes); the other pairs' outer dimensions were not
+  checked. The stock converter fails on `kv_b_proj`.
 - **PEFT cannot build the shared-expert adapter on Soup's stack.** peft 0.21.2
   rewrites `shared_experts.{gate,up,down}_proj` targets on `deepseek_v3` into
   the routed experts' fused parameters (record §3.2) [RUN]; the same code is in
@@ -147,11 +150,14 @@ Arithmetic for DeepSeek-V3 on the target box, at about 4.5 bits per weight
   (`probe-rtx5070-two-drive-sustained.md`, ~2.5 GB/s each), about 2.3 s. This is
   the full-miss case, not a ceiling: caching and skewed routing lower it, and
   SSD-LLaMA reports above 1 tok/s at 1T on an RTX 5090 with 32 GB of RAM;
-- the routed experts total about 368 GB; 32 GB of RAM can hold a few percent;
+- the routed experts total about 368 GB (Kimi K2, 384 experts in each of 60
+  MoE layers: about 571 GB). All 32 GB of RAM would hold 8.7% of them (K2:
+  5.6%); if about 18 GB is left for them after the OS and the rest of the
+  model, 4.9% (K2: 3.2%);
 - the part an engine keeps on the GPU (attention, shared experts, router,
   embeddings) is about 17B parameters for DeepSeek-V3, about 9.6 GB at 4.5
   bits: more than 8 GB, so some of it would stay on the CPU. For Kimi K2 (64
-  heads) it is about 11.5B, about 6.5 GB.
+  heads) it is about 11.7B, about 6.6 GB.
 
 ## 7. What transfers from the training-step coverage record to batch-1 decode
 

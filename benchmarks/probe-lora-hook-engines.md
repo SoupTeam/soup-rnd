@@ -20,8 +20,10 @@ stack, cannot build the shared-expert adapter at all (§3.2). Part A', a draft
 hook of 18 added and 13 removed lines, makes every one of those modules APPLIED
 on the same tiny models: SUFFICIENT under its own rule (§4a-§4b). Part B0, a
 SYNTHETIC adapter on the real DeepSeek-V3 and Kimi K2 configs: with the hook's
-converter it exports from the config alone and passes llama.cpp's loader shape
-checks at real dimensions; the stock converter fails on `kv_b_proj` (§4d-§4e).
+converter it exports from the config alone, every factor pair carries the
+adapter's rank on both halves, and every layer's `k_b` and `v_b` pairs have the
+outer dimensions the config gives the base tensors; the other pairs' outer
+dimensions are not checked. The stock converter fails on `kv_b_proj` (§4d-§4e).
 Part B, the real Qwen3.5-35B-A3B in the cloud, is blocked on access to the
 cloud instances and has not run (§4e).**
 
@@ -189,20 +191,23 @@ below with the evidence that forced it.
   ([`conversion/qwen.py` L298-L305](https://github.com/ggml-org/llama.cpp/blob/b11476/conversion/qwen.py#L298-L305)),
   and the tiny model has none.
 - `dsv3-tiny`: `e_base` = 0.0099, 0.0089 and 0.0110 at seeds 17, 18 and 19,
-  above the `1e-3` line, so VOID by the rule. Diagnosed afterwards with scratch
-  scripts that are not committed: the gap is already 0.4% at position 0, where
-  rope is the identity, so it is not positional; an all-dense variant of the
-  same model matched to 2.6e-4, so it is the MoE block. transformers 5.19 does
-  not write `scoring_func` into a `DeepseekV3Config` it builds itself (its
+  above the `1e-3` line, so VOID by the rule. The cause was found afterwards
+  with two scratch scripts that are not committed and whose output was not
+  kept, so every figure in the rest of this bullet is an unrecorded diagnostic,
+  not a result: the gap was already about 0.4% at position 0, where rope is the
+  identity, so it is not positional; an all-dense variant of the same model
+  matched to about 2.6e-4, so it is the MoE block. transformers 5.19 does not
+  write `scoring_func` into a `DeepseekV3Config` it builds itself (its
   implementation hard-codes sigmoid), and the converter writes a gating function
   only when that key is present
   ([`conversion/base.py` L1532](https://github.com/ggml-org/llama.cpp/blob/b11476/conversion/base.py#L1532-L1540)),
   so llama.cpp routed with its default where the model routes with sigmoid.
   The real `deepseek-ai/DeepSeek-V3` config carries `"scoring_func": "sigmoid"`
   and `"topk_method": "noaux_tc"`; writing the same two keys into the tiny
-  config brought `e_base` to 3.1e-4. The rest was the engine's CPU defaults,
-  flash attention with an f16 KV cache: `-fa off -ctk f32 -ctv f32` brought it
-  to 1e-6.
+  config brought `e_base` to about 3.1e-4. The rest was the engine's CPU
+  defaults, flash attention with an f16 KV cache: `-fa off -ctk f32 -ctv f32`
+  brought it to about 1e-6. What is recorded is the outcome of these changes:
+  runs 2 and 3 give `e_base` 5.2e-7 for `dsv3-tiny` (§3.2-§3.3).
 
 Instrument changes after run 1: the two config keys for `dsv3-tiny`, `--no-mtp`
 for the Qwen3.5 base conversion, and the three engine flags, so that "both
@@ -397,7 +402,11 @@ positive-control model was not part of it.
 
 Part A's verdicts come from tiny random models. Part B asks whether the same
 engine path holds on the real test model, with the adapter exported on its own
-and the routed experts served from host RAM.
+and the routed experts served from host RAM. Qwen3.5 has no MLA, so Part B
+covers the adapter-only export and llama.cpp's standard adapter paths for
+attention and the shared expert at real scale, not the tensors the hook
+changes; MLA on real weights is prototype task P4
+([`scope-moe-serving-prototype.md`](scope-moe-serving-prototype.md)).
 
 - **Model:** `Qwen/Qwen3.5-35B-A3B@59d61f3c` (bf16, 71.9 GB, Apache-2.0). For
   this config transformers builds `Qwen3_5MoeForCausalLM`, the text tower.
@@ -497,10 +506,21 @@ All six as expected. The stock converter fails at `k_b.transpose(1, 2)`
 (`conversion/deepseek.py` L446), which its LoRA tensor wrapper does not
 implement. With the hook, each `kv_b_proj` becomes a `k_b` and a `v_b` pair, so
 the pair counts are the module counts plus one per layer (61 layers in both
-configs), and every pair passes §4d's shape checks at the real dimensions
+configs). Every pair carries rank 8 on both halves, and every layer's `k_b` and
+`v_b` pairs have the outer dimensions the config gives the base tensors
 (DeepSeek-V3: 128 heads, `kv_lora_rank` 512; Kimi K2: 64 heads, the same rank).
-With the hook's converter, then, an adapter for a 671B or 1T base exports on a
-machine that holds only the base's `config.json`.
+The outer dimensions of the other pairs were not checked: §4d compares only the
+two tensors the hook writes, and there is no base GGUF at these sizes here to
+compare the rest with; llama.cpp's loader checks them when the adapter is
+loaded on a real base. With the hook's converter, then, an adapter for a 671B
+or 1T base exports on a machine that holds only the base's `config.json`.
+
+One scratch check ran before §4d's rule was committed (`6b3584fa`, 03:35,
+UTC+5): at 03:31-03:32 a throwaway script, not committed, had the stock
+converter export a single `q_proj` factor pair for layer 3 of the Qwen3.5
+config from a directory holding only `config.json`, to see whether an
+adapter-only export runs at all. It wrote the pair (`blk.3.attn_q.weight`,
+rank 8). It did not touch DeepSeek-V3 or K2, and it is not part of B0's result.
 
 **Part B is blocked and has not run.** Two Brev instances were created and
 deleted on 2026-10-07 (UTC); every command of the attempt and its output are in
@@ -615,3 +635,9 @@ python benchmarks/harness/lora_export_real_configs.py \
   --out benchmarks/results/probe-lora-hook-engines/part-b0-export-real-configs-run3.json \
   --log benchmarks/results/probe-lora-hook-engines/part-b0-export-real-configs-run3.log
 ```
+
+Run 3 used the harness as committed in `c4c09b43` (fingerprint
+`f38f10f090c03add`). Its one later change corrects the docstring's account of
+the checks and leaves the steps as they were, so only the fingerprint differs.
+The file run 3 used is
+`git show c4c09b43:benchmarks/harness/lora_export_real_configs.py`.

@@ -29,8 +29,10 @@ Why:
   DeepSeek-V3-shaped models: the adapter's effect on the logits matches
   transformers + PEFT to `r` ≤ 1.4e-5, and a stock build made with the same
   toolchain does not. With the draft's converter, a SYNTHETIC adapter for the
-  real DeepSeek-V3 and Kimi K2 configs exports from `config.json` alone and
-  passes llama.cpp's loader shape checks.
+  real DeepSeek-V3 and Kimi K2 configs exports from `config.json` alone; every
+  factor pair carries the adapter's rank, and the `k_b` and `v_b` pairs the
+  hook writes have the outer dimensions llama.cpp's loader expects. The other
+  pairs' outer dimensions were not checked.
 - **Variant 1 is a new runtime.** Soup's streaming is built for training: it
   reads every layer once per step, has no KV cache, and refuses generation by
   design. Serving would need expert-granular storage and fetch, a generation
@@ -64,8 +66,10 @@ A Soup user fine-tunes an attention adapter (optionally with the shared expert)
 for DeepSeek-V3 or Kimi K2 on a laptop. They export the adapter on its own and
 serve the base model in llama.cpp with the adapter loaded at startup. The
 routed experts stay on the NVMe drive and are paged into RAM by the engine;
-attention runs on the 8 GB GPU where it fits. Qwen3.5-35B-A3B is the test model:
-it fits in RAM and exercises the same adapter paths.
+attention runs on the 8 GB GPU where it fits. Qwen3.5-35B-A3B is the test model
+at real scale. It has no MLA, so it checks the adapter-only export and
+llama.cpp's standard adapter paths for attention and the shared expert, not the
+tensors the hook changes; MLA on real weights is prototype task P4.
 
 ## Success criterion
 
