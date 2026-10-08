@@ -43,44 +43,126 @@ Measure separately:
 4. Cache hit/miss counts
 5. Total training runtime
 
+
 ## Quality Evaluation
 
-Compare validation loss on the same held-out dataset.
+Compare E2 against the no-cache Top-K LoRA baseline
+at the same K/L ratio.
 
-Proposed quality tolerance:
-- Relative validation-loss degradation <= 1%
+Use the same:
+- Initial model weights
+- Training and validation datasets
+- Random seed
+- Optimizer and learning-rate schedule
+- Precision and batch size
+- Number of optimizer steps
 
-This tolerance is provisional and requires approval
-before the full experiments.
+Primary metric: held-out validation loss.
 
-## Correctness
+Relative quality degradation:
 
-- Compare baseline and cached outputs
-- Compare LoRA parameters with defined numerical tolerance
-- Verify input, mask and position-dependent cache keys
-- Verify frozen-weight and configuration invalidation
-- Reject nondeterministic frozen prefixes
+delta_loss = 100 * (loss_E2 - loss_baseline) / loss_baseline
 
-## Verdict
+Proposed acceptance threshold:
+delta_loss <= 1.0%
+
+This threshold must be approved before full experiments.
+
+Evaluate K/L = 0.25, 0.50 and 0.75 separately.
+
+K/L = 1.00 is the no-frozen-prefix control.
+E2 caching must be disabled for this configuration.
+
+Training loss alone is not sufficient to establish
+quality equivalence.
+
+## Performance Evaluation
+
+Use three complete A-B-B-A cycles.
+
+Each run must use a fresh process and the same
+hardware configuration.
+
+Record:
+- GPU name and UUID
+- GPU memory and utilization
+- GPU clocks and temperature, where available
+- CPU and system memory
+- PyTorch, CUDA and Transformers versions
+- Model revision and dataset identity
+- Configurations and random seeds
+- Supervised and total token counts
+- Cold-cache construction cost
+- Warm-cache step timing
+- Second-epoch timing
+- End-to-end training runtime
+
+Do not compare performance measurements collected
+on different GPU models.
+
+Report speedup as:
+
+speedup = baseline_time / cached_time
+
+Evaluate cold-cache, warm-cache and total runtime
+separately.
+
+## Verdict Rules
+
+Report three independent verdicts:
+correctness, quality and performance.
+
+### Correctness
 
 PASS:
-- Correctness and quality checks pass
-- Performance improvement is repeatable
+- Required equivalence and invalidation checks pass.
 
 FAIL:
-- Correctness or quality checks fail
-- Or a repeatable slowdown is established for the
-  performance claim
+- Incorrect reuse, stale activations or equivalence
+  outside the declared numerical tolerance.
 
 NO VERDICT:
-- Insufficient repetitions
-- Inconsistent machine conditions
-- Incomplete measurements
-- Unsupported architecture or insufficient GPU memory
+- Required checks are missing or incomplete.
 
-Report correctness, quality and speed verdicts separately.
-Do not turn an inconclusive speed result into a failure
-of correctness.
+### Quality
 
-K/L = 1 is a no-cache control, not an E2 speedup claim.
+PASS:
+- Validation loss degradation is within the
+  approved threshold.
+
+FAIL:
+- Validation loss degradation exceeds the
+  approved threshold.
+
+NO VERDICT:
+- No comparable validation results, or the
+  threshold has not been approved.
+
+### Performance
+
+PASS:
+- A repeatable speedup is demonstrated under
+  comparable conditions and the predeclared
+  performance acceptance rule is met.
+
+FAIL:
+- A repeatable slowdown is established under
+  comparable conditions.
+
+NO VERDICT:
+- Results are inconsistent, incomplete, or
+  hardware conditions are not comparable.
+
+Do not classify a noisy benchmark as PASS or FAIL.
+
+### Overall
+
+Overall PASS requires all mandatory criteria
+to pass.
+
+If any mandatory criterion fails, overall FAIL.
+
+Otherwise, overall NO VERDICT.
+
+K/L = 1.00 is a control, not an E2 speedup claim.
 
