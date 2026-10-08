@@ -24,8 +24,9 @@ converter it exports from the config alone, every factor pair carries the
 adapter's rank on both halves, and every layer's `k_b` and `v_b` pairs have the
 outer dimensions the config gives the base tensors; the other pairs' outer
 dimensions are not checked. The stock converter fails on `kv_b_proj` (§4d-§4e).
-Part B, the real Qwen3.5-35B-A3B in the cloud, has not run yet: the cloud
-instances could not be reached on 2026-10-07 and could on 2026-10-08 (§4e).**
+Part B, the real Qwen3.5-35B-A3B in bf16 on a cloud CPU box, ran once and is
+VOID: the two bf16 base models differ by 6.6% (the line is 5%), and by 27-56% of
+the adapters' own effect, so the rule gives no verdict (§4e-§4f).**
 
 This record answers one question behind the serving-scope decision in
 [`scope-moe-serving.md`](scope-moe-serving.md): if an external engine serves the
@@ -569,6 +570,60 @@ RAM-backed tmpfs (`/dev/shm`, 126 GB). The rule, the precision of both sides
 (bf16) and the engine flags are as §4c states; the engine's thread count follows
 the box (32).
 
+## 4f. Part B run 1: VOID
+
+**Run.** 2026-10-08 (UTC), on the box of §4e's deviation: GCP `n2d-highmem-32`
+through Brev, AMD EPYC 7B13, 32 vCPU, 251 GiB of RAM, no GPU, Ubuntu 22.04.5,
+kernel 6.8.0-1069-gcp. The checkpoint sat on the 129 GB disk; the 69.4 GB bf16
+GGUF and the work files on `/dev/shm`. The repository went to the box as
+`git archive` of `f4375fa3` with LF line endings, so the fingerprints are those
+of the committed files: `fca602f5484081b8` (`lora_hook_real_model.py`) and
+`fef0de9e9bcad8e4` (`lora_hook_parity.py`). llama.cpp `b11476` (`98819068`) was
+built on the box with GNU 11.4.0. The reference ran torch 2.14.1+cpu,
+transformers 5.19.0 and peft 0.21.2 on Python 3.12.15; the converter torch
+2.11.0+cpu, transformers 4.57.6 and gguf 0.19.0; 32 threads. The harness took
+13.2 minutes, 7.0 of them for the download and 4.4 for the base conversion.
+Raw output: `part-b-real-model-run1.{json,log,out}`, the box's setup output
+`part-b-setup-run1.log`, and every Brev command in
+[`part-b-cloud-run.log`](results/probe-lora-hook-engines/part-b-cloud-run.log).
+
+**Result: VOID, at the base check.** Both sides were deterministic (two engine
+runs and two reference forwards bitwise equal); the engine tokenised the prompt
+the same way in every run (22 tokens), and the reference was given those tokens.
+Top-1 agreement was 21 of 22 (0.955, above 0.9), but `n_base` = 0.066 is above
+the 0.05 line (`e_base` 0.105), so by §4c's table the run is VOID and neither
+variant has a verdict. The per-variant numbers were recorded all the same; the
+rule does not read them once the run is VOID:
+
+| variant | `s_ref` | `ρ` | `r` | cos | `f` | `t` = 3f + 0.02 |
+|---|---|---|---|---|---|---|
+| `soup-auto` | 0.118 | 0.92 | 0.75 | 0.69 | 0.56 | 1.70 |
+| `soup-auto+shared` | 0.241 | 0.98 | 0.37 | 0.93 | 0.27 | 0.84 |
+
+With a valid base both rows would still be TOO NOISY (`t` > 0.5): the two bf16
+base models differ by 27-56% of the adapters' own effect, so in bf16 this model
+cannot tell a correct adapter from a wrong one under this rule. Why the two
+bf16 implementations differ by 6.6% was not diagnosed. Different bf16 rounding
+(transformers keeps bf16 activations through every layer, llama.cpp keeps f32
+activations and rounds only the matmul inputs) and the expert-routing flips it
+can cause are the likely reasons [HYPOTHESIS].
+
+Outside the rule, the run shows two things [RUN], neither of them a correctness
+result. Both adapters exported adapter-only (19.8 MB and 29.7 MB of GGUF) and
+llama.cpp loaded both onto the real bf16 base, so every factor pair passed the
+loader's rank and shape checks against the real base tensors. And the engine's
+logits moved under each adapter by about as much as the reference's (`ρ` 0.92
+and 0.98), where a dropped adapter gives `ρ` = 0 on this deterministic engine.
+
+| date (UTC) | instance | create command | delete command | list price | cost at list price |
+|---|---|---|---|---|---|
+| 2026-10-08 | GCP `n2d-highmem-32` (32 vCPU, 256 GB RAM), 129 GB disk | 05:06:40 | 05:32:42 | $1.44/h, disk $0.16 per GB-month | $0.62, disk $0.012 |
+
+With §4e's rows, about $0.94 for the stage so far; the bill itself was not seen.
+The archive of the outputs had the same SHA-256 on the box and after the copy,
+both printed before the delete command; `brev ls` was empty at 05:34:06. No
+second run has been made.
+
 ## 5. Reproducing
 
 Two Python 3.12 environments: the reference one is Soup's
@@ -668,3 +723,33 @@ Run 3 used the harness as committed in `c4c09b43` (fingerprint
 the checks and leaves the steps as they were, so only the fingerprint differs.
 The file run 3 used is
 `git show c4c09b43:benchmarks/harness/lora_export_real_configs.py`.
+
+**Part B.** A Linux x86-64 box with 256 GB of RAM (run 1: GCP `n2d-highmem-32`
+through Brev), `<repo>` the repository at the commit under test (run 1:
+`git archive` of `f4375fa3`). The setup's own output for run 1 is
+`part-b-setup-run1.log`.
+
+```bash
+sudo apt-get install -y build-essential cmake git curl
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone --depth 1 --branch b11476 https://github.com/ggml-org/llama.cpp <llama-src>
+cmake -S <llama-src> -B <build> -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON \
+  -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_CURL=OFF
+cmake --build <build> --target llama-results -j "$(nproc)"
+uv venv --python 3.12 <convert-venv>
+uv pip install --python <convert-venv>/bin/python --index-strategy unsafe-best-match \
+  -r <llama-src>/requirements/requirements-convert_lora_to_gguf.txt
+uv pip install --python <convert-venv>/bin/python <llama-src>/gguf-py
+uv venv --python 3.12 <ref-venv>
+uv pip install --python <ref-venv>/bin/python \
+  --index-url https://download.pytorch.org/whl/cpu torch==2.14.1
+uv pip install --python <ref-venv>/bin/python transformers==5.19.0 peft==0.21.2 \
+  safetensors huggingface_hub numpy psutil
+uv pip install --python <ref-venv>/bin/python <repo>
+HF_XET_CHUNK_CACHE_SIZE_BYTES=0 <ref-venv>/bin/python \
+  <repo>/benchmarks/harness/lora_hook_real_model.py \
+  --llama-bin <build>/bin --llama-src <llama-src> \
+  --convert-python <convert-venv>/bin/python \
+  --model-dir <checkpoint-dir> --work-dir /dev/shm/<scratch> --threads 32 \
+  --box "<box>" --out part-b-real-model-run1.json --log part-b-real-model-run1.log
+```

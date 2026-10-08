@@ -196,3 +196,97 @@ tmpfs           126G   50G   77G  40% /dev/shm
 Mem:             251           5         119          49         126         194
 RUNNING
 g8-qwen35-check2
+
+=== 2026-10-08T05:29:10.452441150Z
+$ timeout 120 brev exec g8-qwen35-check2 'bash ~/partb_status.sh' 2>&1 | grep -v 'waiting for'
+Thu Oct  8 05:29:16 UTC 2026
+  soup-auto          VOID            s_ref=0.11796754864262059 rho=0.9211148135930549 r=0.7548891723953958 floor=0.5607488967317205
+  soup-auto+shared   VOID            s_ref=0.2411994279725386 rho=0.9792709031529432 r=0.3670956943278841 floor=0.2742550979806904
+[  791.1 s] engine adapters
+result: {"status": "VOID", "top1_agreement": 0.9545454545454546, "n_base": 0.06615017275149505}
+[  791.1 s] engine adapters
+result: {"status": "VOID", "top1_agreement": 0.9545454545454546, "n_base": 0.06615017275149505}
+/dev/root       125G   77G   49G  62% /
+tmpfs           126G   65G   62G  52% /dev/shm
+               total        used        free      shared  buff/cache   available
+Mem:             251           1         108          64         141         183
+NOT-RUNNING
+g8-qwen35-check2
+
+=== 2026-10-08T05:30:32.52673134Z
+$ timeout 120 brev exec g8-qwen35-check2 'ls -la ~/g8 /dev/shm/g8-work; du -sh /dev/shm/g8-work/* | sort -h | tail -20' 2>&1 | grep -v 'waiting for'
+/dev/shm/g8-work:
+total 67921376
+drwxrwxr-x 3 ubuntu ubuntu         240 Oct  8 05:27 .
+drwxrwxrwt 3 root   root            60 Oct  8 05:26 ..
+drwxrwxr-x 4 ubuntu ubuntu         120 Oct  8 05:26 adapters
+-rw-rw-r-- 1 ubuntu ubuntu    21852448 Oct  8 05:25 base1.out.gguf
+-rw-rw-r-- 1 ubuntu ubuntu    21852758 Oct  8 05:25 base1.out.npz
+-rw-rw-r-- 1 ubuntu ubuntu    21852448 Oct  8 05:25 base2.out.gguf
+-rw-rw-r-- 1 ubuntu ubuntu    21852758 Oct  8 05:25 base2.out.npz
+-rw-rw-r-- 1 ubuntu ubuntu 69376637120 Oct  8 05:25 qwen3.5-35b-a3b.bf16.gguf
+-rw-rw-r-- 1 ubuntu ubuntu    21852448 Oct  8 05:26 soup-auto+shared.out.gguf
+-rw-rw-r-- 1 ubuntu ubuntu    21852758 Oct  8 05:27 soup-auto+shared.out.npz
+-rw-rw-r-- 1 ubuntu ubuntu    21852448 Oct  8 05:26 soup-auto.out.gguf
+-rw-rw-r-- 1 ubuntu ubuntu    21852758 Oct  8 05:26 soup-auto.out.npz
+
+/home/ubuntu/g8:
+total 88
+drwxrwxr-x  8 ubuntu ubuntu  4096 Oct  8 05:27 .
+drwxrwxr-x 10 ubuntu ubuntu  4096 Oct  8 05:26 ..
+drwxrwxr-x 10 ubuntu ubuntu  4096 Oct  8 05:12 build
+drwxrwxr-x 30 ubuntu ubuntu  4096 Oct  8 05:12 llama.cpp-b11476
+drwxrwxr-x  3 ubuntu ubuntu  4096 Oct  8 05:20 model
+-rw-rw-r--  1 ubuntu ubuntu 32368 Oct  8 05:27 part-b-real-model.json
+-rw-rw-r--  1 ubuntu ubuntu  8776 Oct  8 05:27 part-b-real-model.log
+-rw-rw-r--  1 ubuntu ubuntu 11547 Oct  8 05:27 run.out
+drwxrwxr-x 12 ubuntu ubuntu  4096 Oct  8 05:13 soup
+drwxrwxr-x  5 ubuntu ubuntu  4096 Oct  8 05:13 venv-convert
+drwxrwxr-x  5 ubuntu ubuntu  4096 Oct  8 05:13 venv-ref
+21M	/dev/shm/g8-work/base1.out.gguf
+21M	/dev/shm/g8-work/base1.out.npz
+21M	/dev/shm/g8-work/base2.out.gguf
+21M	/dev/shm/g8-work/base2.out.npz
+21M	/dev/shm/g8-work/soup-auto+shared.out.gguf
+21M	/dev/shm/g8-work/soup-auto+shared.out.npz
+21M	/dev/shm/g8-work/soup-auto.out.gguf
+21M	/dev/shm/g8-work/soup-auto.out.npz
+95M	/dev/shm/g8-work/adapters
+65G	/dev/shm/g8-work/qwen3.5-35b-a3b.bf16.gguf
+g8-qwen35-check2
+
+=== 2026-10-08T05:30:48.682219086Z
+$ timeout 300 brev exec g8-qwen35-check2 'tar czf ~/partb-out.tgz -C ~/g8 part-b-real-model.json part-b-real-model.log run.out -C ~ setup.log -C /dev/shm/g8-work base1.out.npz base2.out.npz soup-auto.out.npz soup-auto+shared.out.npz adapters && ls -la ~/partb-out.tgz && sha256sum ~/partb-out.tgz' 2>&1 | grep -v 'waiting for'
+-rw-rw-r-- 1 ubuntu ubuntu 154002149 Oct  8 05:31 /home/ubuntu/partb-out.tgz
+8a20c0f682e38c44a83f3a1e852a83bbf74d4c350267027f92643bb0727a431a  /home/ubuntu/partb-out.tgz
+g8-qwen35-check2
+
+=== 2026-10-08T05:31:07.469574084Z
+$ brev copy g8-qwen35-check2:/home/ubuntu/partb-out.tgz ./partb-out/partb-out.tgz 2>&1 | grep -v "waiting for" | tail -2; sha256sum ./partb-out/partb-out.tgz
+✓ Successfully copied g8-qwen35-check2:/home/ubuntu/partb-out.tgz → ./partb-out/partb-out.tgz (1m1.954s)
+
+8a20c0f682e38c44a83f3a1e852a83bbf74d4c350267027f92643bb0727a431a  ./partb-out/partb-out.tgz
+
+=== 2026-10-08T05:32:42.266531940Z
+$ date -u; brev delete g8-qwen35-check2 2>&1 | tail -2; sleep 30; brev ls 2>&1 | head -4
+Thu Oct  8 05:32:42 UTC 2026
+g8-qwen35-check2
+You have 1 instances in Org <org>
+ NAME              STATUS    BUILD      SHELL      ID         MACHINE         GPU
+ g8-qwen35-check2  DELETING  COMPLETED  NOT READY  is7b3f03i  n2d-highmem-32  -
+
+
+=== 2026-10-08T05:33:38.954816718Z
+$ date -u; brev ls 2>&1 | head -5
+Thu Oct  8 05:33:38 UTC 2026
+You have 1 instances in Org <org>
+ NAME              STATUS    BUILD      SHELL      ID         MACHINE         GPU
+ g8-qwen35-check2  STOPPING  COMPLETED  NOT READY  is7b3f03i  n2d-highmem-32  -
+
+
+=== 2026-10-08T05:34:06.575746603Z
+$ date -u; brev ls 2>&1 | head -5
+Thu Oct  8 05:34:06 UTC 2026
+No instances in org <org>
+
+Start a new instance:

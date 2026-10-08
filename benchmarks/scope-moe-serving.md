@@ -78,8 +78,10 @@ module by module, and a silently dropped module is detected:
 
 - tiny models, f32: `r` ≤ 1e-2 for every target module; a dropped module shows
   as `ρ` ≤ 1e-2 (the record's §2);
-- real model, bf16: `r` within three times the base models' own disagreement,
-  as in the record's Part B.
+- real model: `r` within three times the base models' own disagreement, as in
+  the record's Part B. In bf16 on the real Qwen3.5-35B-A3B that disagreement
+  was too large for any verdict (record §4f), so the precision of this
+  comparison is still open.
 
 Generation speed is **not** a criterion. Engine speed figures in the evidence
 appendix are context from their sources.
@@ -103,9 +105,11 @@ appendix are context from their sources.
 - **PEFT.** On Soup's pinned stack PEFT cannot build the shared-expert adapter
   for `deepseek_v3`: it retargets it onto the routed experts (record §3.2). Until
   that is worked around, the shape that can be trained today is attention only.
-- **The real model.** The comparison on the real Qwen3.5-35B-A3B has not run:
-  the cloud instances could not be reached (record §4e). Correctness rests on
-  the tiny models and on the export at real dimensions.
+- **The real model.** The comparison on the real Qwen3.5-35B-A3B ran once, in
+  bf16, and is VOID: the two bf16 base models differ by 6.6% of the logits (the
+  line is 5%) and by 27-56% of the adapters' own effect, so the rule gives no
+  verdict (record §4f). Both adapters did export adapter-only and load onto the
+  real base. Correctness rests on the tiny models, and real MLA weights are P4.
 - **Upstream acceptance.** The draft hook is not a pull request. Quantised base
   tensors, GPU backends and the review are untested.
 - **Fit on the dev box.** No engine has shown DeepSeek-V3 or K2 with experts on
