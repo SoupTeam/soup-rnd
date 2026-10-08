@@ -56,6 +56,38 @@ class FrozenPrefixRunner:
                 ),
             ]
         )
+        import torch.nn as nn
+
+        frozen_modules = [
+            decoder.embed_tokens,
+            *decoder.layers[:cutoff],
+        ]
+
+        for module in frozen_modules:
+            for submodule in module.modules():
+                if (
+                        isinstance(submodule, nn.modules.dropout._DropoutNd)
+                        and submodule.training
+                        and submodule.p > 0
+                ):
+                    raise ValueError(
+                        "E2 requires deterministic frozen prefix: "
+                        "active dropout is not supported"
+                    )
+
+        attention_dropout = getattr(
+            decoder.config,
+            "attention_dropout",
+            0.0,
+        )
+
+        if attention_dropout > 0 and any(
+                layer.training for layer in decoder.layers[:cutoff]
+        ):
+            raise ValueError(
+                "E2 requires deterministic frozen prefix: "
+                "attention_dropout must be zero during training"
+            )
 
         if any(p.requires_grad for p in self._frozen_parameters):
             raise ValueError("E2 requires a fully frozen prefix")
@@ -66,6 +98,42 @@ class FrozenPrefixRunner:
         self.hits = 0
         self.misses = 0
 
+    def _validate_deterministic_prefix(self) -> None:
+        """Reject stochastic operations in the frozen prefix."""
+        import torch.nn as nn
+
+        decoder = self.decoder
+
+        frozen_modules = [
+            decoder.embed_tokens,
+            *decoder.layers[: self.cutoff],
+        ]
+
+        for module in frozen_modules:
+            for submodule in module.modules():
+                if (
+                        isinstance(submodule, nn.modules.dropout._DropoutNd)
+                        and submodule.training
+                        and submodule.p > 0
+                ):
+                    raise ValueError(
+                        "E2 requires deterministic frozen prefix: "
+                        "active dropout is not supported"
+                    )
+
+        attention_dropout = getattr(
+            decoder.config,
+            "attention_dropout",
+            0.0,
+        )
+
+        if attention_dropout > 0 and any(
+                layer.training for layer in decoder.layers[: self.cutoff]
+        ):
+            raise ValueError(
+                "E2 requires deterministic frozen prefix: "
+                "attention_dropout must be zero during training"
+            )
     def forward(
         self,
         input_ids: Any = None,
@@ -96,7 +164,7 @@ class FrozenPrefixRunner:
             raise ValueError(
                 f"E2 unsupported forward arguments: {sorted(kwargs)}"
             )
-
+        self._validate_deterministic_prefix()
         decoder = self.decoder
 
         embeddings = decoder.embed_tokens(input_ids)

@@ -427,3 +427,107 @@ def test_runner_rejects_trainable_frozen_prefix(tmp_path):
             cutoff=2,
             metadata_factory=lambda **kwargs: {},
         )
+
+def test_runner_rejects_active_attention_dropout(tmp_path):
+    torch.manual_seed(42)
+
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+        attention_dropout=0.2,
+    )
+
+    model = MistralModel(config)
+    model.train()
+    model.requires_grad_(False)
+
+    with pytest.raises(
+        ValueError,
+        match="deterministic frozen prefix",
+    ):
+        FrozenPrefixRunner(
+            decoder=model,
+            cache=FrozenPrefixCache(tmp_path / "cache"),
+            cutoff=2,
+            metadata_factory=lambda **kwargs: {},
+        )
+
+def test_runner_allows_dropout_config_in_eval_mode(tmp_path):
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+        attention_dropout=0.2,
+    )
+
+    model = MistralModel(config)
+    model.eval()
+    model.requires_grad_(False)
+
+    runner = FrozenPrefixRunner(
+        decoder=model,
+        cache=FrozenPrefixCache(tmp_path / "cache"),
+        cutoff=2,
+        metadata_factory=lambda **kwargs: {},
+    )
+
+    assert runner.cutoff == 2
+
+def test_runner_rejects_dropout_activated_after_install(tmp_path):
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+        attention_dropout=0.2,
+    )
+
+    model = MistralModel(config)
+    model.eval()
+    model.requires_grad_(False)
+
+    def metadata_factory(*, input_ids, attention_mask, position_ids):
+        return build_cache_metadata(
+            model_revision="test-model",
+            frozen_prefix_fingerprint="placeholder",
+            config_fingerprint="test-config",
+            cutoff=2,
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+        )
+
+    runner = FrozenPrefixRunner(
+        decoder=model,
+        cache=FrozenPrefixCache(tmp_path / "cache"),
+        cutoff=2,
+        metadata_factory=metadata_factory,
+    )
+
+    input_ids = torch.tensor([[1, 2, 3, 4, 5]])
+
+    with torch.no_grad():
+        runner.forward(input_ids=input_ids)
+
+    model.train()
+
+    with pytest.raises(
+        ValueError,
+        match="deterministic frozen prefix",
+    ):
+        runner.forward(input_ids=input_ids)
