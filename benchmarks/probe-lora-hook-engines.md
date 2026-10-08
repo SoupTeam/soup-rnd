@@ -510,9 +510,10 @@ the pair counts are the module counts plus one per layer (61 layers in both
 configs). Every pair carries rank 8 on both halves, and every layer's `k_b` and
 `v_b` pairs have the outer dimensions the config gives the base tensors
 (DeepSeek-V3: 128 heads, `kv_lora_rank` 512; Kimi K2: 64 heads, the same rank).
-The outer dimensions of the other pairs were not checked: §4d compares only the
-two tensors the hook writes, and there is no base GGUF at these sizes here to
-compare the rest with; llama.cpp's loader checks them when the adapter is
+The outer dimensions of the other pairs were not checked: §4d's rule compares
+only the two tensors the hook writes. The meta-device model's `in_features` and
+`out_features` would have been enough to check the rest; that check was not
+added, and llama.cpp's loader checks them when the adapter is
 loaded on a real base. With the hook's converter, then, an adapter for a 671B
 or 1T base exports on a machine that holds only the base's `config.json`.
 
@@ -570,6 +571,14 @@ RAM-backed tmpfs (`/dev/shm`, 126 GB). The rule, the precision of both sides
 (bf16) and the engine flags are as §4c states; the engine's thread count follows
 the box (32).
 
+On timing: this paragraph was committed (`c7bb202b`, 05:26:54 UTC) within
+seconds of the run's end. The harness was launched between 05:13:29 and
+05:13:49 and ran 791 s by its own clock, so it ended between about 05:26:40 and
+05:27:05. The deviation itself was decided before the launch: the
+`n2d-highmem-16` was deleted at 05:05:44 and the `n2d-highmem-32` created at
+05:06:40. The result was first seen at the status check of 05:29:10; the one
+before, at 05:24:04, still showed the base conversion running.
+
 ## 4f. Part B run 1: VOID
 
 **Run.** 2026-10-08 (UTC), on the box of §4e's deviation: GCP `n2d-highmem-32`
@@ -607,6 +616,12 @@ bf16 implementations differ by 6.6% was not diagnosed. Different bf16 rounding
 (transformers keeps bf16 activations through every layer, llama.cpp keeps f32
 activations and rounds only the matmul inputs) and the expert-routing flips it
 can cause are the likely reasons [HYPOTHESIS].
+
+For both variants `r`/`f` is 1.35 and 1.34, close to √2 ≈ 1.41: what an exactly
+applied adapter gives when the base gap with the adapter and the one without it
+are independent and of equal size, since then `r` ≈ ‖gap₁ − gap₀‖ / ‖Δ_ref‖ ≈
+√2 `f` [INFERENCE]. This is not a verdict: a systematic adapter error of the
+order of `f` would hide inside the same noise.
 
 Outside the rule, the run shows two things [RUN], neither of them a correctness
 result. Both adapters exported adapter-only (19.8 MB and 29.7 MB of GGUF) and
@@ -719,8 +734,8 @@ python benchmarks/harness/lora_export_real_configs.py \
 ```
 
 Run 3 used the harness as committed in `c4c09b43` (fingerprint
-`f38f10f090c03add`). Its one later change corrects the docstring's account of
-the checks and leaves the steps as they were, so only the fingerprint differs.
+`f38f10f090c03add`). Its later changes touch only the docstring's account of
+the checks; the steps are as they were, so only the fingerprint differs.
 The file run 3 used is
 `git show c4c09b43:benchmarks/harness/lora_export_real_configs.py`.
 
