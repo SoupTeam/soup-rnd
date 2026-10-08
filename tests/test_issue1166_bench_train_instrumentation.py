@@ -305,3 +305,20 @@ class TestAPreFlightRefusalWritesNoReport:
         assert result.exit_code == 0, result.output
         report = json.loads((workdir / "r.json").read_text(encoding="utf-8"))
         assert _busy(report)["unavailable_reason"] == "not a CUDA run"
+
+def test_mps_synchronization_at_step_boundaries(monkeypatch):
+    from soup_cli.bench.collector import BenchCollector
+
+    collector = BenchCollector(warmup_steps=0)
+    calls = []
+
+    def fake_sync():
+        calls.append("sync")
+
+    collector._sync = fake_sync
+
+    collector.on_step_begin()
+    collector.on_step_end()
+
+    assert calls == ["sync", "sync"]
+    assert len(collector.steps) == 1

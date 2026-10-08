@@ -223,8 +223,12 @@ def run_bench_train(
             trainer.args.eval_strategy = "no"
 
         collector = BenchCollector(warmup_steps=warmup)
-        if device == "cuda" and torch.cuda.is_available():
+
+        if str(device).startswith("cuda") and torch.cuda.is_available():
             collector._sync = torch.cuda.synchronize
+        elif str(device).startswith("mps") and torch.backends.mps.is_available():
+            collector._sync = torch.mps.synchronize
+
         trainer.add_callback(collector)
 
         # Tokens come from what training_step receives: that is the batch the
