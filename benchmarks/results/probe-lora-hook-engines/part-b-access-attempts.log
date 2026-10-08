@@ -1,4 +1,5 @@
-# Part B access attempts on NVIDIA Brev, 2026-10-07 (UTC). Brev CLI v0.6.335, run from WSL.
+# Part B access attempts on NVIDIA Brev, 2026-10-07 and 2026-10-08 (UTC). Brev CLI v0.6.335,
+# run from WSL. The 2026-10-08 probe has its own note where it starts.
 # Every Brev and SSH command of the attempt, in order, each with its launch time and its
 # output as captured by the agent's shell tool. Help listings and two dumps of the local
 # SSH config are left out. Edits to the captured text: the org name, the WSL user name,
@@ -314,6 +315,137 @@ You have 1 instances in Org <org>
 === 2026-10-07T22:35:32.070Z
 $ wsl bash -lc "date -u; brev ls 2>&1 | head -5"
 Wed Oct  7 22:35:32 UTC 2026
+No instances in org <org>
+
+Start a new instance:
+
+# 2026-10-08 (UTC): a new access probe. Two cheap instances, one on the provider that
+# failed above (GCP) and one on a provider not tried before (Crusoe), run one after the
+# other from WSL as `bash probe_access.sh <name> <type>`. The script logs each command
+# below as run through `bash -c`; between the create and the first `brev ls` it polled
+# `brev ls` every 15 s until the instance showed BUILD COMPLETED and SHELL READY (the
+# polls are not logged). The last two entries ran outside the script. Same edits as above: the
+# org name is <org>, and each run of spinner frames is collapsed into one bracketed line.
+
+=== 2026-10-08T04:42:49.828300848Z
+$ brev create g8-probe-gcp --type n2d-highcpu-2 --dry-run
+n2d-highcpu-2
+
+=== 2026-10-08T04:42:52.412776074Z
+$ brev create g8-probe-gcp --type n2d-highcpu-2 --timeout 600
+Attempting to create 1 instance(s) with 1 parallel attempts
+Instance types to try: n2d-highcpu-2
+
+Trying n2d-highcpu-2 for 1 instance(s)...
+[Worker 1] Trying n2d-highcpu-2 for instance 'g8-probe-gcp'...
+[Worker 1] n2d-highcpu-2 Success! Created instance 'g8-probe-gcp'
+
+Waiting for instance(s) to be ready...
+You can safely ctrl+c to exit
+  g8-probe-gcp: Ready
+g8-probe-gcp
+
+=== 2026-10-08T04:47:36.699381130Z
+$ brev ls
+You have 1 instances in Org <org>
+ NAME          STATUS   BUILD      SHELL  ID         MACHINE        GPU
+ g8-probe-gcp  RUNNING  COMPLETED  READY  mrjqytquo  n2d-highcpu-2  -
+
+
+=== 2026-10-08T04:47:42.605113483Z
+$ timeout 180 brev exec g8-probe-gcp 'echo SSH-OK; whoami; uname -m; nproc; free -g | head -2'
+ssh: Could not resolve hostname g8-probe-gcp: Name or service not known
+Connection failed, checking instance status...
+
+[53 spinner frames: waiting for SSH connection to be available]
+still waiting for SSH connection (attempt 1 failed; retrying)
+
+[24 spinner frames: waiting for SSH connection to be available]
+SSH-OK
+ubuntu
+x86_64
+2
+               total        used        free      shared  buff/cache   available
+Mem:               1           0           0           0           1           1
+g8-probe-gcp
+
+=== 2026-10-08T04:48:09.287425405Z
+$ timeout 60 ssh -v -o ConnectTimeout=20 -o BatchMode=yes g8-probe-gcp 'echo SSH-OK' 2>&1 | grep -E 'Connecting to|Connection established|kex_exchange|closed|denied|Authenticated|refused|timed out|SSH-OK'
+SSH-OK
+
+=== 2026-10-08T04:48:11.724211115Z
+$ brev delete g8-probe-gcp
+g8-probe-gcp
+
+=== 2026-10-08T04:48:48.625728230Z
+$ brev ls
+You have 1 instances in Org <org>
+ NAME          STATUS    BUILD      SHELL      ID         MACHINE        GPU
+ g8-probe-gcp  DELETING  COMPLETED  NOT READY  mrjqytquo  n2d-highcpu-2  -
+
+=== 2026-10-08T04:48:54.426642102Z
+$ brev create g8-probe-crusoe --type c1a.2x --dry-run
+c1a.2x
+
+=== 2026-10-08T04:48:56.342070720Z
+$ brev create g8-probe-crusoe --type c1a.2x --timeout 600
+Attempting to create 1 instance(s) with 1 parallel attempts
+Instance types to try: c1a.2x
+
+Trying c1a.2x for 1 instance(s)...
+[Worker 1] Trying c1a.2x for instance 'g8-probe-crusoe'...
+[Worker 1] c1a.2x Success! Created instance 'g8-probe-crusoe'
+
+Waiting for instance(s) to be ready...
+You can safely ctrl+c to exit
+  g8-probe-crusoe: Ready
+g8-probe-crusoe
+
+=== 2026-10-08T04:53:41.851932397Z
+$ brev ls
+You have 1 instances in Org <org>
+ NAME             STATUS   BUILD      SHELL  ID         MACHINE  GPU
+ g8-probe-crusoe  RUNNING  COMPLETED  READY  75dnqn720  c1a.2x   -
+
+
+=== 2026-10-08T04:53:47.593880810Z
+$ timeout 180 brev exec g8-probe-crusoe 'echo SSH-OK; whoami; uname -m; nproc; free -g | head -2'
+ssh: Could not resolve hostname g8-probe-crusoe: Name or service not known
+Connection failed, checking instance status...
+
+[43 spinner frames: waiting for SSH connection to be available]
+SSH-OK
+ubuntu
+x86_64
+2
+               total        used        free      shared  buff/cache   available
+Mem:               7           0           2           0           4           6
+g8-probe-crusoe
+
+=== 2026-10-08T04:54:10.165262232Z
+$ timeout 60 ssh -v -o ConnectTimeout=20 -o BatchMode=yes g8-probe-crusoe 'echo SSH-OK' 2>&1 | grep -E 'Connecting to|Connection established|kex_exchange|closed|denied|Authenticated|refused|timed out|SSH-OK'
+SSH-OK
+
+=== 2026-10-08T04:54:12.395793566Z
+$ brev delete g8-probe-crusoe
+g8-probe-crusoe
+
+=== 2026-10-08T04:54:49.406182637Z
+$ brev ls
+You have 1 instances in Org <org>
+ NAME             STATUS    BUILD      SHELL      ID         MACHINE  GPU
+ g8-probe-crusoe  DELETING  COMPLETED  NOT READY  75dnqn720  c1a.2x   -
+
+=== 2026-10-08T04:54:55Z
+$ date -u; brev ls 2>&1 | head -4
+Thu Oct  8 04:54:55 UTC 2026
+You have 1 instances in Org <org>
+ NAME             STATUS     BUILD  SHELL      ID         MACHINE  GPU
+ g8-probe-crusoe  DEPLOYING         NOT READY  75dnqn720  c1a.2x   -
+
+=== 2026-10-08T04:55:49Z
+$ wsl bash -lc "date -u; brev ls 2>&1 | head -5"
+Thu Oct  8 04:55:49 UTC 2026
 No instances in org <org>
 
 Start a new instance:

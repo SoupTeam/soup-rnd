@@ -24,8 +24,8 @@ converter it exports from the config alone, every factor pair carries the
 adapter's rank on both halves, and every layer's `k_b` and `v_b` pairs have the
 outer dimensions the config gives the base tensors; the other pairs' outer
 dimensions are not checked. The stock converter fails on `kv_b_proj` (§4d-§4e).
-Part B, the real Qwen3.5-35B-A3B in the cloud, is blocked on access to the
-cloud instances and has not run (§4e).**
+Part B, the real Qwen3.5-35B-A3B in the cloud, has not run yet: the cloud
+instances could not be reached on 2026-10-07 and could on 2026-10-08 (§4e).**
 
 This record answers one question behind the serving-scope decision in
 [`scope-moe-serving.md`](scope-moe-serving.md): if an external engine serves the
@@ -522,25 +522,32 @@ config from a directory holding only `config.json`, to see whether an
 adapter-only export runs at all. It wrote the pair (`blk.3.attn_q.weight`,
 rank 8). It did not touch DeepSeek-V3 or K2, and it is not part of B0's result.
 
-**Part B is blocked and has not run.** Two Brev instances were created and
-deleted on 2026-10-07 (UTC); every command of the attempt and its output are in
+**Part B access.** On 2026-10-07 (UTC) two Brev instances were created and
+deleted without ever being reached; on 2026-10-08 a probe of two cheap
+instances reached both. Every command and its output are in
 [`part-b-access-attempts.log`](results/probe-lora-hook-engines/part-b-access-attempts.log).
 
-| instance | create command | delete command | list price | cost at list price |
-|---|---|---|---|---|
-| GCP `n2d-highmem-16` (16 vCPU, 128 GB RAM), 300 GB disk | 22:08:45 | 22:22:10 | $0.72/h, disk $0.16 per GB-month | $0.16, disk $0.015 |
-| AWS `m8a.medium` (1 vCPU, 4 GB RAM), SSH probe | 22:23:08 | 22:29:56 | $0.08/h | $0.009 |
+| date (UTC) | instance | create command | delete command | list price | cost at list price |
+|---|---|---|---|---|---|
+| 2026-10-07 | GCP `n2d-highmem-16` (16 vCPU, 128 GB RAM), 300 GB disk | 22:08:45 | 22:22:10 | $0.72/h, disk $0.16 per GB-month | $0.16, disk $0.015 |
+| 2026-10-07 | AWS `m8a.medium` (1 vCPU, 4 GB RAM), SSH probe | 22:23:08 | 22:29:56 | $0.08/h | $0.009 |
+| 2026-10-08 | GCP `n2d-highcpu-2` (2 vCPU, 2 GB RAM), SSH probe | 04:42:52 | 04:48:11 | $0.05/h | $0.004 |
+| 2026-10-08 | Crusoe `c1a.2x` (2 vCPU, 8 GB RAM), SSH probe | 04:48:56 | 04:54:12 | $0.10/h | $0.009 |
 
-About $0.18 in all, counted from each create command to its delete command; the
-bill itself was not seen. Brev reported both instances `READY`, but neither was
-ever reached, so no driver or software version was recorded and no model was
-downloaded. Brev's SSH gateway closed every connection before the SSH banner
-(`kex_exchange_identification: Connection closed by remote host`), and port 22
-of both instances timed out. `brev refresh` changed nothing; `brev enable-ssh`
-asks for `brev register`, which makes the local machine a Brev node and does
-not bear on reaching an instance. Outbound SSH from the same machine works
-(`github.com:22`). Part B's rule stands as written in §4c and runs once access
-works.
+About $0.19 in all, counted from each create command to its delete command; the
+bill itself was not seen. On 2026-10-07 Brev reported both instances `READY`,
+but neither was ever reached, so no driver or software version was recorded and
+no model was downloaded. Brev's SSH gateway closed every connection before the
+SSH banner (`kex_exchange_identification: Connection closed by remote host`),
+and port 22 of both instances timed out. `brev refresh` changed nothing;
+`brev enable-ssh` asks for `brev register`, which makes the local machine a Brev
+node and does not bear on reaching an instance. Outbound SSH from the same
+machine worked (`github.com:22`). On 2026-10-08, from the same machine and CLI
+version, `brev exec` and a plain `ssh` reached both probes once Brev showed
+`BUILD COMPLETED` and `SHELL READY`, on the provider that had failed (GCP) and
+on one not tried before (Crusoe). Nothing was changed locally in between, so
+the failure of 2026-10-07 was on Brev's side or transient, not tied to one
+provider [INFERENCE].
 
 ## 5. Reproducing
 
