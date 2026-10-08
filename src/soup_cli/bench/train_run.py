@@ -258,7 +258,7 @@ def run_bench_train(
         if sampler is not None:
             sampler.start()
         try:
-            trainer.train()
+            wrapper.train()
         finally:
             samples = sampler.stop() if sampler is not None else []
         if sampler is None:

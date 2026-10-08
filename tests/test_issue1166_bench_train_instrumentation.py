@@ -177,7 +177,7 @@ class TestTheRunCutsSamplesToTheCountedSteps:
         sampler = ClockSampler(interval=0.001, read=lambda: "1500")
 
         def break_training(wrapper):
-            def boom():
+            def boom(*args, **kwargs):
                 raise RuntimeError("training broke")
 
             wrapper.trainer.train = boom
