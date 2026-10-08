@@ -4,9 +4,10 @@ The comparison of ``lora_hook_parity.py`` (probe-lora-hook-engines.md, Part A) o
 the real test model instead of tiny synthetic ones. SYNTHETIC seeded adapters
 with a non-zero ``lora_B`` go on Soup's Qwen3.5 target policy, with and without
 the shared expert. They are exported adapter-only by llama.cpp's own converter
-(which reads only the base config), served by llama.cpp from the bf16 GGUF with
-the weights memory-mapped, and compared with transformers + PEFT in bf16. The
-tolerance is Part B's rule in the record: bf16 on both sides, so the allowed
+(which reads only the base config), served by llama.cpp from the base GGUF with
+the weights memory-mapped, and compared with transformers + PEFT. ``--precision``
+sets both the GGUF type and the reference dtype: bf16 (the record's §4c, run 1)
+or f32 (§4g, run 2). The tolerance is Part B's rule in the record, so the allowed
 error scales with the base models' own disagreement.
 
 CPU only. Wall times are logged for budgeting and are not a speed claim.
@@ -45,6 +46,8 @@ RHO_DROPPED_MAX = 0.1
 # Above this the APPLIED band would admit a dropped adapter (r = 1), so no verdict.
 TOLERANCE_MAX = 0.5
 SEED = 17
+# --precision: the base GGUF's --outtype and the reference's torch dtype, kept equal.
+TORCH_DTYPES = {"bf16": "bfloat16", "f32": "float32"}
 
 
 def variants() -> Dict[str, Tuple[str, ...]]:
@@ -117,12 +120,13 @@ def download(out_dir: pathlib.Path) -> pathlib.Path:
     return pathlib.Path(path)
 
 
-def load_reference(model_dir: pathlib.Path) -> Any:
+def load_reference(model_dir: pathlib.Path, precision: str) -> Any:
     import torch
     from transformers import AutoModelForCausalLM
 
     torch.set_num_threads(os.cpu_count() or 1)
-    model = AutoModelForCausalLM.from_pretrained(model_dir, dtype=torch.bfloat16)
+    dtype = getattr(torch, TORCH_DTYPES[precision])
+    model = AutoModelForCausalLM.from_pretrained(model_dir, dtype=dtype)
     return model.eval()
 
 
@@ -198,9 +202,10 @@ def engine_base(ctx: parity.Context, gguf: pathlib.Path) -> Dict[str, Any]:
 
 
 def reference_side(
-    model_dir: pathlib.Path, tokens: Sequence[int], work: pathlib.Path, clock: Clock
+    model_dir: pathlib.Path, tokens: Sequence[int], work: pathlib.Path, clock: Clock,
+    precision: str,
 ) -> Dict[str, Any]:
-    model = load_reference(model_dir)
+    model = load_reference(model_dir, precision)
     clock.mark("reference loaded")
     out: Dict[str, Any] = {"z_ref0": logits_of(model, tokens)}
     out["deterministic"] = bool(np.array_equal(out["z_ref0"], logits_of(model, tokens)))
@@ -259,10 +264,12 @@ def engine_variant(
     return row
 
 
-def run(ctx: parity.Context, model_dir: pathlib.Path, clock: Clock) -> Dict[str, Any]:
-    gguf = ctx.work / "qwen3.5-35b-a3b.bf16.gguf"
+def run(
+    ctx: parity.Context, model_dir: pathlib.Path, clock: Clock, precision: str
+) -> Dict[str, Any]:
+    gguf = ctx.work / f"qwen3.5-35b-a3b.{precision}.gguf"
     if not gguf.exists():
-        conversion = parity.convert_base(ctx, model_dir, gguf, ("--no-mtp",), outtype="bf16")
+        conversion = parity.convert_base(ctx, model_dir, gguf, ("--no-mtp",), outtype=precision)
         if not conversion.ok:
             return {"status": "VOID", "why": "base conversion failed",
                     "convert_base": vars(conversion)}
@@ -272,7 +279,7 @@ def run(ctx: parity.Context, model_dir: pathlib.Path, clock: Clock) -> Dict[str,
     if not base["ok"]:
         return {"status": "VOID", "why": "engine could not run the base",
                 "engine_base": base["step"]}
-    reference = reference_side(model_dir, base["tokens"].tolist(), ctx.work, clock)
+    reference = reference_side(model_dir, base["tokens"].tolist(), ctx.work, clock, precision)
     z_ref0 = reference["z_ref0"]
     summary: Dict[str, Any] = {
         "tokens": base["tokens"].tolist(),
@@ -315,6 +322,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--log", type=pathlib.Path)
     parser.add_argument("--threads", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--box", default="", help="free-text box description for the record")
+    parser.add_argument("--precision", choices=sorted(TORCH_DTYPES), default="bf16",
+                        help="base GGUF type and reference dtype (record §4c: bf16, §4g: f32)")
     return parser.parse_args(argv)
 
 
@@ -332,10 +341,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     result["meta"]["parity_sha256_16"] = result["meta"].pop("harness_sha256_16")
     result["meta"].update({"harness_sha256_16": parity.file_sha256(pathlib.Path(__file__))[:16],
                            "box": args.box, "machine_before": machine_state(),
-                           "model": f"{MODEL_REPO}@{MODEL_REVISION}"})
+                           "model": f"{MODEL_REPO}@{MODEL_REVISION}",
+                           "precision": args.precision})
     model_dir = download(args.model_dir)
     clock.mark("model downloaded")
-    result["run"] = run(ctx, model_dir, clock)
+    result["run"] = run(ctx, model_dir, clock, args.precision)
     result["meta"]["machine_after"] = machine_state()
     result["meta"]["wall_seconds"] = clock.marks
     headline = {k: result["run"].get(k) for k in ("status", "top1_agreement", "n_base")}

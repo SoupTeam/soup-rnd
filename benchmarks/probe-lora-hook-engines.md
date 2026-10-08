@@ -639,6 +639,47 @@ The archive of the outputs had the same SHA-256 on the box and after the copy,
 both printed before the delete command; `brev ls` was empty at 05:34:06. No
 second run has been made.
 
+## 4g. Part B run 2: f32 on both sides. Rule written before the run
+
+Run 1 was VOID in bf16 (§4f). Run 2 repeats §4c with one change, the
+precision, so that the base gap is no longer two different bf16 roundings.
+
+- **As in §4c:** the model, the SYNTHETIC adapters (same seeds, same redraw
+  rule), the adapter-only export, llama.cpp `b11476` with
+  `-fa off -ctk f32 -ctv f32`, the prompt, and the verdict table with its
+  thresholds: top-1 agreement ≥ 0.9, `n_base` ≤ 0.05, `t` = 3f + 0.02 ≤ 0.5,
+  DROPPED at `ρ` ≤ 0.1.
+- **Changed:** the base GGUF is converted with `--outtype f32` (about 139 GB),
+  and the reference is transformers + PEFT in fp32 (about 139 GB of RAM). Both
+  sides hold the checkpoint's bf16 weights, upcast exactly. The harness takes
+  this as `--precision f32` and records it in its JSON; its default, bf16, runs
+  run 1's command in §5 unchanged.
+- **Box:** GCP `n2d-highmem-48` through Brev (48 vCPU, 384 GB RAM, and the
+  129 GB disk Brev gives), the checkpoint on disk, the GGUF and the work files
+  on `/dev/shm`.
+- **Expected [ESTIMATE]:** `n_base` of the order of 1e-5 to 1e-4, and both
+  variants APPLIED.
+- **Outcomes named in advance:**
+  - VOID or TOO NOISY in f32 as well: the gap between the two base models is
+    not just bf16 rounding. That is a finding in itself. There is no run 3 in
+    this stage, and the comparison's precision goes to P4.
+  - WRONG or DROPPED for either variant: a defect in llama.cpp's standard
+    adapter paths (attention, shared expert) on the real model, reported at
+    once.
+  - APPLIED for both: llama.cpp `b11476` applies these two Soup-shaped
+    adapters, unmerged, to the real Qwen3.5-35B-A3B in f32 on CPU within the
+    rule's tolerance. Not MLA (P4), not quantised bases, not GPU backends.
+- **Deadline:** 90 minutes from the create command, a cap of about $3.3
+  ($2.17/h plus disk). At the deadline whatever exists on the box is copied off,
+  each copy time-limited, and the instance is deleted even if the harness is
+  still running; the run is then recorded as incomplete. Two mechanisms hold
+  the deadline without the agent's session: a Windows scheduled task on the
+  laptop that copies, deletes and logs `brev ls` at the deadline (removed after
+  a normal deletion), and a `shutdown` on the instance 10 minutes after the
+  deadline, set right after the first successful `brev exec`. Whether Brev stops
+  billing for a stopped instance was not checked, so the instance is deleted in
+  every case.
+
 ## 5. Reproducing
 
 Two Python 3.12 environments: the reference one is Soup's
@@ -768,3 +809,10 @@ HF_XET_CHUNK_CACHE_SIZE_BYTES=0 <ref-venv>/bin/python \
   --model-dir <checkpoint-dir> --work-dir /dev/shm/<scratch> --threads 32 \
   --box "<box>" --out part-b-real-model-run1.json --log part-b-real-model-run1.log
 ```
+
+Run 1 used the harness as committed in `f4375fa3` (fingerprint
+`fca602f5484081b8`). Its later `--precision` flag defaults to bf16, so run 1's
+command above takes the same steps; the file run 1 used is
+`git show f4375fa3:benchmarks/harness/lora_hook_real_model.py`. Run 2 is the
+same command with `--precision f32` and `-run2` file names, on a box with
+384 GB of RAM (§4g).
