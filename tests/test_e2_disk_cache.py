@@ -213,3 +213,107 @@ def test_frozen_prefix_fingerprint_changes_with_embeddings():
         model.embed_tokens.weight[0, 0].add_(0.01)
 
     assert fingerprint_frozen_prefix(model, cutoff=2) != original
+
+
+def test_cache_invalidated_when_attention_mask_changes(tmp_path):
+    import torch
+
+    from soup_cli.utils.frozen_prefix_cache import (
+        FrozenPrefixCache,
+        build_cache_metadata,
+    )
+
+    cache = FrozenPrefixCache(tmp_path)
+
+    common = {
+        "model_revision": "test-model-v1",
+        "frozen_prefix_fingerprint": "frozen-weights-v1",
+        "config_fingerprint": "config-v1",
+        "cutoff": 2,
+        "input_ids": torch.tensor([[1, 2, 3, 4]]),
+        "position_ids": torch.tensor([[0, 1, 2, 3]]),
+    }
+
+    original = build_cache_metadata(
+        **common,
+        attention_mask=torch.tensor([[1, 1, 1, 1]]),
+    )
+
+    changed = build_cache_metadata(
+        **common,
+        attention_mask=torch.tensor([[1, 1, 1, 0]]),
+    )
+
+    assert cache_key(original) != cache_key(changed)
+
+    cache.save(torch.randn(1, 4, 8), original)
+
+    assert cache.load(original) is not None
+    assert cache.load(changed) is None
+
+
+def test_cache_invalidated_when_position_ids_change(tmp_path):
+    import torch
+
+    from soup_cli.utils.frozen_prefix_cache import (
+        FrozenPrefixCache,
+        build_cache_metadata,
+    )
+
+    cache = FrozenPrefixCache(tmp_path)
+
+    common = {
+        "model_revision": "test-model-v1",
+        "frozen_prefix_fingerprint": "frozen-weights-v1",
+        "config_fingerprint": "config-v1",
+        "cutoff": 2,
+        "input_ids": torch.tensor([[1, 2, 3, 4]]),
+        "attention_mask": torch.tensor([[1, 1, 1, 1]]),
+    }
+
+    original = build_cache_metadata(
+        **common,
+        position_ids=torch.tensor([[0, 1, 2, 3]]),
+    )
+
+    changed = build_cache_metadata(
+        **common,
+        position_ids=torch.tensor([[4, 5, 6, 7]]),
+    )
+
+    assert cache_key(original) != cache_key(changed)
+
+    cache.save(torch.randn(1, 4, 8), original)
+
+    assert cache.load(original) is not None
+    assert cache.load(changed) is None
+
+
+def test_cache_persists_across_instances(tmp_path):
+    import torch
+
+    from soup_cli.utils.frozen_prefix_cache import (
+        FrozenPrefixCache,
+        build_cache_metadata,
+    )
+
+    metadata = build_cache_metadata(
+        model_revision="test-model-v1",
+        frozen_prefix_fingerprint="frozen-weights-v1",
+        config_fingerprint="config-v1",
+        cutoff=2,
+        input_ids=torch.tensor([[1, 2, 3]]),
+        attention_mask=torch.tensor([[1, 1, 1]]),
+        position_ids=torch.tensor([[0, 1, 2]]),
+    )
+
+    activation = torch.randn(1, 3, 8)
+
+    first_cache = FrozenPrefixCache(tmp_path)
+    first_cache.save(activation, metadata)
+
+    second_cache = FrozenPrefixCache(tmp_path)
+    restored = second_cache.load(metadata)
+
+    assert restored is not None
+    assert torch.equal(restored, activation)

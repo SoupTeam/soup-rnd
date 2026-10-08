@@ -46,6 +46,23 @@ class FrozenPrefixRunner:
             decoder,
             cutoff,
         )
+        self._frozen_parameters = tuple(
+            [
+                *decoder.embed_tokens.parameters(),
+                *(
+                    parameter
+                    for layer in decoder.layers[:cutoff]
+                    for parameter in layer.parameters()
+                ),
+            ]
+        )
+
+        if any(p.requires_grad for p in self._frozen_parameters):
+            raise ValueError("E2 requires a fully frozen prefix")
+
+        self._frozen_versions = tuple(
+            p._version for p in self._frozen_parameters
+        )
         self.hits = 0
         self.misses = 0
 
@@ -124,6 +141,15 @@ class FrozenPrefixRunner:
         metadata["frozen_prefix_fingerprint"] = (
             self.frozen_prefix_fingerprint
         )
+        current_versions = tuple(
+            p._version for p in self._frozen_parameters
+        )
+
+        if current_versions != self._frozen_versions:
+            raise RuntimeError(
+                "E2 frozen-prefix weights changed during training. "
+                "Restart the runner to rebuild its cache fingerprint."
+            )
         hidden = self.cache.load(metadata)
 
         if hidden is None:

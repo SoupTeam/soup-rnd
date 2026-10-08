@@ -236,3 +236,194 @@ def test_install_frozen_prefix_cache_restores_forward(tmp_path):
             raise RuntimeError("test failure")
 
     assert model.forward.__func__ is original_forward
+
+
+@pytest.mark.parametrize(
+    ("changed_field", "original_value", "changed_value"),
+    [
+        (
+            "attention_mask",
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 0],
+        ),
+        (
+            "position_ids",
+            [0, 1, 2, 3, 4],
+            [1, 2, 3, 4, 5],
+        ),
+    ],
+)
+def test_runner_invalidates_changed_mask_or_positions(
+    tmp_path,
+    changed_field,
+    original_value,
+    changed_value,
+):
+    torch.manual_seed(42)
+
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+    )
+
+    model = MistralModel(config)
+    model.eval()
+    model.requires_grad_(False)
+
+    def metadata_factory(*, input_ids, attention_mask, position_ids):
+        return build_cache_metadata(
+            model_revision="tiny-mistral-v1",
+            frozen_prefix_fingerprint="placeholder",
+            config_fingerprint="test-config-v1",
+            cutoff=2,
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+        )
+
+    runner = FrozenPrefixRunner(
+        decoder=model,
+        cache=FrozenPrefixCache(tmp_path / "cache"),
+        cutoff=2,
+        metadata_factory=metadata_factory,
+    )
+
+    input_ids = torch.tensor([[1, 2, 3, 4, 5]])
+
+    original_kwargs = {
+        "input_ids": input_ids,
+        changed_field: torch.tensor([original_value]),
+    }
+    changed_kwargs = {
+        "input_ids": input_ids,
+        changed_field: torch.tensor([changed_value]),
+    }
+
+    frozen_calls = [0]
+
+    def count_calls(module, inputs):
+        frozen_calls[0] += 1
+
+    handles = [
+        layer.register_forward_pre_hook(count_calls)
+        for layer in model.layers[:2]
+    ]
+
+    try:
+        with torch.no_grad():
+            runner.forward(**original_kwargs)
+            runner.forward(**original_kwargs)
+
+            assert runner.misses == 1
+            assert runner.hits == 1
+            assert frozen_calls[0] == 2
+
+            changed = runner.forward(**changed_kwargs)
+
+            assert runner.misses == 2
+            assert runner.hits == 1
+            assert frozen_calls[0] == 4
+
+            expected = model(
+                **changed_kwargs,
+                use_cache=False,
+            ).last_hidden_state
+
+            torch.testing.assert_close(
+                changed.last_hidden_state,
+                expected,
+                rtol=0,
+                atol=0,
+            )
+    finally:
+        for handle in handles:
+            handle.remove()
+
+def test_runner_detects_frozen_weight_mutation(tmp_path):
+    torch.manual_seed(42)
+
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+    )
+
+    model = MistralModel(config)
+    model.eval()
+    model.requires_grad_(False)
+
+    def metadata_factory(*, input_ids, attention_mask, position_ids):
+        return build_cache_metadata(
+            model_revision="tiny-mistral-v1",
+            frozen_prefix_fingerprint="placeholder",
+            config_fingerprint="test-config-v1",
+            cutoff=2,
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+        )
+
+    runner = FrozenPrefixRunner(
+        decoder=model,
+        cache=FrozenPrefixCache(tmp_path / "cache"),
+        cutoff=2,
+        metadata_factory=metadata_factory,
+    )
+
+    input_ids = torch.tensor([[1, 2, 3, 4, 5]])
+
+    with torch.no_grad():
+        runner.forward(input_ids=input_ids)
+
+        # Simulate an unexpected modification of frozen weights.
+        next(model.layers[0].parameters()).add_(0.01)
+
+        with pytest.raises(
+                RuntimeError,
+                match="frozen-prefix weights changed",
+        ):
+            runner.forward(input_ids=input_ids)
+
+    assert runner.misses == 1
+    assert runner.hits == 0
+
+def test_runner_rejects_trainable_frozen_prefix(tmp_path):
+    config = MistralConfig(
+        vocab_size=100,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=128,
+    )
+
+    model = MistralModel(config)
+    model.eval()
+    model.requires_grad_(False)
+
+    # Unexpected trainable parameter inside frozen prefix.
+    next(model.layers[0].parameters()).requires_grad_(True)
+
+    with pytest.raises(
+        ValueError,
+        match="fully frozen prefix",
+    ):
+        FrozenPrefixRunner(
+            decoder=model,
+            cache=FrozenPrefixCache(tmp_path / "cache"),
+            cutoff=2,
+            metadata_factory=lambda **kwargs: {},
+        )
