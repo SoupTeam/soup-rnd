@@ -2344,6 +2344,11 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                     )
                 )
                 self._e2_runner = e2_runner
+
+                def clear_e2_runner():
+                    self._e2_runner = None
+
+                train_ctx.callback(clear_e2_runner)
                 console.print(
                     f"[green]E2 frozen-prefix cache enabled:[/] "
                     f"cutoff={cutoff}, top_k={tcfg.lora.top_k_layers}"
