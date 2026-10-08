@@ -1,0 +1,198 @@
+# Part B on NVIDIA Brev, 2026-10-08 (UTC). Brev CLI v0.6.335, run from WSL.
+# Every Brev command of the run, in order, each with its launch time and output, as appended
+# by a small logging wrapper that runs the command through `bash -c`. Where a command ends in
+# `grep -v 'waiting for'`, Brev's spinner lines were dropped at capture. One entry, marked,
+# ran outside the wrapper and was written in by hand from the tool output. Edits to the
+# captured text: the org name is replaced by <org>, terminal control codes are removed.
+
+=== 2026-10-08T04:57:19.422462942Z
+$ brev create g8-qwen35-check --type n2d-highmem-16 --min-disk 300 --timeout 900 2>&1 | tail -6
+[Worker 1] n2d-highmem-16 Success! Created instance 'g8-qwen35-check'
+
+Waiting for instance(s) to be ready...
+You can safely ctrl+c to exit
+  g8-qwen35-check: Ready
+g8-qwen35-check
+
+=== 2026-10-08T05:01:26.959725276Z
+$ brev ls 2>&1 | head -4
+You have 1 instances in Org <org>
+ NAME             STATUS   BUILD      SHELL  ID         MACHINE         GPU
+ g8-qwen35-check  RUNNING  COMPLETED  READY  kt2jgdk9q  n2d-highmem-16  -
+
+
+=== 2026-10-08T05:01:33.389893226Z
+$ cd . && brev copy ./setup.sh g8-qwen35-check:/home/ubuntu/setup.sh 2>&1 | grep -v 'waiting for' | tail -2 && brev copy ./soup.tgz g8-qwen35-check:/home/ubuntu/soup.tgz 2>&1 | grep -v 'waiting for' | tail -2
+✓ Successfully copied ./setup.sh → g8-qwen35-check:/home/ubuntu/setup.sh (4.359s)
+
+✓ Successfully copied ./soup.tgz → g8-qwen35-check:/home/ubuntu/soup.tgz (7.381s)
+
+
+=== 2026-10-08T05:02:43.410226716Z
+$ timeout 180 brev exec g8-qwen35-check 'whoami; uname -a; head -2 /etc/os-release; nproc; free -g | head -2; df -h ~ | tail -1; sha256sum ~/setup.sh ~/soup.tgz' 2>&1 | grep -v 'waiting for'
+ubuntu
+Linux brev-kt2jgdk9q 6.8.0-1069-gcp #77~22.04.1-Ubuntu SMP Tue Sep 15 18:07:43 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+16
+               total        used        free      shared  buff/cache   available
+Mem:             125           1         119           0           5         123
+/dev/root       125G  7.1G  118G   6% /
+a8f11da3dfe73c70363137290b26c64befdabc1e1c082bfb11cdd93c1e73bda2  /home/ubuntu/setup.sh
+f1fb3ee4666efc493ccf08203ba204b7c1ac678dce93d5dc15ede6a319239204  /home/ubuntu/soup.tgz
+g8-qwen35-check
+
+=== 2026-10-08T05:02:48.781395020Z
+$ timeout 120 brev exec g8-qwen35-check 'setsid nohup bash ~/setup.sh > ~/setup.log 2>&1 < /dev/null & echo started' 2>&1 | grep -v 'waiting for'
+started
+g8-qwen35-check
+
+=== 2026-10-08T05:03Z (approximate; run outside logged.sh)
+$ brev create --help | grep -i -E "disk|storage|size"; brev exec g8-qwen35-check "lsblk ...; df -h ...; tail -3 ~/setup.log"
+      --min-disk float           Minimum disk size in GB
+sda       129G disk
+├─sda1  128.9G part /
+/dev/root       125G  7.6G  118G   7% /
+
+=== 2026-10-08T05:05:44.607709325Z
+$ date -u; brev delete g8-qwen35-check 2>&1 | tail -2; sleep 20; brev ls 2>&1 | head -4
+Thu Oct  8 05:05:44 UTC 2026
+g8-qwen35-check
+You have 1 instances in Org <org>
+ NAME             STATUS    BUILD      SHELL      ID         MACHINE         GPU
+ g8-qwen35-check  DELETING  COMPLETED  NOT READY  kt2jgdk9q  n2d-highmem-16  -
+
+
+=== 2026-10-08T05:06:34.70490005Z
+$ brev search cpu --min-ram 200 --arch x86_64 --sort price 2>&1 | head -4; brev create g8-qwen35-check2 --type n2d-highmem-32 --dry-run 2>&1 | tail -2
+ TYPE                   TARGET_DISK  PROVIDER  VCPUS  RAM   ARCH    DISK       $/GB/MO  BOOT  FEATURES  $/HR
+ n2d-highmem-32         10           gcp          32  256   x86_64  10GB-16TB  $0.16    7m    SP        $1.44
+ n2d-standard-64        10           gcp          64  256   x86_64  10GB-16TB  $0.16    7m    SP        $2.14
+ n2d-highmem-48         10           gcp          48  384   x86_64  10GB-16TB  $0.16    7m    SP        $2.17
+n2d-highmem-32
+
+=== 2026-10-08T05:06:40.954269569Z
+$ brev create g8-qwen35-check2 --type n2d-highmem-32 --timeout 900 2>&1 | tail -6
+[Worker 1] n2d-highmem-32 Success! Created instance 'g8-qwen35-check2'
+
+Waiting for instance(s) to be ready...
+You can safely ctrl+c to exit
+  g8-qwen35-check2: Ready
+g8-qwen35-check2
+
+=== 2026-10-08T05:10:45.326117886Z
+$ brev ls 2>&1 | head -4
+You have 1 instances in Org <org>
+ NAME              STATUS   BUILD      SHELL  ID         MACHINE         GPU
+ g8-qwen35-check2  RUNNING  COMPLETED  READY  is7b3f03i  n2d-highmem-32  -
+
+
+=== 2026-10-08T05:10:51.22943109Z
+$ cd . && brev copy ./setup.sh g8-qwen35-check2:/home/ubuntu/setup.sh 2>&1 | grep -v 'waiting for' | tail -2 && brev copy ./soup.tgz g8-qwen35-check2:/home/ubuntu/soup.tgz 2>&1 | grep -v 'waiting for' | tail -2
+✓ Successfully copied ./setup.sh → g8-qwen35-check2:/home/ubuntu/setup.sh (3.878s)
+
+✓ Successfully copied ./soup.tgz → g8-qwen35-check2:/home/ubuntu/soup.tgz (7.833s)
+
+
+=== 2026-10-08T05:12:03.938361183Z
+$ timeout 180 brev exec g8-qwen35-check2 'whoami; uname -a; head -2 /etc/os-release; nproc; free -g | head -2; df -h ~ | tail -1; sha256sum ~/setup.sh ~/soup.tgz' 2>&1 | grep -v 'waiting for'
+ubuntu
+Linux brev-is7b3f03i 6.8.0-1069-gcp #77~22.04.1-Ubuntu SMP Tue Sep 15 18:07:43 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+32
+               total        used        free      shared  buff/cache   available
+Mem:             251           1         245           0           5         248
+/dev/root       125G  7.1G  118G   6% /
+a8f11da3dfe73c70363137290b26c64befdabc1e1c082bfb11cdd93c1e73bda2  /home/ubuntu/setup.sh
+f1fb3ee4666efc493ccf08203ba204b7c1ac678dce93d5dc15ede6a319239204  /home/ubuntu/soup.tgz
+g8-qwen35-check2
+
+=== 2026-10-08T05:12:08.994989955Z
+$ timeout 120 brev exec g8-qwen35-check2 'setsid nohup bash ~/setup.sh > ~/setup.log 2>&1 < /dev/null & echo started' 2>&1 | grep -v 'waiting for'
+started
+g8-qwen35-check2
+
+=== 2026-10-08T05:12:25.624870714Z
+$ brev copy ./partb_run_remote.sh g8-qwen35-check2:/home/ubuntu/partb_run_remote.sh 2>&1 | grep -v "waiting for" | tail -1; brev copy ./partb_status.sh g8-qwen35-check2:/home/ubuntu/partb_status.sh 2>&1 | grep -v "waiting for" | tail -1
+
+
+
+=== 2026-10-08T05:13:29.118022864Z
+$ timeout 1800 brev exec g8-qwen35-check2 "timeout 1700 bash -c 'until grep -q SETUP-DONE ~/setup.log || ! pgrep -f setup.sh > /dev/null; do sleep 15; done'; tail -n 6 ~/setup.log; bash ~/partb_run_remote.sh" 2>&1 | grep -v "waiting for"
++ venv-ref/bin/python -c 'import torch, transformers, peft; print(torch.__version__, transformers.__version__, peft.__version__)'
+2.14.1+cpu 5.19.0 0.21.2
++ venv-convert/bin/python -c 'import torch, transformers, gguf; print(torch.__version__, transformers.__version__)'
+2.11.0+cpu 4.57.6
++ echo SETUP-DONE
+SETUP-DONE
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root       125G  9.6G  116G   8% /
+tmpfs           126G     0  126G   0% /dev/shm
+launched pid 15051
+g8-qwen35-check2
+
+=== 2026-10-08T05:14:05.993342533Z
+$ timeout 120 brev exec g8-qwen35-check2 'bash ~/partb_status.sh; du -sh ~/g8/model 2>/dev/null' 2>&1 | grep -v 'waiting for'
+Thu Oct  8 05:14:10 UTC 2026
+HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/merges.txt?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fmerges.txt=&etag=%22a494e019ca1502219fd0128658b979e5f05ae8e8%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/chat_template.jinja?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fchat_template.jinja=&etag=%22a585dec894e63da457d9440ec6aa7caa16d20860%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/merges.txt?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fmerges.txt=&etag=%22a494e019ca1502219fd0128658b979e5f05ae8e8%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/config.json?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fconfig.json=&etag=%222fd92bfc9ee58bd0274ad207d4120c3e7458dde8%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/config.json?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fconfig.json=&etag=%222fd92bfc9ee58bd0274ad207d4120c3e7458dde8%22 "HTTP/1.1 200 OK"
+
+Fetching 24 files:  17%|█▋        | 4/24 [00:00<00:02,  8.10it/s]/dev/root       125G   14G  111G  12% /
+tmpfs           126G     0  126G   0% /dev/shm
+               total        used        free      shared  buff/cache   available
+Mem:             251           3         236           0          12         246
+RUNNING
+4.4G	/home/ubuntu/g8/model
+g8-qwen35-check2
+
+=== 2026-10-08T05:18:58.232069844Z
+$ timeout 120 brev exec g8-qwen35-check2 'bash ~/partb_status.sh' 2>&1 | grep -v 'waiting for'
+Thu Oct  8 05:19:04 UTC 2026
+HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/merges.txt?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fmerges.txt=&etag=%22a494e019ca1502219fd0128658b979e5f05ae8e8%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/chat_template.jinja?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fchat_template.jinja=&etag=%22a585dec894e63da457d9440ec6aa7caa16d20860%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/merges.txt?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fmerges.txt=&etag=%22a494e019ca1502219fd0128658b979e5f05ae8e8%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/config.json?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fconfig.json=&etag=%222fd92bfc9ee58bd0274ad207d4120c3e7458dde8%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/config.json?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fconfig.json=&etag=%222fd92bfc9ee58bd0274ad207d4120c3e7458dde8%22 "HTTP/1.1 200 OK"
+
+Fetching 24 files:  17%|█▋        | 4/24 [00:00<00:02,  8.10it/s]
+Fetching 24 files:  17%|█▋        | 4/24 [00:20<00:02,  8.10it/s]
+Fetching 24 files:  21%|██        | 5/24 [02:42<14:21, 45.32s/it]
+Fetching 24 files:  25%|██▌       | 6/24 [03:53<15:47, 52.63s/it]
+Fetching 24 files:  29%|██▉       | 7/24 [03:55<10:43, 37.87s/it]
+Fetching 24 files:  33%|███▎      | 8/24 [04:03<07:45, 29.11s/it]
+Fetching 24 files:  38%|███▊      | 9/24 [04:27<06:53, 27.54s/it]
+Fetching 24 files:  42%|████▏     | 10/24 [04:28<04:36, 19.76s/it]/dev/root       125G   77G   49G  62% /
+tmpfs           126G     0  126G   0% /dev/shm
+               total        used        free      shared  buff/cache   available
+Mem:             251           3         171           0          76         246
+RUNNING
+g8-qwen35-check2
+
+=== 2026-10-08T05:24:04.939476505Z
+$ timeout 120 brev exec g8-qwen35-check2 'bash ~/partb_status.sh' 2>&1 | grep -v 'waiting for'
+Thu Oct  8 05:24:10 UTC 2026
+HTTP Request: HEAD https://huggingface.co/Qwen/Qwen3.5-35B-A3B/resolve/59d61f3ce65a6d9863b86d2e96597125219dc754/vocab.json "HTTP/1.1 307 Temporary Redirect"
+HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/vocab.json?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fvocab.json=&etag=%220aa0ce0658d60ac4a5d609f4eadb0e8e43514176%22 "HTTP/1.1 200 OK"
+HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Qwen/Qwen3.5-35B-A3B/59d61f3ce65a6d9863b86d2e96597125219dc754/vocab.json?%2FQwen%2FQwen3.5-35B-A3B%2Fresolve%2F59d61f3ce65a6d9863b86d2e96597125219dc754%2Fvocab.json=&etag=%220aa0ce0658d60ac4a5d609f4eadb0e8e43514176%22 "HTTP/1.1 200 OK"
+[  421.6 s] model downloaded
+
+Fetching 24 files:  71%|███████   | 17/24 [05:44<00:34,  4.93s/it]
+Fetching 24 files:  75%|███████▌  | 18/24 [05:47<00:25,  4.30s/it]
+Fetching 24 files:  79%|███████▉  | 19/24 [05:58<00:31,  6.32s/it]
+Fetching 24 files:  83%|████████▎ | 20/24 [06:08<00:29,  7.36s/it]
+Fetching 24 files:  88%|████████▊ | 21/24 [06:46<00:50, 16.75s/it]
+Fetching 24 files:  92%|█████████▏| 22/24 [06:51<00:25, 12.98s/it]
+Fetching 24 files:  96%|█████████▌| 23/24 [06:54<00:10, 10.11s/it]
+Fetching 24 files: 100%|██████████| 24/24 [06:58<00:00,  8.26s/it]
+Fetching 24 files: 100%|██████████| 24/24 [06:58<00:00, 17.43s/it]
+[  421.6 s] model downloaded
+/dev/root       125G   77G   49G  62% /
+tmpfs           126G   50G   77G  40% /dev/shm
+               total        used        free      shared  buff/cache   available
+Mem:             251           5         119          49         126         194
+RUNNING
+g8-qwen35-check2

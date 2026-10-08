@@ -529,15 +529,19 @@ instances reached both. Every command and its output are in
 
 | date (UTC) | instance | create command | delete command | list price | cost at list price |
 |---|---|---|---|---|---|
-| 2026-10-07 | GCP `n2d-highmem-16` (16 vCPU, 128 GB RAM), 300 GB disk | 22:08:45 | 22:22:10 | $0.72/h, disk $0.16 per GB-month | $0.16, disk $0.015 |
-| 2026-10-07 | AWS `m8a.medium` (1 vCPU, 4 GB RAM), SSH probe | 22:23:08 | 22:29:56 | $0.08/h | $0.009 |
-| 2026-10-08 | GCP `n2d-highcpu-2` (2 vCPU, 2 GB RAM), SSH probe | 04:42:52 | 04:48:11 | $0.05/h | $0.004 |
-| 2026-10-08 | Crusoe `c1a.2x` (2 vCPU, 8 GB RAM), SSH probe | 04:48:56 | 04:54:12 | $0.10/h | $0.009 |
+| 2026-10-07 | GCP `n2d-highmem-16` (16 vCPU, 128 GB RAM); disk size not recorded, probably 129 GB | 22:08:45 | 22:22:10 | $0.72/h, disk $0.16 per GB-month | $0.16, disk about $0.006 at 129 GB |
+| 2026-10-07 | AWS `m8a.medium` (1 vCPU, 4 GB RAM), SSH probe; disk size not recorded | 22:23:08 | 22:29:56 | $0.08/h, disk $0.14 per GB-month | $0.009, disk under $0.003 at 129 GB |
+| 2026-10-08 | GCP `n2d-highcpu-2` (2 vCPU, 2 GB RAM), SSH probe; disk size not recorded | 04:42:52 | 04:48:11 | $0.05/h, disk $0.16 per GB-month | $0.004, disk about $0.002 at 129 GB |
+| 2026-10-08 | Crusoe `c1a.2x` (2 vCPU, 8 GB RAM, 128 GB disk), SSH probe | 04:48:56 | 04:54:12 | $0.10/h, disk included | $0.009 |
+| 2026-10-08 | GCP `n2d-highmem-16` (16 vCPU, 128 GB RAM), 129 GB disk; deleted unused (below) | 04:57:19 | 05:05:44 | $0.72/h, disk $0.16 per GB-month | $0.10, disk $0.004 |
 
-About $0.19 in all, counted from each create command to its delete command; the
-bill itself was not seen. On 2026-10-07 Brev reported both instances `READY`,
-but neither was ever reached, so no driver or software version was recorded and
-no model was downloaded. Brev's SSH gateway closed every connection before the
+About $0.30 in all, counted from each create command to its delete command; the
+bill itself was not seen. Disk sizes were looked at only on the 2026-10-08
+`n2d-highmem` instances (129 GB each); the rows without a recorded size are
+costed at that size [INFERENCE]. The instance Part B runs on is costed with its
+results. On 2026-10-07 Brev reported both instances `READY`, but neither was
+ever reached, so no driver or software version was recorded and no model was
+downloaded. Brev's SSH gateway closed every connection before the
 SSH banner (`kex_exchange_identification: Connection closed by remote host`),
 and port 22 of both instances timed out. `brev refresh` changed nothing;
 `brev enable-ssh` asks for `brev register`, which makes the local machine a Brev
@@ -548,6 +552,22 @@ version, `brev exec` and a plain `ssh` reached both probes once Brev showed
 on one not tried before (Crusoe). Nothing was changed locally in between, so
 the failure of 2026-10-07 was on Brev's side or transient, not tied to one
 provider [INFERENCE].
+
+**Deviation from §4c, recorded before the results.** §4c asks for GCP
+`n2d-highmem-16` (128 GB RAM) with at least 300 GB of disk. The same command as
+on 2026-10-07, `brev create --type n2d-highmem-16 --min-disk 300`, gave a 129 GB
+disk (`/` 125 GB, 118 GB free;
+[`part-b-cloud-run.log`](results/probe-lora-hook-engines/part-b-cloud-run.log)):
+Brev ignores `--min-disk` when `--type` is given
+([brev-cli #380](https://github.com/brevdev/brev-cli/issues/380), open; the CLI
+here is v0.6.335). The checkpoint (71.9 GB) and its bf16 GGUF (about 70 GB) do
+not fit on that disk together, and with 128 GB of RAM the GGUF cannot sit in RAM
+next to the bf16 reference (about 70 GB). That instance was deleted unused.
+Part B runs on GCP `n2d-highmem-32` (32 vCPU, 256 GB RAM, the same 129 GB disk)
+instead, with the checkpoint on disk and the GGUF and every work file on a
+RAM-backed tmpfs (`/dev/shm`, 126 GB). The rule, the precision of both sides
+(bf16) and the engine flags are as §4c states; the engine's thread count follows
+the box (32).
 
 ## 5. Reproducing
 
