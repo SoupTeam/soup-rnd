@@ -322,3 +322,32 @@ def test_mps_synchronization_at_step_boundaries(monkeypatch):
 
     assert calls == ["sync", "sync"]
     assert len(collector.steps) == 1
+
+
+def test_epoch_cache_counters_are_deltas():
+    from types import SimpleNamespace
+
+    from soup_cli.bench.collector import BenchCollector
+
+    collector = BenchCollector()
+    runner = SimpleNamespace(hits=0, misses=0)
+
+    collector.e2_runner_getter = lambda: runner
+
+    collector.on_epoch_begin()
+    runner.misses = 8
+    collector.on_epoch_end()
+
+    collector.on_epoch_begin()
+    runner.hits = 8
+    collector.on_epoch_end()
+
+    assert len(collector.epoch_records) == 2
+
+    first, second = collector.epoch_records
+
+    assert first["cache_hits"] == 0
+    assert first["cache_misses"] == 8
+
+    assert second["cache_hits"] == 8
+    assert second["cache_misses"] == 0

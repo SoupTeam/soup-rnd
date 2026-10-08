@@ -2343,6 +2343,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                         metadata_factory=metadata_factory,
                     )
                 )
+                self._e2_runner = e2_runner
                 console.print(
                     f"[green]E2 frozen-prefix cache enabled:[/] "
                     f"cutoff={cutoff}, top_k={tcfg.lora.top_k_layers}"

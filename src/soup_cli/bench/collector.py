@@ -120,6 +120,11 @@ class _BenchCollector_body:  # noqa: N801
         # Set to ``torch.cuda.synchronize`` on CUDA, so a step boundary is read
         # after the kernels it launched have finished, not when they were queued.
         self._sync = lambda: None
+        self.epoch_records = []
+        self._epoch_start_step = 0
+        self._epoch_number = 0
+        self.e2_runner_getter = None
+        self._epoch_cache_start = (0, 0)
 
     # -- collection ------------------------------------------------------
     def observe_batch(self, batch: Any) -> None:
@@ -137,6 +142,60 @@ class _BenchCollector_body:  # noqa: N801
             self._fingerprint_first = snapshot.fingerprint_first
         return control
 
+    def on_epoch_begin(self, args=None, state=None, control=None, **kwargs):
+        self._epoch_start_step = len(self.steps)
+        self._epoch_number += 1
+
+        runner = (
+            self.e2_runner_getter()
+            if self.e2_runner_getter is not None
+            else None
+        )
+
+        if runner is not None:
+            self._epoch_cache_start = (
+                runner.hits,
+                runner.misses,
+            )
+        else:
+            self._epoch_cache_start = (0, 0)
+
+        return control
+
+    def on_epoch_end(self, args=None, state=None, control=None, **kwargs):
+        epoch_steps = self.steps[self._epoch_start_step:]
+
+        runner = (
+            self.e2_runner_getter()
+            if self.e2_runner_getter is not None
+            else None
+        )
+
+        if runner is not None:
+            cache_hits = runner.hits - self._epoch_cache_start[0]
+            cache_misses = runner.misses - self._epoch_cache_start[1]
+        else:
+            cache_hits = None
+            cache_misses = None
+
+        self.epoch_records.append({
+            "epoch": self._epoch_number,
+            "start_step": self._epoch_start_step,
+            "end_step": len(self.steps),
+            "duration_seconds": sum(
+                step.wall_seconds for step in epoch_steps
+            ),
+            "step_seconds": [
+                step.wall_seconds for step in epoch_steps
+            ],
+            "useful_tokens": sum(
+                step.useful_tokens for step in epoch_steps
+            ),
+            "cache_hits": cache_hits,
+            "cache_misses": cache_misses,
+        })
+
+        return control
     def on_step_begin(self, args=None, state=None, control=None, **kwargs):
         # Only the first step starts here. Every later one starts where the
         # previous one ended: the Trainer fetches and collates a step's batches

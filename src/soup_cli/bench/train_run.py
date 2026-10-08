@@ -223,7 +223,9 @@ def run_bench_train(
             trainer.args.eval_strategy = "no"
 
         collector = BenchCollector(warmup_steps=warmup)
-
+        collector.e2_runner_getter = lambda: getattr(
+            wrapper, "_e2_runner", None
+        )
         if str(device).startswith("cuda") and torch.cuda.is_available():
             collector._sync = torch.cuda.synchronize
         elif str(device).startswith("mps") and torch.backends.mps.is_available():
@@ -296,7 +298,7 @@ def run_bench_train(
             "seed": trainer.args.seed,
             "data_seed": trainer.args.data_seed,
         }
-        return collector.build_report(
+        report = collector.build_report(
             warmup_steps=warmup,
             provenance=provenance,
             memory=memory,
@@ -304,3 +306,6 @@ def run_bench_train(
             steps_requested=steps,
             extra={"resolved_config": resolved},
         )
+    report["epoch_timing"] = collector.epoch_records
+
+    return report
