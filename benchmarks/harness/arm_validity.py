@@ -60,7 +60,7 @@ def _read(name: str, sensor: Callable[[], Optional[_T]]) -> Tuple[Optional[_T], 
     return value, None
 
 
-def _check(outcome: str, reason: str, evidence: Dict[str, object]) -> Dict[str, object]:
+def _check_result(outcome: str, reason: str, evidence: Dict[str, object]) -> Dict[str, object]:
     return {"outcome": outcome, "reason": reason, "evidence": evidence}
 
 
@@ -83,7 +83,7 @@ class SleepReadings:
         return cls(offset, count, [p for p in (offset_problem, count_problem) if p])
 
 
-def suspend_check(start: SleepReadings, end: SleepReadings) -> Dict[str, object]:
+def suspend_check_result(start: SleepReadings, end: SleepReadings) -> Dict[str, object]:
     """Void if boot-time offset grew past the limit or the suspend count rose.
 
     Either sensor seeing sleep is enough to void. Otherwise a silent sensor
@@ -96,6 +96,7 @@ def suspend_check(start: SleepReadings, end: SleepReadings) -> Dict[str, object]
         "suspend_count_end": end.count,
     }
     slept = []
+    growth = None
     if start.offset is not None and end.offset is not None:
         growth = end.offset - start.offset
         if growth > SLEEP_OFFSET_LIMIT_S:
@@ -103,11 +104,16 @@ def suspend_check(start: SleepReadings, end: SleepReadings) -> Dict[str, object]
     if start.count is not None and end.count is not None and end.count > start.count:
         slept.append(f"suspend count rose from {start.count} to {end.count}")
     if slept:
-        return _check(VOID, "; ".join(slept), evidence)
+        return _check_result(VOID, "; ".join(slept), evidence)
     problems = start.problems + end.problems
     if problems:
-        return _check(UNKNOWN, "; ".join(problems), evidence)
-    return _check(OK, "boot-time offset and suspend count unchanged", evidence)
+        return _check_result(UNKNOWN, "; ".join(problems), evidence)
+    return _check_result(
+        OK,
+        f"boot-time offset grew {growth:.3f} s (limit {SLEEP_OFFSET_LIMIT_S} s); "
+        f"suspend count stayed at {end.count}",
+        evidence,
+    )
 
 
 def arm_outcome(checks: Dict[str, Dict[str, object]], required: Collection[str]) -> str:
@@ -157,7 +163,7 @@ class ArmWatch:
         if self._start is None:
             raise RuntimeError("stop() called before start()")
         end = SleepReadings.take(self._sleep_offset, self._suspend_count)
-        checks = {"suspend": suspend_check(self._start, end)}
+        checks = {"suspend": suspend_check_result(self._start, end)}
         self.record = {
             "arm": self.arm,
             "round": self.round,

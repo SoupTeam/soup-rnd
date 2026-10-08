@@ -161,7 +161,9 @@ def test_wall_clock_jump_alone_does_not_void_on_linux(validity, monkeypatch):
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sensors only")
 def test_real_linux_sensors_return_values(validity):
-    with validity.ArmWatch(arm="A", round=0, run=0, label="synthetic") as watch:
+    if not Path(validity.SUSPEND_SUCCESS_PATH).exists():
+        pytest.skip(f"this kernel has no {validity.SUSPEND_SUCCESS_PATH}")
+    with validity.ArmWatch(arm="A", round=0, run=0, label="real sensors, test only") as watch:
         pass
 
     evidence = watch.record["checks"]["suspend"]["evidence"]
