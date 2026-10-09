@@ -15,9 +15,11 @@ Benchmark harness code, not shipped. Standard library only.
 
 from __future__ import annotations
 
+import os
+import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, Collection, Dict, List, Optional, Tuple, TypeVar
+from typing import Callable, Collection, Dict, List, NamedTuple, Optional, Tuple, TypedDict, TypeVar
 
 _T = TypeVar("_T")
 
@@ -31,8 +33,13 @@ SLEEP_OFFSET_LIMIT_S = 1.0
 
 SUSPEND_SUCCESS_PATH = "/sys/power/suspend_stats/success"
 
+POWER_SUPPLY_DIR = "/sys/class/power_supply"
+
+#: Seconds between power samples during an arm.
+POWER_INTERVAL_S = 2.0
+
 #: Every check an arm record carries, in record order.
-CHECKS = ("suspend",)
+CHECKS = ("suspend", "power")
 
 
 def sleep_offset() -> Optional[float]:
@@ -47,6 +54,47 @@ def suspend_count() -> Optional[int]:
     """The kernel's count of successful suspends since boot."""
     with open(SUSPEND_SUCCESS_PATH, encoding="ascii") as handle:
         return int(handle.read().strip())
+
+
+class PowerReading(TypedDict):
+    """One read of the power supplies: whether a battery is present, and which
+    non-battery supplies are online."""
+
+    battery: bool
+    online: Dict[str, bool]
+
+
+def _supply_attribute(supply: str, name: str) -> Optional[str]:
+    """One sysfs attribute of a power supply, or None if the supply lacks it."""
+    try:
+        with open(os.path.join(supply, name), encoding="ascii") as handle:
+            return handle.read().strip()
+    except FileNotFoundError:
+        return None
+
+
+def power_supplies() -> PowerReading:
+    """A ``PowerReading`` from the kernel's power supplies.
+
+    Follows the kernel's ``power_supply_is_system_supplied()``: supplies with
+    scope "Device" (a mouse battery, say) are skipped, and ``online`` covers
+    every remaining supply that is not a battery and has an ``online`` value.
+    ``battery`` says whether any remaining supply is a battery.
+    """
+    battery = False
+    online: Dict[str, bool] = {}
+    for name in sorted(os.listdir(POWER_SUPPLY_DIR)):
+        supply = os.path.join(POWER_SUPPLY_DIR, name)
+        if _supply_attribute(supply, "scope") == "Device":
+            continue
+        kind = _supply_attribute(supply, "type")
+        if kind == "Battery":
+            battery = True
+            continue
+        state = _supply_attribute(supply, "online")
+        if kind is not None and state is not None:
+            online[name] = int(state) != 0
+    return {"battery": battery, "online": online}
 
 
 def _read(name: str, sensor: Callable[[], Optional[_T]]) -> Tuple[Optional[_T], Optional[str]]:
@@ -116,6 +164,88 @@ def suspend_check_result(start: SleepReadings, end: SleepReadings) -> Dict[str, 
     )
 
 
+class PowerSample(NamedTuple):
+    """One power sample. ``problem`` says why ``reading`` is None."""
+
+    at_s: float
+    reading: Optional[PowerReading]
+    problem: Optional[str]
+
+
+class PowerSampler:
+    """Reads the power sensor at start, every ``interval_s`` seconds on a thread, and at stop."""
+
+    def __init__(self, sensor: Callable[[], Optional[PowerReading]], interval_s: float) -> None:
+        self._sensor = sensor
+        self._interval_s = interval_s
+        self._stopped = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self._t0 = 0.0
+        self.samples: List[PowerSample] = []
+
+    def _sample(self) -> None:
+        reading, problem = _read("power", self._sensor)
+        self.samples.append(PowerSample(time.monotonic() - self._t0, reading, problem))
+
+    def _loop(self) -> None:
+        while not self._stopped.wait(self._interval_s):
+            self._sample()
+
+    def start(self) -> None:
+        self._t0 = time.monotonic()
+        self._sample()
+        self._thread = threading.Thread(target=self._loop, name="arm-power-sampler", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stopped.set()
+        if self._thread is not None:
+            self._thread.join()
+        self._sample()
+
+
+def _on_mains(reading: PowerReading) -> bool:
+    """A machine with no battery runs on mains; otherwise some non-battery supply must be online."""
+    return not reading["battery"] or any(reading["online"].values())
+
+
+def power_check_result(samples: List[PowerSample]) -> Dict[str, object]:
+    """Void if any sample shows the machine off mains.
+
+    Otherwise a sample with no reading makes the check unknown.
+    """
+    off_mains = [
+        {"sample": index, "at_s": round(sample.at_s, 3), "online": sample.reading["online"]}
+        for index, sample in enumerate(samples)
+        if sample.reading is not None and not _on_mains(sample.reading)
+    ]
+    readings = [sample.reading for sample in samples if sample.reading is not None]
+    problems = [sample.problem for sample in samples if sample.problem]
+    evidence: Dict[str, object] = {
+        "samples": len(samples),
+        "off_mains_samples": off_mains,
+        "battery_present": any(reading["battery"] for reading in readings),
+        "unknown_samples": len(problems),
+        "last_reading": readings[-1] if readings else None,
+    }
+    if off_mains:
+        return _check_result(
+            VOID, f"{len(off_mains)} of {len(samples)} power samples off mains", evidence
+        )
+    if problems:
+        return _check_result(
+            UNKNOWN,
+            f"{len(problems)} of {len(samples)} power samples gave no reading; "
+            f"first: {problems[0]}",
+            evidence,
+        )
+    if not evidence["battery_present"]:
+        return _check_result(
+            OK, f"no battery in any of {len(samples)} power samples, so on mains", evidence
+        )
+    return _check_result(OK, f"on mains in all {len(samples)} power samples", evidence)
+
+
 def arm_outcome(checks: Dict[str, Dict[str, object]], required: Collection[str]) -> str:
     """Void if any check is void, else unknown if any required check is unknown, else ok."""
     if any(check["outcome"] == VOID for check in checks.values()):
@@ -142,6 +272,8 @@ class ArmWatch:
         required: Optional[Collection[str]] = None,
         sleep_offset: Callable[[], Optional[float]] = sleep_offset,
         suspend_count: Callable[[], Optional[int]] = suspend_count,
+        power_supplies: Callable[[], Optional[PowerReading]] = power_supplies,
+        power_interval_s: float = POWER_INTERVAL_S,
     ):
         self.arm = arm
         self.round = round
@@ -154,16 +286,22 @@ class ArmWatch:
         self._sleep_offset = sleep_offset
         self._suspend_count = suspend_count
         self._start: Optional[SleepReadings] = None
+        self._power = PowerSampler(power_supplies, power_interval_s)
         self.record: Optional[Dict[str, object]] = None
 
     def start(self) -> None:
         self._start = SleepReadings.take(self._sleep_offset, self._suspend_count)
+        self._power.start()
 
     def stop(self) -> Dict[str, object]:
         if self._start is None:
             raise RuntimeError("stop() called before start()")
+        self._power.stop()
         end = SleepReadings.take(self._sleep_offset, self._suspend_count)
-        checks = {"suspend": suspend_check_result(self._start, end)}
+        checks = {
+            "suspend": suspend_check_result(self._start, end),
+            "power": power_check_result(self._power.samples),
+        }
         self.record = {
             "arm": self.arm,
             "round": self.round,

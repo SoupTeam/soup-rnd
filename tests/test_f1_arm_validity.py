@@ -1,4 +1,4 @@
-"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 ticket 02).
+"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-03).
 
 The module is benchmark harness code, not shipped. Every sensor reading below is
 synthetic: the fake sensors return made-up numbers, and no test writes into
@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -43,9 +44,15 @@ def _readings(*values):
     return sensor
 
 
+ON_MAINS = {"battery": True, "online": {"ACAD": True, "ucsi-source-psy-USBC000:001": False}}
+OFF_MAINS = {"battery": True, "online": {"ACAD": False, "ucsi-source-psy-USBC000:001": False}}
+NO_BATTERY = {"battery": False, "online": {"ucsi-source-psy-USBC000:001": False}}
+
+
 def _watch(validity, **kwargs):
     kwargs.setdefault("sleep_offset", _readings(25_588.0, 25_588.0))
     kwargs.setdefault("suspend_count", _readings(7, 7))
+    kwargs.setdefault("power_supplies", _readings(ON_MAINS))
     with validity.ArmWatch(arm="A", round=2, run=5, label="synthetic", **kwargs) as watch:
         pass
     return watch.record
@@ -142,7 +149,7 @@ def test_void_check_voids_the_arm_even_when_not_required(validity):
 def test_every_check_is_required_by_default(validity):
     record = _watch(validity)
 
-    assert record["required"] == ["suspend"]
+    assert record["required"] == ["suspend", "power"]
 
 
 def test_unknown_required_check_name_is_rejected(validity):
@@ -171,3 +178,107 @@ def test_real_linux_sensors_return_values(validity):
     assert isinstance(evidence["sleep_offset_end_s"], float)
     assert isinstance(evidence["suspend_count_start"], int)
     assert isinstance(evidence["suspend_count_end"], int)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sensors only")
+def test_real_linux_power_sensor_returns_values(validity):
+    if not Path(validity.POWER_SUPPLY_DIR).exists():
+        pytest.skip(f"this kernel has no {validity.POWER_SUPPLY_DIR}")
+    with validity.ArmWatch(arm="A", round=0, run=0, label="real sensors, test only") as watch:
+        pass
+
+    power = watch.record["checks"]["power"]["evidence"]
+    assert power["samples"] >= 2
+    assert power["unknown_samples"] == 0
+    reading = power["last_reading"]
+    assert isinstance(reading["battery"], bool)
+    assert all(isinstance(online, bool) for online in reading["online"].values())
+
+
+class _CountingSensor:
+    """A synthetic sensor like ``_readings`` that also counts its calls."""
+
+    def __init__(self, *values):
+        self.calls = 0
+        self._next = _readings(*values)
+
+    def __call__(self):
+        self.calls += 1
+        return self._next()
+
+
+def _watch_while_sampling(validity, sensor, samples, **kwargs):
+    """Run an arm with a 10 ms power interval until ``sensor`` has been called ``samples`` times."""
+    kwargs.setdefault("sleep_offset", _readings(25_588.0))
+    kwargs.setdefault("suspend_count", _readings(7))
+    with validity.ArmWatch(
+        arm="A", round=2, run=5, label="synthetic", power_supplies=sensor,
+        power_interval_s=0.01, **kwargs,
+    ) as watch:
+        deadline = time.monotonic() + 5.0
+        while sensor.calls < samples and time.monotonic() < deadline:
+            time.sleep(0.005)
+    assert sensor.calls >= samples, "the power sampler never ran"
+    return watch.record
+
+
+def test_one_sample_off_mains_voids_the_arm(validity):
+    sensor = _CountingSensor(ON_MAINS, ON_MAINS, OFF_MAINS, ON_MAINS)
+    record = _watch_while_sampling(validity, sensor, samples=4)
+
+    power = record["checks"]["power"]
+    assert power["outcome"] == "void"
+    assert "off mains" in power["reason"]
+    assert power["evidence"]["samples"] == sensor.calls
+    off = power["evidence"]["off_mains_samples"]
+    assert len(off) == 1
+    assert off[0]["online"] == OFF_MAINS["online"]
+    assert record["outcome"] == "void"
+
+
+def test_all_samples_on_mains_keeps_power_ok(validity):
+    sensor = _CountingSensor(ON_MAINS)
+    record = _watch_while_sampling(validity, sensor, samples=3)
+
+    power = record["checks"]["power"]
+    assert power["outcome"] == "ok"
+    assert power["reason"]
+    assert power["evidence"]["samples"] == sensor.calls
+    assert power["evidence"]["off_mains_samples"] == []
+    assert record["outcome"] == "ok"
+    json.dumps(record)
+
+
+def test_no_battery_keeps_power_ok_with_that_reason(validity):
+    record = _watch(validity, power_supplies=_readings(NO_BATTERY))
+
+    power = record["checks"]["power"]
+    assert power["outcome"] == "ok"
+    assert "no battery" in power["reason"]
+    assert power["evidence"]["off_mains_samples"] == []
+    assert record["outcome"] == "ok"
+
+
+@pytest.mark.parametrize(
+    ("sensor", "reason_part"),
+    [
+        (_raises, "PermissionError"),
+        (_readings(None), "returned None"),
+        (_readings(ON_MAINS, None), "returned None"),
+    ],
+    ids=["raises", "none", "none-in-one-sample"],
+)
+def test_silent_power_sensor_makes_power_unknown_with_reason(validity, sensor, reason_part):
+    record = _watch(validity, power_supplies=sensor)
+
+    power = record["checks"]["power"]
+    assert power["outcome"] == "unknown"
+    assert reason_part in power["reason"]
+    assert record["outcome"] == "unknown"
+
+
+def test_off_mains_sample_voids_even_when_another_sample_is_silent(validity):
+    record = _watch(validity, power_supplies=_readings(OFF_MAINS, None))
+
+    assert record["checks"]["power"]["outcome"] == "void"
+    assert record["outcome"] == "void"
