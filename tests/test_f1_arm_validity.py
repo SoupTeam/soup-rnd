@@ -1,8 +1,9 @@
-"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-05).
+"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-06).
 
 The module is benchmark harness code, not shipped. Every sensor reading below is
 synthetic: the fake sensors return made-up numbers, and no test writes into
-benchmarks/results/.
+benchmarks/results/. The Windows and macOS paths run here with mocks only; no
+test calls a Windows API or runs on a Mac.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -100,6 +102,7 @@ def _box_sensors(kwargs):
 
 
 def _watch(validity, **kwargs):
+    kwargs.setdefault("platform", "linux")
     kwargs.setdefault("sleep_offset", _readings(25_588.0, 25_588.0))
     kwargs.setdefault("suspend_count", _readings(7, 7))
     kwargs.setdefault("power_supplies", _readings(ON_MAINS))
@@ -265,6 +268,7 @@ def _watch_while_sampling(validity, sensor, samples, sampled="power_supplies", *
     interval = {"power_supplies": "power_interval_s", "gpu_clock": "gpu_clock_interval_s"}
     kwargs[sampled] = sensor
     kwargs[interval[sampled]] = 0.01
+    kwargs.setdefault("platform", "linux")
     kwargs.setdefault("sleep_offset", _readings(25_588.0))
     kwargs.setdefault("suspend_count", _readings(7))
     kwargs.setdefault("power_supplies", _readings(ON_MAINS))
@@ -651,3 +655,235 @@ def test_real_box_stamp_and_gpu_clock_sensors_return_values(validity):
     assert clock["outcome"] == "ok", clock["reason"]
     assert clock["sm_clock_mhz"]["min"] > 0
     json.dumps(watch.record)
+
+
+def test_every_check_is_unknown_on_macos_and_the_arm_still_runs(validity):
+    with validity.ArmWatch(
+        arm="A", round=0, run=0, label="synthetic", platform="darwin",
+        gpu_memory_used=_readings(12), gpu_processes=_readings([]),
+        gpu_clock=_readings({"sm_clock_mhz": 1_500, "reasons": []}),
+    ) as watch:
+        pass
+    record = watch.record
+
+    for name in ("suspend", "power", "foreign_reads"):
+        check = record["checks"][name]
+        assert check["outcome"] == "unknown"
+        assert check["reason"] == "not implemented on macOS"
+    assert record["checks"]["foreign_reads"]["readers"] == []
+    assert record["checks"]["foreign_reads"]["unattributed_bytes"] is None
+    stamp = record["box_stamp_before"]
+    assert stamp["unknown"]["ram_available_bytes"] == "not implemented on macOS"
+    assert stamp["unknown"]["power_source"] == "not implemented on macOS"
+    assert record["outcome"] == "unknown"
+    json.dumps(record)
+
+
+class _FakeKernel32:
+    """A synthetic kernel32.dll. ``GetSystemPowerStatus`` answers with the next
+    (ACLineStatus, BatteryFlag) pair like ``_readings``, or fails on None."""
+
+    def __init__(self, *power, avail_phys=6_100 * MIB):
+        self._power = _readings(*power)
+        self._avail_phys = avail_phys
+
+    def GetSystemPowerStatus(self, status_ref):  # noqa: N802 - the Windows API name
+        answer = self._power()
+        if answer is None:
+            return 0
+        status_ref._obj.ACLineStatus, status_ref._obj.BatteryFlag = answer
+        return 1
+
+    def GlobalMemoryStatusEx(self, status_ref):  # noqa: N802 - the Windows API name
+        status_ref._obj.ullAvailPhys = self._avail_phys
+        return 1
+
+
+#: GetSystemPowerStatus answers: (ACLineStatus, BatteryFlag).
+AC_ONLINE_CHARGING = (1, 8)
+AC_OFFLINE_HIGH = (0, 1)
+AC_ONLINE_NO_BATTERY = (1, 128)
+
+
+def _fake_psutil(*snapshots, children=()):
+    """A synthetic psutil module. Each ``process_iter`` call lists the next snapshot
+    like ``_readings``: a dict of pid to (name, read bytes), where None read bytes
+    means access denied. ``children`` are the pids of this process's descendants."""
+    module = types.ModuleType("psutil")
+    module.Error = type("Error", (Exception,), {})
+    module.AccessDenied = type("AccessDenied", (module.Error,), {})
+    module.NoSuchProcess = type("NoSuchProcess", (module.Error,), {})
+    snapshot = _readings(*snapshots)
+
+    class Process:
+        def __init__(self, pid=None, name=None, read=None):
+            self.pid = os.getpid() if pid is None else pid
+            self.info = {"pid": self.pid, "name": name}
+            self._read = read
+
+        def io_counters(self):
+            if self._read is None:
+                raise module.AccessDenied(self.pid)
+            return types.SimpleNamespace(read_bytes=self._read)
+
+        def children(self, recursive=False):
+            assert recursive
+            return [Process(pid) for pid in children]
+
+    def process_iter(attrs):
+        return [Process(pid, name, read) for pid, (name, read) in snapshot().items()]
+
+    module.Process = Process
+    module.process_iter = process_iter
+    return module
+
+
+ME = os.getpid()
+QUIET_WINDOWS = {ME: ("python.exe", 10 * GB), 4242: ("MsMpEng.exe", 300_000), 4: ("System", None)}
+
+
+def _windows_watch(validity, monkeypatch, kernel32=None, psutil=None, **kwargs):
+    kernel32 = kernel32 or _FakeKernel32(AC_ONLINE_CHARGING)
+    monkeypatch.setattr(validity, "_kernel32", lambda: kernel32)
+    monkeypatch.setitem(sys.modules, "psutil", psutil or _fake_psutil(QUIET_WINDOWS))
+    kwargs.setdefault("wall_clock", _readings(1_000.0, 1_002.0))
+    _box_sensors(kwargs)
+    with validity.ArmWatch(
+        arm="A", round=2, run=5, label="synthetic", platform="win32", **kwargs
+    ) as watch:
+        pass
+    return watch.record
+
+
+@pytest.mark.parametrize(
+    "end, outcome", [(1_002.0, "ok"), (1_030.0, "ok"), (1_030.5, "void"), (4_600.0, "void")]
+)
+def test_wall_clock_gap_over_30_seconds_voids_on_windows(validity, monkeypatch, end, outcome):
+    record = _windows_watch(validity, monkeypatch, wall_clock=_readings(1_000.0, end))
+
+    suspend = record["checks"]["suspend"]
+    assert suspend["outcome"] == outcome
+    assert suspend["evidence"]["max_gap_s"] == end - 1_000.0
+    assert f"{end - 1_000.0:.1f} s" in suspend["reason"]
+    assert record["outcome"] == outcome
+
+
+def test_silent_wall_clock_makes_suspend_unknown_on_windows(validity, monkeypatch):
+    def broken():
+        raise OSError("clock unavailable")
+
+    record = _windows_watch(validity, monkeypatch, wall_clock=broken)
+
+    suspend = record["checks"]["suspend"]
+    assert suspend["outcome"] == "unknown"
+    assert "clock unavailable" in suspend["reason"]
+
+
+def test_one_power_status_off_mains_voids_on_windows(validity, monkeypatch):
+    kernel32 = _FakeKernel32(AC_ONLINE_CHARGING, AC_OFFLINE_HIGH)
+    record = _windows_watch(validity, monkeypatch, kernel32=kernel32)
+
+    power = record["checks"]["power"]
+    assert power["outcome"] == "void"
+    assert power["reason"].startswith("1 of 2 power samples off mains")
+    assert record["box_stamp_after"]["power_source"] == "battery"
+    assert record["outcome"] == "void"
+
+
+@pytest.mark.parametrize("status", [AC_ONLINE_NO_BATTERY, (255, 128)])
+def test_no_system_battery_keeps_power_ok_on_windows(validity, monkeypatch, status):
+    record = _windows_watch(validity, monkeypatch, kernel32=_FakeKernel32(status))
+
+    power = record["checks"]["power"]
+    assert power["outcome"] == "ok"
+    assert "no battery" in power["reason"]
+
+
+@pytest.mark.parametrize(
+    "status, reason_part",
+    [((255, 1), "AC line status 255"), (None, "GetSystemPowerStatus failed")],
+)
+def test_unreadable_power_status_makes_power_unknown_on_windows(
+    validity, monkeypatch, status, reason_part
+):
+    record = _windows_watch(validity, monkeypatch, kernel32=_FakeKernel32(status))
+
+    power = record["checks"]["power"]
+    assert power["outcome"] == "unknown"
+    assert reason_part in power["reason"]
+
+
+def test_one_process_reading_two_gb_voids_on_windows(validity, monkeypatch):
+    after = {
+        ME: ("python.exe", 12 * GB),
+        4242: ("MsMpEng.exe", 300_000),
+        5150: ("SearchIndexer.exe", 2 * GB),
+        4: ("System", None),
+    }
+    record = _windows_watch(validity, monkeypatch, psutil=_fake_psutil(QUIET_WINDOWS, after))
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "void"
+    assert "SearchIndexer.exe" in foreign["reason"]
+    assert foreign["readers"] == [{"pid": 5150, "name": "SearchIndexer.exe", "read_bytes": 2 * GB}]
+    assert foreign["unattributed_bytes"] is None
+    assert foreign["evidence"]["own_read_bytes"] == 2 * GB
+    assert foreign["evidence"]["foreign_read_bytes"] == 2 * GB
+    assert foreign["evidence"]["uninspectable_processes"] == 1
+    assert record["outcome"] == "void"
+
+
+def test_reads_split_under_the_limit_per_process_stay_ok_on_windows(validity, monkeypatch):
+    after = {
+        **QUIET_WINDOWS,
+        5150: ("SearchIndexer.exe", 600_000_000),
+        5151: ("OneDrive.exe", 600_000_000),
+    }
+    record = _windows_watch(validity, monkeypatch, psutil=_fake_psutil(QUIET_WINDOWS, after))
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "ok"
+    assert foreign["evidence"]["foreign_read_bytes"] == 1_200_000_000
+    assert [reader["pid"] for reader in foreign["readers"]] == [5150, 5151]
+
+
+def test_child_process_reads_are_not_foreign_on_windows(validity, monkeypatch):
+    after = {**QUIET_WINDOWS, 6000: ("python.exe", 5 * GB)}
+    psutil = _fake_psutil(QUIET_WINDOWS, after, children=(6000,))
+    record = _windows_watch(validity, monkeypatch, psutil=psutil)
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "ok"
+    assert foreign["readers"] == []
+    assert foreign["evidence"]["own_read_bytes"] == 5 * GB
+
+
+def test_without_psutil_foreign_reads_is_unknown_on_windows(validity, monkeypatch):
+    kernel32 = _FakeKernel32(AC_ONLINE_CHARGING)
+    monkeypatch.setattr(validity, "_kernel32", lambda: kernel32)
+    monkeypatch.setitem(sys.modules, "psutil", None)  # makes ``import psutil`` fail
+    kwargs = {"wall_clock": _readings(1_000.0, 1_002.0)}
+    _box_sensors(kwargs)
+    with validity.ArmWatch(arm="A", round=0, run=0, platform="win32", **kwargs) as watch:
+        pass
+    record = watch.record
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "unknown"
+    assert foreign["reason"] == "psutil not installed"
+    assert foreign["readers"] == []
+    assert record["checks"]["suspend"]["outcome"] == "ok"
+    assert record["checks"]["power"]["outcome"] == "ok"
+    assert record["outcome"] == "unknown"
+    json.dumps(record)
+
+
+def test_windows_defaults_fill_the_box_stamp(validity, monkeypatch):
+    record = _windows_watch(validity, monkeypatch, ram_available=None)  # the Windows default
+
+    stamp = record["box_stamp_before"]
+    assert stamp["ram_available_bytes"] == 6_100 * MIB
+    assert stamp["power_source"] == "mains"
+    assert stamp["unknown"] == {}
+    assert record["outcome"] == "ok"
+    json.dumps(record)

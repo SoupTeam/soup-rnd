@@ -10,22 +10,28 @@ returns None makes its check unknown, never ok (ADR 0001).
 The record also holds a box stamp from before and after the arm and a GPU clock
 record. Both are for the reader and never change the arm's outcome.
 
-Sensors are callables passed in by the caller, with real Linux defaults that
-need no root and no third-party packages.
+Sensors are callables passed in by the caller, with real defaults per OS. The
+Linux defaults need no root and no third-party packages. The Windows defaults
+port the reference ``l2l_box.py`` (upstream ``benchmarks/harness``) and read
+per-process counters through psutil. On macOS every check is unknown.
 
-Benchmark harness code, not shipped. Standard library only.
+Benchmark harness code, not shipped. Standard library only, except psutil on
+Windows, imported only when the sensor runs.
 """
 
 from __future__ import annotations
 
+import ctypes
 import os
 import shutil
 import statistics
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
 from typing import (
+    Any,
     Callable,
     Collection,
     Dict,
@@ -35,6 +41,7 @@ from typing import (
     Tuple,
     TypedDict,
     TypeVar,
+    Union,
 )
 
 _T = TypeVar("_T")
@@ -42,6 +49,9 @@ _T = TypeVar("_T")
 OK = "ok"
 VOID = "void"
 UNKNOWN = "unknown"
+
+LINUX = "Linux"
+WINDOWS = "Windows"
 
 #: Boot-time minus monotonic time grows by the time spent suspended. Growth past
 #: this many seconds during an arm means the machine slept.
@@ -53,6 +63,20 @@ POWER_SUPPLY_DIR = "/sys/class/power_supply"
 
 #: Seconds between power samples during an arm.
 POWER_INTERVAL_S = 2.0
+
+#: Windows: a wall-clock gap between two samples longer than this many seconds
+#: means the machine slept (rule V5 of the reference ``l2l_box.SuspendWatch``).
+WALL_CLOCK_GAP_LIMIT_S = 30.0
+
+#: Windows: seconds between wall-clock samples during an arm.
+WALL_CLOCK_INTERVAL_S = 2.0
+
+#: Windows ``SYSTEM_POWER_STATUS`` values: the AC line states, and the battery
+#: flag bit for "no system battery" and the flag value for "status unknown".
+AC_LINE_OFFLINE = 0
+AC_LINE_ONLINE = 1
+NO_SYSTEM_BATTERY = 128
+BATTERY_FLAG_UNKNOWN = 255
 
 #: Foreign reads of this many bytes or more from the disk under test void an arm
 #: (validity row V6).
@@ -91,6 +115,26 @@ CLOCK_EVENT_REASONS = {
 
 #: Every check an arm record carries, in record order.
 CHECKS = ("suspend", "power", "foreign_reads")
+
+
+class SensorUnavailableError(Exception):
+    """A sensor this OS or environment cannot provide. Its message is the whole reason."""
+
+
+def _not_implemented_on(system: str) -> Callable[[], None]:
+    """A sensor for an OS the module has no checks for."""
+
+    def sensor() -> None:
+        raise SensorUnavailableError(f"not implemented on {system}")
+
+    return sensor
+
+
+def system_name(platform: str) -> str:
+    """The OS a ``sys.platform`` value names: Linux, Windows, macOS, or the value itself."""
+    if platform.startswith("linux"):
+        return LINUX
+    return {"win32": WINDOWS, "darwin": "macOS"}.get(platform, platform)
 
 
 def sleep_offset() -> Optional[float]:
@@ -272,6 +316,39 @@ def process_reads() -> ProcessReads:
     return {"own": own, "others": others, "uninspectable": uninspectable}
 
 
+def psutil_process_reads() -> ProcessReads:
+    """A ``ProcessReads`` from psutil's per-process I/O counters, for Windows.
+
+    The port of the reference ``l2l_box.process_read_bytes``, except that it
+    counts a process whose counters Windows denies in ``uninspectable`` instead
+    of skipping it. The import of psutil happens here, so the module loads
+    without it.
+    """
+    try:
+        import psutil
+    except ImportError:
+        raise SensorUnavailableError("psutil not installed") from None
+    me = psutil.Process()
+    own_tree = {me.pid} | {child.pid for child in me.children(recursive=True)}
+    own = 0
+    others: Dict[int, ProcessRead] = {}
+    uninspectable = 0
+    for proc in psutil.process_iter(["pid", "name"]):
+        try:
+            read_bytes = int(proc.io_counters().read_bytes)
+        except psutil.NoSuchProcess:
+            continue  # exited during the scan
+        except (psutil.Error, OSError):
+            uninspectable += 1
+            continue
+        pid = int(proc.info["pid"])
+        if pid in own_tree:
+            own += read_bytes
+        else:
+            others[pid] = {"name": str(proc.info["name"]), "read_bytes": read_bytes}
+    return {"own": own, "others": others, "uninspectable": uninspectable}
+
+
 def ram_available() -> Optional[int]:
     """MemAvailable from /proc/meminfo in bytes: the RAM new work can get without swapping."""
     with open(MEMINFO_PATH, encoding="ascii") as handle:
@@ -380,12 +457,77 @@ def gpu_clock() -> Optional[ClockReading]:
     return {"sm_clock_mhz": int(clock), "reasons": clock_event_reasons(int(mask, 16))}
 
 
+class _SystemPowerStatus(ctypes.Structure):
+    _fields_ = [
+        ("ACLineStatus", ctypes.c_ubyte),
+        ("BatteryFlag", ctypes.c_ubyte),
+        ("BatteryLifePercent", ctypes.c_ubyte),
+        ("SystemStatusFlag", ctypes.c_ubyte),
+        ("BatteryLifeTime", ctypes.c_ulong),
+        ("BatteryFullLifeTime", ctypes.c_ulong),
+    ]
+
+
+class _MemoryStatusEx(ctypes.Structure):
+    _fields_ = [
+        ("dwLength", ctypes.c_ulong),
+        ("dwMemoryLoad", ctypes.c_ulong),
+        ("ullTotalPhys", ctypes.c_ulonglong),
+        ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong),
+        ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong),
+        ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+    ]
+
+
+def _kernel32() -> Any:
+    """Windows' kernel32.dll. Tests replace this function with a fake."""
+    return getattr(ctypes, "windll").kernel32
+
+
+def windows_power_supplies() -> PowerReading:
+    """A ``PowerReading`` from ``GetSystemPowerStatus``, the call of the reference
+    ``l2l_box.on_ac_power``.
+
+    The AC line is the one non-battery supply, named ``ac_line``. Raises
+    ValueError if the AC line status is unknown on a machine that may have a
+    battery; with no system battery the machine is on mains whatever the line says.
+    """
+    status = _SystemPowerStatus()
+    if not _kernel32().GetSystemPowerStatus(ctypes.byref(status)):
+        raise OSError("GetSystemPowerStatus failed")
+    ac_line, flag = int(status.ACLineStatus), int(status.BatteryFlag)
+    no_battery = flag != BATTERY_FLAG_UNKNOWN and bool(flag & NO_SYSTEM_BATTERY)
+    if ac_line not in (AC_LINE_OFFLINE, AC_LINE_ONLINE):
+        if no_battery:
+            return {"battery": False, "online": {}}
+        raise ValueError(f"AC line status {ac_line} is unknown (battery flag {flag})")
+    return {
+        "battery": ac_line == AC_LINE_OFFLINE or not no_battery,
+        "online": {"ac_line": ac_line == AC_LINE_ONLINE},
+    }
+
+
+def windows_ram_available() -> int:
+    """Available physical memory in bytes from ``GlobalMemoryStatusEx``, as in the
+    reference ``l2l_box.memory_status``."""
+    status = _MemoryStatusEx()
+    status.dwLength = ctypes.sizeof(status)
+    if not _kernel32().GlobalMemoryStatusEx(ctypes.byref(status)):
+        raise OSError("GlobalMemoryStatusEx failed")
+    return int(status.ullAvailPhys)
+
+
 def _read(
     name: str, sensor: Callable[[], Optional[_T]], none_problem: Optional[str] = None
 ) -> Tuple[Optional[_T], Optional[str]]:
     """``(value, problem)``: the reading, or None and why there is none."""
     try:
         value = sensor()
+    except SensorUnavailableError as exc:
+        return None, str(exc)
     except Exception as exc:  # noqa: BLE001 - any sensor failure is an unknown
         return None, f"{name} sensor raised {type(exc).__name__}: {exc}"
     if value is None:
@@ -495,6 +637,38 @@ class Sampler(Generic[_T]):
         self._sample()
 
 
+def wall_clock_check_result(samples: List[Sample[float]]) -> Dict[str, object]:
+    """Windows: void if the wall clock moved more than the limit between two samples.
+
+    The check measures each gap between consecutive samples that read. A gap
+    over the limit voids the arm even when some samples gave no reading. With no
+    such gap, a sample with no reading makes the check unknown.
+    """
+    clocks = [sample.reading for sample in samples if sample.reading is not None]
+    problems = [sample.problem for sample in samples if sample.problem]
+    max_gap = max((after - before for before, after in zip(clocks, clocks[1:])), default=0.0)
+    evidence: Dict[str, object] = {
+        "samples": len(samples),
+        "max_gap_s": max_gap,
+        "unknown_samples": len(problems),
+    }
+    limit = f"(limit {WALL_CLOCK_GAP_LIMIT_S} s)"
+    if max_gap > WALL_CLOCK_GAP_LIMIT_S:
+        return _check_result(
+            VOID, f"wall clock jumped {max_gap:.1f} s between two samples {limit}", evidence
+        )
+    if problems:
+        return _check_result(
+            UNKNOWN,
+            f"{len(problems)} of {len(samples)} wall-clock samples gave no reading; "
+            f"first: {problems[0]}",
+            evidence,
+        )
+    return _check_result(
+        OK, f"largest wall-clock gap between samples {max_gap:.1f} s {limit}", evidence
+    )
+
+
 def _on_mains(reading: PowerReading) -> bool:
     """A machine with no battery runs on mains; otherwise some non-battery supply must be online."""
     return not reading["battery"] or any(reading["online"].values())
@@ -579,6 +753,18 @@ def _readers(start: ProcessReads, end: ProcessReads) -> List[Reader]:
     return sorted(readers, key=lambda reader: (-reader["read_bytes"], reader["pid"]))
 
 
+def _foreign_result(
+    outcome: str,
+    reason: str,
+    evidence: Dict[str, object],
+    readers: List[Reader],
+    unattributed_bytes: Optional[int],
+) -> Dict[str, object]:
+    result = _check_result(outcome, reason, evidence)
+    result.update({"readers": readers, "unattributed_bytes": unattributed_bytes})
+    return result
+
+
 def foreign_reads_check_result(
     model_path: Optional[str],
     device: Optional[str],
@@ -603,9 +789,7 @@ def foreign_reads_check_result(
     }
     problems = ([device_problem] if device_problem else []) + start.problems + end.problems
     if problems:
-        result = _check_result(UNKNOWN, "; ".join(problems), evidence)
-        result.update({"readers": [], "unattributed_bytes": None})
-        return result
+        return _foreign_result(UNKNOWN, "; ".join(problems), evidence, [], None)
     assert start.disk is not None and end.disk is not None
     assert start.processes is not None and end.processes is not None
     own = end.processes["own"] - start.processes["own"]
@@ -616,14 +800,59 @@ def foreign_reads_check_result(
         foreign_read_bytes=foreign,
         uninspectable_processes=end.processes["uninspectable"],
     )
-    result = _check_result(
+    named_bytes = sum(reader["read_bytes"] for reader in readers)
+    return _foreign_result(
         VOID if foreign >= FOREIGN_READ_LIMIT_BYTES else OK,
         f"{foreign} bytes of foreign reads on {device} (limit {FOREIGN_READ_LIMIT_BYTES})",
         evidence,
+        readers,
+        max(foreign - named_bytes, 0),
     )
-    named_bytes = sum(reader["read_bytes"] for reader in readers)
-    result.update({"readers": readers, "unattributed_bytes": max(foreign - named_bytes, 0)})
-    return result
+
+
+def per_process_reads_check_result(
+    start: Optional[ProcessReads], end: Optional[ProcessReads], problems: List[str]
+) -> Dict[str, object]:
+    """Windows: void if one other process read 1 GB or more during the arm, the rule
+    of the reference ``l2l_box.foreign_readers``.
+
+    There is no disk-wide counter here, so a process this user may not inspect
+    goes unseen; ``uninspectable_processes`` counts them and ``unattributed_bytes``
+    is None. Windows counts every read a process makes, from any disk or device.
+    """
+    evidence: Dict[str, object] = {
+        "own_read_bytes": None,
+        "foreign_read_bytes": None,
+        "uninspectable_processes": None,
+    }
+    if problems:
+        return _foreign_result(UNKNOWN, "; ".join(dict.fromkeys(problems)), evidence, [], None)
+    assert start is not None and end is not None
+    readers = _readers(start, end)
+    evidence.update(
+        own_read_bytes=end["own"] - start["own"],
+        foreign_read_bytes=sum(reader["read_bytes"] for reader in readers),
+        uninspectable_processes=end["uninspectable"],
+    )
+    limit = f"(limit {FOREIGN_READ_LIMIT_BYTES} per process)"
+    uninspectable = f"{end['uninspectable']} processes could not be inspected"
+    heavy = [reader for reader in readers if reader["read_bytes"] >= FOREIGN_READ_LIMIT_BYTES]
+    if heavy:
+        return _foreign_result(
+            VOID,
+            f"{heavy[0]['name']} (pid {heavy[0]['pid']}) read {heavy[0]['read_bytes']} bytes "
+            f"{limit}; {len(heavy)} processes over the limit; {uninspectable}",
+            evidence,
+            readers,
+            None,
+        )
+    return _foreign_result(
+        OK,
+        f"no other process read {FOREIGN_READ_LIMIT_BYTES} bytes or more; {uninspectable}",
+        evidence,
+        readers,
+        None,
+    )
 
 
 def box_stamp(
@@ -708,13 +937,154 @@ def arm_outcome(checks: Dict[str, Dict[str, object]], required: Collection[str])
     return OK
 
 
+class _LinuxChecks:
+    """The Linux checks: boot-time offset and suspend count for sleep, the kernel's
+    power supplies for power, and the disk-wide read counter for foreign reads."""
+
+    def __init__(
+        self,
+        sleep_offset: Callable[[], Optional[float]],
+        suspend_count: Callable[[], Optional[int]],
+        model_path: Optional[str],
+        disk_device: Callable[[str], Optional[str]],
+        disk_reads: Callable[[str], Optional[int]],
+        process_reads: Callable[[], Optional[ProcessReads]],
+    ) -> None:
+        self._sleep_offset = sleep_offset
+        self._suspend_count = suspend_count
+        self._model_path = model_path
+        self._disk_device = disk_device
+        self._disk_reads = disk_reads
+        self._process_reads = process_reads
+        self._device: Optional[str] = None
+        self._device_problem: Optional[str] = None
+        self._sleep: List[SleepReadings] = []
+        self._disk: List[DiskReadings] = []
+
+    def _find_device(self) -> None:
+        if self._model_path is None:
+            self._device_problem = "no model path given"
+            return
+        path = self._model_path
+        self._device, self._device_problem = _read(
+            "disk device", lambda: self._disk_device(path), f"{path} maps to no block device"
+        )
+
+    def _read_disk(self) -> None:
+        self._disk.append(DiskReadings.take(self._device, self._disk_reads, self._process_reads))
+
+    def _read_sleep(self) -> None:
+        self._sleep.append(SleepReadings.take(self._sleep_offset, self._suspend_count))
+
+    def start(self) -> None:
+        self._find_device()
+        self._read_disk()
+        self._read_sleep()
+
+    def end(self) -> None:
+        self._read_sleep()
+        self._read_disk()
+
+    def results(self, power: List[Sample[PowerReading]]) -> Dict[str, Dict[str, object]]:
+        return {
+            "suspend": suspend_check_result(self._sleep[0], self._sleep[-1]),
+            "power": power_check_result(power),
+            "foreign_reads": foreign_reads_check_result(
+                self._model_path,
+                self._device,
+                self._device_problem,
+                self._disk[0],
+                self._disk[-1],
+            ),
+        }
+
+
+class _WindowsChecks:
+    """The Windows checks, ported from the reference ``l2l_box.py``: a wall-clock
+    gap for sleep, the system power status for power, and per-process read
+    counters for foreign reads."""
+
+    def __init__(
+        self,
+        wall_clock: Callable[[], Optional[float]],
+        interval_s: float,
+        process_reads: Callable[[], Optional[ProcessReads]],
+    ) -> None:
+        self._wall_clock = Sampler("wall clock", wall_clock, interval_s)
+        self._process_reads = process_reads
+        self._processes: List[Optional[ProcessReads]] = []
+        self._problems: List[str] = []
+
+    def _read_processes(self) -> None:
+        processes, problem = _read("process read", self._process_reads)
+        self._processes.append(processes)
+        if problem:
+            self._problems.append(problem)
+
+    def start(self) -> None:
+        self._read_processes()
+        self._wall_clock.start()
+
+    def end(self) -> None:
+        self._wall_clock.stop()
+        self._read_processes()
+
+    def results(self, power: List[Sample[PowerReading]]) -> Dict[str, Dict[str, object]]:
+        return {
+            "suspend": wall_clock_check_result(self._wall_clock.samples),
+            "power": power_check_result(power),
+            "foreign_reads": per_process_reads_check_result(
+                self._processes[0], self._processes[-1], self._problems
+            ),
+        }
+
+
+class _UnimplementedChecks:
+    """Every check unknown, for an OS the module has no checks for."""
+
+    def __init__(self, system: str) -> None:
+        self._reason = f"not implemented on {system}"
+
+    def start(self) -> None:
+        pass
+
+    def end(self) -> None:
+        pass
+
+    def results(self, power: List[Sample[PowerReading]]) -> Dict[str, Dict[str, object]]:
+        checks = {name: _check_result(UNKNOWN, self._reason, {}) for name in CHECKS}
+        checks["foreign_reads"] = _foreign_result(UNKNOWN, self._reason, {}, [], None)
+        return checks
+
+
+#: The power, process reads and RAM sensors ``ArmWatch`` uses by default, per OS.
+_DEFAULT_SENSORS: Dict[
+    str,
+    Tuple[
+        Callable[[], Optional[PowerReading]],
+        Callable[[], Optional[ProcessReads]],
+        Callable[[], Optional[int]],
+    ],
+] = {
+    LINUX: (power_supplies, process_reads, ram_available),
+    WINDOWS: (windows_power_supplies, psutil_process_reads, windows_ram_available),
+}
+
+
 class ArmWatch:
     """Watches one arm. Use as a context manager, then read ``record``.
 
     ``required`` names the checks whose unknown makes the arm unknown; it
     defaults to every check. A void check voids the arm whether required or not.
-    ``model_path`` is the path to the model files; the foreign reads check
-    watches the disk that holds it, and is unknown without it.
+    ``model_path`` is the path to the model files. On Linux the foreign reads
+    check watches the disk that holds it, and is unknown without it. Windows
+    has no disk-wide counter, so its check ignores ``model_path``.
+
+    ``platform`` picks the checks, as a ``sys.platform`` value. On an OS without
+    checks every check is unknown. ``power_supplies``, ``process_reads`` and
+    ``ram_available`` default to that OS's sensor. ``sleep_offset``,
+    ``suspend_count``, ``disk_device`` and ``disk_reads`` serve Linux only, and
+    ``wall_clock`` serves Windows only.
     """
 
     def __init__(
@@ -725,15 +1095,18 @@ class ArmWatch:
         run: int,
         label: Optional[str] = None,
         required: Optional[Collection[str]] = None,
+        platform: str = sys.platform,
         sleep_offset: Callable[[], Optional[float]] = sleep_offset,
         suspend_count: Callable[[], Optional[int]] = suspend_count,
-        power_supplies: Callable[[], Optional[PowerReading]] = power_supplies,
+        power_supplies: Optional[Callable[[], Optional[PowerReading]]] = None,
         power_interval_s: float = POWER_INTERVAL_S,
+        wall_clock: Callable[[], Optional[float]] = time.time,
+        wall_clock_interval_s: float = WALL_CLOCK_INTERVAL_S,
         model_path: Optional[str] = None,
         disk_device: Callable[[str], Optional[str]] = disk_device,
         disk_reads: Callable[[str], Optional[int]] = disk_reads,
-        process_reads: Callable[[], Optional[ProcessReads]] = process_reads,
-        ram_available: Callable[[], Optional[int]] = ram_available,
+        process_reads: Optional[Callable[[], Optional[ProcessReads]]] = None,
+        ram_available: Optional[Callable[[], Optional[int]]] = None,
         gpu_memory_used: Callable[[], Optional[int]] = gpu_memory_used,
         gpu_processes: Callable[[], Optional[List[GpuProcess]]] = gpu_processes,
         gpu_clock: Callable[[], Optional[ClockReading]] = gpu_clock,
@@ -747,35 +1120,35 @@ class ArmWatch:
         unknown_names = sorted(set(self.required) - set(CHECKS))
         if unknown_names:
             raise ValueError(f"no such checks: {', '.join(unknown_names)}")
-        self._sleep_offset = sleep_offset
-        self._suspend_count = suspend_count
-        self._start: Optional[SleepReadings] = None
-        self._power = Sampler("power", power_supplies, power_interval_s)
+        self.system = system_name(platform)
         self.model_path = model_path
-        self._disk_device = disk_device
-        self._disk_reads = disk_reads
-        self._process_reads = process_reads
-        self._device: Optional[str] = None
-        self._device_problem: Optional[str] = None
-        self._disk_start: Optional[DiskReadings] = None
-        self._ram_available = ram_available
+        unavailable = _not_implemented_on(self.system)
+        default_power, default_processes, default_ram = _DEFAULT_SENSORS.get(
+            self.system, (unavailable, unavailable, unavailable)
+        )
+        self._checks: Union[_LinuxChecks, _WindowsChecks, _UnimplementedChecks]
+        if self.system == LINUX:
+            self._checks = _LinuxChecks(
+                sleep_offset,
+                suspend_count,
+                model_path,
+                disk_device,
+                disk_reads,
+                process_reads or default_processes,
+            )
+        elif self.system == WINDOWS:
+            self._checks = _WindowsChecks(
+                wall_clock, wall_clock_interval_s, process_reads or default_processes
+            )
+        else:
+            self._checks = _UnimplementedChecks(self.system)
+        self._power = Sampler("power", power_supplies or default_power, power_interval_s)
+        self._ram_available = ram_available or default_ram
         self._gpu_memory_used = gpu_memory_used
         self._gpu_processes = gpu_processes
         self._box_before: Optional[Dict[str, object]] = None
         self._clock = Sampler("gpu_clock", gpu_clock, gpu_clock_interval_s)
         self.record: Optional[Dict[str, object]] = None
-
-    def _find_device(self) -> None:
-        if self.model_path is None:
-            self._device_problem = "no model path given"
-            return
-        path = self.model_path
-        self._device, self._device_problem = _read(
-            "disk device", lambda: self._disk_device(path), f"{path} maps to no block device"
-        )
-
-    def _disk_readings(self) -> DiskReadings:
-        return DiskReadings.take(self._device, self._disk_reads, self._process_reads)
 
     def _box_stamp(self, power: Sample[PowerReading]) -> Dict[str, object]:
         return box_stamp(power, self._ram_available, self._gpu_memory_used, self._gpu_processes)
@@ -783,32 +1156,19 @@ class ArmWatch:
     def start(self) -> None:
         self._power.start()
         self._box_before = self._box_stamp(self._power.samples[0])
-        self._find_device()
-        self._disk_start = self._disk_readings()
-        self._start = SleepReadings.take(self._sleep_offset, self._suspend_count)
+        self._checks.start()
         self._clock.start()
 
     def stop(self) -> Dict[str, object]:
-        if self._start is None or self._disk_start is None or self._box_before is None:
+        if self._box_before is None:
             raise RuntimeError("stop() called before start()")
         # The clock sampler runs nvidia-smi, so it stops before the process scan
         # can find one of its children exited but not yet reaped.
         self._clock.stop()
-        end = SleepReadings.take(self._sleep_offset, self._suspend_count)
-        disk_end = self._disk_readings()
+        self._checks.end()
         self._power.stop()
         box_after = self._box_stamp(self._power.samples[-1])
-        checks = {
-            "suspend": suspend_check_result(self._start, end),
-            "power": power_check_result(self._power.samples),
-            "foreign_reads": foreign_reads_check_result(
-                self.model_path,
-                self._device,
-                self._device_problem,
-                self._disk_start,
-                disk_end,
-            ),
-        }
+        checks = self._checks.results(self._power.samples)
         self.record = {
             "arm": self.arm,
             "round": self.round,
