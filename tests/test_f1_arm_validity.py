@@ -1,4 +1,4 @@
-"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-04).
+"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-05).
 
 The module is benchmark harness code, not shipped. Every sensor reading below is
 synthetic: the fake sensors return made-up numbers, and no test writes into
@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import shutil
 import subprocess
 import sys
 import time
@@ -85,11 +87,24 @@ def _foreign_sensors(kwargs):
     kwargs.setdefault("process_reads", _readings(QUIET_PROCESSES))
 
 
+MIB = 1024 * 1024
+
+PEERS = [{"pid": 3141, "type": "C", "name": "/usr/bin/python3", "used_mib": 412}]
+
+
+def _box_sensors(kwargs):
+    kwargs.setdefault("ram_available", _readings(7_800 * MIB, 6_100 * MIB))
+    kwargs.setdefault("gpu_memory_used", _readings(12, 2_900))
+    kwargs.setdefault("gpu_processes", _readings([], PEERS))
+    kwargs.setdefault("gpu_clock", _readings({"sm_clock_mhz": 1_500, "reasons": []}))
+
+
 def _watch(validity, **kwargs):
     kwargs.setdefault("sleep_offset", _readings(25_588.0, 25_588.0))
     kwargs.setdefault("suspend_count", _readings(7, 7))
     kwargs.setdefault("power_supplies", _readings(ON_MAINS))
     _foreign_sensors(kwargs)
+    _box_sensors(kwargs)
     with validity.ArmWatch(arm="A", round=2, run=5, label="synthetic", **kwargs) as watch:
         pass
     return watch.record
@@ -244,19 +259,22 @@ class _CountingSensor:
         return self._next()
 
 
-def _watch_while_sampling(validity, sensor, samples, **kwargs):
-    """Run an arm with a 10 ms power interval until ``sensor`` has been called ``samples`` times."""
+def _watch_while_sampling(validity, sensor, samples, sampled="power_supplies", **kwargs):
+    """Run an arm with ``sensor`` as the ``sampled`` sensor on a 10 ms interval
+    until it has been called ``samples`` times."""
+    interval = {"power_supplies": "power_interval_s", "gpu_clock": "gpu_clock_interval_s"}
+    kwargs[sampled] = sensor
+    kwargs[interval[sampled]] = 0.01
     kwargs.setdefault("sleep_offset", _readings(25_588.0))
     kwargs.setdefault("suspend_count", _readings(7))
+    kwargs.setdefault("power_supplies", _readings(ON_MAINS))
     _foreign_sensors(kwargs)
-    with validity.ArmWatch(
-        arm="A", round=2, run=5, label="synthetic", power_supplies=sensor,
-        power_interval_s=0.01, **kwargs,
-    ) as watch:
+    _box_sensors(kwargs)
+    with validity.ArmWatch(arm="A", round=2, run=5, label="synthetic", **kwargs) as watch:
         deadline = time.monotonic() + 5.0
         while sensor.calls < samples and time.monotonic() < deadline:
             time.sleep(0.005)
-    assert sensor.calls >= samples, "the power sampler never ran"
+    assert sensor.calls >= samples, f"the {sampled} sampler never ran"
     return watch.record
 
 
@@ -456,3 +474,180 @@ def test_unreaped_child_makes_foreign_reads_unknown_with_reason(validity):
     assert foreign["outcome"] == "unknown"
     assert str(child.pid) in foreign["reason"]
     assert "reap" in foreign["reason"]
+
+
+def test_box_stamps_before_and_after_hold_the_machine_state(validity):
+    record = _watch(validity, power_supplies=_readings(ON_MAINS, OFF_MAINS))
+
+    before = record["box_stamp_before"]
+    after = record["box_stamp_after"]
+    assert isinstance(before["unix_s"], float)
+    assert after["unix_s"] >= before["unix_s"]
+    assert before["ram_available_bytes"] == 7_800 * MIB
+    assert after["ram_available_bytes"] == 6_100 * MIB
+    assert before["power_source"] == "mains"
+    assert after["power_source"] == "battery"
+    assert before["gpu_processes"] == []
+    assert after["gpu_processes"] == PEERS
+    assert before["gpu_memory_used_mib"] == 12
+    assert after["gpu_memory_used_mib"] == 2_900
+    assert before["unknown"] == {}
+    json.dumps(record)
+
+
+def test_failing_ram_sensor_is_unknown_in_the_box_stamp_and_leaves_the_arm_ok(validity):
+    record = _watch(validity, ram_available=_raises)
+
+    for stamp in (record["box_stamp_before"], record["box_stamp_after"]):
+        assert stamp["ram_available_bytes"] is None
+        assert "PermissionError" in stamp["unknown"]["ram_available_bytes"]
+        assert stamp["gpu_memory_used_mib"] is not None
+    assert record["outcome"] == "ok"
+
+
+def _clock(mhz, *reasons):
+    return {"sm_clock_mhz": mhz, "reasons": list(reasons)}
+
+
+def test_clock_trace_is_stored_as_min_median_max(validity):
+    sensor = _CountingSensor(_clock(1_800), _clock(1_200), _clock(1_500))
+    record = _watch_while_sampling(validity, sensor, samples=3, sampled="gpu_clock")
+
+    clock = record["gpu_clock"]
+    assert clock["outcome"] == "ok"
+    assert clock["reason"]
+    assert clock["samples"] == sensor.calls
+    assert clock["unknown_samples"] == 0
+    assert clock["sm_clock_mhz"] == {"min": 1_200, "median": 1_500, "max": 1_800}
+    assert clock["reasons_seen"] == {}
+    assert record["outcome"] == "ok"
+    json.dumps(record)
+
+
+def test_throttle_reason_is_recorded_and_leaves_the_arm_ok(validity):
+    sensor = _CountingSensor(
+        _clock(1_800), _clock(900, "sw_thermal_slowdown", "sw_power_cap"), _clock(1_700)
+    )
+    record = _watch_while_sampling(validity, sensor, samples=3, sampled="gpu_clock")
+
+    clock = record["gpu_clock"]
+    assert clock["outcome"] == "ok"
+    assert clock["reasons_seen"] == {"sw_thermal_slowdown": 1, "sw_power_cap": 1}
+    assert "sw_thermal_slowdown" in clock["reason"]
+    assert clock["sm_clock_mhz"]["min"] == 900
+    assert record["outcome"] == "ok"
+
+
+def _real_gpu_sensors(validity):
+    return {
+        "gpu_memory_used": validity.gpu_memory_used,
+        "gpu_processes": validity.gpu_processes,
+        "gpu_clock": validity.gpu_clock,
+    }
+
+
+def test_missing_nvidia_smi_gives_unknown_gpu_fields_with_the_same_shape(
+    validity, monkeypatch, tmp_path
+):
+    normal = _watch(validity)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    record = _watch(validity, **_real_gpu_sensors(validity))
+
+    clock = record["gpu_clock"]
+    assert clock["outcome"] == "unknown"
+    assert "nvidia-smi" in clock["reason"]
+    assert clock["sm_clock_mhz"] == {"min": None, "median": None, "max": None}
+    assert clock["reasons_seen"] == {}
+    assert clock.keys() == normal["gpu_clock"].keys()
+    for side in ("box_stamp_before", "box_stamp_after"):
+        stamp = record[side]
+        assert stamp.keys() == normal[side].keys()
+        assert stamp["gpu_processes"] is None
+        assert stamp["gpu_memory_used_mib"] is None
+        assert "nvidia-smi" in stamp["unknown"]["gpu_processes"]
+        assert "nvidia-smi" in stamp["unknown"]["gpu_memory_used_mib"]
+    assert record.keys() == normal.keys()
+    assert record["outcome"] == "ok"
+    json.dumps(record)
+
+
+def _fake_nvidia_smi(directory, script):
+    """A synthetic nvidia-smi on PATH: a shell script whose case branches answer each query."""
+    tool = directory / "nvidia-smi"
+    tool.write_text(f'#!/bin/sh\ncase "$*" in\n{script}\nesac\n')
+    tool.chmod(0o755)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the fake nvidia-smi is a shell script")
+def test_nvidia_smi_output_is_parsed_into_the_record(validity, monkeypatch, tmp_path):
+    _fake_nvidia_smi(tmp_path, """\
+  *clocks.sm*) echo "1500, 0x0000000000000024" ;;
+  *memory.used*) echo "2900" ;;
+  *PIDS*) cat <<'END' ;;
+==============NVSMI LOG==============
+
+Attached GPUs                             : 1
+GPU 00000000:01:00.0
+    Processes
+        GPU instance ID                   : N/A
+        Compute instance ID               : N/A
+        Process ID                        : 5122
+            Type                          : G
+            Name                          : /usr/bin/gnome-shell
+            Used GPU Memory               : 1 MiB
+        GPU instance ID                   : N/A
+        Compute instance ID               : N/A
+        Process ID                        : 3141
+            Type                          : C
+            Name                          : C:\\tools\\run: a, b.exe
+            Used GPU Memory               : Not available
+END""")
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    record = _watch(validity, **_real_gpu_sensors(validity))
+
+    clock = record["gpu_clock"]
+    assert clock["outcome"] == "ok"
+    assert clock["sm_clock_mhz"] == {"min": 1_500, "median": 1_500, "max": 1_500}
+    assert clock["reasons_seen"] == {
+        "sw_power_cap": clock["samples"], "sw_thermal_slowdown": clock["samples"]
+    }
+    stamp = record["box_stamp_after"]
+    assert stamp["gpu_memory_used_mib"] == 2_900
+    assert stamp["gpu_processes"] == [
+        {"pid": 5122, "type": "G", "name": "/usr/bin/gnome-shell", "used_mib": 1},
+        {"pid": 3141, "type": "C", "name": "C:\\tools\\run: a, b.exe", "used_mib": None},
+    ]
+    assert stamp["unknown"] == {}
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the fake nvidia-smi is a shell script")
+def test_failing_nvidia_smi_gives_unknown_with_its_message(validity, monkeypatch, tmp_path):
+    _fake_nvidia_smi(tmp_path, '  *) echo "No devices were found" >&2; exit 6 ;;')
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    record = _watch(validity, **_real_gpu_sensors(validity))
+
+    clock = record["gpu_clock"]
+    assert clock["outcome"] == "unknown"
+    assert "No devices were found" in clock["reason"]
+    assert "No devices were found" in record["box_stamp_before"]["unknown"]["gpu_processes"]
+    assert record["outcome"] == "ok"
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sensors only")
+def test_real_box_stamp_and_gpu_clock_sensors_return_values(validity):
+    if shutil.which("nvidia-smi") is None:
+        pytest.skip("nvidia-smi is not on PATH")
+    with validity.ArmWatch(arm="A", round=0, run=0, label="real sensors, test only") as watch:
+        pass
+
+    for side in ("box_stamp_before", "box_stamp_after"):
+        stamp = watch.record[side]
+        assert stamp["unknown"] == {}, stamp["unknown"]
+        assert stamp["ram_available_bytes"] > 0
+        assert stamp["power_source"] in ("mains", "battery")
+        assert isinstance(stamp["gpu_processes"], list)
+        assert stamp["gpu_memory_used_mib"] >= 0
+    clock = watch.record["gpu_clock"]
+    assert clock["outcome"] == "ok", clock["reason"]
+    assert clock["sm_clock_mhz"]["min"] > 0
+    json.dumps(watch.record)

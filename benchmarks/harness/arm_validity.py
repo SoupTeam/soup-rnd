@@ -7,6 +7,9 @@ identity, one entry per check under ``checks`` and the arm's overall
 contaminated) or unknown (the sensor gave no answer). A sensor that raises or
 returns None makes its check unknown, never ok (ADR 0001).
 
+The record also holds a box stamp from before and after the arm and a GPU clock
+record. Both are for the reader and never change the arm's outcome.
+
 Sensors are callables passed in by the caller, with real Linux defaults that
 need no root and no third-party packages.
 
@@ -16,10 +19,23 @@ Benchmark harness code, not shipped. Standard library only.
 from __future__ import annotations
 
 import os
+import shutil
+import statistics
+import subprocess
 import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, Collection, Dict, List, NamedTuple, Optional, Tuple, TypedDict, TypeVar
+from typing import (
+    Callable,
+    Collection,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Tuple,
+    TypedDict,
+    TypeVar,
+)
 
 _T = TypeVar("_T")
 
@@ -48,6 +64,30 @@ DISKSTATS_PATH = "/proc/diskstats"
 
 #: /proc/diskstats counts 512-byte sectors whatever the hardware sector size.
 DISKSTATS_SECTOR_BYTES = 512
+
+MEMINFO_PATH = "/proc/meminfo"
+
+#: Seconds between GPU clock samples during an arm.
+GPU_CLOCK_INTERVAL_S = 2.0
+
+#: The GPU the nvidia-smi sensors read.
+NVIDIA_GPU_ID = 0
+
+#: Seconds before an nvidia-smi call counts as failed.
+NVIDIA_SMI_TIMEOUT_S = 20.0
+
+#: Bits of nvidia-smi's ``clocks_event_reasons.active`` mask, from nvml.h.
+CLOCK_EVENT_REASONS = {
+    0x1: "gpu_idle",
+    0x2: "applications_clocks_setting",
+    0x4: "sw_power_cap",
+    0x8: "hw_slowdown",
+    0x10: "sync_boost",
+    0x20: "sw_thermal_slowdown",
+    0x40: "hw_thermal_slowdown",
+    0x80: "hw_power_brake_slowdown",
+    0x100: "display_clock_setting",
+}
 
 #: Every check an arm record carries, in record order.
 CHECKS = ("suspend", "power", "foreign_reads")
@@ -232,6 +272,114 @@ def process_reads() -> ProcessReads:
     return {"own": own, "others": others, "uninspectable": uninspectable}
 
 
+def ram_available() -> Optional[int]:
+    """MemAvailable from /proc/meminfo in bytes: the RAM new work can get without swapping."""
+    with open(MEMINFO_PATH, encoding="ascii") as handle:
+        for line in handle:
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) * 1024
+    return None
+
+
+def _nvidia_smi(*args: str) -> List[str]:
+    """The non-empty lines nvidia-smi prints about GPU ``NVIDIA_GPU_ID`` for ``args``.
+
+    Raises FileNotFoundError if nvidia-smi is not on PATH and RuntimeError if it
+    exits non-zero.
+    """
+    tool = shutil.which("nvidia-smi")
+    if tool is None:
+        raise FileNotFoundError("nvidia-smi is not on PATH")
+    completed = subprocess.run(
+        [tool, f"--id={NVIDIA_GPU_ID}", *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=NVIDIA_SMI_TIMEOUT_S,
+        check=False,
+    )
+    if completed.returncode != 0:
+        message = (completed.stderr or completed.stdout).strip()
+        raise RuntimeError(f"nvidia-smi exited {completed.returncode}: {message}")
+    return [line for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _query_gpu(*fields: str) -> List[str]:
+    """The values of ``fields`` from one ``--query-gpu`` call."""
+    lines = _nvidia_smi(f"--query-gpu={','.join(fields)}", "--format=csv,noheader,nounits")
+    values = [value.strip() for value in lines[0].split(",")] if len(lines) == 1 else []
+    if len(values) != len(fields):
+        raise ValueError(f"expected one nvidia-smi line of {len(fields)} values, got {lines}")
+    return values
+
+
+def gpu_memory_used() -> Optional[int]:
+    """MiB of memory in use on the GPU."""
+    (used,) = _query_gpu("memory.used")
+    return int(used)
+
+
+class GpuProcess(TypedDict):
+    """A process on the GPU. ``type`` is C (compute), G (graphics) or C+G;
+    ``used_mib`` is None where the driver does not report it."""
+
+    pid: int
+    type: str
+    name: str
+    used_mib: Optional[int]
+
+
+def gpu_processes() -> Optional[List[GpuProcess]]:
+    """Every compute and graphics process on the GPU, from ``nvidia-smi -q -d PIDS``.
+
+    The CSV query lists compute processes only, so it would miss a desktop or a
+    browser that renders on the GPU.
+    """
+    blocks: List[Dict[str, str]] = []
+    for line in _nvidia_smi("-q", "-d", "PIDS"):
+        key, _, value = line.partition(":")
+        key, value = key.strip(), value.strip()
+        if key == "Process ID":
+            blocks.append({})
+        if blocks and key in ("Process ID", "Type", "Name", "Used GPU Memory"):
+            blocks[-1][key] = value
+    processes: List[GpuProcess] = []
+    for block in blocks:
+        if not {"Process ID", "Type", "Name"} <= block.keys():
+            raise ValueError(f"nvidia-smi listed a process without pid, type or name: {block}")
+        used = block.get("Used GPU Memory", "").split()
+        processes.append({
+            "pid": int(block["Process ID"]),
+            "type": block["Type"],
+            "name": block["Name"],
+            "used_mib": int(used[0]) if used and used[0].isdigit() else None,
+        })
+    return processes
+
+
+class ClockReading(TypedDict):
+    """One GPU clock sample: the SM clock and the clock event reasons active at that moment."""
+
+    sm_clock_mhz: int
+    reasons: List[str]
+
+
+def clock_event_reasons(mask: int) -> List[str]:
+    """Names of the bits set in an nvidia-smi ``clocks_event_reasons.active`` mask."""
+    names = [name for bit, name in CLOCK_EVENT_REASONS.items() if mask & bit]
+    unnamed = mask & ~sum(CLOCK_EVENT_REASONS)
+    if unnamed:
+        names.append(f"unnamed_bits_{unnamed:#x}")
+    return names
+
+
+def gpu_clock() -> Optional[ClockReading]:
+    """The GPU's SM clock and active clock event reasons."""
+    clock, mask = _query_gpu("clocks.sm", "clocks_event_reasons.active")
+    return {"sm_clock_mhz": int(clock), "reasons": clock_event_reasons(int(mask, 16))}
+
+
 def _read(
     name: str, sensor: Callable[[], Optional[_T]], none_problem: Optional[str] = None
 ) -> Tuple[Optional[_T], Optional[str]]:
@@ -301,28 +449,32 @@ def suspend_check_result(start: SleepReadings, end: SleepReadings) -> Dict[str, 
     )
 
 
-class PowerSample(NamedTuple):
-    """One power sample. ``problem`` says why ``reading`` is None."""
+@dataclass
+class Sample(Generic[_T]):
+    """One sample of a sensor. ``problem`` says why ``reading`` is None."""
 
     at_s: float
-    reading: Optional[PowerReading]
+    reading: Optional[_T]
     problem: Optional[str]
 
 
-class PowerSampler:
-    """Reads the power sensor at start, every ``interval_s`` seconds on a thread, and at stop."""
+class Sampler(Generic[_T]):
+    """Reads a sensor at start, every ``interval_s`` seconds on a thread, and at stop."""
 
-    def __init__(self, sensor: Callable[[], Optional[PowerReading]], interval_s: float) -> None:
+    def __init__(
+        self, name: str, sensor: Callable[[], Optional[_T]], interval_s: float
+    ) -> None:
+        self._name = name
         self._sensor = sensor
         self._interval_s = interval_s
         self._stopped = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._t0 = 0.0
-        self.samples: List[PowerSample] = []
+        self.samples: List[Sample[_T]] = []
 
     def _sample(self) -> None:
-        reading, problem = _read("power", self._sensor)
-        self.samples.append(PowerSample(time.monotonic() - self._t0, reading, problem))
+        reading, problem = _read(self._name, self._sensor)
+        self.samples.append(Sample(time.monotonic() - self._t0, reading, problem))
 
     def _loop(self) -> None:
         while not self._stopped.wait(self._interval_s):
@@ -331,7 +483,9 @@ class PowerSampler:
     def start(self) -> None:
         self._t0 = time.monotonic()
         self._sample()
-        self._thread = threading.Thread(target=self._loop, name="arm-power-sampler", daemon=True)
+        self._thread = threading.Thread(
+            target=self._loop, name=f"arm-{self._name}-sampler", daemon=True
+        )
         self._thread.start()
 
     def stop(self) -> None:
@@ -346,7 +500,7 @@ def _on_mains(reading: PowerReading) -> bool:
     return not reading["battery"] or any(reading["online"].values())
 
 
-def power_check_result(samples: List[PowerSample]) -> Dict[str, object]:
+def power_check_result(samples: List[Sample[PowerReading]]) -> Dict[str, object]:
     """Void if any sample shows the machine off mains.
 
     Otherwise a sample with no reading makes the check unknown.
@@ -472,6 +626,79 @@ def foreign_reads_check_result(
     return result
 
 
+def box_stamp(
+    power: Sample[PowerReading],
+    ram_available: Callable[[], Optional[int]],
+    gpu_memory_used: Callable[[], Optional[int]],
+    gpu_processes: Callable[[], Optional[List[GpuProcess]]],
+) -> Dict[str, object]:
+    """The machine's state at one moment. A field whose sensor gave nothing is
+    None, with the reason under ``unknown``. ``power`` is a power sample taken at
+    the same moment, so the power check and the stamp read the sensor once."""
+    unknown: Dict[str, str] = {}
+
+    def field(name: str, sensor: Callable[[], Optional[_T]]) -> Optional[_T]:
+        value, problem = _read(name, sensor)
+        if problem:
+            unknown[name] = problem
+        return value
+
+    stamp: Dict[str, object] = {
+        "unix_s": time.time(),
+        "ram_available_bytes": field("ram_available_bytes", ram_available),
+        "power_source": None,
+        "gpu_processes": field("gpu_processes", gpu_processes),
+        "gpu_memory_used_mib": field("gpu_memory_used_mib", gpu_memory_used),
+    }
+    if power.reading is None:
+        unknown["power_source"] = power.problem or "power sensor gave no reading"
+    else:
+        stamp["power_source"] = "mains" if _on_mains(power.reading) else "battery"
+    stamp["unknown"] = unknown
+    return stamp
+
+
+def gpu_clock_record(samples: List[Sample[ClockReading]]) -> Dict[str, object]:
+    """The SM clock's min, median and max over the arm, and how many samples saw
+    each clock event reason. Ok or unknown, never void. Throttling goes on record
+    for the reader and does not decide the arm.
+
+    A sample with no reading makes the record unknown; the statistics then cover
+    the samples that did read, and are None if none did.
+    """
+    readings = [sample.reading for sample in samples if sample.reading is not None]
+    problems = [sample.problem for sample in samples if sample.problem]
+    clocks = [reading["sm_clock_mhz"] for reading in readings]
+    reasons_seen: Dict[str, int] = {}
+    for reading in readings:
+        for reason in reading["reasons"]:
+            reasons_seen[reason] = reasons_seen.get(reason, 0) + 1
+    record: Dict[str, object] = {
+        "outcome": UNKNOWN if problems else OK,
+        "reason": "",
+        "samples": len(samples),
+        "unknown_samples": len(problems),
+        "sm_clock_mhz": {
+            "min": min(clocks) if clocks else None,
+            "median": statistics.median(clocks) if clocks else None,
+            "max": max(clocks) if clocks else None,
+        },
+        "reasons_seen": reasons_seen,
+    }
+    if problems:
+        record["reason"] = (
+            f"{len(problems)} of {len(samples)} GPU clock samples gave no reading; "
+            f"first: {problems[0]}"
+        )
+    else:
+        seen = ", ".join(sorted(reasons_seen)) or "none"
+        record["reason"] = (
+            f"SM clock {min(clocks)} to {max(clocks)} MHz over {len(samples)} samples; "
+            f"clock event reasons seen: {seen}"
+        )
+    return record
+
+
 def arm_outcome(checks: Dict[str, Dict[str, object]], required: Collection[str]) -> str:
     """Void if any check is void, else unknown if any required check is unknown, else ok."""
     if any(check["outcome"] == VOID for check in checks.values()):
@@ -506,6 +733,11 @@ class ArmWatch:
         disk_device: Callable[[str], Optional[str]] = disk_device,
         disk_reads: Callable[[str], Optional[int]] = disk_reads,
         process_reads: Callable[[], Optional[ProcessReads]] = process_reads,
+        ram_available: Callable[[], Optional[int]] = ram_available,
+        gpu_memory_used: Callable[[], Optional[int]] = gpu_memory_used,
+        gpu_processes: Callable[[], Optional[List[GpuProcess]]] = gpu_processes,
+        gpu_clock: Callable[[], Optional[ClockReading]] = gpu_clock,
+        gpu_clock_interval_s: float = GPU_CLOCK_INTERVAL_S,
     ):
         self.arm = arm
         self.round = round
@@ -518,7 +750,7 @@ class ArmWatch:
         self._sleep_offset = sleep_offset
         self._suspend_count = suspend_count
         self._start: Optional[SleepReadings] = None
-        self._power = PowerSampler(power_supplies, power_interval_s)
+        self._power = Sampler("power", power_supplies, power_interval_s)
         self.model_path = model_path
         self._disk_device = disk_device
         self._disk_reads = disk_reads
@@ -526,6 +758,11 @@ class ArmWatch:
         self._device: Optional[str] = None
         self._device_problem: Optional[str] = None
         self._disk_start: Optional[DiskReadings] = None
+        self._ram_available = ram_available
+        self._gpu_memory_used = gpu_memory_used
+        self._gpu_processes = gpu_processes
+        self._box_before: Optional[Dict[str, object]] = None
+        self._clock = Sampler("gpu_clock", gpu_clock, gpu_clock_interval_s)
         self.record: Optional[Dict[str, object]] = None
 
     def _find_device(self) -> None:
@@ -540,17 +777,27 @@ class ArmWatch:
     def _disk_readings(self) -> DiskReadings:
         return DiskReadings.take(self._device, self._disk_reads, self._process_reads)
 
+    def _box_stamp(self, power: Sample[PowerReading]) -> Dict[str, object]:
+        return box_stamp(power, self._ram_available, self._gpu_memory_used, self._gpu_processes)
+
     def start(self) -> None:
+        self._power.start()
+        self._box_before = self._box_stamp(self._power.samples[0])
         self._find_device()
         self._disk_start = self._disk_readings()
         self._start = SleepReadings.take(self._sleep_offset, self._suspend_count)
-        self._power.start()
+        self._clock.start()
 
     def stop(self) -> Dict[str, object]:
-        if self._start is None or self._disk_start is None:
+        if self._start is None or self._disk_start is None or self._box_before is None:
             raise RuntimeError("stop() called before start()")
-        self._power.stop()
+        # The clock sampler runs nvidia-smi, so it stops before the process scan
+        # can find one of its children exited but not yet reaped.
+        self._clock.stop()
         end = SleepReadings.take(self._sleep_offset, self._suspend_count)
+        disk_end = self._disk_readings()
+        self._power.stop()
+        box_after = self._box_stamp(self._power.samples[-1])
         checks = {
             "suspend": suspend_check_result(self._start, end),
             "power": power_check_result(self._power.samples),
@@ -559,7 +806,7 @@ class ArmWatch:
                 self._device,
                 self._device_problem,
                 self._disk_start,
-                self._disk_readings(),
+                disk_end,
             ),
         }
         self.record = {
@@ -569,6 +816,9 @@ class ArmWatch:
             "label": self.label,
             "required": self.required,
             "outcome": arm_outcome(checks, self.required),
+            "box_stamp_before": self._box_before,
+            "box_stamp_after": box_after,
+            "gpu_clock": gpu_clock_record(self._clock.samples),
             "checks": checks,
         }
         return self.record
