@@ -1,0 +1,182 @@
+{
+  "arm": "sleep",
+  "round": 1,
+  "run": 1,
+  "label": "RTX 3050, real",
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1791546014.0186374,
+    "ram_available_bytes": 10583588864,
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5684,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1791546167.9581735,
+    "ram_available_bytes": 10588950528,
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5684,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 210 to 1740 MHz over 60 samples; clock event reasons seen: gpu_idle",
+    "samples": 60,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 210,
+      "median": 210.0,
+      "max": 1740
+    },
+    "reasons_seen": {
+      "gpu_idle": 60
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "void",
+      "reason": "boot-time offset grew 33.827 s (limit 1.0 s); suspend count rose from 1 to 2",
+      "evidence": {
+        "sleep_offset_start_s": 24.648792039,
+        "sleep_offset_end_s": 58.47585684500018,
+        "suspend_count_start": 1,
+        "suspend_count_end": 2
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 61 power samples",
+      "evidence": {
+        "samples": 61,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "10117120 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/home/m1kadoo/.cache/huggingface/hub",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 8792051200,
+        "disk_read_bytes_end": 8802168320,
+        "own_read_bytes": 0,
+        "foreign_read_bytes": 10117120,
+        "uninspectable_processes": 331
+      },
+      "readers": [
+        {
+          "pid": 7561,
+          "name": "firefox",
+          "read_bytes": 741376
+        },
+        {
+          "pid": 9622,
+          "name": "code",
+          "read_bytes": 303104
+        },
+        {
+          "pid": 40511,
+          "name": "claude",
+          "read_bytes": 294912
+        },
+        {
+          "pid": 5684,
+          "name": "gnome-shell",
+          "read_bytes": 282624
+        },
+        {
+          "pid": 9128,
+          "name": "code",
+          "read_bytes": 151552
+        },
+        {
+          "pid": 5296,
+          "name": "wireplumber",
+          "read_bytes": 143360
+        },
+        {
+          "pid": 5886,
+          "name": "gsd-sharing",
+          "read_bytes": 143360
+        },
+        {
+          "pid": 6238,
+          "name": "dconf-service",
+          "read_bytes": 143360
+        },
+        {
+          "pid": 50323,
+          "name": "gjs",
+          "read_bytes": 139264
+        },
+        {
+          "pid": 6104,
+          "name": "warp-taskbar",
+          "read_bytes": 135168
+        },
+        {
+          "pid": 6340,
+          "name": "gvfsd-metadata",
+          "read_bytes": 135168
+        },
+        {
+          "pid": 9080,
+          "name": "code",
+          "read_bytes": 114688
+        },
+        {
+          "pid": 5276,
+          "name": "dbus-daemon",
+          "read_bytes": 20480
+        },
+        {
+          "pid": 11844,
+          "name": "claude",
+          "read_bytes": 8192
+        },
+        {
+          "pid": 5277,
+          "name": "pipewire",
+          "read_bytes": 4096
+        },
+        {
+          "pid": 5662,
+          "name": "gvfsd",
+          "read_bytes": 4096
+        }
+      ],
+      "unattributed_bytes": 7352320
+    }
+  }
+}
