@@ -54,4 +54,3 @@ def test_e2_runner_cleared_after_failure(e2_wrapper, monkeypatch):
         wrapper.train()
 
     assert wrapper._e2_runner is None
-
