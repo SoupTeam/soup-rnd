@@ -1,4 +1,4 @@
-"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-06).
+"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-07).
 
 The module is benchmark harness code, not shipped. Every sensor reading below is
 synthetic: the fake sensors return made-up numbers, and no test writes into
@@ -887,3 +887,81 @@ def test_windows_defaults_fill_the_box_stamp(validity, monkeypatch):
     assert stamp["unknown"] == {}
     assert record["outcome"] == "ok"
     json.dumps(record)
+
+
+# Repeats rule and block order (ticket 07). Run values are synthetic seconds per step.
+
+
+def test_block_order_is_a_b_b_a_for_each_block(validity):
+    assert validity.block_order(3) == [("A", "B", "B", "A")] * 3
+
+
+def _blocks(validity, *runs, void=()):
+    """Blocks from run values in A, B, B, A order; blocks at indexes in ``void`` hold a void run."""
+    return [
+        [validity.Run(value, "void" if index in void and position == 1 else "ok")
+         for position, value in enumerate(block)]
+        for index, block in enumerate(runs)
+    ]
+
+
+#: Block differences (mean of B minus mean of A) are 20, -20, 20, -20 and 0, so
+#: sigma is 20. The mean of A is 100, so delta is 10 and N = ceil(7.85 * 2^2) = 32.
+PILOT = (
+    (95, 115, 125, 105),
+    (100, 80, 80, 100),
+    (90, 120, 120, 110),
+    (105, 75, 85, 95),
+    (100, 100, 100, 100),
+)
+
+
+def test_blocks_needed_follows_the_formula_on_known_inputs(validity):
+    assert validity.blocks_needed(_blocks(validity, *PILOT)) == 32
+
+
+def test_blocks_needed_is_never_below_two(validity):
+    # Differences 1 and -1: sigma is 1.41, delta is 10, so the formula gives
+    # ceil(7.85 * 0.02) = 1 block.
+    blocks = _blocks(validity, (100, 101, 101, 100), (100, 99, 99, 100))
+
+    assert validity.blocks_needed(blocks) == 2
+
+
+def test_blocks_to_add_runs_the_pilot_then_tops_up_to_n(validity):
+    assert validity.blocks_to_add([]) == 5
+    assert validity.blocks_to_add(_blocks(validity, *PILOT[:3])) == 2
+    # The pilot counts toward N = 32, so the top-up is 27 blocks.
+    assert validity.blocks_to_add(_blocks(validity, *PILOT)) == 27
+
+
+def test_blocks_to_add_never_asks_for_a_second_top_up(validity):
+    # Top-up blocks far noisier than the pilot (differences of 60 and -60) would
+    # raise N if it were recomputed. N stays at the 32 computed after the pilot.
+    noisy = [(100, 160, 160, 100), (100, 40, 40, 100)] * 5
+
+    assert validity.blocks_to_add(_blocks(validity, *PILOT, *noisy)) == 17
+    assert validity.blocks_to_add(_blocks(validity, *PILOT, *(noisy * 3))) == 0
+
+
+def test_block_with_a_void_run_is_replaced_and_does_not_count(validity):
+    # The void block's difference of 500 would raise N far above 32 if it counted.
+    blocks = _blocks(validity, *PILOT[:2], (100, 600, 600, 100), *PILOT[2:4], void={2})
+
+    assert validity.blocks_to_add(blocks) == 1  # 4 valid blocks of the 5-block pilot
+    blocks += _blocks(validity, PILOT[4])
+    assert validity.blocks_needed(blocks) == 32
+    assert validity.blocks_to_add(blocks) == 27
+
+
+@pytest.mark.parametrize(
+    "runs, message",
+    [
+        (((100, 110, 110),), "4 runs"),
+        (((100, 110, 110, 100),), "at least 2 blocks"),
+        (((0, 10, 10, 0), (0, -10, -10, 0)), "mean of A"),
+    ],
+)
+def test_blocks_needed_rejects_input_it_cannot_size(validity, runs, message):
+    with pytest.raises(ValueError, match=message):
+        validity.blocks_needed(_blocks(validity, *runs))

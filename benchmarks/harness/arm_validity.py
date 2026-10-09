@@ -10,6 +10,11 @@ returns None makes its check unknown, never ok (ADR 0001).
 The record also holds a box stamp from before and after the arm and a GPU clock
 record. Both are for the reader and never change the arm's outcome.
 
+The module also gives the A-B-B-A run order of a block (``block_order``) and the
+repeats rule (ADR 0003): ``blocks_needed`` sizes a comparison for a 10% effect
+from its blocks, and ``blocks_to_add`` says how many blocks to run next, first
+the 5-block pilot and then one top-up.
+
 Sensors are callables passed in by the caller, with real defaults per OS. The
 Linux defaults need no root and no third-party packages. The Windows defaults
 port the reference ``l2l_box.py`` (upstream ``benchmarks/harness``) and read
@@ -22,6 +27,7 @@ Windows, imported only when the sensor runs.
 from __future__ import annotations
 
 import ctypes
+import math
 import os
 import shutil
 import statistics
@@ -38,6 +44,7 @@ from typing import (
     Generic,
     List,
     Optional,
+    Sequence,
     Tuple,
     TypedDict,
     TypeVar,
@@ -115,6 +122,22 @@ CLOCK_EVENT_REASONS = {
 
 #: Every check an arm record carries, in record order.
 CHECKS = ("suspend", "power", "foreign_reads")
+
+#: The arms of one block in run order. Linear drift over the block cancels.
+BLOCK_ORDER = ("A", "B", "B", "A")
+
+#: (z for alpha 0.05 two-sided + z for power 0.8) squared, as in the NIST
+#: e-Handbook sample size formula (ADR 0003).
+SAMPLE_SIZE_FACTOR = 7.85
+
+#: The effect a comparison must detect, as a fraction of the mean of A.
+EFFECT_FRACTION = 0.1
+
+#: The repeats rule never asks for fewer blocks than this.
+MIN_BLOCKS = 2
+
+#: Blocks in the pilot. They estimate sigma and count toward N.
+PILOT_BLOCKS = 5
 
 
 class SensorUnavailableError(Exception):
@@ -1189,3 +1212,67 @@ class ArmWatch:
 
     def __exit__(self, *exc_info: object) -> None:
         self.stop()
+
+
+def block_order(count: int) -> List[Tuple[str, ...]]:
+    """The arms of each of ``count`` blocks in run order: A, B, B, A."""
+    return [BLOCK_ORDER] * count
+
+
+@dataclass(frozen=True)
+class Run:
+    """One run: the median of its timed steps and its arm record's outcome."""
+
+    value: float
+    outcome: str
+
+
+def _arm_values(block: Sequence[Run], arm: str) -> List[float]:
+    return [run.value for run, name in zip(block, BLOCK_ORDER) if name == arm]
+
+
+def block_difference(block: Sequence[Run]) -> float:
+    """The mean of a block's B runs minus the mean of its A runs."""
+    return statistics.fmean(_arm_values(block, "B")) - statistics.fmean(_arm_values(block, "A"))
+
+
+def valid_blocks(blocks: Sequence[Sequence[Run]]) -> List[Sequence[Run]]:
+    """The blocks with no void run. A block with a void run is replaced, not counted.
+
+    A run whose outcome is unknown still counts. The rule committed in METHOD.md
+    decides whether its gate gets a verdict.
+    """
+    for block in blocks:
+        if len(block) != len(BLOCK_ORDER):
+            raise ValueError(f"a block holds {len(BLOCK_ORDER)} runs, got {len(block)}")
+    return [block for block in blocks if all(run.outcome != VOID for run in block)]
+
+
+def blocks_needed(blocks: Sequence[Sequence[Run]]) -> int:
+    """Blocks a comparison needs to detect a 10% effect: ceil(7.85 * (sigma / delta)^2).
+
+    Sigma is the spread of the block differences and delta is 10% of the mean of A.
+    The answer is never below ``MIN_BLOCKS``. Blocks with a void run do not count.
+    """
+    blocks = valid_blocks(blocks)
+    if len(blocks) < MIN_BLOCKS:
+        raise ValueError(f"sigma needs at least {MIN_BLOCKS} blocks without a void run")
+    sigma = statistics.stdev(block_difference(block) for block in blocks)
+    mean_a = statistics.fmean(value for block in blocks for value in _arm_values(block, "A"))
+    if mean_a <= 0:
+        raise ValueError(f"the mean of A must be positive, got {mean_a}")
+    delta = EFFECT_FRACTION * mean_a
+    return max(MIN_BLOCKS, math.ceil(SAMPLE_SIZE_FACTOR * (sigma / delta) ** 2))
+
+
+def blocks_to_add(blocks: Sequence[Sequence[Run]]) -> int:
+    """How many more blocks to run: first the rest of the pilot, then one top-up to N.
+
+    N comes from the pilot blocks alone and is computed once, so later blocks
+    never raise it and the rule never asks for a second top-up. Blocks with a
+    void run do not count, so each one adds a block to run.
+    """
+    blocks = valid_blocks(blocks)
+    if len(blocks) < PILOT_BLOCKS:
+        return PILOT_BLOCKS - len(blocks)
+    return max(0, blocks_needed(blocks[:PILOT_BLOCKS]) - len(blocks))
