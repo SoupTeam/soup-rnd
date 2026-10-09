@@ -12,8 +12,9 @@ record. Both are for the reader and never change the arm's outcome.
 
 The module also gives the A-B-B-A run order of a block (``block_order``) and the
 repeats rule (ADR 0003): ``blocks_needed`` sizes a comparison for a 10% effect
-from its blocks, and ``blocks_to_add`` says how many blocks to run next, first
-the 5-block pilot and then one top-up.
+from its blocks, and ``blocks_to_add`` says how many blocks to run next: the
+5-block pilot, then up to N, then one top-up if N recomputed from all blocks
+is larger.
 
 Sensors are callables passed in by the caller, with real defaults per OS. The
 Linux defaults need no root and no third-party packages. The Windows defaults
@@ -1231,11 +1232,6 @@ def _arm_values(block: Sequence[Run], arm: str) -> List[float]:
     return [run.value for run, name in zip(block, BLOCK_ORDER) if name == arm]
 
 
-def block_difference(block: Sequence[Run]) -> float:
-    """The mean of a block's B runs minus the mean of its A runs."""
-    return statistics.fmean(_arm_values(block, "B")) - statistics.fmean(_arm_values(block, "A"))
-
-
 def valid_blocks(blocks: Sequence[Sequence[Run]]) -> List[Sequence[Run]]:
     """The blocks with no void run. A block with a void run is replaced, not counted.
 
@@ -1251,14 +1247,18 @@ def valid_blocks(blocks: Sequence[Sequence[Run]]) -> List[Sequence[Run]]:
 def blocks_needed(blocks: Sequence[Sequence[Run]]) -> int:
     """Blocks a comparison needs to detect a 10% effect: ceil(7.85 * (sigma / delta)^2).
 
-    Sigma is the spread of the block differences and delta is 10% of the mean of A.
-    The answer is never below ``MIN_BLOCKS``. Blocks with a void run do not count.
+    Sigma is the run-to-run spread within an arm, pooled over A and B:
+    sqrt((variance of the A runs + variance of the B runs) / 2). Delta is 10% of
+    the mean of A. The answer is never below ``MIN_BLOCKS``. Blocks with a void
+    run do not count.
     """
     blocks = valid_blocks(blocks)
     if len(blocks) < MIN_BLOCKS:
         raise ValueError(f"sigma needs at least {MIN_BLOCKS} blocks without a void run")
-    sigma = statistics.stdev(block_difference(block) for block in blocks)
-    mean_a = statistics.fmean(value for block in blocks for value in _arm_values(block, "A"))
+    a_runs = [value for block in blocks for value in _arm_values(block, "A")]
+    b_runs = [value for block in blocks for value in _arm_values(block, "B")]
+    sigma = math.sqrt((statistics.variance(a_runs) + statistics.variance(b_runs)) / 2)
+    mean_a = statistics.fmean(a_runs)
     if mean_a <= 0:
         raise ValueError(f"the mean of A must be positive, got {mean_a}")
     delta = EFFECT_FRACTION * mean_a
@@ -1266,13 +1266,18 @@ def blocks_needed(blocks: Sequence[Sequence[Run]]) -> int:
 
 
 def blocks_to_add(blocks: Sequence[Sequence[Run]]) -> int:
-    """How many more blocks to run: first the rest of the pilot, then one top-up to N.
+    """How many more blocks to run: the pilot, then up to N, then one top-up.
 
-    N comes from the pilot blocks alone and is computed once, so later blocks
-    never raise it and the rule never asks for a second top-up. Blocks with a
-    void run do not count, so each one adds a block to run.
+    N comes from the pilot. On reaching it, N is recomputed once from every
+    block so far, and a larger N is topped up to. Blocks after that never change
+    N, so the rule never asks for a second top-up. Blocks with a void run do not
+    count, so each one adds a block to run.
     """
     blocks = valid_blocks(blocks)
     if len(blocks) < PILOT_BLOCKS:
         return PILOT_BLOCKS - len(blocks)
-    return max(0, blocks_needed(blocks[:PILOT_BLOCKS]) - len(blocks))
+    first_n = max(PILOT_BLOCKS, blocks_needed(blocks[:PILOT_BLOCKS]))
+    if len(blocks) < first_n:
+        return first_n - len(blocks)
+    final_n = max(first_n, blocks_needed(blocks[:first_n]))
+    return max(0, final_n - len(blocks))

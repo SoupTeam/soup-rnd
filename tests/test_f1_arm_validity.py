@@ -905,15 +905,25 @@ def _blocks(validity, *runs, void=()):
     ]
 
 
-#: Block differences (mean of B minus mean of A) are 20, -20, 20, -20 and 0, so
-#: sigma is 20. The mean of A is 100, so delta is 10 and N = ceil(7.85 * 2^2) = 32.
+#: The 10 A runs are 130, 70, 130, 70 and six 100s; so are the 10 B runs. Each
+#: arm's variance is 3600 / 9 = 400, so the pooled sigma is 20. The mean of A is
+#: 100, so delta is 10 and N = ceil(7.85 * 2^2) = 32.
 PILOT = (
-    (95, 115, 125, 105),
-    (100, 80, 80, 100),
-    (90, 120, 120, 110),
-    (105, 75, 85, 95),
+    (130, 70, 100, 100),
+    (70, 130, 100, 100),
+    (100, 100, 70, 130),
+    (100, 100, 130, 70),
     (100, 100, 100, 100),
 )
+
+CALM = (100, 100, 100, 100)
+
+#: A pair of blocks whose A runs are 140, 140, 60, 60 and whose B runs are 60,
+#: 60, 140, 140: the mean of A stays 100 and each arm's squared deviations add 6400.
+NOISY_PAIR = ((140, 60, 60, 140), (60, 140, 140, 60))
+
+#: The 27 blocks that take the pilot up to N = 32: one calm block and 13 noisy pairs.
+RUN_UP = (CALM, *(NOISY_PAIR * 13))
 
 
 def test_blocks_needed_follows_the_formula_on_known_inputs(validity):
@@ -921,27 +931,42 @@ def test_blocks_needed_follows_the_formula_on_known_inputs(validity):
 
 
 def test_blocks_needed_is_never_below_two(validity):
-    # Differences 1 and -1: sigma is 1.41, delta is 10, so the formula gives
-    # ceil(7.85 * 0.02) = 1 block.
+    # The A runs are all 100 and the B runs are 101, 101, 99, 99 (variance 4 / 3),
+    # so the pooled sigma is 0.82, delta is 10 and the formula gives
+    # ceil(7.85 * 0.0067) = 1 block.
     blocks = _blocks(validity, (100, 101, 101, 100), (100, 99, 99, 100))
 
     assert validity.blocks_needed(blocks) == 2
 
 
-def test_blocks_to_add_runs_the_pilot_then_tops_up_to_n(validity):
+def test_blocks_to_add_runs_the_pilot_then_up_to_n(validity):
     assert validity.blocks_to_add([]) == 5
     assert validity.blocks_to_add(_blocks(validity, *PILOT[:3])) == 2
-    # The pilot counts toward N = 32, so the top-up is 27 blocks.
+    # The pilot counts toward N = 32, so 27 blocks follow it.
     assert validity.blocks_to_add(_blocks(validity, *PILOT)) == 27
+    # N is not recomputed before it is reached, however noisy the new blocks are.
+    assert validity.blocks_to_add(_blocks(validity, *PILOT, *RUN_UP[:10])) == 17
 
 
-def test_blocks_to_add_never_asks_for_a_second_top_up(validity):
-    # Top-up blocks far noisier than the pilot (differences of 60 and -60) would
-    # raise N if it were recomputed. N stays at the 32 computed after the pilot.
-    noisy = [(100, 160, 160, 100), (100, 40, 40, 100)] * 5
+def test_recomputed_n_that_is_larger_gives_one_top_up(validity):
+    # At 32 blocks each arm's squared deviations add to 3600 + 13 * 6400 = 86800
+    # over 64 runs, so sigma^2 = 86800 / 63 = 1377.8 and N = ceil(108.2) = 109.
+    blocks = _blocks(validity, *PILOT, *RUN_UP)
+    assert validity.blocks_to_add(blocks) == 77
 
-    assert validity.blocks_to_add(_blocks(validity, *PILOT, *noisy)) == 17
-    assert validity.blocks_to_add(_blocks(validity, *PILOT, *(noisy * 3))) == 0
+    # Top-up blocks far noisier still would raise N again if it were recomputed.
+    # N stays at 109, so the rule never asks for a second top-up.
+    noisier = ((200, 0, 0, 200), (0, 200, 200, 0)) * 20
+    assert validity.blocks_to_add(blocks + _blocks(validity, *noisier)) == 37
+    assert validity.blocks_to_add(blocks + _blocks(validity, *noisier, *noisier)) == 0
+
+
+def test_recomputed_n_that_is_smaller_ends_the_comparison(validity):
+    # At 32 blocks the squared deviations are the pilot's 3600 over 64 runs, so
+    # sigma^2 = 57.1 and N = ceil(4.5) = 5, below the 32 blocks already run.
+    calm = (CALM,) * 27
+
+    assert validity.blocks_to_add(_blocks(validity, *PILOT, *calm)) == 0
 
 
 def test_block_with_a_void_run_is_replaced_and_does_not_count(validity):
