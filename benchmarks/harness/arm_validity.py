@@ -11,10 +11,10 @@ The record also holds a box stamp from before and after the arm and a GPU clock
 record. Both are for the reader and never change the arm's outcome.
 
 The module also gives the A-B-B-A run order of a block (``block_order``) and the
-repeats rule (ADR 0003): ``blocks_needed`` sizes a comparison for a 10% effect
-from its blocks, and ``blocks_to_add`` says how many blocks to run next: the
-5-block pilot, then up to N, then one top-up if N recomputed from all blocks
-is larger.
+repeats rule (ADR 0003): ``repeats`` gives sigma, the mean of A and the
+blocks N a 10% effect needs, ``blocks_needed`` gives N alone, and
+``blocks_to_add`` says how many blocks to run next: the 5-block pilot, then up
+to N, then one top-up if N recomputed from all blocks is larger.
 
 Sensors are callables passed in by the caller, with real defaults per OS. The
 Linux defaults need no root and no third-party packages. The Windows defaults
@@ -1244,13 +1244,22 @@ def valid_blocks(blocks: Sequence[Sequence[Run]]) -> List[Sequence[Run]]:
     return [block for block in blocks if all(run.outcome != VOID for run in block)]
 
 
-def blocks_needed(blocks: Sequence[Sequence[Run]]) -> int:
-    """Blocks a comparison needs to detect a 10% effect: ceil(7.85 * (sigma / delta)^2).
+@dataclass(frozen=True)
+class Repeats:
+    """What the repeats rule reads from a set of blocks."""
+
+    sigma: float
+    mean_a: float
+    blocks_needed: int
+
+
+def repeats(blocks: Sequence[Sequence[Run]]) -> Repeats:
+    """Sigma, the mean of A and the blocks a 10% effect needs: ceil(7.85 * (sigma / delta)^2).
 
     Sigma is the run-to-run spread within an arm, pooled over A and B:
     sqrt((variance of the A runs + variance of the B runs) / 2). Delta is 10% of
-    the mean of A. The answer is never below ``MIN_BLOCKS``. Blocks with a void
-    run do not count.
+    the mean of A. The block count is never below ``MIN_BLOCKS``. Blocks with a
+    void run do not count.
     """
     blocks = valid_blocks(blocks)
     if len(blocks) < MIN_BLOCKS:
@@ -1262,7 +1271,13 @@ def blocks_needed(blocks: Sequence[Sequence[Run]]) -> int:
     if mean_a <= 0:
         raise ValueError(f"the mean of A must be positive, got {mean_a}")
     delta = EFFECT_FRACTION * mean_a
-    return max(MIN_BLOCKS, math.ceil(SAMPLE_SIZE_FACTOR * (sigma / delta) ** 2))
+    needed = max(MIN_BLOCKS, math.ceil(SAMPLE_SIZE_FACTOR * (sigma / delta) ** 2))
+    return Repeats(sigma, mean_a, needed)
+
+
+def blocks_needed(blocks: Sequence[Sequence[Run]]) -> int:
+    """Blocks a comparison needs to detect a 10% effect, from ``repeats``."""
+    return repeats(blocks).blocks_needed
 
 
 def blocks_to_add(blocks: Sequence[Sequence[Run]]) -> int:

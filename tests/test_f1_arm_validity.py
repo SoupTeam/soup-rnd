@@ -930,6 +930,10 @@ def test_blocks_needed_follows_the_formula_on_known_inputs(validity):
     assert validity.blocks_needed(_blocks(validity, *PILOT)) == 32
 
 
+def test_repeats_gives_sigma_the_mean_of_a_and_n(validity):
+    assert validity.repeats(_blocks(validity, *PILOT)) == validity.Repeats(20.0, 100.0, 32)
+
+
 def test_blocks_needed_is_never_below_two(validity):
     # The A runs are all 100 and the B runs are 101, 101, 99, 99 (variance 4 / 3),
     # so the pooled sigma is 0.82, delta is 10 and the formula gives
