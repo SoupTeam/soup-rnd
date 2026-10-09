@@ -1,4 +1,4 @@
-"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-03).
+"""Tests for the arm validity watch (benchmarks/harness/arm_validity.py, F1 tickets 02-04).
 
 The module is benchmark harness code, not shipped. Every sensor reading below is
 synthetic: the fake sensors return made-up numbers, and no test writes into
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -49,10 +50,46 @@ OFF_MAINS = {"battery": True, "online": {"ACAD": False, "ucsi-source-psy-USBC000
 NO_BATTERY = {"battery": False, "online": {"ucsi-source-psy-USBC000:001": False}}
 
 
+GB = 1_000_000_000
+
+
+def _processes(own, others=None, uninspectable=0):
+    """A synthetic process-reads snapshot: ``others`` maps pid to (name, read bytes)."""
+    return {
+        "own": own,
+        "others": {
+            pid: {"name": name, "read_bytes": read} for pid, (name, read) in (others or {}).items()
+        },
+        "uninspectable": uninspectable,
+    }
+
+
+QUIET_PROCESSES = _processes(own=10 * GB, others={4242: ("firefox", 300_000)}, uninspectable=292)
+
+
+def _disk(*values):
+    """A synthetic disk counter for nvme0n1 that returns ``values`` like ``_readings``."""
+    read = _readings(*values)
+
+    def sensor(device):
+        assert device == "nvme0n1"
+        return read()
+
+    return sensor
+
+
+def _foreign_sensors(kwargs):
+    kwargs.setdefault("model_path", "/synthetic/models/qwen")
+    kwargs.setdefault("disk_device", lambda path: "nvme0n1")
+    kwargs.setdefault("disk_reads", _disk(50 * GB, 50 * GB))
+    kwargs.setdefault("process_reads", _readings(QUIET_PROCESSES))
+
+
 def _watch(validity, **kwargs):
     kwargs.setdefault("sleep_offset", _readings(25_588.0, 25_588.0))
     kwargs.setdefault("suspend_count", _readings(7, 7))
     kwargs.setdefault("power_supplies", _readings(ON_MAINS))
+    _foreign_sensors(kwargs)
     with validity.ArmWatch(arm="A", round=2, run=5, label="synthetic", **kwargs) as watch:
         pass
     return watch.record
@@ -149,7 +186,7 @@ def test_void_check_voids_the_arm_even_when_not_required(validity):
 def test_every_check_is_required_by_default(validity):
     record = _watch(validity)
 
-    assert record["required"] == ["suspend", "power"]
+    assert record["required"] == ["suspend", "power", "foreign_reads"]
 
 
 def test_unknown_required_check_name_is_rejected(validity):
@@ -211,6 +248,7 @@ def _watch_while_sampling(validity, sensor, samples, **kwargs):
     """Run an arm with a 10 ms power interval until ``sensor`` has been called ``samples`` times."""
     kwargs.setdefault("sleep_offset", _readings(25_588.0))
     kwargs.setdefault("suspend_count", _readings(7))
+    _foreign_sensors(kwargs)
     with validity.ArmWatch(
         arm="A", round=2, run=5, label="synthetic", power_supplies=sensor,
         power_interval_s=0.01, **kwargs,
@@ -282,3 +320,139 @@ def test_off_mains_sample_voids_even_when_another_sample_is_silent(validity):
 
     assert record["checks"]["power"]["outcome"] == "void"
     assert record["outcome"] == "void"
+
+
+def test_two_gb_of_foreign_reads_voids_the_arm(validity):
+    record = _watch(
+        validity,
+        disk_reads=_disk(50 * GB, 53 * GB),
+        process_reads=_readings(_processes(own=10 * GB), _processes(own=11 * GB)),
+    )
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "void"
+    assert foreign["evidence"]["foreign_read_bytes"] == 2 * GB
+    assert foreign["evidence"]["device"] == "nvme0n1"
+    assert foreign["evidence"]["model_path"] == "/synthetic/models/qwen"
+    assert "nvme0n1" in foreign["reason"]
+    assert foreign["unattributed_bytes"] == 2 * GB
+    assert foreign["readers"] == []
+    assert record["outcome"] == "void"
+    json.dumps(record)
+
+
+def test_reads_only_by_the_benchmark_and_its_children_stay_ok(validity):
+    record = _watch(
+        validity,
+        disk_reads=_disk(50 * GB, 58 * GB),
+        process_reads=_readings(
+            _processes(own=10 * GB, others={4242: ("firefox", 300_000)}),
+            _processes(own=18 * GB, others={4242: ("firefox", 300_000)}),
+        ),
+    )
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "ok"
+    assert foreign["evidence"]["own_read_bytes"] == 8 * GB
+    assert foreign["evidence"]["foreign_read_bytes"] == 0
+    assert foreign["readers"] == []
+    assert foreign["unattributed_bytes"] == 0
+    assert record["outcome"] == "ok"
+
+
+def test_same_user_reader_is_named_and_the_rest_is_unattributed(validity):
+    record = _watch(
+        validity,
+        disk_reads=_disk(50 * GB, 54 * GB),
+        process_reads=_readings(
+            _processes(own=10 * GB, others={4242: ("firefox", 300_000)}, uninspectable=292),
+            _processes(
+                own=11 * GB,
+                others={4242: ("firefox", 300_000), 5150: ("rg", 2 * GB)},
+                uninspectable=293,
+            ),
+        ),
+    )
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "void"
+    assert foreign["evidence"]["foreign_read_bytes"] == 3 * GB
+    assert foreign["readers"] == [{"pid": 5150, "name": "rg", "read_bytes": 2 * GB}]
+    assert foreign["unattributed_bytes"] == 1 * GB
+    assert foreign["evidence"]["uninspectable_processes"] == 293
+
+
+@pytest.mark.parametrize(
+    ("sensors", "reason_part"),
+    [
+        ({"disk_reads": lambda device: _raises()}, "PermissionError"),
+        ({"disk_reads": _disk(50 * GB, None)}, "returned None"),
+        ({"process_reads": _raises}, "PermissionError"),
+        ({"process_reads": _readings(None)}, "returned None"),
+        ({"disk_device": lambda path: _raises()}, "PermissionError"),
+        ({"disk_device": lambda path: None}, "maps to no block device"),
+        ({"model_path": None}, "no model path"),
+    ],
+    ids=[
+        "disk-raises", "disk-none-at-end", "processes-raise", "processes-none",
+        "device-raises", "no-device", "no-model-path",
+    ],
+)
+def test_silent_disk_sensor_makes_foreign_reads_unknown_with_reason(
+    validity, sensors, reason_part
+):
+    record = _watch(validity, **sensors)
+
+    foreign = record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "unknown"
+    assert reason_part in foreign["reason"]
+    assert foreign["unattributed_bytes"] is None
+    assert record["outcome"] == "unknown"
+    json.dumps(record)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sensors only")
+def test_real_linux_disk_sensors_return_values(validity):
+    model_path = str(HARNESS)
+    try:
+        device = validity.disk_device(model_path)
+    except ValueError as exc:
+        pytest.skip(str(exc))
+    if device is None:
+        pytest.skip(f"{model_path} is on a file system with no block device")
+    with validity.ArmWatch(
+        arm="A", round=0, run=0, label="real sensors, test only", model_path=model_path
+    ) as watch:
+        pass
+
+    foreign = watch.record["checks"]["foreign_reads"]
+    assert foreign["outcome"] != "unknown", foreign["reason"]
+    evidence = foreign["evidence"]
+    assert isinstance(evidence["device"], str)
+    assert isinstance(evidence["disk_read_bytes_start"], int)
+    assert evidence["disk_read_bytes_end"] >= evidence["disk_read_bytes_start"]
+    assert isinstance(evidence["own_read_bytes"], int)
+    assert isinstance(evidence["uninspectable_processes"], int)
+    assert isinstance(foreign["unattributed_bytes"], int)
+    json.dumps(watch.record)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sensors only")
+def test_unreaped_child_makes_foreign_reads_unknown_with_reason(validity):
+    child = None
+    with validity.ArmWatch(
+        arm="A", round=0, run=0, label="real sensors, test only",
+        model_path="/synthetic/models/qwen", disk_device=lambda path: "nvme0n1",
+        disk_reads=_disk(50 * GB, 50 * GB),
+    ) as watch:
+        child = subprocess.Popen(["true"])
+        deadline = time.monotonic() + 5.0
+        status = Path(f"/proc/{child.pid}/status")
+        while "State:\tZ" not in status.read_text() and time.monotonic() < deadline:
+            time.sleep(0.01)
+    child.wait()
+
+    foreign = watch.record["checks"]["foreign_reads"]
+    assert foreign["outcome"] == "unknown"
+    assert str(child.pid) in foreign["reason"]
+    assert "reap" in foreign["reason"]
