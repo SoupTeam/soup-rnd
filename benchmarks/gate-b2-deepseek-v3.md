@@ -38,7 +38,7 @@ ran alone with `-m gpu`: `29 passed, 43 deselected, 16 warnings`.
 | Item | Value |
 |---|---|
 | Date | 2026-10-11 |
-| Commit | `8634631b` plus the arm 9 device parameter in `tests/test_b2_shard_layout.py` |
+| Commit | `8634631b` plus the arm 9 device parameter in `tests/test_b2_shard_layout.py`, run before that change was committed as `60f1789d` |
 | GPU | NVIDIA GeForce RTX 3050 Laptop GPU, 4 GB (3.86 GB free at start), compute capability 8.6 |
 | Driver | 595.99.02 |
 | OS | Ubuntu, kernel 7.0.0-38-generic |
@@ -73,22 +73,26 @@ timestamp, clocks.current.sm [MHz], power.draw [W], clocks_event_reasons.active
 
 ## Operation compatibility table
 
-Each cell says "proven by gate", "refused: reason" or "not tested". Arm numbers refer to the list in
-`.scratch/b2-deepseek-v3-stream/spec.md`. "Proven" means the arm passed on CUDA in fp32 here and on
-CPU in CI.
+Each cell says "proven by gate", "refused: reason" or "not tested". Arms: 1 base fixture, 2 `q_lora_rank=None`, 3 `rope_interleave=False`,
+4 yarn rope, 5 padded batch, 6 Kimi K2 shape, 7 MTP layer, 8 NF4, 9 Qwen3.5-MoE fused experts,
+10 `moe_lora`, 11 disk tier. "Proven" means the arm passed on CUDA in fp32 here. Every arm except 8 also runs on CPU in CI.
 
 | Model type | Forward | Backward | NF4 | Disk tier | LoRA on attention | LoRA on shared experts | `moe_lora` on routed experts |
 |---|---|---|---|---|---|---|---|
-| `deepseek_v3` | proven by gate (arm 1) | proven by gate (arm 1) | proven by gate (arm 8; routed experts stay bf16) | proven by gate (arms 8 and 11) | proven by gate (arms 1 to 7) | not tested [^1] | proven by gate (arm 10) |
+| `deepseek_v3` | proven by gate (arm 1) | proven by gate (arm 1) | proven by gate (arm 8; routed experts stay bf16, the base dtype of the run) | proven by gate (arms 8 and 11) | proven by gate (arms 1 to 8) | not tested [^1] | proven by gate (arm 10) |
 | `kimi_k2` (tiny shape) | proven by gate (arm 6) | proven by gate (arm 6) | not tested | not tested | proven by gate (arm 6) | not tested [^1] | not tested |
-| `qwen3_5_moe` fused | proven by gate (arm 9) | not tested | not tested | not tested | proven by gate (arm 9, forward only) | not tested | not tested |
+| `qwen3_5_moe` fused | proven by gate (arm 9, logits only) | not tested | not tested | not tested | not tested [^2] | not tested | not tested |
 | `deepseek_v32` | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist |
 | `deepseek_v2` | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist |
 | `kimi_k25` | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist |
 
 [^1]: peft 0.21 rewrites `gate_proj`, `up_proj` and `down_proj` on `deepseek_v3` onto the routed
     experts, so no LoRA config reaches the shared experts. Ticket 10 did not refuse the rewrite
-    (arm 10 serves it), so the cell stays "not tested".
+    (arm 10 serves it), so the cell stays "not tested". The rewrite itself was observed in ticket 10
+    on peft 0.21.2. No test in this gate asserts it.
+
+[^2]: Arm 9 uses a LoRA config on `q_proj` and `in_proj_qkv` with `lora_B` left at zero, so the
+    adapter adds nothing and the logits comparison says nothing about LoRA.
 
 Notes on the rows:
 
@@ -99,7 +103,8 @@ Notes on the rows:
   weights into fused experts, the checkpoint is FP8, and one layer is too large to stream.
 - `deepseek_v32`, `deepseek_v2` and `kimi_k25` get the ordinary message,
   `layer streaming does not support model_type=<type>. Supported: ...`. The tests pin the text.
-- `qwen3_5_moe` fused uses a LoRA config that targets `q_proj` and `in_proj_qkv`.
+- `qwen3_5_moe` fused compares logits only. It has no expert-coverage check, no `meta` check and no gradient comparison.
+- Arm 8 (NF4) runs on CUDA only, so it has no CPU run in CI.
 - NF4 leaves the routed experts, the router weight, the router bias and the norms at the base
   dtype. They are not quantized.
 - A DeepSeek-V3 skeleton built from Hub code (`trust_remote_code: true`) is refused with a message
