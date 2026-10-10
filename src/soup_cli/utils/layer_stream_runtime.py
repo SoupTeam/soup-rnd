@@ -2349,6 +2349,26 @@ def _stamp_4bit_markers(model: Any, quant_config: Any) -> None:
         model.config.quantization_config = quant_config
 
 
+def _refuse_deepseek_v3_hub_code(config: Any, trust_remote_code: bool) -> None:
+    """A DeepSeek-V3 skeleton must be the transformers class, not the checkpoint's Hub code.
+
+    The Hub code a DeepSeek-V3 checkpoint names in ``auto_map`` keeps the routed
+    experts in a module list and asserts it is not training. On transformers 5 it
+    does not even import (it needs ``is_torch_fx_available``), so this refuses
+    from the config, before ``from_config`` loads the class.
+    """
+    if not trust_remote_code or getattr(config, "model_type", None) != "deepseek_v3":
+        return
+    hub_class = (getattr(config, "auto_map", None) or {}).get("AutoModelForCausalLM")
+    if hub_class is None:
+        return
+    raise ValueError(
+        "layer streaming needs the transformers DeepSeek-V3 class, but "
+        f"--trust-remote-code builds {hub_class} from the checkpoint's own modeling "
+        "code, which cannot train. Run again without --trust-remote-code."
+    )
+
+
 def build_meta_skeleton(
     model_id: str,
     *,
@@ -2376,6 +2396,7 @@ def build_meta_skeleton(
         )
     torch_dtype = _torch_dtype(dtype)
     config = AutoConfig.from_pretrained(model_id, trust_remote_code=trust_remote_code)
+    _refuse_deepseek_v3_hub_code(config, trust_remote_code)
     config.use_cache = False
     quant_config = None
     if quant == QUANT_NF4:

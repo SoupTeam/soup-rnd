@@ -1,7 +1,10 @@
-"""B2 ticket 06: DeepSeek-V3 streams, and a parity control proves it on a tiny model."""
+"""B2 tickets 06 and 07: DeepSeek-V3 streams, a parity control proves it on a tiny model,
+and a DeepSeek-V3 class from Hub code is refused."""
 
 from __future__ import annotations
 
+import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -476,3 +479,130 @@ def test_an_mtp_layer_is_dropped_and_the_streamed_model_still_matches(
         "the model's 3 layers (an MTP layer, for example).[/]"
     ]
     _assert_parity(parity)
+
+
+# ==========================================================================
+# ticket 07: a DeepSeek-V3 skeleton must be the transformers class
+# ==========================================================================
+
+_HUB_MODELING = '''\
+from transformers import DeepseekV3ForCausalLM
+
+
+class HubDeepseekV3ForCausalLM(DeepseekV3ForCausalLM):
+    """Stands in for the modeling file a DeepSeek-V3 checkpoint ships on the Hub."""
+'''
+
+# DeepSeek's own modeling_deepseek.py imports this name, which transformers 5 removed,
+# so the real Hub class fails to load before it can be built.
+_HUB_MODELING_STALE_IMPORT = (
+    "from transformers.utils.import_utils import is_torch_fx_available\n" + _HUB_MODELING
+)
+
+
+@pytest.fixture
+def hub_modules_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Load Hub code into a module cache under ``tmp_path`` instead of ``~/.cache``,
+    and forget the loaded modules afterwards."""
+    import transformers.dynamic_module_utils as dynamic_module_utils
+
+    def loaded() -> List[str]:
+        return [name for name in sys.modules if name.split(".")[0] == "transformers_modules"]
+
+    saved = {name: sys.modules.pop(name) for name in loaded()}
+    monkeypatch.setattr(dynamic_module_utils, "HF_MODULES_CACHE", str(tmp_path / "hf_modules"))
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    try:
+        yield
+    finally:
+        for name in loaded():
+            del sys.modules[name]
+        sys.modules.update(saved)
+
+
+def _save_hub_code_fixture(
+    weights: Path, *, auto_map: bool = True, modeling: str = _HUB_MODELING
+) -> None:
+    """The tiny DeepSeek-V3 with a local Hub-style modeling file that ``auto_map`` names."""
+    _save_fixture(weights, _tiny_deepseek_v3_config())
+    (weights / "modeling_hub_deepseek.py").write_text(modeling, encoding="utf-8")
+    if auto_map:
+        config_path = weights / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["auto_map"] = {
+            "AutoModelForCausalLM": "modeling_hub_deepseek.HubDeepseekV3ForCausalLM"
+        }
+        config_path.write_text(json.dumps(config), encoding="utf-8")
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize(
+    "modeling",
+    [_HUB_MODELING, _HUB_MODELING_STALE_IMPORT],
+    ids=["hub-class", "hub-class-that-fails-to-import"],
+)
+def test_a_deepseek_v3_class_from_hub_code_is_refused(
+    tmp_path: Path, hub_modules_cache: None, modeling: str
+) -> None:
+    from soup_cli.utils.layer_stream_runtime import build_meta_skeleton
+
+    weights = tmp_path / "weights"
+    _save_hub_code_fixture(weights, modeling=modeling)
+
+    with pytest.raises(ValueError) as excinfo:
+        build_meta_skeleton(str(weights), dtype="float32", trust_remote_code=True)
+
+    message = str(excinfo.value)
+    assert "modeling_hub_deepseek.HubDeepseekV3ForCausalLM" in message
+    assert "transformers DeepSeek-V3 class" in message
+    assert "without --trust-remote-code" in message
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize(
+    ("auto_map", "trust_remote_code"),
+    [(True, False), (False, True)],
+    ids=["auto_map-without-remote-code", "remote-code-without-auto_map"],
+)
+def test_the_same_fixture_without_the_hub_class_builds(
+    tmp_path: Path, hub_modules_cache: None, auto_map: bool, trust_remote_code: bool
+) -> None:
+    from transformers import DeepseekV3ForCausalLM
+
+    from soup_cli.utils.layer_stream_runtime import build_meta_skeleton
+
+    weights = tmp_path / "weights"
+    _save_hub_code_fixture(weights, auto_map=auto_map)
+
+    model = build_meta_skeleton(str(weights), dtype="float32", trust_remote_code=trust_remote_code)
+
+    assert type(model) is DeepseekV3ForCausalLM
+
+
+class _UnreadableIndex:
+    """A shard index that fails the test if anything reads it."""
+
+    def __getattr__(self, name: str) -> Any:
+        raise AssertionError(f"the shard index was read: {name}")
+
+
+@_REQUIRES_TRAINING_FLOOR
+def test_the_refusal_fires_before_any_shard_is_read(
+    tmp_path: Path, hub_modules_cache: None
+) -> None:
+    from soup_cli.utils.layer_stream_runtime import build_streamed_model
+
+    weights = tmp_path / "weights"
+    _save_hub_code_fixture(weights)
+
+    with pytest.raises(ValueError, match="without --trust-remote-code"):
+        build_streamed_model(
+            model_id=str(weights),
+            shard_dir=str(tmp_path / "no-shards"),
+            index=_UnreadableIndex(),
+            lora_config=_lora(),
+            device="cpu",
+            dtype="float32",
+            pin=False,
+            trust_remote_code=True,
+        )
