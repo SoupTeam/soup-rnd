@@ -1130,7 +1130,7 @@ class TestArchAllowlist:
     @pytest.mark.parametrize(
         "family",
         ["llama", "qwen2", "qwen3", "mistral", "gemma", "gemma2", "gemma3_text",
-         "phi", "phi3"],
+         "phi", "phi3", "deepseek_v3"],
     )
     def test_gated_families_are_accepted(self, family):
         from soup_cli.utils.layer_stream import stream_arch_of

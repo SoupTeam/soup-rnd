@@ -85,6 +85,9 @@ FLOPS_PER_PARAM_PER_TOKEN = 6
 #: reports ``model_type='gemma3'`` for the vision-capable wrapper, and streaming
 #: a multimodal wrapper as though it were a causal LM is exactly the failure the
 #: allowlist exists to prevent.
+#:
+#: ``deepseek_v3`` streams through the native transformers class only (B2). Its
+#: fused experts and fp32 router bias come from the meta skeleton's shard layout.
 SUPPORTED_STREAM_ARCHS = (
     "llama",
     "qwen2",
@@ -96,6 +99,7 @@ SUPPORTED_STREAM_ARCHS = (
     "gemma3_text",
     "phi",
     "phi3",
+    "deepseek_v3",
 )
 
 # Model types whose text decoders reuse an admitted streaming family.  Each
@@ -108,6 +112,17 @@ _STREAM_ARCH_ALIASES = {
     "qwen3_5_moe_text": "qwen3",
     "qwen4_exp_text": "qwen4_exp",
 }
+
+#: Kimi K2 has DeepSeek-V3's decoder layer but a model type transformers does not
+#: know, so it gets its own refusal saying what is missing.
+_KIMI_K2_REFUSAL = (
+    "layer streaming does not support model_type={raw!r}. transformers does not know "
+    "the kimi_k2 config type, and Kimi K2's tokenizer is Hub code. transformers has no "
+    "conversion of Kimi K2's per-expert weights into fused experts, so a native load "
+    "leaves the routed experts at random values. The checkpoint is FP8, which layer "
+    "streaming cannot read yet, and one Kimi K2 MoE layer is too large to stream as a "
+    "single layer. Supported: {supported}."
+)
 
 #: The loss path's own arithmetic, in VRAM bytes per logit element. **Measured
 #: stage by stage (issue #327), not derived.** ``ForCausalLMLoss`` upcasts to
@@ -272,11 +287,13 @@ def stream_arch_of(config: Any) -> str:
             "found on the model config"
         )
     family = _STREAM_ARCH_ALIASES.get(raw_family.strip().lower(), raw_family.strip().lower())
+    supported = ", ".join(SUPPORTED_STREAM_ARCHS)
+    if family == "kimi_k2":
+        raise ValueError(_KIMI_K2_REFUSAL.format(raw=raw_family, supported=supported))
     if family not in SUPPORTED_STREAM_ARCHS:
         raise ValueError(
             f"layer streaming does not support model_type={raw_family!r}. "
-            f"Supported: {', '.join(SUPPORTED_STREAM_ARCHS)}. "
-            f"More architectures land in v0.72.3."
+            f"Supported: {supported}."
         )
     return family
 
