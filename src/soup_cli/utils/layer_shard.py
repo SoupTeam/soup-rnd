@@ -117,6 +117,8 @@ _QWEN4_OQ_EXPERT_RE = re.compile(
     r"^(?P<prefix>model\.layers\.\d+\.mlp)\.switch_mlp\."
     r"(?P<projection>gate_proj|up_proj|down_proj)\.weight$"
 )
+#: A layer key that only a cache with stacked experts holds.
+_STACKED_KEY = "mlp.experts.gate_up_proj"
 
 
 def _canonical_stream_key(key: str) -> str:
@@ -273,6 +275,9 @@ class ShardIndex:
     #: Per decoder layer, the root holding its file (0 = this directory, k = stripe_roots[k-1]).
     #: Empty == every layer here.
     layer_roots: Tuple[int, ...] = ()
+    #: The layout's ``stack_experts`` when this cache was written (ADR 0004). An index
+    #: written before the field existed takes it from its key names.
+    stacked_experts: bool = False
 
 
 @dataclass(frozen=True)
@@ -633,6 +638,7 @@ def read_shard_index(out_dir: str) -> ShardIndex:
     if not isinstance(external, dict):
         raise ValueError("external_tensors must be an object")
     n_layers = int(payload["n_layers"])
+    layer_keys = tuple(payload["layer_keys"])
     stripe_roots = tuple(str(root) for root in (payload.get("stripe_roots") or ()))
     layer_roots = tuple(int(root) for root in (payload.get("layer_roots") or ()))
     if layer_roots and len(layer_roots) != n_layers:
@@ -643,7 +649,7 @@ def read_shard_index(out_dir: str) -> ShardIndex:
         raise ValueError("layer_roots names a root the index does not have")
     return ShardIndex(
         n_layers=n_layers,
-        layer_keys=tuple(payload["layer_keys"]),
+        layer_keys=layer_keys,
         extra_keys=tuple(payload["extra_keys"]),
         dtype=str(payload["dtype"]),
         total_params=int(payload["total_params"]),
@@ -669,6 +675,7 @@ def read_shard_index(out_dir: str) -> ShardIndex:
         external_mode=str(payload.get("external_mode", "")),
         stripe_roots=stripe_roots,
         layer_roots=layer_roots,
+        stacked_experts=bool(payload.get("stacked_experts", _STACKED_KEY in layer_keys)),
     )
 
 
@@ -992,6 +999,7 @@ def inspect_shard_cache(
     quant_device: str,
     external_mode: str = "",
     stripe_roots: Sequence[str] = (),
+    stack_experts: Optional[bool] = None,
 ) -> Tuple[Optional[ShardIndex], str]:
     """Return a reusable index or the precise reason it must be rewritten.
 
@@ -1001,6 +1009,9 @@ def inspect_shard_cache(
     an NF4 request would feed full-precision bytes to ``matmul_4bit`` (and the
     reverse would feed packed nibbles to a plain ``Linear``), so the cache key
     covers the quantisation and its double-quant flag too.
+
+    ``stack_experts`` is the current layout's (ADR 0004). ``None`` means the caller
+    has no layout yet, and the recorded stacking is not compared.
     """
     try:
         index = read_shard_index(out_dir)
@@ -1025,6 +1036,10 @@ def inspect_shard_cache(
         return None, (
             f"external tensor policy changed ({index.external_mode!r} -> "
             f"{external_mode!r})"
+        )
+    if stack_experts is not None and index.stacked_experts != stack_experts:
+        return None, (
+            f"expert stacking changed ({index.stacked_experts!r} -> {stack_experts!r})"
         )
     if index.format_version != _SHARD_FORMAT_VERSION:
         return None, (
@@ -1252,6 +1267,8 @@ def shard_checkpoint(
         include_config=bool(external_mode),
     )
     fingerprint = _fingerprint_components(source_files)
+    if layout is None:
+        layout = _layout_from_weights_dir(weights_dir, dtype)
     if not force:
         cached, miss_reason = inspect_shard_cache(
             resolved_out,
@@ -1263,6 +1280,7 @@ def shard_checkpoint(
             device_kind,
             external_mode,
             stripe_roots=stripe,
+            stack_experts=layout.stack_experts,
         )
         if cached is not None:
             return cached
@@ -1274,8 +1292,6 @@ def shard_checkpoint(
             notify(f"[yellow]Re-sharding layer cache:[/] {for_terminal(miss_reason)}.")
             _notify_orphaned_stripes(resolved_out, stripe, notify)
 
-    if layout is None:
-        layout = _layout_from_weights_dir(weights_dir, dtype)
     from safetensors import safe_open
 
     # pass 1 — build key -> shard without materialising a single tensor
@@ -1708,6 +1724,7 @@ def shard_checkpoint(
         external_mode=external_mode,
         stripe_roots=stripe,
         layer_roots=layer_roots,
+        stacked_experts=layout.stack_experts,
     )
     _atomic_write_index(index, resolved_out)
     # Only now: the new index above no longer names these paths, so removing them cannot
