@@ -1,5 +1,5 @@
-"""B2 tickets 06 and 07: DeepSeek-V3 streams, a parity control proves it on a tiny model,
-and a DeepSeek-V3 class from Hub code is refused."""
+"""B2 tickets 06 to 08: DeepSeek-V3 streams, parity controls prove it on a tiny model
+and its attention and router variants, and a DeepSeek-V3 class from Hub code is refused."""
 
 from __future__ import annotations
 
@@ -190,21 +190,39 @@ def _record_expert_hits(model: Any, hits: Dict[str, set]) -> List[Any]:
     return handles
 
 
+def _record_attention_masks(model: Any, masks: List[bool]) -> List[Any]:
+    """Hook every attention module. ``masks`` gets one entry per call, true when the
+    call received a mask tensor. A mask of ``None`` makes sdpa run ``is_causal``."""
+    from transformers.models.deepseek_v3.modeling_deepseek_v3 import DeepseekV3Attention
+
+    def hook(_module: Any, _args: Any, kwargs: Dict[str, Any]) -> None:
+        masks.append(isinstance(kwargs.get("attention_mask"), torch.Tensor))
+
+    return [
+        module.register_forward_pre_hook(hook, with_kwargs=True)
+        for module in model.modules()
+        if isinstance(module, DeepseekV3Attention)
+    ]
+
+
 @dataclass
 class _Pass:
     logits: Any
     #: Every LoRA parameter's gradient by name; ``None`` where none reached it.
     grads: Dict[str, Any]
     expert_hits: Dict[str, set]
+    #: Per attention call, whether it got an explicit mask tensor.
+    attention_masks: List[bool]
 
 
-def _forward_backward(model: Any, input_ids: Any) -> _Pass:
+def _forward_backward(model: Any, batch: Dict[str, Any]) -> _Pass:
     hits: Dict[str, set] = {}
-    handles = _record_expert_hits(model, hits)
+    masks: List[bool] = []
+    handles = _record_expert_hits(model, hits) + _record_attention_masks(model, masks)
     try:
         model.train()
         model.zero_grad(set_to_none=True)
-        out = model(input_ids=input_ids, labels=input_ids)
+        out = model(**batch)
         out.loss.backward()
     finally:
         for handle in handles:
@@ -213,7 +231,33 @@ def _forward_backward(model: Any, input_ids: Any) -> _Pass:
         name: None if param.grad is None else param.grad.detach().clone()
         for name, param in _lora_params(model).items()
     }
-    return _Pass(out.logits.detach().clone(), grads, hits)
+    return _Pass(out.logits.detach().clone(), grads, hits, masks)
+
+
+#: Real tokens per row of the padded batch; the rest of each 64-token row is
+#: right padding.
+_SEQ_LEN = 64
+_PADDED_LENGTHS = (64, 57, 40, 23, 64, 11, 48, 33)
+
+
+def _batch(vocab_size: int, device: str, *, padded: bool) -> Dict[str, Any]:
+    """A batch of 8 rows of ``_SEQ_LEN`` tokens. It has 8 rows because with 4 rows,
+    layer 1 of arm 2 routed no token to expert 12. Padded, each row ends in padding
+    that the mask hides and the labels ignore."""
+    gen = torch.Generator().manual_seed(73)
+    input_ids = torch.randint(0, vocab_size, (len(_PADDED_LENGTHS), _SEQ_LEN), generator=gen)
+    if not padded:
+        return {"input_ids": input_ids.to(device), "labels": input_ids.to(device)}
+    attention_mask = torch.zeros_like(input_ids)
+    for row, length in enumerate(_PADDED_LENGTHS):
+        attention_mask[row, :length] = 1
+    input_ids = input_ids.masked_fill(attention_mask == 0, 0)
+    labels = input_ids.masked_fill(attention_mask == 0, -100)
+    return {
+        "input_ids": input_ids.to(device),
+        "attention_mask": attention_mask.to(device),
+        "labels": labels.to(device),
+    }
 
 
 @dataclass
@@ -262,6 +306,7 @@ def _run_parity(
     edit_streamed: Optional[Callable[[Any], None]] = None,
     config: Any = None,
     notices: Optional[List[str]] = None,
+    padded: bool = False,
 ) -> _Parity:
     """Shard and stream the fixture the way the training setup does, then run
     the resident model and the streamed model on one batch."""
@@ -313,10 +358,9 @@ def _run_parity(
         if edit_streamed is not None:
             edit_streamed(streamed)
 
-        gen = torch.Generator().manual_seed(73)
-        input_ids = torch.randint(0, config.vocab_size, (4, 64), generator=gen).to(device)
-        streamed_pass = _forward_backward(streamed, input_ids)
-        resident_pass = _forward_backward(resident, input_ids)
+        batch = _batch(config.vocab_size, device, padded=padded)
+        streamed_pass = _forward_backward(streamed, batch)
+        resident_pass = _forward_backward(resident, batch)
         layers = decoder_owner(streamed).layers
         base_weights = {
             idx: dict(
@@ -424,6 +468,130 @@ def test_control_streamed_model_with_a_zero_router_bias_differs(
         tmp_path, device=device, experts="grouped_mm", edit_streamed=_zero_router_bias
     )
 
+    assert not parity.forward_equal(), parity.report()
+    assert parity.backward_mismatches(), parity.report()
+
+
+# --------------------------------------------------------------------------
+# ticket 08: arms for the attention and router variants real checkpoints use
+# --------------------------------------------------------------------------
+
+
+def _yarn(
+    factor: float,
+    *,
+    rope_theta: float,
+    original_max_positions: int,
+    beta_fast: float = 32.0,
+    beta_slow: float = 1.0,
+) -> Dict[str, Any]:
+    """Yarn rope. The default betas are DeepSeek-V3's; Kimi K2 sets both to 1.0."""
+    return {
+        "rope_type": "yarn",
+        "rope_theta": rope_theta,
+        "factor": factor,
+        "original_max_position_embeddings": original_max_positions,
+        "beta_fast": beta_fast,
+        "beta_slow": beta_slow,
+        "mscale": 1.0,
+        "mscale_all_dim": 1.0,
+    }
+
+
+@dataclass(frozen=True)
+class _Arm:
+    overrides: Dict[str, Any]
+    padded: bool = False
+
+
+#: Arms 2 to 6. Each changes the base fixture's config or its batch.
+_VARIANT_ARMS = {
+    "arm2-q-lora-rank-none": _Arm({"q_lora_rank": None}),
+    "arm3-rope-not-interleaved": _Arm({"rope_interleave": False}),
+    "arm4-yarn-factor-4": _Arm(
+        {"rope_parameters": _yarn(4.0, rope_theta=10000.0, original_max_positions=32)}
+    ),
+    "arm5-padded-batch": _Arm({}, padded=True),
+    # Kimi K2's routing and rope under model_type=deepseek_v3: one expert group,
+    # one dense layer, and K2's yarn (factor 32 over 4096 positions, theta 50000).
+    "arm6-kimi-k2-shape": _Arm(
+        {
+            "n_group": 1,
+            "topk_group": 1,
+            "first_k_dense_replace": 1,
+            "max_position_embeddings": 131072,
+            "rope_parameters": _yarn(
+                32.0,
+                rope_theta=50000.0,
+                original_max_positions=4096,
+                beta_fast=1.0,
+                beta_slow=1.0,
+            ),
+        }
+    ),
+}
+_VARIANT_ARM_PARAMS = [pytest.param(arm, id=name) for name, arm in _VARIANT_ARMS.items()]
+
+
+def _assert_arm_took_effect(parity: _Parity, arm: _Arm) -> None:
+    """The variant is in the model that ran, not only in the dict above."""
+    config = parity.config
+    assert config.model_type == "deepseek_v3"
+    for key, value in arm.overrides.items():
+        if key == "rope_parameters":
+            for field, expected in value.items():
+                assert config.rope_parameters[field] == expected, field
+        else:
+            assert getattr(config, key) == value, key
+    if "q_lora_rank" in arm.overrides:
+        assert all(".q_a_proj." not in name for name in parity.lora_names)
+        for idx in range(config.num_hidden_layers):
+            assert "self_attn.q_proj.weight" in parity.streamed_weights[idx]
+    for side in (parity.resident, parity.streamed):
+        assert side.attention_masks
+        if arm.padded:
+            assert all(side.attention_masks)
+        else:
+            assert not any(side.attention_masks)
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize("arm", _VARIANT_ARM_PARAMS)
+@pytest.mark.parametrize("experts", _EXPERT_IMPLEMENTATIONS)
+@pytest.mark.parametrize("device", _DEVICES)
+def test_streamed_deepseek_v3_variant_matches_resident(
+    tmp_path: Path, device: str, experts: str, arm: _Arm, deterministic: None
+) -> None:
+    """Parity arms 2 to 6."""
+    parity = _run_parity(
+        tmp_path,
+        device=device,
+        experts=experts,
+        config=_tiny_deepseek_v3_config(**arm.overrides),
+        padded=arm.padded,
+    )
+
+    _assert_arm_took_effect(parity, arm)
+    _assert_parity(parity)
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize("arm", _VARIANT_ARM_PARAMS)
+@pytest.mark.parametrize("device", _DEVICES)
+def test_control_variant_with_a_zero_router_bias_differs(
+    tmp_path: Path, device: str, arm: _Arm, deterministic: None
+) -> None:
+    """Each arm's parity check can see a routing error."""
+    parity = _run_parity(
+        tmp_path,
+        device=device,
+        experts="grouped_mm",
+        config=_tiny_deepseek_v3_config(**arm.overrides),
+        padded=arm.padded,
+        edit_streamed=_zero_router_bias,
+    )
+
+    _assert_arm_took_effect(parity, arm)
     assert not parity.forward_equal(), parity.report()
     assert parity.backward_mismatches(), parity.report()
 
