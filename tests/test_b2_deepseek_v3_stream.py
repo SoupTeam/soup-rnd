@@ -150,6 +150,30 @@ def _strip_stream_wrapper(name: str) -> str:
     return name.replace(".inner.", ".")
 
 
+def _base_weights(layer: Any) -> Dict[str, Any]:
+    """A decoder layer's base weights by name, wrappers stripped.
+
+    After a forward pass, peft's ``ParamWrapper`` leaves the fused experts it adapted
+    filed under ``_buffers`` as ``Parameter`` objects, where ``named_parameters`` no
+    longer lists them. Read them from there too.
+    """
+    from soup_cli.utils.layer_stream_runtime import strip_peft_wrappers
+
+    found = {
+        strip_peft_wrappers(name): param
+        for name, param in layer.named_parameters()
+        if "lora_" not in name
+    }
+    found.update(
+        {
+            strip_peft_wrappers(name): buf
+            for name, buf in layer.named_buffers()
+            if isinstance(buf, torch.nn.Parameter)
+        }
+    )
+    return found
+
+
 def _lora_params(model: Any) -> Dict[str, Any]:
     return {
         _strip_stream_wrapper(name): param
@@ -317,6 +341,7 @@ def _run_parity(
     padded: bool = False,
     quant: str = "none",
     tier: str = "ram",
+    lora_config: Optional[Callable[[Path], Any]] = None,
 ) -> _Parity:
     """Shard and stream the fixture the way the training setup does, then run
     the resident model and the streamed model on one batch."""
@@ -333,6 +358,7 @@ def _run_parity(
     if edit_checkpoint is not None:
         edit_checkpoint(weights)
 
+    lora = lora_config(weights) if lora_config is not None else _lora()
     arch = stream_arch_of(AutoConfig.from_pretrained(str(weights)))
     shards = str(tmp_path / "shards")
     nf4 = quant == "nf4"
@@ -364,7 +390,7 @@ def _run_parity(
         model_id=str(weights),
         shard_dir=shards,
         index=index,
-        lora_config=_lora(),
+        lora_config=lora,
         device=device,
         dtype="float32",
         buffers=2,
@@ -391,7 +417,7 @@ def _run_parity(
         if not nf4:
             resident_base.to(device)
         assert resident_base.config._experts_implementation == experts
-        resident = get_peft_model(resident_base, _lora())
+        resident = get_peft_model(resident_base, lora)
         _copy_lora(streamed, resident)
         if edit_streamed is not None:
             edit_streamed(streamed)
@@ -400,14 +426,7 @@ def _run_parity(
         streamed_pass = _forward_backward(streamed, batch)
         resident_pass = _forward_backward(resident, batch)
         layers = decoder_owner(streamed).layers
-        base_weights = {
-            idx: dict(
-                (name, param)
-                for name, param in layer.inner.named_parameters()
-                if "lora_" not in name
-            )
-            for idx, layer in enumerate(layers)
-        }
+        base_weights = {idx: _base_weights(layer.inner) for idx, layer in enumerate(layers)}
         meta_violations = [
             f"layer {idx}: {name}"
             for idx, weights_of in base_weights.items()
@@ -903,3 +922,160 @@ def test_the_refusal_fires_before_any_shard_is_read(
             pin=False,
             trust_remote_code=True,
         )
+
+
+# ==========================================================================
+# ticket 10: moe_lora on the fused routed experts
+# ==========================================================================
+
+
+def _moe_lora_config(weights: Path) -> Any:
+    """The adapter the training setup builds for ``moe_lora: true`` on this fixture."""
+    from peft import TaskType
+
+    from soup_cli.config.schema import LoraConfig
+    from soup_cli.utils.layer_stream_runtime import build_meta_skeleton
+    from soup_cli.utils.moe import resolve_moe_lora_targets
+    from soup_cli.utils.peft_wiring import build_lora_config
+
+    lora = LoraConfig(r=2, alpha=4, dropout=0.0)
+    tcfg = SimpleNamespace(moe_lora=True, lora=lora)
+    targets = resolve_moe_lora_targets(
+        build_meta_skeleton(str(weights), dtype="float32"), tcfg, None
+    )
+    assert targets, "moe_lora resolved no targets on deepseek_v3"
+    return build_lora_config(lora, target_modules=targets, task_type=TaskType.CAUSAL_LM)
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize("experts", _EXPERT_IMPLEMENTATIONS)
+@pytest.mark.parametrize("device", _DEVICES)
+def test_streamed_deepseek_v3_moe_lora_matches_resident(
+    tmp_path: Path, device: str, experts: str, deterministic: None
+) -> None:
+    """Parity arm 10: the adapters Soup builds for ``moe_lora: true``, on the routed experts."""
+    parity = _run_parity(
+        tmp_path, device=device, experts=experts, lora_config=_moe_lora_config
+    )
+
+    expert_adapters = [name for name in parity.lora_names if ".mlp.experts." in name]
+    # peft wraps `experts` once per fused tensor (gate_up_proj, down_proj), so each
+    # MoE layer has an adapter at both wrapper levels.
+    for idx in _moe_layers(parity.config):
+        prefix = f"base_model.model.model.layers.{idx}.mlp.experts."
+        for level in ("", "base_layer."):
+            for factor in ("lora_A", "lora_B"):
+                assert f"{prefix}{level}{factor}.default.weight" in expert_adapters
+    for name in expert_adapters:
+        grad = parity.streamed.grads[name]
+        assert grad is not None and bool(grad.ne(0).any()), f"{name}: no or zero gradient"
+    _assert_parity(parity)
+
+
+def _skeleton_and_layout(weights: Path) -> Any:
+    from soup_cli.utils.layer_stream_runtime import build_meta_skeleton, shard_layout_of
+
+    skeleton = build_meta_skeleton(str(weights), dtype="float32")
+    return skeleton, shard_layout_of(skeleton)
+
+
+def _explicit_expert_targets_config(**fields: Any) -> Any:
+    """Adapters on ``gate_proj``, ``up_proj`` and ``down_proj`` by name, no ``moe_lora``."""
+    from peft import LoraConfig, TaskType
+
+    return LoraConfig(
+        r=2,
+        lora_alpha=4,
+        lora_dropout=0.0,
+        target_modules=["gate_proj", "up_proj", "down_proj"],
+        task_type=TaskType.CAUSAL_LM,
+        **fields,
+    )
+
+
+@pytest.fixture
+def v3_weights(tmp_path: Path) -> Path:
+    weights = tmp_path / "weights"
+    _save_fixture(weights, _tiny_deepseek_v3_config())
+    return weights
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize(
+    "make_config",
+    [lambda weights: _explicit_expert_targets_config(), _moe_lora_config],
+    ids=["explicit-targets", "moe_lora"],
+)
+def test_fused_expert_targets_the_shards_carry_are_accepted(
+    v3_weights: Path, make_config: Callable[[Path], Any]
+) -> None:
+    from soup_cli.utils.layer_stream_runtime import refuse_unservable_target_parameters
+
+    skeleton, layout = _skeleton_and_layout(v3_weights)
+
+    refuse_unservable_target_parameters(make_config(v3_weights), skeleton, layout)
+
+
+@_REQUIRES_TRAINING_FLOOR
+def test_explicit_expert_targets_are_refused_when_the_shards_do_not_carry_fused_experts(
+    v3_weights: Path,
+) -> None:
+    """No ``moe_lora`` here: the check reads the config peft converts, so naming
+    ``gate_proj``/``up_proj``/``down_proj`` is enough to trip it."""
+    from dataclasses import replace
+
+    from soup_cli.utils.layer_stream_runtime import refuse_unservable_target_parameters
+
+    skeleton, layout = _skeleton_and_layout(v3_weights)
+    config = _explicit_expert_targets_config()
+
+    with pytest.raises(ValueError) as excinfo:
+        refuse_unservable_target_parameters(config, skeleton, replace(layout, stack_experts=False))
+
+    message = str(excinfo.value)
+    assert "layer streaming cannot serve" in message
+    assert "gate_up_proj: the shards do not carry fused experts" in message
+    assert "down_proj: the shards do not carry fused experts" in message
+    assert config.target_modules == {"gate_proj", "up_proj", "down_proj"}, "the caller's config"
+
+
+@_REQUIRES_TRAINING_FLOOR
+def test_a_parameter_target_outside_the_decoder_layers_is_refused(v3_weights: Path) -> None:
+    from soup_cli.utils.layer_stream_runtime import refuse_unservable_target_parameters
+
+    skeleton, layout = _skeleton_and_layout(v3_weights)
+    config = _explicit_expert_targets_config(target_parameters=["lm_head.weight"])
+    config.target_modules = ["q_a_proj"]
+
+    with pytest.raises(ValueError, match="lm_head.weight"):
+        refuse_unservable_target_parameters(config, skeleton, layout)
+
+
+def test_a_skeleton_without_a_model_type_is_left_to_peft() -> None:
+    from soup_cli.utils.layer_stream_runtime import refuse_unservable_target_parameters
+
+    refuse_unservable_target_parameters(
+        SimpleNamespace(target_modules=["gate_proj"]), SimpleNamespace(), None
+    )
+
+
+def test_the_training_setup_checks_the_lora_config_it_built(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The setup passes the config, the probe and the layout to the refusal before the build."""
+    from tests.test_qwen35_streaming import TestQwen35StreamingSetup
+
+    calls: List[Any] = []
+    monkeypatch.setattr(
+        "soup_cli.utils.layer_stream_runtime.refuse_unservable_target_parameters",
+        lambda lora_config, model, layout: calls.append((lora_config, model, layout)),
+    )
+
+    TestQwen35StreamingSetup().test_stream_setup_threads_moe_targets_and_union_budget(
+        monkeypatch, tmp_path
+    )
+
+    assert len(calls) == 1
+    lora_config, model, _layout = calls[0]
+    assert lora_config.target_modules[-3:] == ["gate_proj", "up_proj", "down_proj"]
+    assert isinstance(model, SimpleNamespace)

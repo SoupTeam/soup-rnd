@@ -2479,6 +2479,72 @@ def shard_layout_of(model: Any) -> "ShardLayout":
     )
 
 
+def refuse_unservable_target_parameters(
+    lora_config: Any, model: Any, layout: Optional["ShardLayout"]
+) -> None:
+    """Refuse a LoRA config whose raw-parameter targets the shards cannot serve.
+
+    Reads the config peft will really attach, not the ``moe_lora`` flag. On a model
+    with a v4 to v5 conversion mapping, peft rewrites ``gate_proj``/``up_proj``/
+    ``down_proj`` in ``target_modules`` into ``target_parameters`` on the fused
+    routed experts, so explicit targets reach the experts without ``moe_lora``.
+
+    A target is served when it names a parameter of a decoder layer and, for a
+    fused 3-D one, the layout stacks experts, so the shards carry that tensor.
+    Anything else fails the build later with ``shard is missing decoder weights``.
+
+    ``model`` is the meta skeleton. Like ``peft_routes_lora_to_fused_params``, this
+    returns quietly when it cannot ask peft (no real model type, different peft) and
+    leaves the error to peft.
+    """
+    import copy
+
+    if not isinstance(getattr(getattr(model, "config", None), "model_type", None), str):
+        return
+    try:
+        from peft.utils.transformers_weight_conversion import (
+            convert_peft_config_for_transformers,
+        )
+
+        converted = copy.deepcopy(lora_config)
+        convert_peft_config_for_transformers(converted, model, None)
+        layers = decoder_owner(model).layers
+    except Exception as exc:  # noqa: BLE001 - a probe must never break the run
+        logger.warning(
+            "could not ask peft which parameters the LoRA config targets (%s); "
+            "unservable fused-expert targets are not checked",
+            exc,
+        )
+        return
+    targets = getattr(converted, "target_parameters", None) or []
+    if isinstance(targets, str):
+        targets = [targets]
+    decoder_params = {
+        name: param for layer in layers for name, param in layer.named_parameters()
+    }
+    stacked = getattr(layout, "stack_experts", True)
+    unserved = []
+    for target in targets:
+        hits = [
+            param
+            for name, param in decoder_params.items()
+            if name == target or name.endswith("." + target) or target.endswith("." + name)
+        ]
+        if not hits:
+            unserved.append((target, "it names no parameter of a decoder layer"))
+        elif not stacked and any(param.dim() == 3 for param in hits):
+            unserved.append((target, "the shards do not carry fused experts for this model"))
+    if not unserved:
+        return
+    detail = "; ".join(f"{target}: {why}" for target, why in unserved)
+    raise ValueError(
+        f"layer streaming cannot serve these LoRA parameter targets ({detail}). peft "
+        f"turns gate_proj, up_proj and down_proj targets, including the ones "
+        f"training.moe_lora adds, into parameter targets on fused experts. Remove "
+        f"those targets, or set training.stream_layers: false."
+    )
+
+
 def _persistent_buffers(module: Any) -> Iterator[Tuple[str, Any]]:
     """``module``'s buffers that its state dict carries, by name inside ``module``."""
     for prefix, owner in module.named_modules():
@@ -2930,10 +2996,19 @@ def _device_map_value(device: Any) -> Union[str, int]:
     return torch.cuda.current_device() if torch.cuda.is_available() else 0
 
 
+def strip_peft_wrappers(name: str) -> str:
+    """``name`` without the ``base_layer`` segments peft's wrappers add.
+
+    peft wraps a module once per targeted parameter, so fused experts with two
+    targets read ``experts.base_layer.base_layer.down_proj``.
+    """
+    return ".".join(part for part in name.split(".") if part != "base_layer")
+
+
 def _layer_name_map(layer: Any) -> Dict[str, str]:
     """meta parameter name inside one layer -> its shard key."""
     return {
-        pname: pname.replace(".base_layer.", ".")
+        pname: strip_peft_wrappers(pname)
         for pname, param in layer.named_parameters()
         if param.is_meta
     }

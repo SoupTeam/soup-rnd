@@ -626,6 +626,7 @@ class StreamingSetupMixin:
             large_layer_specs,
             large_layer_store_bytes,
             quantised_layer_suffixes,
+            refuse_unservable_target_parameters,
             shard_layout_of,
         )
         from soup_cli.utils.moe import resolve_moe_lora_targets
@@ -713,6 +714,26 @@ class StreamingSetupMixin:
         # it is alive rather than at the attach below. Without moe_lora it
         # returns None.
         moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
+
+        from soup_cli.utils.peft_wiring import (
+            build_lora_config,
+            resolve_lora_target_modules,
+        )
+
+        target_modules = resolve_lora_target_modules(
+            model_config, tcfg.lora.target_modules, console
+        )
+        if moe_targets:
+            # Already announced by resolve_moe_lora_targets when the probe ran.
+            target_modules = moe_targets
+        lora_config = build_lora_config(
+            tcfg.lora,
+            target_modules=target_modules,
+            task_type=TaskType.CAUSAL_LM,
+        )
+        # Before any shard is written: the config peft converts, not the moe_lora flag,
+        # decides whether fused experts get adapters the shards cannot serve (ticket 10).
+        refuse_unservable_target_parameters(lora_config, probe, layout)
         del probe
 
         def _disk_preflight(weights_plan) -> None:
@@ -1020,23 +1041,6 @@ class StreamingSetupMixin:
             enabled, why_not = expandable_segments_status()
             if not enabled:
                 console.print(f"[dim]expandable_segments allocator hint not enabled: {why_not}[/]")
-
-        from soup_cli.utils.peft_wiring import (
-            build_lora_config,
-            resolve_lora_target_modules,
-        )
-
-        target_modules = resolve_lora_target_modules(
-            model_config, tcfg.lora.target_modules, console
-        )
-        if moe_targets:
-            # Already announced by resolve_moe_lora_targets when the probe ran.
-            target_modules = moe_targets
-        lora_config = build_lora_config(
-            tcfg.lora,
-            target_modules=target_modules,
-            task_type=TaskType.CAUSAL_LM,
-        )
 
         # #366 / #434 — CUDA host pinning is inapplicable on every non-CUDA
         # target. An explicit stream_pin=true is honoured by saying so, not by
