@@ -4,8 +4,9 @@ and its attention and router variants, and a DeepSeek-V3 class from Hub code is 
 from __future__ import annotations
 
 import json
+import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, Iterator, List, Optional
@@ -268,6 +269,13 @@ class _Parity:
     meta_violations: List[str]
     streamed_weights: Dict[int, set]
     lora_names: List[str]
+    #: Per decoder layer, the base weights stored as packed ``Params4bit``; empty without NF4.
+    quantized: Dict[int, set] = field(default_factory=dict)
+    #: The same, read from the resident model; empty without NF4.
+    resident_quantized: Dict[int, set] = field(default_factory=dict)
+    #: The runtime's tier and the class of the weight source that fed the streamed layers.
+    tier: str = ""
+    source: str = ""
 
     def forward_equal(self) -> bool:
         return torch.equal(self.streamed.logits, self.resident.logits)
@@ -307,6 +315,8 @@ def _run_parity(
     config: Any = None,
     notices: Optional[List[str]] = None,
     padded: bool = False,
+    quant: str = "none",
+    tier: str = "ram",
 ) -> _Parity:
     """Shard and stream the fixture the way the training setup does, then run
     the resident model and the streamed model on one batch."""
@@ -325,12 +335,30 @@ def _run_parity(
 
     arch = stream_arch_of(AutoConfig.from_pretrained(str(weights)))
     shards = str(tmp_path / "shards")
+    nf4 = quant == "nf4"
+    quant_args: Dict[str, Any] = {}
+    if nf4:
+        from soup_cli.utils.layer_stream_runtime import (
+            build_meta_skeleton,
+            quantised_layer_suffixes,
+        )
+
+        quant_args = dict(
+            quant=quant,
+            quant_suffixes=quantised_layer_suffixes(
+                build_meta_skeleton(str(weights), dtype="float32", quant=quant)
+            ),
+            # Production quantizes on the training device and keys its cache by it. The
+            # CPU quantizer packs different bytes than the CUDA one the resident load uses.
+            quant_device=device,
+        )
     index = shard_checkpoint(
         str(weights),
         shards,
         dtype="float32",
         arch=arch,
         notify=notices.append if notices is not None else None,
+        **quant_args,
     )
     streamed, runtime = build_streamed_model(
         model_id=str(weights),
@@ -342,16 +370,26 @@ def _run_parity(
         buffers=2,
         pin=False,
         seed=71,
+        quant=quant,
+        tier=tier,
     )
     try:
         streamed.get_base_model().set_experts_implementation(experts)
         assert streamed.get_base_model().config._experts_implementation == experts
         _randomise_lora_b(streamed)
 
+        resident_kwargs: Dict[str, Any] = {}
+        if nf4:
+            from soup_cli.utils.layer_stream_runtime import build_nf4_config
+
+            resident_kwargs = dict(
+                quantization_config=build_nf4_config("float32"), device_map={"": device}
+            )
         resident_base: Any = AutoModelForCausalLM.from_pretrained(
-            str(weights), dtype=torch.float32, experts_implementation=experts
+            str(weights), dtype=torch.float32, experts_implementation=experts, **resident_kwargs
         )
-        resident_base.to(device)
+        if not nf4:
+            resident_base.to(device)
         assert resident_base.config._experts_implementation == experts
         resident = get_peft_model(resident_base, _lora())
         _copy_lora(streamed, resident)
@@ -378,10 +416,40 @@ def _run_parity(
         ]
         streamed_weights = {idx: set(weights_of) for idx, weights_of in base_weights.items()}
         lora_names = sorted(_lora_params(resident))
+        quantized: Dict[int, set] = {}
+        resident_quantized: Dict[int, set] = {}
+        if nf4:
+            # Read from the built model, not from quantised_layer_suffixes, so the
+            # test does not trust the code that chose what to quantize.
+            quantized = {
+                idx: {
+                    name.replace(".base_layer.", ".")
+                    for name, param in layer.inner.named_parameters()
+                    if type(param).__name__ == "Params4bit"
+                }
+                for idx, layer in enumerate(layers)
+            }
+            resident_quantized = {idx: set() for idx in quantized}
+            for name, param in resident.named_parameters():
+                found = re.search(r"\.layers\.(\d+)\.(.*)", name)
+                if type(param).__name__ == "Params4bit" and found:
+                    resident_quantized[int(found.group(1))].add(
+                        found.group(2).replace(".base_layer.", ".")
+                    )
+        tier_used, source_used = runtime.tier, type(runtime.source).__name__
     finally:
         runtime.close()
     return _Parity(
-        config, resident_pass, streamed_pass, meta_violations, streamed_weights, lora_names
+        config,
+        resident_pass,
+        streamed_pass,
+        meta_violations,
+        streamed_weights,
+        lora_names,
+        quantized=quantized,
+        resident_quantized=resident_quantized,
+        tier=tier_used,
+        source=source_used,
     )
 
 
@@ -594,6 +662,67 @@ def test_control_variant_with_a_zero_router_bias_differs(
     _assert_arm_took_effect(parity, arm)
     assert not parity.forward_equal(), parity.report()
     assert parity.backward_mismatches(), parity.report()
+
+
+# --------------------------------------------------------------------------
+# ticket 09: NF4 and the disk tier
+# --------------------------------------------------------------------------
+
+_ATTENTION_LINEARS = {
+    "self_attn.q_a_proj.weight",
+    "self_attn.q_b_proj.weight",
+    "self_attn.kv_a_proj_with_mqa.weight",
+    "self_attn.kv_b_proj.weight",
+    "self_attn.o_proj.weight",
+}
+_SHARED_EXPERT_LINEARS = {
+    f"mlp.shared_experts.{name}_proj.weight" for name in ("gate", "up", "down")
+}
+#: The dense MLP of layer 0 is three ordinary linears, so NF4 quantizes it too.
+_DENSE_MLP_LINEARS = {f"mlp.{name}_proj.weight" for name in ("gate", "up", "down")}
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize("experts", _EXPERT_IMPLEMENTATIONS)
+@pytest.mark.parametrize("device", _DEVICES)
+def test_streamed_deepseek_v3_from_the_disk_tier_matches_resident(
+    tmp_path: Path, device: str, experts: str, deterministic: None
+) -> None:
+    """Parity arm 11: the base fixture, streamed from the disk tier."""
+    parity = _run_parity(tmp_path, device=device, experts=experts, tier="disk")
+
+    assert (parity.tier, parity.source) == ("disk", "AsyncDiskSource")
+    _assert_parity(parity)
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.parametrize("experts", _EXPERT_IMPLEMENTATIONS)
+@pytest.mark.parametrize("tier", ["ram", "disk"])
+@pytest.mark.parametrize(
+    "device", [pytest.param("cuda", marks=pytest.mark.gpu(reason="the 4-bit kernels are GPU-only"))]
+)
+def test_streamed_deepseek_v3_nf4_matches_resident_nf4(
+    tmp_path: Path, device: str, tier: str, experts: str, deterministic: None
+) -> None:
+    """Parity arm 8: resident NF4 against streamed NF4 on the base fixture.
+
+    NF4 quantizes the attention and shared-expert linears, and layer 0's dense MLP.
+    The routed experts, the router weight, the router bias and the norms keep the
+    base dtype.
+    """
+    pytest.importorskip("bitsandbytes")
+
+    parity = _run_parity(tmp_path, device=device, experts=experts, quant="nf4", tier=tier)
+
+    expected = {
+        0: _ATTENTION_LINEARS | _DENSE_MLP_LINEARS,
+        1: _ATTENTION_LINEARS | _SHARED_EXPERT_LINEARS,
+        2: _ATTENTION_LINEARS | _SHARED_EXPERT_LINEARS,
+    }
+    assert parity.quantized == expected
+    assert parity.resident_quantized == expected
+    assert parity.tier == tier
+    _assert_parity(parity)
 
 
 def _add_mtp_layer(weights: Path) -> int:
