@@ -134,3 +134,53 @@ def test_a_stacked_qwen4_cache_written_before_the_field_is_reused(tmp_path: Path
 
     assert _resharding_notices(notices) == []
     assert index.stacked_experts is True
+
+
+@pytest.mark.parametrize("cache_stacked, charged", [(False, True), (True, False)])
+def test_the_disk_preflight_charges_a_cache_whose_stacking_differs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cache_stacked: bool, charged: bool
+) -> None:
+    """The setup's layout says stack, so only a per-expert cache needs a write."""
+    import types
+
+    import soup_cli.trainer.stream_setup as stream_setup
+    from soup_cli.utils.layer_shard import (
+        ShardLayout,
+        _discover_safetensors,
+        _source_file_components,
+        shard_checkpoint,
+    )
+    from tests.test_issue602_qwen4_ple_streaming import _drive_qwen4_streaming_setup
+
+    weights = tmp_path / "weights"
+    _write_per_expert_checkpoint(weights)
+    shard_checkpoint(
+        str(weights),
+        str(tmp_path / "shards"),
+        dtype="float32",
+        arch="qwen4_exp",
+        layout=ShardLayout(n_layers=1, stack_experts=cache_stacked),
+    )
+    plan = types.SimpleNamespace(
+        weights_dir=str(weights),
+        source_bytes=1_024,
+        materialized_copy_bytes=0,
+        materialize_bytes=0,
+        needs_materialization=False,
+        source_files=_source_file_components(_discover_safetensors(str(weights))),
+    )
+
+    def _resolve(_base, *, before_materialize=None):
+        before_materialize(plan)
+        return str(weights)
+
+    rendered = {}
+    monkeypatch.setattr(
+        stream_setup,
+        "_render_stream_disk_preflight",
+        lambda **kwargs: rendered.update(kwargs),
+    )
+
+    _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=_resolve)
+
+    assert (rendered["shard_write_bytes"] > 0) is charged

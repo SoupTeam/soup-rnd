@@ -247,6 +247,7 @@ def test_fingerprint_mismatch_names_the_changed_component(tmp_path) -> None:
         "none",
         True,
         "",
+        stack_experts=False,
     )
     assert cached is None
     assert "mtime_ns changed" in reason

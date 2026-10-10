@@ -687,6 +687,34 @@ class StreamingSetupMixin:
             )
         quant_device_kind = str(self.device).split(":", 1)[0] if quant == QUANT_NF4 else ""
 
+        # The shard layout (ADR 0004) and the authoritative list of weights to
+        # quantise are read off a meta skeleton, not a hard-coded name list that
+        # would drift per architecture. The list is whatever
+        # replace_with_bnb_linear actually converts.
+        #
+        # This builds a second, throwaway skeleton (build_streamed_model makes
+        # its own). Deliberate: a meta skeleton allocates NO weight storage, so
+        # the cost is module-tree construction only, and threading a pre-built
+        # model into build_streamed_model would couple suffix discovery to model
+        # construction for no memory saving. It is built before the disk
+        # preflight, whose cache check compares the layout's expert stacking.
+        probe = build_meta_skeleton(
+            cfg.base,
+            dtype=dtype,
+            quant=quant,
+            trust_remote_code=self._trust_remote_code,
+        )
+        layout = shard_layout_of(probe)
+        quant_suffixes = quantised_layer_suffixes(probe) if quant == QUANT_NF4 else ()
+        # #798: the ONE helper that turns moe_lora into targets, and refuses a
+        # dropout peft cannot honour on fused experts. This path kept its own
+        # copy of the block, which is why it was the one path with no refusal.
+        # The probe is the only model available here, so the call happens while
+        # it is alive rather than at the attach below. Without moe_lora it
+        # returns None.
+        moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
+        del probe
+
         def _disk_preflight(weights_plan) -> None:
             shard_estimate = estimate_stream_store_bytes(
                 weights_plan.source_bytes,
@@ -718,6 +746,7 @@ class StreamingSetupMixin:
                     quant_device_kind,
                     "qwen4_ple" if arch == "qwen4_exp" else "",
                     stripe_roots=stripe_roots,
+                    stack_experts=layout.stack_experts,
                 )
             write_total = 0 if cached is not None else shard_estimate
             shares = _stripe_write_shares(write_total, 1 + len(stripe_roots))
@@ -770,33 +799,6 @@ class StreamingSetupMixin:
                     f"stream_source='auto' to fall back to the NVMe disk tier, "
                     f"free RAM, or pick a smaller base."
                 )
-
-        # The shard layout (ADR 0004) and the authoritative list of weights to
-        # quantise are read off a meta skeleton, not a hard-coded name list that
-        # would drift per architecture. The list is whatever
-        # replace_with_bnb_linear actually converts.
-        #
-        # This builds a second, throwaway skeleton (build_streamed_model makes
-        # its own). Deliberate: a meta skeleton allocates NO weight storage, so
-        # the cost is module-tree construction only, and threading a pre-built
-        # model into build_streamed_model would couple suffix discovery to model
-        # construction for no memory saving.
-        probe = build_meta_skeleton(
-            cfg.base,
-            dtype=dtype,
-            quant=quant,
-            trust_remote_code=self._trust_remote_code,
-        )
-        layout = shard_layout_of(probe)
-        quant_suffixes = quantised_layer_suffixes(probe) if quant == QUANT_NF4 else ()
-        # #798: the ONE helper that turns moe_lora into targets, and refuses a
-        # dropout peft cannot honour on fused experts. This path kept its own
-        # copy of the block, which is why it was the one path with no refusal.
-        # The probe is the only model available here, so the call happens while
-        # it is alive rather than at the attach below. Without moe_lora it
-        # returns None.
-        moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
-        del probe
 
         console.print(f"[dim]Preparing layer shards -> {shard_dir}[/]")
         index = shard_checkpoint(

@@ -999,7 +999,8 @@ def inspect_shard_cache(
     quant_device: str,
     external_mode: str = "",
     stripe_roots: Sequence[str] = (),
-    stack_experts: Optional[bool] = None,
+    *,
+    stack_experts: bool,
 ) -> Tuple[Optional[ShardIndex], str]:
     """Return a reusable index or the precise reason it must be rewritten.
 
@@ -1010,8 +1011,8 @@ def inspect_shard_cache(
     reverse would feed packed nibbles to a plain ``Linear``), so the cache key
     covers the quantisation and its double-quant flag too.
 
-    ``stack_experts`` is the current layout's (ADR 0004). ``None`` means the caller
-    has no layout yet, and the recorded stacking is not compared.
+    ``stack_experts`` is the current layout's (ADR 0004). A cache that recorded
+    the other value holds keys the runtime will not find.
     """
     try:
         index = read_shard_index(out_dir)
@@ -1037,14 +1038,14 @@ def inspect_shard_cache(
             f"external tensor policy changed ({index.external_mode!r} -> "
             f"{external_mode!r})"
         )
-    if stack_experts is not None and index.stacked_experts != stack_experts:
-        return None, (
-            f"expert stacking changed ({index.stacked_experts!r} -> {stack_experts!r})"
-        )
     if index.format_version != _SHARD_FORMAT_VERSION:
         return None, (
             f"shard format changed "
             f"({index.format_version!r} -> {_SHARD_FORMAT_VERSION!r})"
+        )
+    if index.stacked_experts != stack_experts:
+        return None, (
+            f"expert stacking changed ({index.stacked_experts!r} -> {stack_experts!r})"
         )
     if not _same_roots(index.stripe_roots, stripe_roots):
         # Joined plainly: a list repr doubles every Windows backslash in the printed reason.

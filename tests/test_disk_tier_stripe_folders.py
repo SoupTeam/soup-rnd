@@ -84,7 +84,7 @@ def _digests(folder):
 def _inspect(out, index, stripe):
     return inspect_shard_cache(
         out, index.dtype, index.source_fingerprint, (), "none", False, "", "",
-        stripe_roots=(stripe,),
+        stripe_roots=(stripe,), stack_experts=False,
     )
 
 
