@@ -2363,6 +2363,7 @@ def build_meta_skeleton(
     ``bnb.nn.Linear4bit`` (still on ``meta``) so the streamed ``Params4bit``
     views land in modules that know how to consume them.
     """
+    import torch
     from accelerate import init_empty_weights
     from transformers import AutoConfig, AutoModelForCausalLM
 
@@ -2405,6 +2406,8 @@ def build_meta_skeleton(
     model.config.name_or_path = model_id
     if quant_config is not None:
         _stamp_4bit_markers(model, quant_config)
+    if torch_dtype in (torch.float16, torch.bfloat16):
+        _upcast_strict_fp32(model)
     return model
 
 
@@ -2448,7 +2451,61 @@ def shard_layout_of(model: Any) -> "ShardLayout":
         for layer in layers
         for name, param in layer.named_parameters()
     )
-    return ShardLayout(n_layers=len(layers), stack_experts=stack_experts)
+    return ShardLayout(
+        n_layers=len(layers),
+        stack_experts=stack_experts,
+        fp32_keys=frozenset(name for _idx, name, _tensor in _strict_fp32_layer_tensors(model)),
+    )
+
+
+def _persistent_buffers(module: Any) -> Iterator[Tuple[str, Any]]:
+    """``module``'s buffers that its state dict carries, by name inside ``module``."""
+    for prefix, owner in module.named_modules():
+        for leaf, buf in owner._buffers.items():
+            if buf is not None and leaf not in owner._non_persistent_buffers_set:
+                yield (f"{prefix}.{leaf}" if prefix else leaf), buf
+
+
+def _strict_fp32_layer_tensors(model: Any) -> Iterator[Tuple[int, str, Any]]:
+    """``(layer index, short key, tensor)`` for each decoder-layer parameter or
+    persistent buffer that ``from_pretrained`` keeps in fp32 at any dtype.
+
+    The names come from ``_keep_in_fp32_modules_strict``, matched the way
+    transformers 5.x matches its dtype plan: each entry is a regex searched in
+    the key (``*`` widened to ``.*``).
+    """
+    import re
+
+    patterns = sorted(getattr(model, "_keep_in_fp32_modules_strict", None) or ())
+    if not patterns:
+        return
+    pattern = re.compile("|".join(entry.replace("*", ".*") for entry in patterns))
+    for idx, layer in enumerate(decoder_owner(model).layers):
+        for name, tensor in (*layer.named_parameters(), *_persistent_buffers(layer)):
+            if pattern.search(name):
+                yield idx, name, tensor
+
+
+def _upcast_strict_fp32(model: Any) -> None:
+    """Hold the skeleton's strict-fp32 layer tensors in fp32, as ``from_pretrained`` does.
+
+    ``from_config`` builds every tensor at the requested dtype, so without this a
+    bf16 skeleton has DeepSeek-V3's router bias in bf16 while the resident model
+    has it in fp32.
+    """
+    import torch
+    import torch.nn as nn
+
+    layers = decoder_owner(model).layers
+    for idx, name, tensor in list(_strict_fp32_layer_tensors(model)):
+        prefix, _, leaf = name.rpartition(".")
+        owner = layers[idx].get_submodule(prefix)
+        if isinstance(tensor, nn.Parameter):
+            owner._parameters[leaf] = nn.Parameter(
+                tensor.to(torch.float32), requires_grad=tensor.requires_grad
+            )
+        else:
+            owner._buffers[leaf] = tensor.to(torch.float32)
 
 
 @dataclass(frozen=True)
@@ -2528,6 +2585,48 @@ def materialize_extras(
                 module = getattr(module, part)
             setattr(module, parts[-1], buf.to(device))
     return ExtrasLoad(placed=placed, codes=codes)
+
+
+def materialize_layer_buffers(model: Any, shard_dir: str, index: Any, *, device: str) -> None:
+    """Fill every persistent floating-point buffer of every decoder layer from
+    that layer's shard.
+
+    A buffer is resident, not streamed: it is loaded once, at the dtype the
+    skeleton holds it in, onto ``device``. Without this a streamed DeepSeek-V3
+    routes with the all-zero ``e_score_correction_bias`` its constructor leaves.
+    Non-persistent buffers are not in the shard and are left alone. Integer
+    buffers keep their constructor value: they are constants derived from the
+    config (Qwen4's PLE hash multipliers, which transformers rebuilds when a
+    checkpoint lacks them), and the sharder stores them at the run dtype, which
+    cannot hold int64 values exactly.
+    """
+    from safetensors import safe_open
+
+    from soup_cli.utils.layer_shard import layer_paths
+
+    layers = decoder_owner(model).layers
+    wanted = [
+        (idx, [(name, buf) for name, buf in _persistent_buffers(layer) if buf.is_floating_point()])
+        for idx, layer in enumerate(layers)
+    ]
+    if not any(buffers for _idx, buffers in wanted):
+        return
+    _require_stripe_folders(shard_dir, index)
+    paths = layer_paths(shard_dir, index)
+    for (idx, buffers), path in zip(wanted, paths):
+        if not buffers:
+            continue
+        with safe_open(path, framework="pt") as handle:
+            stored = set(handle.keys())
+            for name, buf in buffers:
+                if name not in stored:
+                    raise ValueError(
+                        f"the shard of decoder layer {idx} has no persistent buffer "
+                        f"{name!r} — reshard the checkpoint"
+                    )
+                prefix, _, leaf = name.rpartition(".")
+                owner = layers[idx].get_submodule(prefix)
+                owner._buffers[leaf] = handle.get_tensor(name).to(device=device, dtype=buf.dtype)
 
 
 def materialize_meta_adapters(model: Any, *, seed: int = 0, device: str = "cuda") -> int:
@@ -3469,6 +3568,7 @@ def build_streamed_model(
         )
     try:
         extras = materialize_extras(model, shard_dir, index, device=device, dtype=dtype)
+        materialize_layer_buffers(model, shard_dir, index, device=device)
         for param in model.parameters():
             param.requires_grad = False
         from soup_cli.utils.peft_wiring import apply_pre_lora_patches

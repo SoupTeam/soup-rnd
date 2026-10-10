@@ -36,6 +36,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    FrozenSet,
     Iterable,
     Iterator,
     List,
@@ -225,6 +226,10 @@ class ShardLayout:
     #: checkpoint keys are stacked into ``mlp.experts.gate_up_proj`` and
     #: ``mlp.experts.down_proj``.
     stack_experts: bool
+    #: Per-layer short keys the skeleton holds in fp32 through transformers'
+    #: ``_keep_in_fp32_modules_strict`` (DeepSeek-V3's router bias). The sharder
+    #: stores them in fp32 at any run dtype and never quantizes them.
+    fp32_keys: FrozenSet[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -1270,6 +1275,12 @@ def shard_checkpoint(
     fingerprint = _fingerprint_components(source_files)
     if layout is None:
         layout = _layout_from_weights_dir(weights_dir, dtype)
+    kept_fp32 = sorted(set(suffixes) & layout.fp32_keys)
+    if kept_fp32:
+        raise ValueError(
+            f"quant_suffixes name decoder keys the model keeps in fp32: "
+            f"{', '.join(kept_fp32)} — NF4 never quantizes them"
+        )
     if not force:
         cached, miss_reason = inspect_shard_cache(
             resolved_out,
@@ -1544,7 +1555,9 @@ def shard_checkpoint(
                     continue
                 path, source_key = location
                 short = key[len(prefix):]
-                if saw_oq_companion and key.endswith(".weight"):
+                if short in layout.fp32_keys:
+                    tensor = _read_tensor(handles[path], source_key, "float32")
+                elif saw_oq_companion and key.endswith(".weight"):
                     tensor = _read_oq_tensor(
                         handles, where, key, oq_config=oq_config, dtype=dtype
                     )
