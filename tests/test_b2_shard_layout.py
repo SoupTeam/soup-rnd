@@ -5,8 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
 import torch
 
+from tests.test_b2_deepseek_v3_stream import _DEVICES, deterministic  # noqa: F401
 from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 from tests.test_qwen35_streaming import _copy_toy_lora, _tiny_qwen35_lora
 
@@ -48,7 +50,9 @@ def _save_resident(weights: Path, seed: int) -> Any:
     return resident
 
 
-def _logits_match_resident(resident: Any, weights: Path, shards: str, index: Any) -> None:
+def _logits_match_resident(
+    resident: Any, weights: Path, shards: str, index: Any, device: str = "cpu"
+) -> None:
     from peft import get_peft_model
 
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
@@ -58,18 +62,18 @@ def _logits_match_resident(resident: Any, weights: Path, shards: str, index: Any
         shard_dir=shards,
         index=index,
         lora_config=_tiny_qwen35_lora(),
-        device="cpu",
+        device=device,
         dtype="float32",
         buffers=2,
         pin=False,
         seed=41,
     )
     try:
-        reference = get_peft_model(resident, _tiny_qwen35_lora())
+        reference = get_peft_model(resident.to(device), _tiny_qwen35_lora())
         _copy_toy_lora(streamed, reference)
         streamed.eval()
         reference.eval()
-        input_ids = torch.tensor([[1, 7, 3, 11, 5, 2, 9, 4, 13, 8, 6, 10]])
+        input_ids = torch.tensor([[1, 7, 3, 11, 5, 2, 9, 4, 13, 8, 6, 10]], device=device)
         with torch.no_grad():
             got = streamed(input_ids=input_ids).logits
             want = reference(input_ids=input_ids).logits
@@ -79,8 +83,11 @@ def _logits_match_resident(resident: Any, weights: Path, shards: str, index: Any
 
 
 @_REQUIRES_TRAINING_FLOOR
-def test_fused_qwen35_moe_from_per_expert_keys_matches_resident(tmp_path: Path) -> None:
-    """Parity arm 9: fused experts in the skeleton, per-expert keys on disk."""
+@pytest.mark.parametrize("device", _DEVICES)
+def test_fused_qwen35_moe_from_per_expert_keys_matches_resident(
+    tmp_path: Path, device: str, deterministic: None  # noqa: F811
+) -> None:
+    """Parity arm 9: fused experts in the skeleton, per-expert keys on disk. Forward only."""
     from safetensors import safe_open
 
     from soup_cli.utils.layer_shard import layer_shard_path, shard_checkpoint
@@ -102,8 +109,7 @@ def test_fused_qwen35_moe_from_per_expert_keys_matches_resident(tmp_path: Path) 
             16,
         ]
 
-    _logits_match_resident(resident, weights, shards, index)
-
+    _logits_match_resident(resident, weights, shards, index, device)
 
 
 @_REQUIRES_TRAINING_FLOOR
