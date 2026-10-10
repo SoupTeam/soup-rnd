@@ -1528,44 +1528,7 @@ def shard_checkpoint(
             for logical_key, spec in external_tensors.items():
                 if logical_key.startswith(prefix):
                     total_params += math.prod(spec.shape)
-            if qwen4_experts:
-                import torch
-
-                expected_projections = {"gate_proj", "up_proj", "down_proj"}
-                if set(qwen4_experts) != expected_projections:
-                    raise ValueError(
-                        f"Qwen4 layer {idx} has incomplete expert projections: "
-                        f"{sorted(qwen4_experts)}"
-                    )
-                expert_ids = sorted(qwen4_experts["gate_proj"])
-                if expert_ids != list(range(len(expert_ids))) or any(
-                    sorted(qwen4_experts[name]) != expert_ids
-                    for name in expected_projections
-                ):
-                    raise ValueError(
-                        f"Qwen4 layer {idx} expert ids must be contiguous and "
-                        "identical across gate/up/down projections"
-                    )
-
-                def _expert_tensor(projection: str, expert: int):
-                    path, source_key = qwen4_experts[projection][expert]
-                    return _read_tensor(handles[path], source_key, dtype)
-
-                gate_up = []
-                down = []
-                for expert in expert_ids:
-                    gate = _expert_tensor("gate_proj", expert)
-                    up = _expert_tensor("up_proj", expert)
-                    down_tensor = _expert_tensor("down_proj", expert)
-                    gate_up.append(torch.cat((gate, up), dim=0))
-                    down.append(down_tensor)
-                    total_params += gate.numel() + up.numel() + down_tensor.numel()
-                if "mlp.experts.gate_up_proj" in blob or "mlp.experts.down_proj" in blob:
-                    raise ValueError(
-                        f"Qwen4 layer {idx} contains both packed and per-expert weights"
-                    )
-                blob["mlp.experts.gate_up_proj"] = torch.stack(gate_up, dim=0)
-                blob["mlp.experts.down_proj"] = torch.stack(down, dim=0)
+            total_params += _stack_experts(idx, qwen4_experts, blob, handles, dtype)
             if oq_experts:
                 import torch
 
@@ -1965,6 +1928,59 @@ def _read_raw_tensor(handle: Any, key: str) -> "Any":
         )
     view = handle.get_tensor(key)
     return _own(view, view.contiguous())
+
+
+def _stack_experts(
+    idx: int,
+    experts: Mapping[str, Mapping[int, Tuple[str, str]]],
+    blob: Dict[str, Any],
+    handles: Mapping[str, Any],
+    dtype: str,
+) -> int:
+    """Stack layer ``idx``'s per-expert weights into ``blob`` as fused 3-D tensors.
+
+    ``experts`` maps each projection name to ``{expert id: (source path, source
+    key)}``. Each expert's gate rows go before its up rows in
+    ``mlp.experts.gate_up_proj``, and experts stack on a new dim 0 in integer id
+    order. Returns the number of parameters read, 0 when ``experts`` is empty.
+    """
+    if not experts:
+        return 0
+    import torch
+
+    expected_projections = {"gate_proj", "up_proj", "down_proj"}
+    if set(experts) != expected_projections:
+        raise ValueError(
+            f"Qwen4 layer {idx} has incomplete expert projections: {sorted(experts)}"
+        )
+    expert_ids = sorted(experts["gate_proj"])
+    if expert_ids != list(range(len(expert_ids))) or any(
+        sorted(experts[name]) != expert_ids for name in expected_projections
+    ):
+        raise ValueError(
+            f"Qwen4 layer {idx} expert ids must be contiguous and "
+            "identical across gate/up/down projections"
+        )
+    if "mlp.experts.gate_up_proj" in blob or "mlp.experts.down_proj" in blob:
+        raise ValueError(f"Qwen4 layer {idx} contains both packed and per-expert weights")
+
+    def _expert_tensor(projection: str, expert: int) -> Any:
+        path, source_key = experts[projection][expert]
+        return _read_tensor(handles[path], source_key, dtype)
+
+    params = 0
+    gate_up = []
+    down = []
+    for expert in expert_ids:
+        gate = _expert_tensor("gate_proj", expert)
+        up = _expert_tensor("up_proj", expert)
+        down_tensor = _expert_tensor("down_proj", expert)
+        gate_up.append(torch.cat((gate, up), dim=0))
+        down.append(down_tensor)
+        params += gate.numel() + up.numel() + down_tensor.numel()
+    blob["mlp.experts.gate_up_proj"] = torch.stack(gate_up, dim=0)
+    blob["mlp.experts.down_proj"] = torch.stack(down, dim=0)
+    return params
 
 
 def _read_oq_tensor(
