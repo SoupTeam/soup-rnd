@@ -7,6 +7,8 @@ import os
 
 import pytest
 
+from tests._tiny_hf_models import write_tiny_llama_config
+
 GB = 1_000_000_000
 
 
@@ -268,6 +270,7 @@ def test_real_reshard_notice_and_index_record_source_components(tmp_path) -> Non
         },
         str(source),
     )
+    write_tiny_llama_config(str(weights), 1)
     first_messages = []
     shard_checkpoint(
         str(weights),

@@ -23,6 +23,7 @@ import sys
 import time
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -40,6 +41,9 @@ from typing import (
 # default is safe to read at module scope. ``AsyncDiskSource`` itself is
 # imported inside ``_build_source``, where torch is already unavoidable.
 from soup_cli.utils.async_disk_source import DEFAULT_STREAM_READ_AHEAD
+
+if TYPE_CHECKING:
+    from soup_cli.utils.layer_shard import ShardLayout
 
 logger = logging.getLogger(__name__)
 
@@ -2427,6 +2431,24 @@ def quantised_layer_suffixes(model: Any) -> FrozenSet[str]:
             if isinstance(param, bnb.nn.Params4bit)
         )
     return frozenset(found)
+
+
+def shard_layout_of(model: Any) -> "ShardLayout":
+    """The shard layout a meta skeleton asks for (ADR 0004).
+
+    Experts are stacked when any decoder layer holds ``mlp.experts.gate_up_proj``
+    as a 3-D parameter, whatever the architecture is called; a model whose
+    experts are a module list keeps per-expert keys.
+    """
+    from soup_cli.utils.layer_shard import ShardLayout
+
+    layers = decoder_owner(model).layers
+    stack_experts = any(
+        name == "mlp.experts.gate_up_proj" and param.dim() == 3
+        for layer in layers
+        for name, param in layer.named_parameters()
+    )
+    return ShardLayout(n_layers=len(layers), stack_experts=stack_experts)
 
 
 @dataclass(frozen=True)

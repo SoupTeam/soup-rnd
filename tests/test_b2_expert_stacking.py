@@ -115,7 +115,7 @@ def test_sharder_refuses_a_layer_missing_one_projection(
 
     _rewrite_checkpoint(weights, drop_up)
 
-    with pytest.raises(ValueError, match="Qwen4 layer 1 has incomplete expert projections"):
+    with pytest.raises(ValueError, match="layer 1 has incomplete expert projections"):
         _shard(weights, tmp_path / "shards")
 
 
@@ -137,7 +137,7 @@ def test_sharder_refuses_non_contiguous_or_mismatched_expert_ids(
 
     _rewrite_checkpoint(weights, drop_expert_five)
 
-    with pytest.raises(ValueError, match="Qwen4 layer 0 expert ids must be contiguous"):
+    with pytest.raises(ValueError, match="layer 0 expert ids must be contiguous"):
         _shard(weights, tmp_path / "shards")
 
 
@@ -153,5 +153,5 @@ def test_sharder_refuses_a_layer_with_fused_and_per_expert_keys(
 
     _rewrite_checkpoint(weights, add_fused)
 
-    with pytest.raises(ValueError, match="Qwen4 layer 0 contains both packed and per-expert"):
+    with pytest.raises(ValueError, match="layer 0 contains both packed and per-expert"):
         _shard(weights, tmp_path / "shards")

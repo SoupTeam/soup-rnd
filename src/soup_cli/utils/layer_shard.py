@@ -109,7 +109,7 @@ _QWEN4_PLE_SHARD_RE = re.compile(
 _QWEN4_OQ_PLE_SHARD_RE = re.compile(
     r"^(?P<prefix>.+\.ple\.ple_embedding\.ngram_embedding)\.shards\.(?P<part>\d+)\.weight$"
 )
-_QWEN4_EXPERT_RE = re.compile(
+_EXPERT_RE = re.compile(
     r"^(?P<prefix>model\.layers\.\d+\.mlp\.experts)\."
     r"(?P<expert>\d+)\.(?P<projection>gate_proj|up_proj|down_proj)\.weight$"
 )
@@ -210,6 +210,19 @@ class NF4WeightSpec:
             nested=nested,
             nested_blocksize=nested_blocksize,
         )
+
+
+@dataclass(frozen=True)
+class ShardLayout:
+    """What the meta skeleton says about writing a checkpoint to shards (ADR 0004)."""
+
+    #: Decoder layers in the skeleton. Checkpoint keys of layers at or beyond
+    #: this index (DeepSeek-V3's MTP layer) are not sharded.
+    n_layers: int
+    #: The skeleton holds routed experts as fused 3-D parameters, so per-expert
+    #: checkpoint keys are stacked into ``mlp.experts.gate_up_proj`` and
+    #: ``mlp.experts.down_proj``.
+    stack_experts: bool
 
 
 @dataclass(frozen=True)
@@ -1166,6 +1179,7 @@ def shard_checkpoint(
     force: bool = False,
     quant: str = QUANT_NONE,
     quant_suffixes: Iterable[str] = (),
+    layout: Optional[ShardLayout] = None,
     double_quant: bool = True,
     quant_device: Optional[str] = None,
     notify: Optional[Callable[[str], None]] = None,
@@ -1186,6 +1200,11 @@ def shard_checkpoint(
     ``i`` is written to root ``i mod N`` (root 0 is ``out_dir``), each extra
     root gets a per-model folder named like ``out_dir`` plus a ``stripe.json``
     marker, and the index records the placement.
+
+    ``layout`` comes from the meta skeleton (``shard_layout_of``). Without one,
+    the sharder builds it from the meta skeleton of ``weights_dir``'s config.
+    Keys of layers at or beyond its layer count are dropped, and per-expert keys
+    are stacked only when it says so.
     """
     if dtype not in _SUPPORTED_DTYPES:
         raise ValueError(
@@ -1255,6 +1274,8 @@ def shard_checkpoint(
             notify(f"[yellow]Re-sharding layer cache:[/] {for_terminal(miss_reason)}.")
             _notify_orphaned_stripes(resolved_out, stripe, notify)
 
+    if layout is None:
+        layout = _layout_from_weights_dir(weights_dir, dtype)
     from safetensors import safe_open
 
     # pass 1 — build key -> shard without materialising a single tensor
@@ -1264,12 +1285,17 @@ def shard_checkpoint(
     external_source_keys = set()
     saw_oq_companion = False
     layer_ids = set()
+    dropped_keys = 0
     for path in shards:
         with safe_open(path, framework="pt") as handle:
             for source_key in handle.keys():
+                key = _canonical_stream_key(source_key)
+                match = _LAYER_RE.match(key)
+                if match and int(match.group(1)) >= layout.n_layers:
+                    dropped_keys += 1
+                    continue
                 if external_mode and source_key.endswith((".biases", ".scales")):
                     saw_oq_companion = True
-                key = _canonical_stream_key(source_key)
                 prior = where.get(key)
                 if prior is not None and prior != (path, source_key):
                     raise ValueError(
@@ -1310,9 +1336,13 @@ def shard_checkpoint(
                     raise ValueError(
                         f"checkpoint declares more than {_MAX_TOTAL_TENSORS} tensors"
                     )
-                match = _LAYER_RE.match(key)
                 if match:
                     layer_ids.add(int(match.group(1)))
+    if dropped_keys and notify is not None:
+        notify(
+            f"[yellow]Dropped {dropped_keys} checkpoint keys of decoder layers at or "
+            f"beyond the model's {layout.n_layers} layers (an MTP layer, for example).[/]"
+        )
 
     oq_config = None
     if saw_oq_companion:
@@ -1474,7 +1504,7 @@ def shard_checkpoint(
         for idx in range(n_layers):
             prefix = f"model.layers.{idx}."
             blob = {}
-            qwen4_experts: Dict[str, Dict[int, Tuple[str, str]]] = {}
+            experts: Dict[str, Dict[int, Tuple[str, str]]] = {}
             oq_experts: Dict[str, str] = {}
             for key, location in where.items():
                 if not key.startswith(prefix):
@@ -1489,11 +1519,11 @@ def shard_checkpoint(
                 if oq_expert_match:
                     oq_experts[oq_expert_match.group("projection")] = key
                     continue
-                expert_match = _QWEN4_EXPERT_RE.match(key) if external_mode else None
+                expert_match = _EXPERT_RE.match(key) if layout.stack_experts else None
                 if expert_match:
                     projection = expert_match.group("projection")
                     expert = int(expert_match.group("expert"))
-                    qwen4_experts.setdefault(projection, {})[expert] = location
+                    experts.setdefault(projection, {})[expert] = location
                     continue
                 path, source_key = location
                 short = key[len(prefix):]
@@ -1528,7 +1558,7 @@ def shard_checkpoint(
             for logical_key, spec in external_tensors.items():
                 if logical_key.startswith(prefix):
                     total_params += math.prod(spec.shape)
-            total_params += _stack_experts(idx, qwen4_experts, blob, handles, dtype)
+            total_params += _stack_experts(idx, experts, blob, handles, dtype)
             if oq_experts:
                 import torch
 
@@ -1702,6 +1732,13 @@ def shard_checkpoint(
                     f"reclaim the space.[/]"
                 )
     return index
+
+
+def _layout_from_weights_dir(weights_dir: str, dtype: str) -> ShardLayout:
+    """The shard layout of the meta skeleton built from ``weights_dir``'s config."""
+    from soup_cli.utils.layer_stream_runtime import build_meta_skeleton, shard_layout_of
+
+    return shard_layout_of(build_meta_skeleton(weights_dir, dtype=dtype))
 
 
 def _folder_bytes(folder: str) -> int:
@@ -1951,18 +1988,18 @@ def _stack_experts(
     expected_projections = {"gate_proj", "up_proj", "down_proj"}
     if set(experts) != expected_projections:
         raise ValueError(
-            f"Qwen4 layer {idx} has incomplete expert projections: {sorted(experts)}"
+            f"decoder layer {idx} has incomplete expert projections: {sorted(experts)}"
         )
     expert_ids = sorted(experts["gate_proj"])
     if expert_ids != list(range(len(expert_ids))) or any(
         sorted(experts[name]) != expert_ids for name in expected_projections
     ):
         raise ValueError(
-            f"Qwen4 layer {idx} expert ids must be contiguous and "
+            f"decoder layer {idx} expert ids must be contiguous and "
             "identical across gate/up/down projections"
         )
     if "mlp.experts.gate_up_proj" in blob or "mlp.experts.down_proj" in blob:
-        raise ValueError(f"Qwen4 layer {idx} contains both packed and per-expert weights")
+        raise ValueError(f"decoder layer {idx} contains both packed and per-expert weights")
 
     def _expert_tensor(projection: str, expert: int) -> Any:
         path, source_key = experts[projection][expert]

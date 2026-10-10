@@ -626,6 +626,7 @@ class StreamingSetupMixin:
             large_layer_specs,
             large_layer_store_bytes,
             quantised_layer_suffixes,
+            shard_layout_of,
         )
         from soup_cli.utils.moe import resolve_moe_lora_targets
         from soup_cli.utils.qwen4_ple import external_tensor_bytes
@@ -770,41 +771,32 @@ class StreamingSetupMixin:
                     f"free RAM, or pick a smaller base."
                 )
 
-        # The authoritative list of weights to quantise is whatever
-        # replace_with_bnb_linear actually converts, read off a meta skeleton —
-        # not a hard-coded name list that would drift per architecture.
+        # The shard layout (ADR 0004) and the authoritative list of weights to
+        # quantise are read off a meta skeleton, not a hard-coded name list that
+        # would drift per architecture. The list is whatever
+        # replace_with_bnb_linear actually converts.
         #
         # This builds a second, throwaway skeleton (build_streamed_model makes
         # its own). Deliberate: a meta skeleton allocates NO weight storage, so
         # the cost is module-tree construction only, and threading a pre-built
         # model into build_streamed_model would couple suffix discovery to model
         # construction for no memory saving.
-        quant_suffixes = ()
-        moe_targets = None
+        probe = build_meta_skeleton(
+            cfg.base,
+            dtype=dtype,
+            quant=quant,
+            trust_remote_code=self._trust_remote_code,
+        )
+        layout = shard_layout_of(probe)
+        quant_suffixes = quantised_layer_suffixes(probe) if quant == QUANT_NF4 else ()
         # #798: the ONE helper that turns moe_lora into targets, and refuses a
         # dropout peft cannot honour on fused experts. This path kept its own
         # copy of the block, which is why it was the one path with no refusal.
-        # The probe is a meta skeleton and is the only model available here, so
-        # the call happens while it is alive rather than at the attach below.
-        if quant == QUANT_NF4:
-            probe = build_meta_skeleton(
-                cfg.base,
-                dtype=dtype,
-                quant=quant,
-                trust_remote_code=self._trust_remote_code,
-            )
-            moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
-            quant_suffixes = quantised_layer_suffixes(probe)
-            del probe
-        elif tcfg.moe_lora:
-            probe = build_meta_skeleton(
-                cfg.base,
-                dtype=dtype,
-                quant=quant,
-                trust_remote_code=self._trust_remote_code,
-            )
-            moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
-            del probe
+        # The probe is the only model available here, so the call happens while
+        # it is alive rather than at the attach below. Without moe_lora it
+        # returns None.
+        moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
+        del probe
 
         console.print(f"[dim]Preparing layer shards -> {shard_dir}[/]")
         index = shard_checkpoint(
@@ -814,6 +806,7 @@ class StreamingSetupMixin:
             arch=arch,
             quant=quant,
             quant_suffixes=quant_suffixes,
+            layout=layout,
             double_quant=double_quant,
             # Quantise on the device that will run the model: CPU and CUDA agree
             # on the packed nibbles but not on every float32 nested statistic.
