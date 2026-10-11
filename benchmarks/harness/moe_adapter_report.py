@@ -235,7 +235,8 @@ def svg(model: str, result: dict) -> str:
     parts = [(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
               'font-family="sans-serif" font-size="11">'),
              (f'<text x="{width / 2}" y="16" text-anchor="middle" font-size="13">{model}: '
-              'quality against trainable LoRA parameters (log scale)</text>')]
+             'quality against trainable LoRA parameters (log scale; label: AdamW fp32 '
+             'state)</text>')]
     panels = (("eval NLL (lower is better)", _nll_band, [result["base_nll"]]),
               ("mean leg-2 suite score", _gate_band,
                [sum(result["base_gate"].values()) / len(result["base_gate"])]))
@@ -273,7 +274,8 @@ def svg(model: str, result: dict) -> str:
                          f'y2="{py(high):.1f}" stroke="#36c"/>')
             parts.append(f'<circle cx="{cx:.1f}" cy="{py(mid):.1f}" r="4" fill="#36c"/>')
             parts.append(f'<text x="{cx + 6:.1f}" y="{py(mid) - 6:.1f}">{arm} '
-                         f'({row["trainable_parameters"] / 1e6:.1f}M)</text>')
+                         f'({row["trainable_parameters"] / 1e6:.1f}M, '
+                         f'{_fmt_bytes(row["adapter_bytes_adamw_fp32"])})</text>')
             if prev:
                 parts.append(f'<line x1="{prev[0]:.1f}" x2="{cx:.1f}" y1="{prev[1]:.1f}" '
                              f'y2="{py(mid):.1f}" stroke="#36c" stroke-opacity="0.4"/>')
