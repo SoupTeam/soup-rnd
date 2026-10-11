@@ -55,12 +55,61 @@ def leg2_failures(base: Dict[str, float], runs: Sequence[Dict[str, float]]) -> L
     return failed
 
 
-def bootstrap_interval(correct: Sequence[bool], seed: int = 0) -> List[float]:
+def bootstrap_interval(values: Sequence[float], seed: int = 0) -> List[float]:
+    """95% percentile interval of the mean of ``values``, resampled with replacement."""
     rng = random.Random(seed)
-    n = len(correct)
-    means = sorted(sum(correct[rng.randrange(n)] for _ in range(n)) / n
+    n = len(values)
+    means = sorted(sum(values[rng.randrange(n)] for _ in range(n)) / n
                    for _ in range(BOOTSTRAP_DRAWS))
     return [means[int(0.025 * BOOTSTRAP_DRAWS)], means[int(0.975 * BOOTSTRAP_DRAWS) - 1]]
+
+
+def per_question_accuracy(runs: Sequence[Dict[str, Any]]) -> List[float]:
+    """Mean over seeds of each evaluation question's correctness.
+
+    The seeds answer the same questions, so the question is the unit a confidence
+    interval resamples: three seeds are not three times as many questions.
+    """
+    vectors = [r["task"]["correct"] for r in runs]
+    if len({len(v) for v in vectors}) != 1:
+        raise ValueError("seeds scored different evaluation rows")
+    return [sum(column) / len(column) for column in zip(*vectors)]
+
+
+def signflip_exact(per_question: Sequence[int]) -> float:
+    """Two-sided exact sign-flip p for the sum of integer per-question differences.
+
+    Under the null that X and F are exchangeable on every question, each question's
+    difference (summed over seeds) is equally likely to carry either sign. Questions
+    with no difference drop out; with one seed this is the exact McNemar test.
+    """
+    magnitudes = [abs(d) for d in per_question if d]
+    observed = abs(sum(per_question))
+    counts = {0: 1}
+    for m in magnitudes:
+        step: Dict[int, int] = {}
+        for total, ways in counts.items():
+            step[total + m] = step.get(total + m, 0) + ways
+            step[total - m] = step.get(total - m, 0) + ways
+        counts = step
+    extreme = sum(ways for total, ways in counts.items() if abs(total) >= observed)
+    return extreme / 2 ** len(magnitudes)
+
+
+def paired_clustered(runs: Sequence[Dict[str, Any]],
+                     full_by_seed: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
+    """X against F on the same questions, seeds matched, clustered by question.
+
+    ``d_i`` sums X - F correctness over seeds for question ``i``; the difference is
+    the mean of ``d_i`` / seeds and the p-value is the exact sign-flip test on ``d``.
+    """
+    vectors = [(r["task"]["correct"], full_by_seed[r["seed"]]["task"]["correct"]) for r in runs]
+    if len({len(x) for x, f in vectors} | {len(f) for x, f in vectors}) != 1:
+        raise ValueError("paired runs scored different evaluation rows")
+    d = [sum(int(x[i]) - int(f[i]) for x, f in vectors) for i in range(len(vectors[0][0]))]
+    return {"difference": sum(d) / (len(d) * len(vectors)),
+            "questions_x_better": sum(v > 0 for v in d),
+            "questions_f_better": sum(v < 0 for v in d), "p": signflip_exact(d)}
 
 
 def mcnemar_exact(x_only: int, f_only: int) -> float:
@@ -198,15 +247,15 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
                 verdict = "COSTS QUALITY"
             else:
                 verdict = "ACCEPTABLE"
-            pooled = [c for r in runs for c in r["task"]["correct"]]
             paired = None if arm == fullest else [
                 paired_accuracy(r, full_by_seed[r["seed"]]) for r in runs]
+            clustered = None if arm == fullest else paired_clustered(runs, full_by_seed)
             rows[arm] = {
                 "seeds": [r["seed"] for r in runs], "nll": nll,
                 "nll_mean": statistics.fmean(nll), "nll_sd": sample_sd(nll),
                 "task_gap": gap, "leg2_failed": failures, "verdict": verdict,
                 "accuracy": [r["task"]["accuracy"] for r in runs],
-                "accuracy_pooled_ci95": bootstrap_interval(pooled),
+                "accuracy_ci95": bootstrap_interval(per_question_accuracy(runs)),
                 "trainable_parameters": runs[0]["trainable_parameters"],
                 "adapter_bytes_adamw_fp32": runs[0]["adapter_bytes_adamw_fp32"],
                 "peak_cuda_bytes": max(r.get("peak_cuda_bytes", 0) for r in runs),
@@ -215,8 +264,10 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
                 "gate": {s: [r["gate"]["scores"][s] for r in runs] for s in base_gate},
                 "sources": [r.get("_path") for r in runs],
                 "paired_vs_fullest": paired,
+                "paired_clustered": clustered,
             }
         result["arms"] = rows
+        result["leg2_failed_by_every_arm"] = all(row["leg2_failed"] for row in rows.values())
         result["verdict"] = "MEASURED"
         out[model] = result
     return out

@@ -215,10 +215,12 @@ def tables(analysis: dict, detail: dict) -> str:
         if not arms:
             continue
         lines.append("| Arm | Seeds | Eval NLL mean ± SD | Gap vs fullest | Material "
-                     "| Leg 2 failed | Accuracy (per seed) | Pooled 95% CI "
-                     "| Paired vs fullest: X-only/F-only, McNemar p (per seed) | Trainable "
+                     "| Leg 2 failed | Accuracy (per seed) | Accuracy 95% CI (questions resampled) "
+                     "| Paired vs fullest: X-only/F-only, McNemar p (per seed) "
+                     "| Paired vs fullest over seeds, clustered by question: difference, "
+                     "questions X/F better, sign-flip p | Trainable "
                      "| AdamW fp32 state | Peak CUDA | s/step | Verdict |")
-        lines.append("|---|---|---|---:|---|---|---|---|---|---:|---:|---:|---:|---|")
+        lines.append("|---|---|---|---:|---|---|---|---|---|---|---:|---:|---:|---:|---|")
         for arm in ARM_ORDER:
             if arm not in arms:
                 continue
@@ -226,27 +228,33 @@ def tables(analysis: dict, detail: dict) -> str:
             gap = row["task_gap"]
             paired = "-" if row["paired_vs_fullest"] is None else ", ".join(
                 f"{p['x_only']}/{p['f_only']} p={p['p']:.3g}" for p in row["paired_vs_fullest"])
+            c = row["paired_clustered"]
+            clustered = "-" if c is None else (
+                f"{c['difference'] * 100:+.1f} pp, {c['questions_x_better']}/"
+                f"{c['questions_f_better']}, p={c['p']:.3g}")
             lines.append(
                 f"| `{arm}` | {row['seeds']} | {row['nll_mean']:.4f} ± {row['nll_sd']:.4f} "
                 f"| {gap['gap']:+.4f} | {'yes' if gap['material'] else 'no'} "
                 f"| {', '.join(row['leg2_failed']) or '-'} "
                 f"| {', '.join(f'{a:.3f}' for a in row['accuracy'])} "
-                f"| [{row['accuracy_pooled_ci95'][0]:.3f}, {row['accuracy_pooled_ci95'][1]:.3f}] "
-                f"| {paired} "
+                f"| [{row['accuracy_ci95'][0]:.3f}, {row['accuracy_ci95'][1]:.3f}] "
+                f"| {paired} | {clustered} "
                 f"| {row['trainable_parameters'] / 1e6:.1f}M "
                 f"| {_fmt_bytes(row['adapter_bytes_adamw_fp32'])} "
                 f"| {_fmt_bytes(row['peak_cuda_bytes'])} | {row['seconds_per_step']:.2f} "
                 f"| **{row['verdict']}** |")
         lines.append("")
-        fullest = arms[result["fullest"]]
-        if fullest["leg2_failed"]:
-            moved = [sum(m[s][0] + m[s][1] for m in entry["arms"][result["fullest"]])
-                     for s in fullest["leg2_failed"]]
+        if result["leg2_failed_by_every_arm"]:
+            moved = "; ".join(
+                f"`{arm}` " + ", ".join(
+                    f"{s} (+{sum(m[s][0] for m in entry['arms'][arm])}"
+                    f"/-{sum(m[s][1] for m in entry['arms'][arm])})"
+                    for s in arms[arm]["leg2_failed"])
+                for arm in ARM_ORDER if arm in arms)
             lines.append(
-                f"Leg 2 does not discriminate placements on this model: the fullest arm "
-                f"`{result['fullest']}` also fails it on "
-                + ", ".join(f"{s} ({n} items changed over its seeds)"
-                            for s, n in zip(fullest["leg2_failed"], moved)) + ".")
+                "Leg 2 does not discriminate placements on this model: every arm fails it, "
+                f"the fullest arm `{result['fullest']}` included. Items gained/lost against "
+                f"the base over each arm's seeds, per failing suite: {moved}.")
         lines.append("")
         lines.append("Leg-2 suite score per seed, with items gained/lost against the base:")
         lines.append("")

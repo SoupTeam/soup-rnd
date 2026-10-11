@@ -183,6 +183,93 @@ def test_paired_accuracy_pairs_each_seed_with_the_same_seed_of_the_fullest_arm(r
         [(0, 0, 0), (1, 1, 2), (2, 0, 0)]
 
 
+def test_identical_seeds_do_not_narrow_the_accuracy_interval(rule):
+    vector = [i % 5 != 0 for i in range(60)]
+    records = _records(a_nll=(0.81, 0.82, 0.80))
+    for record in records:
+        if record["arm"] != "base":
+            record["task"]["correct"] = list(vector)
+    row = rule.summarise(records, plan=M_PLAN)["m"]["arms"]["A"]
+    assert row["accuracy_ci95"] == rule.bootstrap_interval(vector)
+
+
+@pytest.mark.parametrize(("x_only", "f_only"), [(0, 6), (1, 9), (3, 3), (7, 2)])
+def test_question_clustered_sign_flip_on_one_seed_is_exact_mcnemar(rule, x_only, f_only):
+    per_question = [1] * x_only + [-1] * f_only + [0] * 5
+    assert rule.signflip_exact(per_question) == pytest.approx(rule.mcnemar_exact(x_only, f_only))
+
+
+def test_duplicating_identical_seeds_leaves_the_clustered_p_unchanged(rule):
+    one_seed = [1, -1, -1, 0, -1, 1, -1, -1]
+    assert rule.signflip_exact([3 * d for d in one_seed]) == \
+        pytest.approx(rule.signflip_exact(one_seed))
+
+
+def test_paired_accuracy_is_clustered_by_question_across_seeds(rule):
+    full = [True] * 4 + [False] * 4
+    a_by_seed = {0: [False, True, True, True, False, False, False, False],
+                 1: [False, True, True, True, False, False, False, False],
+                 2: [True, False, True, True, False, False, False, True]}
+    records = _records(a_nll=(0.81, 0.82, 0.80))
+    for record in records:
+        if record["arm"] == "AE":
+            record["task"]["correct"] = list(full)
+        elif record["arm"] == "A":
+            record["task"]["correct"] = list(a_by_seed[record["seed"]])
+    clustered = rule.summarise(records, plan=M_PLAN)["m"]["arms"]["A"]["paired_clustered"]
+    # Per question, summed over seeds: q0 -2, q1 -1, q7 +1. Signs of (2, 1, 1): P(|S| >= 2) = 6/8.
+    assert clustered["difference"] == pytest.approx(-2 / 24)
+    assert (clustered["questions_x_better"], clustered["questions_f_better"]) == (1, 2)
+    assert clustered["p"] == pytest.approx(0.75)
+
+
+@pytest.mark.parametrize(("failing", "every"), [(("AE",), False), (("A", "AE"), True)])
+def test_each_arm_meets_leg2_on_its_own(rule, failing, every):
+    records = _records(a_nll=(0.81, 0.82, 0.80))
+    for record in records:
+        if record["arm"] in failing:
+            record["gate"]["scores"]["mini_mmlu"] = 0.40  # 0.10 below the base
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
+    assert summary["arms"]["AE"]["verdict"] == "REGRESSES"
+    assert summary["arms"]["A"]["verdict"] == ("REGRESSES" if "A" in failing else "ACCEPTABLE")
+    assert summary["leg2_failed_by_every_arm"] is every
+
+
+@pytest.fixture()
+def report():
+    saved_path, saved_modules = list(sys.path), set(sys.modules)
+    spec = importlib.util.spec_from_file_location("_moe_adapter_report",
+                                                  RULE.parent / "moe_adapter_report.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+        yield module
+    finally:
+        sys.path[:] = saved_path
+        for name in set(sys.modules) - saved_modules:
+            sys.modules.pop(name, None)
+
+
+@pytest.mark.parametrize(("failing", "phrase"), [(("AE",), False), (("A", "AE"), True)])
+def test_report_says_leg2_does_not_discriminate_only_when_every_arm_fails_it(report, failing,
+                                                                             phrase):
+    records = _records(a_nll=(0.81, 0.82, 0.80))
+    for record in records:
+        record["_path"] = f"box/r/{record['arm']}-{record['seed']}.json"
+        if record["arm"] in failing:
+            record["gate"]["scores"]["mini_mmlu"] = 0.40
+    models = report.rule.summarise(records, plan=M_PLAN)
+    no_flips = {suite: [0, 0] for suite in SUITES}
+    detail = {"m": {"base_box": "box", "checks": {},
+                    "arms": {arm: [no_flips] * 3 for arm in ("A", "AE")}}}
+    text = report.tables({"sweep": {}, "models": models, "rejected": [], "not_counted": []},
+                         detail)
+    assert ("does not discriminate" in text) is phrase
+    a_row = next(line for line in text.splitlines() if line.startswith("| `A` |"))
+    assert a_row.endswith("**REGRESSES** |" if phrase else "**ACCEPTABLE** |")
+
+
 def test_a_run_that_failed_the_zero_adapter_check_fails_v4(rule):
     void = _run("A", 3, 0.8, status="void_v4")
     void["v4"] = {"passed": False}
