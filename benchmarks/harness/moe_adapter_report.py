@@ -1,9 +1,13 @@
 """Tables and the quality-vs-cost curve for probe-moe-adapter-placement.md.
 
-Usage: moe_adapter_report.py <runs-dir> <out-dir> [--edge ARM ...]
-Writes summary.json (moe_adapter_rule.summarise), tables.md and one SVG per model
-plotting evaluation NLL and summed leg-2 suite score against trainable parameters
-and adapter AdamW bytes. Standard library only.
+Usage: moe_adapter_report.py <runs-dir> <out-dir> --harness-sha256 H --split-sha256 S
+       --hot MODEL=SHA256 [--hot ...]
+Reads every run-*.json (counted candidates) and check-*.json (cross-box base checks)
+under <runs-dir>, laid out as <box>/<results-dir>/<name>.json. Writes summary.json
+(moe_adapter_rule.analyse plus per-item leg-2 flips), tables.md and one SVG per
+model plotting evaluation NLL and mean leg-2 suite score against trainable
+parameters. The flips re-score the recorded gate outputs with Soup's own scorer
+from this checkout's src/, which must be at the records' scorer revision.
 """
 
 from __future__ import annotations
@@ -18,27 +22,156 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import moe_adapter_rule as rule  # noqa: E402
 
 ARM_ORDER = ("A", "AS", "AT", "AE")
+REPO_SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
+
+
+def box_of(path: str) -> str:
+    return path.split("/", 1)[0]
+
+
+def _scorer():
+    if str(REPO_SRC) not in sys.path:
+        sys.path.insert(0, str(REPO_SRC))
+    from soup_cli.eval.gate_suites import (
+        BUNDLED_SCORER_REVISION,
+        DEFAULT_GENERAL_SUITE,
+        score_bundled_suite,
+    )
+
+    return BUNDLED_SCORER_REVISION, DEFAULT_GENERAL_SUITE, score_bundled_suite
+
+
+def flips(base: dict, other: dict) -> dict:
+    """Per suite ``[gained, lost]``: items whose pass flips from ``base`` to ``other``.
+
+    Every bundled suite scores each item from that item's output alone, so putting
+    one of ``other``'s outputs among ``base``'s moves the suite score by 0 or
+    exactly 1/n. Both records must re-score to their recorded values, and base +
+    (gained - lost) / n must equal ``other``'s score, or this raises.
+    """
+    revision, suites, score = _scorer()
+    for record in (base, other):
+        if record["gate"]["scorer_revision"] != revision:
+            raise ValueError(f"{record.get('_path')}: scorer revision "
+                             f"{record['gate']['scorer_revision']}, this checkout {revision}")
+    base_out, out = base["gate"]["outputs"], other["gate"]["outputs"]
+    result = {}
+    for suite in suites:
+        prompts: list = []
+        score(suite, lambda prompt: prompts.append(prompt) or "")
+        base_score = score(suite, base_out.__getitem__)
+        recorded = other["gate"]["scores"][suite]
+        for record, value in ((base, base_score), (other, score(suite, out.__getitem__))):
+            if abs(value - record["gate"]["scores"][suite]) > 1e-12:
+                raise ValueError(f"{record.get('_path')}: {suite} re-scores to {value}, "
+                                 f"recorded {record['gate']['scores'][suite]}")
+        gained = lost = 0
+        for prompt in prompts:
+            if out[prompt] == base_out[prompt]:
+                continue
+            swapped = score(suite, lambda q, p=prompt: out[q] if q == p else base_out[q])
+            step = round((swapped - base_score) * len(prompts))
+            if abs(step) > 1:
+                raise ValueError(f"{suite}: one output moved the score by {step} items")
+            gained += step == 1
+            lost += step == -1
+        if abs(base_score + (gained - lost) / len(prompts) - recorded) > 1e-9:
+            raise ValueError(f"{other.get('_path')}: {suite} items do not add up")
+        result[suite] = [gained, lost]
+    return result
+
+
+def leg2_detail(analysis: dict, records: list, checks: list) -> dict:
+    """Per model: item flips of every counted run and every base check vs the base."""
+    by_path = {r["_path"]: r for r in [*records, *checks]}
+    detail = {}
+    for model, result in analysis["models"].items():
+        if "base_source" not in result:
+            continue
+        base = by_path[result["base_source"]]
+        entry: dict = {"base_box": box_of(base["_path"]), "arms": {}, "checks": {}}
+        for arm, row in result.get("arms", {}).items():
+            entry["arms"][arm] = [flips(base, by_path[path]) for path in row["sources"]]
+        for check in checks:
+            if check["model"] != model:
+                continue
+            box = box_of(check["_path"])
+            if box in entry["checks"]:
+                raise ValueError(f"two base checks for {model} on {box}")
+            entry["checks"][box] = {
+                "source": check["_path"], "flips": flips(base, check),
+                "diff": {s: check["gate"]["scores"][s] - v
+                         for s, v in base["gate"]["scores"].items()},
+                "nll_diff": check["eval"]["nll"] - base["eval"]["nll"],
+                "accuracy_diff": check["task"]["accuracy"] - base["task"]["accuracy"],
+            }
+        detail[model] = entry
+    return detail
 
 
 def _fmt_bytes(value: float) -> str:
     return f"{value / 2**30:.2f} GiB"
 
 
-def tables(summary: dict) -> str:
-    lines = []
-    for model, result in summary.items():
+def sweep_table(sweep: dict) -> list:
+    rates = sorted({float(lr) for row in sweep.values() for lr in row["nll"]})
+    lines = [f"### Learning-rate sweep ({rule.SWEEP_MODEL}, seed 0, evaluation NLL)", "",
+             "| Arm | " + " | ".join(f"{lr:g}" for lr in rates) + " | Winner | Status |",
+             "|---|" + "---:|" * len(rates) + "---:|---|"]
+    for arm in ARM_ORDER:
+        if arm not in sweep:
+            continue
+        row = sweep[arm]
+        cells = [f"{row['nll'][f'{lr:g}']:.4f}" if f"{lr:g}" in row["nll"] else "-"
+                 for lr in rates]
+        winner = "-" if row["winner"] is None else f"{row['winner']:g}"
+        lines.append(f"| `{arm}` | " + " | ".join(cells) + f" | {winner} | {row['status']} |")
+    return lines + [""]
+
+
+def _mark(source: str, suite: str, entry: dict) -> str:
+    """``†``: made on a box whose base check differs on ``suite``; ``‡``: box has no check."""
+    box = box_of(source)
+    if box == entry["base_box"]:
+        return ""
+    if box not in entry["checks"]:
+        return "‡"
+    return "†" if entry["checks"][box]["diff"][suite] != 0 else ""
+
+
+def tables(analysis: dict, detail: dict) -> str:
+    lines = sweep_table(analysis["sweep"])
+    for model, result in analysis["models"].items():
         lines.append(f"### {model}: {result['verdict']}")
         lines.append("")
+        if result.get("reason"):
+            lines.append(f"Reason: {result['reason']}.")
+        if result.get("unsettled_rates"):
+            lines.append("Rate not settled for: "
+                         + ", ".join(f"`{a}`" for a in result["unsettled_rates"]))
         if "validity" in result:
             lines.append("Validity: " + ", ".join(f"{k} {'pass' if v else 'FAIL'}"
                                                   for k, v in result["validity"].items()))
             lines.append(f"Base: eval NLL {result['base_nll']:.4f}, task accuracy "
-                         f"{result['base_accuracy']:.3f}. Fullest arm: `{result['fullest']}`.")
+                         f"{result['base_accuracy']:.3f} (`{result['base_source']}`). "
+                         f"Fullest arm: `{result['fullest']}`.")
         if result.get("not_applicable"):
             lines.append("Not applicable: " + ", ".join(f"`{a}`" for a in result["not_applicable"]))
         if result.get("void"):
             lines.append("Void runs: " + json.dumps(result["void"]))
         lines.append("")
+        entry = detail.get(model, {"checks": {}})
+        if entry["checks"]:
+            lines.append("Cross-box base checks against the counted base (never in a verdict):")
+            lines.append("")
+            lines.append("| Box | Eval NLL diff | Accuracy diff | Suites that differ |")
+            lines.append("|---|---:|---:|---|")
+            for box, check in sorted(entry["checks"].items()):
+                differ = [f"{s} {d:+.3f} (+{check['flips'][s][0]}/-{check['flips'][s][1]})"
+                          for s, d in check["diff"].items() if d != 0]
+                lines.append(f"| `{box}` | {check['nll_diff']:+.6f} "
+                             f"| {check['accuracy_diff']:+.3f} | {'; '.join(differ) or 'none'} |")
+            lines.append("")
         arms = result.get("arms", {})
         if not arms:
             continue
@@ -62,16 +195,34 @@ def tables(summary: dict) -> str:
                 f"| {_fmt_bytes(row['peak_cuda_bytes'])} | {row['seconds_per_step']:.2f} "
                 f"| **{row['verdict']}** |")
         lines.append("")
-        suites = list(result["base_gate"])
-        lines.append("| Suite | Base | " + " | ".join(f"`{a}`" for a in ARM_ORDER if a in arms)
-                     + " |")
-        lines.append("|---|---:|" + "---:|" * sum(a in arms for a in ARM_ORDER))
-        for suite in suites:
-            cells = [", ".join(f"{v:.3f}" for v in arms[a]["gate"][suite])
-                     for a in ARM_ORDER if a in arms]
+        lines.append("Leg-2 suite score per seed, with items gained/lost against the base:")
+        lines.append("")
+        shown = [a for a in ARM_ORDER if a in arms]
+        lines.append("| Suite | Base | " + " | ".join(f"`{a}`" for a in shown) + " |")
+        lines.append("|---|---:|" + "---:|" * len(shown))
+        for suite in result["base_gate"]:
+            cells = []
+            for arm in shown:
+                row = arms[arm]
+                cells.append(", ".join(
+                    f"{score:.3f} +{moved[suite][0]}/-{moved[suite][1]}"
+                    f"{_mark(source, suite, entry)}"
+                    for score, moved, source in zip(row["gate"][suite], entry["arms"][arm],
+                                                    row["sources"])))
             lines.append(f"| {suite} | {result['base_gate'][suite]:.3f} | "
                          + " | ".join(cells) + " |")
         lines.append("")
+        lines.append("† made on a box whose base check scores that suite differently from "
+                     "the counted base; ‡ made on a box with no base check.")
+        lines.append("")
+    for title, key, fmt in (
+            ("Not counted (not at the arm's winning rate)", "not_counted",
+             lambda r: f"`{r['model']}` `{r['arm']}` lr {r['lr']:g} seed {r['seed']}: "
+                       f"`{r['source']}`"),
+            ("Rejected (not the bundled harness, split or hot set)", "rejected",
+             lambda r: f"`{r['source']}`: {r['problem']}")):
+        if analysis.get(key):
+            lines += [f"### {title}", ""] + [f"- {fmt(r)}" for r in analysis[key]] + [""]
     return "\n".join(lines)
 
 
@@ -145,20 +296,29 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("runs")
     parser.add_argument("out")
-    parser.add_argument("--edge", action="append", default=[],
-                        help="model:arm whose LR winner sat at the edge of the grid (V3)")
+    parser.add_argument("--harness-sha256", required=True)
+    parser.add_argument("--split-sha256", required=True)
+    parser.add_argument("--hot", action="append", required=True, metavar="MODEL=SHA256",
+                        help="SHA-256 of the hot-set file every AT run of MODEL must record")
     args = parser.parse_args(argv)
+    expect = {"harness_sha256": args.harness_sha256, "split_sha256": args.split_sha256,
+              "hot_sha256": dict(item.split("=", 1) for item in args.hot)}
     records = rule.load_runs(args.runs)
+    analysis = rule.analyse(records, expect=expect)
+    checks = []
+    for check in rule.load_runs(args.runs, "check-*.json"):
+        problem = rule.provenance_problem(check, **expect)
+        if problem is None:
+            checks.append(check)
+        else:
+            analysis["rejected"].append({"source": check["_path"], "problem": problem})
+    detail = leg2_detail(analysis, records, checks)
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    summary = {}
-    for model in sorted({r["model"] for r in records}):
-        edges = {e.split(":", 1)[1]: True for e in args.edge if e.split(":", 1)[0] == model}
-        summary.update(rule.summarise([r for r in records if r["model"] == model],
-                                      edge_lrs=edges))
-    (out / "summary.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
-    (out / "tables.md").write_text(tables(summary), encoding="utf-8")
-    for model, result in summary.items():
+    (out / "summary.json").write_text(json.dumps({"analysis": analysis, "leg2": detail},
+                                                 indent=1), encoding="utf-8")
+    (out / "tables.md").write_text(tables(analysis, detail), encoding="utf-8")
+    for model, result in analysis["models"].items():
         if result.get("arms"):
             (out / f"curve-{model}.svg").write_text(svg(model, result), encoding="utf-8")
     return 0

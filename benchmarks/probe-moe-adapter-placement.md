@@ -113,10 +113,12 @@ is the sample SD over seeds):
 Accuracy on the evaluation rows is reported with a bootstrap 95% interval and
 does not enter the verdict: 256 items cannot resolve a few points.
 
-**Granularity of leg 2, stated before any counted result.** The suites have 24-40
-items, so one item is 0.025-0.042: a single changed answer can cost 0.05 on the
-24-item suites. Leg 2 is applied exactly as `soup ship` applies it (any suite, any
-seed), because that is the gate a user's adapter meets; the record also reports,
+**Granularity of leg 2, stated before any counted result** (but after the
+feasibility pilot's suite scores in §6 were seen; it adds reporting, not a rule).
+The suites have 24-40 items, so one item is 0.025-0.042: a single changed answer
+can cost 0.05 on the 24-item suites. Leg 2 is applied exactly as `soup ship`
+applies it (any suite, any seed), because that is the gate a user's adapter
+meets; the record also reports,
 per suite, how many items moved, so a REGRESSES driven by one or two items is
 visible as such. Leg 2 is noisy by construction; the task gap carries the
 placement comparison.
@@ -205,6 +207,16 @@ at USD 0.68/h) and are not results.
   name the analysis reads. If a check's suite scores differ from the counted
   base, the record prints that difference beside every leg-2 result of a run made
   on that box. The verdict rule is unchanged.
+- *Analysis code, before any counted result was read (05:00 UTC).*
+  `moe_adapter_rule.analyse` now picks each arm's rate from the seed-0 sweep
+  (§3, with the one-step extension), counts trained runs only at that rate, and
+  rejects records whose harness, split or hot-set hash is not the bundle's. An
+  arm whose rate is not settled keeps its model at NO VERDICT. Writing it found two
+  bugs in the committed `summarise`: V4 read only runs that ended `ok`, so a
+  `void_v4` run could never fail it, and per-seed columns followed file order
+  rather than seed order. Both are fixed and tested. `moe_adapter_report.py`
+  re-scores the recorded gate outputs with Soup's scorer to count the items each
+  run gained and lost per suite, and checks that they add up to the recorded scores.
 
 ## 7. Cloud protocol
 
