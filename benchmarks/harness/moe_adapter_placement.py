@@ -311,44 +311,80 @@ def load_tokenizer(model_key: str):
     return AutoTokenizer.from_pretrained(spec["repo"], revision=spec["revision"])
 
 
-def prepare(args: argparse.Namespace) -> Dict[str, Any]:
-    rows = load_rows(args.data)
-    order = list(range(len(rows)))
-    random.Random(SPLIT_SEED).shuffle(order)
-    tokenizers = {key: load_tokenizer(key) for key in MODELS}
-    wanted = N_CAL + N_TRAIN + N_EVAL
+def group_key(row: Dict[str, Any]) -> str:
+    """MetaMathQA's source question: every augmentation of one GSM8K/MATH item shares it."""
+    return " ".join(str(row["original_question"]).split())
+
+
+def select_rows(rows: Sequence[Dict[str, Any]], order: Sequence[int], wanted: int,
+                reject) -> Tuple[List[int], Dict[str, int]]:
+    """First ``wanted`` rows in ``order`` that ``reject`` passes, one per source question.
+
+    ``reject(row)`` returns a drop reason or None. Taking one row per group makes
+    every split group-disjoint: no augmentation of an evaluated question is trained on.
+    """
     accepted: List[int] = []
-    dropped = {"no_reference": 0, "not_prefix": 0, "too_long": 0}
+    seen: set = set()
+    dropped: Dict[str, int] = {"same_group": 0}
     for index in order:
         row = rows[index]
-        if reference_answer(row["response"]) is None:
-            dropped["no_reference"] += 1
+        key = group_key(row)
+        if key in seen:
+            dropped["same_group"] += 1
             continue
-        reason = None
-        for key, tokenizer in tokenizers.items():
-            encoded = encode_row(tokenizer, MODELS[key]["chat"], row["query"], row["response"])
-            if encoded is None:
-                reason = "not_prefix"
-                break
-            if len(encoded[1]) > MAX_TOKENS:
-                reason = "too_long"
-                break
+        reason = reject(row)
         if reason:
-            dropped[reason] += 1
+            dropped[reason] = dropped.get(reason, 0) + 1
             continue
+        seen.add(key)
         accepted.append(index)
         if len(accepted) == wanted:
             break
     if len(accepted) < wanted:
         raise ValueError(f"only {len(accepted)} rows qualified; need {wanted}")
-    return {
+    return accepted, dropped
+
+
+def check_group_disjoint(rows: Sequence[Dict[str, Any]], split: Dict[str, Any]) -> None:
+    """Refuse a split in which a source question reaches two splits or twice into one."""
+    owner: Dict[str, str] = {}
+    for name in ("calibration", "train", "eval"):
+        for index in split[name]:
+            key = group_key(rows[index])
+            if key in owner:
+                raise ValueError(f"row {index} ({name}) shares its source question with "
+                                 f"a {owner[key]} row; the split is not group-disjoint")
+            owner[key] = name
+
+
+def prepare(args: argparse.Namespace) -> Dict[str, Any]:
+    rows = load_rows(args.data)
+    order = list(range(len(rows)))
+    random.Random(SPLIT_SEED).shuffle(order)
+    tokenizers = {key: load_tokenizer(key) for key in MODELS}
+
+    def reject(row: Dict[str, Any]) -> Optional[str]:
+        if reference_answer(row["response"]) is None:
+            return "no_reference"
+        for key, tokenizer in tokenizers.items():
+            encoded = encode_row(tokenizer, MODELS[key]["chat"], row["query"], row["response"])
+            if encoded is None:
+                return "not_prefix"
+            if len(encoded[1]) > MAX_TOKENS:
+                return "too_long"
+        return None
+
+    accepted, dropped = select_rows(rows, order, N_CAL + N_TRAIN + N_EVAL, reject)
+    split = {
         "data_file": DATA_FILE, "data_sha256": DATA_SHA256, "split_seed": SPLIT_SEED,
-        "max_tokens": MAX_TOKENS, "examined": len(accepted) + sum(dropped.values()),
-        "dropped": dropped,
+        "max_tokens": MAX_TOKENS, "grouping": "one row per original_question",
+        "examined": len(accepted) + sum(dropped.values()), "dropped": dropped,
         "calibration": accepted[:N_CAL],
         "train": accepted[N_CAL:N_CAL + N_TRAIN],
         "eval": accepted[N_CAL + N_TRAIN:],
     }
+    check_group_disjoint(rows, split)
+    return split
 
 
 # =====================================================================
@@ -588,6 +624,7 @@ def write_json(path: str, payload: Dict[str, Any]) -> None:
 def profile(args: argparse.Namespace) -> Dict[str, Any]:
     split = json.loads(pathlib.Path(args.split).read_text(encoding="utf-8"))
     rows = load_rows(args.data)
+    check_group_disjoint(rows, split)
     tokenizer = load_tokenizer(args.model)
     items, _refs = encode_split(rows, split["calibration"], tokenizer, MODELS[args.model]["chat"])
     model = load_model(args.model, args.device, getattr(torch, args.dtype)).eval()
@@ -601,6 +638,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     started = time.time()
     split = json.loads(pathlib.Path(args.split).read_text(encoding="utf-8"))
     rows = load_rows(args.data)
+    check_group_disjoint(rows, split)
     spec = MODELS[args.model]
     tokenizer = load_tokenizer(args.model)
     pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None \

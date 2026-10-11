@@ -171,3 +171,29 @@ def test_hot_set_takes_busiest_quarter_ties_to_lower_index(harness):
 def test_reference_answer_reads_the_metamath_marker(harness):
     assert harness.reference_answer("Work... The answer is: 18") == "18"
     assert harness.reference_answer("no marker here 18") is None
+
+
+def _row(question, query):
+    return {"original_question": question, "query": query, "response": "x The answer is: 1"}
+
+
+def test_selection_takes_one_row_per_source_question(harness):
+    rows = [_row("q1", "a"), _row("q1", "b"), _row("q2", "c"), _row(" q2 ", "d"),
+            _row("q3", "e"), _row("q4", "f")]
+    accepted, dropped = harness.select_rows(rows, range(len(rows)), 3, lambda row: None)
+    assert accepted == [0, 2, 4]
+    assert dropped == {"same_group": 2}
+
+
+def test_a_rejected_row_does_not_claim_its_group(harness):
+    rows = [_row("q1", "too long"), _row("q1", "fits"), _row("q2", "fits")]
+    accepted, dropped = harness.select_rows(
+        rows, range(3), 2, lambda row: "too_long" if row["query"] == "too long" else None)
+    assert accepted == [1, 2] and dropped["too_long"] == 1
+
+
+def test_split_sharing_a_source_question_across_splits_is_refused(harness):
+    rows = [_row("q1", "a"), _row("q2", "b"), _row("q1", "c")]
+    with pytest.raises(ValueError, match="group-disjoint"):
+        harness.check_group_disjoint(rows, {"calibration": [], "train": [0, 1], "eval": [2]})
+    harness.check_group_disjoint(rows, {"calibration": [], "train": [0], "eval": [1]})

@@ -44,8 +44,12 @@ written to the JSON before training starts.
   `fb39a5d8c05c042ece92eae37dfd5ea414a5979df2bf3ad3b86411bef8205725`, MIT.
   Rows are shuffled with seed 1234; rows whose rendered prompt + response is longer
   than 512 tokens for EITHER tokenizer are dropped before splitting, so both models
-  see the same rows. Splits in shuffled order: 512 calibration, 4096 train,
-  256 evaluation. Chat template of each model; Qwen3.5 with `enable_thinking=False`.
+  see the same rows. **At most one row per `original_question`**: MetaMathQA's
+  395,000 rows are augmentations (rephrased, answer-augmented, self-verification,
+  FOBAR) of 13,928 GSM8K/MATH source questions, so a row-level split would train on
+  rephrasings of evaluated questions. Splits in shuffled order: 512 calibration,
+  4096 train, 256 evaluation, group-disjoint; `run` and `profile` refuse a split
+  that is not. Chat template of each model; Qwen3.5 with `enable_thinking=False`.
   Loss on response tokens only.
 - **LoRA.** Rank 16, alpha 32 (scale 2), dropout 0, fp32 adapter weights, `A`
   uniform in ±1/sqrt(fan-in) (PEFT's Kaiming-uniform) and `B` zero. Each routed
@@ -135,9 +139,16 @@ the memory column is the adapter budget B4's pre-flight would apply, not a claim
 about an 8 GB step.
 
 **Pilot.** One OLMoE `AE` run at 2e-4 and one Qwen3.5 `A` run first, to measure
-step time and peak memory. If the pilot puts the full plan over the spend cap, the
-LR sweep shrinks to {1e-4, 4e-4} before anything else is cut, and the change is
-written here before the sweep starts.
+step time and peak memory. Pilot runs are feasibility only and never enter a
+verdict. If the pilot puts the full plan over the spend cap, the LR sweep shrinks
+to {1e-4, 4e-4} before anything else is cut, and the change is written here before
+the sweep starts.
+
+**Correction before any counted run (2026-10-11).** The first OLMoE pilot was
+launched on a row-level split from commit `8509f196`: 81 of its 253 evaluation
+source questions also had a rephrasing in training, and 14 in calibration. That
+split is withdrawn; the pilot it ran is feasibility-only (step time, memory, the
+harness on real weights). Every counted run uses the group-disjoint split above.
 
 ## 7. Cloud protocol
 
