@@ -66,6 +66,10 @@ def _logits(model, ids):
 IDS = torch.tensor([[1, 5, 9, 14, 22, 31, 40, 7, 3, 60, 61, 62]])
 
 
+def test_adapter_classes_are_cached(harness):
+    assert harness.adapter_classes() is harness.adapter_classes()
+
+
 @pytest.mark.parametrize("make", [_olmoe, _qwen35])
 @pytest.mark.parametrize("arm", ["A", "AT", "AE"])
 def test_zero_adapter_is_the_base_model(harness, make, arm):
@@ -107,8 +111,9 @@ def _trained_expert_delta(harness, seed=0):
     model = _olmoe()
     harness.attach_adapters(model, "AT", hot=[[2, 6], [0, 7]], seed=seed)
     generator = torch.Generator().manual_seed(1)
+    _, expert_cls = harness.adapter_classes()
     for module in model.modules():
-        if isinstance(module, harness.ExpertLoRA):
+        if isinstance(module, expert_cls):
             module.gate_up_B.data = torch.randn(module.gate_up_B.shape, generator=generator)
             module.down_B.data = torch.randn(module.down_B.shape, generator=generator)
     return model
@@ -118,8 +123,9 @@ def test_expert_delta_matches_a_merged_dense_reference(harness):
     """Merging ``scale * B_e A_e`` into the selected experts reproduces the adapted output."""
     model = _trained_expert_delta(harness)
     adapted = _logits(model, IDS)
+    _, expert_cls = harness.adapter_classes()
     for module in list(model.modules()):
-        if isinstance(module, harness.ExpertLoRA):
+        if isinstance(module, expert_cls):
             base = module.base
             for slot, expert in enumerate(module.selected.tolist()):
                 base.gate_up_proj.data[expert] += module.scale * (

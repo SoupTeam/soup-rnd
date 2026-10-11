@@ -6,9 +6,9 @@ Subcommands:
   run      train one arm (or score the base) and evaluate it into one JSON
 
 The adapters are built here rather than through peft, so every arm shares one
-implementation and one numeric path. They are PEFT-shaped: ``LoRALinear`` is
-``lora.Linear`` and ``ExpertLoRA`` is ``lora.ParamWrapper`` on ``gate_up_proj`` and
-``down_proj`` (per-expert ``A`` of ``(rank, in)`` and ``B`` of ``(out, rank)``,
+implementation and one numeric path. The lazy ``adapter_classes()`` factory returns
+the PEFT-shaped ``LoRALinear`` (``lora.Linear``) and ``ExpertLoRA`` (``lora.ParamWrapper``) on
+``gate_up_proj`` and ``down_proj`` (per-expert ``A`` of ``(rank, in)`` and ``B`` of ``(out, rank)``,
 ``B`` zero at init); tests/test_moe_adapter_placement.py checks both against peft.
 The rule that turns run JSONs into verdicts is moe_adapter_rule.py.
 """
@@ -16,6 +16,7 @@ The rule that turns run JSONs into verdicts is moe_adapter_rule.py.
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import math
@@ -25,11 +26,11 @@ import platform
 import random
 import sys
 import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
-import torch
-from torch import nn
-from torch.nn import functional as fn
+if TYPE_CHECKING:
+    import torch
+    from torch import nn
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -78,30 +79,10 @@ class NotApplicableError(ValueError):
 # =====================================================================
 def _uniform_a(shape: Sequence[int], fan_in: int, generator: torch.Generator) -> torch.Tensor:
     """peft's ``kaiming_uniform_(a=sqrt(5))`` on ``lora_A``: U(-1/sqrt(fan_in), +)."""
+    import torch
+
     bound = 1.0 / math.sqrt(fan_in)
     return (torch.rand(tuple(shape), generator=generator) * 2 - 1) * bound
-
-
-class LoRALinear(nn.Module):
-    """``base(x) + scale * B(A(x))`` with fp32 masters, computed in the base dtype."""
-
-    def __init__(self, base: nn.Linear, rank: int, alpha: int, generator: torch.Generator):
-        super().__init__()
-        device = base.weight.device
-        self.base = base
-        self.scale = alpha / rank
-        self.lora_A = nn.Parameter(_uniform_a((rank, base.in_features), base.in_features,
-                                              generator).to(device))
-        self.lora_B = nn.Parameter(torch.zeros(base.out_features, rank, device=device))
-        self.enabled = True
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.base(x)
-        if not self.enabled:
-            return out
-        dtype = out.dtype
-        delta = fn.linear(fn.linear(x.to(dtype), self.lora_A.to(dtype)), self.lora_B.to(dtype))
-        return out + delta * self.scale
 
 
 def grouped_mm(x: torch.Tensor, weight: torch.Tensor, offs: torch.Tensor) -> torch.Tensor:
@@ -111,6 +92,9 @@ def grouped_mm(x: torch.Tensor, weight: torch.Tensor, offs: torch.Tensor) -> tor
     so a zero adapter leaves the base path bit-identical. CPU loops: torch 2.14's
     CPU ``grouped_mm`` has no float32 input gradient ("Invalid strides/sizes").
     """
+    import torch
+    from torch.nn import functional as fn
+
     if x.is_cuda:
         return fn.grouped_mm(x.to(weight.dtype), weight, offs=offs)
     outs, start = [], 0
@@ -123,75 +107,106 @@ def grouped_mm(x: torch.Tensor, weight: torch.Tensor, offs: torch.Tensor) -> tor
     return torch.cat(outs)
 
 
-class ExpertLoRA(nn.Module):
-    """Per-expert LoRA on fused ``gate_up_proj`` / ``down_proj`` for ``selected`` experts.
+@functools.lru_cache(maxsize=1)
+def adapter_classes():
+    """Materialise both adapter classes once without importing torch at module load."""
+    import torch
+    from torch import nn
+    from torch.nn import functional as fn
 
-    Mirrors ``transformers.integrations.moe.grouped_mm_experts_forward`` (gated,
-    not transposed, no bias) and adds ``scale * B_e A_e x`` to each projection of
-    each token-expert pair routed to a selected expert. Unselected experts carry
-    no parameters at all, so trainable counts and optimizer state are real.
-    """
+    class LoRALinear(nn.Module):
+        """``base(x) + scale * B(A(x))`` with fp32 masters, computed in the base dtype."""
 
-    def __init__(self, base: nn.Module, selected: Sequence[int], rank: int, alpha: int,
-                 generator: torch.Generator):
-        super().__init__()
-        experts, two_inter, hidden = base.gate_up_proj.shape
-        inter = base.down_proj.shape[-1]
-        chosen = sorted({int(e) for e in selected})
-        if not chosen or chosen[0] < 0 or chosen[-1] >= experts:
-            raise ValueError(f"selected experts must be a non-empty subset of 0..{experts - 1}")
-        device = base.gate_up_proj.device
-        self.base = base
-        self.num_experts = experts
-        self.scale = alpha / rank
-        slot = torch.full((experts,), -1, dtype=torch.long)
-        slot[chosen] = torch.arange(len(chosen))
-        self.register_buffer("selected", torch.tensor(chosen, device=device), persistent=False)
-        self.register_buffer("slot", slot.to(device), persistent=False)
-        n = len(chosen)
-        self.gate_up_A = nn.Parameter(_uniform_a((n, rank, hidden), hidden, generator).to(device))
-        self.gate_up_B = nn.Parameter(torch.zeros(n, two_inter, rank, device=device))
-        self.down_A = nn.Parameter(_uniform_a((n, rank, inter), inter, generator).to(device))
-        self.down_B = nn.Parameter(torch.zeros(n, hidden, rank, device=device))
-        self.enabled = True
+        def __init__(self, base: nn.Linear, rank: int, alpha: int, generator: torch.Generator):
+            super().__init__()
+            device = base.weight.device
+            self.base = base
+            self.scale = alpha / rank
+            self.lora_A = nn.Parameter(_uniform_a((rank, base.in_features), base.in_features,
+                                                  generator).to(device))
+            self.lora_B = nn.Parameter(torch.zeros(base.out_features, rank, device=device))
+            self.enabled = True
 
-    def _delta(self, x: torch.Tensor, offs: torch.Tensor, a: torch.Tensor,
-               b: torch.Tensor) -> torch.Tensor:
-        dtype = x.dtype
-        low = grouped_mm(x, a.to(dtype).transpose(-2, -1), offs)
-        return grouped_mm(low, b.to(dtype).transpose(-2, -1), offs) * self.scale
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            out = self.base(x)
+            if not self.enabled:
+                return out
+            dtype = out.dtype
+            delta = fn.linear(fn.linear(x.to(dtype), self.lora_A.to(dtype)), self.lora_B.to(dtype))
+            return out + delta * self.scale
 
-    def forward(self, hidden_states: torch.Tensor, top_k_index: torch.Tensor,
-                top_k_weights: torch.Tensor) -> torch.Tensor:
-        base = self.base
-        num_top_k = top_k_index.size(-1)
-        num_tokens, hidden_dim = hidden_states.size(0), hidden_states.size(-1)
-        expert_ids, perm = torch.sort(top_k_index.reshape(-1))
-        x = hidden_states[perm // num_top_k]
-        weights = top_k_weights.reshape(-1)[perm]
-        histc_in = expert_ids.float() if x.device.type in ("cpu", "mps") else expert_ids.int()
-        counts = torch.histc(histc_in, bins=self.num_experts, min=0, max=self.num_experts - 1)
-        offs = torch.cumsum(counts, dim=0, dtype=torch.int32)
-        rows = None
-        if self.enabled:
-            rows = (self.slot[expert_ids] >= 0).nonzero().squeeze(1)
-            offs_sel = torch.cumsum(counts[self.selected], dim=0, dtype=torch.int32)
-            if rows.numel() == 0:
-                rows = None
-        proj = grouped_mm(x, base.gate_up_proj.transpose(-2, -1), offs)
-        if rows is not None:
-            proj = proj.index_add(0, rows, self._delta(x[rows], offs_sel, self.gate_up_A,
-                                                       self.gate_up_B).to(proj.dtype))
-        proj = base._apply_gate(proj)
-        out = grouped_mm(proj, base.down_proj.transpose(-2, -1), offs)
-        if rows is not None:
-            out = out.index_add(0, rows, self._delta(proj[rows], offs_sel, self.down_A,
-                                                     self.down_B).to(out.dtype))
-        out = out * weights.unsqueeze(-1)
-        inverse = torch.empty_like(perm)
-        inverse[perm] = torch.arange(perm.size(0), device=perm.device)
-        out = out[inverse].view(num_tokens, num_top_k, hidden_dim).sum(dim=1)
-        return out.to(hidden_states.dtype)
+    class ExpertLoRA(nn.Module):
+        """Per-expert LoRA on fused ``gate_up_proj`` / ``down_proj`` for ``selected`` experts.
+
+        Mirrors ``transformers.integrations.moe.grouped_mm_experts_forward`` (gated,
+        not transposed, no bias) and adds ``scale * B_e A_e x`` to each projection of
+        each token-expert pair routed to a selected expert. Unselected experts carry
+        no parameters at all, so trainable counts and optimizer state are real.
+        """
+
+        def __init__(self, base: nn.Module, selected: Sequence[int], rank: int, alpha: int,
+                     generator: torch.Generator):
+            super().__init__()
+            experts, two_inter, hidden = base.gate_up_proj.shape
+            inter = base.down_proj.shape[-1]
+            chosen = sorted({int(e) for e in selected})
+            if not chosen or chosen[0] < 0 or chosen[-1] >= experts:
+                raise ValueError(f"selected experts must be a non-empty subset of 0..{experts - 1}")
+            device = base.gate_up_proj.device
+            self.base = base
+            self.num_experts = experts
+            self.scale = alpha / rank
+            slot = torch.full((experts,), -1, dtype=torch.long)
+            slot[chosen] = torch.arange(len(chosen))
+            self.register_buffer("selected", torch.tensor(chosen, device=device), persistent=False)
+            self.register_buffer("slot", slot.to(device), persistent=False)
+            n = len(chosen)
+            self.gate_up_A = nn.Parameter(
+                _uniform_a((n, rank, hidden), hidden, generator).to(device))
+            self.gate_up_B = nn.Parameter(torch.zeros(n, two_inter, rank, device=device))
+            self.down_A = nn.Parameter(_uniform_a((n, rank, inter), inter, generator).to(device))
+            self.down_B = nn.Parameter(torch.zeros(n, hidden, rank, device=device))
+            self.enabled = True
+
+        def _delta(self, x: torch.Tensor, offs: torch.Tensor, a: torch.Tensor,
+                   b: torch.Tensor) -> torch.Tensor:
+            dtype = x.dtype
+            low = grouped_mm(x, a.to(dtype).transpose(-2, -1), offs)
+            return grouped_mm(low, b.to(dtype).transpose(-2, -1), offs) * self.scale
+
+        def forward(self, hidden_states: torch.Tensor, top_k_index: torch.Tensor,
+                    top_k_weights: torch.Tensor) -> torch.Tensor:
+            base = self.base
+            num_top_k = top_k_index.size(-1)
+            num_tokens, hidden_dim = hidden_states.size(0), hidden_states.size(-1)
+            expert_ids, perm = torch.sort(top_k_index.reshape(-1))
+            x = hidden_states[perm // num_top_k]
+            weights = top_k_weights.reshape(-1)[perm]
+            histc_in = expert_ids.float() if x.device.type in ("cpu", "mps") else expert_ids.int()
+            counts = torch.histc(histc_in, bins=self.num_experts, min=0, max=self.num_experts - 1)
+            offs = torch.cumsum(counts, dim=0, dtype=torch.int32)
+            rows = None
+            if self.enabled:
+                rows = (self.slot[expert_ids] >= 0).nonzero().squeeze(1)
+                offs_sel = torch.cumsum(counts[self.selected], dim=0, dtype=torch.int32)
+                if rows.numel() == 0:
+                    rows = None
+            proj = grouped_mm(x, base.gate_up_proj.transpose(-2, -1), offs)
+            if rows is not None:
+                proj = proj.index_add(0, rows, self._delta(x[rows], offs_sel, self.gate_up_A,
+                                                           self.gate_up_B).to(proj.dtype))
+            proj = base._apply_gate(proj)
+            out = grouped_mm(proj, base.down_proj.transpose(-2, -1), offs)
+            if rows is not None:
+                out = out.index_add(0, rows, self._delta(proj[rows], offs_sel, self.down_A,
+                                                         self.down_B).to(out.dtype))
+            out = out * weights.unsqueeze(-1)
+            inverse = torch.empty_like(perm)
+            inverse[perm] = torch.arange(perm.size(0), device=perm.device)
+            out = out[inverse].view(num_tokens, num_top_k, hidden_dim).sum(dim=1)
+            return out.to(hidden_states.dtype)
+
+    return LoRALinear, ExpertLoRA
 
 
 def decoder_layers(model: nn.Module) -> nn.ModuleList:
@@ -208,6 +223,10 @@ def hot_experts(counts: Sequence[int], fraction: float = HOT_FRACTION) -> List[i
 def attach_adapters(model: nn.Module, arm: str, *, hot: Optional[Sequence[Sequence[int]]] = None,
                     rank: int = RANK, alpha: int = ALPHA, seed: int = 0) -> List[str]:
     """Freeze ``model`` and wrap the arm's targets; return the adapted module paths."""
+    import torch
+    from torch import nn
+
+    linear_cls, expert_cls = adapter_classes()
     if arm not in ARMS or arm == "base":
         raise ValueError(f"no adapters for arm {arm!r}")
     generator = torch.Generator().manual_seed(seed)
@@ -225,14 +244,14 @@ def attach_adapters(model: nn.Module, arm: str, *, hot: Optional[Sequence[Sequen
                 linear = getattr(module, name)
                 if not isinstance(linear, nn.Linear):
                     raise TypeError(f"{prefix}.{owner}.{name} is {type(linear).__name__}")
-                setattr(module, name, LoRALinear(linear, rank, alpha, generator))
+                setattr(module, name, linear_cls(linear, rank, alpha, generator))
                 targets.append(f"{prefix}.{owner}.{name}")
         mlp = layer.mlp
         shared = getattr(mlp, "shared_expert", None)
         if arm != "A" and shared is not None:
             shared_seen = True
             for name in SHARED:
-                setattr(shared, name, LoRALinear(getattr(shared, name), rank, alpha, generator))
+                setattr(shared, name, linear_cls(getattr(shared, name), rank, alpha, generator))
                 targets.append(f"{prefix}.mlp.shared_expert.{name}")
         if arm in ("AT", "AE"):
             experts = mlp.experts.gate_up_proj.shape[0]
@@ -242,7 +261,7 @@ def attach_adapters(model: nn.Module, arm: str, *, hot: Optional[Sequence[Sequen
                 if hot is None:
                     raise ValueError("arm AT needs the calibration hot set")
                 chosen = hot[index]
-            mlp.experts = ExpertLoRA(mlp.experts, chosen, rank, alpha, generator)
+            mlp.experts = expert_cls(mlp.experts, chosen, rank, alpha, generator)
             targets.append(f"{prefix}.mlp.experts[{len(list(chosen))}/{experts}]")
     if arm == "AS" and not shared_seen:
         raise NotApplicableError("arm AS needs a shared expert; this model has none")
@@ -254,8 +273,9 @@ def adapter_parameters(model: nn.Module) -> List[nn.Parameter]:
 
 
 def set_adapters_enabled(model: nn.Module, enabled: bool) -> None:
+    classes = adapter_classes()
     for module in model.modules():
-        if isinstance(module, (LoRALinear, ExpertLoRA)):
+        if isinstance(module, classes):
             module.enabled = enabled
 
 
@@ -404,6 +424,8 @@ def load_model(model_key: str, device: str, dtype: torch.dtype):
 def route_counts(model: nn.Module, sequences: Sequence[Sequence[int]],
                  device: str) -> List[List[int]]:
     """Top-k assignments per expert per layer, one unpadded sequence at a time."""
+    import torch
+
     layers = decoder_layers(model)
     counts: List[Optional[torch.Tensor]] = [None] * len(layers)
     handles = []
@@ -425,6 +447,8 @@ def route_counts(model: nn.Module, sequences: Sequence[Sequence[int]],
 
 def _pad_batch(items: Sequence[Tuple[List[int], List[int]]], pad_id: int,
                device: str) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    import torch
+
     width = max(len(full) for _prompt, full in items)
     ids = torch.full((len(items), width), pad_id, dtype=torch.long)
     labels = torch.full((len(items), width), -100, dtype=torch.long)
@@ -438,6 +462,8 @@ def _pad_batch(items: Sequence[Tuple[List[int], List[int]]], pad_id: int,
 
 def nll_sum(model: nn.Module, items, pad_id: int, device: str) -> torch.Tensor:
     """Summed response-token NLL of ``items`` (right-padded, loss on response only)."""
+    from torch.nn import functional as fn
+
     ids, labels, mask = _pad_batch(items, pad_id, device)
     logits = model(input_ids=ids, attention_mask=mask, use_cache=False).logits
     return fn.cross_entropy(logits[:, :-1].float().reshape(-1, logits.size(-1)),
@@ -449,6 +475,8 @@ def targets_of(items) -> int:
 
 
 def evaluate_nll(model, items, pad_id, device, micro) -> Dict[str, float]:
+    import torch
+
     total, tokens = 0.0, targets_of(items)
     with torch.no_grad():
         for start in range(0, len(items), micro):
@@ -459,6 +487,8 @@ def evaluate_nll(model, items, pad_id, device, micro) -> Dict[str, float]:
 def generate(model, tokenizer, prompts: Sequence[List[int]], max_new_tokens: int,
              batch: int, device: str) -> List[str]:
     """Greedy, left-padded batches sorted by length; outputs in input order."""
+    import torch
+
     pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None \
         else tokenizer.eos_token_id
     order = sorted(range(len(prompts)), key=lambda i: len(prompts[i]))
@@ -529,6 +559,8 @@ def score_task(model, tokenizer, prompts, references, batch, device) -> Dict[str
 
 def train(model, items, *, lr: float, seed: int, micro: int, pad_id: int,
           device: str) -> Dict[str, Any]:
+    import torch
+
     params = adapter_parameters(model)
     optimizer = torch.optim.AdamW(params, lr=lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0)
     schedule = torch.optim.lr_scheduler.LambdaLR(
@@ -565,6 +597,7 @@ def train(model, items, *, lr: float, seed: int, micro: int, pad_id: int,
 # Records
 # =====================================================================
 def host_state() -> Dict[str, Any]:
+    import torch
     import transformers
 
     state: Dict[str, Any] = {
@@ -622,6 +655,8 @@ def write_json(path: str, payload: Dict[str, Any]) -> None:
 
 
 def profile(args: argparse.Namespace) -> Dict[str, Any]:
+    import torch
+
     split = json.loads(pathlib.Path(args.split).read_text(encoding="utf-8"))
     rows = load_rows(args.data)
     check_group_disjoint(rows, split)
@@ -634,7 +669,15 @@ def profile(args: argparse.Namespace) -> Dict[str, Any]:
             "host": host_state(), "harness_sha256": harness_sha256()}
 
 
+def final_status(record: Dict[str, Any]) -> str:
+    """Reject non-finite training losses or evaluation NLL, including base-only runs."""
+    finite = all(math.isfinite(entry["loss"]) for entry in record.get("train", {}).get("log", []))
+    return "ok" if finite and math.isfinite(record["eval"]["nll"]) else "void_nonfinite"
+
+
 def run(args: argparse.Namespace) -> Dict[str, Any]:
+    import torch
+
     started = time.time()
     split = json.loads(pathlib.Path(args.split).read_text(encoding="utf-8"))
     rows = load_rows(args.data)
@@ -693,8 +736,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     record["task"] = score_task(model, tokenizer, prompts, references, args.gen_batch,
                                 args.device)
     record["gate"] = score_gate(model, tokenizer, args.gen_batch, args.device)
-    finite = all(math.isfinite(entry["loss"]) for entry in record.get("train", {}).get("log", []))
-    record.update(status="ok" if finite else "void_nonfinite", seconds=time.time() - started)
+    record.update(status=final_status(record), seconds=time.time() - started)
     return record
 
 
@@ -724,6 +766,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         parser.error("--lr is required for a trained arm")
     if args.command == "run" and args.arm == "AT" and not args.hot:
         parser.error("--hot is required for arm AT")
+    if args.command == "run" and args.micro < 1:
+        parser.error("--micro must be at least 1")
+    if args.command == "run" and args.gen_batch < 1:
+        parser.error("--gen-batch must be at least 1")
     return args
 
 
