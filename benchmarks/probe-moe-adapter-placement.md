@@ -220,7 +220,8 @@ at USD 0.68/h) and are not results.
 
 ## 7. Cloud protocol
 
-As in [`probe-moe-expert-holdout.md`](probe-moe-expert-holdout.md): source bundle
+As in `probe-moe-expert-holdout.md` (the G8 holdout record, on the team branch
+`chore/moe-serving-merge-readiness`, not on this branch's base): source bundle
 from a committed revision with its SHA-256 checked on the box, an instance-side
 shutdown and a workstation deadline armed before setup, output copied and its hash
 verified before every delete, `brev ls` empty at the end. Spend cap for the whole
