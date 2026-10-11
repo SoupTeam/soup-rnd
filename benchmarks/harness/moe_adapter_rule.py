@@ -36,7 +36,8 @@ GRID = (1e-4, 2e-4, 4e-4)  # section 3: swept per arm on SWEEP_MODEL at seed 0
 EXTENSION = {1e-4: 5e-5, 4e-4: 8e-4}  # the one extra rate past a grid-edge winner
 SWEEP_MODEL = "olmoe"
 RATE_FROM = {"AS": "A"}  # section 6 addendum: Qwen3.5 AS reuses OLMoE A's rate
-# The quality gate's standing, printed with every verdict so none is read without it.
+# The quality gate's standing: tables.md prints it once at the top and summary.json carries
+# it, and every model's verdict prints its rate scope (SCOPE), so no verdict is read alone.
 GATE = {
     "thresholds": {"min_learned_nat": MIN_LEARNED_NAT, "material_nat": MATERIAL_NAT,
                    "sd_multiple": SD_MULTIPLE, "forgetting": FORGETTING_THRESHOLD},
@@ -159,12 +160,26 @@ def _ok(record: Dict[str, Any]) -> bool:
     return record.get("status") == "ok"
 
 
+def _eval_nll(record: Dict[str, Any]) -> float:
+    """The record's evaluation NLL; an ``ok`` record without a numeric one is refused."""
+    nll = record.get("eval", {}).get("nll")
+    if isinstance(nll, bool) or not isinstance(nll, (int, float)):
+        raise ValueError(f"{record.get('_path')}: status ok without a numeric eval.nll "
+                         f"({nll!r})")
+    return float(nll)
+
+
 def _nonfinite(record: Dict[str, Any]) -> bool:
     """A run whose training or evaluation produced a NaN or infinity (V2)."""
     if record.get("status") == "void_nonfinite":
         return True
+    losses = [entry.get("loss") for entry in record.get("train", {}).get("log", [])]
+    if any(isinstance(v, float) and not math.isfinite(v) for v in losses):
+        return True
     nll = record.get("eval", {}).get("nll")
-    return nll is not None and not math.isfinite(nll)
+    if _ok(record):
+        nll = _eval_nll(record)
+    return isinstance(nll, float) and not math.isfinite(nll)
 
 
 def _completeness(model: str, arms: Dict[str, List[Dict[str, Any]]],
@@ -193,8 +208,6 @@ def _completeness(model: str, arms: Dict[str, List[Dict[str, Any]]],
             arms_planned = tuple(a for a in arms_planned if a != "AE")
         elif ae_log is not None:
             out["reason"] = "AE log has no CUDA out-of-memory error"
-    elif "AE" in arms_planned and ae_log is not None and oom_evidence(ae_log):
-        out["reason"] = "an AE run completed, so an AE out-of-memory log does not drop AE"
     out["missing"] = [f"{arm} seed {seed}" for arm in arms_planned for seed in seeds
                       if (arm, seed) not in have]
     return out
@@ -251,12 +264,16 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
             result["reason"] = f"expected one base record, found {len(base)}"
             out[model] = result
             continue
-        base_nll = base[0]["eval"]["nll"]
+        base_nll = _eval_nll(base[0])
         base_gate = base[0]["gate"]["scores"]
-        fullest = next((arm for arm in FULLEST_ORDER if arm in arms), None)
+        planned = plan[model]["arms"] if model in plan else ()
+        if "AE" in planned and not complete.get("ae_did_not_fit"):
+            fullest: Optional[str] = "AE"
+        else:
+            fullest = next((arm for arm in FULLEST_ORDER if arm in arms), None)
         validity = {
-            "V1": fullest is not None and all(
-                base_nll - r["eval"]["nll"] >= MIN_LEARNED_NAT - TOLERANCE
+            "V1": fullest in arms and all(
+                base_nll - _eval_nll(r) >= MIN_LEARNED_NAT - TOLERANCE
                 for r in arms[fullest]),
             "V2": not any(_nonfinite(r) for r in [*mine, *others]),
             "V3": not any((edge_lrs or {}).values()),
@@ -266,22 +283,18 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
         result.update(fullest=fullest, validity=validity, base_nll=base_nll,
                       base_gate=base_gate, base_source=base[0].get("_path"),
                       base_accuracy=base[0]["task"]["accuracy"])
-        if not all(validity.values()):
+        if complete["reason"]:
+            result["reason"] = complete["reason"]
+        if not all(validity.values()) or missing or complete["reason"]:
             result["verdict"] = "NO VERDICT"
-            out[model] = result
-            continue
-        if missing or complete["reason"]:
-            result["verdict"] = "NO VERDICT"
-            if complete["reason"]:
-                result["reason"] = complete["reason"]
             out[model] = result
             continue
         full_by_seed = {r["seed"]: r for r in arms[fullest]}
-        full_nll = [r["eval"]["nll"] for r in arms[fullest]]
+        full_nll = [_eval_nll(r) for r in arms[fullest]]
         rows = {}
         for arm, runs in sorted(arms.items()):
             runs = sorted(runs, key=lambda r: r["seed"])
-            nll = [r["eval"]["nll"] for r in runs]
+            nll = [_eval_nll(r) for r in runs]
             gap = material_gap(nll, full_nll)
             failures = leg2_failures(base_gate, [r["gate"]["scores"] for r in runs])
             if failures:
@@ -326,7 +339,8 @@ def lr_sweep(records: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
 
     ``status`` is ``ok`` (the winner is inside the extended grid), ``edge`` (the
     extension won, V3 fails), ``needs_extension`` (a grid-edge rate won and its
-    extension has not run) or ``incomplete`` (a grid rate has no ok seed-0 run).
+    extension has not run), ``incomplete`` (a grid rate has no ok seed-0 run) or
+    ``nonfinite`` (a rate's NLL is NaN or infinite: no winner, V2 fails on that run).
     """
     seed0 = [r for r in records if r["model"] == SWEEP_MODEL and r["arm"] != "base"
              and r.get("seed") == 0 and _ok(r)]
@@ -338,12 +352,15 @@ def lr_sweep(records: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
                 continue
             if r["lr"] in nll:
                 raise ValueError(f"two ok seed-0 {SWEEP_MODEL} {arm} runs at lr {r['lr']:g}")
-            nll[r["lr"]] = r["eval"]["nll"]
+            nll[r["lr"]] = _eval_nll(r)
         row: Dict[str, Any] = {"nll": {f"{lr:g}": v for lr, v in sorted(nll.items())},
                                "winner": None}
         out[arm] = row
         if any(lr not in nll for lr in GRID):
             row["status"] = "incomplete"
+            continue
+        if not all(math.isfinite(v) for v in nll.values()):
+            row["status"] = "nonfinite"
             continue
         winner = min(GRID, key=nll.__getitem__)
         extension = EXTENSION.get(winner)

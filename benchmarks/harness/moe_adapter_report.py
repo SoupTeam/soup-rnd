@@ -1,13 +1,16 @@
-"""Tables and the quality-vs-cost curve for probe-moe-adapter-placement.md.
+"""Tables and the quality-against-cost curves for probe-moe-adapter-placement.md.
 
 Usage: moe_adapter_report.py <runs-dir> <out-dir> --harness-sha256 H --split-sha256 S
        --hot MODEL=SHA256 [--hot ...]
 Reads every run-*.json (counted candidates) and check-*.json (cross-box base checks)
-under <runs-dir>, laid out as <box>/<results-dir>/<name>.json. Writes summary.json
-(moe_adapter_rule.analyse plus per-item leg-2 flips), tables.md and one SVG per
-model plotting evaluation NLL and mean leg-2 suite score against trainable
-parameters. The flips re-score the recorded gate outputs with Soup's own scorer
-from this checkout's src/, which must be at the records' scorer revision.
+under <runs-dir>, laid out as <box>/<results-dir>/<name>.json. Writes, with LF line
+ends on every OS, summary.json (moe_adapter_rule.analyse plus per-item leg-2 flips),
+tables.md (the gate's status and scope at the top, each model's rate scope with its
+verdict) and one SVG per model: 2 x 2 panels, the NLL gap to the fullest arm (seed-
+matched mean +- 1 SD) and task accuracy (mean over seeds, 95% CI with questions
+resampled) against trainable parameters (log scale) and peak CUDA memory. The flips
+re-score the recorded gate outputs with Soup's own scorer from this checkout's src/,
+which must be at the records' scorer revision.
 """
 
 from __future__ import annotations
@@ -480,12 +483,14 @@ def main(argv=None) -> int:
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "summary.json").write_text(json.dumps({"analysis": analysis, "leg2": detail},
-                                                 indent=1), encoding="utf-8", newline="\n")
-    (out / "tables.md").write_text(tables(analysis, detail), encoding="utf-8", newline="\n")
+                                                 indent=1) + "\n", encoding="utf-8",
+                                      newline="\n")
+    (out / "tables.md").write_text(tables(analysis, detail) + "\n", encoding="utf-8",
+                                   newline="\n")
     for model, result in analysis["models"].items():
         if result.get("arms"):
-            (out / f"curve-{model}.svg").write_text(svg(model, result), encoding="utf-8",
-                                                    newline="\n")
+            (out / f"curve-{model}.svg").write_text(svg(model, result) + "\n",
+                                                    encoding="utf-8", newline="\n")
     return 0
 
 

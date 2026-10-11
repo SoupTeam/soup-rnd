@@ -35,7 +35,8 @@ def _run(arm, seed, nll, gate=None, status="ok", model="m"):
               "eval": {"nll": nll}, "gate": {"scores": dict(gate or {s: 0.5 for s in SUITES})},
               "task": {"accuracy": 0.5, "correct": [True, False]},
               "trainable_parameters": 10, "adapter_bytes_adamw_fp32": 160,
-              "peak_cuda_bytes": 1, "train": {"log": [{"seconds": 1.0}, {"seconds": 2.0}]}}
+              "peak_cuda_bytes": 1,
+              "train": {"log": [{"seconds": 1.0, "loss": 2.0}, {"seconds": 2.0, "loss": 1.0}]}}
     if arm != "base":
         record["v4"] = {"passed": True}
     return record
@@ -108,6 +109,32 @@ def test_a_non_finite_eval_nll_on_an_ok_record_fails_v2(rule, bad):
     assert summary["validity"]["V2"] is False and summary["verdict"] == "NO VERDICT"
 
 
+@pytest.mark.parametrize("bad", [None, "0.8", "missing"])
+def test_an_ok_record_without_a_numeric_eval_nll_is_refused_with_its_path(rule, bad):
+    records = _records(a_nll=(0.8, 0.8, 0.8))
+    record = next(r for r in records if r["arm"] == "A" and r["seed"] == 1)
+    record["_path"] = "box/r/run-A-s1.json"
+    if bad == "missing":
+        del record["eval"]["nll"]
+    else:
+        record["eval"]["nll"] = bad
+    with pytest.raises(ValueError, match="box/r/run-A-s1.json"):
+        rule.summarise(records, plan=M_PLAN)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_a_non_finite_training_loss_on_an_ok_record_fails_v2(rule, bad):
+    records = _records(a_nll=(0.8, 0.8, 0.8))
+    next(r for r in records if r["arm"] == "A" and r["seed"] == 2)["train"]["log"][1]["loss"] = bad
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
+    assert summary["validity"]["V2"] is False and summary["verdict"] == "NO VERDICT"
+
+
+def test_a_non_finite_sweep_nll_never_wins_the_rate(rule):
+    sweep = rule.lr_sweep(_sweep(rule, a=(0.70, 0.60, 0.65), ae=(0.50, float("nan"), 0.45)))
+    assert sweep["AE"]["winner"] is None and sweep["AE"]["status"] == "nonfinite"
+    assert sweep["A"]["winner"] == 2e-4
+
 def test_a_non_finite_eval_nll_on_an_uncounted_sweep_run_fails_v2(rule):
     records = _sweep(rule, a=(0.70, 0.60, 0.65))
     records.append(_lr_run("AE", 8e-4, float("nan")))
@@ -148,7 +175,21 @@ def test_summarise_keeps_ae_when_an_ae_run_fit_at_another_rate(rule):
     summary = rule.summarise(records, plan=plan, ae_oom_logs={"m": OOM_LOG},
                              uncounted=[_run("AE", 0, 0.9)])["m"]
     assert "ae_did_not_fit" not in summary and summary["verdict"] == "NO VERDICT"
-    assert summary["missing"] == ["AE seed 0", "AE seed 1"] and "completed" in summary["reason"]
+    assert summary["missing"] == ["AE seed 0", "AE seed 1"] and "reason" not in summary
+
+
+def test_an_oom_log_is_ignored_once_every_planned_ae_run_completed(rule):
+    summary = rule.summarise(_records(a_nll=(0.81, 0.82, 0.80)), plan=M_PLAN,
+                             ae_oom_logs={"m": OOM_LOG})["m"]
+    assert summary["verdict"] == "MEASURED" and summary["fullest"] == "AE"
+    assert "reason" not in summary and "ae_did_not_fit" not in summary
+
+
+def test_fullest_stays_ae_while_ae_is_planned_and_not_excluded(rule):
+    records = [r for r in _records(a_nll=(0.81, 0.82, 0.80)) if r["arm"] != "AE"]
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
+    assert summary["fullest"] == "AE" and summary["verdict"] == "NO VERDICT"
+    assert summary["validity"]["V1"] is False and "arms" not in summary
 
 
 def test_a_planned_model_without_any_record_is_listed_with_its_missing_runs(rule):
@@ -200,7 +241,7 @@ def test_two_ok_runs_for_one_planned_run_are_refused(rule):
     ("ae_seeds", "ae_log", "missing", "reason"),
     [((), None, ["AE seed 0", "AE seed 1", "AE seed 2"], None),
      ((), ALLOCATOR_RETRY_LOG, ["AE seed 0", "AE seed 1", "AE seed 2"], "no CUDA out-of-memory"),
-     ((0,), OOM_LOG, ["AE seed 1", "AE seed 2"], "completed")],
+     ((0,), OOM_LOG, ["AE seed 1", "AE seed 2"], None)],
     ids=["no-flag", "allocator-retry-is-not-an-oom", "ae-fit-on-another-seed"])
 def test_ae_leaves_the_fullest_arm_only_on_proof_that_it_did_not_fit(rule, ae_seeds, ae_log,
                                                                      missing, reason):
@@ -247,6 +288,8 @@ def test_paired_accuracy_pairs_each_seed_with_the_same_seed_of_the_fullest_arm(r
             record["task"]["correct"] = [True, False, True, True]
         elif record["arm"] != "base":
             record["task"]["correct"] = [True, False, True, False]
+    ae = {r["seed"]: r for r in records if r["arm"] == "AE"}
+    records = [r for r in records if r["arm"] != "AE"] + [ae[1], ae[0], ae[2]]
     rows = rule.summarise(records, plan=M_PLAN)["m"]["arms"]
     assert rows["AE"]["paired_vs_fullest"] is None
     assert [(p["seed"], p["x_only"], p["f_only"]) for p in rows["A"]["paired_vs_fullest"]] == \
@@ -340,20 +383,73 @@ def test_report_says_leg2_does_not_discriminate_only_when_every_arm_fails_it(rep
     assert a_row.endswith("**REGRESSES** |" if phrase else "**ACCEPTABLE** |")
 
 
-def test_every_verdict_is_printed_with_the_gate_status_and_the_model_scope(report):
-    records = _records(a_nll=(0.81, 0.82, 0.80))
+def _report_inputs(report, records):
+    for record in records:
+        record["_path"] = f"box/r/{record['arm']}-{record['seed']}.json"
+    no_flips = {suite: [0, 0] for suite in SUITES}
+    detail = {"olmoe": {"base_box": "box", "checks": {},
+                        "arms": {arm: [no_flips] for arm in ("A", "AE")}},
+              "qwen35": {"base_box": "box", "checks": {},
+                         "arms": {arm: [no_flips] * 2 for arm in ("A", "AE")}}}
+    return detail
+
+
+def test_tables_print_the_gate_status_once_and_each_model_its_rate_scope(report, rule):
+    records = _sweep(rule, a=(0.70, 0.60, 0.65)) + [_run("base", None, 1.2, model="qwen35")]
+    records += [_lr_run(arm, lr, 0.9, seed=s, model="qwen35")
+                for arm, lr in (("A", 2e-4), ("AE", 2e-4)) for s in (0, 1)]
+    plan = {**SWEEP_PLAN, "qwen35": {"arms": ("A", "AE"), "seeds": (0, 1)}}
+    detail = _report_inputs(report, records)
+    analysis = report.rule.analyse(records, plan=plan)
+    text = report.tables(analysis, detail)
+    head, models = text.split("### Learning-rate sweep", 1)
+    for phrase in ("before the first run", "after the results", "this recipe only"):
+        assert phrase in head
+    olmoe, qwen = models.split("### olmoe:", 1)[1].split("### qwen35:", 1)
+    assert "swept on this model" in olmoe.split("| Arm |", 1)[0]
+    assert "transferred from OLMoE" in qwen.split("| Arm |", 1)[0]
+
+
+def test_tables_list_a_seed_outside_the_plan_as_not_counted(report):
+    records = _records(a_nll=(0.81, 0.82, 0.80)) + [_run("A", 7, 0.50)]
     for record in records:
         record["_path"] = f"box/r/{record['arm']}-{record['seed']}.json"
     models = report.rule.summarise(records, plan=M_PLAN)
-    models["m"]["scope"] = "learning rates transferred from OLMoE, not swept on this model"
     no_flips = {suite: [0, 0] for suite in SUITES}
     detail = {"m": {"base_box": "box", "checks": {},
                     "arms": {arm: [no_flips] * 3 for arm in ("A", "AE")}}}
-    text = report.tables({"gate": report.rule.GATE, "sweep": {}, "models": models,
-                          "rejected": [], "not_counted": []}, detail)
-    head, model_part = text.split("### m:", 1)
-    assert report.rule.GATE["status"] in head and report.rule.GATE["scope"] in head
-    assert "transferred from OLMoE" in model_part.split("| Arm |", 1)[0]
+    text = report.tables({"sweep": {}, "models": models, "rejected": [], "not_counted": []},
+                         detail)
+    assert "Seeds outside the plan, not counted: `A` seed 7" in text
+
+
+def test_svg_gap_bars_span_one_sd_of_the_seed_matched_gap(report):
+    full = {"nll": [0.80, 0.90, 0.85], "accuracy": [0.5] * 3, "accuracy_ci95": [0.4, 0.6]}
+    row = {"nll": [0.83, 0.92, 0.88]}  # gaps 0.03, 0.02, 0.03: mean 0.02667, SD 0.00577
+    low, mid, high = report._gap_band(row, full)
+    assert mid == pytest.approx(0.08 / 3)
+    assert high - mid == pytest.approx(mid - low) == pytest.approx(0.0057735, rel=1e-4)
+
+
+def test_report_outputs_use_lf_and_end_with_a_newline(report, tmp_path, monkeypatch):
+    records = _records(a_nll=(0.81, 0.82, 0.80))
+    for record in records:
+        record["_path"] = f"box/r/{record['arm']}-{record['seed']}.json"
+    analysis = {"gate": report.rule.GATE, "sweep": {}, "rejected": [], "not_counted": [],
+                "models": report.rule.summarise(records, plan=M_PLAN)}
+    analysis["models"]["m"]["arms"]["A"]["accuracy_ci95"] = [0.4, 0.6]
+    no_flips = {suite: [0, 0] for suite in SUITES}
+    detail = {"m": {"base_box": "box", "checks": {},
+                    "arms": {arm: [no_flips] * 3 for arm in ("A", "AE")}}}
+    monkeypatch.setattr(report.rule, "load_runs", lambda *_a, **_k: records)
+    monkeypatch.setattr(report.rule, "analyse", lambda *_a, **_k: analysis)
+    monkeypatch.setattr(report, "leg2_detail", lambda *_a: detail)
+    out = tmp_path / "out"
+    report.main(["runs", str(out), "--harness-sha256", "h", "--split-sha256", "s",
+                 "--hot", "m=x"])
+    for name in ("summary.json", "tables.md", "curve-m.svg"):
+        data = (out / name).read_bytes()
+        assert b"\r" not in data and data.endswith(b"\n"), name
 
 
 def test_a_run_that_failed_the_zero_adapter_check_fails_v4(rule):
