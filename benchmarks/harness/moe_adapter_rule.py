@@ -153,6 +153,8 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
         complete = _completeness(model, arms, plan, (ae_oom_logs or {}).get(model))
         if complete.get("ae_did_not_fit"):
             result["ae_did_not_fit"] = complete["ae_did_not_fit"]
+        if complete["missing"]:
+            result["missing"] = complete["missing"]
         if len(base) != 1:
             result["verdict"] = "NO VERDICT"
             result["reason"] = f"expected one base record, found {len(base)}"
@@ -178,7 +180,6 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
             continue
         if complete["missing"] or complete["reason"]:
             result["verdict"] = "NO VERDICT"
-            result["missing"] = complete["missing"]
             if complete["reason"]:
                 result["reason"] = complete["reason"]
             out[model] = result

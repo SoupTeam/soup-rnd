@@ -113,6 +113,13 @@ def test_a_missing_seed_withholds_the_verdict_and_names_the_run(rule):
     assert summary["missing"] == ["A seed 2"]
 
 
+def test_missing_runs_are_listed_even_when_no_planned_arm_has_a_run(rule):
+    summary = rule.summarise([_run("base", None, 1.0)], plan=M_PLAN)["m"]
+    assert summary["verdict"] == "NO VERDICT" and "arms" not in summary
+    assert summary["missing"] == ["A seed 0", "A seed 1", "A seed 2",
+                                  "AE seed 0", "AE seed 1", "AE seed 2"]
+
+
 def test_two_ok_runs_for_one_planned_run_are_refused(rule):
     records = _records(a_nll=(0.81, 0.82, 0.80)) + [_run("A", 1, 0.70)]
     with pytest.raises(ValueError, match="A seed 1"):
