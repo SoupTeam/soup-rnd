@@ -8,6 +8,16 @@ import pytest
 
 RULE = Path(__file__).parents[1] / "benchmarks" / "harness" / "moe_adapter_rule.py"
 SUITES = ("mini_mmlu", "mini_safety")
+M_PLAN = {"m": {"arms": ("A", "AE"), "seeds": (0, 1, 2)}}
+OOM_LOG = ("Traceback (most recent call last):\n"
+           "  File \"moe_adapter_placement.py\", line 685, in run\n"
+           "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB. GPU 0 has a "
+           "total capacity of 94.97 GiB of which 1.10 GiB is free.\n")
+# Logged once by the Qwen3.5 A pilot, which then finished: a retry, not a failure.
+ALLOCATOR_RETRY_LOG = ("[W1011 03:30:00.968135379 CUDACachingAllocator.cpp:3934] memory "
+                       "allocation failed with OOM on device 0 while trying to allocate "
+                       "2032140288 bytes (free: 945553408, total: 101973950464).\n"
+                       "run: wrote out.json status=ok\n")
 
 
 @pytest.fixture(scope="module")
@@ -39,68 +49,137 @@ def _records(a_nll, ae_nll=(0.80, 0.81, 0.79), a_gate=None):
 
 
 def test_small_gap_is_acceptable(rule):
-    arms = rule.summarise(_records(a_nll=(0.81, 0.82, 0.80)))["m"]["arms"]
+    arms = rule.summarise(_records(a_nll=(0.81, 0.82, 0.80)), plan=M_PLAN)["m"]["arms"]
     assert arms["A"]["verdict"] == "ACCEPTABLE"
     assert arms["AE"]["verdict"] == "ACCEPTABLE"
 
 
 def test_gap_above_floor_and_noise_costs_quality(rule):
-    assert rule.summarise(_records(a_nll=(0.85, 0.86, 0.85)))["m"]["arms"]["A"]["verdict"] == \
-        "COSTS QUALITY"
+    summary = rule.summarise(_records(a_nll=(0.85, 0.86, 0.85)), plan=M_PLAN)
+    assert summary["m"]["arms"]["A"]["verdict"] == "COSTS QUALITY"
 
 
 def test_gap_inside_seed_noise_is_not_material(rule):
-    noisy = rule.summarise(_records(a_nll=(0.80, 0.90, 0.85), ae_nll=(0.75, 0.85, 0.80)))
+    noisy = rule.summarise(_records(a_nll=(0.80, 0.90, 0.85), ae_nll=(0.75, 0.85, 0.80)),
+                           plan=M_PLAN)
     assert noisy["m"]["arms"]["A"]["verdict"] == "ACCEPTABLE"
 
 
 def test_any_seed_forgetting_past_threshold_regresses(rule):
     gate = {"mini_mmlu": 0.44, "mini_safety": 0.5}  # 0.06 below the base on one suite
-    summary = rule.summarise(_records(a_nll=(0.80, 0.80, 0.80), a_gate=gate))["m"]["arms"]["A"]
+    summary = rule.summarise(_records(a_nll=(0.80, 0.80, 0.80), a_gate=gate),
+                             plan=M_PLAN)["m"]["arms"]["A"]
     assert summary["verdict"] == "REGRESSES"
     assert summary["leg2_failed"] == ["mini_mmlu"]
 
 
 def test_drop_exactly_at_threshold_still_passes(rule):
     gate = {"mini_mmlu": 0.45, "mini_safety": 0.5}
-    summary = rule.summarise(_records(a_nll=(0.80, 0.80, 0.80), a_gate=gate))["m"]["arms"]["A"]
+    summary = rule.summarise(_records(a_nll=(0.80, 0.80, 0.80), a_gate=gate),
+                             plan=M_PLAN)["m"]["arms"]["A"]
     assert summary["verdict"] == "ACCEPTABLE"
 
 
 def test_fullest_arm_that_learned_nothing_voids_the_model(rule):
-    summary = rule.summarise(_records(a_nll=(0.99,), ae_nll=(0.97, 0.96)))["m"]
+    summary = rule.summarise(_records(a_nll=(0.99, 0.99, 0.99), ae_nll=(0.97, 0.96, 0.98)),
+                             plan=M_PLAN)["m"]
     assert summary["validity"]["V1"] is False
     assert summary["verdict"] == "NO VERDICT"
 
 
 def test_edge_learning_rate_voids_the_model(rule):
-    summary = rule.summarise(_records(a_nll=(0.8,)), edge_lrs={"A": True})["m"]
+    summary = rule.summarise(_records(a_nll=(0.8, 0.8, 0.8)), plan=M_PLAN,
+                             edge_lrs={"A": True})["m"]
     assert summary["validity"]["V3"] is False and summary["verdict"] == "NO VERDICT"
 
 
 def test_non_finite_run_voids_the_model(rule):
-    records = _records(a_nll=(0.8,)) + [_run("A", 9, float("nan"), status="void_nonfinite")]
-    assert rule.summarise(records)["m"]["verdict"] == "NO VERDICT"
+    records = _records(a_nll=(0.8, 0.8, 0.8)) + [
+        _run("A", 9, float("nan"), status="void_nonfinite")]
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
+    assert summary["validity"]["V2"] is False and summary["verdict"] == "NO VERDICT"
 
 
 def test_not_applicable_arm_is_listed_not_scored(rule):
-    records = _records(a_nll=(0.8,)) + [_run("AS", 0, 0.0, status="not_applicable")]
-    summary = rule.summarise(records)["m"]
+    records = _records(a_nll=(0.8, 0.8, 0.8)) + [_run("AS", 0, 0.0, status="not_applicable")]
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
     assert summary["not_applicable"] == ["AS"] and "AS" not in summary["arms"]
 
 
-def test_fullest_arm_falls_back_when_all_experts_did_not_fit(rule):
-    records = [_run("base", None, 1.0)] + [_run("AT", s, 0.8) for s in range(2)] + \
-        [_run("A", s, 0.9) for s in range(2)]
-    summary = rule.summarise(records)["m"]
-    assert summary["fullest"] == "AT"
+def test_a_missing_seed_withholds_the_verdict_and_names_the_run(rule):
+    records = [r for r in _records(a_nll=(0.81, 0.82, 0.80)) if (r["arm"], r["seed"]) != ("A", 2)]
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
+    assert summary["verdict"] == "NO VERDICT" and "arms" not in summary
+    assert summary["missing"] == ["A seed 2"]
+
+
+def test_two_ok_runs_for_one_planned_run_are_refused(rule):
+    records = _records(a_nll=(0.81, 0.82, 0.80)) + [_run("A", 1, 0.70)]
+    with pytest.raises(ValueError, match="A seed 1"):
+        rule.summarise(records, plan=M_PLAN)
+
+
+@pytest.mark.parametrize(
+    ("ae_seeds", "ae_log", "missing", "reason"),
+    [((), None, ["AE seed 0", "AE seed 1", "AE seed 2"], None),
+     ((), ALLOCATOR_RETRY_LOG, ["AE seed 0", "AE seed 1", "AE seed 2"], "no CUDA out-of-memory"),
+     ((0,), OOM_LOG, ["AE seed 1", "AE seed 2"], "completed")],
+    ids=["no-flag", "allocator-retry-is-not-an-oom", "ae-fit-on-another-seed"])
+def test_ae_leaves_the_fullest_arm_only_on_proof_that_it_did_not_fit(rule, ae_seeds, ae_log,
+                                                                     missing, reason):
+    records = [r for r in _records(a_nll=(0.81, 0.82, 0.80))
+               if r["arm"] != "AE" or r["seed"] in ae_seeds]
+    logs = None if ae_log is None else {"m": ae_log}
+    summary = rule.summarise(records, plan=M_PLAN, ae_oom_logs=logs)["m"]
+    assert summary["verdict"] == "NO VERDICT" and "arms" not in summary
+    assert summary["missing"] == missing
+    if reason is None:
+        assert "reason" not in summary
+    else:
+        assert reason in summary["reason"]
+
+
+def test_ae_with_oom_proof_hands_the_fullest_arm_to_at_with_the_evidence(rule):
+    plan = {"m": {"arms": ("A", "AT", "AE"), "seeds": (0, 1)}}
+    records = [_run("base", None, 1.0)] + [_run("AT", s, 0.8) for s in (0, 1)] + \
+        [_run("A", s, 0.9) for s in (0, 1)]
+    summary = rule.summarise(records, plan=plan, ae_oom_logs={"m": OOM_LOG})["m"]
+    assert summary["verdict"] == "MEASURED" and summary["fullest"] == "AT"
+    assert summary["ae_did_not_fit"].startswith("torch.OutOfMemoryError: CUDA out of memory.")
     assert summary["arms"]["A"]["verdict"] == "COSTS QUALITY"
+
+
+def test_a_model_without_a_committed_plan_gets_no_verdict(rule):
+    summary = rule.summarise(_records(a_nll=(0.81, 0.82, 0.80)), plan={})["m"]
+    assert summary["verdict"] == "NO VERDICT" and "arms" not in summary
+
+
+@pytest.mark.parametrize(("x_only", "f_only", "p"),
+                         [(0, 6, 0.03125), (6, 0, 0.03125), (1, 9, 0.021484375), (3, 3, 1.0),
+                          (0, 0, 1.0)])
+def test_exact_mcnemar_p_value(rule, x_only, f_only, p):
+    assert rule.mcnemar_exact(x_only, f_only) == pytest.approx(p)
+
+
+def test_paired_accuracy_pairs_each_seed_with_the_same_seed_of_the_fullest_arm(rule):
+    records = _records(a_nll=(0.81, 0.82, 0.80))
+    for record in records:
+        if record["arm"] == "A" and record["seed"] == 1:
+            record["task"]["correct"] = [True, True, False, False]
+        elif record["arm"] == "AE" and record["seed"] == 1:
+            record["task"]["correct"] = [True, False, True, True]
+        elif record["arm"] != "base":
+            record["task"]["correct"] = [True, False, True, False]
+    rows = rule.summarise(records, plan=M_PLAN)["m"]["arms"]
+    assert rows["AE"]["paired_vs_fullest"] is None
+    assert [(p["seed"], p["x_only"], p["f_only"]) for p in rows["A"]["paired_vs_fullest"]] == \
+        [(0, 0, 0), (1, 1, 2), (2, 0, 0)]
 
 
 def test_a_run_that_failed_the_zero_adapter_check_fails_v4(rule):
     void = _run("A", 3, 0.8, status="void_v4")
     void["v4"] = {"passed": False}
-    summary = rule.summarise(_records(a_nll=(0.80, 0.81, 0.79)) + [void])["m"]
+    summary = rule.summarise(_records(a_nll=(0.80, 0.81, 0.79)) + [void], plan=M_PLAN)["m"]
     assert summary["validity"]["V4"] is False and summary["verdict"] == "NO VERDICT"
 
 
@@ -111,7 +190,7 @@ def test_per_seed_columns_follow_seed_order(rule):
             run = _run(arm, seed, (0.80, 0.81, 0.82)[seed])
             run["task"]["accuracy"] = accuracy
             runs.append(run)
-    row = rule.summarise(runs)["m"]["arms"]["A"]
+    row = rule.summarise(runs, plan=M_PLAN)["m"]["arms"]["A"]
     assert row["seeds"] == [0, 1, 2]
     assert row["accuracy"] == [0.0, 0.1, 0.2] and row["nll"] == [0.80, 0.81, 0.82]
 
@@ -129,13 +208,16 @@ def _sweep(rule, a, ae=(0.50, 0.40, 0.45)):
         for lr, v in zip(rule.GRID, values)]
 
 
+SWEEP_PLAN = {"olmoe": {"arms": ("A", "AE"), "seeds": (0,)}}
+
+
 def test_sweep_winner_is_the_lowest_nll_inside_the_grid(rule):
     sweep = rule.lr_sweep(_sweep(rule, a=(0.70, 0.60, 0.65)))
     assert sweep["A"]["winner"] == 2e-4 and sweep["A"]["status"] == "ok"
 
 
 def test_grid_edge_winner_withholds_the_verdict_until_its_extension_runs(rule):
-    analysis = rule.analyse(_sweep(rule, a=(0.60, 0.65, 0.70)))
+    analysis = rule.analyse(_sweep(rule, a=(0.60, 0.65, 0.70)), plan=SWEEP_PLAN)
     assert analysis["sweep"]["A"]["status"] == "needs_extension"
     assert analysis["sweep"]["A"]["extension"] == 5e-5
     olmoe = analysis["models"]["olmoe"]
@@ -148,7 +230,7 @@ def test_grid_edge_winner_withholds_the_verdict_until_its_extension_runs(rule):
 def test_extension_decides_between_the_grid_edge_winner_and_v3(rule, extension_nll, status,
                                                                winner):
     records = _sweep(rule, a=(0.60, 0.65, 0.70)) + [_lr_run("A", 5e-5, extension_nll)]
-    analysis = rule.analyse(records)
+    analysis = rule.analyse(records, plan=SWEEP_PLAN)
     assert (analysis["sweep"]["A"]["status"], analysis["sweep"]["A"]["winner"]) == \
         (status, winner)
     olmoe = analysis["models"]["olmoe"]
@@ -161,12 +243,21 @@ def test_only_winning_rate_runs_count_and_qwen_as_trains_at_the_a_rate(rule):
     records += [_lr_run(arm, lr, 0.9, seed=s, model="qwen35")
                 for arm, lr in (("A", 2e-4), ("AS", 2e-4), ("AS", 4e-4), ("AE", 2e-4))
                 for s in (0, 1)]
-    analysis = rule.analyse(records)
+    plan = {**SWEEP_PLAN, "qwen35": {"arms": ("A", "AS", "AE"), "seeds": (0, 1)}}
+    analysis = rule.analyse(records, plan=plan)
     qwen = analysis["models"]["qwen35"]
     assert qwen["verdict"] == "MEASURED" and qwen["arms"]["AS"]["seeds"] == [0, 1]
     skipped = {(r["model"], r["arm"], r["lr"]) for r in analysis["not_counted"]}
     assert skipped == {("olmoe", "A", 1e-4), ("olmoe", "A", 4e-4), ("olmoe", "AE", 1e-4),
                        ("olmoe", "AE", 4e-4), ("qwen35", "AS", 4e-4)}
+
+
+def test_the_committed_plan_withholds_a_qwen_verdict_until_every_arm_and_seed_ran(rule):
+    records = _sweep(rule, a=(0.70, 0.60, 0.65)) + [_run("base", None, 1.2, model="qwen35")]
+    records += [_lr_run(arm, 2e-4, 0.9, seed=s, model="qwen35")
+                for arm in ("A", "AS", "AE") for s in (0, 1)]
+    qwen = rule.analyse(records)["models"]["qwen35"]
+    assert qwen["verdict"] == "NO VERDICT" and qwen["missing"] == ["AT seed 0", "AT seed 1"]
 
 
 def test_records_from_another_split_or_hot_set_are_rejected_before_the_sweep(rule):

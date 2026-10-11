@@ -149,6 +149,11 @@ def tables(analysis: dict, detail: dict) -> str:
         if result.get("unsettled_rates"):
             lines.append("Rate not settled for: "
                          + ", ".join(f"`{a}`" for a in result["unsettled_rates"]))
+        if result.get("missing"):
+            lines.append("Planned runs without an ok record: "
+                         + ", ".join(f"`{m}`" for m in result["missing"]))
+        if result.get("ae_did_not_fit"):
+            lines.append(f"`AE` did not fit; evidence: `{result['ae_did_not_fit']}`")
         if "validity" in result:
             lines.append("Validity: " + ", ".join(f"{k} {'pass' if v else 'FAIL'}"
                                                   for k, v in result["validity"].items()))
@@ -176,24 +181,38 @@ def tables(analysis: dict, detail: dict) -> str:
         if not arms:
             continue
         lines.append("| Arm | Seeds | Eval NLL mean ± SD | Gap vs fullest | Material "
-                     "| Leg 2 failed | Accuracy (per seed) | Pooled 95% CI | Trainable "
+                     "| Leg 2 failed | Accuracy (per seed) | Pooled 95% CI "
+                     "| Paired vs fullest: X-only/F-only, McNemar p (per seed) | Trainable "
                      "| AdamW fp32 state | Peak CUDA | s/step | Verdict |")
-        lines.append("|---|---|---|---:|---|---|---|---|---:|---:|---:|---:|---|")
+        lines.append("|---|---|---|---:|---|---|---|---|---|---:|---:|---:|---:|---|")
         for arm in ARM_ORDER:
             if arm not in arms:
                 continue
             row = arms[arm]
             gap = row["task_gap"]
+            paired = "-" if row["paired_vs_fullest"] is None else ", ".join(
+                f"{p['x_only']}/{p['f_only']} p={p['p']:.3g}" for p in row["paired_vs_fullest"])
             lines.append(
                 f"| `{arm}` | {row['seeds']} | {row['nll_mean']:.4f} ± {row['nll_sd']:.4f} "
                 f"| {gap['gap']:+.4f} | {'yes' if gap['material'] else 'no'} "
                 f"| {', '.join(row['leg2_failed']) or '-'} "
                 f"| {', '.join(f'{a:.3f}' for a in row['accuracy'])} "
                 f"| [{row['accuracy_pooled_ci95'][0]:.3f}, {row['accuracy_pooled_ci95'][1]:.3f}] "
+                f"| {paired} "
                 f"| {row['trainable_parameters'] / 1e6:.1f}M "
                 f"| {_fmt_bytes(row['adapter_bytes_adamw_fp32'])} "
                 f"| {_fmt_bytes(row['peak_cuda_bytes'])} | {row['seconds_per_step']:.2f} "
                 f"| **{row['verdict']}** |")
+        lines.append("")
+        fullest = arms[result["fullest"]]
+        if fullest["leg2_failed"]:
+            moved = [sum(m[s][0] + m[s][1] for m in entry["arms"][result["fullest"]])
+                     for s in fullest["leg2_failed"]]
+            lines.append(
+                f"Leg 2 does not discriminate placements on this model: the fullest arm "
+                f"`{result['fullest']}` also fails it on "
+                + ", ".join(f"{s} ({n} items changed over its seeds)"
+                            for s, n in zip(fullest["leg2_failed"], moved)) + ".")
         lines.append("")
         lines.append("Leg-2 suite score per seed, with items gained/lost against the base:")
         lines.append("")
@@ -302,11 +321,16 @@ def main(argv=None) -> int:
     parser.add_argument("--split-sha256", required=True)
     parser.add_argument("--hot", action="append", required=True, metavar="MODEL=SHA256",
                         help="SHA-256 of the hot-set file every AT run of MODEL must record")
+    parser.add_argument("--ae-oom-log", action="append", default=[], metavar="MODEL=PATH",
+                        help="log of an AE run of MODEL that died; used only if it holds a "
+                             "CUDA out-of-memory error and no AE run of MODEL completed")
     args = parser.parse_args(argv)
     expect = {"harness_sha256": args.harness_sha256, "split_sha256": args.split_sha256,
               "hot_sha256": dict(item.split("=", 1) for item in args.hot)}
+    ae_oom_logs = {model: pathlib.Path(path).read_text(encoding="utf-8", errors="replace")
+                   for model, path in (item.split("=", 1) for item in args.ae_oom_log)}
     records = rule.load_runs(args.runs)
-    analysis = rule.analyse(records, expect=expect)
+    analysis = rule.analyse(records, expect=expect, ae_oom_logs=ae_oom_logs)
     checks = []
     for check in rule.load_runs(args.runs, "check-*.json"):
         problem = rule.provenance_problem(check, **expect)

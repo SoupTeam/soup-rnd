@@ -9,6 +9,7 @@ then ``summarise`` gives each model its verdicts on the runs at those rates.
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 import random
 import statistics
@@ -19,6 +20,14 @@ MATERIAL_NAT = 0.02
 SD_MULTIPLE = 2.0
 FORGETTING_THRESHOLD = 0.05  # soup ship leg 2 (DEFAULT_FORGETTING_THRESHOLD)
 FULLEST_ORDER = ("AE", "AT", "AS", "A")
+# The committed plan (sections 2 and 3): every counted (arm, seed) at its arm's chosen rate.
+# A planned run without an ok record withholds the model's verdict.
+PLAN = {"olmoe": {"arms": ("A", "AT", "AE"), "seeds": (0, 1, 2)},
+        "qwen35": {"arms": ("A", "AS", "AT", "AE"), "seeds": (0, 1)}}
+# Section 6: AE "does not fit" only when a run of it died of a CUDA out-of-memory error.
+# The caching allocator's "memory allocation failed with OOM" warning is a retry, not this.
+OOM_MARKERS = ("torch.OutOfMemoryError: CUDA out of memory",
+               "torch.cuda.OutOfMemoryError: CUDA out of memory")
 BOOTSTRAP_DRAWS = 10_000
 GRID = (1e-4, 2e-4, 4e-4)  # section 3: swept per arm on SWEEP_MODEL at seed 0
 EXTENSION = {1e-4: 5e-5, 4e-4: 8e-4}  # the one extra rate past a grid-edge winner
@@ -54,17 +63,80 @@ def bootstrap_interval(correct: Sequence[bool], seed: int = 0) -> List[float]:
     return [means[int(0.025 * BOOTSTRAP_DRAWS)], means[int(0.975 * BOOTSTRAP_DRAWS) - 1]]
 
 
+def mcnemar_exact(x_only: int, f_only: int) -> float:
+    """Two-sided exact McNemar p: binomial(n = x_only + f_only, 1/2) on the discordant pairs."""
+    n = x_only + f_only
+    if n == 0:
+        return 1.0
+    tail = sum(math.comb(n, k) for k in range(min(x_only, f_only) + 1)) / 2 ** n
+    return min(1.0, 2 * tail)
+
+
+def paired_accuracy(run: Dict[str, Any], full: Dict[str, Any]) -> Dict[str, Any]:
+    """Seed-matched X against F on the same evaluation questions (reporting only)."""
+    x, f = run["task"]["correct"], full["task"]["correct"]
+    if len(x) != len(f):
+        raise ValueError("paired runs scored different evaluation rows")
+    x_only = sum(a and not b for a, b in zip(x, f))
+    f_only = sum(b and not a for a, b in zip(x, f))
+    return {"seed": run["seed"], "x_only": x_only, "f_only": f_only,
+            "difference": (x_only - f_only) / len(x), "p": mcnemar_exact(x_only, f_only)}
+
+
+def oom_evidence(log: Optional[str]) -> Optional[str]:
+    """The log line proving a CUDA out-of-memory death, or None."""
+    for line in (log or "").splitlines():
+        if any(marker in line for marker in OOM_MARKERS):
+            return line.strip()
+    return None
+
+
 def _ok(record: Dict[str, Any]) -> bool:
     return record.get("status") == "ok"
 
 
-def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str, bool]] = None
-              ) -> Dict[str, Any]:
+def _completeness(model: str, arms: Dict[str, List[Dict[str, Any]]],
+                  plan: Dict[str, Dict[str, Sequence]], ae_log: Optional[str]
+                  ) -> Dict[str, Any]:
+    """Planned runs that have no ok record, and whether AE left the plan on OOM proof."""
+    if model not in plan:
+        return {"missing": [], "reason": f"no committed plan for {model}"}
+    arms_planned, seeds = plan[model]["arms"], plan[model]["seeds"]
+    have = {}
+    for arm, runs in arms.items():
+        for r in runs:
+            key = (arm, r["seed"])
+            if key in have:
+                raise ValueError(f"two ok runs for {arm} seed {r['seed']} on {model}")
+            have[key] = r
+    out: Dict[str, Any] = {"missing": [], "reason": None, "ae_did_not_fit": None}
+    if "AE" in arms_planned and not arms.get("AE"):
+        proof = oom_evidence(ae_log)
+        if proof is not None:
+            out["ae_did_not_fit"] = proof
+            arms_planned = tuple(a for a in arms_planned if a != "AE")
+        elif ae_log is not None:
+            out["reason"] = "AE log has no CUDA out-of-memory error"
+    elif "AE" in arms_planned and ae_log is not None and oom_evidence(ae_log):
+        out["reason"] = "an AE run completed, so an AE out-of-memory log does not drop AE"
+    out["missing"] = [f"{arm} seed {seed}" for arm in arms_planned for seed in seeds
+                      if (arm, seed) not in have]
+    return out
+
+
+def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str, bool]] = None,
+              plan: Optional[Dict[str, Dict[str, Sequence]]] = None,
+              ae_oom_logs: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """Per model: validity rows and one verdict per applicable arm.
 
     ``records`` are the final-rate runs (sweep runs belong in ``edge_lrs``: arm ->
-    True when its winning rate sat at the edge of the extended grid, V3).
+    True when its winning rate sat at the edge of the extended grid, V3). Every run
+    in ``plan`` (default: the committed PLAN) must have an ok record, or the model is
+    NO VERDICT with the ``missing`` runs listed. AE leaves the plan, and the fullest
+    arm falls to the next one, only when ``ae_oom_logs[model]`` proves an AE run died
+    of a CUDA out-of-memory error and no AE run completed.
     """
+    plan = PLAN if plan is None else plan
     out: Dict[str, Any] = {}
     for model in sorted({r["model"] for r in records}):
         mine = [r for r in records if r["model"] == model]
@@ -78,6 +150,9 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
             if r["arm"] != "base" and _ok(r):
                 arms.setdefault(r["arm"], []).append(r)
         result: Dict[str, Any] = {"not_applicable": not_applicable, "void": void}
+        complete = _completeness(model, arms, plan, (ae_oom_logs or {}).get(model))
+        if complete.get("ae_did_not_fit"):
+            result["ae_did_not_fit"] = complete["ae_did_not_fit"]
         if len(base) != 1:
             result["verdict"] = "NO VERDICT"
             result["reason"] = f"expected one base record, found {len(base)}"
@@ -101,6 +176,14 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
             result["verdict"] = "NO VERDICT"
             out[model] = result
             continue
+        if complete["missing"] or complete["reason"]:
+            result["verdict"] = "NO VERDICT"
+            result["missing"] = complete["missing"]
+            if complete["reason"]:
+                result["reason"] = complete["reason"]
+            out[model] = result
+            continue
+        full_by_seed = {r["seed"]: r for r in arms[fullest]}
         full_nll = [r["eval"]["nll"] for r in arms[fullest]]
         rows = {}
         for arm, runs in sorted(arms.items()):
@@ -115,6 +198,8 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
             else:
                 verdict = "ACCEPTABLE"
             pooled = [c for r in runs for c in r["task"]["correct"]]
+            paired = None if arm == fullest else [
+                paired_accuracy(r, full_by_seed[r["seed"]]) for r in runs]
             rows[arm] = {
                 "seeds": [r["seed"] for r in runs], "nll": nll,
                 "nll_mean": statistics.fmean(nll), "nll_sd": sample_sd(nll),
@@ -128,6 +213,7 @@ def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str,
                     e["seconds"] for r in runs for e in r["train"]["log"][1:]),
                 "gate": {s: [r["gate"]["scores"][s] for r in runs] for s in base_gate},
                 "sources": [r.get("_path") for r in runs],
+                "paired_vs_fullest": paired,
             }
         result["arms"] = rows
         result["verdict"] = "MEASURED"
@@ -190,8 +276,9 @@ def provenance_problem(record: Dict[str, Any], *, harness_sha256: str, split_sha
     return None
 
 
-def analyse(records: Sequence[Dict[str, Any]], *, expect: Optional[Dict[str, Any]] = None
-            ) -> Dict[str, Any]:
+def analyse(records: Sequence[Dict[str, Any]], *, expect: Optional[Dict[str, Any]] = None,
+            plan: Optional[Dict[str, Dict[str, Sequence]]] = None,
+            ae_oom_logs: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """Section 5 from every run record of the plan: rates first, then verdicts.
 
     ``expect`` (keys of ``provenance_problem``) rejects records made by another
@@ -200,6 +287,7 @@ def analyse(records: Sequence[Dict[str, Any]], *, expect: Optional[Dict[str, Any
     not scored. Runs that did not end ``ok`` always reach ``summarise``, so V2 and
     V4 see them at any rate. An arm whose rate is not settled (``incomplete`` or
     ``needs_extension``) leaves its model at NO VERDICT; V3 fails only on ``edge``.
+    ``plan`` and ``ae_oom_logs`` go to ``summarise`` (completeness of the plan).
     """
     rejected: List[Dict[str, Any]] = []
     if expect is not None:
@@ -228,7 +316,8 @@ def analyse(records: Sequence[Dict[str, Any]], *, expect: Optional[Dict[str, Any
         status = {arm: sweep.get(rate_source(model, arm), {}).get("status", "missing")
                   for arm in arms}
         result = summarise([r for r in counted if r["model"] == model],
-                           edge_lrs={arm: s == "edge" for arm, s in status.items()}).get(
+                           edge_lrs={arm: s == "edge" for arm, s in status.items()},
+                           plan=plan, ae_oom_logs=ae_oom_logs).get(
             model, {"verdict": "NO VERDICT", "reason": "no counted runs"})
         unsettled = sorted(arm for arm, s in status.items() if s not in ("ok", "edge"))
         if unsettled:
