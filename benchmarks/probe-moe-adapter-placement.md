@@ -249,11 +249,16 @@ rule and its thresholds do not change.**
   the `A` pilot, and `AT`/`AE` at a rate that is not their OLMoE winner), 37-39 of
   the 43-45 items each arm gains are items the base never finished. Losses are
   3 / 4 / 10 items for `A` / `AT` / `AE`; in 0 / 1 / 5 of them the base had finished.
-  The trained arms leave more answers unclosed than the base (140 / 220 / 198), yet
-  score higher: trained with `enable_thinking=False`, they answer inside the open
-  think block. So Qwen3.5 leg-2 deltas mostly reflect a change of answer style and
-  length, not knowledge kept or lost, in either direction; `AE`'s 5 losses on
-  finished answers are the part style does not explain. The rendering stays,
+  The trained arms finish fewer answers than the base, or about as many (unclosed
+  140 / 220 / 198), yet score higher: trained on direct answers with
+  `enable_thinking=False`, they drop the base's "Thinking Process:" preamble inside
+  the open think block (base 184 of 274 answers open with it, the arms 100 / 61 / 78)
+  and answer directly. Among the items each arm gains where the base never finished,
+  20 / 29 / 23 are answers without that preamble. So Qwen3.5 leg-2 deltas mostly
+  reflect a change of answer style and length, not knowledge kept or lost, in
+  either direction; `AE`'s 5 losses on finished answers are the part style does not
+  explain.
+  The rendering stays,
   because it is what `soup ship` does; the report prints these counts next to the
   Qwen3.5 leg-2 table. The Soup-side finding is written separately at the end of
   this record.
