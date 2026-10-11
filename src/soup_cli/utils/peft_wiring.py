@@ -415,9 +415,7 @@ def resolve_lora_target_modules(model: Any, configured: Any, console: Any = None
         return list(QWEN35_TEXT_LORA_TARGETS)
     if "qwen4_exp_text" in model_types:
         return QWEN4_EXP_TEXT_LORA_TARGETS
-    # The MoE table. The wrapper ``model_type`` is preferred over the text one
-    # where both are present, because a vision-language wrapper names its
-    # language tower in the module path and the text-only entry does not.
+    # The MoE table.
     table_type = _moe_table_type(model, model_types)
     if table_type is not None:
         _note_partial_coverage(table_type, model, console)

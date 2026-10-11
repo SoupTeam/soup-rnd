@@ -3,7 +3,7 @@
 ``get_moe_target_modules`` named ``q_proj``/``k_proj``/``v_proj``/``o_proj`` for
 every MoE model. DeepSeek-V3's MLA attention has none of the first three, so under
 ``moe_lora`` only ``o_proj`` and the routed experts were adapted, while
-``target_modules: auto`` adapted all five MLA projections. Ticket 13 follow-up.
+``target_modules: auto`` adapted all five MLA projections. B2 ticket 13 follow-up.
 """
 
 from __future__ import annotations
@@ -68,6 +68,20 @@ class TestAttentionNamesFollowTheArchitecture:
         targets = get_moe_target_modules(_fake_moe("qwen3_moe"))
 
         assert targets == STANDARD_TARGET_MODULES + ["gate_proj", "up_proj", "down_proj"]
+
+    @pytest.mark.parametrize(
+        ("model_type", "attention"),
+        [
+            ("deepseek_v4", ["q_a_proj", "q_b_proj", "kv_proj", "o_a_proj", "o_b_proj"]),
+            ("glm_moe_dsa", _MLA),
+            ("kimi_k2", _MLA),
+            ("kimi_k25", _MLA),
+        ],
+    )
+    def test_other_table_entries_with_their_own_names(self, model_type, attention):
+        targets = get_moe_target_modules(_fake_moe(model_type))
+
+        assert targets == attention + ["gate_proj", "up_proj", "down_proj"]
 
     def test_a_model_type_the_table_lacks_keeps_the_standard_names(self):
         targets = get_moe_target_modules(_fake_moe("mixtral"))
