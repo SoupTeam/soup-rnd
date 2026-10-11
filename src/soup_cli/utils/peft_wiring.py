@@ -351,6 +351,39 @@ def _moe_targets(model_type: str, model: Any) -> Any:
     return targets
 
 
+def _moe_table_type(model: Any, model_types: set[Any] | None = None) -> str | None:
+    """The ``model_type`` whose :data:`MOE_TEXT_LORA_TARGETS` entry applies, if any.
+
+    The wrapper ``model_type`` is preferred over the text one where both are
+    present, because a vision-language wrapper names its language tower in the
+    module path and the text-only entry does not.
+    """
+    if model_types is None:
+        model_types = _model_types(model)
+    outer = getattr(getattr(model, "config", model), "model_type", None)
+    if outer in MOE_TEXT_LORA_TARGETS:
+        return str(outer)
+    for value in sorted(str(v) for v in model_types if v is not None):
+        if value in MOE_TEXT_LORA_TARGETS:
+            return value
+    return None
+
+
+def moe_attention_targets(model: Any) -> list[str] | None:
+    """The attention projection names of ``model``'s MoE table entry, or ``None``.
+
+    ``moe_lora`` builds its own target list and used to hard-code
+    ``q_proj`` / ``k_proj`` / ``v_proj`` / ``o_proj``, which DeepSeek-V3's MLA
+    attention does not have. ``None`` for an architecture the table lacks and for
+    a regex entry, which cannot be merged into a suffix list; the caller then
+    keeps its standard names.
+    """
+    table_type = _moe_table_type(model)
+    if table_type is None or isinstance(MOE_TEXT_LORA_TARGETS[table_type], str):
+        return None
+    return list(_moe_targets(table_type, model))
+
+
 def resolve_lora_target_modules(model: Any, configured: Any, console: Any = None) -> Any:
     """Resolve ``target_modules: auto`` for models PEFT does not know yet.
 
@@ -385,14 +418,10 @@ def resolve_lora_target_modules(model: Any, configured: Any, console: Any = None
     # The MoE table. The wrapper ``model_type`` is preferred over the text one
     # where both are present, because a vision-language wrapper names its
     # language tower in the module path and the text-only entry does not.
-    for value in (getattr(getattr(model, "config", model), "model_type", None),):
-        if value in MOE_TEXT_LORA_TARGETS:
-            _note_partial_coverage(value, model, console)
-            return _moe_targets(value, model)
-    for value in sorted(str(v) for v in model_types if v is not None):
-        if value in MOE_TEXT_LORA_TARGETS:
-            _note_partial_coverage(value, model, console)
-            return _moe_targets(value, model)
+    table_type = _moe_table_type(model, model_types)
+    if table_type is not None:
+        _note_partial_coverage(table_type, model, console)
+        return _moe_targets(table_type, model)
 
     named = sorted(value for value in model_types if isinstance(value, str))
     if not named or _peft_has_a_default_for(model_types):

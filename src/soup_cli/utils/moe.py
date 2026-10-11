@@ -103,8 +103,12 @@ def get_moe_target_modules(model) -> Optional[list[str]]:
                 if part in ("gate_proj", "up_proj", "down_proj", "w1", "w2", "w3"):
                     expert_modules.add(part)
 
-    # Combine attention targets with discovered expert targets
-    targets = list(STANDARD_TARGET_MODULES)
+    # Combine attention targets with discovered expert targets. The attention
+    # names come from the architecture's own entry where Soup has one: MLA
+    # attention (DeepSeek-V3) has no q_proj / k_proj / v_proj.
+    from soup_cli.utils.peft_wiring import moe_attention_targets
+
+    targets = moe_attention_targets(model) or list(STANDARD_TARGET_MODULES)
     if expert_modules:
         targets.extend(sorted(expert_modules))
     else:

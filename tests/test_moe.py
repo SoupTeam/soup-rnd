@@ -353,13 +353,15 @@ class TestDeepSeekExpertNaming:
         assert "w3" in targets
 
     def test_w1_w2_w3_combined_with_attention(self):
-        """Expert targets should be combined with standard attention targets."""
+        """Expert targets should be combined with the architecture's attention
+        targets: DeepSeek-V3's MLA attention, not q_proj / k_proj / v_proj."""
         model = self._make_moe_model([
-            ("model.layers.0.self_attn.q_proj", MagicMock()),
+            ("model.layers.0.self_attn.q_b_proj", MagicMock()),
             ("model.layers.0.moe.experts.0.w1", MagicMock()),
             ("model.layers.0.moe.experts.0.w2", MagicMock()),
         ])
         targets = get_moe_target_modules(model)
-        assert "q_proj" in targets
+        assert "q_b_proj" in targets
+        assert "q_proj" not in targets
         assert "w1" in targets
         assert "w2" in targets
