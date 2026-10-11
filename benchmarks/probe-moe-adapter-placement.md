@@ -1,7 +1,9 @@
 # E1: where LoRA has to go on a MoE model
 
 **Status: rule written 2026-10-11, before any arm ran; results in §8 and §9 (same
-day), under a quality gate proposed in the §6 addendum and not yet approved.** Track E1
+day). The quality gate (§5) was proposed by the AI assistant before the first run and
+approved by the record owner after the results, without changes (§6 addendum).
+Measured by harness revision `348f6a48` (SHA-256 `dd55825c…`).** Track E1
 of the research
 program: Track B4 refuses routed-expert adapters on giant MoE models because of
 the optimizer-state budget. This record measures what that costs in quality on
@@ -124,6 +126,13 @@ meets; the record also reports,
 per suite, how many items moved, so a REGRESSES driven by one or two items is
 visible as such. Leg 2 is noisy by construction; the task gap carries the
 placement comparison.
+
+**Erratum (2026-10-11, after the results; reporting only).** The paragraph above
+says "a single changed answer can cost 0.05 on the 24-item suites". It cannot: one
+item on 24 is 0.042, below 0.05. Leg 2 fails from 2 net lost items on the 24- and
+26-item suites (MMLU, common sense, instruction) and from 3 on the 40-item suites.
+The classifier in `moe_adapter_rule.leg2_failures` applied that correctly throughout;
+only this sentence was wrong.
 
 **What the result changes.** If `A` or `AS` is ACCEPTABLE on a model, the
 pre-flight may recommend it as a quality-preserving fallback for that architecture
@@ -266,10 +275,13 @@ rule and its thresholds do not change.**
   `enable_thinking=False`, they drop the base's "Thinking Process:" preamble inside
   the open think block (base 184 of 274 answers open with it, the arms 100 / 61 / 78)
   and answer directly. Among the items each arm gains where the base never finished,
-  20 / 29 / 23 are answers without that preamble. So Qwen3.5 leg-2 deltas mostly
-  reflect a change of answer style and length, not knowledge kept or lost, in
-  either direction; `AE`'s 5 losses on finished answers are the part style does not
-  explain.
+  20 / 29 / 23 are answers without that preamble. So Qwen3.5 leg-2 deltas can move
+  with a change of answer style and length without any change in knowledge, in
+  either direction; this record does not separate style from knowledge. `AE`'s 5
+  losses on finished answers are the part style does not explain.
+  *Erratum (2026-10-11, after the results): this bullet first said the deltas
+  "reflect a change of answer style and length, not knowledge kept or lost", which
+  claims a separation the record did not make.*
   The rendering stays,
   because it is what `soup ship` does; the report prints these counts next to the
   Qwen3.5 leg-2 table. The Soup-side finding is written separately at the end of
@@ -289,6 +301,12 @@ rule and its thresholds do not change.**
   result side by side. DeepSeek-V3 and Kimi K2 appear only as an extrapolation:
   they use MLA attention, Qwen3.5 mixes gated-delta linear attention with full
   attention, and OLMoE uses plain multi-head attention.
+  **Approved 2026-10-11, after the results, without changes.** The record owner
+  approved the gate as written above (0.02 nat and 2 x SD; leg 2 on any suite and
+  seed) after both models' results were read. It holds for this recipe only (§3),
+  and on Qwen3.5 every rate is transferred from OLMoE. `moe_adapter_report.py` prints
+  the gate's thresholds, status and scope, and each model's rate scope, into
+  `tables.md` and `summary.json`, so no verdict is read without them.
 
 **Added after OLMoE seeds 1-2 were read, before any counted Qwen3.5 result
 (2026-10-11, analysis commit `855394a4`), after a second external audit. Reporting
@@ -312,6 +330,44 @@ only: the verdict rule, its thresholds and the harness do not change.**
   and X passing).
 - *No ACCEPTABLE arm.* §5 now says what the pre-flight reports then.
 
+**Added after the results (2026-10-11), after a third external audit. The rule's
+thresholds, the verdicts and the measured numbers do not change.**
+
+- *Rule defects, none of which touches the published records.* Fixed with a test
+  that failed first for each (commit `89fbbe68`): V2 now also fails on a non-finite
+  evaluation NLL, including runs outside the counted rate; only seeds in the plan
+  count, and an unplanned seed is listed as not counted instead of raising; an `ok`
+  `AE` run at any rate proves `AE` fits, so an out-of-memory log can no longer drop
+  it; a planned model with no record is NO VERDICT with its missing runs listed; the
+  material-gap and V1 comparisons use the same 1e-12 float tolerance as leg 2 (in
+  floating point, 0.81 - 0.79 exceeded 0.02 and 0.30 - 0.25 fell short of 0.05). The
+  report rerun over the published records gives identical verdicts and numbers.
+- *Harness hygiene.* The records were made by revision `348f6a48` (SHA-256
+  `dd55825c…`), and the report checks each record against the hash it is given, not
+  against the file at the branch head. Commit `9cc72ea4` imports torch lazily (as
+  `AGENTS.md` requires), rejects `--micro` or `--gen-batch` below 1, and marks a run
+  `void_nonfinite` on a non-finite evaluation NLL too. On tiny CPU models of both
+  architectures the `348f6a48` blob and the new file give bit-identical logits (zero
+  and seeded adapters) and identical two-step training logs for every arm (42 of 42
+  checks). `.gitattributes` now pins the harness to LF, so a checkout of `348f6a48`
+  hashes to `dd55825c` on every OS (a Windows checkout gave `6b5d859f`).
+- *No F1 validity checks.* The F1 checks (branch `feat/f1-validity-checks`, not in
+  `main`) were not applied: no A-B-B-A order and no monitoring of foreign I/O,
+  suspend, GPU peers or clocks. The `s/step` columns are therefore indicative only.
+  Quality numbers and peak memory do not depend on them.
+- *Wording corrected in place, after the results (§8, §9, the Finding and the
+  `README.md` index).* `AT` on OLMoE was "not distinguishable from `AE` on either
+  measure": no accuracy difference was found (+0.3 points, p 0.92), but its NLL is
+  +0.0016 nat above `AE`'s on all three seeds, under the 0.02 floor. §9 said `A` and
+  `AS` were "not worse than `AE` on any measure" on Qwen3.5: `A` is below `AE` on
+  instruction (seed 1: 0.958 against 1.000) and arithmetic (seed 0: 0.900 against
+  0.925); `AS` is below it on no suite. §8 attributed the 13 MiB memory residual to
+  the expert adapters' activations and called the rule a memory check; a difference
+  of two peaks does not isolate activations, and the rule sizes the increment over
+  attention-only, not fit. The Finding said an adapter moves the suite scores
+  "without any change in knowledge"; it can, and the record does not separate style
+  from knowledge.
+
 ## 7. Cloud protocol
 
 As in `probe-moe-expert-holdout.md` (the G8 holdout record, on the team branch
@@ -328,9 +384,13 @@ create-to-delete times at list price the spend is about USD 34 (OLMoE boxes 4.2 
 and 3.2 h at USD 0.68/h, Qwen3.5 boxes 6.6 h and 4.4 h at USD 2.63/h) [ESTIMATE; the
 provider's bill is authoritative]. The raw records are published in
 `benchmarks/results/probe-moe-adapter-placement/` with the two home-directory paths
-replaced by placeholders; `publication-redactions.json` gives every file's original
-and published SHA-256, and the report run over the published copies reproduces
-the tables exactly.
+replaced by placeholders; `publication-redactions.json` gives every raw file's original
+and published SHA-256 (the two `curve-*.svg` beside them are report outputs, §10),
+and the report run over the published copies reproduces
+the tables exactly. Publication writes every JSON with a final LF: 42 of the 111
+published files, the five hot-set files among them, differ from their originals only
+by it. The hot-set hash an `AT` record carries is therefore that of the published hot
+file with its final LF removed (§10).
 
 ## 8. Results
 
@@ -375,11 +435,10 @@ paired accuracy together:
   SDs) and 3.1 accuracy points below it, clustered by question over seeds (`A` better
   on 32 questions, `AE` on 51; sign-flip p 0.058): a consistent NLL cost and an
   accuracy cost at the edge of significance.
-- `AT` is +0.0016 nat/token above `AE`, inside the noise test (2 x max SD = 0.0019,
-  though each seed has `AT` 0.0011-0.0020 above), and +0.3 points (33 vs 37
-  questions; p 0.92). With 28% of `AE`'s trainable parameters it is not
-  distinguishable from `AE` on either measure at three seeds, and it closes about 80%
-  of the `A`-`AE` NLL gap.
+- `AT`: no accuracy difference from `AE` was found (+0.3 points, 33 vs 37 questions,
+  p 0.92). Its NLL is +0.0016 nat/token above `AE`'s, above on all three seeds
+  (0.0011-0.0020) and under the 0.02 floor, with 28% of `AE`'s trainable parameters;
+  it closes about 80% of the `A`-`AE` NLL gap.
 
 No single seed's McNemar test separates any arm from `AE`. Accuracy intervals and the
 clustered test treat the question as the unit, because the three seeds answer the
@@ -402,14 +461,19 @@ Each failure is 1-3 lost items on a 24-item suite (one item is 0.042, the thresh
 All arms gain on MMLU (+2 to +6 items) and arithmetic (+4 to +5); format JSON,
 safety and over-refusal move by at most one item.
 
-**Verdict under the proposed rule:** `A`, `AT` and `AE` are all **REGRESSES**,
-because leg 2 fails for every arm, `AE` included. That verdict ranks no placement.
-With no arm ACCEPTABLE, §5's added branch applies: the pre-flight names no target as
-acceptable for OLMoE and gives the raw deltas above. Neither task gap is material,
-and neither is read alone. `A`'s +0.008 nat clears the noise test and is not material
-only because it is under the proposed 0.02 floor; next to it, `A` loses about 3
-accuracy points at the edge of significance, so this is not "`A` without loss". `AT`
-is not distinguishable from `AE` on either measure, with 28% of its parameters.
+**Verdict under the gate (approved after the results, §6 addendum):** `A`, `AT` and
+`AE` are all **REGRESSES**, because leg 2 fails for every arm, `AE` included. That
+verdict ranks no placement. With no arm ACCEPTABLE, §5's added branch applies: the
+pre-flight names no target as acceptable for OLMoE and gives the raw deltas above.
+Neither task gap is material, and neither is read alone. `A`'s +0.008 nat clears the
+noise test and is not material only because it is under the 0.02 floor; next to it,
+`A` loses about 3 accuracy points at the edge of significance, so this is not "`A`
+without loss". For `AT` no accuracy difference from `AE` was found (+0.3 points,
+p 0.92); its NLL is +0.0016 nat above `AE`'s on all three seeds, under the 0.02 floor,
+with 28% of `AE`'s parameters.
+
+![OLMoE-1B-7B: NLL gap to AE and task accuracy against trainable parameters and peak
+CUDA memory](results/probe-moe-adapter-placement/curve-olmoe.svg)
 
 ### Qwen3.5-35B-A3B: MEASURED
 
@@ -495,12 +559,22 @@ give no method, but in words `looks_like_refusal` does not match. Their other sa
 losses, and all four over-refusal items `AE` loses, are answers the base never
 finished.
 
-**Verdict under the proposed rule:** `A` and `AS` are **ACCEPTABLE**; `AT` and `AE`
-are **REGRESSES**. `A` and `AS` pass leg 2, and their task gap is negative: on both
-seeds they beat `AE` on NLL, and their paired accuracy is 2.3 and 2.1 points higher
-(not significant). `AT` and `AE` each fail leg 2 on one seed, and on answers the base
-finished they lose 3-5 items per run where `A` and `AS` lose 0-1. All of this is at
-rates transferred from OLMoE and provisional on the proposed gate.
+*Post hoc, reporting only (2026-10-11, after the results).* If that one SMS item is
+scored as the base's answer is scored, `AT` passes leg 2 on both seeds, and `AE` fails
+only on seed 0: three over-refusal items, all on answers the base never finished.
+This shows neither a scorer error nor that the expert arms do no harm: on answers the
+base finished, `AT` and `AE` lose 3-5 items per run against 0-1 for `A` and `AS`, and
+those losses need a manual reading, which this record does not do.
+
+**Verdict under the gate (approved after the results, §6 addendum):** `A` and `AS`
+are **ACCEPTABLE**; `AT` and `AE` are **REGRESSES**. `A` and `AS` pass leg 2, and their
+task gap is negative: on both seeds they beat `AE` on NLL, and their paired accuracy
+is 2.3 and 2.1 points higher (not significant). `AT` and `AE` each fail leg 2 on one
+seed; how much of that is the one SMS item and cut-off reasoning is above. All of
+this is at rates transferred from OLMoE.
+
+![Qwen3.5-35B-A3B: NLL gap to AE and task accuracy against trainable parameters and
+peak CUDA memory](results/probe-moe-adapter-placement/curve-qwen35.svg)
 
 **LR transfer check (outside the rule; written after it was read).** On seed 0,
 Qwen3.5 `AE` has three rates: 5e-5 (`lrcheck-qwen35-AE-lr5e-5-s0`) 0.1353, 1e-4
@@ -515,11 +589,11 @@ pass (largest drop: safety, 0.050, at the threshold), so `AE`'s leg-2 failure is
 shown to hold at its best rate either. One seed and one extra rate; nothing here
 enters a verdict, and a rate below 5e-5 is untested.
 
-### Memory: an adapted expert costs its optimizer state
+### Memory: an adapted expert adds its optimizer state to the peak
 
 For every arm, the peak CUDA memory above `A`'s equals the extra adapter state (16
 bytes per trainable parameter: fp32 weight, gradient and two AdamW moments, B4's
-`torch_adamw_fp32` profile) to within 13 MiB:
+`torch_adamw_fp32` profile) to within 13 MiB, at this recipe:
 
 | Model | Arm | Peak above `A` | State above `A` | Difference |
 |---|---|---:|---:|---:|
@@ -529,42 +603,57 @@ bytes per trainable parameter: fp32 weight, gradient and two AdamW moments, B4's
 | Qwen3.5-35B-A3B | `AT` | 3595.1 MiB | 3595.0 MiB | +0.1 MiB |
 | Qwen3.5-35B-A3B | `AE` | 14155.2 MiB | 14155.0 MiB | +0.2 MiB |
 
-At this shape (16 rows of at most 512 tokens, gradient checkpointing, the
-`grouped_mm` expert path), the expert adapters' activations add at most 13 MiB to
-the peak. The memory check this gives the pre-flight: an arm's cost over
-attention-only is 16 bytes times its extra trainable parameters. It is measured
-resident, on these two models at this shape, not with layer streaming and not on an
-8 GB card.
+At this recipe (16 rows of at most 512 tokens, gradient checkpointing, the
+`grouped_mm` expert path), this is a rule for the increment, not for fit: an arm's
+peak above attention-only is 16 bytes times its extra trainable parameters, within
+13 MiB. The residual is not attributed to the expert adapters' activations, because a
+difference of two peaks does not isolate them. Whether a run fits is a separate check
+of the whole peak: Qwen3.5 `A` holds 0.24 GiB of adapter state at a 70.87 GiB peak.
+Measured resident, on these two models at this recipe, not with layer streaming and
+not on an 8 GB card.
 
 ## 9. What the pre-flight can say
 
-Every line here rests on the proposed gate (§6 addendum), which awaits the record
-owner's approval. Under it:
+Every line here rests on the gate in §5, proposed by the AI assistant before the
+first run and approved by the record owner after the results without changes (§6
+addendum). It holds for this recipe; on Qwen3.5 every rate is transferred from
+OLMoE. Under it:
 
 - **OLMoE-1B-7B: no target is named acceptable** (§5's added branch; every arm
   fails leg 2). The pre-flight would give the raw deltas against `AE` instead: `A`
   +0.0083 nat, -3.1 accuracy points (p 0.058), leg 2 common sense +1/-6 items over
-  three seeds; `AT` +0.0016 nat, +0.3 points (p 0.92), leg 2 common sense +0/-2 and
-  instruction +3/-8; `AE` itself loses common sense +0/-4.
-- **Qwen3.5-35B-A3B: `A` and `AS` are ACCEPTABLE.** Attention-only, or attention plus
-  the shared expert, needs 0.24 or 0.32 GiB of adapter state, against 14.07 GiB for
-  every routed expert. At the counted rates they are not worse than `AE` on any
-  measure: NLL -0.0038 / -0.0031 nat, accuracy +2.3 / +2.1 points (not significant).
-  At `AE`'s best rate in the LR check (5e-5, seed 0) the NLL gap nearly closes
-  (-0.0008 / +0.0001), and `AE` passes leg 2 there. So the pre-flight may say
-  "attention-only (+ shared expert) measured no worse than every expert on this
-  model", not "better", and not that `AE` regresses.
+  three seeds; `AT` +0.0016 nat (above on all three seeds, under the 0.02 floor), no
+  accuracy difference found (+0.3 points, p 0.92), with 28% of `AE`'s parameters,
+  leg 2 common sense +0/-2 and instruction +3/-8; `AE` itself loses common sense
+  +0/-4.
+- **Qwen3.5-35B-A3B: `A` and `AS` pass the gate (ACCEPTABLE).** Attention-only, or
+  attention plus the shared expert, needs 0.24 or 0.32 GiB of adapter state, against
+  14.07 GiB for every routed expert. At the counted rates they are no worse than `AE`
+  on NLL and accuracy: NLL -0.0038 / -0.0031 nat, accuracy +2.3 / +2.1 points (not
+  significant). Single suites can be worse: `A` is below `AE` on instruction (seed 1,
+  0.958 against 1.000) and arithmetic (seed 0, 0.900 against 0.925); `AS` is below it
+  on no suite. At `AE`'s best rate in the LR check (5e-5, seed 0) the NLL gap nearly
+  closes (-0.0008 / +0.0001), and `AE` passes leg 2 there. So the pre-flight may say
+  "attention-only (+ shared expert) measured no worse than every expert on NLL and
+  accuracy on this model", not "better", and not that `AT` or `AE` regress. Scoring
+  the one safety item the refusal matcher misses as the base's is scored, `AT` passes
+  leg 2 on both seeds and `AE` fails only on seed 0, on three over-refusal items the
+  base never finished. That shows neither a scorer error nor no harm: on answers the
+  base finished, `AT` and `AE` lose 3-5 items per run against 0-1 for `A` and `AS`,
+  and those need a manual reading (§8).
 - **The two models disagree**, so E1 gives no architecture-wide rule. On OLMoE
   (64 experts, plain attention, no shared expert) skipping the experts costs a
-  consistent 0.008 nat and about 3 accuracy points; on Qwen3.5 (256 experts, a
-  shared expert, 75% linear-attention layers) no cost was measured at any `AE` rate
-  tried.
+  consistent 0.008 nat and about 3 accuracy points (p 0.058); on Qwen3.5 (256
+  experts, a shared expert, 75% linear-attention layers) no NLL or accuracy cost was
+  found at any `AE` rate tried (at most +0.0001 nat: `AS` at `AE`'s 5e-5, seed 0).
   Differences that could explain it, none tested here: the shared expert, the
   attention type, the number of experts, the rate transfer (§3), and the base's
   starting point on this task (accuracy 0.512 against 0.477 at the base, NLL 0.936
   against 0.634).
-- **Memory** follows §8's measured rule on both models: an arm's cost over
-  attention-only is 16 bytes times its extra trainable parameters.
+- **Memory** follows §8's measured increment rule on both models: an arm's peak above
+  attention-only is 16 bytes times its extra trainable parameters, within 13 MiB at
+  this recipe. It is not a fit rule; the whole peak is checked separately (Qwen3.5
+  `A`: 0.24 GiB of adapter state, 70.87 GiB peak).
 
 **DeepSeek-V3 and Kimi K2 are an extrapolation, not a measurement.** Both use MLA
 attention, 256 or 384 routed experts per layer and one shared expert;
@@ -592,11 +681,136 @@ quality claim for these models as untested.
 Seed-independent, from the base model alone. `soup ship` renders leg-2 prompts with
 the tokenizer's default chat template and generates 256 new tokens. For
 `Qwen/Qwen3.5-35B-A3B` that template opens a `<think>` block, and 151 of the 274
-bundled gate prompts end inside it at exactly 256 tokens (counts per suite above).
-For this model family, leg 2 therefore mostly scores whether an answer surfaces
-within the reasoning budget, and an adapter that changes answer length or style moves
-the suite scores without any change in knowledge. The same holds identically on two
-boxes and on the pilot (the base was scored three times with byte-identical gate
-outputs). This record does not change Soup and does not pick a fix; options for an
-issue are a larger behavioural budget for templates that open a think block,
-rendering with thinking disabled, or scoring only the text after `</think>`.
+bundled gate prompts end inside it at exactly 256 tokens (counts per suite above),
+identically on two boxes and on the pilot (the base was scored three times with
+byte-identical gate outputs). For this model family, leg 2 therefore mostly scores
+whether an answer surfaces within the reasoning budget. An adapter that changes answer
+length or style can move the suite scores without any change in knowledge; this record
+does not separate style from knowledge. It does not change Soup and does not pick a
+fix; options for an issue are a larger behavioural budget for templates that open a
+think block, rendering with thinking disabled, or scoring only the text after
+`</think>`.
+
+## 10. Reproducing
+
+Run from the repository root in Bash. `prepare` needs the two pinned tokenizers;
+`profile` and `run` need the pinned bf16 weights resident on one CUDA card (48 GB for
+OLMoE, 96 GB for Qwen3.5; the records came from `massedcompute_A6000_plus` and
+`massedcompute_RTXPro6000`). The report needs no torch, weights or network.
+
+**Harness.** Every record was made by `moe_adapter_placement.py` at revision
+`348f6a483718e7e83bef0dfa3732b8fc40c057f3`, SHA-256
+`dd55825c67ccc61d532af150fa798d02e07fe72c97b9e5859669f02c2ecf87b3`, and records that
+hash. Collect with that file, which imports its siblings and `soup_cli` from beside
+it, in a checkout of that revision or as a copy next to the branch-head harness;
+`.gitattributes` keeps its LF bytes on every OS. Analyse at the branch head.
+
+```bash
+git show 348f6a48:benchmarks/harness/moe_adapter_placement.py > benchmarks/harness/e1-harness.py
+echo "dd55825c67ccc61d532af150fa798d02e07fe72c97b9e5859669f02c2ecf87b3  benchmarks/harness/e1-harness.py" | sha256sum -c -
+```
+
+**Environment**, as `e1_setup.sh` installed it on the boxes (Linux, Python 3.12.15;
+all four `runtime-freeze.txt` files are identical; peft is not installed there):
+
+```bash
+uv venv --python 3.12.15 .venv-e1
+uv pip install --python .venv-e1/bin/python \
+  --index-url https://download.pytorch.org/whl/cu130 torch==2.14.1
+uv pip install --python .venv-e1/bin/python \
+  transformers==5.19.0 huggingface-hub==1.33.0 safetensors==0.8.0 tokenizers==0.23.2 \
+  jinja2==3.1.6 rich==15.0.0 psutil==7.2.2 numpy==2.5.3
+. .venv-e1/bin/activate
+export PYTHONPATH="$PWD/src" TOKENIZERS_PARALLELISM=false
+e1="python benchmarks/harness/e1-harness.py"
+```
+
+**Data and split.** No `prepare` command was archived; this one, from the CLI, gave
+the counted split's hash on 2026-10-11 (Windows, both the measured and the current
+harness).
+
+```bash
+python -c 'from huggingface_hub import hf_hub_download as d; d("meta-math/MetaMathQA",
+  "MetaMathQA-395K.json", repo_type="dataset", local_dir="data",
+  revision="aa4f34d3d2d3231299b5b03d9b3e5a20da45aa18")'
+echo "fb39a5d8c05c042ece92eae37dfd5ea414a5979df2bf3ad3b86411bef8205725  data/MetaMathQA-395K.json" | sha256sum -c -
+$e1 prepare --data data/MetaMathQA-395K.json --out e1-results/split.json
+sha256sum e1-results/split.json
+```
+
+The counted runs carry split hash `4b41de1b…`: the box got the split file
+made on the workstation, whose JSON writer emits CRLF. On Linux the same split
+comes out with LF, hash `6bc844a9…`, and every run records that hash instead.
+Rewriting the file with CRLF line ends restores `4b41de1b…`. The published
+`split.json` copies have the same rows, rewritten by publication.
+
+**Hot sets.** A fresh `profile` records host fields, so its file hash is its own;
+compare its per-layer `hot` lists with the published file. To repeat the counted
+`AT` runs, use the published hot set with its final LF removed (§7): that file has
+the hash the counted records carry.
+
+```bash
+r=benchmarks/results/probe-moe-adapter-placement
+python -c 'import sys, pathlib; p = pathlib.Path(sys.argv[1]).read_bytes()
+pathlib.Path(sys.argv[2]).write_bytes(p.removesuffix(b"\n"))' \
+  "$r/e1-olmoe/e1-results2/hot-olmoe.json" e1-results/hot-olmoe.json
+python -c 'import sys, pathlib; p = pathlib.Path(sys.argv[1]).read_bytes()
+pathlib.Path(sys.argv[2]).write_bytes(p.removesuffix(b"\n"))' \
+  "$r/e1-qwen/e1-results/hot-qwen35.json" e1-results/hot-qwen35.json
+sha256sum e1-results/hot-*.json   # 59e3d4f4... olmoe, 7009faed... qwen35
+```
+
+**Runs.** One line per published record, as in the plan files, which put
+`--data data/MetaMathQA-395K.json --split e1-results/split.json --out
+e1-results/<name>.json` after the arguments below. The plans ran these lines on two
+boxes per model in a different order; `run-olmoe-AS-s0` records `not_applicable`
+(OLMoE has no shared expert), and the 2e-4 `AE` / `AT` runs on Qwen3.5 are kept but
+not counted (§8).
+
+```text
+hot-olmoe                profile --model olmoe
+run-olmoe-base           run --model olmoe --arm base
+check-olmoe-base-box2    run --model olmoe --arm base           # second box
+run-olmoe-AS-s0          run --model olmoe --arm AS --lr 2e-4 --seed 0
+run-olmoe-<arm>-lr<lr>-s0  run --model olmoe --arm <arm> --lr <lr> --seed 0
+    for <arm> in A, AT, AE and <lr> in 1e-4, 2e-4, 4e-4; also AT and AE at 5e-5
+run-olmoe-A-lr2e-4-s<seed>   run --model olmoe --arm A --lr 2e-4 --seed <seed>
+run-olmoe-AT-lr1e-4-s<seed>  run --model olmoe --arm AT --lr 1e-4 --seed <seed>
+run-olmoe-AE-lr1e-4-s<seed>  run --model olmoe --arm AE --lr 1e-4 --seed <seed>
+    for <seed> in 1, 2; every AT line adds --hot e1-results/hot-olmoe.json
+
+hot-qwen35               profile --model qwen35
+run-qwen35-base          run --model qwen35 --arm base --gen-batch 16
+check-qwen35-base-box2   run --model qwen35 --arm base --gen-batch 16   # second box
+run-qwen35-A-lr2e-4-s<seed>   run --model qwen35 --arm A --lr 2e-4 --seed <seed> --gen-batch 16
+run-qwen35-AS-lr2e-4-s<seed>  run --model qwen35 --arm AS --lr 2e-4 --seed <seed> --gen-batch 16
+run-qwen35-AT-lr1e-4-s<seed>  run --model qwen35 --arm AT --lr 1e-4 --seed <seed> --gen-batch 16
+run-qwen35-AE-lr1e-4-s<seed>  run --model qwen35 --arm AE --lr 1e-4 --seed <seed> --gen-batch 16
+    for <seed> in 0, 1
+run-qwen35-AE-lr2e-4-s0  run --model qwen35 --arm AE --lr 2e-4 --seed 0 --gen-batch 16
+run-qwen35-AT-lr2e-4-s0  run --model qwen35 --arm AT --lr 2e-4 --seed 0 --gen-batch 16
+lrcheck-qwen35-AE-lr5e-5-s0  run --model qwen35 --arm AE --lr 5e-5 --seed 0 --gen-batch 16
+    every AT line adds --hot e1-results/hot-qwen35.json
+```
+
+On Qwen3.5, every `run` line ran with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`
+exported; `hot-qwen35` ran before it was set (the pilot plan, §6). OLMoE ran without it.
+
+**Report, tests and budget.** Over the published records, with the hashes the
+records carry; the outputs are this record's tables and
+`results/probe-moe-adapter-placement/curve-*.svg`. For a fresh collection, give
+the hashes the new records carry instead.
+
+```bash
+python benchmarks/harness/moe_adapter_report.py benchmarks/results/probe-moe-adapter-placement e1-report \
+  --harness-sha256 dd55825c67ccc61d532af150fa798d02e07fe72c97b9e5859669f02c2ecf87b3 \
+  --split-sha256 4b41de1bf2c0ada0eb112779487cca9d68669f751f3515ecbd4ee4caf1e04362 \
+  --hot olmoe=59e3d4f492a6f2484c8bbc4f93cde9a755dee1abab0e3b1ff169cca03ee94b60 \
+  --hot qwen35=7009faed64223751eca475b5d50e7a63e3602a11b000746ec463de7d76045e40
+python -m pytest tests/test_moe_adapter_rule.py tests/test_moe_adapter_placement.py \
+  tests/test_moe_adapter_placement_cli.py -q --no-cov
+python benchmarks/harness/moe_adapter_budget.py   # §9 extrapolation; fetches two configs
+```
+
+The peft parity test in `tests/test_moe_adapter_placement.py` is skipped without
+peft; §3's check used peft 0.21.2.
