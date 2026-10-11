@@ -13,9 +13,10 @@ adapts only decoder layers.
 Two expert layouts are printed. ``fused``: ``gate`` and ``up`` are one ``gate_up``
 matrix with one rank-16 pair, as transformers 5 stores experts and as the harness
 adapts them. ``separate``: one pair each on ``gate``, ``up`` and ``down``, as in the
-original checkpoints' per-expert modules; the research brief's "~10.2B on K2" is this
-layout. Standard library only; the configs are fetched once into the Hugging Face
-cache (``huggingface_hub`` is a Soup dependency).
+original checkpoints' per-expert modules. The research brief's "~10.2B on K2" is the
+routed experts alone in this layout (``AE - AS``, 10,192M); ``AE`` adds attention and
+the shared expert (10,280M). Standard library only; the configs are fetched once into
+the Hugging Face cache (``huggingface_hub`` is a Soup dependency).
 """
 
 from __future__ import annotations
