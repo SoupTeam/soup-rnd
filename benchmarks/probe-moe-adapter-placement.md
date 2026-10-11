@@ -218,6 +218,61 @@ at USD 0.68/h) and are not results.
   re-scores the recorded gate outputs with Soup's scorer to count the items each
   run gained and lost per suite, and checks that they add up to the recorded scores.
 
+**Added after an external audit that had seen seed 0 (NLL, accuracy, leg 2),
+before seeds 1-2 were read (2026-10-11, 07:00 UTC). Reporting only: the verdict
+rule and its thresholds do not change.**
+
+- *Every planned run, or no verdict.* The committed `summarise` took the fullest
+  arm from whatever `ok` records arrived and returned MEASURED without checking the
+  plan. A run that crashes, dies of OOM or is cut by a deadline writes no JSON, so
+  seeds could silently disappear, or F could become `AT` or `A` instead of `AE`.
+  `moe_adapter_rule.PLAN` now names every counted run (OLMoE `A`/`AT`/`AE` x seeds
+  0-2; Qwen3.5 `A`/`AS`/`AT`/`AE` x seeds 0-1; each at its arm's chosen rate). A
+  missing one makes that model NO VERDICT, with the list. `AE` leaves F only when a
+  log of an `AE` run shows `torch.OutOfMemoryError: CUDA out of memory` and no `AE`
+  run completed. The caching allocator's "allocation failed with OOM" retry warning
+  is not that: the Qwen3.5 `A` pilot logged one and finished. This enforces §3 and
+  §6 as written (commit `dc2d0fe8`; the harness is unchanged).
+- *Paired accuracy.* Next to the pooled accuracy, each arm X gets a seed-matched
+  comparison with F on the same 256 evaluation questions: questions only X answers
+  correctly, questions only F does, and the two-sided exact McNemar p. It is a
+  secondary column and does not enter the verdict.
+- *When leg 2 cannot separate arms.* If F itself fails leg 2 on a model, the record
+  says "leg 2 does not discriminate placements on this model" and gives, per
+  failing suite, the number of items F changed against the base.
+- *Qwen3.5 leg 2 mostly scores cut-off reasoning.* Under `soup ship`'s rendering
+  (the default template opens `<think>`; 256 new tokens), 151 of the base's 274 gate
+  answers never close `<think>`, and all 151 are exactly 256 tokens long: the budget
+  ran out inside the reasoning. By suite: format JSON 38/40, over-refusal 35/40,
+  safety 34/40, arithmetic 18/40, MMLU 11/26, tool call 10/40, common sense 4/24,
+  instruction 1/24. In the seed-0 runs at 2e-4 that the audit saw (none counted:
+  the `A` pilot, and `AT`/`AE` at a rate that is not their OLMoE winner), 37-39 of
+  the 43-45 items each arm gains are items the base never finished. Losses are
+  3 / 4 / 10 items for `A` / `AT` / `AE`; in 0 / 1 / 5 of them the base had finished.
+  The trained arms leave more answers unclosed than the base (140 / 220 / 198), yet
+  score higher: trained with `enable_thinking=False`, they answer inside the open
+  think block. So Qwen3.5 leg-2 deltas mostly reflect a change of answer style and
+  length, not knowledge kept or lost, in either direction; `AE`'s 5 losses on
+  finished answers are the part style does not explain. The rendering stays,
+  because it is what `soup ship` does; the report prints these counts next to the
+  Qwen3.5 leg-2 table. The Soup-side finding is written separately at the end of
+  this record.
+- *LR transfer check, outside the rule.* One extra Qwen3.5 run,
+  `lrcheck-qwen35-AE-lr5e-5-s0` (about USD 3), is queued after the counted `AE`
+  runs on `e1-qwen`. The analysis does not read `lrcheck-*`. With it and the
+  uncounted 2e-4 runs, Qwen3.5 `AE` has three rates. If the sign of the
+  `A`/`AS`-vs-`AE` gap depends on the rate, the record says so and does not conclude
+  that experts are unnecessary.
+- *The quality gate is proposed, not agreed.* The material-gap floor (0.02
+  nat/token, with the 2 x SD noise test) and "leg 2 on any seed" in §5 were proposed
+  by the AI assistant drafting this record (AI use disclosed). They await the record
+  owner's approval, and until then every ACCEPTABLE / COSTS QUALITY / REGRESSES here
+  is provisional. The pre-flight recommendation will not say an arm "preserves
+  quality" from NLL alone; it gives the NLL gap, the paired accuracy and the leg-2
+  result side by side. DeepSeek-V3 and Kimi K2 appear only as an extrapolation:
+  they use MLA attention, Qwen3.5 mixes gated-delta linear attention with full
+  attention, and OLMoE uses plain multi-head attention.
+
 ## 7. Cloud protocol
 
 As in `probe-moe-expert-holdout.md` (the G8 holdout record, on the team branch
@@ -226,3 +281,17 @@ from a committed revision with its SHA-256 checked on the box, an instance-side
 shutdown and a workstation deadline armed before setup, output copied and its hash
 verified before every delete, `brev ls` empty at the end. Spend cap for the whole
 record: USD 60.
+
+## Finding for Soup: leg 2 on a thinking template scores cut-off reasoning
+
+Seed-independent, from the base model alone. `soup ship` renders leg-2 prompts with
+the tokenizer's default chat template and generates 256 new tokens. For
+`Qwen/Qwen3.5-35B-A3B` that template opens a `<think>` block, and 151 of the 274
+bundled gate prompts end inside it at exactly 256 tokens (counts per suite above).
+For this model family, leg 2 therefore mostly scores whether an answer surfaces
+within the reasoning budget, and an adapter that changes answer length or style moves
+the suite scores without any change in knowledge. The same holds identically on two
+boxes and on the pilot (the base was scored three times with byte-identical gate
+outputs). This record does not change Soup and does not pick a fix; options for an
+issue are a larger behavioural budget for templates that open a think block,
+rendering with thinking disabled, or scoring only the text after `</think>`.

@@ -81,6 +81,37 @@ def flips(base: dict, other: dict) -> dict:
     return result
 
 
+THINK_CLOSE = "</think>"
+
+
+def think_closure(base: dict, other: dict) -> dict:
+    """Gate answers that never close ``<think>`` (the 256-token budget ended inside the
+    reasoning), and the base->other item flips split by whether the base answer closed it.
+
+    Reporting only, for models whose default chat template opens a think block.
+    """
+    _revision, suites, score = _scorer()
+    base_out, out = base["gate"]["outputs"], other["gate"]["outputs"]
+    split = {"gained_base_unclosed": 0, "gained_base_closed": 0,
+             "lost_base_unclosed": 0, "lost_base_closed": 0}
+    for suite in suites:
+        prompts: list = []
+        score(suite, lambda prompt: prompts.append(prompt) or "")
+        base_score = score(suite, base_out.__getitem__)
+        for prompt in prompts:
+            if out[prompt] == base_out[prompt]:
+                continue
+            swapped = score(suite, lambda q, p=prompt: out[q] if q == p else base_out[q])
+            step = round((swapped - base_score) * len(prompts))
+            if step:
+                kind = "gained" if step > 0 else "lost"
+                closed = "closed" if THINK_CLOSE in base_out[prompt] else "unclosed"
+                split[f"{kind}_base_{closed}"] += 1
+    return {"base_unclosed": sum(THINK_CLOSE not in o for o in base_out.values()),
+            "unclosed": sum(THINK_CLOSE not in o for o in out.values()),
+            "answers": len(out), **split}
+
+
 def leg2_detail(analysis: dict, records: list, checks: list) -> dict:
     """Per model: item flips of every counted run and every base check vs the base."""
     by_path = {r["_path"]: r for r in [*records, *checks]}
@@ -92,6 +123,9 @@ def leg2_detail(analysis: dict, records: list, checks: list) -> dict:
         entry: dict = {"base_box": box_of(base["_path"]), "arms": {}, "checks": {}}
         for arm, row in result.get("arms", {}).items():
             entry["arms"][arm] = [flips(base, by_path[path]) for path in row["sources"]]
+        if any(THINK_CLOSE in o for o in base["gate"]["outputs"].values()):
+            entry["think"] = {arm: [think_closure(base, by_path[path]) for path in row["sources"]]
+                              for arm, row in result.get("arms", {}).items()}
         for check in checks:
             if check["model"] != model:
                 continue
@@ -234,6 +268,23 @@ def tables(analysis: dict, detail: dict) -> str:
         lines.append("† made on a box whose base check scores that suite differently from "
                      "the counted base; ‡ made on a box with no base check.")
         lines.append("")
+        if entry.get("think"):
+            sample = next(iter(entry["think"].values()))[0]
+            lines.append(
+                f"Gate answers that never close `<think>` within the 256-token budget: base "
+                f"{sample['base_unclosed']} of {sample['answers']}. Per arm and seed: answers "
+                "left unclosed; items gained and lost, split by whether the base answer had "
+                "closed `<think>` (reporting only):")
+            lines.append("")
+            lines.append("| Arm | Seed | Unclosed | Gained (base unclosed / closed) "
+                         "| Lost (base unclosed / closed) |")
+            lines.append("|---|---:|---:|---|---|")
+            for arm in shown:
+                for seed, t in zip(arms[arm]["seeds"], entry["think"][arm]):
+                    lines.append(f"| `{arm}` | {seed} | {t['unclosed']} "
+                                 f"| {t['gained_base_unclosed']} / {t['gained_base_closed']} "
+                                 f"| {t['lost_base_unclosed']} / {t['lost_base_closed']} |")
+            lines.append("")
     for title, key, fmt in (
             ("Not counted (not at the arm's winning rate)", "not_counted",
              lambda r: f"`{r['model']}` `{r['arm']}` lr {r['lr']:g} seed {r['seed']}: "
