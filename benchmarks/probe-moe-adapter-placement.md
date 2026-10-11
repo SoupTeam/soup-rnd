@@ -113,6 +113,14 @@ is the sample SD over seeds):
 Accuracy on the evaluation rows is reported with a bootstrap 95% interval and
 does not enter the verdict: 256 items cannot resolve a few points.
 
+**Granularity of leg 2, stated before any counted result.** The suites have 24-40
+items, so one item is 0.025-0.042: a single changed answer can cost 0.05 on the
+24-item suites. Leg 2 is applied exactly as `soup ship` applies it (any suite, any
+seed), because that is the gate a user's adapter meets; the record also reports,
+per suite, how many items moved, so a REGRESSES driven by one or two items is
+visible as such. Leg 2 is noisy by construction; the task gap carries the
+placement comparison.
+
 **What the result changes.** If `A` or `AS` is ACCEPTABLE on a model, the
 pre-flight may recommend it as a quality-preserving fallback for that architecture
 class. If only `AT` is, the recommendation names the expert subset and its measured
@@ -149,6 +157,14 @@ launched on a row-level split from commit `8509f196`: 81 of its 253 evaluation
 source questions also had a rephrasing in training, and 14 in calibration. That
 split is withdrawn; the pilot it ran is feasibility-only (step time, memory, the
 harness on real weights). Every counted run uses the group-disjoint split above.
+
+**OLMoE pilot (feasibility only; withdrawn row-level split).** Base: 857 s end to
+end. `AE` at 2e-4: zero-adapter check exact (0.97017 both), 121,634,816 trainable
+parameters as estimated, 256 steps at 3.12 s/step (13.3 min), peak 16.0 GiB
+allocated on an RTX A6000, 1395 s end to end. Training loss 0.55 -> 0.23 over the
+epoch; evaluation NLL 0.925 -> 0.228 [RUN]. These numbers size the plan (about 23
+minutes per OLMoE run, so 12 sweep runs + 6 seed runs fit one box in about 7 hours
+at USD 0.68/h) and are not results.
 
 ## 7. Cloud protocol
 
