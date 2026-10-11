@@ -513,11 +513,13 @@ class TestRefusalsNameThePostRenumberSlot:
             load_config_from_string(_yaml("grpo"))
         assert "v0.72" not in str(excinfo.value)
 
-    def test_arch_allowlist_names_v0723(self):
+    def test_arch_allowlist_no_longer_promises_a_release(self):
+        """It promised v0.72.3, which has shipped; B2 dropped the sentence."""
         from soup_cli.utils.layer_stream import stream_arch_of
 
         class _Cfg:
             model_type = "gpt2"
 
-        with pytest.raises(ValueError, match="v0.72.3"):
+        with pytest.raises(ValueError) as excinfo:
             stream_arch_of(_Cfg())
+        assert "v0.72" not in str(excinfo.value)

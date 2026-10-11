@@ -53,7 +53,9 @@ def _cache(tmp_path, *, striped):
 
 
 def _inspect(out, roots):
-    return inspect_shard_cache(out, "float32", FP, (), "none", False, "", "", stripe_roots=roots)
+    return inspect_shard_cache(
+        out, "float32", FP, (), "none", False, "", "", stripe_roots=roots, stack_experts=False
+    )
 
 
 def _write_raw_index(out, **extra):

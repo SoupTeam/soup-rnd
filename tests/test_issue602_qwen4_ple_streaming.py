@@ -9,6 +9,8 @@ import re
 
 import pytest
 
+from tests._tiny_hf_models import write_tiny_llama_config
+
 
 def _tiny_qwen4_config(*, ple: bool = True):
     try:
@@ -324,7 +326,7 @@ def test_qwen4_sharder_dequantizes_omlx_oq_without_copying_companions(tmp_path):
     from safetensors import safe_open
     from safetensors.torch import save_file
 
-    from soup_cli.utils.layer_shard import layer_shard_path, shard_checkpoint
+    from soup_cli.utils.layer_shard import ShardLayout, layer_shard_path, shard_checkpoint
 
     weights = tmp_path / "weights"
     shards = tmp_path / "shards"
@@ -373,8 +375,13 @@ def test_qwen4_sharder_dequantizes_omlx_oq_without_copying_companions(tmp_path):
         encoding="utf-8",
     )
 
+    # config.json holds only the quantization block, so the layout is passed.
     index = shard_checkpoint(
-        str(weights), str(shards), dtype="float32", arch="qwen4_exp"
+        str(weights),
+        str(shards),
+        dtype="float32",
+        arch="qwen4_exp",
+        layout=ShardLayout(n_layers=1, stack_experts=True),
     )
 
     assert index.n_layers == 1
@@ -702,6 +709,7 @@ def _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=None):
     import types
 
     import soup_cli.trainer.stream_setup as stream_setup
+    from soup_cli.utils.layer_shard import ShardLayout
 
     harness_total_ram = 2_000_000
     harness_resident_ram = 4_096
@@ -776,6 +784,21 @@ def _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=None):
         }
     )
     tokenizer = types.SimpleNamespace(pad_token=None, eos_token="</s>")
+    reached = []
+    captured = {"probes": [], "layout": ShardLayout(n_layers=1, stack_experts=True)}
+
+    def _probe(*_args, **_kwargs):
+        probe = types.SimpleNamespace()
+        captured["probes"].append(probe)
+        return probe
+
+    def _layout_of(model):
+        assert model is captured["probes"][-1]
+        return captured["layout"]
+
+    def _shard(*_args, **kwargs):
+        captured["shard"] = kwargs
+        return index
 
     monkeypatch.setitem(
         sys.modules,
@@ -807,9 +830,9 @@ def _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=None):
         "soup_cli.utils.layer_shard.resolve_shard_dir",
         lambda *_a, **_k: str(tmp_path / "shards"),
     )
-    monkeypatch.setattr(
-        "soup_cli.utils.layer_shard.shard_checkpoint", lambda *_a, **_k: index
-    )
+    monkeypatch.setattr("soup_cli.utils.layer_shard.shard_checkpoint", _shard)
+    monkeypatch.setattr("soup_cli.utils.layer_stream_runtime.build_meta_skeleton", _probe)
+    monkeypatch.setattr("soup_cli.utils.layer_stream_runtime.shard_layout_of", _layout_of)
     monkeypatch.setattr(
         "soup_cli.utils.layer_shard.source_weight_bytes", lambda *_a, **_k: 1_024
     )
@@ -856,9 +879,6 @@ def _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=None):
         lambda **_kwargs: (types.SimpleNamespace(), runtime),
     )
 
-    reached = []
-    captured = {}
-
     def _mode(**_kwargs):
         reached.append("mode")
 
@@ -895,6 +915,16 @@ def test_setup_reaches_every_qwen4_fail_closed_policy(tmp_path, monkeypatch):
     )
 
     assert reached == ["mode", "source", "disk", "ram"]
+
+
+def test_setup_passes_the_probe_layout_to_the_sharder(tmp_path, monkeypatch):
+    """B2: the probe is built without NF4 or moe_lora, and its layout reaches the sharder."""
+    _reached, captured, _total_ram, _resident_ram = _drive_qwen4_streaming_setup(
+        tmp_path, monkeypatch
+    )
+
+    assert len(captured["probes"]) == 1
+    assert captured["shard"]["layout"] is captured["layout"]
 
 
 def test_setup_passes_total_ram_to_qwen4_planner_and_refusal(tmp_path, monkeypatch):
@@ -1040,6 +1070,7 @@ def test_non_qwen_companion_suffixes_do_not_enable_oq(tmp_path):
         },
         weights / "model.safetensors",
     )
+    write_tiny_llama_config(str(weights), 1)
 
     index = shard_checkpoint(str(weights), str(tmp_path / "shards"), dtype="float32")
 
@@ -1050,7 +1081,10 @@ def test_qwen4_config_json_change_invalidates_oq_cache(tmp_path):
     import torch
     from safetensors.torch import save_file
 
-    from soup_cli.utils.layer_shard import shard_checkpoint
+    from soup_cli.utils.layer_shard import ShardLayout, shard_checkpoint
+
+    # config.json holds only the quantization block, so the layout is passed.
+    layout = ShardLayout(n_layers=1, stack_experts=True)
 
     weights = tmp_path / "weights"
     shards = tmp_path / "shards"
@@ -1076,7 +1110,7 @@ def test_qwen4_config_json_change_invalidates_oq_cache(tmp_path):
     config_path = weights / "config.json"
     config_path.write_text(json.dumps(config), encoding="utf-8")
     first = shard_checkpoint(
-        str(weights), str(shards), dtype="float32", arch="qwen4_exp"
+        str(weights), str(shards), dtype="float32", arch="qwen4_exp", layout=layout
     )
 
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
@@ -1086,6 +1120,7 @@ def test_qwen4_config_json_change_invalidates_oq_cache(tmp_path):
         str(shards),
         dtype="float32",
         arch="qwen4_exp",
+        layout=layout,
         notify=notices.append,
     )
 

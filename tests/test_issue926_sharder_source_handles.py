@@ -42,6 +42,7 @@ from soup_cli.utils.layer_shard import (  # noqa: E402
     layer_shard_path,
     shard_checkpoint,
 )
+from tests._tiny_hf_models import write_tiny_llama_config  # noqa: E402
 
 N_LAYERS = 4
 _HIDDEN = 64
@@ -73,6 +74,7 @@ def _single_file_dir(tmp_path: Path) -> str:
     src = tmp_path / "single"
     src.mkdir()
     _write(src / "model.safetensors", _llama_tensors())
+    write_tiny_llama_config(str(src), N_LAYERS)
     return str(src)
 
 
@@ -106,6 +108,7 @@ def _multi_file_dir(tmp_path: Path) -> str:
     for number, keys in enumerate(plan, start=1):
         name = f"model-{number:05d}-of-{_N_FILES:05d}.safetensors"
         _write(src / name, {key: tensors[key] for key in keys})
+    write_tiny_llama_config(str(src), N_LAYERS)
     return str(src)
 
 
@@ -191,6 +194,7 @@ class TestLiveHandleBound:
         src.mkdir()
         for index, (key, value) in enumerate(tensors.items()):
             _write(src / f"model-{index:05d}.safetensors", {key: value})
+        write_tiny_llama_config(str(src), 2)
 
         _CountingSafeOpen.reset()
         monkeypatch.setattr(safetensors, "safe_open", _CountingSafeOpen)

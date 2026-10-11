@@ -627,6 +627,8 @@ class StreamingSetupMixin:
             large_layer_specs,
             large_layer_store_bytes,
             quantised_layer_suffixes,
+            refuse_unservable_target_parameters,
+            shard_layout_of,
         )
         from soup_cli.utils.moe import resolve_moe_lora_targets
         from soup_cli.utils.qwen4_ple import external_tensor_bytes
@@ -693,6 +695,54 @@ class StreamingSetupMixin:
             )
         quant_device_kind = str(self.device).split(":", 1)[0] if quant == QUANT_NF4 else ""
 
+        # The shard layout (ADR 0004) and the authoritative list of weights to
+        # quantise are read off a meta skeleton, not a hard-coded name list that
+        # would drift per architecture. The list is whatever
+        # replace_with_bnb_linear actually converts.
+        #
+        # This builds a second, throwaway skeleton (build_streamed_model makes
+        # its own). Deliberate: a meta skeleton allocates NO weight storage, so
+        # the cost is module-tree construction only, and threading a pre-built
+        # model into build_streamed_model would couple suffix discovery to model
+        # construction for no memory saving. It is built before the disk
+        # preflight, whose cache check compares the layout's expert stacking.
+        probe = build_meta_skeleton(
+            cfg.base,
+            dtype=dtype,
+            quant=quant,
+            trust_remote_code=self._trust_remote_code,
+        )
+        layout = shard_layout_of(probe)
+        quant_suffixes = quantised_layer_suffixes(probe) if quant == QUANT_NF4 else ()
+        # #798: the ONE helper that turns moe_lora into targets, and refuses a
+        # dropout peft cannot honour on fused experts. This path kept its own
+        # copy of the block, which is why it was the one path with no refusal.
+        # The probe is the only model available here, so the call happens while
+        # it is alive rather than at the attach below. Without moe_lora it
+        # returns None.
+        moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
+
+        from soup_cli.utils.peft_wiring import (
+            build_lora_config,
+            resolve_lora_target_modules,
+        )
+
+        target_modules = resolve_lora_target_modules(
+            model_config, tcfg.lora.target_modules, console
+        )
+        if moe_targets:
+            # Already announced by resolve_moe_lora_targets when the probe ran.
+            target_modules = moe_targets
+        lora_config = build_lora_config(
+            tcfg.lora,
+            target_modules=target_modules,
+            task_type=TaskType.CAUSAL_LM,
+        )
+        # Before any shard is written: the config peft converts, not the moe_lora flag,
+        # decides whether fused experts get adapters the shards cannot serve (ticket 10).
+        refuse_unservable_target_parameters(lora_config, probe, layout)
+        del probe
+
         def _disk_preflight(weights_plan) -> None:
             shard_estimate = estimate_stream_store_bytes(
                 weights_plan.source_bytes,
@@ -726,6 +776,7 @@ class StreamingSetupMixin:
                     quant_device_kind,
                     "qwen4_ple" if arch == "qwen4_exp" else "",
                     stripe_roots=stripe_roots,
+                    stack_experts=layout.stack_experts,
                 )
             write_total = 0 if cached is not None else shard_estimate
             shares = _stripe_write_shares(write_total, 1 + len(stripe_roots))
@@ -779,42 +830,6 @@ class StreamingSetupMixin:
                     f"free RAM, or pick a smaller base."
                 )
 
-        # The authoritative list of weights to quantise is whatever
-        # replace_with_bnb_linear actually converts, read off a meta skeleton —
-        # not a hard-coded name list that would drift per architecture.
-        #
-        # This builds a second, throwaway skeleton (build_streamed_model makes
-        # its own). Deliberate: a meta skeleton allocates NO weight storage, so
-        # the cost is module-tree construction only, and threading a pre-built
-        # model into build_streamed_model would couple suffix discovery to model
-        # construction for no memory saving.
-        quant_suffixes = ()
-        moe_targets = None
-        # #798: the ONE helper that turns moe_lora into targets, and refuses a
-        # dropout peft cannot honour on fused experts. This path kept its own
-        # copy of the block, which is why it was the one path with no refusal.
-        # The probe is a meta skeleton and is the only model available here, so
-        # the call happens while it is alive rather than at the attach below.
-        if quant == QUANT_NF4:
-            probe = build_meta_skeleton(
-                cfg.base,
-                dtype=dtype,
-                quant=quant,
-                trust_remote_code=self._trust_remote_code,
-            )
-            moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
-            quant_suffixes = quantised_layer_suffixes(probe)
-            del probe
-        elif tcfg.moe_lora:
-            probe = build_meta_skeleton(
-                cfg.base,
-                dtype=dtype,
-                quant=quant,
-                trust_remote_code=self._trust_remote_code,
-            )
-            moe_targets = resolve_moe_lora_targets(probe, tcfg, None, console=console)
-            del probe
-
         console.print(f"[dim]Preparing layer shards -> {shard_dir}[/]")
         index = shard_checkpoint(
             weights_dir,
@@ -823,6 +838,7 @@ class StreamingSetupMixin:
             arch=arch,
             quant=quant,
             quant_suffixes=quant_suffixes,
+            layout=layout,
             double_quant=double_quant,
             # Quantise on the device that will run the model: CPU and CUDA agree
             # on the packed nibbles but not on every float32 nested statistic.
@@ -1034,23 +1050,6 @@ class StreamingSetupMixin:
             enabled, why_not = expandable_segments_status()
             if not enabled:
                 console.print(f"[dim]expandable_segments allocator hint not enabled: {why_not}[/]")
-
-        from soup_cli.utils.peft_wiring import (
-            build_lora_config,
-            resolve_lora_target_modules,
-        )
-
-        target_modules = resolve_lora_target_modules(
-            model_config, tcfg.lora.target_modules, console
-        )
-        if moe_targets:
-            # Already announced by resolve_moe_lora_targets when the probe ran.
-            target_modules = moe_targets
-        lora_config = build_lora_config(
-            tcfg.lora,
-            target_modules=target_modules,
-            task_type=TaskType.CAUSAL_LM,
-        )
 
         # #366 / #434 — CUDA host pinning is inapplicable on every non-CUDA
         # target. An explicit stream_pin=true is honoured by saying so, not by

@@ -86,6 +86,13 @@ _DEEPSEEK_V3_ATTENTION = (
     "o_proj",
 )
 
+#: ``model_type`` values with V3's attention that can be built with
+#: ``q_lora_rank=None``, which leaves one ``q_proj`` where the table names
+#: ``q_a_proj`` and ``q_b_proj``; see :func:`_moe_targets`. ``glm_moe_dsa`` shares
+#: the table entry but is not here: its modeling code always builds
+#: ``q_a_proj`` / ``q_b_proj`` and its config defaults ``q_lora_rank`` to 2048.
+_DEEPSEEK_V3_OPTIONAL_Q_LORA = frozenset({"deepseek_v3", "kimi_k25", "kimi_k2"})
+
 MOE_TEXT_LORA_TARGETS: dict[str, Any] = {
     "qwen3_moe": ("q_proj", "k_proj", "v_proj", "o_proj"),
     # GLM-4.6 (``zai-org/GLM-4.6``, 92 layers). Ordinary attention, the same
@@ -249,6 +256,26 @@ def _note_partial_coverage(model_type: Any, model: Any, console: Any) -> None:
         logger.debug("partial-coverage notice not printed", exc_info=True)
 
 
+def _has_no_q_lora(model: Any) -> bool:
+    """Is ``q_lora_rank`` declared and ``None``, on the config or its text tower?
+
+    A config that does not declare the field (a test double, a non-V3 type) is
+    not "no q_lora": it keeps the table's names.
+    """
+    config = getattr(model, "config", model)
+    for holder in (getattr(config, "text_config", None), config):
+        if holder is not None and hasattr(holder, "q_lora_rank"):
+            return holder.q_lora_rank is None
+    return False
+
+
+def _with_single_q_proj(targets: Any) -> list[str]:
+    """V3 attention names with ``q_a_proj`` / ``q_b_proj`` swapped for ``q_proj``."""
+    resolved = ["q_proj"]
+    resolved.extend(name for name in targets if name not in ("q_a_proj", "q_b_proj"))
+    return resolved
+
+
 def _model_types(model: Any) -> set[Any]:
     """Return outer/text model types without importing Transformers."""
     config = getattr(model, "config", model)
@@ -311,6 +338,52 @@ class UnmappedTargets:
         return f"UnmappedTargets({self.model_types!r})"
 
 
+def _moe_targets(model_type: str, model: Any) -> Any:
+    """The table entry for ``model_type``, with ``q_proj`` for a V3 without q_lora.
+
+    Conditional rather than a ``q_proj`` added to the shared list, so a wrapper's
+    vision tower (which has its own ``q_proj``) is not reached on the checkpoints
+    that do set ``q_lora_rank``, i.e. every real V3, R1 and Kimi K2.
+    """
+    targets = _as_targets(MOE_TEXT_LORA_TARGETS[model_type])
+    if model_type in _DEEPSEEK_V3_OPTIONAL_Q_LORA and _has_no_q_lora(model):
+        return _with_single_q_proj(targets)
+    return targets
+
+
+def _moe_table_type(model: Any, model_types: set[Any] | None = None) -> str | None:
+    """The ``model_type`` whose :data:`MOE_TEXT_LORA_TARGETS` entry applies, if any.
+
+    The wrapper ``model_type`` is preferred over the text one where both are
+    present, because a vision-language wrapper names its language tower in the
+    module path and the text-only entry does not.
+    """
+    if model_types is None:
+        model_types = _model_types(model)
+    outer = getattr(getattr(model, "config", model), "model_type", None)
+    if outer in MOE_TEXT_LORA_TARGETS:
+        return str(outer)
+    for value in sorted(str(v) for v in model_types if v is not None):
+        if value in MOE_TEXT_LORA_TARGETS:
+            return value
+    return None
+
+
+def moe_attention_targets(model: Any) -> list[str] | None:
+    """The attention projection names of ``model``'s MoE table entry, or ``None``.
+
+    ``moe_lora`` builds its own target list and used to hard-code
+    ``q_proj`` / ``k_proj`` / ``v_proj`` / ``o_proj``, which DeepSeek-V3's MLA
+    attention does not have. ``None`` for an architecture the table lacks and for
+    a regex entry, which cannot be merged into a suffix list; the caller then
+    keeps its standard names.
+    """
+    table_type = _moe_table_type(model)
+    if table_type is None or isinstance(MOE_TEXT_LORA_TARGETS[table_type], str):
+        return None
+    return list(_moe_targets(table_type, model))
+
+
 def resolve_lora_target_modules(model: Any, configured: Any, console: Any = None) -> Any:
     """Resolve ``target_modules: auto`` for models PEFT does not know yet.
 
@@ -342,17 +415,11 @@ def resolve_lora_target_modules(model: Any, configured: Any, console: Any = None
         return list(QWEN35_TEXT_LORA_TARGETS)
     if "qwen4_exp_text" in model_types:
         return QWEN4_EXP_TEXT_LORA_TARGETS
-    # The MoE table. The wrapper ``model_type`` is preferred over the text one
-    # where both are present, because a vision-language wrapper names its
-    # language tower in the module path and the text-only entry does not.
-    for value in (getattr(getattr(model, "config", model), "model_type", None),):
-        if value in MOE_TEXT_LORA_TARGETS:
-            _note_partial_coverage(value, model, console)
-            return _as_targets(MOE_TEXT_LORA_TARGETS[value])
-    for value in sorted(str(v) for v in model_types if v is not None):
-        if value in MOE_TEXT_LORA_TARGETS:
-            _note_partial_coverage(value, model, console)
-            return _as_targets(MOE_TEXT_LORA_TARGETS[value])
+    # The MoE table.
+    table_type = _moe_table_type(model, model_types)
+    if table_type is not None:
+        _note_partial_coverage(table_type, model, console)
+        return _moe_targets(table_type, model)
 
     named = sorted(value for value in model_types if isinstance(value, str))
     if not named or _peft_has_a_default_for(model_types):

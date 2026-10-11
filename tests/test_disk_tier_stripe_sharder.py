@@ -16,6 +16,7 @@ from soup_cli.utils.layer_shard import (  # noqa: E402
     stripe_dirs,
 )
 from soup_cli.utils.stripe_roots import StripeRootError, primary_cache_identity  # noqa: E402
+from tests._tiny_hf_models import write_tiny_llama_config  # noqa: E402
 
 
 def _weights(tmp_path, n_layers=3):
@@ -31,6 +32,7 @@ def _weights(tmp_path, n_layers=3):
     src = tmp_path / "weights"
     src.mkdir()
     save_file(state, str(src / "model.safetensors"))
+    write_tiny_llama_config(str(src), n_layers)
     return str(src)
 
 
