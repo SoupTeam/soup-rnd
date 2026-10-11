@@ -166,6 +166,34 @@ epoch; evaluation NLL 0.925 -> 0.228 [RUN]. These numbers size the plan (about 2
 minutes per OLMoE run, so 12 sweep runs + 6 seed runs fit one box in about 7 hours
 at USD 0.68/h) and are not results.
 
+**Plan changes, written before any counted trained result (2026-10-11, 03:45 UTC).**
+
+- *Qwen3.5 `AS` rate.* §3 does not give one: `AS` has no OLMoE counterpart. It
+  reuses OLMoE `A`'s winning rate, because `AS` is `A` plus one dense MLP (the
+  shared expert) and adds no routed-expert parameters.
+- *Qwen3.5 runs started before the OLMoE winners are known* use 2e-4, so the box
+  is not idle. Such a run counts only if 2e-4 turns out to be its arm's OLMoE
+  winner; otherwise it is kept and labelled not counted. `AE` runs first because
+  it decides fit.
+- *Qwen3.5 pilot plan.* It ran on the corrected split and harness (split
+  `4b41de1b…`, harness `dd55825c…`), but pilot runs never enter a verdict: its
+  base and `A` outputs are renamed `pilot-*`, and the base is run again in the
+  counted plan. Comparing the two base runs also shows whether greedy scoring is
+  deterministic on that box. The routing profile `hot-qwen35.json` from that plan
+  is kept as the `AT` hot set, because it involves no training and is the input §2
+  defines.
+- *Two OLMoE boxes.* The sweep's last four runs, and later seeds, run on a second
+  `massedcompute_A6000_plus` with the same bundle. Its `AT` runs use the first
+  box's hot set (`hot-olmoe.json`, SHA-256 `59e3d4f4…`), copied and hash-checked;
+  every `AT` run JSON records `hot_sha256`.
+- *Allocator setting on Qwen3.5.* The `A` pilot logged one caching-allocator
+  OOM-and-retry with about 101 GB of the card reserved; `AE` adds about 14 GiB of
+  fp32 adapter, gradient and AdamW state. Every counted Qwen3.5 run therefore runs
+  with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, so that "fit" measures
+  capacity rather than fragmentation of the cached pool. It changes how the allocator
+  reserves memory, not the recipe; base and every arm run under it; peak memory stays
+  `max_memory_allocated`.
+
 ## 7. Cloud protocol
 
 As in [`probe-moe-expert-holdout.md`](probe-moe-expert-holdout.md): source bundle
