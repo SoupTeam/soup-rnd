@@ -755,3 +755,49 @@ class TestDoubleQuantForFp8Sources:
         config = SimpleNamespace(quantization_config={"quant_method": "fp8"})
         with pytest.raises(ValueError, match="not supported for a block-scaled FP8"):
             stream_double_quant(tcfg, config, quant="nf4")
+
+
+# ==========================================================================
+# FP8 routed experts through expert stacking (PR #6 integration)
+# ==========================================================================
+def test_fp8_experts_stack_bit_exact(tmp_path):
+    """Stacked FP8 experts equal the stacked independent decode, bit for bit."""
+    import torch
+
+    from soup_cli.utils.layer_shard import ShardLayout
+
+    generator = torch.Generator().manual_seed(6)
+    exponents = _Exponents()
+    shapes = {"gate_proj": (128, 256), "up_proj": (128, 256), "down_proj": (256, 128)}
+    tensors, reference = {}, {}
+    for expert in range(2):
+        for projection, shape in shapes.items():
+            key = f"model.layers.0.mlp.experts.{expert}.{projection}.weight"
+            q, scale = _fp8_weight(shape, exponents, generator=generator)
+            tensors[key] = q
+            tensors[key + "_scale_inv"] = scale
+            reference[expert, projection] = _reference_decode(q, scale)
+    tensors["model.layers.0.input_layernorm.weight"] = torch.randn(
+        256, generator=generator
+    ).to(torch.bfloat16)
+    tensors["model.embed_tokens.weight"] = torch.randn(
+        64, 256, generator=generator
+    ).to(torch.bfloat16)
+    tensors["model.norm.weight"] = torch.randn(256, generator=generator).to(torch.bfloat16)
+
+    _, out, _ = _shard(
+        tmp_path, tensors, layout=ShardLayout(n_layers=1, stack_experts=True)
+    )
+    blob = _layer(out, 0)
+
+    want_gate_up = torch.stack(
+        [
+            torch.cat((reference[expert, "gate_proj"], reference[expert, "up_proj"]), dim=0)
+            for expert in range(2)
+        ]
+    )
+    want_down = torch.stack([reference[expert, "down_proj"] for expert in range(2)])
+    assert blob["mlp.experts.gate_up_proj"].dtype == torch.bfloat16
+    assert torch.equal(blob["mlp.experts.gate_up_proj"], want_gate_up)
+    assert torch.equal(blob["mlp.experts.down_proj"], want_down)
+    assert not [key for key in blob if "scale_inv" in key or ".experts.0." in key]
