@@ -321,6 +321,17 @@ shutdown and a workstation deadline armed before setup, output copied and its ha
 verified before every delete, `brev ls` empty at the end. Spend cap for the whole
 record: USD 60.
 
+**Outcome.** All four boxes (`e1-olmoe`, `e1-olmoe2`, `e1-qwen`, `e1-qwen2`) were
+copied, hash- and content-verified, and deleted by their watchers between 06:38 and
+09:26 UTC; `brev ls` then listed no instance, and no deadline task remained. From
+create-to-delete times at list price the spend is about USD 34 (OLMoE boxes 4.2 h
+and 3.2 h at USD 0.68/h, Qwen3.5 boxes 6.6 h and 4.4 h at USD 2.63/h) [ESTIMATE; the
+provider's bill is authoritative]. The raw records are published in
+`benchmarks/results/probe-moe-adapter-placement/` with the two home-directory paths
+replaced by placeholders; `publication-redactions.json` gives every file's original
+and published SHA-256, and the report run over the published copies reproduces
+the tables exactly.
+
 ## 8. Results
 
 All numbers below come from `moe_adapter_report.py` at commit `855394a4` (this section
@@ -491,6 +502,19 @@ seeds they beat `AE` on NLL, and their paired accuracy is 2.3 and 2.1 points hig
 finished they lose 3-5 items per run where `A` and `AS` lose 0-1. All of this is at
 rates transferred from OLMoE and provisional on the proposed gate.
 
+**LR transfer check (outside the rule; written after it was read).** On seed 0,
+Qwen3.5 `AE` has three rates: 5e-5 (`lrcheck-qwen35-AE-lr5e-5-s0`) 0.1353, 1e-4
+(counted) 0.1384 and 2e-4 (not counted) 0.1489. `AE`'s best rate on this model is the
+lowest one tried, below its OLMoE winner, and at it `AE` nearly closes the NLL gap:
+seed-0 `A` (0.1345) is 0.0008 below it and seed-0 `AS` (0.1354) 0.0001 above. So the
+negative task gap above is mostly the rate transfer, and the sign of the
+`A`/`AS`-vs-`AE` gap depends on `AE`'s rate. What survives at `AE`'s best rate is
+that `A` and `AS` are no worse than `AE` on NLL; they are not shown to be better. At
+5e-5, `AE` scores accuracy 0.891 (seed-0 `A` 0.910, `AS` 0.898), and its leg 2 would
+pass (largest drop: safety, 0.050, at the threshold), so `AE`'s leg-2 failure is not
+shown to hold at its best rate either. One seed and one extra rate; nothing here
+enters a verdict, and a rate below 5e-5 is untested.
+
 ### Memory: an adapted expert costs its optimizer state
 
 For every arm, the peak CUDA memory above `A`'s equals the extra adapter state (16
@@ -524,13 +548,17 @@ owner's approval. Under it:
   instruction +3/-8; `AE` itself loses common sense +0/-4.
 - **Qwen3.5-35B-A3B: `A` and `AS` are ACCEPTABLE.** Attention-only, or attention plus
   the shared expert, needs 0.24 or 0.32 GiB of adapter state, against 14.07 GiB for
-  every routed expert. They are not worse than `AE` on any measure here: NLL -0.0038 /
-  -0.0031 nat, accuracy +2.3 / +2.1 points (not significant). Leg 2 fails for `AT` and
-  `AE`, on one seed each.
+  every routed expert. At the counted rates they are not worse than `AE` on any
+  measure: NLL -0.0038 / -0.0031 nat, accuracy +2.3 / +2.1 points (not significant).
+  At `AE`'s best rate in the LR check (5e-5, seed 0) the NLL gap nearly closes
+  (-0.0008 / +0.0001), and `AE` passes leg 2 there. So the pre-flight may say
+  "attention-only (+ shared expert) measured no worse than every expert on this
+  model", not "better", and not that `AE` regresses.
 - **The two models disagree**, so E1 gives no architecture-wide rule. On OLMoE
   (64 experts, plain attention, no shared expert) skipping the experts costs a
   consistent 0.008 nat and about 3 accuracy points; on Qwen3.5 (256 experts, a
-  shared expert, 75% linear-attention layers) it costs nothing measurable.
+  shared expert, 75% linear-attention layers) no cost was measured at any `AE` rate
+  tried.
   Differences that could explain it, none tested here: the shared expert, the
   attention type, the number of experts, the rate transfer (§3), and the base's
   starting point on this task (accuracy 0.512 against 0.477 at the base, NLL 0.936
