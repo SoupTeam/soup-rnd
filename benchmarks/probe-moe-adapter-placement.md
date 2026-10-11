@@ -738,11 +738,11 @@ $e1 prepare --data data/MetaMathQA-395K.json --out e1-results/split.json
 sha256sum e1-results/split.json
 ```
 
-The counted runs carry split hash `4b41de1b…`: the box got the split file
-made on the workstation, whose JSON writer emits CRLF. On Linux the same split
-comes out with LF, hash `6bc844a9…`, and every run records that hash instead.
-Rewriting the file with CRLF line ends restores `4b41de1b…`. The published
-`split.json` copies have the same rows, rewritten by publication.
+The counted runs carry split hash `4b41de1b…`: the box got the split file made on
+the workstation, where the harness's JSON writer emits CRLF. On Linux it writes the
+same text with LF, hash `6bc844a9…` (computed from the published rows, not run), and
+a run records that hash instead. The published `split.json` copies have the same
+rows; written back with CRLF line ends and no final newline they hash to `4b41de1b…`.
 
 **Hot sets.** A fresh `profile` records host fields, so its file hash is its own;
 compare its per-layer `hot` lists with the published file. To repeat the counted
@@ -760,12 +760,15 @@ pathlib.Path(sys.argv[2]).write_bytes(p.removesuffix(b"\n"))' \
 sha256sum e1-results/hot-*.json   # 59e3d4f4... olmoe, 7009faed... qwen35
 ```
 
-**Runs.** One line per published record, as in the plan files, which put
-`--data data/MetaMathQA-395K.json --split e1-results/split.json --out
-e1-results/<name>.json` after the arguments below. The plans ran these lines on two
-boxes per model in a different order; `run-olmoe-AS-s0` records `not_applicable`
-(OLMoE has no shared expert), and the 2e-4 `AE` / `AT` runs on Qwen3.5 are kept but
-not counted (§8).
+**Runs.** One line per published `run-*`, `check-*`, `lrcheck-*` and hot-set record,
+as in the plan files, which put `--data data/MetaMathQA-395K.json --split
+e1-results/split.json --out e1-results/<name>.json` after the arguments below. The
+plans ran these lines on two boxes per model in a different order. `run-olmoe-AS-s0`
+records `not_applicable` (OLMoE has no shared expert), and the 2e-4 `AE` / `AT` runs
+on Qwen3.5 are kept but not counted (§8). The Qwen3.5 pilot plan ran
+`hot-qwen35`, the base and `A` at 2e-4 seed 0, with the lines below; its base and
+`A` outputs were renamed `pilot-*` (§6), and both ran again for counting (the base
+on `e1-qwen`, `A` on `e1-qwen2`).
 
 ```text
 hot-olmoe                profile --model olmoe
@@ -793,8 +796,10 @@ lrcheck-qwen35-AE-lr5e-5-s0  run --model qwen35 --arm AE --lr 5e-5 --seed 0 --ge
     every AT line adds --hot e1-results/hot-qwen35.json
 ```
 
-On Qwen3.5, every `run` line ran with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`
-exported; `hot-qwen35` ran before it was set (the pilot plan, §6). OLMoE ran without it.
+On Qwen3.5, the counted plan and the second box ran every line with
+`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` exported (echoed into
+`plan-qwen-counted.txt.out` and `plan-qwen2.txt.out`). The pilot plan, `hot-qwen35`
+included, ran without it (§6). OLMoE ran without it.
 
 **Report, tests and budget.** Over the published records, with the hashes the
 records carry; the outputs are this record's tables and
