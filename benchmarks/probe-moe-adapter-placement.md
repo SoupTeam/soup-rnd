@@ -1,6 +1,8 @@
 # E1: where LoRA has to go on a MoE model
 
-**Status: rule written 2026-10-11, before any arm ran.** Track E1 of the research
+**Status: rule written 2026-10-11, before any arm ran; results in §8 and §9 (same
+day), under a quality gate proposed in the §6 addendum and not yet approved.** Track E1
+of the research
 program: Track B4 refuses routed-expert adapters on giant MoE models because of
 the optimizer-state budget. This record measures what that costs in quality on
 two real MoE checkpoints, and turns the result into a rule for the pre-flight
@@ -509,6 +511,53 @@ the peak. The memory check this gives the pre-flight: an arm's cost over
 attention-only is 16 bytes times its extra trainable parameters. It is measured
 resident, on these two models at this shape, not with layer streaming and not on an
 8 GB card.
+
+## 9. What the pre-flight can say
+
+Every line here rests on the proposed gate (§6 addendum), which awaits the record
+owner's approval. Under it:
+
+- **OLMoE-1B-7B: no target is named acceptable** (§5's added branch; every arm
+  fails leg 2). The pre-flight would give the raw deltas against `AE` instead: `A`
+  +0.0083 nat, -3.1 accuracy points (p 0.058), leg 2 common sense +1/-6 items over
+  three seeds; `AT` +0.0016 nat, +0.3 points (p 0.92), leg 2 common sense +0/-2 and
+  instruction +3/-8; `AE` itself loses common sense +0/-4.
+- **Qwen3.5-35B-A3B: `A` and `AS` are ACCEPTABLE.** Attention-only, or attention plus
+  the shared expert, needs 0.24 or 0.32 GiB of adapter state, against 14.07 GiB for
+  every routed expert. They are not worse than `AE` on any measure here: NLL -0.0038 /
+  -0.0031 nat, accuracy +2.3 / +2.1 points (not significant). Leg 2 fails for `AT` and
+  `AE`, on one seed each.
+- **The two models disagree**, so E1 gives no architecture-wide rule. On OLMoE
+  (64 experts, plain attention, no shared expert) skipping the experts costs a
+  consistent 0.008 nat and about 3 accuracy points; on Qwen3.5 (256 experts, a
+  shared expert, 75% linear-attention layers) it costs nothing measurable.
+  Differences that could explain it, none tested here: the shared expert, the
+  attention type, the number of experts, the rate transfer (§3), and the base's
+  starting point on this task (accuracy 0.512 against 0.477 at the base, NLL 0.936
+  against 0.634).
+- **Memory** follows §8's measured rule on both models: an arm's cost over
+  attention-only is 16 bytes times its extra trainable parameters.
+
+**DeepSeek-V3 and Kimi K2 are an extrapolation, not a measurement.** Both use MLA
+attention, 256 or 384 routed experts per layer and one shared expert;
+neither was trained here. From their pinned configs (`moe_adapter_budget.py`;
+DeepSeek-V3 `e815299b`, Kimi K2 `fd1984e2`), rank 16, the harness's target rules and
+the fused `gate_up` layout:
+
+| Model | `A` | `AS` | `AT` | `AE` |
+|---|---:|---:|---:|---:|
+| DeepSeek-V3 | 97M = 1.4 GiB | 123M = 1.8 GiB | 1,339M = 20.0 GiB | 4,988M = 74.3 GiB |
+| Kimi K2 | 61M = 0.9 GiB | 88M = 1.3 GiB | 1,975M = 29.4 GiB | 7,637M = 113.8 GiB |
+
+With separate `gate`, `up` and `down` adapters, `AE` is 99.7 GiB on DeepSeek-V3 and
+153.2 GiB on K2 (10,280M parameters, the research brief's "~10.2B"). By §8's rule,
+that state is what an adapted expert set adds over attention-only. Adapting the
+routed experts of either model needs tens of GiB of adapter state before any weights
+or activations, and `AS` needs under 2 GiB. On an 8 GB card that leaves `A` or `AS`.
+Whether they keep quality there is exactly what the two measured models disagree
+on; the closer analogue in structure is Qwen3.5 (a shared expert, 256 experts), but
+its attention is not MLA. The pre-flight may give these budgets, and must label any
+quality claim for these models as untested.
 
 ## Finding for Soup: leg 2 on a thinking template scores cut-off reasoning
 
