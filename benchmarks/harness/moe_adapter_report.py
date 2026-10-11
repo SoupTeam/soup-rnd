@@ -480,11 +480,12 @@ def main(argv=None) -> int:
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "summary.json").write_text(json.dumps({"analysis": analysis, "leg2": detail},
-                                                 indent=1), encoding="utf-8")
-    (out / "tables.md").write_text(tables(analysis, detail), encoding="utf-8")
+                                                 indent=1), encoding="utf-8", newline="\n")
+    (out / "tables.md").write_text(tables(analysis, detail), encoding="utf-8", newline="\n")
     for model, result in analysis["models"].items():
         if result.get("arms"):
-            (out / f"curve-{model}.svg").write_text(svg(model, result), encoding="utf-8")
+            (out / f"curve-{model}.svg").write_text(svg(model, result), encoding="utf-8",
+                                                    newline="\n")
     return 0
 
 
