@@ -129,6 +129,12 @@ class. If only `AT` is, the recommendation names the expert subset and its measu
 memory. If nothing short of `AE` is ACCEPTABLE, the pre-flight message must say that
 the narrower targets cost measured quality, with the number.
 
+*Added after OLMoE seeds 1-2 were read, before any counted Qwen3.5 result (analysis
+commit `855394a4`).* If no arm is ACCEPTABLE on a model, the pre-flight names no
+target as acceptable for that model. It gives, per arm against F, the raw deltas
+instead: the NLL gap, the paired accuracy clustered by question, and the leg-2 items
+gained and lost.
+
 ## 6. Hardware and fit, stated before any run
 
 Trainable parameters per arm at rank 16, from the pinned configs [ESTIMATE; each
@@ -237,9 +243,13 @@ rule and its thresholds do not change.**
   comparison with F on the same 256 evaluation questions: questions only X answers
   correctly, questions only F does, and the two-sided exact McNemar p. It is a
   secondary column and does not enter the verdict.
-- *When leg 2 cannot separate arms.* If F itself fails leg 2 on a model, the record
-  says "leg 2 does not discriminate placements on this model" and gives, per
-  failing suite, the number of items F changed against the base.
+- *When leg 2 cannot separate arms.* If every arm fails leg 2 on a model, F
+  included, the record says "leg 2 does not discriminate placements on this model"
+  and gives, per arm and failing suite, the items gained and lost against the base.
+  **Corrected after OLMoE seeds 1-2, before any counted Qwen3.5 result:** this bullet
+  first read "if F itself fails leg 2". That does not follow: each arm meets leg 2 on
+  its own, and X can pass where F fails, keeping its own verdict. On OLMoE every arm
+  fails, so the phrase stands there.
 - *Qwen3.5 leg 2 mostly scores cut-off reasoning.* Under `soup ship`'s rendering
   (the default template opens `<think>`; 256 new tokens), 151 of the base's 274 gate
   answers never close `<think>`, and all 151 are exactly 256 tokens long: the budget
@@ -278,6 +288,28 @@ rule and its thresholds do not change.**
   they use MLA attention, Qwen3.5 mixes gated-delta linear attention with full
   attention, and OLMoE uses plain multi-head attention.
 
+**Added after OLMoE seeds 1-2 were read, before any counted Qwen3.5 result
+(2026-10-11, analysis commit `855394a4`), after a second external audit. Reporting
+only: the verdict rule, its thresholds and the harness do not change.**
+
+- *Accuracy intervals resample questions.* The interval resampled all answers
+  pooled over seeds, as if independent, although the seeds answer the same 256
+  questions: `AE` seed 0 repeated three times narrowed its interval from
+  [0.562, 0.680] to [0.586, 0.655]. It now resamples questions, each scored by its
+  mean correctness over seeds, so a repeated seed leaves it unchanged (tested).
+- *Paired accuracy over seeds, clustered by question.* For arm X against F, `d_i` is
+  X - F correctness summed over seeds on question `i`. The report gives the mean
+  difference (the sum of `d_i` divided by questions x seeds), the number of questions
+  with `d_i > 0` and with `d_i < 0`, and an exact two-sided sign-flip p on `d`; with
+  one seed this is the exact McNemar test (tested). It replaces the pooled McNemar p
+  over seeds that §8 first quoted. The audit's independent recount (`A`-`AE` -3.1
+  points, p about 0.06; `AT`-`AE` +0.3, p about 0.9) matches the committed code
+  (p 0.058 and 0.92).
+- *Leg-2 wording.* Corrected in place in the block above: the phrase needs every
+  arm to fail leg 2, and each arm keeps its own leg-2 verdict (tested with F failing
+  and X passing).
+- *No ACCEPTABLE arm.* §5 now says what the pre-flight reports then.
+
 ## 7. Cloud protocol
 
 As in `probe-moe-expert-holdout.md` (the G8 holdout record, on the team branch
@@ -289,8 +321,9 @@ record: USD 60.
 
 ## 8. Results
 
-All numbers below come from `moe_adapter_report.py` at the commit that adds this
-section, run over the copied and hash-verified archives (raw records in
+All numbers below come from `moe_adapter_report.py` at commit `855394a4` (this section
+was regenerated with it after the addendum before §7), run over the copied and
+hash-verified archives (raw records in
 `benchmarks/results/probe-moe-adapter-placement/`). Every counted record has
 harness SHA-256 `dd55825c…` and split SHA-256 `4b41de1b…`, and every `AT` record
 has its model's hot-set hash. The two withdrawn-split pilot records are listed as
@@ -314,22 +347,32 @@ one seed's spread.
 `AS` is not applicable (OLMoE has no shared expert). The base, scored again on the
 second box, matches the counted base exactly (NLL, accuracy and every suite).
 
-| Arm | Trainable | AdamW fp32 state | Peak CUDA | s/step | Eval NLL (mean ± SD, 3 seeds) | Gap vs `AE` | Accuracy per seed | Paired vs `AE`, X-only / F-only (McNemar p) |
-|---|---:|---:|---:|---:|---:|---:|---|---|
-| base | - | - | - | - | 0.9360 | - | 0.512 | - |
-| `A` | 4.2M | 0.06 GiB | 14.25 GiB | 1.49 | 0.2508 ± 0.0009 | +0.0083 | 0.574, 0.586, 0.609 | 13/25 (0.073), 22/22 (1.0), 18/30 (0.11) |
-| `AT` | 33.6M | 0.50 GiB | 14.70 GiB | 2.11 | 0.2442 ± 0.0007 | +0.0016 | 0.645, 0.582, 0.645 | 18/12 (0.36), 17/18 (1.0), 15/18 (0.73) |
-| `AE` | 121.6M | 1.81 GiB | 16.01 GiB | 2.93 | 0.2426 ± 0.0009 | 0 | 0.621, 0.586, 0.656 | - |
+| Arm | Trainable | AdamW fp32 state | Peak CUDA | s/step | Eval NLL (mean ± SD, 3 seeds) | Gap vs `AE` | Accuracy per seed | Accuracy 95% CI, questions resampled | Paired vs `AE` per seed: X-only / F-only (McNemar p) | Paired vs `AE` over seeds, clustered by question: difference; questions X / F better; sign-flip p |
+|---|---:|---:|---:|---:|---:|---:|---|---|---|---|
+| base | - | - | - | - | 0.9360 | - | 0.512 | - | - | - |
+| `A` | 4.2M | 0.06 GiB | 14.25 GiB | 1.49 | 0.2508 ± 0.0009 | +0.0083 | 0.574, 0.586, 0.609 | [0.538, 0.642] | 13/25 (0.073), 22/22 (1.0), 18/30 (0.11) | -3.1 pp; 32 / 51; p 0.058 |
+| `AT` | 33.6M | 0.50 GiB | 14.70 GiB | 2.11 | 0.2442 ± 0.0007 | +0.0016 | 0.645, 0.582, 0.645 | [0.573, 0.676] | 18/12 (0.36), 17/18 (1.0), 15/18 (0.73) | +0.3 pp; 33 / 37; p 0.92 |
+| `AE` | 121.6M | 1.81 GiB | 16.01 GiB | 2.93 | 0.2426 ± 0.0009 | 0 | 0.621, 0.586, 0.656 | [0.570, 0.672] | - | - |
 
 **Task.** All three arms learn the task: NLL falls from 0.936 to 0.243-0.251. The
-placement differences are small next to that. `A`'s gap to `AE`, +0.0083 nat/token,
-is about nine seed SDs (each seed shows it, 0.0081-0.0085), but it is under the
-proposed 0.02 floor, so it is **not material** under §5. `AT` closes about 80% of
-the `A`-`AE` NLL gap with 28% of `AE`'s parameters. Paired accuracy points the same
-way. `A` answers fewer questions correctly than `AE` on two seeds and ties on one;
-pooled over seeds that is 53 vs 77 discordant questions (p 0.043 if the seeds are
-treated as independent, which they are not, since they share questions). `AT` vs
-`AE` is 50 vs 48. No single seed's McNemar test separates any arm from `AE`.
+placement differences are small next to that. Each is read as the NLL gap and the
+paired accuracy together:
+
+- `A` is +0.0083 nat/token above `AE` on every seed (0.0081-0.0085, about nine seed
+  SDs) and 3.1 accuracy points below it, clustered by question over seeds (`A` better
+  on 32 questions, `AE` on 51; sign-flip p 0.058): a consistent NLL cost and an
+  accuracy cost at the edge of significance.
+- `AT` is +0.0016 nat/token above `AE`, inside the noise test (2 x max SD = 0.0019,
+  though each seed has `AT` 0.0011-0.0020 above), and +0.3 points (33 vs 37
+  questions; p 0.92). With 28% of `AE`'s trainable parameters it is not
+  distinguishable from `AE` on either measure at three seeds, and it closes about 80%
+  of the `A`-`AE` NLL gap.
+
+No single seed's McNemar test separates any arm from `AE`. Accuracy intervals and the
+clustered test treat the question as the unit, because the three seeds answer the
+same 256 questions. The first version of this section quoted a pooled McNemar p of
+0.043 for `A` (53 vs 77 discordant answers over seeds), which counted the seeds as
+independent; it is withdrawn (addendum before §7).
 
 **Leg 2.** Every arm, `AE` included, fails leg 2 on the 24-item
 `mini_common_sense`, so **leg 2 does not discriminate placements on this model**.
@@ -348,7 +391,12 @@ safety and over-refusal move by at most one item.
 
 **Verdict under the proposed rule:** `A`, `AT` and `AE` are all **REGRESSES**,
 because leg 2 fails for every arm, `AE` included. That verdict ranks no placement.
-On the task gap alone, neither `A` nor `AT` is material against `AE`.
+With no arm ACCEPTABLE, §5's added branch applies: the pre-flight names no target as
+acceptable for OLMoE and gives the raw deltas above. Neither task gap is material,
+and neither is read alone. `A`'s +0.008 nat clears the noise test and is not material
+only because it is under the proposed 0.02 floor; next to it, `A` loses about 3
+accuracy points at the edge of significance, so this is not "`A` without loss". `AT`
+is not distinguishable from `AE` on either measure, with 28% of its parameters.
 
 ## Finding for Soup: leg 2 on a thinking template scores cut-off reasoning
 
