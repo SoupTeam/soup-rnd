@@ -287,6 +287,69 @@ shutdown and a workstation deadline armed before setup, output copied and its ha
 verified before every delete, `brev ls` empty at the end. Spend cap for the whole
 record: USD 60.
 
+## 8. Results
+
+All numbers below come from `moe_adapter_report.py` at the commit that adds this
+section, run over the copied and hash-verified archives (raw records in
+`benchmarks/results/probe-moe-adapter-placement/`). Every counted record has
+harness SHA-256 `dd55825c…` and split SHA-256 `4b41de1b…`, and every `AT` record
+has its model's hot-set hash. The two withdrawn-split pilot records are listed as
+rejected and never read.
+
+### OLMoE-1B-7B: MEASURED
+
+**Rates.** Seed-0 evaluation NLL per rate:
+
+| Arm | 5e-5 | 1e-4 | 2e-4 | 4e-4 | Rate used |
+|---|---:|---:|---:|---:|---:|
+| `A` | - | 0.2548 | **0.2515** | 0.2529 | 2e-4 |
+| `AT` | 0.2475 | **0.2446** | 0.2448 | 0.2576 | 1e-4 |
+| `AE` | 0.2446 | **0.2435** | 0.2469 | 0.2691 | 1e-4 |
+
+`AT` and `AE` won at the grid edge (1e-4), so each ran the one-step extension
+(5e-5), which lost; V3 passes. The `AT` winner beats 2e-4 by 0.0003 nat, inside
+one seed's spread.
+
+**Validity.** V1-V4 pass. Every planned run (3 arms x 3 seeds) has an `ok` record.
+`AS` is not applicable (OLMoE has no shared expert). The base, scored again on the
+second box, matches the counted base exactly (NLL, accuracy and every suite).
+
+| Arm | Trainable | AdamW fp32 state | Peak CUDA | s/step | Eval NLL (mean ± SD, 3 seeds) | Gap vs `AE` | Accuracy per seed | Paired vs `AE`, X-only / F-only (McNemar p) |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| base | - | - | - | - | 0.9360 | - | 0.512 | - |
+| `A` | 4.2M | 0.06 GiB | 14.25 GiB | 1.49 | 0.2508 ± 0.0009 | +0.0083 | 0.574, 0.586, 0.609 | 13/25 (0.073), 22/22 (1.0), 18/30 (0.11) |
+| `AT` | 33.6M | 0.50 GiB | 14.70 GiB | 2.11 | 0.2442 ± 0.0007 | +0.0016 | 0.645, 0.582, 0.645 | 18/12 (0.36), 17/18 (1.0), 15/18 (0.73) |
+| `AE` | 121.6M | 1.81 GiB | 16.01 GiB | 2.93 | 0.2426 ± 0.0009 | 0 | 0.621, 0.586, 0.656 | - |
+
+**Task.** All three arms learn the task: NLL falls from 0.936 to 0.243-0.251. The
+placement differences are small next to that. `A`'s gap to `AE`, +0.0083 nat/token,
+is about nine seed SDs (each seed shows it, 0.0081-0.0085), but it is under the
+proposed 0.02 floor, so it is **not material** under §5. `AT` closes about 80% of
+the `A`-`AE` NLL gap with 28% of `AE`'s parameters. Paired accuracy points the same
+way. `A` answers fewer questions correctly than `AE` on two seeds and ties on one;
+pooled over seeds that is 53 vs 77 discordant questions (p 0.043 if the seeds are
+treated as independent, which they are not, since they share questions). `AT` vs
+`AE` is 50 vs 48. No single seed's McNemar test separates any arm from `AE`.
+
+**Leg 2.** Every arm, `AE` included, fails leg 2 on the 24-item
+`mini_common_sense`, so **leg 2 does not discriminate placements on this model**.
+Each failure is 1-3 lost items on a 24-item suite (one item is 0.042, the threshold
+0.05):
+
+| Arm | Suite | Base | Drop per seed (items gained / lost) |
+|---|---|---:|---|
+| `A` | common sense | 0.958 | 0.083 (0/2), 0.083 (1/3), 0.042 (0/1) |
+| `AT` | common sense | 0.958 | 0, 0.083 (0/2), 0 |
+| `AT` | instruction | 0.917 | 0.042 (1/2), 0.083 (1/3), 0.083 (1/3) |
+| `AE` | common sense | 0.958 | 0.042 (0/1), 0.125 (0/3), 0 |
+
+All arms gain on MMLU (+2 to +6 items) and arithmetic (+4 to +5); format JSON,
+safety and over-refusal move by at most one item.
+
+**Verdict under the proposed rule:** `A`, `AT` and `AE` are all **REGRESSES**,
+because leg 2 fails for every arm, `AE` included. That verdict ranks no placement.
+On the task gap alone, neither `A` nor `AT` is material against `AE`.
+
 ## Finding for Soup: leg 2 on a thinking template scores cut-off reasoning
 
 Seed-independent, from the base model alone. `soup ship` renders leg-2 prompts with
