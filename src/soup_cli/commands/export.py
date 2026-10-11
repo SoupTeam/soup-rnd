@@ -1018,9 +1018,13 @@ def _export_awq(
         from soup_cli.utils.trust_remote import (
             model_requires_trust_remote_code,
             resolve_trust_remote_code,
+            tokenizer_requires_trust_remote_code,
         )
 
-        requires_tok = model_requires_trust_remote_code(str(source_path)) or False
+        requires_tok = bool(
+            model_requires_trust_remote_code(str(source_path))
+            or tokenizer_requires_trust_remote_code(str(source_path))
+        )
         trc_tok = resolve_trust_remote_code(
             str(source_path),
             requested=trust_remote_code,
@@ -1166,9 +1170,13 @@ def _export_gptq(
         from soup_cli.utils.trust_remote import (
             model_requires_trust_remote_code,
             resolve_trust_remote_code,
+            tokenizer_requires_trust_remote_code,
         )
 
-        requires_tok = model_requires_trust_remote_code(str(source_path)) or False
+        requires_tok = bool(
+            model_requires_trust_remote_code(str(source_path))
+            or tokenizer_requires_trust_remote_code(str(source_path))
+        )
         trc_tok = resolve_trust_remote_code(
             str(source_path),
             requested=trust_remote_code,

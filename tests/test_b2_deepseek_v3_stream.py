@@ -895,6 +895,26 @@ def test_the_same_fixture_without_the_hub_class_builds(
     assert type(model) is DeepseekV3ForCausalLM
 
 
+@_REQUIRES_TRAINING_FLOOR
+def test_a_deepseek_v3_folder_with_auto_map_passes_the_gate_without_the_flag(
+    tmp_path: Path, hub_modules_cache: None
+) -> None:
+    from soup_cli.utils.trust_remote import (
+        model_requires_trust_remote_code,
+        resolve_trust_remote_code,
+    )
+
+    weights = tmp_path / "weights"
+    _save_hub_code_fixture(weights)
+
+    requires = model_requires_trust_remote_code(str(weights))
+
+    assert requires is False
+    assert resolve_trust_remote_code(
+        str(weights), requested=False, requires_remote_code=bool(requires)
+    ) is False
+
+
 class _UnreadableIndex:
     """A shard index that fails the test if anything reads it."""
 

@@ -207,6 +207,75 @@ class TestRequiresProbe:
         )
         assert model_requires_trust_remote_code(str(tmp_path)) is True
 
+    def test_builtin_model_type_with_auto_map_returns_false(self, tmp_path):
+        """transformers ignores auto_map for a built-in model_type when
+        trust_remote_code is off, so the gate must not demand the flag."""
+        from soup_cli.utils.trust_remote import model_requires_trust_remote_code
+
+        config = tmp_path / "config.json"
+        config.write_text(
+            '{"model_type": "deepseek_v3", "auto_map": '
+            '{"AutoModelForCausalLM": "modeling_deepseek.DeepseekV3ForCausalLM"}}',
+            encoding="utf-8",
+        )
+        assert model_requires_trust_remote_code(str(tmp_path)) is False
+
+    def test_unknown_model_type_with_auto_map_returns_true(self, tmp_path):
+        """kimi_k2 has no built-in class on transformers 5.19."""
+        from soup_cli.utils.trust_remote import model_requires_trust_remote_code
+
+        config = tmp_path / "config.json"
+        config.write_text(
+            '{"model_type": "kimi_k2", "auto_map": '
+            '{"AutoModelForCausalLM": "modeling_kimi.KimiK2ForCausalLM"}}',
+            encoding="utf-8",
+        )
+        assert model_requires_trust_remote_code(str(tmp_path)) is True
+
+    @pytest.mark.parametrize("model_type_json", ["null", "7", '["llama"]', '""'])
+    def test_auto_map_with_unusable_model_type_returns_true(self, tmp_path, model_type_json):
+        from soup_cli.utils.trust_remote import model_requires_trust_remote_code
+
+        config = tmp_path / "config.json"
+        config.write_text(
+            '{"model_type": ' + model_type_json + ', "auto_map": {"AutoConfig": "c.C"}}',
+            encoding="utf-8",
+        )
+        assert model_requires_trust_remote_code(str(tmp_path)) is True
+
+    def test_auto_map_without_model_type_returns_true(self, tmp_path):
+        from soup_cli.utils.trust_remote import model_requires_trust_remote_code
+
+        config = tmp_path / "config.json"
+        config.write_text('{"auto_map": {"AutoConfig": "c.C"}}', encoding="utf-8")
+        assert model_requires_trust_remote_code(str(tmp_path)) is True
+
+    def test_builtin_probe_failure_stays_conservative(self, tmp_path, monkeypatch):
+        """If the built-in lookup raises, the gate keeps demanding the flag."""
+        from soup_cli.utils import trust_remote
+
+        def boom(_name):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(trust_remote, "_is_builtin_model_type", boom)
+        config = tmp_path / "config.json"
+        config.write_text(
+            '{"model_type": "llama", "auto_map": {"AutoConfig": "c.C"}}', encoding="utf-8"
+        )
+        assert trust_remote.model_requires_trust_remote_code(str(tmp_path)) is True
+
+    def test_module_import_does_not_load_torch_or_transformers(self):
+        """AGENTS.md lazy-import rule: the built-in lookup runs inside the probe."""
+        import subprocess
+        import sys
+
+        code = (
+            "import sys; import soup_cli.utils.trust_remote; "
+            "bad = [m for m in ('torch', 'transformers') if m in sys.modules]; "
+            "sys.exit(1 if bad else 0)"
+        )
+        assert subprocess.run([sys.executable, "-c", code]).returncode == 0
+
     def test_missing_config_returns_none(self, tmp_path):
         """Missing config.json → None (unknown — caller decides)."""
         from soup_cli.utils.trust_remote import model_requires_trust_remote_code
@@ -237,6 +306,33 @@ class TestRequiresProbe:
 
         out = model_requires_trust_remote_code("meta-llama/Llama-3.2-1B")
         assert out is None
+
+
+class TestTokenizerProbe:
+    def test_tokenizer_auto_map_returns_true(self, tmp_path):
+        from soup_cli.utils.trust_remote import tokenizer_requires_trust_remote_code
+
+        (tmp_path / "tokenizer_config.json").write_text(
+            '{"auto_map": {"AutoTokenizer": ["tok.Tok", null]}}', encoding="utf-8"
+        )
+        assert tokenizer_requires_trust_remote_code(str(tmp_path)) is True
+
+    @pytest.mark.parametrize("body", [None, "{}", "{not json", "[1]"])
+    def test_no_tokenizer_auto_map_returns_false(self, tmp_path, body):
+        from soup_cli.utils.trust_remote import tokenizer_requires_trust_remote_code
+
+        if body is not None:
+            (tmp_path / "tokenizer_config.json").write_text(body, encoding="utf-8")
+        assert tokenizer_requires_trust_remote_code(str(tmp_path)) is False
+
+    def test_export_callers_check_the_tokenizer_too(self):
+        """Both quantize paths in export.py must combine the two probes."""
+        from pathlib import Path
+
+        import soup_cli.commands.export as export_mod
+
+        source = Path(export_mod.__file__).read_text(encoding="utf-8")
+        assert source.count("tokenizer_requires_trust_remote_code(str(source_path))") == 2
 
 
 # ---------------------------------------------------------------------------
