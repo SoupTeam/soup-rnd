@@ -314,72 +314,141 @@ def tables(analysis: dict, detail: dict) -> str:
     return "\n".join(lines)
 
 
+COLORS = {"A": "#1b6ca8", "AS": "#2a9d8f", "AT": "#e76f51", "AE": "#6a4c93"}
+
+
+def _gap_band(row: dict, full: dict) -> list:
+    """NLL minus the fullest arm's, seed-matched: mean - SD, mean, mean + SD over seeds."""
+    gaps = [x - y for x, y in zip(row["nll"], full["nll"])]
+    mean, sd = sum(gaps) / len(gaps), rule.sample_sd(gaps)
+    return [mean - sd, mean, mean + sd]
+
+
+def _accuracy_band(row: dict) -> list:
+    """Low end of the question-resampled 95% CI, mean accuracy over seeds, high end."""
+    low, high = row["accuracy_ci95"]
+    return [low, sum(row["accuracy"]) / len(row["accuracy"]), high]
+
+
+def _spread(ys: dict, gap: float) -> dict:
+    """Label heights at least ``gap`` apart, each as close to its own point as allowed."""
+    placed: dict = {}
+    for arm in sorted(ys, key=ys.get):
+        floor = max(placed.values(), default=None)
+        placed[arm] = ys[arm] if floor is None else max(ys[arm], floor + gap)
+    return placed
+
+
+def _label_positions(points: dict, gap: float, near: float = 30) -> dict:
+    """Label ``(x span, y)`` per arm. Points closer than ``near`` px in x form one group
+    whose labels stand in one column beside the group, stacked at least ``gap`` px apart,
+    so no label crosses a neighbour's interval bar."""
+    groups: list = []
+    for arm in sorted(points, key=lambda a: points[a][0]):
+        if groups and points[arm][0] - points[groups[-1][-1]][0] < near:
+            groups[-1].append(arm)
+        else:
+            groups.append([arm])
+    out: dict = {}
+    for group in groups:
+        heights = _spread({arm: points[arm][1] for arm in group}, gap)
+        xs = [points[arm][0] for arm in group]
+        out.update({arm: ((min(xs), max(xs)), heights[arm]) for arm in group})
+    return out
+
+
 def svg(model: str, result: dict) -> str:
-    """Two panels: eval NLL and mean leg-2 suite score against log10 trainable params."""
+    """Quality against cost, 2 x 2 panels.
+
+    Rows: NLL gap to the fullest arm (mean +- SD over seeds) and task accuracy (mean over
+    seeds, 95% CI resampled by question). Columns: trainable parameters (log scale) and
+    measured peak CUDA memory. The base is a caption, not a point: it sits far from every
+    arm on both measures and would flatten the scale.
+    """
     arms = [(a, result["arms"][a]) for a in ARM_ORDER if a in result.get("arms", {})]
-    width, height, pad = 720, 300, 60
-    xs = [math.log10(row["trainable_parameters"]) for _a, row in arms]
-    x_lo, x_hi = min(xs) - 0.2, max(xs) + 0.2
+    full = result["arms"][result["fullest"]]
+    rows = (("NLL gap to the fullest arm, nat/token (lower is better)",
+             lambda row: _gap_band(row, full), 0.0, "{:+.4f}"),
+            ("task accuracy, 95% CI by question (higher is better)", _accuracy_band, None,
+             "{:.3f}"))
+    columns = (("trainable parameters (log scale)",
+                lambda row: math.log10(row["trainable_parameters"]),
+                lambda v: f"{10 ** v / 1e6:.0f}M"),
+               ("peak CUDA memory allocated, GiB",
+                lambda row: row["peak_cuda_bytes"] / 2 ** 30, lambda v: f"{v:.1f}"))
+    width, height = 860, 700
+    left_pad, right_pad, top_pad, gap_x, gap_y, panel_h = 70, 40, 70, 110, 100, 200
+    panel_w = (width - left_pad - right_pad - gap_x) / 2
+    seeds = len(full["seeds"])
     parts = [(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
               'font-family="sans-serif" font-size="11">'),
-             (f'<text x="{width / 2}" y="16" text-anchor="middle" font-size="13">{model}: '
-             'quality against trainable LoRA parameters (log scale; label: AdamW fp32 '
-             'state)</text>')]
-    panels = (("eval NLL (lower is better)", _nll_band, [result["base_nll"]]),
-              ("mean leg-2 suite score", _gate_band,
-               [sum(result["base_gate"].values()) / len(result["base_gate"])]))
-    panel_w = (width - 3 * pad) / 2
-    for index, (title, values, base) in enumerate(panels):
-        left = pad + index * (panel_w + pad)
-        top, bottom = 40, height - 40
-        all_y = [v for _a, row in arms for v in values(row)] + base
-        y_lo, y_hi = min(all_y), max(all_y)
+             f'<rect width="{width}" height="{height}" fill="#fff"/>',
+             (f'<text x="{width / 2}" y="20" text-anchor="middle" font-size="14">{model}: '
+              f'quality against cost ({seeds} seeds; fullest arm {result["fullest"]})</text>'),
+             (f'<text x="{width / 2}" y="38" text-anchor="middle" fill="#555">base, not '
+              f'plotted: eval NLL {result["base_nll"]:.4f}, task accuracy '
+              f'{result["base_accuracy"]:.3f}</text>')]
+    for r, (y_title, band, ref, y_fmt) in enumerate(rows):
+        values = {arm: band(row) for arm, row in arms}
+        y_lo = min(v[0] for v in values.values())
+        y_hi = max(v[2] for v in values.values())
+        if ref is not None:
+            y_lo, y_hi = min(y_lo, ref), max(y_hi, ref)
         span = (y_hi - y_lo) or 1.0
-        y_lo, y_hi = y_lo - 0.1 * span, y_hi + 0.1 * span
-
-        def px(x, left=left):
-            return left + (x - x_lo) / (x_hi - x_lo) * panel_w
+        y_lo, y_hi = y_lo - 0.12 * span, y_hi + 0.12 * span
+        top = top_pad + r * (panel_h + gap_y)
+        bottom = top + panel_h
 
         def py(y, y_lo=y_lo, y_hi=y_hi, top=top, bottom=bottom):
             return bottom - (y - y_lo) / (y_hi - y_lo) * (bottom - top)
 
-        parts.append(f'<rect x="{left}" y="{top}" width="{panel_w}" height="{bottom - top}" '
-                     'fill="none" stroke="#999"/>')
-        parts.append(f'<text x="{left + panel_w / 2}" y="{top - 6}" text-anchor="middle">'
-                     f'{title}</text>')
-        parts.append(f'<text x="{left}" y="{py(y_lo) + 14}">{y_lo:.3f}</text>')
-        parts.append(f'<text x="{left}" y="{py(y_hi) - 4}">{y_hi:.3f}</text>')
-        for b in base:
-            parts.append(f'<line x1="{left}" x2="{left + panel_w}" y1="{py(b):.1f}" '
-                         f'y2="{py(b):.1f}" stroke="#c33" stroke-dasharray="4 3"/>')
-            parts.append(f'<text x="{left + panel_w - 4}" y="{py(b) - 3:.1f}" '
-                         'text-anchor="end" fill="#c33">base</text>')
-        prev = None
-        for (arm, row), x in zip(arms, xs):
-            low, mid, high = values(row)
-            cx = px(x)
-            parts.append(f'<line x1="{cx:.1f}" x2="{cx:.1f}" y1="{py(low):.1f}" '
-                         f'y2="{py(high):.1f}" stroke="#36c"/>')
-            parts.append(f'<circle cx="{cx:.1f}" cy="{py(mid):.1f}" r="4" fill="#36c"/>')
-            parts.append(f'<text x="{cx + 6:.1f}" y="{py(mid) - 6:.1f}">{arm} '
-                         f'({row["trainable_parameters"] / 1e6:.1f}M, '
-                         f'{_fmt_bytes(row["adapter_bytes_adamw_fp32"])})</text>')
-            if prev:
-                parts.append(f'<line x1="{prev[0]:.1f}" x2="{cx:.1f}" y1="{prev[1]:.1f}" '
-                             f'y2="{py(mid):.1f}" stroke="#36c" stroke-opacity="0.4"/>')
-            prev = (cx, py(mid))
+        for c, (x_title, x_of, x_label) in enumerate(columns):
+            left = left_pad + c * (panel_w + gap_x)
+            xs = {arm: x_of(row) for arm, row in arms}
+            x_lo, x_hi = min(xs.values()), max(xs.values())
+            x_span = (x_hi - x_lo) or 1.0
+            x_lo, x_hi = x_lo - 0.08 * x_span, x_hi + 0.08 * x_span
+
+            def px(x, left=left, x_lo=x_lo, x_hi=x_hi):
+                return left + (x - x_lo) / (x_hi - x_lo) * panel_w
+
+            parts.append(f'<rect x="{left:.1f}" y="{top}" width="{panel_w:.1f}" '
+                         f'height="{panel_h}" fill="none" stroke="#999"/>')
+            parts.append(f'<text x="{left + panel_w / 2:.1f}" y="{top - 8}" '
+                         f'text-anchor="middle">{y_title}</text>')
+            parts.append(f'<text x="{left + panel_w / 2:.1f}" y="{bottom + 30}" '
+                         f'text-anchor="middle" fill="#555">{x_title}</text>')
+            for tick in (y_lo, (y_lo + y_hi) / 2, y_hi):
+                parts.append(f'<text x="{left - 4:.1f}" y="{py(tick) + 4:.1f}" '
+                             f'text-anchor="end" fill="#555">{y_fmt.format(tick)}</text>')
+            for tick in (x_lo, (x_lo + x_hi) / 2, x_hi):
+                parts.append(f'<text x="{px(tick):.1f}" y="{bottom + 14}" text-anchor="middle" '
+                             f'fill="#555">{x_label(tick)}</text>')
+            if ref is not None:
+                parts.append(f'<line x1="{left:.1f}" x2="{left + panel_w:.1f}" '
+                             f'y1="{py(ref):.1f}" y2="{py(ref):.1f}" stroke="#999" '
+                             'stroke-dasharray="4 3"/>')
+            points = {arm: (px(xs[arm]), py(values[arm][1])) for arm, _row in arms}
+            labels = _label_positions(points, 12)
+            for arm, _row in arms:
+                low, mid, high = values[arm]
+                (cx, cy), color = points[arm], COLORS[arm]
+                parts.append(f'<line x1="{cx:.1f}" x2="{cx:.1f}" y1="{py(low):.1f}" '
+                             f'y2="{py(high):.1f}" stroke="{color}" stroke-width="2"/>')
+                parts.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4" fill="{color}"/>')
+                (group_lo, group_hi), label_y = labels[arm]
+                anchor = "end" if group_hi > left + panel_w - 40 else "start"
+                label_x = group_lo - 8 if anchor == "end" else group_hi + 8
+                parts.append(f'<text x="{label_x:.1f}" y="{label_y + 4:.1f}" '
+                             f'text-anchor="{anchor}" fill="{color}">{arm}</text>')
+    legend_top = top_pad + 2 * panel_h + gap_y + 56
+    for i, (arm, row) in enumerate(arms):
+        parts.append(f'<text x="{left_pad}" y="{legend_top + 14 * i}" fill="{COLORS[arm]}">'
+                     f'{arm}: {row["trainable_parameters"] / 1e6:.1f}M trainable, '
+                     f'{_fmt_bytes(row["adapter_bytes_adamw_fp32"])} AdamW fp32 state, peak '
+                     f'{_fmt_bytes(row["peak_cuda_bytes"])}</text>')
     parts.append("</svg>")
     return "\n".join(parts)
-
-
-def _nll_band(row: dict) -> list:
-    return [row["nll_mean"] - row["nll_sd"], row["nll_mean"], row["nll_mean"] + row["nll_sd"]]
-
-
-def _gate_band(row: dict) -> list:
-    per_seed = [sum(v[i] for v in row["gate"].values()) / len(row["gate"])
-                for i in range(len(row["seeds"]))]
-    return [min(per_seed), sum(per_seed) / len(per_seed), max(per_seed)]
 
 
 def main(argv=None) -> int:
