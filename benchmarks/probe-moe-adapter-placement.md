@@ -194,6 +194,18 @@ at USD 0.68/h) and are not results.
   reserves memory, not the recipe; base and every arm run under it; peak memory stays
   `max_memory_allocated`.
 
+**Added 04:20 UTC, before any counted trained result was read.**
+
+- *Second Qwen3.5 box.* `e1-qwen2`, the same `massedcompute_RTXPro6000` type,
+  bundle and allocator setting, so the Qwen3.5 seed runs fit before the first box's
+  deadline. Its `AT` runs use `hot-qwen35.json` from the first box (SHA-256
+  `7009faed…`), copied and hash-checked.
+- *Cross-box base checks.* Each second box runs the base once more, named
+  `check-<model>-base-box2`. Checks never enter a verdict, and `run-*` is the only
+  name the analysis reads. If a check's suite scores differ from the counted
+  base, the record prints that difference beside every leg-2 result of a run made
+  on that box. The verdict rule is unchanged.
+
 ## 7. Cloud protocol
 
 As in [`probe-moe-expert-holdout.md`](probe-moe-expert-holdout.md): source bundle
