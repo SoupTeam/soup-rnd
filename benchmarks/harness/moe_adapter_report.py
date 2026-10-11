@@ -174,10 +174,17 @@ def _mark(source: str, suite: str, entry: dict) -> str:
 
 
 def tables(analysis: dict, detail: dict) -> str:
-    lines = sweep_table(analysis["sweep"])
+    gate = analysis.get("gate")
+    lines = [] if gate is None else [
+        "**Quality gate.** "
+        + ", ".join(f"{name} {value:g}" for name, value in gate["thresholds"].items())
+        + f". Status: {gate['status']}. Scope: {gate['scope']}.", ""]
+    lines += sweep_table(analysis["sweep"])
     for model, result in analysis["models"].items():
         lines.append(f"### {model}: {result['verdict']}")
         lines.append("")
+        if result.get("scope"):
+            lines.append(f"Scope: {result['scope']}.")
         if result.get("reason"):
             lines.append(f"Reason: {result['reason']}.")
         if result.get("unsettled_rates"):
@@ -198,6 +205,9 @@ def tables(analysis: dict, detail: dict) -> str:
             lines.append("Not applicable: " + ", ".join(f"`{a}`" for a in result["not_applicable"]))
         if result.get("void"):
             lines.append("Void runs: " + json.dumps(result["void"]))
+        if result.get("not_counted"):
+            lines.append("Seeds outside the plan, not counted: " + ", ".join(
+                f"`{r['arm']}` seed {r['seed']}" for r in result["not_counted"]))
         lines.append("")
         entry = detail.get(model, {"checks": {}})
         if entry["checks"]:

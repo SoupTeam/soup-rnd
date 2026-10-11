@@ -100,6 +100,76 @@ def test_non_finite_run_voids_the_model(rule):
     assert summary["validity"]["V2"] is False and summary["verdict"] == "NO VERDICT"
 
 
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_a_non_finite_eval_nll_on_an_ok_record_fails_v2(rule, bad):
+    records = _records(a_nll=(0.8, 0.8, 0.8))
+    next(r for r in records if r["arm"] == "A" and r["seed"] == 1)["eval"]["nll"] = bad
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
+    assert summary["validity"]["V2"] is False and summary["verdict"] == "NO VERDICT"
+
+
+def test_a_non_finite_eval_nll_on_an_uncounted_sweep_run_fails_v2(rule):
+    records = _sweep(rule, a=(0.70, 0.60, 0.65))
+    records.append(_lr_run("AE", 8e-4, float("nan")))
+    analysis = rule.analyse(records, plan=SWEEP_PLAN)
+    olmoe = analysis["models"]["olmoe"]
+    assert olmoe["validity"]["V2"] is False and olmoe["verdict"] == "NO VERDICT"
+
+
+def test_a_seed_outside_the_plan_is_not_counted(rule):
+    records = _records(a_nll=(0.81, 0.82, 0.80)) + [_run("A", 7, 0.50)]
+    summary = rule.summarise(records, plan=M_PLAN)["m"]
+    assert summary["verdict"] == "MEASURED"
+    assert summary["arms"]["A"]["seeds"] == [0, 1, 2]
+    assert summary["not_counted"] == [{"arm": "A", "seed": 7, "source": None}]
+
+
+def test_an_unplanned_seed_without_a_fullest_partner_raises_nothing(rule):
+    plan = {"m": {"arms": ("A", "AE"), "seeds": (0, 1)}}
+    records = [r for r in _records(a_nll=(0.81, 0.82, 0.80)) if r["seed"] in (None, 0, 1)]
+    records.append(_run("A", 2, 0.80))
+    summary = rule.summarise(records, plan=plan)["m"]
+    assert summary["verdict"] == "MEASURED" and summary["arms"]["A"]["seeds"] == [0, 1]
+
+
+def test_an_ok_ae_run_at_any_rate_proves_fit_against_an_oom_log(rule):
+    records = _sweep(rule, a=(0.70, 0.60, 0.65)) + [_run("base", None, 1.2, model="qwen35")]
+    records += [_lr_run("A", 2e-4, 0.9, seed=s, model="qwen35") for s in (0, 1)]
+    records.append(_lr_run("AE", 1e-4, 0.8, model="qwen35"))  # ok, but AE's rate is 2e-4
+    plan = {**SWEEP_PLAN, "qwen35": {"arms": ("A", "AE"), "seeds": (0, 1)}}
+    qwen = rule.analyse(records, plan=plan, ae_oom_logs={"qwen35": OOM_LOG})["models"]["qwen35"]
+    assert "ae_did_not_fit" not in qwen and qwen["verdict"] == "NO VERDICT"
+    assert qwen["missing"] == ["AE seed 0", "AE seed 1"]
+
+
+def test_summarise_keeps_ae_when_an_ae_run_fit_at_another_rate(rule):
+    plan = {"m": {"arms": ("A", "AT", "AE"), "seeds": (0, 1)}}
+    records = [_run("base", None, 1.0)] + [_run(a, s, 0.8) for a in ("A", "AT") for s in (0, 1)]
+    summary = rule.summarise(records, plan=plan, ae_oom_logs={"m": OOM_LOG},
+                             uncounted=[_run("AE", 0, 0.9)])["m"]
+    assert "ae_did_not_fit" not in summary and summary["verdict"] == "NO VERDICT"
+    assert summary["missing"] == ["AE seed 0", "AE seed 1"] and "completed" in summary["reason"]
+
+
+def test_a_planned_model_without_any_record_is_listed_with_its_missing_runs(rule):
+    plan = {**SWEEP_PLAN, "qwen35": {"arms": ("A", "AE"), "seeds": (0, 1)}}
+    analysis = rule.analyse(_sweep(rule, a=(0.70, 0.60, 0.65)), plan=plan)
+    qwen = analysis["models"]["qwen35"]
+    assert qwen["verdict"] == "NO VERDICT"
+    assert qwen["missing"] == ["base", "A seed 0", "A seed 1", "AE seed 0", "AE seed 1"]
+
+
+def test_a_gap_exactly_at_the_floor_is_not_material(rule):
+    assert rule.material_gap([0.81, 0.81, 0.81], [0.79, 0.79, 0.79])["material"] is False
+    assert rule.material_gap([0.82, 0.82, 0.82], [0.79, 0.79, 0.79])["material"] is True
+
+
+def test_learning_exactly_the_v1_floor_passes_v1(rule):
+    records = [_run("base", None, 0.30)] + [_run(a, s, 0.25) for a in ("A", "AE")
+                                             for s in (0, 1, 2)]
+    assert rule.summarise(records, plan=M_PLAN)["m"]["validity"]["V1"] is True
+
+
 def test_not_applicable_arm_is_listed_not_scored(rule):
     records = _records(a_nll=(0.8, 0.8, 0.8)) + [_run("AS", 0, 0.0, status="not_applicable")]
     summary = rule.summarise(records, plan=M_PLAN)["m"]
@@ -268,6 +338,22 @@ def test_report_says_leg2_does_not_discriminate_only_when_every_arm_fails_it(rep
     assert ("does not discriminate" in text) is phrase
     a_row = next(line for line in text.splitlines() if line.startswith("| `A` |"))
     assert a_row.endswith("**REGRESSES** |" if phrase else "**ACCEPTABLE** |")
+
+
+def test_every_verdict_is_printed_with_the_gate_status_and_the_model_scope(report):
+    records = _records(a_nll=(0.81, 0.82, 0.80))
+    for record in records:
+        record["_path"] = f"box/r/{record['arm']}-{record['seed']}.json"
+    models = report.rule.summarise(records, plan=M_PLAN)
+    models["m"]["scope"] = "learning rates transferred from OLMoE, not swept on this model"
+    no_flips = {suite: [0, 0] for suite in SUITES}
+    detail = {"m": {"base_box": "box", "checks": {},
+                    "arms": {arm: [no_flips] * 3 for arm in ("A", "AE")}}}
+    text = report.tables({"gate": report.rule.GATE, "sweep": {}, "models": models,
+                          "rejected": [], "not_counted": []}, detail)
+    head, model_part = text.split("### m:", 1)
+    assert report.rule.GATE["status"] in head and report.rule.GATE["scope"] in head
+    assert "transferred from OLMoE" in model_part.split("| Arm |", 1)[0]
 
 
 def test_a_run_that_failed_the_zero_adapter_check_fails_v4(rule):
