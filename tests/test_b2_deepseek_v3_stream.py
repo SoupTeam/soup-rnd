@@ -123,24 +123,31 @@ def _save_fixture(weights: Path, config: Any) -> None:
     assert f"model.layers.{last}.mlp.experts.gate_up_proj" not in keys
 
 
-def _lora() -> Any:
+def _lora(config: Any = None) -> Any:
     """The adapter Soup builds for ``target_modules: auto`` on DeepSeek-V3.
 
-    Those are the five MLA projections. Naming ``gate_proj``, ``up_proj`` or
-    ``down_proj`` here would not reach the shared experts: peft 0.21 rewrites
-    those names on ``deepseek_v3`` into ``target_parameters`` on the fused
-    routed experts, which is ``moe_lora`` (ticket 10).
+    Those are the MLA projections: ``q_a_proj`` and ``q_b_proj``, or the single
+    ``q_proj`` when ``config.q_lora_rank`` is None (ticket 13). Naming
+    ``gate_proj``, ``up_proj`` or ``down_proj`` here would not reach the shared
+    experts: peft 0.21 rewrites those names on ``deepseek_v3`` into
+    ``target_parameters`` on the fused routed experts, which is ``moe_lora``
+    (ticket 10).
     """
     from peft import LoraConfig, TaskType
 
-    from soup_cli.utils.peft_wiring import MOE_TEXT_LORA_TARGETS
+    from soup_cli.utils.peft_wiring import MOE_TEXT_LORA_TARGETS, resolve_lora_target_modules
 
+    targets = (
+        resolve_lora_target_modules(SimpleNamespace(config=config), "auto")
+        if config is not None
+        else list(MOE_TEXT_LORA_TARGETS["deepseek_v3"])
+    )
     return LoraConfig(
         r=2,
         lora_alpha=4,
         lora_dropout=0.0,
         bias="none",
-        target_modules=list(MOE_TEXT_LORA_TARGETS["deepseek_v3"]),
+        target_modules=targets,
         task_type=TaskType.CAUSAL_LM,
     )
 
@@ -358,7 +365,7 @@ def _run_parity(
     if edit_checkpoint is not None:
         edit_checkpoint(weights)
 
-    lora = lora_config(weights) if lora_config is not None else _lora()
+    lora = lora_config(weights) if lora_config is not None else _lora(config)
     arch = stream_arch_of(AutoConfig.from_pretrained(str(weights)))
     shards = str(tmp_path / "shards")
     nf4 = quant == "nf4"
@@ -632,6 +639,8 @@ def _assert_arm_took_effect(parity: _Parity, arm: _Arm) -> None:
             assert getattr(config, key) == value, key
     if "q_lora_rank" in arm.overrides:
         assert all(".q_a_proj." not in name for name in parity.lora_names)
+        # The query projection is adapted and its gradient compared (ticket 13).
+        assert any(".self_attn.q_proj.lora_" in name for name in parity.lora_names)
         for idx in range(config.num_hidden_layers):
             assert "self_attn.q_proj.weight" in parity.streamed_weights[idx]
     for side in (parity.resident, parity.streamed):
