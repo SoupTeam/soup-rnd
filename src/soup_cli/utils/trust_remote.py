@@ -58,6 +58,18 @@ def is_known_safe(model_name: Any) -> bool:
     return any(model_name.startswith(prefix) for prefix in KNOWN_SAFE_PREFIXES)
 
 
+def _read_json_dict(path: str) -> Optional[dict]:
+    """Return the JSON object in ``path``, or None if missing, unreadable or not an object."""
+    try:
+        if not os.path.isfile(path):
+            return None
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def _is_builtin_model_type(model_type: Any) -> bool:
     """Return True when transformers ships a config class for ``model_type``.
 
@@ -88,25 +100,14 @@ def model_requires_trust_remote_code(model_or_path: str) -> Optional[bool]:
     """
     if not isinstance(model_or_path, str) or not model_or_path:
         return None
-    try:
-        if os.path.isdir(model_or_path):
-            config_path = os.path.join(model_or_path, "config.json")
-        else:
-            return None
-        if not os.path.isfile(config_path):
-            return None
-        with open(config_path, encoding="utf-8") as fh:
-            data = json.load(fh)
-    except (OSError, json.JSONDecodeError):
+    if not os.path.isdir(model_or_path):
         return None
-    if not isinstance(data, dict):
+    data = _read_json_dict(os.path.join(model_or_path, "config.json"))
+    if data is None:
         return None
     if not data.get("auto_map"):
         return False
-    try:
-        return not _is_builtin_model_type(data.get("model_type"))
-    except Exception:  # noqa: BLE001 - stay conservative on any lookup failure
-        return True
+    return not _is_builtin_model_type(data.get("model_type"))
 
 
 def tokenizer_requires_trust_remote_code(model_or_path: str) -> bool:
@@ -118,15 +119,16 @@ def tokenizer_requires_trust_remote_code(model_or_path: str) -> bool:
     """
     if not isinstance(model_or_path, str) or not model_or_path:
         return False
-    path = os.path.join(model_or_path, "tokenizer_config.json")
-    try:
-        if not os.path.isfile(path):
-            return False
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return False
-    return isinstance(data, dict) and bool(data.get("auto_map"))
+    data = _read_json_dict(os.path.join(model_or_path, "tokenizer_config.json"))
+    return bool(data and data.get("auto_map"))
+
+
+def model_or_tokenizer_requires_trust_remote_code(model_or_path: str) -> bool:
+    """Return True when either ``config.json`` or ``tokenizer_config.json`` needs the flag."""
+    return bool(
+        model_requires_trust_remote_code(model_or_path)
+        or tokenizer_requires_trust_remote_code(model_or_path)
+    )
 
 
 def resolve_trust_remote_code(

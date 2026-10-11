@@ -1016,15 +1016,11 @@ def _export_awq(
         console.print("[dim]Loading model for AWQ quantization...[/]")
         model = AutoAWQForCausalLM.from_pretrained(str(source_path))
         from soup_cli.utils.trust_remote import (
-            model_requires_trust_remote_code,
+            model_or_tokenizer_requires_trust_remote_code,
             resolve_trust_remote_code,
-            tokenizer_requires_trust_remote_code,
         )
 
-        requires_tok = bool(
-            model_requires_trust_remote_code(str(source_path))
-            or tokenizer_requires_trust_remote_code(str(source_path))
-        )
+        requires_tok = model_or_tokenizer_requires_trust_remote_code(str(source_path))
         trc_tok = resolve_trust_remote_code(
             str(source_path),
             requested=trust_remote_code,
@@ -1168,15 +1164,11 @@ def _export_gptq(
             str(source_path), quantize_config=quantize_config
         )
         from soup_cli.utils.trust_remote import (
-            model_requires_trust_remote_code,
+            model_or_tokenizer_requires_trust_remote_code,
             resolve_trust_remote_code,
-            tokenizer_requires_trust_remote_code,
         )
 
-        requires_tok = bool(
-            model_requires_trust_remote_code(str(source_path))
-            or tokenizer_requires_trust_remote_code(str(source_path))
-        )
+        requires_tok = model_or_tokenizer_requires_trust_remote_code(str(source_path))
         trc_tok = resolve_trust_remote_code(
             str(source_path),
             requested=trust_remote_code,

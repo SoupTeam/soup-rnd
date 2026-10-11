@@ -250,19 +250,34 @@ class TestRequiresProbe:
         config.write_text('{"auto_map": {"AutoConfig": "c.C"}}', encoding="utf-8")
         assert model_requires_trust_remote_code(str(tmp_path)) is True
 
-    def test_builtin_probe_failure_stays_conservative(self, tmp_path, monkeypatch):
-        """If the built-in lookup raises, the gate keeps demanding the flag."""
-        from soup_cli.utils import trust_remote
+    def test_builtin_lookup_failure_stays_conservative(self, tmp_path, monkeypatch):
+        """If transformers cannot be imported, the gate keeps demanding the flag."""
+        import sys
 
-        def boom(_name):
-            raise RuntimeError("boom")
+        from soup_cli.utils.trust_remote import model_requires_trust_remote_code
 
-        monkeypatch.setattr(trust_remote, "_is_builtin_model_type", boom)
+        # A None entry makes ``import transformers.models...`` raise ImportError.
+        monkeypatch.setitem(sys.modules, "transformers.models.auto.configuration_auto", None)
         config = tmp_path / "config.json"
         config.write_text(
             '{"model_type": "llama", "auto_map": {"AutoConfig": "c.C"}}', encoding="utf-8"
         )
-        assert trust_remote.model_requires_trust_remote_code(str(tmp_path)) is True
+        assert model_requires_trust_remote_code(str(tmp_path)) is True
+
+    def test_unknown_model_type_is_refused_without_the_flag(self, tmp_path):
+        """The probe result feeds the gate: no flag means a ValueError."""
+        from soup_cli.utils.trust_remote import (
+            model_requires_trust_remote_code,
+            resolve_trust_remote_code,
+        )
+
+        (tmp_path / "config.json").write_text(
+            '{"model_type": "kimi_k2", "auto_map": {"AutoConfig": "c.C"}}', encoding="utf-8"
+        )
+        requires = bool(model_requires_trust_remote_code(str(tmp_path)))
+
+        with pytest.raises(ValueError, match="--trust-remote-code"):
+            resolve_trust_remote_code(str(tmp_path), requested=False, requires_remote_code=requires)
 
     def test_module_import_does_not_load_torch_or_transformers(self):
         """AGENTS.md lazy-import rule: the built-in lookup runs inside the probe."""
@@ -325,14 +340,35 @@ class TestTokenizerProbe:
             (tmp_path / "tokenizer_config.json").write_text(body, encoding="utf-8")
         assert tokenizer_requires_trust_remote_code(str(tmp_path)) is False
 
-    def test_export_callers_check_the_tokenizer_too(self):
-        """Both quantize paths in export.py must combine the two probes."""
+    def test_builtin_model_with_hub_tokenizer_still_needs_the_flag(self, tmp_path):
+        """What export.py uses: the config probe alone says False, the combined probe True."""
+        from soup_cli.utils.trust_remote import (
+            model_or_tokenizer_requires_trust_remote_code,
+            model_requires_trust_remote_code,
+            resolve_trust_remote_code,
+        )
+
+        (tmp_path / "config.json").write_text(
+            '{"model_type": "deepseek_v3", "auto_map": {"AutoConfig": "c.C"}}', encoding="utf-8"
+        )
+        (tmp_path / "tokenizer_config.json").write_text(
+            '{"auto_map": {"AutoTokenizer": ["tok.Tok", null]}}', encoding="utf-8"
+        )
+
+        assert model_requires_trust_remote_code(str(tmp_path)) is False
+        requires = model_or_tokenizer_requires_trust_remote_code(str(tmp_path))
+        assert requires is True
+        with pytest.raises(ValueError, match="--trust-remote-code"):
+            resolve_trust_remote_code(str(tmp_path), requested=False, requires_remote_code=requires)
+
+    def test_export_uses_the_combined_probe(self):
+        """Both quantize paths in export.py go through the combined probe."""
         from pathlib import Path
 
         import soup_cli.commands.export as export_mod
 
         source = Path(export_mod.__file__).read_text(encoding="utf-8")
-        assert source.count("tokenizer_requires_trust_remote_code(str(source_path))") == 2
+        assert source.count("model_or_tokenizer_requires_trust_remote_code(str(source_path))") == 2
 
 
 # ---------------------------------------------------------------------------
