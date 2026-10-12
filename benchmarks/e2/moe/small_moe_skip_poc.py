@@ -1,8 +1,9 @@
 """Small Mixtral E2 exploratory layer-skipping proof of concept."""
 
 import json
-import torch
 from pathlib import Path
+
+import torch
 from transformers import MixtralConfig, MixtralForCausalLM
 
 torch.manual_seed(42)
@@ -40,8 +41,10 @@ labels = ids.clone()
 # Capture the hidden state entering the first trainable layer.
 captured = {}
 
+
 def capture(module, args):
     captured["hidden"] = args[0].detach().clone()
+
 
 handle = decoder.layers[cutoff].register_forward_pre_hook(capture)
 
@@ -55,13 +58,12 @@ assert "hidden" in captured
 # Count frozen-prefix calls on a subsequent normal forward.
 counts = {"frozen_calls": 0}
 
+
 def count_calls(module, args):
     counts["frozen_calls"] += 1
 
-handles = [
-    layer.register_forward_pre_hook(count_calls)
-    for layer in decoder.layers[:cutoff]
-]
+
+handles = [layer.register_forward_pre_hook(count_calls) for layer in decoder.layers[:cutoff]]
 
 with torch.no_grad():
     repeat = model(input_ids=ids, labels=labels, use_cache=False)
@@ -77,9 +79,7 @@ summary = {
     "layers": 4,
     "cutoff": cutoff,
     "captured_boundary_shape": list(captured["hidden"].shape),
-    "baseline_repeat_exact": torch.equal(
-        original.logits, repeat.logits
-    ),
+    "baseline_repeat_exact": torch.equal(original.logits, repeat.logits),
     "frozen_calls_on_normal_repeat": counts["frozen_calls"],
     "actual_prefix_skip_implemented": False,
     "production_e2_supported": False,

@@ -37,9 +37,7 @@ print("Detected MoE:", detect_moe_model(model))
 
 assert detect_moe_model(model)
 
-input_ids = torch.randint(
-    0, config.vocab_size, (1, 16)
-)
+input_ids = torch.randint(0, config.vocab_size, (1, 16))
 labels = input_ids.clone()
 
 print("\n=== FORWARD / BACKWARD ===")
@@ -54,14 +52,10 @@ assert torch.isfinite(output.loss)
 
 output.loss.backward()
 
-router_grads = [
-    p.grad for n, p in model.named_parameters()
-    if "gate" in n and p.grad is not None
-]
+router_grads = [p.grad for n, p in model.named_parameters() if "gate" in n and p.grad is not None]
 
 expert_grads = [
-    p.grad for n, p in model.named_parameters()
-    if "experts" in n and p.grad is not None
+    p.grad for n, p in model.named_parameters() if "experts" in n and p.grad is not None
 ]
 
 print("Loss:", output.loss.item())
@@ -83,9 +77,7 @@ with tempfile.TemporaryDirectory() as directory:
             cutoff=2,
             metadata_factory=lambda **kwargs: {},
         ):
-            raise RuntimeError(
-                "Unexpectedly accepted Mixtral"
-            )
+            raise RuntimeError("Unexpectedly accepted Mixtral")
     except ValueError as exc:
         message = str(exc)
         print("E2 rejected Mixtral:", message)
@@ -108,13 +100,9 @@ summary = {
     "speed_benchmark": False,
 }
 
-destination = Path(
-    "benchmarks/e2/moe/small_moe_smoke_result.json"
-)
+destination = Path("benchmarks/e2/moe/small_moe_smoke_result.json")
 
-destination.write_text(
-    json.dumps(summary, indent=2) + "\n"
-)
+destination.write_text(json.dumps(summary, indent=2) + "\n")
 
 print("\n=== RESULT ===")
 print(json.dumps(summary, indent=2))

@@ -12,7 +12,6 @@ from transformers import MixtralConfig, MixtralForCausalLM
 
 from soup_cli.utils.frozen_prefix_cache import FrozenPrefixCache
 
-
 torch.manual_seed(42)
 
 config = MixtralConfig(
@@ -53,12 +52,14 @@ for module in decoder.layers[:cutoff].modules():
 input_ids = torch.randint(0, 256, (1, 16))
 labels = input_ids.clone()
 
+
 def gradients():
     return {
         name: parameter.grad.detach().clone()
         for name, parameter in model.named_parameters()
         if parameter.requires_grad and parameter.grad is not None
     }
+
 
 def run():
     model.zero_grad(set_to_none=True)
@@ -73,6 +74,7 @@ def run():
         result.loss.item(),
         gradients(),
     )
+
 
 # Ordinary forward/backward.
 baseline_logits, baseline_loss, baseline_grads = run()
@@ -126,8 +128,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert baseline_grads.keys() == cached_grads.keys()
 
     exact_gradients = all(
-        torch.equal(baseline_grads[name], cached_grads[name])
-        for name in baseline_grads
+        torch.equal(baseline_grads[name], cached_grads[name]) for name in baseline_grads
     )
 
     assert exact_gradients
@@ -149,13 +150,9 @@ with tempfile.TemporaryDirectory() as directory:
         "performance_benchmark": False,
     }
 
-    destination = Path(
-        "benchmarks/e2/moe/small_moe_cache_poc_result.json"
-    )
+    destination = Path("benchmarks/e2/moe/small_moe_cache_poc_result.json")
 
-    destination.write_text(
-        json.dumps(summary, indent=2) + "\n"
-    )
+    destination.write_text(json.dumps(summary, indent=2) + "\n")
 
     print("=== SMALL MOE CACHE POC ===")
     print(json.dumps(summary, indent=2))

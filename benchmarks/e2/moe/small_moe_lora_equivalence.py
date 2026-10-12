@@ -3,15 +3,15 @@
 Five optimizer steps on identical fixed inputs.
 No production E2 changes, no speed or generalization claims.
 """
+
 import copy
 import json
-import tempfile
 import types
 from pathlib import Path
 
 import torch
-from transformers import MixtralConfig, MixtralForCausalLM
 from peft import LoraConfig, TaskType, get_peft_model
+from transformers import MixtralConfig, MixtralForCausalLM
 from transformers.masking_utils import (
     create_causal_mask,
     create_sliding_window_causal_mask,
@@ -61,20 +61,11 @@ for model in (baseline, cached):
         for p in layer.parameters():
             p.requires_grad_(False)
 
-assert all(
-    torch.equal(a, b)
-    for a, b in zip(baseline.parameters(), cached.parameters())
-)
+assert all(torch.equal(a, b) for a, b in zip(baseline.parameters(), cached.parameters()))
 
-batches = {
-    name: torch.randint(0, cfg.vocab_size, (1, 16))
-    for name in ("A", "B", "C")
-}
+batches = {name: torch.randint(0, cfg.vocab_size, (1, 16)) for name in ("A", "B", "C")}
 
-assert len({
-    tuple(t.flatten().tolist())
-    for t in batches.values()
-}) == 3
+assert len({tuple(t.flatten().tolist()) for t in batches.values()}) == 3
 
 ids = batches["A"]
 mask = torch.ones_like(ids)
@@ -101,6 +92,7 @@ state = {
 boundary_cache = {}
 decoder = cached.base_model.model.model
 original_forward = decoder.forward
+
 
 def cached_forward(
     self,
@@ -135,9 +127,7 @@ def cached_forward(
 
     embeddings = self.embed_tokens(input_ids)
     if position_ids is None:
-        position_ids = torch.arange(
-            embeddings.shape[1], device=embeddings.device
-        ).unsqueeze(0)
+        position_ids = torch.arange(embeddings.shape[1], device=embeddings.device).unsqueeze(0)
 
     mask_fn = (
         create_causal_mask
@@ -151,15 +141,12 @@ def cached_forward(
         past_key_values=None,
         position_ids=position_ids,
     )
-    rotary = self.rotary_emb(
-        embeddings, position_ids=position_ids
-    )
+    rotary = self.rotary_emb(embeddings, position_ids=position_ids)
 
     # This experiment uses a single fixed batch and immutable prefix.
     key = (
         tuple(input_ids.flatten().tolist()),
-        tuple(attention_mask.flatten().tolist())
-        if attention_mask is not None else None,
+        tuple(attention_mask.flatten().tolist()) if attention_mask is not None else None,
         tuple(position_ids.flatten().tolist()),
     )
 
@@ -200,6 +187,7 @@ def cached_forward(
         past_key_values=None,
     )
 
+
 decoder.forward = types.MethodType(cached_forward, decoder)
 
 history = []
@@ -229,29 +217,24 @@ try:
             output.loss.backward()
 
             losses.append(output.loss.detach().item())
-            gradients.append({
-                name: p.grad.detach().clone()
-                for name, p in model.named_parameters()
-                if p.requires_grad and p.grad is not None
-            })
+            gradients.append(
+                {
+                    name: p.grad.detach().clone()
+                    for name, p in model.named_parameters()
+                    if p.requires_grad and p.grad is not None
+                }
+            )
 
         loss_equal = losses[0] == losses[1]
-        grad_equal = (
-            gradients[0].keys() == gradients[1].keys()
-            and all(
-                torch.equal(gradients[0][k], gradients[1][k])
-                for k in gradients[0]
-            )
+        grad_equal = gradients[0].keys() == gradients[1].keys() and all(
+            torch.equal(gradients[0][k], gradients[1][k]) for k in gradients[0]
         )
 
         optimizer_a.step()
         optimizer_b.step()
 
         weights_equal = all(
-            torch.equal(a, b)
-            for a, b in zip(
-                baseline.parameters(), cached.parameters()
-            )
+            torch.equal(a, b) for a, b in zip(baseline.parameters(), cached.parameters())
         )
 
         row = {
@@ -275,9 +258,7 @@ try:
         )
 
         if not (loss_equal and grad_equal and weights_equal):
-            raise RuntimeError(
-                f"Training divergence at step {step}"
-            )
+            raise RuntimeError(f"Training divergence at step {step}")
 finally:
     decoder.forward = original_forward
 
@@ -304,9 +285,7 @@ summary = {
     "performance_benchmark": False,
 }
 
-path = Path(
-    "benchmarks/e2/moe/small_moe_lora_equivalence_result.json"
-)
+path = Path("benchmarks/e2/moe/small_moe_lora_equivalence_result.json")
 path.write_text(json.dumps(summary, indent=2) + "\n")
 
 print("\n=== SMALL MOE MULTIBATCH EQUIVALENCE ===")

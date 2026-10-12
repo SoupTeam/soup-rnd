@@ -3,7 +3,6 @@
 No production E2 changes. No pretrained checkpoint or speed claims.
 """
 
-import hashlib
 import json
 import tempfile
 import types
@@ -54,6 +53,7 @@ ids = torch.randint(0, cfg.vocab_size, (1, 16))
 mask = torch.ones_like(ids)
 labels = ids.clone()
 
+
 def run():
     model.zero_grad(set_to_none=True)
     result = model(
@@ -70,6 +70,7 @@ def run():
     }
     return result.logits.detach().clone(), result.loss.item(), grads
 
+
 baseline_logits, baseline_loss, baseline_grads = run()
 
 with tempfile.TemporaryDirectory() as directory:
@@ -84,9 +85,7 @@ with tempfile.TemporaryDirectory() as directory:
 
     original_forward = decoder.forward
 
-    prefix_fingerprint = fingerprint_frozen_prefix(
-        decoder, cutoff
-    )
+    prefix_fingerprint = fingerprint_frozen_prefix(decoder, cutoff)
 
     def cached_forward(
         self,
@@ -105,9 +104,7 @@ with tempfile.TemporaryDirectory() as directory:
         output_router_logits = kwargs.pop("output_router_logits", None)
 
         if output_router_logits not in (None, False):
-            raise ValueError(
-                "Router auxiliary logits are not supported by this PoC"
-            )
+            raise ValueError("Router auxiliary logits are not supported by this PoC")
 
         if kwargs:
             raise ValueError(f"Unsupported kwargs: {sorted(kwargs)}")
@@ -134,9 +131,7 @@ with tempfile.TemporaryDirectory() as directory:
             position_ids=position_ids,
         )
 
-        position_embeddings = self.rotary_emb(
-            embeddings, position_ids=position_ids
-        )
+        position_embeddings = self.rotary_emb(embeddings, position_ids=position_ids)
 
         metadata = build_cache_metadata(
             model_revision="random-mixtral-seed42",
@@ -192,9 +187,7 @@ with tempfile.TemporaryDirectory() as directory:
             past_key_values=None,
         )
 
-    decoder.forward = types.MethodType(
-        cached_forward, decoder
-    )
+    decoder.forward = types.MethodType(cached_forward, decoder)
 
     try:
         first_logits, first_loss, first_grads = run()
@@ -205,21 +198,14 @@ with tempfile.TemporaryDirectory() as directory:
     finally:
         decoder.forward = original_forward
 
-    exact_logits = (
-        torch.equal(baseline_logits, first_logits)
-        and torch.equal(baseline_logits, second_logits)
+    exact_logits = torch.equal(baseline_logits, first_logits) and torch.equal(
+        baseline_logits, second_logits
     )
-    exact_loss = (
-        baseline_loss == first_loss == second_loss
-    )
-    exact_grads = (
-        baseline_grads.keys() == first_grads.keys()
-        == second_grads.keys()
-        and all(
-            torch.equal(baseline_grads[k], first_grads[k])
-            and torch.equal(baseline_grads[k], second_grads[k])
-            for k in baseline_grads
-        )
+    exact_loss = baseline_loss == first_loss == second_loss
+    exact_grads = baseline_grads.keys() == first_grads.keys() == second_grads.keys() and all(
+        torch.equal(baseline_grads[k], first_grads[k])
+        and torch.equal(baseline_grads[k], second_grads[k])
+        for k in baseline_grads
     )
 
     assert exact_logits, "Logits mismatch"
@@ -251,12 +237,8 @@ with tempfile.TemporaryDirectory() as directory:
         "performance_benchmark": False,
     }
 
-    output = Path(
-        "benchmarks/e2/moe/small_moe_real_skip_result.json"
-    )
-    output.write_text(
-        json.dumps(summary, indent=2) + "\n"
-    )
+    output = Path("benchmarks/e2/moe/small_moe_real_skip_result.json")
+    output.write_text(json.dumps(summary, indent=2) + "\n")
 
     print("=== SMALL MOE REAL PREFIX SKIP ===")
     print(json.dumps(summary, indent=2))
