@@ -431,9 +431,10 @@ hash-verified archives (raw records in
 `benchmarks/results/probe-moe-adapter-placement/`). Every counted record has
 harness SHA-256 `dd55825c…` and split SHA-256 `4b41de1b…`, and every `AT` record
 has its model's hot-set hash. The two withdrawn-split pilot run records are listed as
-rejected and never read. The curves are drawn by the same report as of commits
-`ed7aa963` and `64a7c0a1`. Four kinds of number are computed outside the report from
-the same JSONs, and say how next to each:
+rejected and never read. The curves are drawn by the same report; their code comes
+from commits `ed7aa963` and `64a7c0a1`, and the committed SVGs were generated at
+`1d843501`, which added only the final newline. Four kinds of number are computed
+outside the report from the same JSONs, and say how next to each:
 
 - the memory table: an arm's `peak_cuda_bytes`, the maximum over its seeds as in
   the arm table, minus `A`'s, against 16 x its extra trainable parameters;
@@ -638,9 +639,9 @@ Qwen3.5 `AE` has three rates: 5e-5 (`lrcheck-qwen35-AE-lr5e-5-s0`) 0.1353, 1e-4
 lowest one tried, below its OLMoE winner, and at it `AE` nearly closes the NLL gap:
 seed-0 `A` (0.1345) is 0.0008 below it and seed-0 `AS` (0.1354) 0.0001 above. So the
 negative task gap above is mostly the rate transfer, and the sign of the
-`A`/`AS`-vs-`AE` gap depends on `AE`'s rate. What survives at `AE`'s best rate is
-that `A` and `AS` are within 0.0001 nat of `AE` on NLL (one seed: `A` below it, `AS`
-0.0001 above); they are not shown to be better. At
+`A`/`AS`-vs-`AE` gap depends on `AE`'s rate. What survives at `AE`'s best rate (seed
+0 only) is that `A` is 0.0008 nat below `AE` and `AS` 0.0001 above; they are not
+shown to be better. At
 5e-5, `AE` scores accuracy 0.891 (seed-0 `A` 0.910, `AS` 0.898), and its leg 2 would
 pass (largest drop: safety, 0.050, at the threshold), so `AE`'s leg-2 failure is not
 shown to hold at its best rate either. One seed and one extra rate; nothing here
@@ -692,10 +693,11 @@ OLMoE. Under it:
   significant). Single suites can be worse: `A` is below `AE` on instruction (seed 1,
   0.958 against 1.000) and arithmetic (seed 0, 0.900 against 0.925); `AS` is below it
   on no suite (per-seed suite scores in `summary.json`). At `AE`'s best rate in the LR
-  check (5e-5, seed 0) the NLL gap nearly closes (-0.0008 / +0.0001: within 0.0001
-  nat of `AE`, one seed), and `AE` passes leg 2 there. So the pre-flight may say
-  "attention-only (+ shared expert) measured no worse than every expert on NLL and
-  accuracy on this model", not "better", and not that `AT` or `AE` regress. Scoring
+  check (5e-5, seed 0 only) the NLL gap nearly closes: `A` is 0.0008 nat below `AE`
+  and `AS` 0.0001 above; better is not shown. `AE` passes leg 2 there. So the
+  pre-flight may say "at the counted rates, attention-only (+ shared expert) measured
+  no worse than every expert on NLL and accuracy on this model", not "better", and not
+  that `AT` or `AE` regress. Scoring
   the SMS item, one of two safety refusals the matcher misses, as the base's is
   scored, `AT` passes leg 2 on both seeds and `AE` fails only on seed 0, on three
   over-refusal items the base never finished. That shows neither a scorer error nor
@@ -758,8 +760,9 @@ think block, rendering with thinking disabled, or scoring only the text after
 
 ## 10. Reproducing
 
-Run in Bash, or PowerShell 7 for the single commands: Windows PowerShell 5.1's `>`
-writes UTF-16, which the `sha256sum` checks below catch. Commands start in the
+Run in Bash, or PowerShell 7.4+ for the single commands: Windows PowerShell 5.1's `>`
+writes UTF-16, and 7.0-7.3 re-encode a native command's output as text, which can
+change line ends; the `sha256sum` checks below catch both. Commands start in the
 repository root, `$repo`. Data and outputs go to `$work`, outside the checkout
 (MetaMathQA alone is 395 MB). `prepare` needs the two pinned tokenizers; `profile`
 and `run` need the pinned bf16 weights resident on one CUDA card (48 GB for OLMoE,
