@@ -110,6 +110,22 @@ Notes on the rows:
 - A DeepSeek-V3 skeleton built from Hub code (`trust_remote_code: true`) is refused with a message
   to drop the flag. This is tested on CPU and is not a table column.
 
+## Rerun after merging main
+
+2026-10-12, commit `97c36e3a` (the cache layout check, `main` with B3 FP8 decoding and B4 adapter
+preflight merged), same machine, venv and versions as above. Power limit 80.00 W. The command
+adds `tests/test_b2_b3_integration.py` (FP8 per-expert keys decoded then stacked, bit-exact
+against B3's independent decoder; cache rebuilt on a layer count change):
+
+```bash
+CUBLAS_WORKSPACE_CONFIG=:4096:8 ~/.venvs/soup-rnd-cuda/bin/python -m pytest \
+  tests/test_b2_deepseek_v3_stream.py tests/test_b2_shard_layout.py \
+  tests/test_b2_b3_integration.py --no-cov -q -p no:cacheprovider
+```
+
+Result: 75 passed, 0 failed. With `-k cuda`: 29 passed, 46 deselected. The FP8 integration
+tests run on CPU only. The raw output below is from the first run, before the merge.
+
 ## Raw pytest output
 
 Full run, `tests/test_b2_deepseek_v3_stream.py` and `tests/test_b2_shard_layout.py`, CUDA venv:
