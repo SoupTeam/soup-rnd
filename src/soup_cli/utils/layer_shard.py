@@ -869,6 +869,18 @@ def checkpoint_source_components(
     return tuple(merged[name] for name in sorted(merged))
 
 
+def source_identity_includes_config(weights_dir: str, arch: str) -> bool:
+    """Whether ``config.json`` decides the bytes a source shards to.
+
+    True for Qwen4 PLE (its oQ metadata) and for block-scaled FP8 sources, whose
+    ``weight_block_size`` decides how every weight dequantises. The sharder and
+    the pre-sharding planner both ask this, so their cache identities agree.
+    """
+    from soup_cli.utils.fp8_source import load_fp8_source_config
+
+    return arch == "qwen4_exp" or load_fp8_source_config(weights_dir) is not None
+
+
 def _fingerprint_components(components: Tuple[Tuple[str, int, int], ...]) -> str:
     """Hash the exact components that are persisted in ``index.json``."""
     import hashlib
@@ -1224,7 +1236,7 @@ def shard_checkpoint(
     quant: str = QUANT_NONE,
     quant_suffixes: Iterable[str] = (),
     layout: Optional[ShardLayout] = None,
-    double_quant: bool = True,
+    double_quant: Optional[bool] = None,
     quant_device: Optional[str] = None,
     notify: Optional[Callable[[str], None]] = None,
     stripe_roots: Sequence[str] = (),
@@ -1239,6 +1251,10 @@ def shard_checkpoint(
     explicit (untied) ``lm_head`` exist, each is written to its own shard and
     remains unquantised; the runtime streams them through one large slot. A tied
     checkpoint keeps its single embedding matrix resident and unchanged.
+
+    ``double_quant`` is tri-state like ``training.bnb_4bit_use_double_quant``:
+    None takes the default, which is on, except for a block-scaled FP8 source,
+    where it is off and an explicit True is refused (``resolve_double_quant``).
 
     ``stripe_roots`` (R4) are extra cache roots on other drives; decoder layer
     ``i`` is written to root ``i mod N`` (root 0 is ``out_dir``), each extra
@@ -1290,10 +1306,21 @@ def shard_checkpoint(
     for directory, root in zip(shard_dirs[1:], stripe):
         secure_stripe_folder(directory, root)
 
+    from soup_cli.utils.fp8_source import (
+        is_float8_dtype,
+        load_fp8_source_config,
+        resolve_double_quant,
+    )
+    from soup_cli.utils.fp8_source import is_scale_key as is_fp8_scale_key
+
+    fp8_config = load_fp8_source_config(weights_dir)
+    double_quant = resolve_double_quant(
+        double_quant, fp8_source=fp8_config is not None, quant=quant
+    )
     source_files = checkpoint_source_components(
         weights_dir,
         _source_file_components(shards),
-        include_config=bool(external_mode),
+        include_config=bool(external_mode) or fp8_config is not None,
     )
     fingerprint = _fingerprint_components(source_files)
     if layout is None:
@@ -1335,6 +1362,8 @@ def shard_checkpoint(
     oq_external_keys: Dict[str, List[Tuple[int, str]]] = {}
     external_source_keys = set()
     saw_oq_companion = False
+    fp8_weight_keys = set()
+    fp8_scale_keys = set()
     layer_ids = set()
     dropped_keys = 0
     for path in shards:
@@ -1356,6 +1385,10 @@ def shard_checkpoint(
                         f"safetensors key order."
                     )
                 where[key] = (path, source_key)
+                if is_fp8_scale_key(key):
+                    fp8_scale_keys.add(key)
+                elif is_float8_dtype(handle.get_slice(source_key).get_dtype()):
+                    fp8_weight_keys.add(key)
                 ple_match = _QWEN4_PLE_SHARD_RE.match(key) if external_mode else None
                 oq_ple_match = (
                     _QWEN4_OQ_PLE_SHARD_RE.match(key) if external_mode else None
@@ -1394,6 +1427,8 @@ def shard_checkpoint(
             f"[yellow]Dropped {dropped_keys} checkpoint keys of decoder layers at or "
             f"beyond the model's {layout.n_layers} layers (an MTP layer, for example).[/]"
         )
+
+    _validate_fp8_companions(where, fp8_weight_keys, fp8_scale_keys, fp8_config)
 
     oq_config = None
     if saw_oq_companion:
@@ -1564,6 +1599,8 @@ def shard_checkpoint(
                     continue
                 if saw_oq_companion and key.endswith((".scales", ".biases")):
                     continue
+                if key in fp8_scale_keys:
+                    continue
                 oq_expert_match = (
                     _QWEN4_OQ_EXPERT_RE.match(key) if saw_oq_companion else None
                 )
@@ -1580,6 +1617,10 @@ def shard_checkpoint(
                 short = key[len(prefix):]
                 if short in layout.fp32_keys:
                     tensor = _read_tensor(handles[path], source_key, "float32")
+                elif key in fp8_weight_keys:
+                    tensor = _read_fp8_tensor(
+                        handles, where, key, block=fp8_config.block, dtype=dtype
+                    )
                 elif saw_oq_companion and key.endswith(".weight"):
                     tensor = _read_oq_tensor(
                         handles, where, key, oq_config=oq_config, dtype=dtype
@@ -1611,7 +1652,16 @@ def shard_checkpoint(
             for logical_key, spec in external_tensors.items():
                 if logical_key.startswith(prefix):
                     total_params += math.prod(spec.shape)
-            total_params += _stack_experts(idx, experts, blob, handles, dtype)
+            def _decode_fp8(key: str) -> Any:
+                if key not in fp8_weight_keys:
+                    return None
+                return _read_fp8_tensor(
+                    handles, where, key, block=fp8_config.block, dtype=dtype
+                )
+
+            total_params += _stack_experts(
+                idx, experts, blob, handles, dtype, decode_fp8=_decode_fp8
+            )
             if oq_experts:
                 import torch
 
@@ -1702,8 +1752,14 @@ def shard_checkpoint(
                 continue
             if saw_oq_companion and key.endswith((".scales", ".biases")):
                 continue
+            if key in fp8_scale_keys:
+                continue
             path, source_key = location
-            if saw_oq_companion and key.endswith(".weight"):
+            if key in fp8_weight_keys:
+                tensor = _read_fp8_tensor(
+                    handles, where, key, block=fp8_config.block, dtype=dtype
+                )
+            elif saw_oq_companion and key.endswith(".weight"):
                 tensor = _read_oq_tensor(
                     handles, where, key, oq_config=oq_config, dtype=dtype
                 )
@@ -1994,10 +2050,26 @@ def _own(view: Any, candidate: Any) -> Any:
 
 
 def _read_tensor(handle: Any, key: str, dtype: str) -> "Any":
-    """Materialise one OWNED tensor, size-capped, converted to the target dtype."""
+    """Materialise one OWNED tensor, size-capped, converted to the target dtype.
+
+    Float8 storage is refused here: ``Tensor.to`` would cast the raw e4m3 values
+    without their block scales, which is how an FP8 checkpoint used to shard
+    without a word into weights off by orders of magnitude. Block-scaled FP8 goes
+    through ``_read_fp8_tensor``.
+    """
     import torch
 
-    shape = handle.get_slice(key).get_shape()
+    from soup_cli.utils.fp8_source import is_float8_dtype
+
+    tensor_slice = handle.get_slice(key)
+    stored = tensor_slice.get_dtype()
+    if is_float8_dtype(stored):
+        raise ValueError(
+            f"tensor {key} is stored as {stored} (float8) with no block-scale "
+            f"path to decode it; casting its bytes would silently produce wrong "
+            f"weights"
+        )
+    shape = tensor_slice.get_shape()
     elements = math.prod(int(dim) for dim in shape)
     if elements > _MAX_TENSOR_ELEMENTS:
         raise ValueError(
@@ -2028,6 +2100,8 @@ def _stack_experts(
     blob: Dict[str, Any],
     handles: Mapping[str, Any],
     dtype: str,
+    *,
+    decode_fp8: Optional[Callable[[str], Any]] = None,
 ) -> int:
     """Stack layer ``idx``'s per-expert weights into ``blob`` as fused 3-D tensors.
 
@@ -2035,6 +2109,10 @@ def _stack_experts(
     key)}``. Each expert's gate rows go before its up rows in
     ``mlp.experts.gate_up_proj``, and experts stack on a new dim 0 in integer id
     order. Returns the number of parameters read, 0 when ``experts`` is empty.
+
+    ``decode_fp8`` takes a canonical checkpoint key and returns the dequantised tensor
+    when the checkpoint stores that weight as block-scaled float8 (DeepSeek-V3 stores
+    every routed expert that way), or ``None`` for an ordinary tensor.
     """
     if not experts:
         return 0
@@ -2058,6 +2136,11 @@ def _stack_experts(
 
     def _expert_tensor(projection: str, expert: int) -> Any:
         path, source_key = experts[projection][expert]
+        if decode_fp8 is not None:
+            key = f"model.layers.{idx}.mlp.experts.{expert}.{projection}.weight"
+            decoded = decode_fp8(key)
+            if decoded is not None:
+                return decoded
         return _read_tensor(handles[path], source_key, dtype)
 
     params = 0
@@ -2073,6 +2156,89 @@ def _stack_experts(
     blob["mlp.experts.gate_up_proj"] = torch.stack(gate_up, dim=0)
     blob["mlp.experts.down_proj"] = torch.stack(down, dim=0)
     return params
+
+
+def _validate_fp8_companions(
+    where: Mapping[str, Tuple[str, str]],
+    weight_keys: Iterable[str],
+    scale_keys: Iterable[str],
+    config: Any,
+) -> None:
+    """Every float8 weight has exactly its scale, and the checkpoint has a config.
+
+    A weight and its scale may sit in different files: DeepSeek-V3 puts 155 of its
+    45,808 scales in the file after their weight, where a decoder layer crosses a
+    file boundary (measured from its ``model.safetensors.index.json``). Runs after
+    pass 1 and before any tensor is read, so a malformed FP8 checkpoint is refused
+    before minutes of sharding, never half-written.
+    """
+    from soup_cli.utils.fp8_source import SCALE_SUFFIX, scale_key_for, weight_key_for
+
+    weights = sorted(weight_keys)
+    scales = sorted(scale_keys)
+    if not weights and not scales:
+        return
+    if config is None:
+        first = (weights or scales)[0]
+        if scales:
+            raise ValueError(
+                f"checkpoint stores {len(weights)} float8 weights with "
+                f"weight{SCALE_SUFFIX} companions (e.g. {first!r}), but config.json "
+                f"has no quantization_config with quant_method 'fp8' saying how they "
+                f"decode; refusing rather than guessing the block size"
+            )
+        raise ValueError(
+            f"tensor {first!r} is stored as float8 with no weight{SCALE_SUFFIX} "
+            f"companion and no fp8 quantization_config; casting its bytes would "
+            f"silently produce wrong weights"
+        )
+    weight_set = set(weights)
+    for scale_key in scales:
+        weight_key = weight_key_for(scale_key)
+        if weight_key not in where:
+            raise ValueError(f"FP8 scale {scale_key!r} has no weight {weight_key!r}")
+        if weight_key not in weight_set:
+            raise ValueError(
+                f"{weight_key!r} has an FP8 scale ({scale_key!r}) but is not stored as float8"
+            )
+    scale_set = set(scales)
+    for weight_key in weights:
+        if scale_key_for(weight_key) not in scale_set:
+            raise ValueError(
+                f"FP8 weight {weight_key!r} has no {scale_key_for(weight_key)!r} "
+                f"companion; without its block scales it cannot be decoded"
+            )
+
+
+def _read_fp8_tensor(
+    handles: Mapping[str, Any],
+    where: Mapping[str, Tuple[str, str]],
+    key: str,
+    *,
+    block: Tuple[int, int],
+    dtype: str,
+) -> "Any":
+    """Dequantise one block-scaled e4m3 weight to ``dtype``, in row chunks."""
+    from soup_cli.utils.fp8_source import dequantize_fp8_blockwise, scale_key_for
+
+    path, source_key = where[key]
+    scale_path, scale_source_key = where[scale_key_for(key)]
+    # The scale first: it is small and owned, so when it sits in another file the
+    # weight's handle is the most recently used one for the whole chunked read.
+    scale = _read_raw_tensor(handles[scale_path], scale_source_key)
+    weight_slice = handles[path].get_slice(source_key)
+    elements = math.prod(int(dim) for dim in weight_slice.get_shape())
+    if elements > _MAX_TENSOR_ELEMENTS:
+        raise ValueError(
+            f"tensor {key} is too large for layer streaming "
+            f"({elements} elements > {_MAX_TENSOR_ELEMENTS})"
+        )
+    try:
+        return dequantize_fp8_blockwise(
+            weight_slice, scale, block=block, dtype=dtype, key=key
+        )
+    finally:
+        del scale
 
 
 def _read_oq_tensor(
