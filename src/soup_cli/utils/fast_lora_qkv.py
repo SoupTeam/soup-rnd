@@ -33,6 +33,7 @@ from soup_cli.utils.fast_lora import (
     _FORWARD_OWNER_MARKER,
     _GROUP_PATCH_OWNER_MARKER,
     _as_dtype,
+    _base_linear,
     _dense_weight,
     _flatten,
     _is_supported_lora_projection,
@@ -94,6 +95,11 @@ def _qkv_function(*, reference_order: bool = False) -> Any:
             ctx.set_materialize_grads(False)
             ctx.reference_order = reference_order
             metas = (qq_meta, qk_meta, qv_meta)
+            # Packed NF4 bases keep PEFT's individually rounded projection edges.
+            # Grouped adapter GEMMs can shift a low-precision update across a
+            # rounding boundary even with identical packed weights. This math
+            # choice does not activate the guarded canonical dense reference scope.
+            ctx.nf4_projection_order = all(meta is not None for meta in metas)
             counts = [0 if meta is None else int(meta["_count"]) for meta in metas]
             starts = (0, counts[0], counts[0] + counts[1])
             qlists = [
@@ -103,19 +109,13 @@ def _qkv_function(*, reference_order: bool = False) -> Any:
             biases = (bq, bk, bv)
             outs = []
             for weight, bias, meta, parts in zip(weights, biases, metas, qlists):
-                dense = _dense_weight(weight, meta, parts, x.dtype)
-                outs.append(
-                    functional.linear(
-                        x, dense, _as_dtype(bias, x.dtype) if bias is not None else None
-                    )
-                )
-                del dense
+                outs.append(_base_linear(x, weight, bias, meta, parts))
 
             adapters = ((aq, bql, sq), (ak, bkl, sk), (av, bvl, sv))
             ranks = [a.shape[0] if a.numel() else 0 for a, _b, _s in adapters]
             present = [i for i, rank in enumerate(ranks) if rank]
             if present:
-                if reference_order:
+                if reference_order or ctx.nf4_projection_order:
                     h = torch.cat([
                         functional.linear(_as_dtype(x, adapters[i][0].dtype), adapters[i][0])
                         for i in present
@@ -165,7 +165,7 @@ def _qkv_function(*, reference_order: bool = False) -> Any:
                 qparts[cq + ck : cq + ck + cv],
             )
 
-            if ctx.reference_order:
+            if ctx.reference_order or ctx.nf4_projection_order:
                 grad_x = None
                 grad_as = [None, None, None]
                 grad_bs = [None, None, None]

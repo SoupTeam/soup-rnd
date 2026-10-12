@@ -20,6 +20,7 @@ from typing import Any
 from soup_cli.utils.fast_lora import (
     _FORWARD_OWNER_MARKER,
     _as_dtype,
+    _base_linear,
     _dense_weight,
     _flatten,
     _is_supported_lora_projection,
@@ -61,17 +62,17 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
         ):
             ctx.reference_order = reference_order
             metas = (qg_meta, qu_meta, qd_meta)
+            # NF4 uses separate adapter projections and input-gradient edges;
+            # its rounding contract is independent of the canonical dense guard.
+            ctx.nf4_projection_order = all(meta is not None for meta in metas)
             counts = [0 if meta is None else int(meta["_count"]) for meta in metas]
             starts = (0, counts[0], counts[0] + counts[1])
             qlists = [
                 list(qparts[starts[i] : starts[i] + counts[i]]) for i in range(3)
             ]
 
-            dense_g = _dense_weight(wg, qg_meta, qlists[0], x.dtype)
-            dense_u = _dense_weight(wu, qu_meta, qlists[1], x.dtype)
-            g = functional.linear(x, dense_g, _as_dtype(bg, x.dtype) if bg is not None else None)
-            u = functional.linear(x, dense_u, _as_dtype(bu, x.dtype) if bu is not None else None)
-            del dense_g, dense_u
+            g = _base_linear(x, wg, bg, qg_meta, qlists[0])
+            u = _base_linear(x, wu, bu, qu_meta, qlists[1])
 
             has_g, has_u, has_d = ag.numel() != 0, au.numel() != 0, ad.numel() != 0
             gu_parts = []
@@ -82,7 +83,7 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
             if gu_parts:
                 # #837's advertised fusion: gate/up LoRA A projections share X,
                 # so concatenate A and perform one GEMM, then split by rank.
-                if reference_order:
+                if reference_order or ctx.nf4_projection_order:
                     h_gu = torch.cat([
                         functional.linear(_as_dtype(x, a.dtype), a) for a in gu_parts
                     ], dim=-1)
@@ -103,9 +104,7 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
                 h_gu = x.new_empty((*x.shape[:-1], 0))
 
             m = functional.silu(g) * u
-            dense_d = _dense_weight(wd, qd_meta, qlists[2], m.dtype)
-            y = functional.linear(m, dense_d, _as_dtype(bd, m.dtype) if bd is not None else None)
-            del dense_d
+            y = _base_linear(m, wd, bd, qd_meta, qlists[2])
             if has_d:
                 hd = functional.linear(_as_dtype(m, ad.dtype), ad)
                 y = _scaled_lora_add(y, hd, bdl, sd, quantized=qd_meta is not None)
@@ -162,7 +161,7 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
             grad_silu = grad_m * u
             grad_g = torch.ops.aten.silu_backward.default(grad_silu, g)
 
-            if ctx.reference_order:
+            if ctx.reference_order or ctx.nf4_projection_order:
                 grad_x = None
                 grad_ag = grad_bgl = grad_au = grad_bul = None
                 cursor = 0

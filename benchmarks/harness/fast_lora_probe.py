@@ -47,6 +47,7 @@ EXPECTED_GRAD_FN = {
 }
 SHAPES = {
     "tiny": {"hidden": 8, "kv": 4, "intermediate": 12, "rank": 2},
+    "nf4-aligned": {"hidden": 128, "kv": 64, "intermediate": 256, "rank": 4},
     "llama3.1-8b": {"hidden": 4096, "kv": 1024, "intermediate": 14336, "rank": 16},
 }
 
@@ -429,6 +430,7 @@ def run_parity(
     request_dx: bool = True,
     shapes: str = "tiny",
     allow_large_cpu: bool = False,
+    tensor_dir: str | None = None,
     _evidence: dict[str, Any],
 ) -> dict[str, Any]:
     """Compare every output and dX/dA/dB independently against unpatched PEFT."""
@@ -477,6 +479,21 @@ def run_parity(
                 path,
             )
             _validate_snapshot_keys(path, request_dx, fast=actual, PEFT=expected, oracle=oracle)
+            if tensor_dir is not None:
+                from safetensors.torch import save_file
+
+                destination = Path(tensor_dir)
+                destination.mkdir(parents=True, exist_ok=True)
+                save_file(
+                    {
+                        f"{arm}/{quantity}": tensor.detach().cpu().contiguous()
+                        for arm, snapshot in (
+                            ("fast", actual), ("PEFT", expected), ("float64", oracle)
+                        )
+                        for quantity, tensor in snapshot.items()
+                    },
+                    str(destination / f"{path}-dx{int(request_dx)}.safetensors"),
+                )
             _evidence["failure_case"] = {"path": path, "stage": "negative_control"}
             controls[path] = _changed_adapter_control(baseline, x, expected, oracle, dtype)
             for quantity, tensor in actual.items():
@@ -522,6 +539,7 @@ def run_parity(
         "request_dX": request_dx,
         "shapes": shapes,
         "shape_dimensions": SHAPES[shapes],
+        "tensor_dir": tensor_dir,
     }
 
 
@@ -1538,6 +1556,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--repeats", type=int, default=20)
     parser.add_argument("--allow-large-cpu", action="store_true")
+    parser.add_argument("--tensor-dir", help="retain parity tensors for independent replay")
     args = parser.parse_args(argv)
     dtype = args.dtype or ("fp16" if args.device.startswith("cuda") else "fp32")
     report: dict[str, Any] = {
@@ -1573,6 +1592,7 @@ def main(argv: list[str] | None = None) -> int:
                 request_dx=not args.no_dx,
                 shapes=args.shapes,
                 allow_large_cpu=args.allow_large_cpu,
+                tensor_dir=args.tensor_dir,
             )
         elif args.mode == "loss":
             result = run_loss(**common, steps=args.steps)

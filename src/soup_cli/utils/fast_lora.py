@@ -478,6 +478,30 @@ def _dense_weight(
     return dequantize_4bit(weight, state).to(dtype)
 
 
+def _base_linear(
+    x: Any, weight: Any, bias: Any, qmeta: dict[str, Any] | None, qparts: list[Any]
+) -> Any:
+    """Use PEFT's packed-base dispatch instead of rounding NF4 weights first."""
+    import torch
+
+    if qmeta is not None and x.is_cuda and x.dtype in (
+        torch.float16, torch.bfloat16, torch.float32
+    ):
+        import bitsandbytes as bnb
+
+        state = _rebuild_quant_state(qmeta, qparts)
+        return bnb.matmul_4bit(
+            x, weight.t(), bias=_as_dtype(bias, x.dtype) if bias is not None else None,
+            quant_state=state,
+        )
+    import torch.nn.functional as functional
+
+    return functional.linear(
+        x, _dense_weight(weight, qmeta, qparts, x.dtype),
+        _as_dtype(bias, x.dtype) if bias is not None else None,
+    )
+
+
 def _single_projection_function() -> Any:
     """Build (once per process) the ``autograd.Function`` class.
 
@@ -501,7 +525,7 @@ def _single_projection_function() -> Any:
         saved-bytes test reports the actual delta against peft's graph.
 
         NF4: ``weight`` is the packed tensor and ``quant_state`` carries the
-        per-block tensors. The forward dequantises for the base matmul only;
+        per-block tensors. The forward preserves bitsandbytes' base dispatch;
         the backward rebuilds the ``QuantState`` from the saved tensors and
         dequantises again for ``dX``.
         """
@@ -516,16 +540,8 @@ def _single_projection_function() -> Any:
                 ctx.save_for_backward(x, weight, lora_a, lora_b, h)
                 ctx.qmeta = None
             else:
-                from bitsandbytes.functional import dequantize_4bit
-
-                # Transient on purpose: under streaming this dense matrix would
-                # alias a pool slot, so it must not outlive the call.
-                dense = dequantize_4bit(weight, quant_state).to(x.dtype)
-                out = functional.linear(
-                    x, dense, _as_dtype(bias, x.dtype) if bias is not None else None
-                )
-                del dense
                 qs_tensors, qs_meta = _quant_state_parts(quant_state)
+                out = _base_linear(x, weight, bias, qs_meta, qs_tensors)
                 ctx.save_for_backward(x, weight, lora_a, lora_b, h, *qs_tensors)
                 ctx.qmeta = qs_meta
 

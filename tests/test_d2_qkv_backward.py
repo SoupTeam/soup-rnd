@@ -17,7 +17,7 @@ def test_qkv_backward_only_reads_base_weights_when_dx_is_needed(
     torch = pytest.importorskip("torch")
     import torch.nn.functional as functional
 
-    from soup_cli.utils import fast_lora_qkv
+    from soup_cli.utils import fast_lora, fast_lora_qkv
 
     torch.manual_seed(41)
     inputs = torch.randn(2, 3, 8, dtype=torch.float64, requires_grad=needs_input_grad)
@@ -83,6 +83,7 @@ def test_qkv_backward_only_reads_base_weights_when_dx_is_needed(
         return original_dense_weight(*args, **kwargs)
 
     monkeypatch.setattr(fast_lora_qkv, "_dense_weight", count_base_reads)
+    monkeypatch.setattr(fast_lora, "_dense_weight", count_base_reads)
     args = [inputs]
     for weight, bias in zip(kernel_weights, biases):
         args.extend((weight, bias))
@@ -90,6 +91,8 @@ def test_qkv_backward_only_reads_base_weights_when_dx_is_needed(
         args.extend(pair)
     args.extend((*scalings, *quant_metas, *quant_parts))
     actual = fast_lora_qkv._qkv_function().apply(*args)
+    # Observe both the forward helper and the backward's imported alias. This
+    # float64 CPU fixture uses dequantization; CUDA low precision uses bnb dispatch.
     assert len(base_reads) == 3
     base_reads.clear()
     actual_grads = torch.autograd.grad(
