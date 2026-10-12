@@ -283,6 +283,9 @@ class ShardIndex:
     #: The layout's ``stack_experts`` when this cache was written (ADR 0004). An index
     #: written before the field existed takes it from its key names.
     stacked_experts: bool = False
+    #: The layout's sorted ``fp32_keys`` when this cache was written. ``None`` for an index
+    #: written before the field existed, which cannot prove which keys it kept in fp32.
+    fp32_keys: Optional[Tuple[str, ...]] = None
 
 
 @dataclass(frozen=True)
@@ -681,6 +684,11 @@ def read_shard_index(out_dir: str) -> ShardIndex:
         stripe_roots=stripe_roots,
         layer_roots=layer_roots,
         stacked_experts=bool(payload.get("stacked_experts", _STACKED_KEY in layer_keys)),
+        fp32_keys=(
+            None
+            if payload.get("fp32_keys") is None
+            else tuple(str(key) for key in payload["fp32_keys"])
+        ),
     )
 
 
@@ -1005,7 +1013,7 @@ def inspect_shard_cache(
     external_mode: str = "",
     stripe_roots: Sequence[str] = (),
     *,
-    stack_experts: bool,
+    layout: ShardLayout,
 ) -> Tuple[Optional[ShardIndex], str]:
     """Return a reusable index or the precise reason it must be rewritten.
 
@@ -1016,8 +1024,9 @@ def inspect_shard_cache(
     reverse would feed packed nibbles to a plain ``Linear``), so the cache key
     covers the quantisation and its double-quant flag too.
 
-    ``stack_experts`` is the current layout's (ADR 0004). A cache that recorded
-    the other value holds keys the runtime will not find.
+    ``layout`` is the current skeleton's (ADR 0004). A cache must agree with all of it: a
+    different expert stacking holds keys the runtime will not find, a different layer count
+    fails the streamed model's layer check, and different fp32 keys hold the wrong precision.
     """
     try:
         index = read_shard_index(out_dir)
@@ -1048,9 +1057,23 @@ def inspect_shard_cache(
             f"shard format changed "
             f"({index.format_version!r} -> {_SHARD_FORMAT_VERSION!r})"
         )
-    if index.stacked_experts != stack_experts:
+    if index.stacked_experts != layout.stack_experts:
         return None, (
-            f"expert stacking changed ({index.stacked_experts!r} -> {stack_experts!r})"
+            f"expert stacking changed "
+            f"({index.stacked_experts!r} -> {layout.stack_experts!r})"
+        )
+    if index.n_layers != layout.n_layers:
+        return None, (
+            f"decoder layer count changed ({index.n_layers!r} -> {layout.n_layers!r})"
+        )
+    # An index that never recorded its fp32 keys reads as having none: fine for a layout with
+    # none, rebuilt for one that has some.
+    cached_fp32 = index.fp32_keys or ()
+    wanted_fp32 = tuple(sorted(layout.fp32_keys))
+    if cached_fp32 != wanted_fp32:
+        return None, (
+            f"fp32 keys changed ({', '.join(cached_fp32) or 'none'} -> "
+            f"{', '.join(wanted_fp32) or 'none'})"
         )
     if not _same_roots(index.stripe_roots, stripe_roots):
         # Joined plainly: a list repr doubles every Windows backslash in the printed reason.
@@ -1292,7 +1315,7 @@ def shard_checkpoint(
             device_kind,
             external_mode,
             stripe_roots=stripe,
-            stack_experts=layout.stack_experts,
+            layout=layout,
         )
         if cached is not None:
             return cached
@@ -1739,6 +1762,7 @@ def shard_checkpoint(
         stripe_roots=stripe,
         layer_roots=layer_roots,
         stacked_experts=layout.stack_experts,
+        fp32_keys=tuple(sorted(layout.fp32_keys)),
     )
     _atomic_write_index(index, resolved_out)
     # Only now: the new index above no longer names these paths, so removing them cannot

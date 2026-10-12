@@ -220,6 +220,7 @@ def test_disk_preflight_checks_distinct_volumes_independently(
 
 def test_fingerprint_mismatch_names_the_changed_component(tmp_path) -> None:
     from soup_cli.utils.layer_shard import (
+        ShardLayout,
         fingerprint_source_files,
         inspect_shard_cache,
     )
@@ -247,7 +248,7 @@ def test_fingerprint_mismatch_names_the_changed_component(tmp_path) -> None:
         "none",
         True,
         "",
-        stack_experts=False,
+        layout=ShardLayout(n_layers=1, stack_experts=False),
     )
     assert cached is None
     assert "mtime_ns changed" in reason

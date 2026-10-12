@@ -29,6 +29,7 @@ from safetensors.torch import save_file  # noqa: E402
 import soup_cli.utils.owner_only_dir as owner_only_dir  # noqa: E402
 from soup_cli.utils.layer_shard import (  # noqa: E402
     STRIPE_MARKER_NAME,
+    ShardLayout,
     inspect_shard_cache,
     layer_paths,
     layer_shard_path,
@@ -84,7 +85,7 @@ def _digests(folder):
 def _inspect(out, index, stripe):
     return inspect_shard_cache(
         out, index.dtype, index.source_fingerprint, (), "none", False, "", "",
-        stripe_roots=(stripe,), stack_experts=False,
+        stripe_roots=(stripe,), layout=ShardLayout(n_layers=3, stack_experts=False),
     )
 
 
