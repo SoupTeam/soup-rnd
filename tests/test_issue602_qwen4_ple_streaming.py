@@ -785,16 +785,7 @@ def _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=None):
     )
     tokenizer = types.SimpleNamespace(pad_token=None, eos_token="</s>")
     reached = []
-    captured = {"probes": [], "layout": ShardLayout(n_layers=1, stack_experts=True)}
-
-    def _probe(*_args, **_kwargs):
-        probe = types.SimpleNamespace()
-        captured["probes"].append(probe)
-        return probe
-
-    def _layout_of(model):
-        assert model is captured["probes"][-1]
-        return captured["layout"]
+    captured = {"layout": ShardLayout(n_layers=1, stack_experts=True)}
 
     def _shard(*_args, **kwargs):
         captured["shard"] = kwargs
@@ -823,6 +814,26 @@ def _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=None):
         "transformers.AutoConfig.from_pretrained", lambda *_a, **_k: model_cfg
     )
     monkeypatch.setattr("peft.LoraConfig", lambda **kwargs: types.SimpleNamespace(**kwargs))
+    # This harness tests Qwen4 storage policies with fake transformers/PEFT.
+    # Real meta-adapter discovery is covered by test_stream_adapter_preflight.
+    from soup_cli.utils.adapter_budget import AdapterTensor, estimate_adapter_budget
+    from soup_cli.utils.peft_wiring import build_lora_config
+
+    adapter_plan = types.SimpleNamespace(
+        budget=estimate_adapter_budget(
+            [AdapterTensor("stub.lora_A.weight", (2, 2))],
+            profile="torch_adamw_fp32", device="cpu",
+        ),
+        quant_suffixes=(),
+        lora_config=build_lora_config(
+            tcfg.lora, target_modules=["q_proj"], task_type="CAUSAL_LM",
+        ),
+        layout=captured["layout"],
+    )
+    monkeypatch.setattr(
+        "soup_cli.utils.stream_adapter_preflight.build_stream_adapter_plan",
+        lambda *_a, **_k: adapter_plan,
+    )
     monkeypatch.setattr(
         "soup_cli.utils.layer_stream.stream_arch_of", lambda *_a, **_k: "qwen4_exp"
     )
@@ -831,8 +842,6 @@ def _drive_qwen4_streaming_setup(tmp_path, monkeypatch, resolve_weights=None):
         lambda *_a, **_k: str(tmp_path / "shards"),
     )
     monkeypatch.setattr("soup_cli.utils.layer_shard.shard_checkpoint", _shard)
-    monkeypatch.setattr("soup_cli.utils.layer_stream_runtime.build_meta_skeleton", _probe)
-    monkeypatch.setattr("soup_cli.utils.layer_stream_runtime.shard_layout_of", _layout_of)
     monkeypatch.setattr(
         "soup_cli.utils.layer_shard.source_weight_bytes", lambda *_a, **_k: 1_024
     )
@@ -917,13 +926,12 @@ def test_setup_reaches_every_qwen4_fail_closed_policy(tmp_path, monkeypatch):
     assert reached == ["mode", "source", "disk", "ram"]
 
 
-def test_setup_passes_the_probe_layout_to_the_sharder(tmp_path, monkeypatch):
-    """B2: the probe is built without NF4 or moe_lora, and its layout reaches the sharder."""
+def test_setup_passes_the_adapter_plan_layout_to_the_sharder(tmp_path, monkeypatch):
+    """B2: the layout the adapter plan read off the skeleton reaches the sharder."""
     _reached, captured, _total_ram, _resident_ram = _drive_qwen4_streaming_setup(
         tmp_path, monkeypatch
     )
 
-    assert len(captured["probes"]) == 1
     assert captured["shard"]["layout"] is captured["layout"]
 
 

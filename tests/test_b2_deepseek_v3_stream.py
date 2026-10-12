@@ -1091,7 +1091,7 @@ def test_a_skeleton_without_a_model_type_is_left_to_peft() -> None:
 def test_the_training_setup_checks_the_lora_config_it_built(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The setup passes the config, the probe and the layout to the refusal before the build."""
+    """The adapter plan passes the config, the skeleton and the layout to the refusal."""
     from tests.test_qwen35_streaming import TestQwen35StreamingSetup
 
     calls: List[Any] = []
@@ -1106,5 +1106,5 @@ def test_the_training_setup_checks_the_lora_config_it_built(
 
     assert len(calls) == 1
     lora_config, model, _layout = calls[0]
-    assert lora_config.target_modules[-3:] == ["gate_proj", "up_proj", "down_proj"]
-    assert isinstance(model, SimpleNamespace)
+    assert {"gate_proj", "up_proj", "down_proj"} <= set(lora_config.target_modules)
+    assert hasattr(model, "config")
