@@ -227,6 +227,12 @@ def _projection_state(
         qparts, qmeta = _quant_state_parts(qstate)
         qmeta = dict(qmeta)
         qmeta["_count"] = len(qparts)
+        # Storage does not determine PEFT's addition dtype. Streaming can put
+        # an NF4 base under the ordinary Linear wrapper, which promotes the
+        # addition before narrowing. Only Linear4bit narrows the update first.
+        from peft.tuners.lora import Linear as LoraLinear
+
+        qmeta["_narrow_lora_update"] = adapter is not None and not isinstance(proj, LoraLinear)
 
     if adapter is None:
         lora_a = x.new_empty(0)
@@ -531,7 +537,9 @@ def _single_projection_function() -> Any:
         """
 
         @staticmethod
-        def forward(ctx, x, weight, bias, lora_a, lora_b, scaling, quant_state):
+        def forward(
+            ctx, x, weight, bias, lora_a, lora_b, scaling, quant_state, narrow_update=None
+        ):
             import torch.nn.functional as functional
 
             h = functional.linear(_as_dtype(x, lora_a.dtype), lora_a)  # [N, r]
@@ -549,7 +557,8 @@ def _single_projection_function() -> Any:
             # PEFT multiplies the completed update before addition; alpha=s
             # would reassociate the multiply and change non-power-of-two scales.
             out = _scaled_lora_add(
-                out, h, lora_b, ctx.scaling, quantized=quant_state is not None
+                out, h, lora_b, ctx.scaling,
+                quantized=quant_state is not None if narrow_update is None else narrow_update,
             )
             return out
 
@@ -591,7 +600,8 @@ def _single_projection_function() -> Any:
                         torch.matmul(grad_h, _as_dtype(lora_a, grad_h.dtype)), grad_x.dtype
                     ),
                 )
-            return grad_x, None, None, grad_a, grad_b, None, None
+            gradients = (grad_x, None, None, grad_a, grad_b, None, None)
+            return gradients + (None,) if len(ctx.needs_input_grad) == 8 else gradients
 
     _FUNCTION = _FastLoraSingleProjection
     return _FUNCTION
@@ -621,6 +631,7 @@ def _make_patched_forward(original_forward: Any) -> Any:
             state.lora_b,
             state.scaling,
             None if state.qmeta is None else _rebuild_quant_state(state.qmeta, state.qparts),
+            None if state.qmeta is None else state.qmeta["_narrow_lora_update"],
         )
         return out if work_x is x else out.to(input_dtype)
 

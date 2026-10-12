@@ -33,7 +33,9 @@ def _bases(model: Any, path: str) -> dict[str, Any]:
     }
 
 
-def make_fixture(path: str, dtype: Any, device: str, shapes: str = "tiny") -> Any:
+def make_fixture(
+    path: str, dtype: Any, device: str, shapes: str = "tiny", peft_wrapper: str = "dense"
+) -> Any:
     """Quantize once before copying the reference, retaining fp32 adapters."""
     import bitsandbytes as bnb
     import torch
@@ -59,6 +61,22 @@ def make_fixture(path: str, dtype: Any, device: str, shapes: str = "tiny") -> An
         projection.base_layer = base.to(device)
         projection.lora_A.to(device=device, dtype=torch.float32)
         projection.lora_B.to(device=device, dtype=torch.float32)
+        if peft_wrapper == "bnb":
+            from peft import LoraConfig
+            from peft.tuners.lora.bnb import Linear4bit
+
+            rank = projection.lora_A["default"].weight.shape[0]
+            config = LoraConfig(r=rank, lora_alpha=2 * rank, lora_dropout=0.0, bias="none")
+            wrapped = Linear4bit(base, "default", config=config, r=rank, lora_alpha=2 * rank)
+            wrapped.lora_A.to(device=device, dtype=torch.float32)
+            wrapped.lora_B.to(device=device, dtype=torch.float32)
+            with torch.no_grad():
+                wrapped.lora_A["default"].weight.copy_(projection.lora_A["default"].weight)
+                wrapped.lora_B["default"].weight.copy_(projection.lora_B["default"].weight)
+            wrapped.scaling["default"] = projection.scaling["default"]
+            setattr(model if path == "single" else model.group, name, wrapped)
+        elif peft_wrapper != "dense":
+            raise ValueError("unsupported PEFT wrapper")
     return model
 
 
@@ -122,12 +140,13 @@ def run_case(
     checkpoint: bool,
     destination: Path,
     shapes: str = "tiny",
+    peft_wrapper: str = "dense",
 ) -> dict[str, Any]:
     import torch
     from safetensors.torch import save_file
 
     torch_dtype = {"fp16": torch.float16, "bf16": torch.bfloat16}[dtype]
-    baseline = make_fixture(path, torch_dtype, device, shapes)
+    baseline = make_fixture(path, torch_dtype, device, shapes, peft_wrapper)
     fast = copy.deepcopy(baseline)
     original_quant = _quant_evidence(baseline, path)
     probe._require(original_quant == _quant_evidence(fast, path), "different packed bases")
@@ -177,6 +196,7 @@ def run_case(
     )
     row = {
         "path": path,
+        "peft_wrapper": peft_wrapper,
         "request_dX": request_dx,
         "checkpoint": checkpoint,
         "patch_count": patch_count,
@@ -214,6 +234,7 @@ def main() -> int:
     parser.add_argument("--dtype", choices=("fp16", "bf16"), default="bf16")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--shapes", choices=("tiny", "nf4-aligned"), default="tiny")
+    parser.add_argument("--peft-wrapper", choices=("dense", "bnb"), default="dense")
     args = parser.parse_args()
     destination = Path(args.output_dir)
     destination.mkdir(parents=True, exist_ok=False)
@@ -223,6 +244,7 @@ def main() -> int:
         "device": args.device,
         "seed": 792,
         "shapes": args.shapes,
+        "peft_wrapper": args.peft_wrapper,
         "shape_dimensions": probe.SHAPES[args.shapes],
         "quantization": "NF4 double-quantized",
         "adapter_dtype": "fp32",
@@ -248,6 +270,7 @@ def main() -> int:
                                 checkpoint,
                                 destination,
                                 args.shapes,
+                                args.peft_wrapper,
                             )
                         except Exception as exc:
                             row = {

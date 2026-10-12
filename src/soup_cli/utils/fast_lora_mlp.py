@@ -94,12 +94,18 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
                 if has_g:
                     rank = ag.shape[0]
                     hg = h_gu[..., cursor : cursor + rank]
-                    g = _scaled_lora_add(g, hg, bgl, sg, quantized=qg_meta is not None)
+                    g = _scaled_lora_add(
+                        g, hg, bgl, sg, quantized=qg_meta is not None
+                        and qg_meta.get("_narrow_lora_update", True),
+                    )
                     cursor += rank
                 if has_u:
                     rank = au.shape[0]
                     hu = h_gu[..., cursor : cursor + rank]
-                    u = _scaled_lora_add(u, hu, bul, su, quantized=qu_meta is not None)
+                    u = _scaled_lora_add(
+                        u, hu, bul, su, quantized=qu_meta is not None
+                        and qu_meta.get("_narrow_lora_update", True),
+                    )
             else:
                 h_gu = x.new_empty((*x.shape[:-1], 0))
 
@@ -107,7 +113,10 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
             y = _base_linear(m, wd, bd, qd_meta, qlists[2])
             if has_d:
                 hd = functional.linear(_as_dtype(m, ad.dtype), ad)
-                y = _scaled_lora_add(y, hd, bdl, sd, quantized=qd_meta is not None)
+                y = _scaled_lora_add(
+                    y, hd, bdl, sd, quantized=qd_meta is not None
+                    and qd_meta.get("_narrow_lora_update", True),
+                )
 
             ctx.has_adapters = (has_g, has_u, has_d)
             ctx.gu_ranks = (ag.shape[0] if has_g else 0, au.shape[0] if has_u else 0)

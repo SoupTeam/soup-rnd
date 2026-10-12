@@ -129,7 +129,9 @@ def _qkv_function(*, reference_order: bool = False) -> Any:
                     rank = a.shape[0]
                     hi = h[..., cursor : cursor + rank]
                     outs[i] = _scaled_lora_add(
-                        outs[i], hi, b, scaling, quantized=metas[i] is not None
+                        outs[i], hi, b, scaling,
+                        quantized=metas[i] is not None
+                        and metas[i].get("_narrow_lora_update", True),
                     )
                     cursor += rank
             else:
