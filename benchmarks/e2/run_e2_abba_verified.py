@@ -252,6 +252,7 @@ def main() -> None:
     parser.add_argument("--cached", default="experiments/e2_mistral7b_cached_smoke.yaml")
     parser.add_argument("--cycles", type=int, default=3)
     parser.add_argument("--warmup", type=int, default=8)
+    parser.add_argument("--amp-init-scale", type=float, default=None)
     parser.add_argument(
         "--run-dir",
         help="New destination; defaults to timestamped benchmarks/e2/full_abba_*",
@@ -269,6 +270,13 @@ def main() -> None:
         help="Exploratory run: allows small dataset/fewer cycles; no final verdict",
     )
     args = parser.parse_args()
+    if args.amp_init_scale is not None:
+        import math
+
+        if not math.isfinite(args.amp_init_scale) or args.amp_init_scale <= 0:
+            parser.error("--amp-init-scale must be finite and >0")
+    if args.execute and not args.pilot and args.amp_init_scale is None:
+        parser.error("Final CUDA FP16 run must explicitly set --amp-init-scale")
 
     if args.execute and os.environ.get("SOUP_E2_PROFILE_CACHE", "").strip().lower() in {
         "1",
@@ -327,6 +335,8 @@ def main() -> None:
     print("NOTE: epoch timing sums step times; it is not full epoch wall-clock time.")
     print("NOTE: cold-cache build time is not separately instrumented; NO VERDICT.")
     print(f"Decision rule: {rule['sha256'] if rule else 'NOT APPROVED / NOT PROVIDED'}")
+    scale_label = "default" if args.amp_init_scale is None else str(args.amp_init_scale)
+    print(f"AMP initial scale: {scale_label}")
     if not args.execute:
         print("DRY RUN ONLY. No GPU work performed. Use --execute to start.")
         return
@@ -359,6 +369,11 @@ def main() -> None:
             "B": {"source": str(cached), "sha256": sha256(cached)},
         },
         "decision_rule": rule,
+        "runner_sha256": sha256(root / "benchmarks/e2/run_e2_abba_verified.py"),
+        "amp_initial_scale_requested": args.amp_init_scale,
+        "amp_wrapper_sha256": sha256(root / "benchmarks/e2/bench_train_amp.py")
+        if args.amp_init_scale is not None
+        else None,
         "git": capture(["git", "rev-parse", "HEAD"]),
         "environment_start": machine_state(),
         "runs": [],
@@ -375,21 +390,31 @@ def main() -> None:
             name = f"{index:02d}_{mode}"
             report_path = directory / f"{name}.json"
             log_path = directory / f"{name}.log"
-            command = [
-                sys.executable,
-                "-m",
-                "soup_cli",
-                "bench",
-                "train",
-                "--config",
-                str(baseline if mode == "A" else cached),
-                "--steps",
-                str(steps),
-                "--warmup",
-                str(args.warmup),
-                "--output",
-                str(report_path),
-            ]
+            command = [sys.executable]
+            if args.amp_init_scale is not None:
+                command.extend(
+                    [
+                        str(root / "benchmarks/e2/bench_train_amp.py"),
+                        "--amp-init-scale",
+                        str(args.amp_init_scale),
+                    ]
+                )
+            else:
+                command.extend(["-m", "soup_cli"])
+            command.extend(
+                [
+                    "bench",
+                    "train",
+                    "--config",
+                    str(baseline if mode == "A" else cached),
+                    "--steps",
+                    str(steps),
+                    "--warmup",
+                    str(args.warmup),
+                    "--output",
+                    str(report_path),
+                ]
+            )
             env = os.environ.copy()
             env.pop("SOUP_E2_PROFILE_CACHE", None)
             env["PYTHONPATH"] = str(root / "src")
@@ -421,6 +446,24 @@ def main() -> None:
                 "log": str(log_path),
             }
             manifest["runs"].append(record)
+            if args.amp_init_scale is not None:
+                lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                created = [
+                    line for line in lines if line.startswith("E2_AMP_SCALER_CREATED init_scale=")
+                ]
+                counts = [line for line in lines if line.startswith("E2_AMP_SCALERS_CREATED: ")]
+                finals = [line for line in lines if line.startswith("E2_AMP_FINAL_SCALE: ")]
+                if (len(created), len(counts), len(finals)) != (1, 1, 1):
+                    raise RuntimeError(f"Missing/duplicate AMP proof for {name}: {log_path}")
+                actual = float(created[0].split("init_scale=", 1)[1])
+                if actual != args.amp_init_scale or counts[0] != "E2_AMP_SCALERS_CREATED: 1":
+                    raise RuntimeError(f"AMP scale/count mismatch for {name}: {log_path}")
+                record["amp"] = {
+                    "initial_scale": actual,
+                    "final_scale": float(finals[0].split(": ", 1)[1]),
+                    "scalers_created": 1,
+                }
+                save_json(directory / "manifest.json", manifest)
             if returncode:
                 raise RuntimeError(f"Run {name} failed with exit code {returncode}; see {log_path}")
             report = json.loads(report_path.read_text(encoding="utf-8"))
