@@ -92,3 +92,8 @@ An infrastructure blocker includes the exact command, commit, versions and full
 error. All commands and original JSON/CSV/logs belong with the resulting report.
 The team reviewer, not the implementer, marks the task Done. T00's definition and
 F1 approval remain organizational prerequisites until confirmed by the team.
+
+The separately authorized 2026-10-14 complete-model LoRA comparison with PEFT,
+Liger and Unsloth is recorded in
+[its report](d2-training-baselines-20261014.md). External numerical gates failed;
+it does not establish a full-step performance verdict or D2 completion.
