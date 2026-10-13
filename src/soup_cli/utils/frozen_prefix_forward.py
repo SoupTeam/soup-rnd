@@ -1,4 +1,3 @@
-
 """Frozen-prefix forward execution for E2 research.
 
 Initial scope:
@@ -7,6 +6,7 @@ Initial scope:
 - No KV cache
 - Deterministic frozen prefix
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -66,13 +66,12 @@ class FrozenPrefixRunner:
         for module in frozen_modules:
             for submodule in module.modules():
                 if (
-                        isinstance(submodule, nn.modules.dropout._DropoutNd)
-                        and submodule.training
-                        and submodule.p > 0
+                    isinstance(submodule, nn.modules.dropout._DropoutNd)
+                    and submodule.training
+                    and submodule.p > 0
                 ):
                     raise ValueError(
-                        "E2 requires deterministic frozen prefix: "
-                        "active dropout is not supported"
+                        "E2 requires deterministic frozen prefix: active dropout is not supported"
                     )
 
         attention_dropout = getattr(
@@ -81,9 +80,7 @@ class FrozenPrefixRunner:
             0.0,
         )
 
-        if attention_dropout > 0 and any(
-                layer.training for layer in decoder.layers[:cutoff]
-        ):
+        if attention_dropout > 0 and any(layer.training for layer in decoder.layers[:cutoff]):
             raise ValueError(
                 "E2 requires deterministic frozen prefix: "
                 "attention_dropout must be zero during training"
@@ -92,11 +89,37 @@ class FrozenPrefixRunner:
         if any(p.requires_grad for p in self._frozen_parameters):
             raise ValueError("E2 requires a fully frozen prefix")
 
-        self._frozen_versions = tuple(
-            p._version for p in self._frozen_parameters
-        )
+        self._frozen_versions = tuple(p._version for p in self._frozen_parameters)
         self.hits = 0
         self.misses = 0
+        # Explicit diagnostic mode only. Synchronization affects throughput;
+        # leave this disabled during primary A/B performance measurements.
+        import os
+
+        self.cache_timing_enabled = os.environ.get("SOUP_E2_PROFILE_CACHE") == "1"
+        self.cache_timing_totals = (
+            {
+                "lookup_seconds": 0.0,
+                "prefix_compute_seconds": 0.0,
+                "disk_write_seconds": 0.0,
+                "host_to_device_seconds": 0.0,
+            }
+            if self.cache_timing_enabled
+            else None
+        )
+
+    @staticmethod
+    def _profile_clock(tensor: Any) -> float:
+        """Measure completed work, not asynchronous CUDA kernel submission."""
+        import time
+
+        import torch
+
+        if tensor.device.type == "cuda":
+            torch.cuda.synchronize(tensor.device)
+        elif tensor.device.type == "mps":
+            torch.mps.synchronize()
+        return time.perf_counter()
 
     def _validate_deterministic_prefix(self) -> None:
         """Reject stochastic operations in the frozen prefix."""
@@ -112,13 +135,12 @@ class FrozenPrefixRunner:
         for module in frozen_modules:
             for submodule in module.modules():
                 if (
-                        isinstance(submodule, nn.modules.dropout._DropoutNd)
-                        and submodule.training
-                        and submodule.p > 0
+                    isinstance(submodule, nn.modules.dropout._DropoutNd)
+                    and submodule.training
+                    and submodule.p > 0
                 ):
                     raise ValueError(
-                        "E2 requires deterministic frozen prefix: "
-                        "active dropout is not supported"
+                        "E2 requires deterministic frozen prefix: active dropout is not supported"
                     )
 
         attention_dropout = getattr(
@@ -127,13 +149,12 @@ class FrozenPrefixRunner:
             0.0,
         )
 
-        if attention_dropout > 0 and any(
-                layer.training for layer in decoder.layers[: self.cutoff]
-        ):
+        if attention_dropout > 0 and any(layer.training for layer in decoder.layers[: self.cutoff]):
             raise ValueError(
                 "E2 requires deterministic frozen prefix: "
                 "attention_dropout must be zero during training"
             )
+
     def forward(
         self,
         input_ids: Any = None,
@@ -161,25 +182,20 @@ class FrozenPrefixRunner:
             raise ValueError("E2 does not support output_hidden_states=True")
 
         if kwargs:
-            raise ValueError(
-                f"E2 unsupported forward arguments: {sorted(kwargs)}"
-            )
+            raise ValueError(f"E2 unsupported forward arguments: {sorted(kwargs)}")
         self._validate_deterministic_prefix()
         decoder = self.decoder
 
         embeddings = decoder.embed_tokens(input_ids)
 
         if position_ids is None:
-            position_ids = (
-                embeddings.new_zeros(
-                    (1, embeddings.shape[1]),
-                    dtype=input_ids.dtype,
-                )
-                + __import__("torch").arange(
-                    embeddings.shape[1],
-                    device=embeddings.device,
-                ).unsqueeze(0)
-            )
+            position_ids = embeddings.new_zeros(
+                (1, embeddings.shape[1]),
+                dtype=input_ids.dtype,
+            ) + __import__("torch").arange(
+                embeddings.shape[1],
+                device=embeddings.device,
+            ).unsqueeze(0)
 
         mask_function = (
             create_causal_mask
@@ -206,19 +222,20 @@ class FrozenPrefixRunner:
             position_ids=position_ids,
         )
         metadata = dict(metadata)
-        metadata["frozen_prefix_fingerprint"] = (
-            self.frozen_prefix_fingerprint
-        )
-        current_versions = tuple(
-            p._version for p in self._frozen_parameters
-        )
+        metadata["frozen_prefix_fingerprint"] = self.frozen_prefix_fingerprint
+        current_versions = tuple(p._version for p in self._frozen_parameters)
 
         if current_versions != self._frozen_versions:
             raise RuntimeError(
                 "E2 frozen-prefix weights changed during training. "
                 "Restart the runner to rebuild its cache fingerprint."
             )
+        lookup_start = self._profile_clock(embeddings) if self.cache_timing_enabled else None
         hidden = self.cache.load(metadata)
+        if lookup_start is not None:
+            self.cache_timing_totals["lookup_seconds"] += (
+                self._profile_clock(embeddings) - lookup_start
+            )
 
         if hidden is None:
             self.misses += 1
@@ -226,6 +243,7 @@ class FrozenPrefixRunner:
 
             import torch
 
+            compute_start = self._profile_clock(embeddings) if self.cache_timing_enabled else None
             with torch.no_grad():
                 for layer in decoder.layers[: self.cutoff]:
                     hidden = layer(
@@ -237,14 +255,28 @@ class FrozenPrefixRunner:
                         position_embeddings=position_embeddings,
                     )
 
+            if compute_start is not None:
+                self.cache_timing_totals["prefix_compute_seconds"] += (
+                    self._profile_clock(embeddings) - compute_start
+                )
+            write_start = self._profile_clock(embeddings) if self.cache_timing_enabled else None
             self.cache.save(hidden, metadata)
+            if write_start is not None:
+                self.cache_timing_totals["disk_write_seconds"] += (
+                    self._profile_clock(embeddings) - write_start
+                )
 
         else:
             self.hits += 1
+            transfer_start = self._profile_clock(embeddings) if self.cache_timing_enabled else None
             hidden = hidden.to(
                 device=embeddings.device,
                 dtype=embeddings.dtype,
             )
+            if transfer_start is not None:
+                self.cache_timing_totals["host_to_device_seconds"] += (
+                    self._profile_clock(embeddings) - transfer_start
+                )
 
         for layer in decoder.layers[self.cutoff :]:
             hidden = layer(
@@ -280,9 +312,7 @@ def install_frozen_prefix_cache(
     decoder = decoder_owner(model)
 
     if not isinstance(decoder, MistralModel):
-        raise ValueError(
-            "E2 frozen-prefix cache currently supports MistralModel only"
-        )
+        raise ValueError("E2 frozen-prefix cache currently supports MistralModel only")
 
     if not 0 < cutoff < len(decoder.layers):
         raise ValueError("E2 requires a nonempty frozen prefix and upper stack")

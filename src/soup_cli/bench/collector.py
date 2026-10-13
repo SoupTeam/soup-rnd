@@ -69,8 +69,7 @@ def summarize_trainable(model: Any) -> ParamSnapshot:
     meta = sum(
         1
         for _, param in model.named_parameters()
-        if param.requires_grad
-        and getattr(getattr(param, "device", None), "type", None) == "meta"
+        if param.requires_grad and getattr(getattr(param, "device", None), "type", None) == "meta"
     )
     digest = _digest(kept)
     return ParamSnapshot(
@@ -125,6 +124,7 @@ class _BenchCollector_body:  # noqa: N801
         self._epoch_number = 0
         self.e2_runner_getter = None
         self._epoch_cache_start = (0, 0)
+        self._epoch_profile_start = None
 
     # -- collection ------------------------------------------------------
     def observe_batch(self, batch: Any) -> None:
@@ -146,11 +146,7 @@ class _BenchCollector_body:  # noqa: N801
         self._epoch_start_step = len(self.steps)
         self._epoch_number += 1
 
-        runner = (
-            self.e2_runner_getter()
-            if self.e2_runner_getter is not None
-            else None
-        )
+        runner = self.e2_runner_getter() if self.e2_runner_getter is not None else None
 
         if runner is not None:
             self._epoch_cache_start = (
@@ -160,16 +156,16 @@ class _BenchCollector_body:  # noqa: N801
         else:
             self._epoch_cache_start = (0, 0)
 
+        profile_totals = (
+            getattr(runner, "cache_timing_totals", None) if runner is not None else None
+        )
+        self._epoch_profile_start = dict(profile_totals) if profile_totals is not None else None
         return control
 
     def on_epoch_end(self, args=None, state=None, control=None, **kwargs):
-        epoch_steps = self.steps[self._epoch_start_step:]
+        epoch_steps = self.steps[self._epoch_start_step :]
 
-        runner = (
-            self.e2_runner_getter()
-            if self.e2_runner_getter is not None
-            else None
-        )
+        runner = self.e2_runner_getter() if self.e2_runner_getter is not None else None
 
         if runner is not None:
             cache_hits = runner.hits - self._epoch_cache_start[0]
@@ -178,24 +174,32 @@ class _BenchCollector_body:  # noqa: N801
             cache_hits = None
             cache_misses = None
 
-        self.epoch_records.append({
-            "epoch": self._epoch_number,
-            "start_step": self._epoch_start_step,
-            "end_step": len(self.steps),
-            "duration_seconds": sum(
-                step.wall_seconds for step in epoch_steps
-            ),
-            "step_seconds": [
-                step.wall_seconds for step in epoch_steps
-            ],
-            "useful_tokens": sum(
-                step.useful_tokens for step in epoch_steps
-            ),
-            "cache_hits": cache_hits,
-            "cache_misses": cache_misses,
-        })
+        cache_profile = None
+        if runner is not None and self._epoch_profile_start is not None:
+            cache_profile = {
+                name: runner.cache_timing_totals[name] - started
+                for name, started in self._epoch_profile_start.items()
+            }
+            cache_profile["cold_build_seconds"] = (
+                cache_profile["prefix_compute_seconds"] + cache_profile["disk_write_seconds"]
+            )
+
+        self.epoch_records.append(
+            {
+                "epoch": self._epoch_number,
+                "start_step": self._epoch_start_step,
+                "end_step": len(self.steps),
+                "duration_seconds": sum(step.wall_seconds for step in epoch_steps),
+                "step_seconds": [step.wall_seconds for step in epoch_steps],
+                "useful_tokens": sum(step.useful_tokens for step in epoch_steps),
+                "cache_hits": cache_hits,
+                "cache_misses": cache_misses,
+                "cache_profile": cache_profile,
+            }
+        )
 
         return control
+
     def on_step_begin(self, args=None, state=None, control=None, **kwargs):
         # Only the first step starts here. Every later one starts where the
         # previous one ended: the Trainer fetches and collates a step's batches
