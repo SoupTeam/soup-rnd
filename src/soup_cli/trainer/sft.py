@@ -2298,6 +2298,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                 from soup_cli.utils.frozen_prefix_cache import (
                     FrozenPrefixCache,
                     build_cache_metadata,
+                    fingerprint_prefix_configuration,
                 )
                 from soup_cli.utils.frozen_prefix_forward import (
                     install_frozen_prefix_cache,
@@ -2316,6 +2317,12 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                     Path(self._output_dir) / "_e2_frozen_prefix_cache"
                 )
 
+                # Computed once per model installation: no per-step GPU/CPU
+                # synchronisation solely for cache-key construction.
+                prefix_config_fingerprint = fingerprint_prefix_configuration(
+                    decoder, cutoff
+                )
+
                 def metadata_factory(
                     *,
                     input_ids,
@@ -2325,10 +2332,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                     return build_cache_metadata(
                         model_revision=str(self.config.base),
                         frozen_prefix_fingerprint="runner-computed",
-                        config_fingerprint=(
-                            f"mistral-cutoff-{cutoff}-"
-                            f"sliding-{decoder.config.sliding_window}"
-                        ),
+                        config_fingerprint=prefix_config_fingerprint,
                         cutoff=cutoff,
                         input_ids=input_ids,
                         attention_mask=attention_mask,

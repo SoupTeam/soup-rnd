@@ -21,6 +21,78 @@ def cache_key(metadata: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def fingerprint_prefix_configuration(decoder: Any, cutoff: int) -> str:
+    """Hash decoder configuration and effective RoPE state for persistent E2 keys.
+
+    Configuration hashing is deliberately conservative: any configuration change
+    is a cache miss, even if that change is unrelated to the frozen prefix.
+    Non-persistent rotary buffers (not included in state_dict) are included.
+    """
+    import torch
+
+    if isinstance(cutoff, bool) or not isinstance(cutoff, int):
+        raise ValueError("cutoff must be an integer")
+    if not 0 < cutoff <= len(decoder.layers):
+        raise ValueError("Invalid frozen-prefix cutoff")
+
+    rotary = decoder.rotary_emb
+    digest = hashlib.sha256()
+    digest.update(b"e2-prefix-configuration-v1\0")
+    digest.update(str(cutoff).encode("ascii"))
+    digest.update(decoder.config.to_json_string(use_diff=False).encode("utf-8"))
+    digest.update(f"{type(rotary).__module__}.{type(rotary).__qualname__}".encode())
+
+    # Most RoPE variants use non-persistent inv_freq buffers. Iterating over
+    # state_dict() alone silently misses them.
+    tensor_items = {
+        f"buffer.{name}": value
+        for name, value in rotary.named_buffers(recurse=True)
+    }
+    tensor_items.update({
+        f"parameter.{name}": value
+        for name, value in rotary.named_parameters(recurse=True)
+    })
+    for name in ("inv_freq", "original_inv_freq", "cos_cached", "sin_cached"):
+        value = getattr(rotary, name, None)
+        if isinstance(value, torch.Tensor):
+            tensor_items.setdefault(f"runtime.{name}", value)
+
+    with torch.no_grad():
+        for name, value in sorted(tensor_items.items()):
+            if value.is_meta:
+                raise ValueError("Cannot fingerprint meta rotary tensors")
+            tensor = value.detach().cpu().contiguous()
+            digest.update(name.encode("utf-8"))
+            digest.update(str(tensor.dtype).encode("ascii"))
+            digest.update(str(tuple(tensor.shape)).encode("ascii"))
+            digest.update(tensor.view(torch.uint8).numpy().tobytes())
+
+    for name in (
+        "attention_scaling",
+        "rope_type",
+        "rope_kwargs",
+        "max_seq_len_cached",
+        "original_max_seq_len",
+    ):
+        if not hasattr(rotary, name):
+            continue
+        value = getattr(rotary, name)
+        if isinstance(value, torch.Tensor):
+            raise TypeError(f"RoPE {name} must be handled as a tensor")
+        try:
+            serialized = json.dumps(value, sort_keys=True, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Cannot fingerprint RoPE attribute {name}") from exc
+        digest.update(name.encode("utf-8"))
+        digest.update(serialized.encode("utf-8"))
+
+    rotary_config = getattr(rotary, "config", None)
+    if rotary_config is not None and rotary_config is not decoder.config:
+        digest.update(rotary_config.to_json_string(use_diff=False).encode("utf-8"))
+
+    return digest.hexdigest()
+
+
 def fingerprint_frozen_prefix(
     decoder: Any,
     cutoff: int,
@@ -35,7 +107,9 @@ def fingerprint_frozen_prefix(
         raise ValueError("Invalid frozen-prefix cutoff")
 
     digest = hashlib.sha256()
-    digest.update(b"e2-frozen-prefix-v1")
+    # v2 invalidates all caches made with the former weight-only fingerprint.
+    digest.update(b"e2-frozen-prefix-v2")
+    digest.update(fingerprint_prefix_configuration(decoder, cutoff).encode("ascii"))
 
     modules = [
         ("embed_tokens", decoder.embed_tokens),
