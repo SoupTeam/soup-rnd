@@ -925,7 +925,7 @@ def test_loss_rejects_replaced_peft_modules_after_a_valid_fast_step(monkeypatch,
 @pytest.mark.parametrize("dtype", ["fp16", "bf16"])
 @pytest.mark.parametrize("path", ["qkv", "mlp"])
 def test_loss_rejects_late_genuine_legacy_arithmetic_with_unchanged_function_names(
-    monkeypatch, dtype, path
+    monkeypatch, dtype, path, aten_half_matmuls
 ):
     from soup_cli.utils import fast_lora_mlp, fast_lora_qkv
 
