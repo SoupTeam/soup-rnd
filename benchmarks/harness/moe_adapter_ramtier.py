@@ -6,6 +6,8 @@ Subcommands:
              plus why AT has no Soup spelling at all
   parity     streamed vs resident on the same base numerics and the same batches: loss,
              adapter gradients and several AdamW steps (pre-registered pass rule below)
+  noise      post hoc, after a parity run did not pass: each side repeated against itself
+             (step-0 gradients, AdamW trajectory) and once against the other side
   train      one arm and seed through ``soup train``'s in-process calls (RAM tier)
   score      Soup's saved adapter copied into E1's measured harness and scored as E1 scores
              (E, task, leg 2, then C and per-row E/C via moe_adapter_confirm)
@@ -669,6 +671,207 @@ def parity(args: argparse.Namespace, record: Dict[str, Any]) -> None:
 
 
 # =====================================================================
+# Noise (post hoc)
+# =====================================================================
+NOISE_NOTE = ("added 2026-10-13 after parity-qwen35 did not pass; a diagnostic only, it never "
+              "changes the parity verdict")
+
+
+def _layer_of(name: str) -> Optional[int]:
+    _, found, rest = name.partition(".layers.")
+    head = rest.split(".", 1)[0]
+    return int(head) if found and head.isdigit() else None
+
+
+def compare_gradient_sets(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
+    """Two gradient sets over the same adapter tensors: global, per layer and per tensor."""
+    import torch
+
+    shared = sorted(set(left) & set(right))
+    per: Dict[str, Dict[str, Any]] = {}
+    layers: Dict[int, List[float]] = {}
+    num = den = 0.0
+    for name in shared:
+        a = left[name].detach().double().cpu().flatten()
+        b = right[name].detach().double().cpu().flatten()
+        diff = a - b
+        num += float(diff.square().sum())
+        den += float(b.square().sum())
+        diff_norm, a_norm, b_norm = float(diff.norm()), float(a.norm()), float(b.norm())
+        relative = diff_norm / b_norm if b_norm > 0 else (0.0 if diff_norm == 0 else math.inf)
+        per[name] = {"max_abs": float(diff.abs().max()) if diff.numel() else 0.0,
+                     "relative_l2": relative,
+                     "cosine": float(a @ b) / (a_norm * b_norm) if a_norm * b_norm > 0 else None,
+                     "bit_exact": bool(torch.equal(left[name], right[name]))}
+        layer = _layer_of(name)
+        if layer is not None:
+            layers.setdefault(layer, []).append(relative)
+    cosines = [v["cosine"] for v in per.values() if v["cosine"] is not None]
+    missing = sorted(set(left) ^ set(right))
+    return {
+        "tensors_compared": len(shared), "missing": missing,
+        "global_relative_l2": math.sqrt(num / den) if den > 0 else (0.0 if num == 0 else math.inf),
+        "min_cosine": min(cosines) if cosines else None,
+        "max_abs": max((v["max_abs"] for v in per.values()), default=0.0),
+        "bit_exact": bool(per) and not missing and all(v["bit_exact"] for v in per.values()),
+        "per_layer": {str(layer): {"tensors": len(values),
+                                   "mean_relative_l2": sum(values) / len(values),
+                                   "max_relative_l2": max(values)}
+                      for layer, values in sorted(layers.items())},
+        "tensors": per}
+
+
+def compare_losses(left: Sequence[float], right: Sequence[float]) -> Dict[str, Any]:
+    steps = [{"step": i, "left": a, "right": b,
+              "relative": abs(a - b) / abs(b) if b else (0.0 if a == b else math.inf),
+              "bit_exact": a == b} for i, (a, b) in enumerate(zip(left, right))]
+    return {"steps": steps, "max_relative": max((s["relative"] for s in steps), default=0.0),
+            "bit_exact": len(left) == len(right) and all(s["bit_exact"] for s in steps)}
+
+
+def _restore(params: Dict[str, Any], snapshot: Dict[str, Any]) -> None:
+    import torch
+
+    with torch.no_grad():
+        for name, param in params.items():
+            param.copy_(snapshot[name])
+            param.grad = None
+
+
+def step0_gradients(model, params: Dict[str, Any], snapshot: Dict[str, Any],
+                    batch: dict) -> Tuple[float, Dict[str, Any]]:
+    """Loss and adapter gradients of one forward+backward from ``snapshot``."""
+    _restore(params, snapshot)
+    loss = model(**batch).loss
+    loss.backward()
+    grads = {n: p.grad.detach().clone() for n, p in params.items() if p.grad is not None}
+    value = float(loss.detach())
+    _restore(params, snapshot)
+    return value, grads
+
+
+def adamw_trajectory(model, params: Dict[str, Any], snapshot: Dict[str, Any],
+                     batches: Sequence[dict]) -> List[float]:
+    """Per-step losses of PARITY_ADAMW steps from ``snapshot`` with a fresh optimizer."""
+    import torch
+
+    _restore(params, snapshot)
+    optimizer = torch.optim.AdamW([params[n] for n in sorted(params)], **PARITY_ADAMW)
+    losses = []
+    for batch in batches:
+        optimizer.zero_grad(set_to_none=True)
+        loss = model(**batch).loss
+        loss.backward()
+        losses.append(float(loss.detach()))
+        optimizer.step()
+    del optimizer
+    _restore(params, snapshot)
+    return losses
+
+
+def _noise_comparison(left: Dict[str, Any], right: Dict[str, Any], i: int,
+                      j: int) -> Dict[str, Any]:
+    return {"gradient_step0": compare_gradient_sets(left["step0"][i][1], right["step0"][j][1]),
+            "loss_step0": compare_losses([left["step0"][i][0]], [right["step0"][j][0]]),
+            "trajectory": compare_losses(left["trajectories"][i], right["trajectories"][j])}
+
+
+def noise(args: argparse.Namespace, record: Dict[str, Any]) -> None:
+    """Parity's build, then each side against itself and repeat 1 of each against the other."""
+    import torch
+    from transformers import AutoConfig
+
+    from soup_cli.utils.fp8_source import stream_double_quant
+    from soup_cli.utils.layer_shard import QUANT_NF4, QUANT_NONE
+    from soup_cli.utils.layer_stream import resolve_stream_dtype
+
+    harness = confirm.load_measured_harness()
+    stamp(record, harness, args.split)
+    record.update(post_hoc=NOISE_NOTE, quant=args.quant, device=args.device,
+                  rows_per_batch=args.rows_per_batch, steps=args.steps, arm="AS", seed=0,
+                  repeats=2, adamw=PARITY_ADAMW, lora_b_seed=PARITY_LORA_B_SEED,
+                  lora_b_std=PARITY_LORA_B_STD,
+                  determinism={"deterministic_algorithms":
+                               torch.are_deterministic_algorithms_enabled(),
+                               "cudnn_deterministic": torch.backends.cudnn.deterministic,
+                               "cudnn_benchmark": torch.backends.cudnn.benchmark})
+    if args.quant == "nf4" and not args.device.startswith("cuda"):
+        raise ValueError("noise --quant nf4 runs on CUDA; CPU is allowed with --quant none only")
+    rows = harness.load_rows(args.data)
+    split = load_json(args.split)
+    out = pathlib.Path(args.out).resolve()
+    run_dir = out.parent / f"{out.stem}-run"
+    quantization = "4bit" if args.quant == "nf4" else "none"
+    text = prepare_run_dir(run_dir, recipe(args.base, ARM_TARGETS["AS"], seed=0, lr=LR,
+                                           quantization=quantization),
+                           rows, split["train"][:args.steps * args.rows_per_batch])
+    record["recipe"] = {"run_dir": str(run_dir), "text": text, "sha256": text_sha256(text)}
+    runs: Dict[str, Dict[str, Any]] = {}
+    with working_directory(run_dir):
+        cfg, dataset, wrapper = soup_load("soup.yaml", args.device)
+        try:
+            wrapper.setup(dataset)
+            trainer = wrapper.trainer
+            streamed = trainer.model
+            stats = wrapper._stream_runtime.stats()
+            dtype = resolve_stream_dtype(args.device)
+            quant = QUANT_NF4 if args.quant == "nf4" else QUANT_NONE
+            double_quant = stream_double_quant(
+                cfg.training, AutoConfig.from_pretrained(args.base), quant=quant)
+            named_s = lora_parameters(streamed)
+            adapter_dtypes = sorted({str(p.dtype) for p in named_s.values()})
+            if len(adapter_dtypes) != 1:
+                raise ValueError(f"streamed adapters carry several dtypes: {adapter_dtypes}")
+            record.update(tier=stats["tier"], stream=jsonable(stats), store_dtype=dtype,
+                          double_quant=double_quant, adapter_dtype=adapter_dtypes[0],
+                          streamed_meta_parameters=sum(1 for p in streamed.parameters()
+                                                       if p.is_meta),
+                          lora_tensors=len(named_s))
+            make_non_vacuous(named_s)
+            reference, record["reference_kwargs"] = resident_reference(
+                args.base, streamed, device=args.device, quant=args.quant, dtype=dtype,
+                double_quant=double_quant)
+            named_r = lora_parameters(reference)
+            if set(named_s) != set(named_r):
+                raise ValueError(
+                    "LoRA tensors do not match by canonical name: streamed-only "
+                    f"{sorted(set(named_s) - set(named_r))[:4]}, reference-only "
+                    f"{sorted(set(named_r) - set(named_s))[:4]}")
+            with torch.no_grad():
+                for name, param in named_r.items():
+                    param.data = param.data.to(named_s[name].dtype)
+                    param.copy_(named_s[name])
+            batches = collated_batches(trainer, steps=args.steps,
+                                       rows_per_batch=args.rows_per_batch, device=args.device)
+            record["batch_tokens"] = [int((b["labels"] != IGNORE_INDEX).sum()) for b in batches]
+            sides = {"streamed": (streamed, named_s), "resident": (reference, named_r)}
+            snapshots = {side: {n: p.detach().clone() for n, p in params.items()}
+                         for side, (_model, params) in sides.items()}
+            record["snapshots_identical"] = all(
+                torch.equal(snapshots["streamed"][n], snapshots["resident"][n]) for n in named_s)
+            streamed.train()
+            reference.train()
+            for side, (model, params) in sides.items():
+                snap = snapshots[side]
+                runs[side] = {
+                    "step0": [step0_gradients(model, params, snap, batches[0])
+                              for _ in range(2)],
+                    "trajectories": [adamw_trajectory(model, params, snap, batches)
+                                     for _ in range(2)]}
+        finally:
+            wrapper._close_stream_runtime()
+    record["step0_losses"] = {side: [loss for loss, _grads in run["step0"]]
+                              for side, run in runs.items()}
+    record["trajectories"] = {side: run["trajectories"] for side, run in runs.items()}
+    streamed_run, resident_run = runs["streamed"], runs["resident"]
+    record["comparisons"] = {
+        "streamed_vs_streamed": _noise_comparison(streamed_run, streamed_run, 0, 1),
+        "resident_vs_resident": _noise_comparison(resident_run, resident_run, 0, 1),
+        "streamed_vs_resident": _noise_comparison(streamed_run, resident_run, 0, 0)}
+    record["status"] = "ok"
+
+
+# =====================================================================
 # Train
 # =====================================================================
 def bytes_per_parameter(named_parameters: Iterable[Tuple[str, Any]],
@@ -1099,6 +1302,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     par.add_argument("--steps", type=int, default=4)
     par.add_argument("--quant", choices=("nf4", "none"), default="nf4")
     par.add_argument("--device", default="cuda")
+    noi = sub.add_parser("noise")
+    noi.add_argument("--base", required=True)
+    noi.add_argument("--data", required=True)
+    noi.add_argument("--split", required=True)
+    noi.add_argument("--rows-per-batch", type=int, default=4)
+    noi.add_argument("--steps", type=int, default=4)
+    noi.add_argument("--quant", choices=("nf4", "none"), default="nf4")
+    noi.add_argument("--device", default="cuda")
     tra = sub.add_parser("train")
     tra.add_argument("--arm", choices=sorted(ARM_TARGETS), required=True)
     tra.add_argument("--seed", type=int, required=True)
@@ -1122,13 +1333,13 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     sco.add_argument("--base-path", default=None)
     sco.add_argument("--limit-rows", type=int, default=None)
     sco.add_argument("--device", default="cuda")
-    for cmd in (lab, pre, par, tra, sco):
+    for cmd in (lab, pre, par, noi, tra, sco):
         cmd.add_argument("--out", required=True)
     return parser.parse_args(argv)
 
 
-HANDLERS = {"labels": labels, "preflight": preflight, "parity": parity, "train": train,
-            "score": score}
+HANDLERS = {"labels": labels, "preflight": preflight, "parity": parity, "noise": noise,
+            "train": train, "score": score}
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
