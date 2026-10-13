@@ -334,6 +334,12 @@ def install_frozen_prefix_cache(
     original_forward = decoder.forward
 
     def cached_forward(self, *args, **kwargs):
+        if self is not runner.decoder:
+            raise RuntimeError(
+                "E2 frozen-prefix cache does not support "
+                "torch.nn.DataParallel replicas. "
+                "Use a single GPU or a validated model-sharding setup."
+            )
         return runner.forward(*args, **kwargs)
 
     decoder.forward = types.MethodType(cached_forward, decoder)

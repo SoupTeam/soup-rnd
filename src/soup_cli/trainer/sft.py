@@ -2319,6 +2319,25 @@ class SFTTrainerWrapper(StreamingSetupMixin):
 
                 # Computed once per model installation: no per-step GPU/CPU
                 # synchronisation solely for cache-key construction.
+                # Reject the DataParallel path used by HF Trainer._wrap_model.
+                # E2 caches are attached to one decoder instance and cannot
+                # safely serve DataParallel replicas.
+                if (
+                    self.trainer.args.n_gpu > 1
+                    and not getattr(
+                        self.trainer.model, "is_loaded_in_8bit", False
+                    )
+                    and not getattr(
+                        self.trainer.model, "is_loaded_in_4bit", False
+                    )
+                ):
+                    raise RuntimeError(
+                        "E2 frozen-prefix cache does not support "
+                        "torch.nn.DataParallel. "
+                        "Use a single visible GPU or a validated "
+                        "model-sharding configuration."
+                    )
+
                 prefix_config_fingerprint = fingerprint_prefix_configuration(
                     decoder, cutoff
                 )

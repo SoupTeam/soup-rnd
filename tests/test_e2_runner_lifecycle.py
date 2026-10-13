@@ -26,6 +26,9 @@ def e2_wrapper(tmp_path, monkeypatch):
     wrapper = SFTTrainerWrapper(cfg, device="cpu")
     wrapper.setup(load_dataset(cfg.data))
 
+    # Test single-device E2 lifecycle regardless of host GPU count.
+    monkeypatch.setattr(wrapper.trainer.args, "_n_gpu", 0)
+
     wrapper.trainer.args.max_steps = 2
     wrapper.trainer.args.save_strategy = "no"
 
@@ -64,3 +67,24 @@ def test_e2_runner_cleared_after_failure(e2_wrapper, monkeypatch):
         wrapper.train()
 
     assert wrapper._e2_runner is None
+
+
+def test_e2_rejects_dataparallel_before_training(e2_wrapper, monkeypatch):
+    wrapper = e2_wrapper
+
+    # Simulate Trainer choosing DataParallel without requiring two GPUs.
+    monkeypatch.setattr(wrapper.trainer.args, "_n_gpu", 2)
+
+    def should_not_train(*args, **kwargs):
+        raise AssertionError("Training must not start under DataParallel")
+
+    monkeypatch.setattr(wrapper.trainer, "train", should_not_train)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"does not support torch\.nn\.DataParallel",
+    ):
+        wrapper.train()
+
+    # Fail-fast happens before a runner is installed.
+    assert not hasattr(wrapper, "_e2_runner")
