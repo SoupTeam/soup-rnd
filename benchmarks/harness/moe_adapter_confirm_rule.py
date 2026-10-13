@@ -16,6 +16,9 @@ generalisation contrast". Its interval reflects question-sampling noise only and
 nothing about a cause; an LR-sweep winner on C that differs from E1's is a diagnostic.
 
 Pure Python, deterministic, no torch.
+
+2026-10-13: the RAM-tier parity gate of §11.3 implemented after the parity pilot's result
+and before any RAM-tier score result was read; no threshold changed.
 """
 
 from __future__ import annotations
@@ -551,24 +554,83 @@ def _historical(result: Dict[str, Any]) -> Dict[str, Any]:
                      for a, row in result.get("arms", {}).items()}}
 
 
+MEMORY_PARITY_NOTE = ("memory is a property of the regime and is reported whether or not the "
+                      "parity pilot passed; §11.3's strict reading counts nothing from these runs")
+
+
+PARITY_MIN_STEPS = 4
+
+
+def _parity_problem(parity: Dict[str, Any]) -> Optional[str]:
+    """Why ``parity`` is not a passed NF4 RAM-tier CUDA pilot of four steps, or None."""
+    if parity.get("status") != "ok" or parity.get("passed") is not True:
+        return (f"parity pilot did not pass (status {parity.get('status')}, passed "
+                f"{parity.get('passed')})")
+    if parity.get("quant") != "nf4":
+        return f"parity quant {parity.get('quant')!r}, not 'nf4'"
+    if parity.get("tier") != "ram":
+        return f"parity tier {parity.get('tier')!r}, not 'ram'"
+    if not str(parity.get("device") or "").startswith("cuda"):
+        return f"parity device {parity.get('device')!r}, not cuda"
+    if len(parity.get("steps") or []) < PARITY_MIN_STEPS:
+        return (f"parity steps {len(parity.get('steps') or [])}, fewer than "
+                f"{PARITY_MIN_STEPS}")
+    sha = parity.get("harness_sha256")
+    if not (isinstance(sha, str) and len(sha) == 64
+            and all(ch in "0123456789abcdef" for ch in sha.lower())):
+        return f"parity harness_sha256 {sha!r} missing or not a SHA-256"
+    return None
+
+
+def parity_gate(parity: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Section 11.3: RAM-tier runs count only if the NF4 RAM-tier parity pilot passed."""
+    if parity is None:
+        return {"counted": False, "reason": "no parity record"}
+    reason = _parity_problem(parity)
+    counted = reason is None
+    grad = parity.get("gradient_step0") or {}
+    return {"counted": counted, "reason": reason,
+            "bit_exact": parity.get("bit_exact"),
+            "steps": [{k: s.get(k) for k in ("step", "streamed", "resident", "relative")}
+                      for s in parity.get("steps", [])],
+            "gradient_step0": {k: grad.get(k)
+                               for k in ("global_relative_l2", "min_cosine", "max_abs")},
+            "rule": parity.get("rule"), "_path": parity.get("_path")}
+
+
+def apply_parity_gate(ram_tier: Dict[str, Any], parity: Optional[Dict[str, Any]]) -> None:
+    """Withhold the RAM-tier verdicts (descriptive fields kept) unless the pilot passed."""
+    gate = parity_gate(parity)
+    ram_tier["parity"] = gate
+    if not gate["counted"]:
+        for s in TASK_SETS:
+            ram_tier[s]["verdict_if_counted"] = ram_tier[s]["verdict"]
+            ram_tier[s]["verdict"] = "NOT COUNTED"
+            ram_tier[s]["gate_reason"] = gate["reason"]
+    ram_tier["memory"]["parity_counted"] = gate["counted"]
+    ram_tier["memory"]["note"] = MEMORY_PARITY_NOTE
+
+
 def analyse(confirm_records: Sequence[Dict[str, Any]],
             published_records: Sequence[Dict[str, Any]],
             ram_records: Sequence[Dict[str, Any]] = (), *, expect: Dict[str, Any],
-            checks: Sequence[Dict[str, Any]] = (),
+            checks: Sequence[Dict[str, Any]] = (), parity: Optional[Dict[str, Any]] = None,
             draws: int = rule.BOOTSTRAP_DRAWS) -> Dict[str, Any]:
     """Everything the confirmation reports, as one JSON-able dict.
 
     ``expect``: ``harness_sha256``, ``split_sha256``, ``hot_sha256`` (E1's, also used to
     filter the published records), ``confirm_split_sha256`` and optional
     ``wrapper_sha256``. ``checks``: second-box base records (``confirmcheck-*``).
+    ``parity``: the RAM-tier parity pilot record (``parity-*``), or None; see
+    ``apply_parity_gate``. Per-row checks run on every ok record before provenance.
     """
+    for r in [*confirm_records, *checks, *ram_records]:
+        if _ok(r):
+            check_per_row(r)
     rejected: List[Dict[str, Any]] = []
     records = _filter(confirm_records, confirm_problem, expect, rejected)
     checks = _filter(checks, confirm_problem, expect, rejected)
     ram = _filter(ram_records, _ram_problem, expect, rejected)
-    for r in [*records, *checks, *ram]:
-        if _ok(r):
-            check_per_row(r)
     e1_expect = {k: expect[k] for k in ("harness_sha256", "split_sha256", "hot_sha256")}
     published = rule.analyse(published_records, expect=e1_expect)
     published_kept = [r for r in published_records
@@ -599,6 +661,7 @@ def analyse(confirm_records: Sequence[Dict[str, Any]],
         resident = frozen_partition(records, RAM_MODEL)["counted"]
         out["ram_tier"] = {s: ram_verdicts(ram, resident, s) for s in TASK_SETS}
         out["ram_tier"]["memory"] = ram_memory(ram)
+        apply_parity_gate(out["ram_tier"], parity)
     return out
 
 
@@ -699,11 +762,38 @@ def _published_lines(pub: Optional[Dict[str, Any]]) -> List[str]:
     return lines
 
 
+def _parity_lines(p: Dict[str, Any]) -> List[str]:
+    head = f"Parity pilot: {'PASSED' if p['counted'] else 'NOT PASSED'}"
+    if p["reason"]:
+        head += f" ({p['reason']})"
+    if p.get("_path"):
+        head += f", `{p['_path']}`"
+    lines = [head + ".", ""]
+    limits = p.get("rule") or {}
+    if p.get("steps"):
+        lines += ["| Step | Streamed loss | Resident loss | Relative |", "|---:|---:|---:|---:|"]
+        lines += [f"| {s.get('step')} | {_f(s.get('streamed'), 6)} | {_f(s.get('resident'), 6)} "
+                  f"| {_f(s.get('relative'), 6)} |" for s in p["steps"]]
+        lines += ["", f"Loss rule: relative <= {limits.get('loss_relative', '-')}.", ""]
+    grad = p.get("gradient_step0")
+    if grad:
+        lines += [f"Step-0 gradient: global relative L2 {_f(grad.get('global_relative_l2'), 6)} "
+                  f"(rule <= {limits.get('grad_relative_l2', '-')}), min cosine "
+                  f"{_f(grad.get('min_cosine'), 6)} (rule >= {limits.get('grad_cosine', '-')}), "
+                  f"max abs {_f(grad.get('max_abs'), 6)}; bit exact {p.get('bit_exact')}.", ""]
+    return lines
+
+
 def _ram_lines(ram: Dict[str, Any]) -> List[str]:
-    lines = [f"## RAM tier ({RAM_MODEL})", ""]
+    lines = [f"## RAM tier ({RAM_MODEL})", ""] + _parity_lines(ram["parity"])
+    counted = ram["parity"]["counted"]
     for s in TASK_SETS:
         t = ram[s]
-        line = f"{s}: **{t['verdict']}**"
+        if counted:
+            line = f"{s}: **{t['verdict']}**"
+        else:
+            line = (f"{s}: **{t['verdict']}** ({t['gate_reason']}); descriptive verdict if "
+                    f"counted: {t['verdict_if_counted']}")
         if t.get("missing"):
             line += "; missing: " + ", ".join(f"`{m}`" for m in t["missing"])
         if t.get("validity"):
@@ -711,6 +801,8 @@ def _ram_lines(ram: Dict[str, Any]) -> List[str]:
                                                for k, ok in t["validity"].items())
         lines += [line, ""]
         if t.get("arms"):
+            if not counted:
+                lines += ["Arms (descriptive, not a verdict):", ""]
             lines += ["| Arm | Seeds | NLL mean | Gap vs resident AE | Leg 2 failed "
                       "| Clustered accuracy vs AE | Verdict |", "|---|---|---:|---|---|---|---|"]
             for a, r in t["arms"].items():
@@ -730,7 +822,7 @@ def _ram_lines(ram: Dict[str, Any]) -> List[str]:
     mem = ram["memory"]
     if "missing" in mem:
         return lines + [f"Memory: {mem['missing']}.", ""]
-    lines += [f"Memory (AS - A peak, seeds {mem['seeds']}): extra parameters "
+    lines += [f"Memory ({mem['note']}; AS - A peak, seeds {mem['seeds']}): extra parameters "
               f"{mem['extra_parameters']}, bytes per parameter {mem['bytes_per_parameter']}, "
               f"tolerance {_mib(mem['tolerance_bytes'])}.", "",
               "| Rule | Predicted | Residual per seed | Residual max-over-seeds | Holds |",
@@ -829,10 +921,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
               "confirm_split_sha256": args.confirm_split_sha256,
               "wrapper_sha256": args.wrapper_sha256}
     ram = rule.load_runs(args.ram_tier_dir, "ramtier-*.json") if args.ram_tier_dir else []
+    parity = None
+    if args.ram_tier_dir:
+        pilots = rule.load_runs(args.ram_tier_dir, "parity-*.json")
+        if len(pilots) > 1:
+            raise ValueError("more than one parity record: "
+                             + ", ".join(p["_path"] for p in pilots))
+        parity = pilots[0] if pilots else None
     analysis = analyse(rule.load_runs(args.confirm_dir, "confirm-*.json"),
                        rule.load_runs(args.published_dir), ram, expect=expect,
                        checks=rule.load_runs(args.confirm_dir, "confirmcheck-*.json"),
-                       draws=args.draws)
+                       parity=parity, draws=args.draws)
     out = pathlib.Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "summary.json").write_text(json.dumps(analysis, indent=1) + "\n", encoding="utf-8",

@@ -263,3 +263,62 @@ def test_ram_verdicts(cr):
     assert e["arms"]["AS"]["verdict"] == "COSTS QUALITY"
     c = cr.ram_verdicts(ram, _resident(), "C")
     assert c["arms"]["AS"]["verdict"] == "ACCEPTABLE"
+
+
+EXPECT = {"harness_sha256": None, "split_sha256": None, "hot_sha256": {},
+          "confirm_split_sha256": "c"}
+PARITY_FAILED = {"status": "not_passed", "passed": False, "_path": "parity-qwen35.json",
+                 "quant": "nf4", "tier": "ram", "device": "cuda:0", "harness_sha256": "ab" * 32,
+                 "bit_exact": {"losses": False}, "rule": {"grad_relative_l2": 0.01},
+                 "steps": [{"step": s, "streamed": 1.0, "resident": 1.1, "relative": 0.09}
+                           for s in range(4)],
+                 "gradient_step0": {"global_relative_l2": 0.5, "min_cosine": 0.2, "max_abs": 1.0}}
+PARITY_PASSED = {**PARITY_FAILED, "status": "ok", "passed": True}
+
+
+def _ram_analysis(cr, parity):
+    ram = [_ram("A", s, 10**9, 50, gate={"mini_mmlu": 0.44, "mini_safety": 0.5}) for s in (0, 1)]
+    ram += [_ram("AS", s, 10**9 + 16, 51, e_nll=0.86) for s in (0, 1)]
+    return cr.analyse(_resident(), [], ram, expect=EXPECT, parity=parity, draws=10)["ram_tier"]
+
+
+def test_failed_parity_withholds_ram_verdicts(cr):
+    ram = _ram_analysis(cr, PARITY_FAILED)
+    assert ram["parity"]["counted"] is False
+    for s in ("E", "C"):
+        assert ram[s]["verdict"] == "NOT COUNTED"
+        assert ram[s]["verdict_if_counted"] == "MEASURED"
+        assert ram[s]["arms"]["A"]["verdict"] == "REGRESSES"
+    assert ram["E"]["arms"]["AS"]["verdict"] == "COSTS QUALITY"
+    assert ram["memory"]["predicted_e1"] == 16 and ram["memory"]["parity_counted"] is False
+
+
+def test_passing_parity_counts_ram_verdicts(cr):
+    ram = _ram_analysis(cr, PARITY_PASSED)
+    assert ram["parity"]["counted"] is True
+    assert ram["E"]["verdict"] == ram["C"]["verdict"] == "MEASURED"
+    assert "verdict_if_counted" not in ram["E"]
+    assert ram["memory"]["parity_counted"] is True
+
+
+def test_smoke_parity_is_not_counted(cr):
+    smoke = {**PARITY_PASSED, "quant": "none", "device": "cpu", "steps": PARITY_PASSED["steps"][:3]}
+    ram = _ram_analysis(cr, smoke)
+    assert ram["parity"]["counted"] is False
+    assert "quant" in ram["parity"]["reason"]
+    assert ram["E"]["verdict"] == ram["C"]["verdict"] == "NOT COUNTED"
+
+
+def test_missing_parity_record_withholds_ram_verdicts(cr):
+    ram = _ram_analysis(cr, None)
+    assert ram["parity"] == {"counted": False, "reason": "no parity record"}
+    assert ram["E"]["verdict"] == ram["C"]["verdict"] == "NOT COUNTED"
+    assert ram["C"]["gate_reason"] == "no parity record"
+
+
+def test_per_row_check_runs_before_provenance(cr):
+    bad = _record("A", 0, 0.8, 0.9)
+    bad["harness_sha256"] = "another harness"
+    bad["confirm"]["per_row"]["E"]["nll_sum"][0] += 1.0
+    with pytest.raises(ValueError, match="E per-row NLL"):
+        cr.analyse([bad], [], expect=EXPECT, draws=10)
