@@ -12,6 +12,10 @@ two real MoE checkpoints, and turns the result into a rule for the pre-flight
 message. Nothing here is a product promise; it is quality-gated, not bit-exact
 (house rule 2).
 
+**Follow-up, 2026-10-13 (review of PR #7):** §8's task numbers are tuning-set scores
+(§3 limitation). §11 pre-registers a confirmation set of questions E1 never used and
+Qwen3.5 in Soup's RAM tier, before any of their runs.
+
 ## 1. Question
 
 At the same data, steps, rank and recipe, how much task quality and general
@@ -72,6 +76,13 @@ written to the JSON before training starts.
   is extended once in that direction (5e-5 or 8e-4). Seeds 1 and 2 then run at the
   winning rate. Qwen3.5 reuses each arm's OLMoE rate with seeds 0 and 1; that
   transfer is a stated limitation, not a measurement.
+
+  *Limitation, added 2026-10-13 after review of PR #7 (nothing above changed).* The
+  rate is chosen on the same 256 evaluation questions that §8 then scores, and the
+  chosen seed-0 run is itself counted, so §8's task numbers are tuning-set scores:
+  further seeds answer the same questions and do not remove that dependence. Until
+  §11's confirmation set is scored, §9 claims only what was observed on this set. §11
+  pre-registers that set and its rule; the records and thresholds here stay as they are.
 
 ## 4. Measurements per run
 
@@ -679,6 +690,11 @@ first run and approved by the record owner after the results without changes (§
 addendum). It holds for this recipe; on Qwen3.5 every rate is transferred from
 OLMoE. Under it:
 
+*Added 2026-10-13 (review of PR #7).* Every task number below was measured on the
+evaluation set the rates were chosen on (§3 limitation). Until §11 reports, each line
+is a tuning-set observation for this recipe, not an independent quality
+recommendation; the wording below is held to that.
+
 - **OLMoE-1B-7B: no target is named acceptable** (§5's added branch; every arm
   fails leg 2). The pre-flight would give the raw deltas against `AE` instead: `A`
   +0.0083 nat, -3.1 accuracy points (p 0.058), leg 2 common sense +1/-6 items over
@@ -954,3 +970,124 @@ python -m pytest tests/test_moe_adapter_rule.py tests/test_moe_adapter_placement
   tests/test_moe_adapter_placement_cli.py -q --no-cov
 python benchmarks/harness/moe_adapter_budget.py   # §9 extrapolation; fetches two configs
 ```
+
+## 11. Follow-up after the review of PR #7 (pre-registered 2026-10-13, before any run)
+
+The review of PR #7 (2026-10-12) left E1 open on two points. (1) §3 chooses each
+rate by lowest NLL on the 256 evaluation questions (E) that §8 then scores, so E is
+a tuning set and the size of that dependence was never measured. (2) The brief puts
+Qwen3.5 in the RAM tier (Soup's layer streaming); §6-§8 trained resident bf16 with
+this harness's own adapters. This section commits the measurements and the rules for
+both before any of them runs. §1-§10, every record and the gate (§5) stay unchanged.
+
+### 11.1 Confirmation set C
+
+256 MetaMathQA rows, one per source question, none of whose source questions any E1
+split used in any role (calibration, train, evaluation, and the withdrawn pilot
+split; a rephrasing of a source question counts as that question). `moe_adapter_confirm.py
+prepare-c` walks E1's own shuffle (seed 1234) on from where the counted split stopped
+(position 6767) and applies E1's row filter (reference answer, template prefix, 512
+tokens for both tokenizers) plus three exclusions against every source question of
+the counted split `4b41de1b…` (4,864) and of the withdrawn split `ed421c6d…`
+(published bytes of `e1-olmoe/e1-results/split.json`; its 3,904 source questions are
+all among the counted split's, checked): the exact source question, the same text
+after case and punctuation folding, and word-set Jaccard ≥ 0.8 with any of them. No
+row of C shares a source question with either split (checked independently over the
+data). It examined 524 rows, positions 6767-7290 of the shuffle, and
+dropped 247 for a used source question, 4 as near-duplicates, 5 for a repeated
+source question, 10 as too long and 2 as not a template prefix. The file is
+`results/probe-moe-adapter-placement/confirm-split.json`, SHA-256 `7224983f…`; every
+confirmation record carries that hash. Mix by MetaMathQA type, E against C: GSM
+154/166, MATH 102/90 rows.
+
+### 11.2 Confirmation runs and rule
+
+Every counted E1 configuration is trained again from scratch, at the rate §8 chose
+(the rates are frozen: OLMoE `A` 2e-4, `AT` and `AE` 1e-4; Qwen3.5 `A` and `AS` 2e-4,
+`AT` and `AE` 1e-4), with the measured harness (`harness-348f6a48.py.txt`, bytes
+unchanged), on the same GPU models as §6 (RTX A6000 48 GB for OLMoE, RTX PRO 6000
+96 GB for Qwen3.5) rented on vast.ai, with §10's stack plus peft, trl, bitsandbytes,
+accelerate and datasets for §11.3. The protocol is §7's: a bundle of the pushed
+commit, hash-checked on the box, deadlines armed before setup, results copied and
+hash-checked before every delete. `moe_adapter_confirm.py run` imports the measured
+file, lets it train and score exactly as it did, and on the same adapter, after its
+leg 2, adds C's NLL and accuracy and per-row NLL on E and C. The OLMoE seed-0 sweep
+(§3's grid and its extension) is also run again, so a rate chosen on C can be
+compared with one chosen on E. 10 + 8 OLMoE runs plus a base on a second box; 9
+Qwen3.5 runs. Runs on different cards or boxes are compared only through the
+verdicts, never as raw timings.
+
+`moe_adapter_confirm_rule.py` decides, from those records alone:
+
+- **Verdicts on C.** §5's rule, thresholds and validity rows, unchanged, applied to
+  the new runs with C's NLL and accuracy in place of E's (V3 is not re-decided: the
+  rates are frozen). The same rule on E for the same new runs gives the comparison.
+- **Does E1 hold.** Per arm: the verdict on C equals the verdict on E; the task gap
+  `g` has the same sign and the same materiality on C as on E; per-seed gaps and the
+  arm order by NLL on both sets are reported.
+- **How much E and C differ.** Per arm and for the base, NLL and accuracy on E and on
+  C, seeds averaged per question. The *base-corrected E/C generalisation contrast* is
+  `(E - C)` of the arm minus `(E - C)` of the base; the change in a gap is
+  `(X - F)` on E minus `(X - F)` on C. 95% bootstrap intervals resample E rows and C
+  rows independently (10,000 draws, seed 0), the same rows for every arm in a draw.
+  These intervals cover question-sampling noise only; the contrast is not called a
+  tuning effect, and a sweep winner on C that differs from E1's rate is a diagnostic,
+  not proof of one.
+- **Historical check.** The new run of each counted configuration is compared with
+  its published record: training log, E NLL, outputs and leg-2 outputs. Published
+  records are not re-scored and do not enter a confirmation verdict.
+
+If both sets keep §8's verdicts and gap signs, §9's wording stands for this recipe
+on new questions. Any arm whose verdict or gap does not hold is named in §9 with its
+C numbers, and the pre-flight wording is narrowed to what holds on C.
+
+### 11.3 Qwen3.5 in the RAM tier
+
+Soup's own trainer trains `A` and `AS` in the RAM tier: `soup train`'s calls
+(`load_config`, `load_dataset`, `build_trainer`, `setup`, `train`) on a YAML with
+`stream_layers: true`, `stream_source: ram`, `quantization: 4bit` (NF4, double
+quant), and E1's recipe as far as Soup expresses it: rank 16, alpha 32, dropout 0,
+the arm's projections named in `target_modules`, AdamW (`adamw_torch`, weight decay
+0), batch 16 with no accumulation, one epoch of E1's 4096 training rows (256 steps),
+warmup ratio 0.0625 then constant, clipping 1.0, seeds 0 and 1, rate 2e-4. The chat
+template is a Jinja copy of Qwen3.5's with thinking disabled and `{% generation %}`
+around the answer, so Soup's response-only labels equal E1's; the harness checks that
+on every train, E and C row before training. `moe_adapter_ramtier.py` drives Soup
+and scores the saved adapter with the measured harness's own E, C and leg-2 scorer
+on the bf16 resident base, after the same zero-adapter check (V4).
+
+- **Parity pilot, before any counted RAM-tier run.** The same NF4 base streamed by
+  Soup and loaded resident by bitsandbytes, the same adapter (made non-zero) and the
+  same batches: loss and every adapter gradient at step 0, then four AdamW steps.
+  Passes when every step's loss agrees within 1e-3 relative, the step-0 gradients
+  within 1e-2 relative L2 overall, and every gradient tensor's cosine is at least
+  0.99. Bit-exactness is reported separately. If it fails, the RAM-tier runs are not
+  counted and that is the finding.
+- **Verdict.** For each RAM-tier arm against the resident `AE` of §11.2 at 1e-4 (the
+  fullest arm, seeds 0 and 1) and the resident base, on E and on C: §5's task gap and
+  leg 2, REGRESSES, then COSTS QUALITY, then ACCEPTABLE, with V1 from the resident
+  `AE`, V2 and V4 from the RAM-tier records. The difference against the same arm's
+  resident run is reported but not attributed: it mixes the NF4 base, Soup's warmup
+  and data order, and initialisation.
+- **Memory.** Peak CUDA memory allocated during Soup's training (reset before
+  `trainer.train()`), and the adapter state measured from the trainer's own tensors
+  after its first optimizer step (bytes of weight, gradient and AdamW moments per
+  trainable parameter). The increment rule of §8 is judged on `AS` over `A` only:
+  it holds when the peak difference equals the extra trainable parameters times 16
+  bytes (§8's form), and separately times the measured bytes per parameter, each
+  within 13.2 MiB, per seed and on the maxima over seeds.
+- **`AT` and `AE` in the RAM tier.** Soup's streamed trainer has no way to adapt
+  routed experts: `training.lora.target_parameters` is refused with layer streaming,
+  and no field selects a subset of a layer's fused experts. `moe_adapter_ramtier.py
+  preflight` records Soup's exact response to each way of asking for them; neither
+  arm runs in this regime.
+
+Stated before any run: the brief's RAM tier is an 8 GB card with 32 GB of host RAM.
+Under streaming Soup quantises only linear layers, so Qwen3.5's routed experts stay
+bf16 and the RAM store is about 65 GB; that regime cannot hold this model in current
+Soup, and the run uses a box with enough RAM. It tests Soup's code path, not the
+brief's hardware, and its absolute peaks are a 96 GB card's, not an 8 GB card's.
+
+**Budget.** At most USD 25 for all of §11, on the team's vast.ai account (instances
+labelled `e1-`). The RAM-tier seed-1 runs go ahead only if the forecast after seed 0
+stays inside it; otherwise they are recorded as not run, with the reason.
