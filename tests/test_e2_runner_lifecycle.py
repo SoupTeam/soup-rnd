@@ -1,17 +1,27 @@
-
 """Integration tests for the E2 runner lifecycle."""
 
 import pytest
 
+from experiments import create_medium_mistral
 from soup_cli.config.loader import load_config
 from soup_cli.data.loader import load_dataset
 from soup_cli.trainer.sft import SFTTrainerWrapper
 
 
 @pytest.fixture
-def e2_wrapper(tmp_path):
+def e2_wrapper(tmp_path, monkeypatch):
+    # Build a local model fixture; CI does not have experiments/medium_mistral.
+    model_dir = tmp_path / "medium_mistral"
+    monkeypatch.setattr(create_medium_mistral, "OUTPUT", model_dir)
+    create_medium_mistral.main()
+
     cfg = load_config("experiments/e2_medium_cached.yaml")
-    cfg = cfg.model_copy(update={"output": str(tmp_path / "output")})
+    cfg = cfg.model_copy(
+        update={
+            "base": str(model_dir),
+            "output": str(tmp_path / "output"),
+        }
+    )
 
     wrapper = SFTTrainerWrapper(cfg, device="cpu")
     wrapper.setup(load_dataset(cfg.data))
