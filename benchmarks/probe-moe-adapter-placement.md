@@ -1091,3 +1091,33 @@ brief's hardware, and its absolute peaks are a 96 GB card's, not an 8 GB card's.
 **Budget.** At most USD 25 for all of §11, on the team's vast.ai account (instances
 labelled `e1-`). The RAM-tier seed-1 runs go ahead only if the forecast after seed 0
 stays inside it; otherwise they are recorded as not run, with the reason.
+
+### 11.4 How the runs went (dated, written as they happened)
+
+- **Code, before any result.** `adb9b32e` (C, the wrapper, the confirmation rule),
+  `7b7430cb` (this pre-registration), `d17e63de` (the RAM-tier harness, parity rule
+  fixed in it). Boxes ran bundles of pushed commits, hash-checked on the box.
+- **Parity pilot: NOT PASSED (2026-10-13 17:10 UTC).** Step-0 loss is bit-exact on both
+  sides; the step-0 gradients miss the rule (global relative L2 0.0107 against ≤ 0.01;
+  min cosine 0.99975, inside); losses after one, two and three AdamW steps differ by
+  0.99%, 1.55% and 1.24% (rule 0.1%). Under §11.3 the RAM-tier runs are therefore **not
+  counted**. `ed90feef` makes the confirmation rule apply that gate (written after the
+  pilot's result, before any RAM-tier score existed; no threshold changed): RAM-tier
+  verdicts read NOT COUNTED and every number is kept as description.
+- **What still ran in the RAM tier, not counted.** `A` and `AS`, seed 0, as planned, for
+  the regime's own measurements (trainable parameters, adapter dtype and bytes, peak
+  memory) and descriptive quality. A post-hoc noise check (`69d9941e`, streamed and
+  resident each run twice from one snapshot) and the RAM-tier seed 1 were queued and
+  then cancelled before they started, for budget (next item).
+- **Budget.** At 18:22 UTC the resident Qwen3.5 box ran at 7.3 s/step against E1's 4.0
+  (an RTX PRO 6000 *Workstation* Edition; E1's and the RAM-tier box are *Server*
+  Edition), which put the forecast near the USD 25 cap. The last three resident Qwen3.5
+  runs (`AT` and `AS` and `A`, seed 1) moved to the RAM-tier box, a Server Edition, so
+  the resident Qwen3.5 records come from two card variants of the same chip; a second
+  base run there checks that both score the base identically. Timings are compared
+  only within a box.
+- **Box stamps.** Per-arm stamps (SM clock, commit charge, free RAM, GPU processes,
+  processes holding the model files) started at about 18:30 UTC
+  (`stamps.txt` on each box). Arms that finished before have the clocks, temperature and
+  `free -b` lines of their logs only; their commit charge, GPU peers and readers were not
+  recorded and are not reconstructed.
