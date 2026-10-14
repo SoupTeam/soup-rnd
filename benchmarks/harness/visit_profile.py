@@ -32,6 +32,9 @@ watch has closed, cuts it with ``trace_analyser`` into the ``profile`` field of 
 ``--keep-trace``. The driver writes ``<arm>-<seq>.arm.json`` with the arm record. A bare and a
 timer arm of one round leave separate files, so the validity row "timer is free" reads both JSONs.
 
+The bare arm takes ``--variant untied`` (``tie_experiment``): the same arm with ``functional_call``
+patched to ``tie_weights=False``.
+
 Benchmark harness code, not shipped. Heavy dependencies are imported inside the worker.
 """
 
@@ -74,6 +77,9 @@ TOKEN_COUNTS = (16, 32, 64, 128)
 BATCH = 1
 
 ARMS = ("bare", "timer", "profile", "control")
+#: The code a bare arm runs: as shipped, or with ``functional_call`` patched to
+#: ``tie_weights=False`` (``tie_experiment``).
+VARIANTS = ("shipped", "untied")
 #: The arms that run the PyTorch profiler, and the arms that run the timer.
 PROFILED_ARMS = ("profile", "control")
 TIMED_ARMS = ("timer", "control")
@@ -292,25 +298,17 @@ def _count_linear_paths(model: Any, step: Callable[[], float]) -> Dict[str, int]
     }
 
 
-def worker(args: argparse.Namespace) -> int:
-    import bitsandbytes as bnb
+def build_stream_model(weights: Path, shards: Path) -> Any:
+    """Build the streamed NF4 RAM-tier model of the fixture on the GPU, with the step probe's
+    LoRA and seed defaults. Returns ``(model, runtime, config)``."""
     import stream_probe
-    import torch
-    import transformers
-    import visit_ranges
-    import visit_timer
 
     from soup_cli.utils.layer_stream import resolve_stream_dtype
-    from soup_cli.utils.layer_stream_runtime import decoder_owner
 
-    if not torch.cuda.is_available():
-        console.print("SKIP: CUDA is required")
-        return 0
     device = "cuda"
-    dtype = resolve_stream_dtype(device)
     build_args = argparse.Namespace(
-        weights=str(args.weights),
-        shards=str(args.shards),
+        weights=str(weights),
+        shards=str(shards),
         quant="nf4",
         tier="ram",
         buffers=2,
@@ -323,7 +321,26 @@ def worker(args: argparse.Namespace) -> int:
         control_sync_source=False,
         stripe_dir=[],
     )
-    model, runtime, config, *_rest = stream_probe.build(build_args, device, dtype)
+    model, runtime, config, *_rest = stream_probe.build(
+        build_args, device, resolve_stream_dtype(device)
+    )
+    return model, runtime, config
+
+
+def worker(args: argparse.Namespace) -> int:
+    import bitsandbytes as bnb
+    import torch
+    import transformers
+    import visit_ranges
+    import visit_timer
+
+    from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+    if not torch.cuda.is_available():
+        console.print("SKIP: CUDA is required")
+        return 0
+    device = "cuda"
+    model, runtime, config = build_stream_model(args.weights, args.shards)
     trainable = [param for param in model.parameters() if param.requires_grad]
     optimizer = bnb.optim.PagedAdamW8bit(trainable, lr=1e-4)
     generator = torch.Generator(device=device).manual_seed(INPUT_SEED)
@@ -378,6 +395,12 @@ def worker(args: argparse.Namespace) -> int:
                 step, count, capture, warmup=args.warmup, timed=args.steps,
                 trace_file=str(trace_file), recorder=recorder,
             )  # fmt: skip
+    elif recorder is None and args.variant == "untied":
+        import tie_experiment
+
+        layers = list(decoder_owner(model).layers)
+        with visit_timer.install_patches(layers, tie_experiment.untied_patches()):
+            result = run_arm(step, count, warmup=args.warmup, timed=args.steps)
     elif recorder is None:
         result = run_arm(step, count, warmup=args.warmup, timed=args.steps)
     else:
@@ -395,6 +418,7 @@ def worker(args: argparse.Namespace) -> int:
     result.update(
         {
             "arm": args.arm,
+            "variant": args.variant,
             "label": LABEL,
             "tokens_per_step": BATCH * args.seq,
             "batch": BATCH,
@@ -432,6 +456,8 @@ def run_arm_process(
     watch: Callable[..., ContextManager[Watched]] = G7ArmWatch,
     analyse: Callable[[Path], Dict[str, Any]] = analyse_trace_file,
     keep_trace: bool = False,
+    variant: str = "shipped",
+    tag: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run one ``arm`` at ``seq`` tokens in a fresh process under the arm watch.
 
@@ -440,8 +466,14 @@ def run_arm_process(
     into ``out_dir`` and returns both. ``steps`` defaults to ``PROFILE_STEPS`` for the profile
     and control arms and ``TIMED_STEPS`` for the others. For those two, ``analyse`` cuts the
     trace once the watch has closed, and the run JSON gets the ``profile`` field and ``notes``.
-    The control arm runs at 16 tokens only.
+    The control arm runs at 16 tokens only. ``variant`` ``untied`` (bare arm only) patches
+    ``functional_call`` to ``tie_weights=False``. ``tag`` is added to the file names and the
+    arm name, so runs of the same arm and token count keep separate files.
     """
+    if variant not in VARIANTS:
+        raise ValueError(f"the variant is one of {', '.join(VARIANTS)}; got {variant}")
+    if variant != "shipped" and arm != "bare":
+        raise ValueError(f"the {variant} variant runs on the bare arm only; got {arm}")
     if arm not in ARMS:
         raise ValueError(f"the arm is one of {', '.join(ARMS)}; got {arm}")
     if seq not in TOKEN_COUNTS:
@@ -453,7 +485,7 @@ def run_arm_process(
     out_dir.mkdir(parents=True, exist_ok=True)
     # The foreign reads check finds the disk from this folder, so it must exist at the start.
     fixture.shards.mkdir(parents=True, exist_ok=True)
-    stem = f"{arm}-{seq}"
+    stem = f"{arm}-{seq}" + (f"-{tag}" if tag else "")
     run_file = out_dir / f"{stem}.run.json"
     command = [
         sys.executable, str(HERE / "visit_profile.py"), "run",
@@ -466,6 +498,8 @@ def run_arm_process(
         "--warmup", str(warmup),
         "--out", str(run_file),
     ]  # fmt: skip
+    if variant != "shipped":
+        command += ["--variant", variant]
     with watch(
         arm=stem,
         round=round,
@@ -534,6 +568,7 @@ def _parser() -> argparse.ArgumentParser:
 
     work = sub.add_parser("run", help="the worker: one run in this process")
     work.add_argument("--arm", choices=ARMS, default="bare")
+    work.add_argument("--variant", choices=VARIANTS, default="shipped")
     work.add_argument("--weights", type=Path, required=True)
     work.add_argument("--shards", type=Path, required=True)
     work.add_argument("--seq", type=int, required=True, choices=TOKEN_COUNTS)

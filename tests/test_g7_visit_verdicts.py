@@ -308,3 +308,117 @@ def test_a_missing_number_in_a_run_gives_no_verdict_not_an_error(verdicts):
 def test_arms_of_different_token_counts_give_no_verdict_for_the_row(verdicts):
     result = evaluate(verdicts, bare=bare(seq=32))
     assert result["timer_is_free"]["verdict"] == "no_verdict"
+
+
+# --- the tie_weights experiment (G7 ticket 06) -----------------------------------------
+
+
+def exp_block(diff, base=1.0, outcome="ok"):
+    """One A, B, B, A block in which B is ``diff`` seconds faster than A."""
+    values = (base, base - diff, base - diff, base)
+    return [
+        {"arm": arm, "value": value, "outcome": outcome, "round": 1, "run": index}
+        for index, (arm, value) in enumerate(zip("ABBA", values), start=1)
+    ]
+
+
+def exp_blocks(*diffs):
+    return [exp_block(diff) for diff in diffs]
+
+
+GATE_OK = {"passed": True, "reason": "loss and 240 LoRA gradients are bit-equal"}
+
+
+def test_experiment_significant_gain_reports_the_gain_and_its_interval(verdicts):
+    row = verdicts.evaluate_experiment(GATE_OK, exp_blocks(0.04, 0.05, 0.06, 0.05, 0.05))
+
+    assert row["verdict"] == "pass"
+    evidence = row["evidence"]
+    assert evidence["blocks"] == 5
+    assert evidence["gain_s"] == pytest.approx(0.05)
+    assert evidence["gain_fraction"] == pytest.approx(0.05)
+    # t(4 df, 97.5%) = 2.7764 and the standard error is 0.0070711 / sqrt(5).
+    half_width = 2.776445 * 0.0070710678 / 5**0.5
+    assert evidence["ci_low_s"] == pytest.approx(0.05 - half_width, abs=1e-6)
+    assert evidence["ci_high_s"] == pytest.approx(0.05 + half_width, abs=1e-6)
+    assert evidence["p_value"] < 0.001
+    assert "95%" in row["reason"]
+
+
+def test_experiment_not_significant_names_the_detection_limit(verdicts):
+    row = verdicts.evaluate_experiment(GATE_OK, exp_blocks(0.05, -0.04, 0.03, -0.06, 0.02))
+
+    assert row["verdict"] == "fail"
+    assert row["evidence"]["p_value"] == pytest.approx(1.0)
+    assert "effect below the detection limit, about 10% of a step" in row["reason"]
+
+
+def test_experiment_p_value_matches_the_t_distribution(verdicts):
+    # Differences 0.1, 0.2, 0.3, 0.2, 0.2: mean 0.2, sd 0.070711, t = 6.3246 on 4 df,
+    # two-sided p = 0.00319.
+    row = verdicts.evaluate_experiment(GATE_OK, exp_blocks(0.1, 0.2, 0.3, 0.2, 0.2))
+    assert row["evidence"]["p_value"] == pytest.approx(0.00319, abs=2e-5)
+
+
+def test_experiment_significantly_slower_arm_is_not_a_gain(verdicts):
+    row = verdicts.evaluate_experiment(GATE_OK, exp_blocks(-0.04, -0.05, -0.06, -0.05, -0.05))
+
+    assert row["verdict"] == "fail"
+    assert row["evidence"]["gain_s"] == pytest.approx(-0.05)
+    assert "slower" in row["reason"]
+
+
+def test_experiment_failed_gate_gives_no_verdict_and_names_the_gate(verdicts):
+    gate = {"passed": False, "reason": "LoRA gradient layers.3.q_proj.lora_A differs"}
+    row = verdicts.evaluate_experiment(gate, exp_blocks(0.05, 0.05, 0.05, 0.05, 0.05))
+
+    assert row["verdict"] == "no_verdict"
+    assert "gate" in row["reason"]
+    assert "layers.3.q_proj.lora_A" in row["reason"]
+
+
+def test_experiment_without_a_gate_gives_no_verdict(verdicts):
+    row = verdicts.evaluate_experiment(None, exp_blocks(0.05, 0.05, 0.05, 0.05, 0.05))
+    assert row["verdict"] == "no_verdict"
+    assert "gate was not run" in row["reason"]
+
+
+def test_experiment_void_block_that_was_not_replaced_gives_no_verdict(verdicts):
+    blocks = exp_blocks(0.04, 0.05, 0.06, 0.05)
+    blocks.append(exp_block(0.05, outcome="void"))
+
+    row = verdicts.evaluate_experiment(GATE_OK, blocks)
+
+    assert row["verdict"] == "no_verdict"
+    assert "void" in row["reason"]
+    assert "1 more" in row["reason"]
+
+
+def test_experiment_replaced_void_block_is_left_out_of_the_test(verdicts):
+    blocks = exp_blocks(0.04, 0.05, 0.06, 0.05)
+    blocks.append(exp_block(9.0, outcome="void"))
+    blocks.append(exp_block(0.05))
+
+    row = verdicts.evaluate_experiment(GATE_OK, blocks)
+
+    assert row["verdict"] == "pass"
+    assert row["evidence"]["blocks"] == 5
+    assert row["evidence"]["gain_s"] == pytest.approx(0.05)
+
+
+def test_experiment_short_of_the_blocks_the_repeats_rule_asks_for_gives_no_verdict(verdicts):
+    # Block differences swing by 0.2 s around a mean of 1.0 s: N is far above 5.
+    row = verdicts.evaluate_experiment(GATE_OK, exp_blocks(0.0, 0.4, 0.0, 0.4, 0.2))
+
+    assert row["verdict"] == "no_verdict"
+    assert "more" in row["reason"]
+
+
+def test_experiment_unknown_run_gives_no_verdict_and_names_it(verdicts):
+    blocks = exp_blocks(0.04, 0.05, 0.06, 0.05)
+    blocks.append(exp_block(0.05, outcome="unknown"))
+
+    row = verdicts.evaluate_experiment(GATE_OK, blocks)
+
+    assert row["verdict"] == "no_verdict"
+    assert "unknown" in row["reason"]

@@ -20,6 +20,12 @@ returns, ``{"run": <run JSON>, "arm": <arm record>}``, for one token count. A mi
   from the profile arm is at least 2 times the GPU kernel time per visit. The launch share
   is evidence and decides nothing.
 
+- ``evaluate_experiment``: the ``tie_weights=False`` experiment. The bit-exact gate must have
+  passed. The test is a two-sided t-test on the per-block difference (mean of the A runs minus
+  mean of the B runs) at alpha 0.05, over the blocks without a void run. ``pass`` means B is
+  faster, ``fail`` means no gain, and ``no_verdict`` means the gate failed or never ran, a
+  run is void or unknown, or the repeats rule asks for more valid blocks.
+
 All medians are over forward visits. A row gets ``no_verdict``, with the cause named, when
 an arm it reads is missing, void or unknown, when a number it reads is missing, when the
 arms disagree on the token count, or when a row it depends on has no pass. The control and
@@ -30,9 +36,12 @@ Benchmark harness code, not shipped.
 
 from __future__ import annotations
 
+import math
+import statistics
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import visit_control
+from arm_validity import VOID, Run, blocks_to_add, valid_blocks
 
 PASS = "pass"
 FAIL = "fail"
@@ -250,3 +259,145 @@ def evaluate(*, bare: Arm, timer: Arm, profile: Arm, control: Arm) -> Dict[str, 
         "control": control_row,
         "cpu_bound": _needing(threshold, profile_is_readable=readable, control=control_row),
     }
+
+
+# --- the tie_weights experiment ---------------------------------------------------------
+
+#: Two-sided significance level of the experiment's t-test.
+ALPHA = 0.05
+#: What the experiment can detect, as written in the verdict when it finds nothing.
+DETECTION_LIMIT = "effect below the detection limit, about 10% of a step"
+
+
+def _betacf(a: float, b: float, x: float) -> float:
+    """Continued fraction for the incomplete beta function (modified Lentz)."""
+    tiny = 1e-300
+    c, d = 1.0, 1.0 - (a + b) * x / (a + 1.0)
+    d = 1.0 / (d if abs(d) > tiny else tiny)
+    h = d
+    for m in range(1, 300):
+        m2 = 2 * m
+        for term in (
+            m * (b - m) * x / ((a + m2 - 1.0) * (a + m2)),
+            -(a + m) * (a + b + m) * x / ((a + m2) * (a + m2 + 1.0)),
+        ):
+            d = 1.0 + term * d
+            d = 1.0 / (d if abs(d) > tiny else tiny)
+            c = 1.0 + term / c
+            c = c if abs(c) > tiny else tiny
+            h *= d * c
+        if abs(d * c - 1.0) < 1e-14:
+            break
+    return h
+
+
+def _incomplete_beta(a: float, b: float, x: float) -> float:
+    """The regularized incomplete beta function I_x(a, b)."""
+    if x <= 0.0:
+        return 0.0
+    if x >= 1.0:
+        return 1.0
+    log_front = (
+        math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b) + a * math.log(x) + b * math.log1p(-x)
+    )
+    if x < (a + 1.0) / (a + b + 2.0):
+        return math.exp(log_front) * _betacf(a, b, x) / a
+    return 1.0 - math.exp(log_front) * _betacf(b, a, 1.0 - x) / b
+
+
+def _two_sided_p(t: float, df: int) -> float:
+    """P(|T| >= |t|) for Student's t with ``df`` degrees of freedom."""
+    return _incomplete_beta(df / 2.0, 0.5, df / (df + t * t))
+
+
+def _t_critical(df: int, alpha: float = ALPHA) -> float:
+    """The two-sided critical value of Student's t, found by bisection on ``_two_sided_p``."""
+    low, high = 0.0, 1000.0
+    for _ in range(200):
+        mid = (low + high) / 2.0
+        if _two_sided_p(mid, df) > alpha:
+            low = mid
+        else:
+            high = mid
+    return (low + high) / 2.0
+
+
+def _block_runs(blocks: Sequence[Sequence[Mapping[str, Any]]]) -> List[List[Run]]:
+    return [[Run(float(run["value"]), str(run["outcome"])) for run in block] for block in blocks]
+
+
+def evaluate_experiment(
+    gate: Optional[Mapping[str, Any]], blocks: Sequence[Sequence[Mapping[str, Any]]]
+) -> Dict[str, Any]:
+    """The verdict of the ``tie_weights=False`` experiment.
+
+    ``gate`` is the bit-exact gate's result (``passed`` and ``reason``), or ``None`` if it
+    never ran. ``blocks`` are every block run in A, B, B, A order, void ones included, each run
+    a dict with ``value`` (seconds per step) and ``outcome``.
+    """
+    if gate is None:
+        return _no_verdict("the bit-exact gate was not run")
+    if not gate.get("passed"):
+        return _no_verdict(f"the bit-exact gate failed: {gate.get('reason', 'no reason given')}")
+    runs = _block_runs(blocks)
+    valid = valid_blocks(runs)
+    voids = sum(1 for block in runs if any(run.outcome == VOID for run in block))
+    unknown = [
+        f"run {index} of block {number}"
+        for number, block in enumerate(blocks, start=1)
+        for index, run in enumerate(block, start=1)
+        if run["outcome"] not in ("ok", "void")
+    ]
+    if unknown:
+        return _no_verdict(
+            f"{', '.join(unknown)} has an unknown outcome, so its block cannot be trusted"
+        )
+    missing = blocks_to_add(runs) if len(valid) >= 2 else 2 - len(valid)
+    if missing:
+        return _no_verdict(
+            f"{voids} void blocks left out; the repeats rule asks for {missing} more valid "
+            f"block{'s' if missing != 1 else ''} before the test can run"
+        )
+    diffs = [
+        statistics.fmean([block[0].value, block[3].value])
+        - statistics.fmean([block[1].value, block[2].value])
+        for block in valid
+    ]
+    mean_a = statistics.fmean(
+        value for block in valid for value in (block[0].value, block[3].value)
+    )
+    n = len(diffs)
+    gain = statistics.fmean(diffs)
+    sd = statistics.stdev(diffs)
+    se = sd / math.sqrt(n)
+    if se == 0:
+        p_value = 0.0 if gain != 0 else 1.0
+        half_width = 0.0
+    else:
+        p_value = _two_sided_p(gain / se, n - 1)
+        half_width = _t_critical(n - 1) * se
+    evidence = {
+        "blocks": n,
+        "gain_s": gain,
+        "gain_fraction": gain / mean_a,
+        "ci_low_s": gain - half_width,
+        "ci_high_s": gain + half_width,
+        "p_value": p_value,
+        "mean_a_s": mean_a,
+    }
+    interval = f"95% interval {evidence['ci_low_s']:+.4f} to {evidence['ci_high_s']:+.4f} s"
+    if p_value < ALPHA and gain > 0:
+        return _row(
+            PASS,
+            f"B is faster by {gain:.4f} s per step ({gain / mean_a:.1%}), {interval}, "
+            f"p = {p_value:.4f}",
+            **evidence,
+        )
+    if p_value < ALPHA:
+        return _row(
+            FAIL,
+            f"B is slower by {-gain:.4f} s per step ({-gain / mean_a:.1%}), {interval}, "
+            f"p = {p_value:.4f}",
+            **evidence,
+        )
+    return _row(FAIL, f"{DETECTION_LIMIT} (p = {p_value:.3f}, {interval})", **evidence)

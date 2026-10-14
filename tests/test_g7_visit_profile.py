@@ -554,3 +554,29 @@ def test_a_profile_run_without_a_recorder_has_no_timer_field(profile):
         trace_file="t.json",
     )
     assert "timer" not in result
+
+
+# --- the untied variant (ticket 06) ----------------------------------------------------
+
+
+def test_bare_arm_variant_untied_reaches_the_worker_and_the_tag_names_the_files(profile, tmp_path):
+    result, runner = _bare_arm(profile, tmp_path, variant="untied", tag="run003")
+
+    ((command, _),) = runner.calls
+    assert command[command.index("--variant") + 1] == "untied"
+    assert (tmp_path / "out" / "bare-16-run003.run.json").is_file()
+    assert (tmp_path / "out" / "bare-16-run003.arm.json").is_file()
+    assert FakeWatch.made[0]["arm"] == "bare-16-run003"
+    assert result["arm"]["outcome"] == "ok"
+
+
+def test_bare_arm_as_shipped_starts_the_worker_without_a_variant(profile, tmp_path):
+    _, runner = _bare_arm(profile, tmp_path)
+
+    ((command, _),) = runner.calls
+    assert "--variant" not in command
+
+
+def test_bare_arm_refuses_an_unknown_variant(profile, tmp_path):
+    with pytest.raises(ValueError, match="variant"):
+        _bare_arm(profile, tmp_path, variant="fused")
