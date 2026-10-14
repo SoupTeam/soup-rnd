@@ -3640,8 +3640,6 @@ def build_streamed_model(
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice.
     """
-    from peft import get_peft_model
-
     model = build_meta_skeleton(
         model_id,
         dtype=dtype,
@@ -3667,10 +3665,10 @@ def build_streamed_model(
         materialize_layer_buffers(model, shard_dir, index, device=device)
         for param in model.parameters():
             param.requires_grad = False
-        from soup_cli.utils.peft_wiring import apply_pre_lora_patches
+        from soup_cli.utils.peft_wiring import apply_pre_lora_patches, attach_adapter
 
         apply_pre_lora_patches(model, model_id)
-        model = get_peft_model(model, lora_config)
+        model = attach_adapter(model, lora_config)
         materialize_meta_adapters(model, seed=seed, device=device)
         assert_trainable_adapters_materialized(model)
         runtime = install_streaming(

@@ -14,7 +14,8 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any
+from contextlib import contextmanager
+from typing import Any, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -583,6 +584,109 @@ def build_lora_config(
     )
     config_cls = getattr(peft, spec["peft_cls"])
     return config_cls(**spec["init_kwargs"])
+
+
+_SHARED_EXPERT_PROJECTION = re.compile(r"\.shared_experts?\.(?:gate|up|down)_proj$")
+_FUSED_MOE_PROJECTIONS = ("gate_proj", "up_proj", "down_proj")
+
+
+@contextmanager
+def _without_peft_moe_conversion(peft_config: Any) -> Iterator[None]:
+    """Skip peft's transformers-v4 to v5 target rewrite for ``peft_config`` only.
+
+    ``BaseTuner.inject_adapter`` imports ``convert_peft_config_for_transformers`` at
+    call time. On a model type with a fused-expert conversion mapping it moves every
+    ``gate_proj`` / ``up_proj`` / ``down_proj`` target, whatever its path, into
+    ``target_parameters`` on the routed experts. The wrapper below hands any other
+    config to the original function, and the original is restored on exit.
+    """
+    from peft.utils import transformers_weight_conversion as conversion
+
+    original = conversion.convert_peft_config_for_transformers
+
+    def convert(config: Any, *args: Any, **kwargs: Any) -> Any:
+        if config is peft_config:
+            return None
+        return original(config, *args, **kwargs)
+
+    conversion.convert_peft_config_for_transformers = convert  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        conversion.convert_peft_config_for_transformers = original
+
+
+def _names_a_shared_expert(target: str) -> bool:
+    return "shared_expert" in target
+
+
+def _split_shared_expert_targets(model: Any, target_modules: Any) -> tuple[list[str], list[str]]:
+    """Full module names of the shared-expert projections requested, and the other targets.
+
+    A string target is a regex and is matched against the module path in full. A
+    list entry that names ``shared_expert(s)`` matches by path suffix. Other list
+    entries are returned untouched.
+    """
+    shared_modules = [
+        name for name, _ in model.named_modules() if _SHARED_EXPERT_PROJECTION.search(name)
+    ]
+    if isinstance(target_modules, str):
+        return [n for n in shared_modules if re.fullmatch(target_modules, n)], []
+    shared: list[str] = []
+    rest: list[str] = []
+    for entry in target_modules:
+        if not _names_a_shared_expert(entry):
+            rest.append(entry)
+            continue
+        shared.extend(n for n in shared_modules if n == entry or n.endswith(f".{entry}"))
+    return sorted(set(shared)), rest
+
+
+def attach_adapter(model: Any, peft_config: Any) -> Any:
+    """``get_peft_model`` that keeps shared-expert LoRA targets on the shared experts.
+
+    A config naming ``shared_expert(s)`` is resolved here to full module paths and
+    attached with peft's v4-to-v5 target rewrite switched off for this config
+    alone. Other configs go straight to ``get_peft_model``. A bare ``gate_proj``,
+    ``up_proj`` or ``down_proj`` beside a shared-expert target is refused, because
+    the rewrite would turn it into routed-expert LoRA the config did not ask for.
+    After the attach, every resolved module must be a LoRA layer.
+    """
+    from peft import get_peft_model
+
+    target_modules = peft_config.target_modules
+    if not target_modules or not (
+        _names_a_shared_expert(target_modules)
+        if isinstance(target_modules, str)
+        else any(_names_a_shared_expert(entry) for entry in target_modules)
+    ):
+        return get_peft_model(model, peft_config)
+
+    shared, rest = _split_shared_expert_targets(model, target_modules)
+    if not shared:
+        raise ValueError(
+            f"LoRA target_modules {target_modules!r} name shared experts, but the model "
+            "has no shared_expert(s) gate_proj / up_proj / down_proj module that matches."
+        )
+    bare = [e for e in rest if e.rsplit(".", 1)[-1] in _FUSED_MOE_PROJECTIONS]
+    if bare:
+        raise ValueError(
+            f"LoRA target_modules {bare!r} sit beside shared-expert targets. peft would "
+            "move them onto the routed experts, which this config did not ask for. Name "
+            "them by full path, or set training.moe_lora: true for the routed experts."
+        )
+    peft_config.target_modules = set(shared) | set(rest)
+    with _without_peft_moe_conversion(peft_config):
+        peft_model = get_peft_model(model, peft_config)
+
+    not_adapted = sorted(
+        name
+        for name in shared
+        if not hasattr(peft_model.get_submodule(f"base_model.model.{name}"), "lora_A")
+    )
+    if not_adapted:
+        raise ValueError(f"shared-expert LoRA did not attach to {not_adapted[:3]!r}")
+    return peft_model
 
 
 def apply_pre_lora_patches(model: Any, base: str) -> None:
