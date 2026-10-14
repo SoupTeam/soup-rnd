@@ -80,11 +80,13 @@ def load_stream_config(model_id: str, trust_remote_code: bool) -> Any:
     save of that model type converts experts. ``trust_remote_code`` is refused for it,
     because the checkpoint's own modeling code cannot train.
     """
-    from transformers import AutoConfig, DeepseekV3Config
+    from transformers import AutoConfig
 
     try:
+        from transformers import DeepseekV3Config
+
         raw, _ = DeepseekV3Config.get_config_dict(model_id)
-    except (OSError, ValueError):
+    except (ImportError, OSError, ValueError):
         # Not readable as a config here. AutoConfig below raises the real error.
         raw = {}
     if raw.get("model_type") != KIMI_K2_MODEL_TYPE:
