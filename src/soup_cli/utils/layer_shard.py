@@ -52,6 +52,9 @@ logger = logging.getLogger(__name__)
 
 #: A decoder-layer parameter key: ``model.layers.<idx>.<rest>``.
 _LAYER_RE = re.compile(r"^model\.layers\.(\d+)\.(.+)$")
+#: Kimi K2 checkpoints carry one of these per layer. transformers rebuilds the buffer
+#: (it is not persistent) and drops the key as unexpected on load, so the sharder does too.
+_ROTARY_INV_FREQ_SUFFIX = ".rotary_emb.inv_freq"
 _SLUG_RE = re.compile(r"[^A-Za-z0-9._-]")
 _QWEN35_VLM_PREFIX = "model.language_model."
 
@@ -1600,6 +1603,8 @@ def shard_checkpoint(
                 if saw_oq_companion and key.endswith((".scales", ".biases")):
                     continue
                 if key in fp8_scale_keys:
+                    continue
+                if key.endswith(_ROTARY_INV_FREQ_SUFFIX):
                     continue
                 oq_expert_match = (
                     _QWEN4_OQ_EXPERT_RE.match(key) if saw_oq_companion else None

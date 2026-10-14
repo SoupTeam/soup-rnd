@@ -26,22 +26,8 @@ def test_deepseek_v3_is_accepted_under_its_own_name() -> None:
 
     assert stream_arch_of(SimpleNamespace(model_type="deepseek_v3")) == "deepseek_v3"
     assert "deepseek_v3" not in _STREAM_ARCH_ALIASES
-    assert "deepseek_v3" not in _STREAM_ARCH_ALIASES.values()
-
-
-def test_kimi_k2_is_refused_naming_what_is_missing() -> None:
-    from soup_cli.utils.layer_stream import stream_arch_of
-
-    with pytest.raises(ValueError) as excinfo:
-        stream_arch_of(SimpleNamespace(model_type="kimi_k2"))
-
-    message = str(excinfo.value)
-    assert "model_type='kimi_k2'" in message
-    assert "does not know the kimi_k2 config type" in message
-    assert "tokenizer is Hub code" in message
-    assert "no conversion of Kimi K2's per-expert weights into fused experts" in message
-    assert "checkpoint is FP8" in message
-    assert "too large to stream as a single layer" in message
+    # ticket 16: kimi_k2 is the only alias that resolves to it
+    assert [k for k, v in _STREAM_ARCH_ALIASES.items() if v == "deepseek_v3"] == ["kimi_k2"]
 
 
 @pytest.mark.parametrize("model_type", ["deepseek_v32", "deepseek_v2", "kimi_k25"])
@@ -110,6 +96,10 @@ def _save_fixture(weights: Path, config: Any) -> None:
     from safetensors import safe_open
     from transformers import AutoModelForCausalLM
 
+    if config.model_type == "kimi_k2":
+        from soup_cli.utils.kimi_k2 import register_kimi_k2_conversion
+
+        register_kimi_k2_conversion()
     torch.manual_seed(61)
     model = AutoModelForCausalLM.from_config(config, dtype=torch.float32)
     with torch.no_grad():
@@ -352,7 +342,7 @@ def _run_parity(
 ) -> _Parity:
     """Shard and stream the fixture the way the training setup does, then run
     the resident model and the streamed model on one batch."""
-    from transformers import AutoConfig, AutoModelForCausalLM
+    from transformers import AutoModelForCausalLM
 
     from soup_cli.utils.layer_shard import shard_checkpoint
     from soup_cli.utils.layer_stream import stream_arch_of
@@ -366,7 +356,10 @@ def _run_parity(
         edit_checkpoint(weights)
 
     lora = lora_config(weights) if lora_config is not None else _lora(config)
-    arch = stream_arch_of(AutoConfig.from_pretrained(str(weights)))
+    from soup_cli.utils.kimi_k2 import load_stream_config
+
+    stream_config = load_stream_config(str(weights), trust_remote_code=False)
+    arch = stream_arch_of(stream_config)
     shards = str(tmp_path / "shards")
     nf4 = quant == "nf4"
     quant_args: Dict[str, Any] = {}
@@ -419,7 +412,8 @@ def _run_parity(
                 quantization_config=build_nf4_config("float32"), device_map={"": device}
             )
         resident_base: Any = AutoModelForCausalLM.from_pretrained(
-            str(weights), dtype=torch.float32, experts_implementation=experts, **resident_kwargs
+            str(weights), config=stream_config, dtype=torch.float32,
+            experts_implementation=experts, **resident_kwargs,
         )
         if not nf4:
             resident_base.to(device)

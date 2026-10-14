@@ -581,7 +581,9 @@ class StreamingSetupMixin:
         """
         from dataclasses import replace
 
-        from transformers import AutoConfig, AutoTokenizer
+        from transformers import AutoTokenizer
+
+        from soup_cli.utils.kimi_k2 import load_stream_config
 
         # BEFORE the tokenizer load, the weight resolve and the shard write:
         # this configuration cannot work, and finding out minutes into disk I/O
@@ -643,9 +645,7 @@ class StreamingSetupMixin:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        model_config = AutoConfig.from_pretrained(
-            cfg.base, trust_remote_code=self._trust_remote_code
-        )
+        model_config = load_stream_config(cfg.base, self._trust_remote_code)
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)

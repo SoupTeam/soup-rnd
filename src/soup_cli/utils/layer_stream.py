@@ -111,17 +111,24 @@ _STREAM_ARCH_ALIASES = {
     "qwen3_5_moe": "qwen3",
     "qwen3_5_moe_text": "qwen3",
     "qwen4_exp_text": "qwen4_exp",
+    # Kimi K2 has DeepSeek-V3's decoder layer. transformers does not know the type, so
+    # ``soup_cli.utils.kimi_k2`` builds the config and registers the expert conversion.
+    "kimi_k2": "deepseek_v3",
 }
 
-#: Kimi K2 has DeepSeek-V3's decoder layer but a model type transformers does not
-#: know, so it gets its own refusal saying what is missing.
-_KIMI_K2_REFUSAL = (
-    "layer streaming does not support model_type={raw!r}. transformers does not know "
-    "the kimi_k2 config type, and Kimi K2's tokenizer is Hub code. transformers has no "
-    "conversion of Kimi K2's per-expert weights into fused experts, so a native load "
-    "leaves the routed experts at random values. The checkpoint is FP8, which layer "
-    "streaming cannot read yet, and one Kimi K2 MoE layer is too large to stream as a "
-    "single layer. Supported: {supported}."
+#: Outer model types whose text tower is ``kimi_k2`` but which are not K2-Base or K2-Instruct.
+#: Kimi K2.5 is a vision-language wrapper with INT4 routed experts.
+_REFUSED_KIMI_WRAPPERS = frozenset({"kimi_k25", "kimi_k25_vision"})
+
+#: ``kimi_k2`` checkpoints this module admits are the block-FP8 K2-Base and K2-Instruct.
+#: K2-Thinking stores its routed experts as INT4 ``compressed-tensors``, which layer
+#: streaming cannot read.
+_KIMI_K2_INT4_REFUSAL = (
+    "layer streaming does not support this model_type={raw!r} checkpoint: its routed "
+    "experts are INT4 compressed-tensors (Kimi-K2-Thinking). Only the block-FP8 "
+    "Kimi-K2-Base and Kimi-K2-Instruct are supported. One Kimi K2 MoE layer holds about "
+    "17 GB in FP8, so running a real K2 also needs sub-layer streaming (B1). "
+    "Supported: {supported}."
 )
 
 #: The loss path's own arithmetic, in VRAM bytes per logit element. **Measured
@@ -263,6 +270,13 @@ def resolve_stream_dtype(device: str = "cuda") -> str:
 # ==========================================================================
 # architecture gate
 # ==========================================================================
+def _is_int4_compressed(config: Any) -> bool:
+    quant = getattr(config, "quantization_config", None)
+    if not isinstance(quant, dict):
+        quant = getattr(quant, "to_dict", lambda: {})()
+    return str(quant.get("quant_method", "")).lower() == "compressed-tensors"
+
+
 def stream_arch_of(config: Any) -> str:
     """Return the streaming architecture family, or raise naming the allowlist.
 
@@ -274,6 +288,12 @@ def stream_arch_of(config: Any) -> str:
     text_config = getattr(config, "text_config", None)
     text_model_type = getattr(text_config, "model_type", None)
     raw_family = model_type
+    supported = ", ".join(SUPPORTED_STREAM_ARCHS)
+    if isinstance(model_type, str) and model_type.strip().lower() in _REFUSED_KIMI_WRAPPERS:
+        raise ValueError(
+            f"layer streaming does not support model_type={model_type!r}. "
+            f"Supported: {supported}."
+        )
     if isinstance(text_model_type, str):
         alias = text_model_type.strip().lower()
         if alias in _STREAM_ARCH_ALIASES:
@@ -287,9 +307,8 @@ def stream_arch_of(config: Any) -> str:
             "found on the model config"
         )
     family = _STREAM_ARCH_ALIASES.get(raw_family.strip().lower(), raw_family.strip().lower())
-    supported = ", ".join(SUPPORTED_STREAM_ARCHS)
-    if family == "kimi_k2":
-        raise ValueError(_KIMI_K2_REFUSAL.format(raw=raw_family, supported=supported))
+    if raw_family.strip().lower() == "kimi_k2" and _is_int4_compressed(config):
+        raise ValueError(_KIMI_K2_INT4_REFUSAL.format(raw=raw_family, supported=supported))
     if family not in SUPPORTED_STREAM_ARCHS:
         raise ValueError(
             f"layer streaming does not support model_type={raw_family!r}. "
