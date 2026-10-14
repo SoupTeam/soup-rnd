@@ -1,0 +1,85 @@
+{
+  "kind": "pretrained_olmoe_fp16_gradscaler_k8_cache_lora_optimizer_parity_v1",
+  "model_id": "allenai/OLMoE-1B-7B-0924",
+  "revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "pretrained": true,
+  "hardware": "NVIDIA GeForce RTX 2080 Ti",
+  "compute_capability": [
+    7,
+    5
+  ],
+  "precision": "FP16 pretrained weights + FP16 CUDA autocast + FP32 PEFT LoRA + enabled GradScaler",
+  "grad_scaler_init_scale": 1024.0,
+  "k_trainable_layers": 8,
+  "frozen_cutoff": 8,
+  "steps": [
+    {
+      "step": 1,
+      "max_abs_differences": {
+        "logits": 0.0,
+        "loss": 0.0,
+        "aux_loss": 0.0,
+        "router_logits": 0.0,
+        "gradients": 0.0,
+        "adapter_weights": 0.0,
+        "optimizer_states": 0.0
+      },
+      "grad_scaler_scale_before": 1024.0,
+      "grad_scaler_scale_after": 1024.0,
+      "cache_hits": 0,
+      "cache_misses": 1
+    },
+    {
+      "step": 2,
+      "max_abs_differences": {
+        "logits": 0.0,
+        "loss": 0.0,
+        "aux_loss": 0.0,
+        "router_logits": 0.0,
+        "gradients": 0.0,
+        "adapter_weights": 0.0,
+        "optimizer_states": 0.0
+      },
+      "grad_scaler_scale_before": 1024.0,
+      "grad_scaler_scale_after": 1024.0,
+      "cache_hits": 1,
+      "cache_misses": 1
+    },
+    {
+      "step": 3,
+      "max_abs_differences": {
+        "logits": 0.0,
+        "loss": 0.0,
+        "aux_loss": 0.0,
+        "router_logits": 0.0,
+        "gradients": 0.0,
+        "adapter_weights": 0.0,
+        "optimizer_states": 0.0
+      },
+      "grad_scaler_scale_before": 1024.0,
+      "grad_scaler_scale_after": 1024.0,
+      "cache_hits": 2,
+      "cache_misses": 1
+    }
+  ],
+  "cache": {
+    "hits": 2,
+    "misses": 1,
+    "skipped_frozen_layer_calls": 16,
+    "full_sha256_recomputes": 1,
+    "fingerprint_seconds": 14.512534292996861,
+    "guard_seconds": 0.003893893037457019
+  },
+  "peak_vram_gib": 13.4224,
+  "script_sha256": "a4ac62fda19389493271a38e31f4f3178ccb14d97ab5dd00b2ff4ab2e1749bfe",
+  "probe_sha256": "20c3dbdd1e7515c89d7c22967f4d2e87a1b3d10bcb2134b3d81a0c73edc05b6b",
+  "guard_sha256": "e0852684edbc6fc740506b7212f896ae48d835ab8f5dab5b247afa6201804a26",
+  "torch": "2.14.0a0+4fdf77b940.nv26.08",
+  "transformers": "5.19.0",
+  "peft": "0.21.2",
+  "quality_evaluation": false,
+  "performance_benchmark": false,
+  "production_e2_modified": false,
+  "research_acceptance": "NO VERDICT",
+  "verdict": "EXPLORATORY_PRETRAINED_FP16_LORA_OPTIMIZER_PARITY_ONLY"
+}
