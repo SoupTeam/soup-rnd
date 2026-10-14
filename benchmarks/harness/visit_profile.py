@@ -1,0 +1,375 @@
+#!/usr/bin/env python3
+"""Profile harness for G7, the fixed cost of a streamed layer visit on short steps.
+
+This file holds the fixture and the bare arm, the base every later arm reuses.
+Three subcommands, run on the RTX 3050 laptop on mains after a reboot::
+
+    python benchmarks/harness/visit_profile.py fixture --root /var/tmp/g7
+    python benchmarks/harness/visit_profile.py arm --root /var/tmp/g7 --seq 16 \\
+        --out-dir /var/tmp/g7/out
+    python benchmarks/harness/visit_profile.py run ...    # the worker ``arm`` starts
+
+``fixture`` writes the synthetic ``llama-8b`` checkpoint with the GPU hidden (the
+writer runs out of GPU memory on a 4 GB card when it draws the embedding) and puts it
+on a disk under ``--root``. The step probe accepts a shard folder only under the home
+directory, the working directory or the temp directory, and the system temp directory
+here is RAM-backed. So ``arm`` starts its worker with ``TMPDIR`` set to ``--root``.
+
+``arm`` runs one bare arm, with no instruments, in a fresh process. ``G7ArmWatch``
+watches it with the label "RTX 3050, synthetic", the shard folder as the model path and
+five required checks. The worker writes ``bare-<seq>.run.json`` with the step times and
+the fused and old dequantization path counts. The driver writes ``bare-<seq>.arm.json``
+with the arm record.
+
+Benchmark harness code, not shipped. Heavy dependencies are imported inside the worker.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import statistics
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import (
+    Any,
+    Callable,
+    ContextManager,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Protocol,
+    Sequence,
+)
+
+from arm_validity import disk_device as find_disk_device
+from g7_checks import G7_REQUIRED, G7ArmWatch
+from rich.console import Console
+
+HERE = Path(__file__).resolve().parent
+
+#: Every arm of G7 carries this label, so synthetic and real results are never mixed.
+LABEL = "RTX 3050, synthetic"
+
+#: Tokens per step. Batch is 1, so they equal the sequence length.
+TOKEN_COUNTS = (16, 32, 64, 128)
+BATCH = 1
+
+#: The step probe's defaults: 8 timed steps after 3 warm-up steps.
+TIMED_STEPS = 8
+WARMUP_STEPS = 3
+
+#: The step probe's LoRA and seed defaults (``stream_probe.py``).
+LORA_R = 8
+LORA_TARGETS = "q_proj,k_proj,v_proj,o_proj"
+ADAPTER_SEED = 3
+INPUT_SEED = 17
+
+SHAPE = "llama-8b"
+WEIGHTS_DIR = "llama-8b-synth"
+SHARDS_DIR = "shards"
+
+console = Console()
+
+#: Starts a command in a fresh process with an environment and waits for it.
+Runner = Callable[[Sequence[str], Mapping[str, str]], None]
+
+
+class Watched(Protocol):
+    """An arm watch once its arm has run: ``record`` holds the arm record."""
+
+    record: Optional[Dict[str, object]]
+
+
+def run_process(command: Sequence[str], env: Mapping[str, str]) -> None:
+    subprocess.run(list(command), env=dict(env), check=True)
+
+
+@dataclass(frozen=True)
+class Fixture:
+    """Where the synthetic checkpoint and its shards live."""
+
+    weights: Path
+    shards: Path
+
+
+def fixture_paths(root: Path) -> Fixture:
+    return Fixture(weights=root / WEIGHTS_DIR, shards=root / SHARDS_DIR)
+
+
+def build_fixture(
+    root: Path,
+    *,
+    runner: Runner = run_process,
+    disk_device: Callable[[str], Optional[str]] = find_disk_device,
+) -> Fixture:
+    """Write the synthetic ``llama-8b`` checkpoint under ``root`` with the GPU hidden.
+
+    Raises ValueError if ``root`` is on no block device (a RAM-backed file system),
+    where 16 GB of shards cannot live and the foreign reads check could not find the disk.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    if disk_device(str(root)) is None:
+        raise ValueError(f"{root} is on no block device; use a directory on the NVMe disk")
+    fixture = fixture_paths(root)
+    command = [
+        sys.executable, str(HERE / "synth_checkpoint.py"),
+        "--shape", SHAPE,
+        "--out", str(fixture.weights),
+    ]  # fmt: skip
+    runner(command, {**os.environ, "CUDA_VISIBLE_DEVICES": ""})
+    return fixture
+
+
+# --- one run, in the worker process ----------------------------------------------------
+
+
+def run_arm(
+    step: Callable[[], float],
+    count_paths: Callable[[], Dict[str, int]],
+    *,
+    warmup: int,
+    timed: int,
+) -> Dict[str, Any]:
+    """Run ``warmup`` untimed steps and ``timed`` timed ones, then count the paths.
+
+    ``step`` runs one training step and returns its seconds. ``count_paths`` runs after
+    the timed steps, so counting never touches a timed step.
+    """
+    if timed < 1:
+        raise ValueError(f"need at least one timed step, got {timed}")
+    seconds = [step() for _ in range(warmup + timed)][warmup:]
+    return {
+        "median_step_s": statistics.median(seconds),
+        "step_s": seconds,
+        "timed_steps": timed,
+        "warmup_steps": warmup,
+        "linear_paths": count_paths(),
+    }
+
+
+def _count_linear_paths(model: Any, step: Callable[[], float]) -> Dict[str, int]:
+    """Run one more step and count the Linear layers that took the fused path and the old one.
+
+    The runtime asks ``_can_use_checkpoint_visible_nf4_gemm`` once per Linear call. This
+    wraps it for this one step only and reads the calling module off the caller's frame.
+    """
+    from soup_cli.utils import layer_stream_runtime as runtime
+
+    original = runtime._can_use_checkpoint_visible_nf4_gemm
+    fused: set = set()
+    old: set = set()
+    calls = {"fused": 0, "old": 0}
+
+    def counting(x: Any, quant_state: Any) -> bool:
+        took_fused = original(x, quant_state)
+        owner = id(sys._getframe(1).f_locals.get("self"))
+        (fused if took_fused else old).add(owner)
+        calls["fused" if took_fused else "old"] += 1
+        return took_fused
+
+    runtime._can_use_checkpoint_visible_nf4_gemm = counting
+    try:
+        step()
+    finally:
+        runtime._can_use_checkpoint_visible_nf4_gemm = original
+    return {
+        "fused_layers": len(fused),
+        "old_layers": len(old),
+        "fused_calls": calls["fused"],
+        "old_calls": calls["old"],
+    }
+
+
+def worker(args: argparse.Namespace) -> int:
+    import bitsandbytes as bnb
+    import stream_probe
+    import torch
+    import transformers
+
+    from soup_cli.utils.layer_stream import resolve_stream_dtype
+
+    if not torch.cuda.is_available():
+        print("SKIP: CUDA is required")
+        return 0
+    device = "cuda"
+    dtype = resolve_stream_dtype(device)
+    build_args = argparse.Namespace(
+        weights=str(args.weights),
+        shards=str(args.shards),
+        quant="nf4",
+        tier="ram",
+        buffers=2,
+        read_ahead=2,
+        no_pin=False,
+        seed=ADAPTER_SEED,
+        lora_r=LORA_R,
+        lora_targets=LORA_TARGETS,
+        lazy_shard_handles=False,
+        control_sync_source=False,
+        stripe_dir=[],
+    )
+    model, runtime, config, *_rest = stream_probe.build(build_args, device, dtype)
+    trainable = [param for param in model.parameters() if param.requires_grad]
+    optimizer = bnb.optim.PagedAdamW8bit(trainable, lr=1e-4)
+    generator = torch.Generator(device=device).manual_seed(INPUT_SEED)
+    ids = torch.randint(
+        0, int(config.vocab_size), (BATCH, args.seq), generator=generator, device=device
+    )
+
+    def step() -> float:
+        torch.cuda.synchronize()
+        started = time.perf_counter()
+        out = model(input_ids=ids, labels=ids)
+        out.loss.backward()
+        optimizer.step()
+        optimizer.zero_grad(set_to_none=True)
+        torch.cuda.synchronize()
+        return time.perf_counter() - started
+
+    result = run_arm(
+        step,
+        lambda: _count_linear_paths(model, step),
+        warmup=args.warmup,
+        timed=args.steps,
+    )
+    result.update(
+        {
+            "arm": "bare",
+            "label": LABEL,
+            "tokens_per_step": BATCH * args.seq,
+            "batch": BATCH,
+            "seq": args.seq,
+            "device": torch.cuda.get_device_name(),
+            "torch": torch.__version__,
+            "bitsandbytes": bnb.__version__,
+            "transformers": transformers.__version__,
+            "weights": str(args.weights),
+            "shards": str(args.shards),
+            "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+    )
+    runtime.close()
+    Path(args.out).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {args.out}")
+    return 0
+
+
+# --- one bare arm, in the driver -------------------------------------------------------
+
+
+def run_bare_arm(
+    *,
+    seq: int,
+    fixture: Fixture,
+    root: Path,
+    out_dir: Path,
+    round: int = 1,
+    run: int = 1,
+    steps: int = TIMED_STEPS,
+    warmup: int = WARMUP_STEPS,
+    runner: Runner = run_process,
+    watch: Callable[..., ContextManager[Watched]] = G7ArmWatch,
+) -> Dict[str, Any]:
+    """Run one bare arm at ``seq`` tokens in a fresh process under the arm watch.
+
+    The worker's ``TMPDIR`` is ``root``, a directory on the NVMe disk. Writes
+    ``bare-<seq>.run.json`` (the worker's) and ``bare-<seq>.arm.json`` (the arm record)
+    into ``out_dir`` and returns both.
+    """
+    if seq not in TOKEN_COUNTS:
+        raise ValueError(f"the sequence length is 16, 32, 64 or 128; got {seq}")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = f"bare-{seq}"
+    run_file = out_dir / f"{stem}.run.json"
+    command = [
+        sys.executable, str(HERE / "visit_profile.py"), "run",
+        "--weights", str(fixture.weights),
+        "--shards", str(fixture.shards),
+        "--seq", str(seq),
+        "--batch", str(BATCH),
+        "--steps", str(steps),
+        "--warmup", str(warmup),
+        "--out", str(run_file),
+    ]  # fmt: skip
+    with watch(
+        arm=stem,
+        round=round,
+        run=run,
+        label=LABEL,
+        model_path=str(fixture.shards),
+        required=list(G7_REQUIRED),
+    ) as watched:
+        runner(command, {**os.environ, "TMPDIR": str(root)})
+    record = watched.record
+    assert record is not None
+    arm_file = out_dir / f"{stem}.arm.json"
+    arm_file.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    return {"run": json.loads(run_file.read_text(encoding="utf-8")), "arm": record}
+
+
+# --- command line ----------------------------------------------------------------------
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    fixture = sub.add_parser("fixture", help="write the synthetic llama-8b checkpoint")
+    fixture.add_argument("--root", type=Path, required=True, help="a directory on the NVMe disk")
+
+    arm = sub.add_parser("arm", help="run one bare arm under the arm watch")
+    arm.add_argument("--root", type=Path, required=True, help="the fixture root")
+    arm.add_argument("--seq", type=int, required=True, choices=TOKEN_COUNTS)
+    arm.add_argument("--out-dir", type=Path, required=True, help="where the two JSON files go")
+    arm.add_argument("--round", type=int, default=1)
+    arm.add_argument("--run", type=int, default=1)
+    arm.add_argument("--steps", type=int, default=TIMED_STEPS)
+    arm.add_argument("--warmup", type=int, default=WARMUP_STEPS)
+
+    work = sub.add_parser("run", help="the worker: one run in this process")
+    work.add_argument("--weights", type=Path, required=True)
+    work.add_argument("--shards", type=Path, required=True)
+    work.add_argument("--seq", type=int, required=True, choices=TOKEN_COUNTS)
+    work.add_argument("--batch", type=int, default=BATCH, choices=(BATCH,))
+    work.add_argument("--steps", type=int, default=TIMED_STEPS)
+    work.add_argument("--warmup", type=int, default=WARMUP_STEPS)
+    work.add_argument("--out", type=Path, required=True)
+    return parser
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    args = _parser().parse_args(argv)
+    if args.command == "fixture":
+        fixture = build_fixture(args.root.resolve())
+        console.print(f"fixture written to {fixture.weights}")
+        return 0
+    if args.command == "run":
+        return worker(args)
+    root = args.root.resolve()
+    result = run_bare_arm(
+        seq=args.seq,
+        fixture=fixture_paths(root),
+        root=root,
+        out_dir=args.out_dir,
+        round=args.round,
+        run=args.run,
+        steps=args.steps,
+        warmup=args.warmup,
+    )
+    console.print(
+        f"bare arm at {args.seq} tokens: median step {result['run']['median_step_s']:.4f} s, "
+        f"outcome {result['arm']['outcome']}"
+    )
+    for name, check in result["arm"]["checks"].items():
+        console.print(f"  {name}: {check['outcome']} ({check['reason']})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
