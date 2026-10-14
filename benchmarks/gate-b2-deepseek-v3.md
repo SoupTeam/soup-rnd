@@ -75,12 +75,12 @@ timestamp, clocks.current.sm [MHz], power.draw [W], clocks_event_reasons.active
 
 Each cell says "proven by gate", "refused: reason" or "not tested". Arms: 1 base fixture, 2 `q_lora_rank=None`, 3 `rope_interleave=False`,
 4 yarn rope, 5 padded batch, 6 Kimi K2 shape, 7 MTP layer, 8 NF4, 9 Qwen3.5-MoE fused experts,
-10 `moe_lora`, 11 disk tier, 12 LoRA on the shared experts. "Proven" means the arm passed on CUDA in fp32 here. Every arm except 8 also runs on CPU in CI.
+10 `moe_lora`, 11 disk tier, 12 LoRA on the shared experts, 13 a tiny checkpoint whose `config.json` says `model_type: kimi_k2`. "Proven" means the arm passed on CUDA in fp32 here. Every arm except 8 also runs on CPU in CI.
 
 | Model type | Forward | Backward | NF4 | Disk tier | LoRA on attention | LoRA on shared experts | `moe_lora` on routed experts |
 |---|---|---|---|---|---|---|---|
 | `deepseek_v3` | proven by gate (arm 1) | proven by gate (arm 1) | proven by gate (arm 8; routed experts stay bf16, the base dtype of the run) | proven by gate (arms 8 and 11) | proven by gate (arms 1 to 8) | proven by gate (arm 12; `attach_adapter`) [^1] | proven by gate (arm 10) |
-| `kimi_k2` (tiny shape) | proven by gate (arm 6) | proven by gate (arm 6) | not tested | not tested | proven by gate (arm 6) | not tested [^1] | not tested |
+| `kimi_k2` (tiny checkpoint, real `model_type`) | proven by gate (arms 6 and 13) | proven by gate (arms 6 and 13) | proven by gate (arm 13) | proven by gate (arm 13) | proven by gate (arms 6 and 13) | proven by gate (arm 13) [^1] | proven by gate (arm 13) |
 | `qwen3_5_moe` fused | proven by gate (arm 9, logits only) | not tested | not tested | not tested | not tested [^2] | not tested | not tested |
 | `deepseek_v32` | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist |
 | `deepseek_v2` | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist |
@@ -97,18 +97,34 @@ Each cell says "proven by gate", "refused: reason" or "not tested". Arms: 1 base
     gradients, and plain peft builds a model with different logits. `load_adapter` reloads a saved
     shared-expert adapter onto the shared experts, and a routed-expert adapter loads as peft loads it.
     The rewrite is pinned by a test, so a peft release that changes it fails CI. Not covered: a real
-    checkpoint, and `kimi_k2` (tiny shape), which stays "not tested".
+    checkpoint.
 
 [^2]: Arm 9 uses a LoRA config on `q_proj` and `in_proj_qkv` with `lora_B` left at zero, so the
     adapter adds nothing and the logits comparison says nothing about LoRA.
 
 Notes on the rows:
 
-- `kimi_k2 (tiny shape)` is the Kimi K2 decoder shape (one expert group, one dense layer, yarn
-  factor 32, rope theta 50000) built under `model_type=deepseek_v3`. A checkpoint whose
-  `config.json` says `model_type: kimi_k2` is refused by the architecture gate: transformers 5.19
-  does not know the config type, the tokenizer is Hub code, nothing converts Kimi K2's per-expert
-  weights into fused experts, the checkpoint is FP8, and one layer is too large to stream.
+- `kimi_k2` is admitted as an alias of `deepseek_v3` (ticket 16). Arm 6 is the Kimi K2 decoder
+  shape (one expert group, one dense layer, yarn factor 32, rope theta 50000) built under
+  `model_type=deepseek_v3`. Arm 13 is `tests/test_b2_kimi_k2.py`: a tiny checkpoint whose
+  `config.json` says `model_type: kimi_k2`, with per-expert keys, a spread router bias and the
+  per-layer `self_attn.rotary_emb.inv_freq` keys K2 checkpoints carry. It loads through
+  `soup_cli.utils.kimi_k2.load_stream_config` (no Hub code), and the conversion registered under
+  `kimi_k2` makes the load complete with the same logits as the `deepseek_v3` twin. Without the
+  registration the routed experts stay at init, which a control test shows. A save writes
+  per-expert keys back. The sharder drops the `inv_freq` keys. Streamed and resident logits and
+  all LoRA gradients are equal on RAM and disk tiers, with NF4, for attention LoRA, shared-expert
+  LoRA and `moe_lora`, on CPU (not NF4) and on CUDA in fp32, with both expert implementations.
+  A zero router bias changes the logits, so the check can fail.
+- Two real-config facts the tests check. The native classes never read `aux_loss_alpha` or
+  `seq_aux`, and under the frozen router changing them changes no loss and no gradient. Moonshot's
+  router masks excluded groups with `0.0`; with one group it selects the same experts as the native
+  `-inf` mask for biases from -3 to +2, and with four groups and a negative bias the two masks differ.
+- `kimi_k2` is read from `config.json` fields recorded in `research.md`, not from a downloaded
+  file. Not covered: a real K2 checkpoint (about 1 TB, 61 shards), one real MoE layer (about 17 GB
+  in FP8, so a real run needs sub-layer streaming, B1), the K2 tokenizer (Hub code; its parity test
+  waits for an owner decision), and K2-Thinking or K2.5 (INT4 `compressed-tensors`, refused by name).
+  `kimi_k25` stays refused although its `text_config.model_type` is `kimi_k2`.
 - `deepseek_v32`, `deepseek_v2` and `kimi_k25` get the ordinary message,
   `layer streaming does not support model_type=<type>. Supported: ...`. The tests pin the text.
 - `qwen3_5_moe` fused compares logits only. It has no expert-coverage check, no `meta` check and no gradient comparison.
