@@ -390,9 +390,9 @@ def _merge_adapter(
 ):
     """Merge LoRA adapter with base model."""
     import torch
-    from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
+    from soup_cli.utils.peft_wiring import load_adapter
     from soup_cli.utils.trust_remote import (
         model_requires_trust_remote_code,
         resolve_trust_remote_code,
@@ -415,7 +415,7 @@ def _merge_adapter(
     )
 
     console.print(f"[dim]Loading LoRA adapter: {adapter_path}...[/]")
-    model = PeftModel.from_pretrained(model, adapter_path)
+    model = load_adapter(model, adapter_path)
 
     console.print("[dim]Merging weights...[/]")
     model = model.merge_and_unload()

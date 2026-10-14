@@ -151,8 +151,9 @@ def merge(
     # --- Merge ---
     try:
         import torch
-        from peft import PeftModel
         from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        from soup_cli.utils.peft_wiring import load_adapter
 
         dtype_map = {
             "float16": torch.float16,
@@ -183,7 +184,7 @@ def merge(
         )
 
         console.print(f"[dim]Loading LoRA adapter: {adapter_path}...[/]")
-        model = PeftModel.from_pretrained(model, str(adapter_path))
+        model = load_adapter(model, str(adapter_path))
 
         console.print("[dim]Merging weights...[/]")
         model = model.merge_and_unload()

@@ -1388,7 +1388,7 @@ def _load_model(
         tokenizer.pad_token = tokenizer.eos_token
 
     if is_adapter:
-        from peft import PeftModel
+        from soup_cli.utils.peft_wiring import load_adapter
 
         console.print(f"[dim]Loading base model: {for_terminal(base_model)}...[/]")
         base = AutoModelForCausalLM.from_pretrained(
@@ -1398,7 +1398,7 @@ def _load_model(
             torch_dtype=load_dtype,
         )
         console.print(f"[dim]Loading LoRA adapter: {model_path}...[/]")
-        model_obj = PeftModel.from_pretrained(base, model_path)
+        model_obj = load_adapter(base, model_path)
     else:
         console.print(f"[dim]Loading model: {model_path}...[/]")
         model_obj = AutoModelForCausalLM.from_pretrained(
@@ -1425,15 +1425,15 @@ def _load_named_adapters(model_obj, adapter_map: Dict[str, str]):
     """
     from peft import PeftModel
 
+    from soup_cli.utils.peft_wiring import load_adapter
+
     names = list(adapter_map)
     already_peft = isinstance(model_obj, PeftModel)
     for idx, name in enumerate(names):
         path = adapter_map[name]
         if idx == 0 and not already_peft:
             # Wrap the plain base model into a multi-adapter PeftModel.
-            model_obj = PeftModel.from_pretrained(
-                model_obj, path, adapter_name=name
-            )
+            model_obj = load_adapter(model_obj, path, adapter_name=name)
         else:
             model_obj.load_adapter(path, adapter_name=name)
         console.print(f"[dim]Loaded adapter '{name}' from {path}[/]")
