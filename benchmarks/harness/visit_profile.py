@@ -195,7 +195,7 @@ def worker(args: argparse.Namespace) -> int:
     from soup_cli.utils.layer_stream import resolve_stream_dtype
 
     if not torch.cuda.is_available():
-        print("SKIP: CUDA is required")
+        console.print("SKIP: CUDA is required")
         return 0
     device = "cuda"
     dtype = resolve_stream_dtype(device)
@@ -256,7 +256,7 @@ def worker(args: argparse.Namespace) -> int:
     )
     runtime.close()
     Path(args.out).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {args.out}")
+    console.print(f"wrote {args.out}")
     return 0
 
 
