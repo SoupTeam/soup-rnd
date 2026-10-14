@@ -1425,7 +1425,7 @@ def _load_named_adapters(model_obj, adapter_map: Dict[str, str]):
     """
     from peft import PeftModel
 
-    from soup_cli.utils.peft_wiring import load_adapter
+    from soup_cli.utils.peft_wiring import add_adapter, load_adapter
 
     names = list(adapter_map)
     already_peft = isinstance(model_obj, PeftModel)
@@ -1435,7 +1435,7 @@ def _load_named_adapters(model_obj, adapter_map: Dict[str, str]):
             # Wrap the plain base model into a multi-adapter PeftModel.
             model_obj = load_adapter(model_obj, path, adapter_name=name)
         else:
-            model_obj.load_adapter(path, adapter_name=name)
+            add_adapter(model_obj, path, name)
         console.print(f"[dim]Loaded adapter '{name}' from {path}[/]")
     model_obj.eval()
     return model_obj, set(names)

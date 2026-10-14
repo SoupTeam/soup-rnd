@@ -717,6 +717,18 @@ def _config_names_shared_experts(config: Any) -> bool:
     return any(_names_a_shared_expert(entry) for entry in targets)
 
 
+def _skip_conversion_for_saved_shared_experts(config: Any) -> bool:
+    """True for a saved adapter whose targets name shared experts; refuses a mixed one."""
+    if not _config_names_shared_experts(config):
+        return False
+    targets = config.target_modules
+    if not isinstance(targets, str):
+        _refuse_bare_projections_beside_shared_experts(
+            [t for t in targets if not _names_a_shared_expert(t)]
+        )
+    return True
+
+
 def load_adapter(model: Any, adapter_path: str, **kwargs: Any) -> Any:
     """``PeftModel.from_pretrained`` that reloads a shared-expert adapter onto the shared experts.
 
@@ -727,18 +739,14 @@ def load_adapter(model: Any, adapter_path: str, **kwargs: Any) -> Any:
     """
     from peft import PeftModel
 
-    def skip(config: Any) -> bool:
-        if not _config_names_shared_experts(config):
-            return False
-        targets = config.target_modules
-        if not isinstance(targets, str):
-            _refuse_bare_projections_beside_shared_experts(
-                [t for t in targets if not _names_a_shared_expert(t)]
-            )
-        return True
-
-    with _without_peft_moe_conversion(skip):
+    with _without_peft_moe_conversion(_skip_conversion_for_saved_shared_experts):
         return PeftModel.from_pretrained(model, adapter_path, **kwargs)
+
+
+def add_adapter(peft_model: Any, adapter_path: str, adapter_name: str) -> None:
+    """``PeftModel.load_adapter`` with the same rule as :func:`load_adapter`."""
+    with _without_peft_moe_conversion(_skip_conversion_for_saved_shared_experts):
+        peft_model.load_adapter(adapter_path, adapter_name=adapter_name)
 
 
 def apply_pre_lora_patches(model: Any, base: str) -> None:

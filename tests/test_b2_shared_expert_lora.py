@@ -529,3 +529,32 @@ def test_a_saved_adapter_mixing_shared_names_and_a_bare_projection_is_refused(
 
     with pytest.raises(ValueError, match="routed experts"):
         load_adapter(_tiny_model(), str(tmp_path / "adapter"))
+
+
+def test_serve_loads_every_named_shared_expert_adapter_onto_the_shared_experts(
+    tmp_path: Any,
+) -> None:
+    """``serve --adapters a=... b=...``: the first adapter wraps the model, the rest join it."""
+    from soup_cli.commands import serve
+    from soup_cli.utils.peft_wiring import attach_adapter
+
+    for name in ("a", "b"):
+        trained = attach_adapter(_tiny_model(), _config(["shared_experts.gate_proj"]))
+        _randomise_adapter(trained)
+        trained.save_pretrained(tmp_path / name)
+
+    model, loaded = serve._load_named_adapters(
+        _tiny_model(), {"a": str(tmp_path / "a"), "b": str(tmp_path / "b")}
+    )
+
+    assert loaded == {"a", "b"}
+    for name in ("a", "b"):
+        owners = {
+            param_name.rsplit(".lora_", 1)[0].removeprefix("base_model.model.")
+            for param_name, _ in model.named_parameters()
+            if f".lora_A.{name}." in param_name or f".lora_B.{name}." in param_name
+        }
+        assert owners == {
+            f"model.layers.{idx}.mlp.shared_experts.gate_proj"
+            for idx in _moe_layers(model.config)
+        }, name
