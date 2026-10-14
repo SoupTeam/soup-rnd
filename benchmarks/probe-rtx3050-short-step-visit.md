@@ -2,7 +2,7 @@
 
 Card: G7. Parent ticket `.scratch/g7-short-step-overhead/issues/01-short-step-overhead.md`. Follows F1 (`benchmarks/METHOD.md`).
 
-Status: rule committed, no arm run. Nothing below has been measured. The commit that adds this file is the rule commit. To check house rule 1, compare its commit time (`git log --format=%cI -- benchmarks/probe-rtx3050-short-step-visit.md`) with the box stamp of the first arm record in `benchmarks/results/probe-rtx3050-short-step-visit/`. The stamp must be later. After this commit no threshold below changes. A change after a number is seen is written as a new section, with the old text kept.
+Status: measured 2026-10-15, recommendation No verdict (section 9). The rule below was committed before the first arm. The commit that adds this file is the rule commit. To check house rule 1, compare its commit time (`git log --format=%cI -- benchmarks/probe-rtx3050-short-step-visit.md`) with the box stamp of the first arm record in `benchmarks/results/probe-rtx3050-short-step-visit/`. The stamp must be later. After this commit no threshold below changes. A change after a number is seen is written as a new section, with the old text kept.
 
 Every arm carries the label "RTX 3050, synthetic". Environment: Linux, driver 595.99.02, torch 2.14.1+cu130, bitsandbytes 0.50.2, transformers 5.19.0.
 
@@ -143,4 +143,104 @@ These figures are quoted by the card. They come from other cards, other code or 
 
 ## 9. Result
 
-Not measured yet. Sections for the profile, the control, the threshold, the experiment, the prototype and the recommendation are added after the arms run, with every void arm and every withdrawn number kept.
+Measured 2026-10-15 on the RTX 3050 laptop. Recommendation: **No verdict**. The text above this section is unchanged except the status line.
+
+### 9.1 Validity
+
+Attempt 2: 26 profile arms and 20 experiment arms, all five required checks `ok` on every one. No arm is void. The first arm's box stamp is 2026-10-15T00:15:41+05:00; the rule commit `5c05c4fa` is 2026-10-14T23:55:26+05:00, so the rule came first (house rule 1).
+
+### 9.2 Step time and instrument rows
+
+Median step, seconds. Two values in a cell are round 1 / round 2.
+
+| Tokens | Bare | Timer | Profile | Timer is free (limit +2%) | Profile is readable (limit 1.5) |
+|---|---|---|---|---|---|
+| 16 | 0.8432 / 0.8456 | 0.8427 / 0.8415 | 0.8486 / 0.8474 | pass | pass |
+| 32 | 0.8477 / 0.8440 | 0.8445 / 0.8448 | 0.8501 / 0.8497 | pass | no verdict: rounds disagree, 1.07 and 1.67 |
+| 64 | 0.9054 / 0.9067 | 0.9063 / 0.9091 | 0.9107 / 0.9126 | pass | pass |
+| 128 | 1.0323 / 1.0341 | 1.0330 / 1.0320 | 1.0398 / 1.0386 | pass | pass |
+
+### 9.3 Parts of a visit under the profiler
+
+Median over visits (96 forward, 96 recompute, 93 layer backward per run), ms, round 1 / round 2. Host time is the sum of the four parts. The layer backward has no weight preparation or `functional_call`, so its parts are launch time and the rest. The inflation factor and shares for the forward visit use the timer arm's median forward visit as the base.
+
+| Tokens | Visit | Host | Launch | Weight prep | `functional_call` | Python and dispatcher | GPU kernel | Launches |
+|---|---|---|---|---|---|---|---|---|
+| 16 | forward | 2.85 / 2.99 | 0.30 / 0.32 | 0.21 / 0.22 | 0.19 / 0.19 | 2.00 / 2.12 | 2.74 / 2.74 | 100 |
+| 16 | recompute | 2.69 / 2.75 | 0.29 / 0.30 | 0.22 / 0.23 | 0.20 / 0.20 | 1.94 / 2.00 | 2.74 / 2.73 | 99 |
+| 16 | layer backward | 7.66 / 7.58 | 4.67 / 4.51 | n/a | n/a | 3.02 / 3.08 (rest) | 4.73 / 4.73 | 121 |
+| 32 | forward | 2.95 / 4.39 | 0.32 / 0.46 | 0.22 / 0.22 | 0.20 / 0.20 | 2.07 / 2.09 | 2.92 / 2.93 | 100 |
+| 32 | recompute | 2.66 / 2.61 | 0.29 / 0.29 | 0.22 / 0.22 | 0.21 / 0.20 | 1.93 / 1.90 | 2.92 / 2.93 | 99 |
+| 32 | layer backward | 7.65 / 7.68 | 4.70 / 4.80 | n/a | n/a | 2.98 / 2.89 (rest) | 4.93 / 4.93 | 121 |
+| 64 | forward | 6.66 / 6.71 | 3.72 / 3.45 | 0.22 / 0.22 | 0.20 / 0.20 | 2.07 / 2.09 | 4.19 / 4.20 | 104 |
+| 64 | recompute | 2.65 / 2.62 | 0.30 / 0.29 | 0.22 / 0.22 | 0.20 / 0.20 | 1.92 / 1.89 | 4.19 / 4.19 | 103 |
+| 64 | layer backward | 9.58 / 9.61 | 6.68 / 6.76 | n/a | n/a | 2.91 / 2.86 (rest) | 7.73 / 7.73 | 123 |
+| 128 | forward | 6.46 / 6.54 | 3.46 / 3.79 | 0.22 / 0.21 | 0.19 / 0.19 | 2.03 / 2.01 | 6.89 / 6.88 | 104 |
+| 128 | recompute | 2.73 / 2.65 | 0.31 / 0.30 | 0.23 / 0.22 | 0.21 / 0.20 | 1.97 / 1.93 | 6.87 / 6.86 | 103 |
+| 128 | layer backward | 13.24 / 13.31 | 9.32 / 9.45 | n/a | n/a | 3.92 / 3.86 (rest) | 8.73 / 8.73 | 119 |
+
+Forward host time at 64 and 128 tokens is 6.5 to 6.7 ms against 2.8 to 3.0 ms at 16 and 32, and launch time rises from 0.3 ms to 3.4 to 3.7 ms with it. The forward visit's launch count grows only from 100 to 104. This is unexplained and the profile did not look further. The recompute visit does not show it.
+
+Inflation factor of the forward visit, profile host time over timer host time, round 1 / round 2:
+
+| Tokens | Inflation |
+|---|---|
+| 16 | 1.07 / 1.11 |
+| 32 | 1.07 / 1.67 |
+| 64 | 1.03 / 1.06 |
+| 128 | 1.05 / 0.99 |
+
+### 9.4 Reconciliation
+
+Visits, layer backwards, the work outside the layers and the final GPU wait sum to the profiled step time within 5% at every token count. The gap is 0.6% to 1.1% of the step (largest at 32 tokens, round 2). The work outside the layers is 482 to 552 ms of a profiled step, 3 steps per run.
+
+### 9.5 Control
+
+Result: **fail**. At 16 tokens, the timer's host time per forward visit grew by 7160 µs in round 1 and 7027 µs in round 2. The rule expects 200 µs ± 20% plus the cost of the 50 launches (6799 µs in round 1, 6770 µs in round 2), so 6959 to 7039 µs in round 1. Round 1 is 121 µs over the top of its window. Weight preparation grew by 208 µs and 198 µs, and the launch count grew by exactly 50 in both rounds. The control row has no pass, so by the rule the CPU-bound threshold has no verdict. Nothing was rerun and no window moved.
+
+### 9.6 Threshold
+
+Result: **no verdict** (control row). The numbers the rule would have read, shown for the reader only and deciding nothing:
+
+| Round | Timer host per forward visit | Weight prep | Capturable host | GPU kernel | Capturable over kernel (needs 2) | Launch share of host |
+|---|---|---|---|---|---|---|
+| 1 | 2.661 ms | 0.213 ms | 2.448 ms | 2.738 ms | 0.89 | 10.5% |
+| 2 | 2.684 ms | 0.225 ms | 2.459 ms | 2.736 ms | 0.90 | 10.7% |
+
+Both rounds sit near 0.9, a long way from 2. This does not clear the no verdict. It says a control rerun is unlikely to change the graph branch.
+
+### 9.7 Experiment
+
+Gate: passed. Loss and 256 LoRA gradients are bit-equal under `torch.equal`, the control (one changed input token) differs, and a repeat of the shipped arm is equal.
+
+Blocks (A-B-B-A at 16 tokens, median step seconds), 5-block pilot, none void:
+
+| Block | A | B | B | A |
+|---|---|---|---|---|
+| 1 | 0.8426 | 0.8428 | 0.8423 | 0.8428 |
+| 2 | 0.8485 | 0.8413 | 0.8432 | 0.8441 |
+| 3 | 0.8428 | 0.8423 | 0.8432 | 0.8437 |
+| 4 | 0.8538 | 0.8411 | 0.8448 | 0.8427 |
+| 5 | 0.8434 | 0.8411 | 0.8409 | 0.8412 |
+
+Mean of A 0.8446 s. B is faster by 2.26 ms (0.27% of a step), 95% interval -0.59 to +5.11 ms, p = 0.093. The pilot did not call for more blocks. Verdict: **fail**, written as "effect below the detection limit, about 10% of a step". Block 2 and block 4 show A at 0.8485 and 0.8538 in the first position; those are kept and move the mean.
+
+### 9.8 Prototype
+
+None. The threshold has no verdict, so the prototype did not run (ticket 09 closed as `wontfix`, no code). The graph branch has no verdict.
+
+### 9.9 Recommendation
+
+**No verdict.**
+
+- `tie_weights=False` upstream: fail. Effect below the detection limit, about 10% of a step.
+- CUDA graphs in the runtime: no verdict. Row: control. The rerun that clears it is the control arm again at 16 tokens, in both rounds. The numbers in 9.6 suggest the visit is GPU-bound at 16 tokens (capturable host time about 0.9 times the kernel time), so a passing control would most likely give a threshold fail, not a pass.
+
+### 9.10 Attempts, void arms and environment
+
+- **Attempt 1** (`benchmarks/results/probe-rtx3050-short-step-visit-attempt1-void-swap/`). Swap was on. All 10 arms that finished (runs 1 to 10 of round 1) were void on `swap`: the first arm swapped out 234139 pages and swapped in 66855. The run was stopped during run 12. Its records and `run.log` are kept. The profile has no replacement rule, so attempt 2 is a new attempt under the same rule, with no threshold or code changed.
+- **Attempt 2** (`benchmarks/results/probe-rtx3050-short-step-visit/`). Swap off with `sudo swapoff -a` for the whole run, as section 7 says. Attempt 1 reset swap with `swapoff -a && swapon -a` and left it on. That was the cause.
+- Swap was on for the F1 clean-arm check, which passed (`ok`) before attempt 1.
+- Environment: Linux 7.0.0-38-generic, RTX 3050 Laptop GPU 4 GB, driver 595.99.02, torch 2.14.1+cu130, bitsandbytes 0.50.2, transformers 5.19.0. Harness commit measured: `aa90c5b4`. Power limit 80.00 W, on mains.
+- Withdrawn numbers: none.
+
