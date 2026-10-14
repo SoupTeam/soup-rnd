@@ -125,6 +125,12 @@ Notes on the rows:
   in FP8, so a real run needs sub-layer streaming, B1), the K2 tokenizer (Hub code; its parity test
   waits for an owner decision), and K2-Thinking or K2.5 (INT4 `compressed-tensors`, refused by name).
   `kimi_k25` stays refused although its `text_config.model_type` is `kimi_k2`.
+- The `kimi_k2` config reader and conversion registration run on the layer-streaming path only
+  (`stream_setup` and `build_meta_skeleton`). `export`, `merge`, `serve`, the resident trainers and
+  `soup recipes` still call `AutoConfig` or `from_pretrained` directly, so a `kimi_k2` folder fails
+  there with transformers' own "custom code" error. `register_kimi_k2_conversion` edits a private
+  transformers table and PEFT's import-time copy of it; a test pins both, so a release that moves
+  them fails CI.
 - `deepseek_v32`, `deepseek_v2` and `kimi_k25` get the ordinary message,
   `layer streaming does not support model_type=<type>. Supported: ...`. The tests pin the text.
 - `qwen3_5_moe` fused compares logits only. It has no expert-coverage check, no `meta` check and no gradient comparison.

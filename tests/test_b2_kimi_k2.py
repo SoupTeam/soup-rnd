@@ -116,9 +116,11 @@ def _clean_kimi_registration() -> Iterator[None]:
 
 
 def _forget_kimi_k2_conversion() -> None:
+    from peft.utils import transformers_weight_conversion as peft_conversion
     from transformers import conversion_mapping
 
     conversion_mapping._MODEL_TO_CONVERSION_PATTERN.pop("kimi_k2", None)
+    peft_conversion._MODEL_TO_CONVERSION_PATTERN.pop("kimi_k2", None)
     cache = conversion_mapping._checkpoint_conversion_mapping_cache
     if cache is not None:
         cache.pop("kimi_k2", None)
@@ -756,3 +758,17 @@ def test_streamed_kimi_k2_shared_expert_lora_matches_resident(
     )
 
     _assert_shared_parity(parity)
+
+
+def test_an_int4_text_config_under_an_unknown_wrapper_is_refused_too() -> None:
+    from soup_cli.utils.layer_stream import stream_arch_of
+
+    config = SimpleNamespace(
+        model_type="some_wrapper",
+        text_config=SimpleNamespace(
+            model_type="kimi_k2", quantization_config=_K2_INT4_QUANTIZATION
+        ),
+    )
+
+    with pytest.raises(ValueError, match="INT4"):
+        stream_arch_of(config)

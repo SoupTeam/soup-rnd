@@ -28,10 +28,11 @@ _CONFLICT = (
 def register_kimi_k2_conversion() -> None:
     """Give ``kimi_k2`` the ``deepseek_v3`` checkpoint conversion, for load and for save.
 
-    Two tables hold it. transformers' ``_MODEL_TO_CONVERSION_PATTERN`` names the rule set
-    per model type, and PEFT reads the same table to rewrite MoE LoRA targets
-    (``moe_lora``) onto the fused experts. The registered mapping is what transformers
-    applies when it loads or saves weights.
+    Three tables hold it. transformers' ``_MODEL_TO_CONVERSION_PATTERN`` names the rule set
+    per model type. PEFT copies that table when it is first imported and reads its copy to
+    rewrite MoE LoRA targets (``moe_lora``) onto the fused experts, so the copy needs the
+    entry too. The registered mapping is what transformers applies when it loads or saves
+    weights.
 
     Idempotent. Touches only the ``kimi_k2`` entries. A different entry registered
     under ``kimi_k2`` by someone else is an error, not something to overwrite.
@@ -57,6 +58,9 @@ def register_kimi_k2_conversion() -> None:
     if existing is None:
         register_checkpoint_conversion_mapping(KIMI_K2_MODEL_TYPE, rules)
     patterns[KIMI_K2_MODEL_TYPE] = patterns[_DEEPSEEK_V3]
+    from peft.utils import transformers_weight_conversion as peft_conversion
+
+    peft_conversion._MODEL_TO_CONVERSION_PATTERN[KIMI_K2_MODEL_TYPE] = patterns[_DEEPSEEK_V3]
 
 
 def ignored_aux_loss_fields(config: Any) -> Dict[str, Any]:
@@ -81,6 +85,7 @@ def load_stream_config(model_id: str, trust_remote_code: bool) -> Any:
     try:
         raw, _ = DeepseekV3Config.get_config_dict(model_id)
     except (OSError, ValueError):
+        # Not readable as a config here. AutoConfig below raises the real error.
         raw = {}
     if raw.get("model_type") != KIMI_K2_MODEL_TYPE:
         return AutoConfig.from_pretrained(model_id, trust_remote_code=trust_remote_code)

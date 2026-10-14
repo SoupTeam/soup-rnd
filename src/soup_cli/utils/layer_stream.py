@@ -42,6 +42,7 @@ from soup_cli.utils.config_bounds import (
 # could drift and leave this module's pre-flight RAM estimate disagreeing with
 # what was actually written to disk. (layer_shard has no top-level torch either,
 # so the light CLI import path is unaffected.)
+from soup_cli.utils.kimi_k2 import KIMI_K2_MODEL_TYPE
 from soup_cli.utils.layer_shard import QUANT_NONE, SUPPORTED_STREAM_QUANTS
 
 # --- tiers (plan 5.1) -----------------------------------------------------
@@ -113,7 +114,7 @@ _STREAM_ARCH_ALIASES = {
     "qwen4_exp_text": "qwen4_exp",
     # Kimi K2 has DeepSeek-V3's decoder layer. transformers does not know the type, so
     # ``soup_cli.utils.kimi_k2`` builds the config and registers the expert conversion.
-    "kimi_k2": "deepseek_v3",
+    KIMI_K2_MODEL_TYPE: "deepseek_v3",
 }
 
 #: Outer model types whose text tower is ``kimi_k2`` but which are not K2-Base or K2-Instruct.
@@ -271,6 +272,8 @@ def resolve_stream_dtype(device: str = "cuda") -> str:
 # architecture gate
 # ==========================================================================
 def _is_int4_compressed(config: Any) -> bool:
+    """Is the checkpoint's ``quantization_config`` ``compressed-tensors``? K2-Thinking and
+    K2.5 use it for INT4 routed experts. The block-FP8 K2 files use ``fp8``."""
     quant = getattr(config, "quantization_config", None)
     if not isinstance(quant, dict):
         quant = getattr(quant, "to_dict", lambda: {})()
@@ -307,7 +310,9 @@ def stream_arch_of(config: Any) -> str:
             "found on the model config"
         )
     family = _STREAM_ARCH_ALIASES.get(raw_family.strip().lower(), raw_family.strip().lower())
-    if raw_family.strip().lower() == "kimi_k2" and _is_int4_compressed(config):
+    if raw_family.strip().lower() == KIMI_K2_MODEL_TYPE and (
+        _is_int4_compressed(config) or _is_int4_compressed(text_config)
+    ):
         raise ValueError(_KIMI_K2_INT4_REFUSAL.format(raw=raw_family, supported=supported))
     if family not in SUPPORTED_STREAM_ARCHS:
         raise ValueError(
