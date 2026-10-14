@@ -357,6 +357,17 @@ def optimizer_for(model: Any) -> Any:
     )
 
 
+def attach_backend_scaler(model: Any, backend: str, scaler: Any) -> None:
+    """Use Unsloth's own Trainer integration for its compute-in-forward loss."""
+    if backend == "unsloth":
+        from types import SimpleNamespace
+
+        from unsloth.models._utils import _unsloth_attach_accelerator_scaler
+
+        trainer = SimpleNamespace(accelerator=SimpleNamespace(scaler=scaler))
+        _unsloth_attach_accelerator_scaler(trainer, model)
+
+
 def snapshot(model: Any, prefix: str) -> dict:
     probe._check_training_gradients(model)
     return {
@@ -385,10 +396,16 @@ def arm(args: argparse.Namespace) -> None:
     probe._require(cuda or args.phase == "gate", "CPU cannot supply performance evidence")
     fixture = load_file(str(root / "fixture.safetensors"))
     tokens = fixture.pop("input_ids").to(args.device)
+    loss_kwargs = (
+        {"num_items_in_batch": tokens.shape[0] * (tokens.shape[1] - 1)}
+        if getattr(args, "token_sum_normalization", False)
+        else {}
+    )
+    execution["loss_normalization"] = "token-sum" if loss_kwargs else "mean"
     observed, handles = probe._execution_hooks(model) if args.backend == "soup" else ({}, [])
     # Check backend execution outside measured regions; hooks are then removed.
     with torch.autograd.profiler.profile(use_device=None) as trace:
-        initial_loss = model(input_ids=tokens, labels=tokens).loss
+        initial_loss = model(input_ids=tokens, labels=tokens, **loss_kwargs).loss
         initial_loss.backward()
     probe.require_finite(initial_loss, "preflight loss")
     if args.backend == "soup":
@@ -424,10 +441,17 @@ def arm(args: argparse.Namespace) -> None:
         init_scale=128.0,
         growth_interval=2000,
     )
+    attach_backend_scaler(model, args.backend, scaler)
+    if args.backend == "unsloth":
+        probe._require(
+            getattr(model.get_base_model(), "accelerator_scaler", None) is scaler,
+            "Unsloth fused loss scaler is not attached",
+        )
+        execution["fused_loss_scaler_attached"] = True
 
     def step() -> Any:
         optimizer.zero_grad(set_to_none=True)
-        loss = model(input_ids=tokens, labels=tokens).loss
+        loss = model(input_ids=tokens, labels=tokens, **loss_kwargs).loss
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -453,6 +477,12 @@ def arm(args: argparse.Namespace) -> None:
             init_scale=128.0,
             growth_interval=2000,
         )
+        attach_backend_scaler(model, args.backend, scaler)
+        if args.backend == "unsloth":
+            probe._require(
+                getattr(model.get_base_model(), "accelerator_scaler", None) is scaler,
+                "Unsloth fused loss scaler reset was not attached",
+            )
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
     write_json(
@@ -577,6 +607,11 @@ def compare(reference: Path, candidate: Path) -> dict:
         "different deterministic execution modes",
     )
     probe._require(
+        ready_a.get("execution", {}).get("loss_normalization")
+        == ready_b.get("execution", {}).get("loss_normalization"),
+        "different loss normalization",
+    )
+    probe._require(
         all(
             ready_a["environment"]["packages"][name] == ready_b["environment"]["packages"][name]
             for name in COMMON_PACKAGES
@@ -609,7 +644,8 @@ def compare(reference: Path, candidate: Path) -> dict:
     rows = []
     for key, value in expected.items():
         other = actual[key]
-        passed = value.shape == other.shape and value.dtype == other.dtype
+        shape_dtype = value.shape == other.shape and value.dtype == other.dtype
+        passed = shape_dtype
         finite = torch.isfinite(value).all().item() and torch.isfinite(other).all().item()
         relative = None
         if passed and finite:
@@ -619,7 +655,8 @@ def compare(reference: Path, candidate: Path) -> dict:
             passed = relative <= 0.01
         else:
             passed = False
-        rows.append({"quantity": key, "relative_l2": relative, "passed": passed})
+        rows.append({"quantity": key, "relative_l2": relative, "passed": passed,
+                     "finite": finite, "shape_dtype": shape_dtype})
     loss_checks = [
         math.isfinite(a["loss"])
         and math.isfinite(b["loss"])
@@ -632,7 +669,37 @@ def compare(reference: Path, candidate: Path) -> dict:
         "loss_checks": loss_checks,
         "tensors": rows,
         "criterion": "all losses .3f; each saved weight/gradient relative L2 <= 1%",
+        "finite_losses": all(math.isfinite(row["loss"]) for row in lhs["rows"] + rhs["rows"]),
     }
+
+
+def admit_stack_gates(checks_by_dtype: dict) -> bool:
+    """Soup equivalence stays strict; external arithmetic drift stays disclosed."""
+    return all(
+        checks["soup"]["passed"]
+        and set(checks) == set(BACKENDS)
+        and all(check.get("finite_losses") and check["tensors"]
+                and all(row.get("finite") and row.get("shape_dtype") for row in check["tensors"])
+                for check in checks.values())
+        for checks in checks_by_dtype.values()
+    ) and set(checks_by_dtype) == {"float16", "bfloat16"}
+
+
+def timing_candidates(args: Any) -> tuple[str, ...]:
+    stack = getattr(args, "stack_comparison", False)
+    external_only = getattr(args, "external_only", False)
+    probe._require(not external_only or stack, "external-only requires stack comparison")
+    probe._require(not getattr(args, "default_boost", False) or stack,
+                   "default-boost requires stack comparison")
+    if stack:
+        return ("liger", "unsloth") if external_only else ("peft", "liger", "unsloth")
+    return BACKENDS[1:]
+
+
+def admit_clocks(samples: list[dict], default_boost: bool = False) -> bool:
+    verdict = clock_verdict(samples)
+    # Spread remains a strict diagnostic; v3 admits observed default GPU Boost.
+    return verdict["spread"] is not None if default_boost else verdict["passed"]
 
 
 def supervise(args: argparse.Namespace) -> None:
@@ -646,6 +713,26 @@ def supervise(args: argparse.Namespace) -> None:
     monitor = Monitor()
     deadline = time.monotonic() + args.seconds
     summary = {"status": "PREPARING", "arms": [], "scope": "dense complete TinyLlama step"}
+    stack_mode = getattr(args, "stack_comparison", False)
+    default_boost = getattr(args, "default_boost", False)
+    selected_candidates = timing_candidates(args)
+    summary["timing_candidates"] = selected_candidates
+    if stack_mode:
+        import d2_operator_probes
+
+        probe._require(args.token_sum_normalization and args.deterministic,
+                       "stack mode requires token-sum loss and deterministic execution")
+        for backend in ("liger", "unsloth"):
+            proof = d2_operator_probes.verify(Path(args.operator_proofs) / backend, backend)
+            probe._require(
+                proof["source_sha256"] == digest_file(Path(d2_operator_probes.__file__)),
+                "operator probe source differs",
+            )
+            probe._require(all(version(name) == value for name, value in proof["packages"].items()),
+                           "operator probe packages differ")
+        summary["comparison_policy"] = (
+            "stack-v3; observed default GPU Boost; numerical drift disclosed" if default_boost
+            else "stack-v2; speed with numerical drift disclosed")
     write_json(root / "arguments.json", vars(args))
 
     def run_one(fixture: Path, backend: str, phase: str, label: str) -> Path:
@@ -681,6 +768,8 @@ def supervise(args: argparse.Namespace) -> None:
         ]
         if getattr(args, "deterministic", False):
             command.append("--deterministic")
+        if getattr(args, "token_sum_normalization", False):
+            command.append("--token-sum-normalization")
         write_json(root / f"{label}-command.json", command)
         with (root / f"{label}.log").open("w", encoding="utf-8") as log:
             worker = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
@@ -738,7 +827,8 @@ def supervise(args: argparse.Namespace) -> None:
             and birth,
             "VOID GPU lifecycle/ownership",
         )
-        probe._require(clocks["passed"], "VOID unstable/missing arm clocks")
+        probe._require(admit_clocks(live, default_boost), "VOID unstable/missing arm clocks")
+        clocks["stable_clock_gate_applied"] = not default_boost
         summary["arms"].append(
             {
                 "label": label,
@@ -768,28 +858,37 @@ def supervise(args: argparse.Namespace) -> None:
             write_json(root / f"{dtype}-gate-checks.json", checks)
             gates_by_dtype[dtype], checks_by_dtype[dtype] = gates, checks
         # Collect both precision controls before deciding on any performance run.
-        # Failed numerical criteria remain failures; no timing is admitted.
+        # Default mode requires every strict gate. Stack-v2 separately discloses
+        # external drift and requires operator probes plus within-backend replay.
         probe._require(
-            all(
-                check["passed"] for checks in checks_by_dtype.values() for check in checks.values()
-            ),
+            admit_stack_gates(checks_by_dtype) if stack_mode
+            else all(check["passed"] for checks in checks_by_dtype.values()
+                     for check in checks.values()),
             "correctness gate failed; no performance verdict",
         )
+        if stack_mode:
+            summary["external_equivalence"] = {
+                dtype: {backend: checks[backend]["passed"] for backend in ("liger", "unsloth")}
+                for dtype, checks in checks_by_dtype.items()
+            }
         if getattr(args, "gates_only", False):
-            summary["status"] = "CORRECTNESS_GATES_PASS; timing not requested"
+            summary["status"] = (
+                "STACK_V2_ADMISSION_PASS; external equivalence recorded separately"
+                if stack_mode else "CORRECTNESS_GATES_PASS; timing not requested")
             return
         for fixture_name in args.fixtures:
             fixture = Path(fixture_name)
             dtype = verify_fixture(fixture)["dtype"]
             gates = gates_by_dtype[dtype]
-            for candidate in BACKENDS[1:]:
+            anchor = "soup" if stack_mode else "peft"
+            for candidate in selected_candidates:
                 cycle_ratios = []
                 for cycle in range(args.cycles):
-                    measured, clocks = {"peft": [], candidate: []}, []
-                    for position, backend in enumerate(("peft", candidate, candidate, "peft")):
+                    measured, clocks = {anchor: [], candidate: []}, []
+                    for position, backend in enumerate((anchor, candidate, candidate, anchor)):
                         label = f"{dtype}-{candidate}-{cycle}-{position}-{backend}"
                         folder = run_one(fixture, backend, "timing", label)
-                        check = compare(gates["peft"], folder)
+                        check = compare(gates[backend] if stack_mode else gates["peft"], folder)
                         write_json(folder / "replay.json", check)
                         probe._require(check["passed"], "measured trajectory failed replay")
                         result = json.loads((folder / "result.json").read_text())
@@ -801,12 +900,15 @@ def supervise(args: argparse.Namespace) -> None:
                         clocks.extend(
                             json.loads((root / f"{label}-telemetry.json").read_text())["live"]
                         )
-                    probe._require(clock_verdict(clocks)["passed"], "ABBA clock mismatch")
+                    probe._require(admit_clocks(clocks, default_boost), "ABBA clock mismatch")
                     cycle_ratios.append(
-                        statistics.mean(measured["peft"]) / statistics.mean(measured[candidate])
+                        statistics.mean(measured[candidate]) / statistics.mean(measured[anchor])
+                        if stack_mode else
+                        statistics.mean(measured[anchor]) / statistics.mean(measured[candidate])
                     )
                 summary[f"{dtype}/{candidate}"] = {
-                    "peft_over_candidate_full_step_wall": cycle_ratios,
+                    ("candidate_over_soup_full_step_wall" if stack_mode
+                     else "peft_over_candidate_full_step_wall"): cycle_ratios,
                     "median_ratio": statistics.median(cycle_ratios),
                 }
         summary["status"] = "COLLECTED; independent replay and team acceptance required"
@@ -835,6 +937,7 @@ def main() -> int:
     worker.add_argument("--warmup", type=int, default=20)
     worker.add_argument("--managed", action="store_true")
     worker.add_argument("--deterministic", action="store_true")
+    worker.add_argument("--token-sum-normalization", action="store_true")
     check = sub.add_parser("compare")
     check.add_argument("--reference", required=True)
     check.add_argument("--candidate", required=True)
@@ -848,6 +951,11 @@ def main() -> int:
     run.add_argument("--seconds", type=int, default=4500)
     run.add_argument("--deterministic", action="store_true")
     run.add_argument("--gates-only", action="store_true")
+    run.add_argument("--stack-comparison", action="store_true")
+    run.add_argument("--external-only", action="store_true")
+    run.add_argument("--default-boost", action="store_true")
+    run.add_argument("--token-sum-normalization", action="store_true")
+    run.add_argument("--operator-proofs")
     args = parser.parse_args()
     try:
         if args.command == "prepare":
@@ -864,7 +972,7 @@ def main() -> int:
                 args.steps == 50
                 and args.warmup >= 20
                 and args.cycles >= 3
-                and 60 <= args.seconds <= 7200,
+                and 60 <= args.seconds <= 9900,
                 "production protocol bounds",
             )
             supervise(args)

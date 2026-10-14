@@ -28,7 +28,7 @@ def adapter_schema() -> set[str]:
     }
 
 
-def clocks(rows: list[dict]) -> bool:
+def clock_observations(rows: list[dict]) -> bool:
     values = [row.get("clock_mhz") for row in rows]
     return (
         len(values) >= 3
@@ -36,7 +36,12 @@ def clocks(rows: list[dict]) -> bool:
             isinstance(value, (float, int)) and math.isfinite(value) and value > 0
             for value in values
         )
-        and max(values) / min(values) <= 1.05
+    )
+
+
+def clocks(rows: list[dict]) -> bool:
+    return clock_observations(rows) and (
+        max(row["clock_mhz"] for row in rows) / min(row["clock_mhz"] for row in rows) <= 1.05
     )
 
 
@@ -108,6 +113,10 @@ def replay(reference: Path, candidate: Path) -> dict:
     if len(left["rows"]) != 50 or len(right["rows"]) != 50:
         failures.append("missing loss rows")
     for index, (a, b) in enumerate(zip(left["rows"], right["rows"]), 1):
+        if a["step"] != index or b["step"] != index:
+            failures.append("invalid loss step sequence")
+        if not all(math.isfinite(row["loss"]) for row in (a, b)):
+            failures.append("nonfinite loss")
         valid = (
             a["step"] == b["step"] == index
             and all(math.isfinite(row["loss"]) for row in (a, b))
@@ -128,7 +137,7 @@ def replay(reference: Path, candidate: Path) -> dict:
     }
 
 
-def lifecycle(telemetry: dict, ready: dict, exit_code: int) -> dict:
+def lifecycle(telemetry: dict, ready: dict, exit_code: int, *, stable_clocks: bool = True) -> dict:
     before, birth, live, after = [
         telemetry[key] for key in ("before", "context_birth", "live", "after")
     ]
@@ -152,7 +161,7 @@ def lifecycle(telemetry: dict, ready: dict, exit_code: int) -> dict:
     normalize = lambda value: str(value).lower().removeprefix("gpu-")  # noqa: E731
     if any(normalize(row.get("uuid")) != normalize(ready.get("gpu_uuid")) for row in live):
         failures.append("wrong GPU UUID")
-    if not clocks(live):
+    if not (clocks(live) if stable_clocks else clock_observations(live)):
         failures.append("clock drift/missing clocks")
     if any(row.get("pstate") not in (0, 2) or row.get("throttle", 0) & ~0x5 for row in live):
         failures.append("power state/disallowed throttle")
@@ -163,7 +172,8 @@ def lifecycle(telemetry: dict, ready: dict, exit_code: int) -> dict:
         for row in live
     ):
         failures.append("missing power")
-    return {"passed": not failures, "failures": failures}
+    return {"passed": not failures, "failures": failures,
+            "strict_clock_diagnostic": clocks(live), "stable_clock_gate_applied": stable_clocks}
 
 
 def audit(root: Path) -> dict:

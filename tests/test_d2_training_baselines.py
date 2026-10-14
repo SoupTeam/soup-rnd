@@ -131,7 +131,8 @@ def test_reject_modified_fixture_and_path_escape(harness, tmp_path):
         harness.verify_fixture(tmp_path)
 
 
-def test_complete_cpu_step_soup_matches_peft(harness, tmp_path, monkeypatch):
+@pytest.mark.parametrize("token_sum", [False, True])
+def test_complete_cpu_step_soup_matches_peft(harness, tmp_path, monkeypatch, token_sum):
     import torch
 
     # Text-only fixture: do not import unused sklearn/audio/vision native extensions.
@@ -159,11 +160,13 @@ def test_complete_cpu_step_soup_matches_peft(harness, tmp_path, monkeypatch):
                 steps=2,
                 warmup=20,
                 managed=False,
+                token_sum_normalization=token_sum,
             )
         )
     assert harness.compare(tmp_path / "peft", tmp_path / "soup")["passed"]
     ready = json.loads((tmp_path / "soup/ready.json").read_text())
     assert all(ready["execution"]["patch_counts"].values())
+    assert ready["execution"]["loss_normalization"] == ("token-sum" if token_sum else "mean")
     result = json.loads((tmp_path / "soup/result.json").read_text())
     assert result["performance_status"] == "CPU_SMOKE_ONLY"
 

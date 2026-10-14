@@ -51,16 +51,21 @@ def run_evidence(folder, auditor):
     return folder
 
 
-@pytest.mark.parametrize("defect", ["none", "weight", "nan", "loss", "both_missing"])
+@pytest.mark.parametrize(
+    "defect", ["none", "weight", "nan", "loss", "both_missing", "nan_loss", "wrong_step"]
+)
 def test_replay_requires_full_loss_curve_and_all_tensors(auditor, tmp_path, defect):
     import torch
     from safetensors.torch import load_file, save_file
 
     left, right = [run_evidence(tmp_path / name, auditor) for name in ("peft", "candidate")]
-    if defect == "loss":
+    if defect in ("loss", "nan_loss", "wrong_step"):
         path = right / "result.json"
         data = json.loads(path.read_text())
-        data["rows"][48]["loss"] = 1.01
+        if defect == "wrong_step":
+            data["rows"][48]["step"] = 999
+        else:
+            data["rows"][48]["loss"] = float("nan") if defect == "nan_loss" else 1.01
         path.write_text(json.dumps(data))
     elif defect != "none":
         for folder in [left, right] if defect == "both_missing" else [right]:
@@ -72,7 +77,12 @@ def test_replay_requires_full_loss_curve_and_all_tensors(auditor, tmp_path, defe
             else:
                 tensors[key] = torch.full((1,), float("nan") if defect == "nan" else 2.0)
             save_file(tensors, str(path))
-    assert auditor.replay(left, right)["passed"] == (defect == "none")
+    result = auditor.replay(left, right)
+    assert result["passed"] == (defect == "none")
+    if defect in ("nan_loss", "wrong_step"):
+        assert ("nonfinite loss" if defect == "nan_loss" else "invalid loss step sequence") in (
+            result["failures"]
+        )
 
 
 def test_absent_matrix_is_incomplete(auditor, tmp_path):
@@ -96,8 +106,10 @@ def test_replay_rejects_missing_or_mixed_execution_settings(auditor, tmp_path, d
     assert not auditor.replay(left, right)["passed"]
 
 
-@pytest.mark.parametrize("defect", ["none", "peer", "nan_power", "clock", "uuid"])
-def test_gpu_context_and_telemetry_fail_closed(auditor, defect):
+@pytest.mark.parametrize("stable_clocks", [True, False])
+@pytest.mark.parametrize("defect", [
+    "none", "peer", "nan_power", "clock", "uuid", "nan_clock", "zero_clock", "thermal"])
+def test_gpu_context_and_telemetry_fail_closed(auditor, defect, stable_clocks):
     row = {
         "available": True,
         "processes": [1234],
@@ -123,4 +135,12 @@ def test_gpu_context_and_telemetry_fail_closed(auditor, defect):
         telemetry["live"][1]["clock_mhz"] = 1900
     elif defect == "uuid":
         ready["gpu_uuid"] = "other"
-    assert auditor.lifecycle(telemetry, ready, 0)["passed"] == (defect == "none")
+    elif defect == "nan_clock":
+        telemetry["live"][1]["clock_mhz"] = float("nan")
+    elif defect == "zero_clock":
+        telemetry["live"][1]["clock_mhz"] = 0
+    elif defect == "thermal":
+        telemetry["live"][1]["throttle"] = 0x20
+    result = auditor.lifecycle(telemetry, ready, 0, stable_clocks=stable_clocks)
+    assert result["passed"] == (defect == "none" or (defect == "clock" and not stable_clocks))
+    assert result["stable_clock_gate_applied"] == stable_clocks
