@@ -98,12 +98,10 @@ def test_it_wraps_exactly_the_substitution_and_functional_call_points():
     assert set(wrappers) == {"substituted_weights", "functional_call"}
 
 
+@pytest.mark.gpu
 def test_the_default_launch_is_one_tiny_cuda_kernel():
-    pytest.importorskip("torch")
     import torch
 
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA is required")
     launch = visit_control.cuda_launch()
     launch()
     launch()

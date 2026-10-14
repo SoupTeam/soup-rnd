@@ -21,7 +21,7 @@ torch = pytest.importorskip("torch")
 
 pytestmark = [
     pytest.mark.smoke,
-    pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required"),
+    pytest.mark.gpu,
 ]
 
 HARNESS = Path(__file__).resolve().parents[1] / "benchmarks" / "harness"
