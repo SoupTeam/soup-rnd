@@ -336,6 +336,7 @@ def test_lora_accumulation_is_reported_against_the_backward_window(timer):
     assert report["inside"] + report["outside"] == 2  # one LoRA matrix per layer
     assert report["state"] in ("inside", "outside", "mixed")
     assert (report["state"] == "inside") == (report["outside"] == 0)
+    assert report["no_window"] == 0
 
 
 def test_lora_report_calls_marks_inside_and_outside_by_time(timer):
@@ -343,13 +344,44 @@ def test_lora_report_calls_marks_inside_and_outside_by_time(timer):
     step = recorder.new_step_record()
     step.windows.append((0, 100, 200))
     step.lora_marks.extend([(0, 150), (0, 200)])
-    assert recorder.lora_window_report() == {"inside": 2, "outside": 0, "state": "inside"}
+    report = recorder.lora_window_report()
+    assert (report["inside"], report["outside"], report["state"]) == (2, 0, "inside")
 
     step.lora_marks.append((0, 201))
-    assert recorder.lora_window_report() == {"inside": 2, "outside": 1, "state": "mixed"}
+    report = recorder.lora_window_report()
+    assert (report["inside"], report["outside"], report["state"]) == (2, 1, "mixed")
 
-    step.lora_marks[:] = [(0, 50), (1, 150)]  # layer 1 has no window at all
-    assert recorder.lora_window_report() == {"inside": 0, "outside": 2, "state": "outside"}
+    step.lora_marks[:] = [(0, 50), (0, 60)]
+    assert recorder.lora_window_report()["state"] == "outside"
+
+
+def test_lora_marks_of_a_layer_without_a_window_decide_nothing(timer):
+    recorder = timer.Recorder(clock=Clock())
+    step = recorder.new_step_record()
+    step.windows.append((1, 100, 200))
+    step.lora_marks.extend([(0, 50), (1, 150)])  # layer 0 has no window
+
+    report = recorder.lora_window_report()
+
+    assert report == {"inside": 1, "outside": 0, "no_window": 1, "state": "inside"}
+
+
+def test_lora_state_is_unknown_when_no_mark_could_be_judged(timer):
+    recorder = timer.Recorder(clock=Clock())
+    step = recorder.new_step_record()
+    step.windows.append((0, 100, 200))
+    assert recorder.lora_window_report()["state"] == "unknown"  # no marks at all
+
+    step.lora_marks.append((5, 150))  # a layer with no window
+    assert recorder.lora_window_report()["state"] == "unknown"
+
+
+def test_summary_counts_the_layers_that_have_a_backward_time(timer):
+    recorder = timer.Recorder(clock=Clock())
+    fake_step(recorder, 1_000_000, 1_000_000, 1_000_000, 1_000_000, layers=(0, 1, 2))
+    recorder.steps[0].windows.pop()  # one layer lost its window
+
+    assert recorder.summary(warmup=0, timed=1)["layers_with_backward"] == 2
 
 
 def test_watching_lora_gradients_removes_its_hooks(timer):

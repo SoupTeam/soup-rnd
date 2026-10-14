@@ -269,7 +269,9 @@ def worker(args: argparse.Namespace) -> int:
             return time.perf_counter() - started
         return recorder.end_step()
 
-    count = lambda: _count_linear_paths(model, step)  # noqa: E731
+    def count() -> Dict[str, int]:
+        return _count_linear_paths(model, step)
+
     if recorder is None:
         result = run_arm(step, count, warmup=args.warmup, timed=args.steps)
     else:

@@ -287,8 +287,7 @@ def test_timer_run_summarises_the_timed_steps_before_the_extra_steps(profile):
 
     profile.run_timer_arm(_steps(1.0, 1.0), count_paths, recorder, check_lora, warmup=1, timed=1)
 
-    assert order[-1] == "lora"
-    assert "summary" in order
+    assert order == ["count", "summary", "lora"]
 
 
 # --- the timer arm under the watch -----------------------------------------------------

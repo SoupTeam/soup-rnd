@@ -248,24 +248,34 @@ class Recorder:
             "layer_backward_ms": _ms_stats(backward),
             "step_ms": _ms_stats([step.ns for step in steps]),
             "two_visits_per_layer": two_visits,
+            "layers_with_backward": len({idx for step in steps for idx, _, _ in step.windows}),
         }
 
     def lora_window_report(self) -> Dict[str, Any]:
         """Whether the last step's LoRA gradient accumulations fell inside the layer backward
-        windows. A mark counts as inside when its layer has a window that contains its time."""
+        windows. A mark is inside when its layer has a window that contains its time, and
+        outside when the layer has windows that do not. Marks of a layer with no window (its
+        input needed no gradient) count as ``no_window`` and decide nothing. The state is
+        ``unknown`` when no mark could be judged."""
         step = self.steps[-1]
-        inside = 0
+        inside = outside = no_window = 0
         for idx, at in step.lora_marks:
-            if any(i == idx and start <= at <= end for i, start, end in step.windows):
+            windows = [(start, end) for i, start, end in step.windows if i == idx]
+            if not windows:
+                no_window += 1
+            elif any(start <= at <= end for start, end in windows):
                 inside += 1
-        outside = len(step.lora_marks) - inside
-        if not step.lora_marks or outside == 0:
+            else:
+                outside += 1
+        if inside + outside == 0:
+            state = "unknown"
+        elif outside == 0:
             state = "inside"
         elif inside == 0:
             state = "outside"
         else:
             state = "mixed"
-        return {"inside": inside, "outside": outside, "state": state}
+        return {"inside": inside, "outside": outside, "no_window": no_window, "state": state}
 
 
 # --- the timer arm's wrappers -----------------------------------------------------------
