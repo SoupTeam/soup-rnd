@@ -335,3 +335,68 @@ def test_control_plain_peft_gives_different_logits_for_the_same_config() -> None
             logits.append(peft_model(input_ids=ids).logits)
 
     assert not torch.allclose(logits[0], logits[1])
+
+
+# ==========================================================================
+# save and reload
+# ==========================================================================
+
+
+def _randomise_adapter(peft_model: Any) -> None:
+    gen = torch.Generator().manual_seed(9)
+    with torch.no_grad():
+        for name, param in peft_model.named_parameters():
+            if "lora_" in name:
+                param.copy_(torch.randn(param.shape, generator=gen) * 0.2)
+
+
+def _logits(model: Any) -> Any:
+    model.eval()
+    with torch.no_grad():
+        ids = torch.randint(0, 64, (2, 16), generator=torch.Generator().manual_seed(3))
+        return model(input_ids=ids).logits
+
+
+def test_a_saved_shared_expert_adapter_reloads_onto_the_shared_experts(tmp_path: Any) -> None:
+    from soup_cli.utils.peft_wiring import attach_adapter, load_adapter
+
+    model = _tiny_model()
+    trained = attach_adapter(model, _config(_SHARED_TARGETS))
+    _randomise_adapter(trained)
+    expected = _logits(trained)
+    trained.save_pretrained(tmp_path / "adapter")
+
+    reloaded = load_adapter(_tiny_model(), str(tmp_path / "adapter"))
+
+    assert _adapter_modules(reloaded) == _expected_shared_modules(model.config)
+    assert torch.equal(_logits(reloaded), expected)
+
+
+def test_an_existing_routed_expert_adapter_loads_the_way_peft_loads_it(tmp_path: Any) -> None:
+    """A v4-style ``gate_proj`` / ``up_proj`` / ``down_proj`` adapter is still peft's to convert."""
+    from peft import PeftModel, get_peft_model
+
+    from soup_cli.utils.peft_wiring import load_adapter
+
+    trained = get_peft_model(_tiny_model(), _config(["gate_proj", "up_proj", "down_proj"]))
+    _randomise_adapter(trained)
+    trained.save_pretrained(tmp_path / "adapter")
+
+    ours = load_adapter(_tiny_model(), str(tmp_path / "adapter"))
+    theirs = PeftModel.from_pretrained(_tiny_model(), str(tmp_path / "adapter"))
+
+    assert _adapter_modules(ours) == _adapter_modules(theirs)
+    assert torch.equal(_logits(ours), _logits(theirs))
+
+
+def test_the_peft_conversion_is_restored_after_a_reload(tmp_path: Any) -> None:
+    from peft.utils import transformers_weight_conversion as conversion
+
+    from soup_cli.utils.peft_wiring import attach_adapter, load_adapter
+
+    attach_adapter(_tiny_model(), _config(_SHARED_TARGETS)).save_pretrained(tmp_path / "adapter")
+    before = conversion.convert_peft_config_for_transformers
+
+    load_adapter(_tiny_model(), str(tmp_path / "adapter"))
+
+    assert conversion.convert_peft_config_for_transformers is before

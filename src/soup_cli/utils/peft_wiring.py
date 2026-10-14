@@ -15,7 +15,7 @@ import logging
 import os
 import re
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -591,21 +591,21 @@ _FUSED_MOE_PROJECTIONS = ("gate_proj", "up_proj", "down_proj")
 
 
 @contextmanager
-def _without_peft_moe_conversion(peft_config: Any) -> Iterator[None]:
-    """Skip peft's transformers-v4 to v5 target rewrite for ``peft_config`` only.
+def _without_peft_moe_conversion(skip: Callable[[Any], bool]) -> Iterator[None]:
+    """Skip peft's transformers-v4 to v5 target rewrite for the configs ``skip`` accepts.
 
     ``BaseTuner.inject_adapter`` imports ``convert_peft_config_for_transformers`` at
     call time. On a model type with a fused-expert conversion mapping it moves every
     ``gate_proj`` / ``up_proj`` / ``down_proj`` target, whatever its path, into
-    ``target_parameters`` on the routed experts. The wrapper below hands any other
-    config to the original function, and the original is restored on exit.
+    ``target_parameters`` on the routed experts. The wrapper below hands every config
+    ``skip`` rejects to the original function, and the original is restored on exit.
     """
     from peft.utils import transformers_weight_conversion as conversion
 
     original = conversion.convert_peft_config_for_transformers
 
     def convert(config: Any, *args: Any, **kwargs: Any) -> Any:
-        if config is peft_config:
+        if skip(config):
             return None
         return original(config, *args, **kwargs)
 
@@ -676,7 +676,7 @@ def attach_adapter(model: Any, peft_config: Any) -> Any:
             "them by full path, or set training.moe_lora: true for the routed experts."
         )
     peft_config.target_modules = set(shared) | set(rest)
-    with _without_peft_moe_conversion(peft_config):
+    with _without_peft_moe_conversion(lambda config: config is peft_config):
         peft_model = get_peft_model(model, peft_config)
 
     not_adapted = sorted(
@@ -687,6 +687,29 @@ def attach_adapter(model: Any, peft_config: Any) -> Any:
     if not_adapted:
         raise ValueError(f"shared-expert LoRA did not attach to {not_adapted[:3]!r}")
     return peft_model
+
+
+def _config_names_shared_experts(config: Any) -> bool:
+    targets = getattr(config, "target_modules", None)
+    if not targets:
+        return False
+    if isinstance(targets, str):
+        return _names_a_shared_expert(targets)
+    return any(_names_a_shared_expert(entry) for entry in targets)
+
+
+def load_adapter(model: Any, adapter_path: str, **kwargs: Any) -> Any:
+    """``PeftModel.from_pretrained`` that reloads a shared-expert adapter onto the shared experts.
+
+    :func:`attach_adapter` saves full module paths. peft's v4-to-v5 rewrite runs again
+    on load and would move them onto the routed experts, so it is skipped for an
+    adapter whose saved targets name ``shared_expert(s)``. Every other adapter,
+    including one trained on transformers v4, loads through peft unchanged.
+    """
+    from peft import PeftModel
+
+    with _without_peft_moe_conversion(_config_names_shared_experts):
+        return PeftModel.from_pretrained(model, adapter_path, **kwargs)
 
 
 def apply_pre_lora_patches(model: Any, base: str) -> None:
