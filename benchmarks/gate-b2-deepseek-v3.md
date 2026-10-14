@@ -137,6 +137,16 @@ Notes on the rows:
 - Arm 8 (NF4) runs on CUDA only, so it has no CPU run in CI.
 - NF4 leaves the routed experts, the router weight, the router bias and the norms at the base
   dtype. They are not quantized.
+- Store size under NF4 (computed from the released config, not measured). A BF16 DeepSeek-V3
+  store is about 1.32 TB, because the 58 MoE layers x 256 experts x 3 x 7168 x 2048 = 653.9 B
+  routed parameters stay at 2 bytes each (1.308 TB). Quantizing them too, at 0.5625 byte per
+  parameter, would give about 380 GB. Any projection that assumes a 380 GB store is conditional
+  until packed routed experts exist and pass a parity test. The ratio between the two stores
+  (about 3.47x in bytes) is not a measured slowdown. The parity and dense-70B measurements keep
+  their original scope. Packed routed experts are tracked with B1. The contract needs packed weights
+  and metadata, a dequant and GEMM consumer, cache identity and migration, reference forward and
+  backward controls, and a preflight that uses the real source dtype and the set of quantized
+  parameters. Adding suffix names alone is not enough.
 - A DeepSeek-V3 skeleton built from Hub code (`trust_remote_code: true`) is refused with a message
   to drop the flag. This is tested on CPU and is not a table column.
 
