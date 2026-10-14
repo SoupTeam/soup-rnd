@@ -224,3 +224,16 @@ def test_bare_arm_runs_the_worker_inside_the_watch(profile, tmp_path):
 def test_bare_arm_takes_only_16_32_64_or_128_tokens(profile, tmp_path, seq):
     with pytest.raises(ValueError, match="16, 32, 64 or 128"):
         _bare_arm(profile, tmp_path, seq=seq)
+
+
+def test_bare_arm_creates_the_shard_folder_before_the_watch_starts(profile, tmp_path):
+    seen = []
+
+    class CheckingWatch(FakeWatch):
+        def __enter__(self):
+            seen.append((tmp_path / "shards").is_dir())
+            return super().__enter__()
+
+    _bare_arm(profile, tmp_path, watch=CheckingWatch)
+
+    assert seen == [True]

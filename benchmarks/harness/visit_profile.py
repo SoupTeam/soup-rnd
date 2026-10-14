@@ -285,6 +285,8 @@ def run_bare_arm(
     if seq not in TOKEN_COUNTS:
         raise ValueError(f"the sequence length is 16, 32, 64 or 128; got {seq}")
     out_dir.mkdir(parents=True, exist_ok=True)
+    # The foreign reads check finds the disk from this folder, so it must exist at the start.
+    fixture.shards.mkdir(parents=True, exist_ok=True)
     stem = f"bare-{seq}"
     run_file = out_dir / f"{stem}.run.json"
     command = [
