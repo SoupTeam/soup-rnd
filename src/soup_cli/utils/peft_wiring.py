@@ -642,6 +642,16 @@ def _split_shared_expert_targets(model: Any, target_modules: Any) -> tuple[list[
     return sorted(set(shared)), rest
 
 
+def _refuse_bare_projections_beside_shared_experts(others: Any) -> None:
+    bare = [e for e in others if e.rsplit(".", 1)[-1] in _FUSED_MOE_PROJECTIONS]
+    if bare:
+        raise ValueError(
+            f"LoRA target_modules {bare!r} sit beside shared-expert targets. peft would "
+            "move them onto the routed experts, which this config did not ask for. Name "
+            "them by full path, or set training.moe_lora: true for the routed experts."
+        )
+
+
 def attach_adapter(model: Any, peft_config: Any) -> Any:
     """``get_peft_model`` that keeps shared-expert LoRA targets on the shared experts.
 
@@ -668,13 +678,8 @@ def attach_adapter(model: Any, peft_config: Any) -> Any:
             f"LoRA target_modules {target_modules!r} name shared experts, but the model "
             "has no shared_expert(s) gate_proj / up_proj / down_proj module that matches."
         )
-    bare = [e for e in rest if e.rsplit(".", 1)[-1] in _FUSED_MOE_PROJECTIONS]
-    if bare:
-        raise ValueError(
-            f"LoRA target_modules {bare!r} sit beside shared-expert targets. peft would "
-            "move them onto the routed experts, which this config did not ask for. Name "
-            "them by full path, or set training.moe_lora: true for the routed experts."
-        )
+    _refuse_bare_projections_beside_shared_experts(rest)
+    asked_for_parameters = bool(peft_config.target_parameters)
     if not isinstance(target_modules, str):
         # A regex stays a regex: peft matches it against every module, so the attention
         # half of "attention + shared expert" keeps its adapters.
@@ -682,6 +687,17 @@ def attach_adapter(model: Any, peft_config: Any) -> Any:
     with _without_peft_moe_conversion(lambda config: config is peft_config):
         peft_model = get_peft_model(model, peft_config)
 
+    routed = sorted(
+        name.rsplit(".lora_", 1)[0]
+        for name, _ in peft_model.named_parameters()
+        if "lora_" in name and ".mlp.experts." in name
+    )
+    if routed and not asked_for_parameters:
+        raise ValueError(
+            "peft put LoRA on the routed experts, which this config did not ask for "
+            f"({routed[0]!r}). Its rewrite of gate/up/down_proj targets ran despite the "
+            "bypass; a peft release may have changed it."
+        )
     not_adapted = sorted(
         name
         for name in shared
@@ -711,7 +727,17 @@ def load_adapter(model: Any, adapter_path: str, **kwargs: Any) -> Any:
     """
     from peft import PeftModel
 
-    with _without_peft_moe_conversion(_config_names_shared_experts):
+    def skip(config: Any) -> bool:
+        if not _config_names_shared_experts(config):
+            return False
+        targets = config.target_modules
+        if not isinstance(targets, str):
+            _refuse_bare_projections_beside_shared_experts(
+                [t for t in targets if not _names_a_shared_expert(t)]
+            )
+        return True
+
+    with _without_peft_moe_conversion(skip):
         return PeftModel.from_pretrained(model, adapter_path, **kwargs)
 
 

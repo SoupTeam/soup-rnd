@@ -464,3 +464,68 @@ def test_a_regex_naming_attention_and_shared_experts_keeps_both() -> None:
         for name in ("q_a_proj", "q_b_proj")
     }
     assert _adapter_modules(peft_model) == attention | _expected_shared_modules(model.config)
+
+
+# ==========================================================================
+# review fixes: the guard, moe_lora beside shared targets, a mixed saved adapter
+# ==========================================================================
+
+
+def test_routed_expert_adapters_the_config_did_not_ask_for_fail_the_attach(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If peft's rewrite ever runs anyway, the attach says so instead of training routed experts."""
+    from contextlib import nullcontext
+
+    from soup_cli.utils import peft_wiring
+
+    monkeypatch.setattr(peft_wiring, "_without_peft_moe_conversion", lambda skip: nullcontext())
+
+    with pytest.raises(ValueError, match="routed experts"):
+        peft_wiring.attach_adapter(_tiny_model(), _config(_SHARED_TARGETS))
+
+
+def test_moe_lora_beside_explicit_shared_expert_targets_is_refused() -> None:
+    """``moe_lora`` replaces ``target_modules``; the shared-expert targets would be dropped."""
+    from types import SimpleNamespace
+
+    from soup_cli.utils.moe import resolve_moe_lora_targets
+
+    tcfg = SimpleNamespace(
+        moe_lora=True,
+        lora=SimpleNamespace(r=4, dropout=0, target_modules=["shared_experts.gate_proj"]),
+    )
+
+    with pytest.raises(ValueError, match="moe_lora.*shared_experts"):
+        resolve_moe_lora_targets(_tiny_model(), tcfg, None)
+
+
+def test_moe_lora_with_auto_targets_is_unchanged() -> None:
+    from types import SimpleNamespace
+
+    from soup_cli.utils.moe import resolve_moe_lora_targets
+
+    tcfg = SimpleNamespace(
+        moe_lora=True, lora=SimpleNamespace(r=4, dropout=0, target_modules="auto")
+    )
+
+    assert resolve_moe_lora_targets(_tiny_model(), tcfg, None)
+
+
+def test_a_saved_adapter_mixing_shared_names_and_a_bare_projection_is_refused(
+    tmp_path: Any,
+) -> None:
+    import json
+
+    from soup_cli.utils.peft_wiring import attach_adapter, load_adapter
+
+    attach_adapter(_tiny_model(), _config(["shared_experts.gate_proj"])).save_pretrained(
+        tmp_path / "adapter"
+    )
+    path = tmp_path / "adapter" / "adapter_config.json"
+    saved = json.loads(path.read_text())
+    saved["target_modules"].append("down_proj")
+    path.write_text(json.dumps(saved))
+
+    with pytest.raises(ValueError, match="routed experts"):
+        load_adapter(_tiny_model(), str(tmp_path / "adapter"))
