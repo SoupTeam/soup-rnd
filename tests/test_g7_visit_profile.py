@@ -165,9 +165,7 @@ def _bare_arm(profile, tmp_path, **overrides):
     return profile.run_bare_arm(**kwargs), kwargs["runner"]
 
 
-def test_bare_arm_runs_under_a_watch_with_the_label_the_shards_and_five_checks(
-    profile, tmp_path
-):
+def test_bare_arm_runs_under_a_watch_with_the_label_the_shards_and_five_checks(profile, tmp_path):
     _bare_arm(profile, tmp_path)
 
     (made,) = FakeWatch.made
@@ -182,7 +180,7 @@ def test_bare_arm_starts_a_fresh_process_with_the_token_count_and_the_root_as_tm
 ):
     _, runner = _bare_arm(profile, tmp_path, seq=64)
 
-    (command, env), = runner.calls
+    ((command, env),) = runner.calls
     assert command[command.index("--seq") + 1] == "64"
     assert command[command.index("--batch") + 1] == "1"
     assert env["TMPDIR"] == str(tmp_path)
@@ -237,3 +235,111 @@ def test_bare_arm_creates_the_shard_folder_before_the_watch_starts(profile, tmp_
     _bare_arm(profile, tmp_path, watch=CheckingWatch)
 
     assert seen == [True]
+
+
+# --- one timer run ---------------------------------------------------------------------
+
+
+class FakeRecorder:
+    """Stands in for ``visit_timer.Recorder``: returns a canned summary and LoRA report."""
+
+    def __init__(self):
+        self.calls = []
+
+    def summary(self, warmup, timed):
+        self.calls.append(("summary", warmup, timed))
+        return {"forward_visit_ms": {"median": 1.5, "values": [1.5]}}
+
+
+def test_timer_run_has_every_field_of_a_bare_run_plus_the_timer_summary(profile):
+    recorder = FakeRecorder()
+    lora = {"inside": 3, "outside": 0, "state": "inside"}
+
+    result = profile.run_timer_arm(
+        _steps(1.0, 0.5, 0.7),
+        lambda: PATHS,
+        recorder,
+        lambda: lora,
+        warmup=1,
+        timed=2,
+    )
+
+    bare = profile.run_arm(_steps(1.0, 0.5, 0.7), lambda: PATHS, warmup=1, timed=2)
+    assert set(bare) <= set(result)
+    assert result["median_step_s"] == bare["median_step_s"]
+    assert result["timer"] == recorder.summary(1, 2)
+    assert result["lora_in_window"] == lora
+
+
+def test_timer_run_summarises_the_timed_steps_before_the_extra_steps(profile):
+    order = []
+    recorder = FakeRecorder()
+    original = recorder.summary
+    recorder.summary = lambda warmup, timed: (order.append("summary"), original(warmup, timed))[1]
+
+    def count_paths():
+        order.append("count")
+        return PATHS
+
+    def check_lora():
+        order.append("lora")
+        return {"inside": 0, "outside": 0, "state": "inside"}
+
+    profile.run_timer_arm(_steps(1.0, 1.0), count_paths, recorder, check_lora, warmup=1, timed=1)
+
+    assert order[-1] == "lora"
+    assert "summary" in order
+
+
+# --- the timer arm under the watch -----------------------------------------------------
+
+
+def test_timer_arm_is_a_fresh_process_named_timer_with_its_own_files(profile, tmp_path):
+    result, runner = _timer_arm(profile, tmp_path, seq=32)
+
+    ((command, _),) = runner.calls
+    assert command[command.index("--arm") + 1] == "timer"
+    assert command[command.index("--seq") + 1] == "32"
+    assert FakeWatch.made[0]["arm"] == "timer-32"
+    assert (tmp_path / "out" / "timer-32.run.json").is_file()
+    assert (tmp_path / "out" / "timer-32.arm.json").is_file()
+    assert result["arm"]["label"] == "RTX 3050, synthetic"
+    assert FakeWatch.made[0]["required"] == [
+        "suspend", "power", "foreign_reads", "gpu_power_limit", "swap",
+    ]  # fmt: skip
+
+
+def test_bare_and_timer_arms_of_one_round_leave_separate_jsons(profile, tmp_path):
+    _bare_arm(profile, tmp_path, round=1)
+    _timer_arm(profile, tmp_path, round=1)
+
+    names = sorted(path.name for path in (tmp_path / "out").iterdir())
+    assert names == [
+        "bare-16.arm.json", "bare-16.run.json", "timer-16.arm.json", "timer-16.run.json",
+    ]  # fmt: skip
+
+
+def test_the_bare_arm_tells_its_worker_to_run_bare(profile, tmp_path):
+    _, runner = _bare_arm(profile, tmp_path)
+
+    ((command, _),) = runner.calls
+    assert command[command.index("--arm") + 1] == "bare"
+
+
+def _timer_arm(profile, tmp_path, **overrides):
+    FakeWatch.made = []
+
+    def worker(command, env):
+        out = Path(command[command.index("--out") + 1])
+        out.write_text(json.dumps({"median_step_s": 0.3, "arm": "timer"}), encoding="utf-8")
+
+    kwargs = dict(
+        seq=16,
+        fixture=profile.Fixture(weights=tmp_path / "w", shards=tmp_path / "shards"),
+        root=tmp_path,
+        out_dir=tmp_path / "out",
+        runner=FakeRunner(worker),
+        watch=FakeWatch,
+    )
+    kwargs.update(overrides)
+    return profile.run_timer_process(**kwargs), kwargs["runner"]

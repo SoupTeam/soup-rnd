@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Profile harness for G7, the fixed cost of a streamed layer visit on short steps.
 
-This file holds the fixture and the bare arm, the base every later arm reuses.
-Three subcommands, run on the RTX 3050 laptop on mains after a reboot::
+This file holds the fixture, the bare arm and the timer arm. Three subcommands, run on
+the RTX 3050 laptop on mains after a reboot::
 
     python benchmarks/harness/visit_profile.py fixture --root /var/tmp/g7
     python benchmarks/harness/visit_profile.py arm --root /var/tmp/g7 --seq 16 \\
-        --out-dir /var/tmp/g7/out
+        --out-dir /var/tmp/g7/out [--arm timer]
     python benchmarks/harness/visit_profile.py run ...    # the worker ``arm`` starts
 
 ``fixture`` writes the synthetic ``llama-8b`` checkpoint with the GPU hidden (the
@@ -15,11 +15,14 @@ on a disk under ``--root``. The step probe accepts a shard folder only under the
 directory, the working directory or the temp directory, and the system temp directory
 here is RAM-backed. So ``arm`` starts its worker with ``TMPDIR`` set to ``--root``.
 
-``arm`` runs one bare arm, with no instruments, in a fresh process. ``G7ArmWatch``
-watches it with the label "RTX 3050, synthetic", the shard folder as the model path and
-five required checks. The worker writes ``bare-<seq>.run.json`` with the step times and
-the fused and old dequantization path counts. The driver writes ``bare-<seq>.arm.json``
-with the arm record.
+``arm`` runs one arm in a fresh process: ``bare`` (the default) has no instruments, and
+``timer`` installs ``visit_timer``'s patches inside the process. ``G7ArmWatch`` watches it
+with the label "RTX 3050, synthetic", the shard folder as the model path and five required
+checks. The worker writes ``<arm>-<seq>.run.json`` with the step times and the fused and old
+dequantization path counts, and the timer arm adds its per-visit, per-backward and per-step
+times and whether LoRA gradient accumulation falls inside the layer backward window. The
+driver writes ``<arm>-<seq>.arm.json`` with the arm record. A bare and a timer arm of one
+round leave separate files, so the validity row "timer is free" reads both JSONs.
 
 Benchmark harness code, not shipped. Heavy dependencies are imported inside the worker.
 """
@@ -59,6 +62,9 @@ LABEL = "RTX 3050, synthetic"
 #: Tokens per step. Batch is 1, so they equal the sequence length.
 TOKEN_COUNTS = (16, 32, 64, 128)
 BATCH = 1
+
+#: The arms this file runs. The profile and control arms come with ticket 04.
+ARMS = ("bare", "timer")
 
 #: The step probe's defaults: 8 timed steps after 3 warm-up steps.
 TIMED_STEPS = 8
@@ -153,6 +159,27 @@ def run_arm(
     }
 
 
+def run_timer_arm(
+    step: Callable[[], float],
+    count_paths: Callable[[], Dict[str, int]],
+    recorder: Any,
+    check_lora: Callable[[], Dict[str, Any]],
+    *,
+    warmup: int,
+    timed: int,
+) -> Dict[str, Any]:
+    """A bare run's fields plus the recorder's summary of the timed steps.
+
+    ``check_lora`` runs one more step with the LoRA gradient hooks on and reports whether the
+    accumulation fell inside the layer backward window. It runs last, so those hooks never
+    touch a timed step.
+    """
+    result = run_arm(step, count_paths, warmup=warmup, timed=timed)
+    result["timer"] = recorder.summary(warmup, timed)
+    result["lora_in_window"] = check_lora()
+    return result
+
+
 def _count_linear_paths(model: Any, step: Callable[[], float]) -> Dict[str, int]:
     """Run one more step and count the Linear layers that took the fused path and the old one.
 
@@ -191,8 +218,10 @@ def worker(args: argparse.Namespace) -> int:
     import stream_probe
     import torch
     import transformers
+    import visit_timer
 
     from soup_cli.utils.layer_stream import resolve_stream_dtype
+    from soup_cli.utils.layer_stream_runtime import decoder_owner
 
     if not torch.cuda.is_available():
         console.print("SKIP: CUDA is required")
@@ -222,25 +251,42 @@ def worker(args: argparse.Namespace) -> int:
         0, int(config.vocab_size), (BATCH, args.seq), generator=generator, device=device
     )
 
+    timer = args.arm == "timer"
+    recorder = visit_timer.Recorder() if timer else None
+
     def step() -> float:
         torch.cuda.synchronize()
-        started = time.perf_counter()
+        if recorder is None:
+            started = time.perf_counter()
+        else:
+            recorder.begin_step()
         out = model(input_ids=ids, labels=ids)
         out.loss.backward()
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
         torch.cuda.synchronize()
-        return time.perf_counter() - started
+        if recorder is None:
+            return time.perf_counter() - started
+        return recorder.end_step()
 
-    result = run_arm(
-        step,
-        lambda: _count_linear_paths(model, step),
-        warmup=args.warmup,
-        timed=args.steps,
-    )
+    count = lambda: _count_linear_paths(model, step)  # noqa: E731
+    if recorder is None:
+        result = run_arm(step, count, warmup=args.warmup, timed=args.steps)
+    else:
+        layers = list(decoder_owner(model).layers)
+
+        def check_lora() -> Dict[str, Any]:
+            with visit_timer.watch_lora_gradients(layers, recorder):
+                step()
+            return recorder.lora_window_report()
+
+        with visit_timer.install_patches(layers, visit_timer.timer_wrappers(recorder)):
+            result = run_timer_arm(
+                step, count, recorder, check_lora, warmup=args.warmup, timed=args.steps
+            )
     result.update(
         {
-            "arm": "bare",
+            "arm": args.arm,
             "label": LABEL,
             "tokens_per_step": BATCH * args.seq,
             "batch": BATCH,
@@ -263,8 +309,9 @@ def worker(args: argparse.Namespace) -> int:
 # --- one bare arm, in the driver -------------------------------------------------------
 
 
-def run_bare_arm(
+def run_arm_process(
     *,
+    arm: str,
     seq: int,
     fixture: Fixture,
     root: Path,
@@ -276,21 +323,24 @@ def run_bare_arm(
     runner: Runner = run_process,
     watch: Callable[..., ContextManager[Watched]] = G7ArmWatch,
 ) -> Dict[str, Any]:
-    """Run one bare arm at ``seq`` tokens in a fresh process under the arm watch.
+    """Run one ``arm`` (bare or timer) at ``seq`` tokens in a fresh process under the arm watch.
 
     The worker's ``TMPDIR`` is ``root``, a directory on the NVMe disk. Writes
-    ``bare-<seq>.run.json`` (the worker's) and ``bare-<seq>.arm.json`` (the arm record)
+    ``<arm>-<seq>.run.json`` (the worker's) and ``<arm>-<seq>.arm.json`` (the arm record)
     into ``out_dir`` and returns both.
     """
+    if arm not in ARMS:
+        raise ValueError(f"the arm is one of {', '.join(ARMS)}; got {arm}")
     if seq not in TOKEN_COUNTS:
         raise ValueError(f"the sequence length is 16, 32, 64 or 128; got {seq}")
     out_dir.mkdir(parents=True, exist_ok=True)
     # The foreign reads check finds the disk from this folder, so it must exist at the start.
     fixture.shards.mkdir(parents=True, exist_ok=True)
-    stem = f"bare-{seq}"
+    stem = f"{arm}-{seq}"
     run_file = out_dir / f"{stem}.run.json"
     command = [
         sys.executable, str(HERE / "visit_profile.py"), "run",
+        "--arm", arm,
         "--weights", str(fixture.weights),
         "--shards", str(fixture.shards),
         "--seq", str(seq),
@@ -315,6 +365,16 @@ def run_bare_arm(
     return {"run": json.loads(run_file.read_text(encoding="utf-8")), "arm": record}
 
 
+def run_bare_arm(**kwargs: Any) -> Dict[str, Any]:
+    """``run_arm_process`` for the bare arm, with no instruments."""
+    return run_arm_process(arm="bare", **kwargs)
+
+
+def run_timer_process(**kwargs: Any) -> Dict[str, Any]:
+    """``run_arm_process`` for the timer arm: the nanosecond clock, no profiler."""
+    return run_arm_process(arm="timer", **kwargs)
+
+
 # --- command line ----------------------------------------------------------------------
 
 
@@ -329,12 +389,14 @@ def _parser() -> argparse.ArgumentParser:
     arm.add_argument("--root", type=Path, required=True, help="the fixture root")
     arm.add_argument("--seq", type=int, required=True, choices=TOKEN_COUNTS)
     arm.add_argument("--out-dir", type=Path, required=True, help="where the two JSON files go")
+    arm.add_argument("--arm", choices=ARMS, default="bare")
     arm.add_argument("--round", type=int, default=1)
     arm.add_argument("--run", type=int, default=1)
     arm.add_argument("--steps", type=int, default=TIMED_STEPS)
     arm.add_argument("--warmup", type=int, default=WARMUP_STEPS)
 
     work = sub.add_parser("run", help="the worker: one run in this process")
+    work.add_argument("--arm", choices=ARMS, default="bare")
     work.add_argument("--weights", type=Path, required=True)
     work.add_argument("--shards", type=Path, required=True)
     work.add_argument("--seq", type=int, required=True, choices=TOKEN_COUNTS)
@@ -354,7 +416,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.command == "run":
         return worker(args)
     root = args.root.resolve()
-    result = run_bare_arm(
+    result = run_arm_process(
+        arm=args.arm,
         seq=args.seq,
         fixture=fixture_paths(root),
         root=root,
@@ -365,7 +428,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         warmup=args.warmup,
     )
     console.print(
-        f"bare arm at {args.seq} tokens: median step {result['run']['median_step_s']:.4f} s, "
+        f"{args.arm} arm at {args.seq} tokens: median step {result['run']['median_step_s']:.4f} s, "
         f"outcome {result['arm']['outcome']}"
     )
     for name, check in result["arm"]["checks"].items():
