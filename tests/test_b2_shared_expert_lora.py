@@ -279,3 +279,59 @@ def test_streamed_nf4_shared_expert_lora_matches_resident_nf4(
         assert shared <= parity.quantized[idx]
         assert shared <= parity.resident_quantized[idx]
     _assert_shared_parity(parity)
+
+
+# ==========================================================================
+# differing controls: the checks above can fail
+# ==========================================================================
+
+
+def _nudge_one_shared_expert_adapter(streamed: Any) -> None:
+    from tests.test_b2_deepseek_v3_stream import _lora_params
+
+    named = [n for n in sorted(_lora_params(streamed)) if "shared_experts.up_proj.lora_B" in n]
+    assert named
+    with torch.no_grad():
+        _lora_params(streamed)[named[0]].add_(0.1)
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.usefixtures("deterministic")
+@pytest.mark.parametrize("device", _DEVICES)
+def test_control_a_perturbed_shared_expert_adapter_changes_logits_and_gradients(
+    tmp_path: Any, device: str
+) -> None:
+    parity = _run_parity(
+        tmp_path,
+        device=device,
+        experts="eager",
+        lora_config=lambda weights: _config(_SHARED_TARGETS),
+        edit_streamed=_nudge_one_shared_expert_adapter,
+    )
+
+    assert not parity.forward_equal(), parity.report()
+    assert parity.backward_mismatches(), parity.report()
+
+
+def test_control_plain_peft_gives_different_logits_for_the_same_config() -> None:
+    """peft's default path adapts the routed experts, so the model it builds is another model."""
+    from peft import get_peft_model
+
+    from soup_cli.utils.peft_wiring import attach_adapter
+
+    torch.manual_seed(15)
+    ids = torch.randint(0, 64, (2, 16))
+    logits = []
+    for attach in (get_peft_model, attach_adapter):
+        model = _tiny_model()
+        peft_model = attach(model, _config(_SHARED_TARGETS))
+        gen = torch.Generator().manual_seed(5)
+        with torch.no_grad():
+            for name, param in peft_model.named_parameters():
+                if "lora_B" in name:
+                    param.copy_(torch.randn(param.shape, generator=gen) * 0.2)
+        peft_model.eval()
+        with torch.no_grad():
+            logits.append(peft_model(input_ids=ids).logits)
+
+    assert not torch.allclose(logits[0], logits[1])
