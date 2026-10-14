@@ -1,5 +1,10 @@
 # D2 complete LoRA step: PEFT, Soup, Liger, Unsloth — 2026-10-14
 
+Historical strict experiment. A later, separately declared
+[stack-v3 comparison](d2-stack-comparison-20261014.md) collected full-step timings
+under observed GPU Boost with numerical drift disclosed. Its results do not
+change the strict FAILs recorded below.
+
 **Decision: external-baseline numerical gates failed; full-step speed is unproven.**
 All four real GPU stacks completed 50 training updates in FP16 and BF16 on one
 RTX 3090. In the deterministic execution control, Soup matched PEFT exactly in
