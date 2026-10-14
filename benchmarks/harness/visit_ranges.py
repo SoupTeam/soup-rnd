@@ -20,7 +20,7 @@ Benchmark harness code, not shipped. ``torch`` is imported inside the functions.
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable, Dict, Iterator, List, Sequence
+from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Sequence
 
 import trace_analyser
 import visit_timer
@@ -142,11 +142,44 @@ class RangePatches:
         self.remove()
 
 
-def install_ranges(layers: Sequence[Any]) -> RangePatches:
-    """Install the profile arm's ranges on every layer in ``layers``."""
+def _layered(
+    ranges: Mapping[str, visit_timer.Wrapper],
+    outer: Mapping[str, visit_timer.Wrapper],
+    inner: Mapping[str, visit_timer.Wrapper],
+) -> Dict[str, visit_timer.Wrapper]:
+    """One wrapper per point: ``outer`` around the range around ``inner`` around the original.
+    A point named only in ``outer`` or ``inner`` gets that wrapper alone."""
+
+    def stack(*wrappers: Optional[visit_timer.Wrapper]) -> visit_timer.Wrapper:
+        chain = [wrap for wrap in wrappers if wrap is not None]
+
+        def wrap(orig: Callable[..., Any]) -> Callable[..., Any]:
+            for one in reversed(chain):
+                orig = one(orig)
+            return orig
+
+        return wrap
+
+    points = [*ranges, *(p for p in (*outer, *inner) if p not in ranges)]
+    return {p: stack(outer.get(p), ranges.get(p), inner.get(p)) for p in points}
+
+
+def install_ranges(
+    layers: Sequence[Any],
+    *,
+    outer: Optional[Mapping[str, visit_timer.Wrapper]] = None,
+    inner: Optional[Mapping[str, visit_timer.Wrapper]] = None,
+) -> RangePatches:
+    """Install the profile arm's ranges on every layer in ``layers``.
+
+    The control arm adds its own wrappers through ``outer`` (the timer's, around the ranges)
+    and ``inner`` (the injections, inside them). Both are ``install_patches`` wrappers.
+    """
     record_function = _record_function()
     state = RangeState()
-    patches = visit_timer.install_patches(layers, range_wrappers(state))
+    patches = visit_timer.install_patches(
+        layers, _layered(range_wrappers(state), outer or {}, inner or {})
+    )
     inners: List[Any] = []
 
     def ranged_forward(original: Callable[..., Any]) -> Callable[..., Any]:
@@ -158,11 +191,11 @@ def install_ranges(layers: Sequence[Any]) -> RangePatches:
 
     try:
         for layer in layers:
-            inner = layer.inner
-            if "forward" in vars(inner):
-                raise RuntimeError(f"{inner!r} already has an instance forward")
-            inner.forward = ranged_forward(inner.forward)
-            inners.append(inner)
+            module = layer.inner
+            if "forward" in vars(module):
+                raise RuntimeError(f"{module!r} already has an instance forward")
+            module.forward = ranged_forward(module.forward)
+            inners.append(module)
     except BaseException:
         RangePatches(patches, inners, state).remove()
         raise

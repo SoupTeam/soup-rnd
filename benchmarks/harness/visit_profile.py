@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Profile harness for G7, the fixed cost of a streamed layer visit on short steps.
 
-This file holds the fixture, the bare arm, the timer arm and the profile arm. Three
+This file holds the fixture, the bare arm, the timer arm, the profile arm and the control arm. Three
 subcommands, run on the RTX 3050 laptop on mains after a reboot::
 
     python benchmarks/harness/visit_profile.py fixture --root /var/tmp/g7
     python benchmarks/harness/visit_profile.py arm --root /var/tmp/g7 --seq 16 \\
-        --out-dir /var/tmp/g7/out [--arm timer|profile]
+        --out-dir /var/tmp/g7/out [--arm timer|profile|control]
     python benchmarks/harness/visit_profile.py run ...    # the worker ``arm`` starts
 
 ``fixture`` writes the synthetic ``llama-8b`` checkpoint with the GPU hidden (the
@@ -21,14 +21,16 @@ here is RAM-backed. So ``arm`` starts its worker with ``TMPDIR`` set to ``--root
 steps. The profile arm profiles ``PROFILE_STEPS`` steps by default, because eight steps of
 a 32-layer model make a trace of hundreds of megabytes. ``G7ArmWatch`` watches it
 with the label "RTX 3050, synthetic", the shard folder as the model path and five required
-checks. The worker writes ``<arm>-<seq>.run.json`` with the step times and the fused and old
-dequantization path counts, and the timer arm adds its per-visit, per-backward and per-step
-times and whether LoRA gradient accumulation falls inside the layer backward window. The
-profile worker exports the trace, and the driver, after the arm watch has closed, cuts it with
-``trace_analyser`` into the ``profile`` field of the run JSON (parts, kernel time, launches,
-reconciliation) and notes, then deletes the trace unless ``--keep-trace``. The driver writes
-``<arm>-<seq>.arm.json`` with the arm record. A bare and a timer arm of one round leave
-separate files, so the validity row "timer is free" reads both JSONs.
+checks. The control arm (16 tokens only) is the timer and the profile together with two known
+delays from ``visit_control`` added: a 200 us spin in weight preparation and 50 trivial launches
+inside ``functional_call``. The worker writes ``<arm>-<seq>.run.json`` with the step times and
+the fused and old dequantization path counts, and the timer arm adds its per-visit,
+per-backward and per-step times and whether LoRA gradient accumulation falls inside the
+layer backward window. The profile worker exports the trace, and the driver, after the arm
+watch has closed, cuts it with ``trace_analyser`` into the ``profile`` field of the run JSON
+(parts, kernel time, launches, reconciliation) and notes, then deletes the trace unless
+``--keep-trace``. The driver writes ``<arm>-<seq>.arm.json`` with the arm record. A bare and a
+timer arm of one round leave separate files, so the validity row "timer is free" reads both JSONs.
 
 Benchmark harness code, not shipped. Heavy dependencies are imported inside the worker.
 """
@@ -70,8 +72,12 @@ LABEL = "RTX 3050, synthetic"
 TOKEN_COUNTS = (16, 32, 64, 128)
 BATCH = 1
 
-#: The arms this file runs. The control arm comes with ticket 05.
-ARMS = ("bare", "timer", "profile")
+ARMS = ("bare", "timer", "profile", "control")
+#: The arms that run the PyTorch profiler, and the arms that run the timer.
+PROFILED_ARMS = ("profile", "control")
+TIMED_ARMS = ("timer", "control")
+#: The control arm runs at this token count only.
+CONTROL_TOKENS = 16
 
 #: The step probe's defaults: 8 timed steps after 3 warm-up steps.
 TIMED_STEPS = 8
@@ -197,16 +203,18 @@ def run_profile_arm(
     warmup: int,
     timed: int,
     trace_file: str,
+    recorder: Any = None,
 ) -> Dict[str, Any]:
     """A bare run's fields for a profile arm: ``warmup`` untimed steps, then ``timed`` steps
     inside ``capture``, which runs them under the profiler and exports the trace to
-    ``trace_file``. The analysis happens later, in the driver."""
+    ``trace_file``. The analysis happens later, in the driver. The control arm passes its
+    ``recorder``, and the run gets its timer summary of the same timed steps."""
     if timed < 1:
         raise ValueError(f"need at least one timed step, got {timed}")
     for _ in range(warmup):
         step()
     seconds = capture(lambda: [step() for _ in range(timed)])
-    return {
+    result = {
         "median_step_s": statistics.median(seconds),
         "step_s": seconds,
         "timed_steps": timed,
@@ -214,6 +222,9 @@ def run_profile_arm(
         "linear_paths": count_paths(),
         "trace_file": trace_file,
     }
+    if recorder is not None:
+        result["timer"] = recorder.summary(warmup, timed)
+    return result
 
 
 def analyse_trace_file(path: Path) -> Dict[str, Any]:
@@ -286,6 +297,7 @@ def worker(args: argparse.Namespace) -> int:
     import stream_probe
     import torch
     import transformers
+    import visit_control
     import visit_ranges
     import visit_timer
 
@@ -320,10 +332,8 @@ def worker(args: argparse.Namespace) -> int:
         0, int(config.vocab_size), (BATCH, args.seq), generator=generator, device=device
     )
 
-    timer = args.arm == "timer"
-    recorder = visit_timer.Recorder() if timer else None
-
-    profiling = args.arm == "profile"
+    recorder = visit_timer.Recorder() if args.arm in TIMED_ARMS else None
+    profiling = args.arm in PROFILED_ARMS
 
     def step() -> float:
         torch.cuda.synchronize()
@@ -359,10 +369,15 @@ def worker(args: argparse.Namespace) -> int:
             return seconds
 
         layers = list(decoder_owner(model).layers)
-        with visit_ranges.install_ranges(layers):
+        if recorder is None:
+            outer, inner = {}, {}
+        else:
+            outer = visit_timer.timer_wrappers(recorder)
+            inner = visit_control.control_wrappers()
+        with visit_ranges.install_ranges(layers, outer=outer, inner=inner):
             result = run_profile_arm(
                 step, count, capture, warmup=args.warmup, timed=args.steps,
-                trace_file=str(trace_file),
+                trace_file=str(trace_file), recorder=recorder,
             )  # fmt: skip
     elif recorder is None:
         result = run_arm(step, count, warmup=args.warmup, timed=args.steps)
@@ -424,15 +439,18 @@ def run_arm_process(
     The worker's ``TMPDIR`` is ``root``, a directory on the NVMe disk. Writes
     ``<arm>-<seq>.run.json`` (the worker's) and ``<arm>-<seq>.arm.json`` (the arm record)
     into ``out_dir`` and returns both. ``steps`` defaults to ``PROFILE_STEPS`` for the profile
-    arm and ``TIMED_STEPS`` for the others. For the profile arm, ``analyse`` cuts the trace
-    once the watch has closed, and the run JSON gets the ``profile`` field and ``notes``.
+    and control arms and ``TIMED_STEPS`` for the others. For those two, ``analyse`` cuts the
+    trace once the watch has closed, and the run JSON gets the ``profile`` field and ``notes``.
+    The control arm runs at 16 tokens only.
     """
     if arm not in ARMS:
         raise ValueError(f"the arm is one of {', '.join(ARMS)}; got {arm}")
     if seq not in TOKEN_COUNTS:
         raise ValueError(f"the sequence length is 16, 32, 64 or 128; got {seq}")
+    if arm == "control" and seq != CONTROL_TOKENS:
+        raise ValueError(f"the control arm runs at {CONTROL_TOKENS} tokens only; got {seq}")
     if steps is None:
-        steps = PROFILE_STEPS if arm == "profile" else TIMED_STEPS
+        steps = PROFILE_STEPS if arm in PROFILED_ARMS else TIMED_STEPS
     out_dir.mkdir(parents=True, exist_ok=True)
     # The foreign reads check finds the disk from this folder, so it must exist at the start.
     fixture.shards.mkdir(parents=True, exist_ok=True)
@@ -463,7 +481,7 @@ def run_arm_process(
     arm_file = out_dir / f"{stem}.arm.json"
     arm_file.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     result: Dict[str, Any] = json.loads(run_file.read_text(encoding="utf-8"))
-    if arm == "profile":
+    if arm in PROFILED_ARMS:
         trace_file = Path(result["trace_file"])
         result["profile"] = analyse(trace_file)
         result["notes"] = profile_notes(result["profile"])
@@ -482,6 +500,11 @@ def run_bare_arm(**kwargs: Any) -> Dict[str, Any]:
 def run_profile_process(**kwargs: Any) -> Dict[str, Any]:
     """``run_arm_process`` for the profile arm: named ranges and the PyTorch profiler."""
     return run_arm_process(arm="profile", **kwargs)
+
+
+def run_control_process(**kwargs: Any) -> Dict[str, Any]:
+    """``run_arm_process`` for the control arm: timer and profile with the two injections."""
+    return run_arm_process(arm="control", **kwargs)
 
 
 def run_timer_process(**kwargs: Any) -> Dict[str, Any]:

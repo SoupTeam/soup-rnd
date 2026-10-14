@@ -465,3 +465,92 @@ def test_the_trace_file_loader_reads_the_trace_events_list(profile, tmp_path):
     analysis = profile.analyse_trace_file(path)
 
     assert analysis["summary"]["forward"]["host_ms"] == pytest.approx(0.5)
+
+
+# --- control arm ----------------------------------------------------------------------
+
+
+def _control_arm(profile, tmp_path, **overrides):
+    overrides.setdefault("seq", 16)
+    arm = overrides.pop("arm", "control")
+    FakeWatch.made = []
+
+    def worker(command, env):
+        out = Path(command[command.index("--out") + 1])
+        trace = out.with_name(f"{arm}-16.trace.json")
+        trace.write_text("{}", encoding="utf-8")
+        out.write_text(
+            json.dumps({"median_step_s": 0.3, "trace_file": str(trace)}), encoding="utf-8"
+        )
+
+    kwargs = dict(
+        fixture=profile.Fixture(weights=tmp_path / "w", shards=tmp_path / "shards"),
+        root=tmp_path,
+        out_dir=tmp_path / "out",
+        runner=FakeRunner(worker),
+        watch=FakeWatch,
+        analyse=lambda path: ANALYSIS,
+    )
+    kwargs.update(overrides)
+    return profile.run_arm_process(arm=arm, **kwargs), kwargs["runner"]
+
+
+def test_control_is_one_of_the_arms(profile):
+    assert "control" in profile.ARMS
+
+
+def test_control_arm_runs_in_a_fresh_process_named_control(profile, tmp_path):
+    result, runner = _control_arm(profile, tmp_path)
+    command = runner.calls[0][0]
+    assert command[command.index("--arm") + 1] == "control"
+    assert (tmp_path / "out" / "control-16.run.json").exists()
+    assert (tmp_path / "out" / "control-16.arm.json").exists()
+
+
+def test_control_arm_profiles_three_steps_and_analyses_the_trace(profile, tmp_path):
+    result, runner = _control_arm(profile, tmp_path)
+    command = runner.calls[0][0]
+    assert command[command.index("--steps") + 1] == str(profile.PROFILE_STEPS)
+    assert result["run"]["profile"] == ANALYSIS
+    assert "trace_file" not in result["run"]
+
+
+def test_control_arm_runs_at_16_tokens_only(profile, tmp_path):
+    for seq in (32, 64, 128):
+        with pytest.raises(ValueError, match="16"):
+            _control_arm(profile, tmp_path, seq=seq)
+
+
+def test_control_run_has_the_timer_summary_beside_the_profile_fields(profile):
+    recorder = FakeRecorder()
+    captured = []
+
+    def capture(body):
+        captured.append(body())
+        return captured[0]
+
+    result = profile.run_profile_arm(
+        _steps(1.0, 0.5, 0.7, 0.6),
+        lambda: PATHS,
+        capture,
+        warmup=1,
+        timed=3,
+        trace_file="t.json",
+        recorder=recorder,
+    )
+
+    assert result["timer"] == {"forward_visit_ms": {"median": 1.5, "values": [1.5]}}
+    assert recorder.calls == [("summary", 1, 3)]
+    assert result["trace_file"] == "t.json"
+
+
+def test_a_profile_run_without_a_recorder_has_no_timer_field(profile):
+    result = profile.run_profile_arm(
+        _steps(1.0, 0.5),
+        lambda: PATHS,
+        lambda body: body(),
+        warmup=1,
+        timed=1,
+        trace_file="t.json",
+    )
+    assert "timer" not in result

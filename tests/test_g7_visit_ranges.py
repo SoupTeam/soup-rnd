@@ -119,3 +119,66 @@ def test_a_step_with_ranges_gives_the_same_loss_gradient_as_one_without():
     with visit_ranges.install_ranges(layers):
         ranged = grad()
     assert all(torch.equal(a, b) for a, b in zip(plain, ranged))
+
+
+def test_injected_wrappers_run_inside_the_weight_preparation_range(tmp_path):
+    import time
+
+    layers = make_layers(2)
+
+    def spin(orig):
+        def wrapped(*args, **kwargs):
+            end = time.perf_counter_ns() + 2_000_000
+            while time.perf_counter_ns() < end:
+                pass
+            return orig(*args, **kwargs)
+
+        return wrapped
+
+    with visit_ranges.install_ranges(layers):
+        events = profiled_events(layers, tmp_path, steps=1)
+    plain = trace_analyser.analyse_trace(events)["summary"]["forward"]["weight_prep_ms"]
+    with visit_ranges.install_ranges(layers, inner={"substituted_weights": spin}):
+        events = profiled_events(layers, tmp_path, steps=1)
+    spun = trace_analyser.analyse_trace(events)["summary"]["forward"]["weight_prep_ms"]
+
+    assert spun - plain >= 1.5
+
+
+def test_outer_wrappers_surround_the_range_and_inner_ones_sit_inside_it():
+    layers = make_layers(1)
+    log = []
+
+    def mark(label):
+        def wrap(orig):
+            def wrapped(*args, **kwargs):
+                log.append(f"{label} in")
+                try:
+                    return orig(*args, **kwargs)
+                finally:
+                    log.append(f"{label} out")
+
+            return wrapped
+
+        return wrap
+
+    with visit_ranges.install_ranges(
+        layers, outer={"body": mark("outer")}, inner={"body": mark("inner")}
+    ):
+        run_step(layers)
+
+    assert log[0] == "outer in" and log[1] == "inner in"
+    assert log.index("inner out") < log.index("outer out")
+
+
+def test_a_point_wrapped_by_all_three_is_restored(tmp_path):
+    layers = make_layers(1)
+    cls = type(layers[0])
+    before = cls.__dict__["_body"]
+
+    with visit_ranges.install_ranges(
+        layers, outer={"body": lambda o: o}, inner={"body": lambda o: o}
+    ):
+        pass
+
+    assert cls.__dict__["_body"] is before

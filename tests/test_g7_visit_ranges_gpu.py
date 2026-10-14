@@ -102,3 +102,33 @@ def test_ranges_install_appear_in_a_cuda_trace_and_leave_the_step_bit_equal(stre
     assert torch.equal(loss, base_loss)
     assert len(grads) == len(base_grads) > 0
     assert all(torch.equal(a, b) for a, b in zip(grads, base_grads))
+
+
+def test_control_injections_show_up_as_50_launches_and_about_200_us_per_visit(streamed, tmp_path):
+    import trace_analyser
+    import visit_control
+    import visit_ranges
+    from torch.profiler import ProfilerActivity, profile
+
+    from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+    model, ids = streamed
+    layers = list(decoder_owner(model).layers)
+
+    def forward_summary(**wrappers):
+        with visit_ranges.install_ranges(layers, **wrappers):
+            one_step(model, ids)  # warm up
+            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+                with visit_ranges.step_range():
+                    one_step(model, ids)
+        trace = tmp_path / "trace.json"
+        prof.export_chrome_trace(str(trace))
+        events = json.loads(trace.read_text(encoding="utf-8"))["traceEvents"]
+        return trace_analyser.analyse_trace(events)["summary"]["forward"]
+
+    base = forward_summary()
+    injected = forward_summary(inner=visit_control.control_wrappers())
+
+    assert injected["launches_total"] - base["launches_total"] == 50
+    prep_delta_ms = injected["weight_prep_ms"] - base["weight_prep_ms"]
+    assert 0.16 <= prep_delta_ms <= 0.24
