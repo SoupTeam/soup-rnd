@@ -342,3 +342,126 @@ def _timer_arm(profile, tmp_path, **overrides):
     )
     kwargs.update(overrides)
     return profile.run_timer_process(**kwargs), kwargs["runner"]
+
+
+# --- the profile arm -------------------------------------------------------------------
+
+
+def test_profile_run_profiles_only_the_timed_steps_and_names_the_trace(profile):
+    order = []
+
+    def step():
+        order.append("step")
+        return 0.5
+
+    def capture(body):
+        order.append("capture")
+        return body()
+
+    result = profile.run_profile_arm(
+        step, lambda: PATHS, capture, warmup=2, timed=3, trace_file="/x/profile-16.trace.json"
+    )
+
+    assert order == ["step", "step", "capture", "step", "step", "step"]
+    assert result["step_s"] == [0.5, 0.5, 0.5]
+    assert result["median_step_s"] == 0.5
+    assert result["linear_paths"] == PATHS
+    assert result["trace_file"] == "/x/profile-16.trace.json"
+
+
+ANALYSIS = {
+    "summary": {"forward": {"count": 96}},
+    "reconciliation": {"ok": True, "gap_fraction": 0.01},
+    "memcpy_sources": {"aten::to > aten::copy_": 4},
+}
+
+
+def _profile_arm(profile, tmp_path, analyse=None, **overrides):
+    FakeWatch.made = []
+    seen = []
+
+    class OrderedWatch(FakeWatch):
+        def __exit__(self, *exc_info):
+            seen.append("watch closed")
+            super().__exit__(*exc_info)
+
+    def worker(command, env):
+        out = Path(command[command.index("--out") + 1])
+        trace = out.with_name("profile-16.trace.json")
+        trace.write_text("{}", encoding="utf-8")
+        out.write_text(
+            json.dumps({"median_step_s": 0.3, "trace_file": str(trace)}), encoding="utf-8"
+        )
+
+    def fake_analyse(path):
+        seen.append(("analyse", Path(path).name))
+        return ANALYSIS
+
+    kwargs = dict(
+        seq=16,
+        fixture=profile.Fixture(weights=tmp_path / "w", shards=tmp_path / "shards"),
+        root=tmp_path,
+        out_dir=tmp_path / "out",
+        runner=FakeRunner(worker),
+        watch=OrderedWatch,
+        analyse=analyse or fake_analyse,
+    )
+    kwargs.update(overrides)
+    return profile.run_arm_process(arm="profile", **kwargs), kwargs["runner"], seen
+
+
+def test_profile_arm_profiles_three_steps_by_default_in_a_fresh_process(profile, tmp_path):
+    _, runner, _ = _profile_arm(profile, tmp_path)
+
+    ((command, _),) = runner.calls
+    assert command[command.index("--arm") + 1] == "profile"
+    assert command[command.index("--steps") + 1] == "3"
+    assert FakeWatch.made[0]["arm"] == "profile-16"
+
+
+def test_profile_arm_analyses_the_trace_after_the_watch_has_closed(profile, tmp_path):
+    result, _, seen = _profile_arm(profile, tmp_path)
+
+    assert seen == ["watch closed", ("analyse", "profile-16.trace.json")]
+    assert result["run"]["profile"] == ANALYSIS
+    saved = json.loads((tmp_path / "out" / "profile-16.run.json").read_text(encoding="utf-8"))
+    assert saved["profile"] == ANALYSIS
+
+
+def test_profile_arm_names_the_device_to_device_copy_source_in_the_notes(profile, tmp_path):
+    result, _, _ = _profile_arm(profile, tmp_path)
+
+    notes = " ".join(result["run"]["notes"])
+    assert "aten::to > aten::copy_" in notes
+    assert "device-to-device" in notes
+
+
+def test_profile_arm_notes_name_the_peft_clone_as_the_source_of_the_copies(profile, tmp_path):
+    result, _, _ = _profile_arm(profile, tmp_path)
+
+    notes = " ".join(result["run"]["notes"])
+    assert "peft/tuners/lora/bnb.py" in notes
+    assert "result.clone()" in notes
+
+
+def test_profile_arm_deletes_the_trace_unless_asked_to_keep_it(profile, tmp_path):
+    result, _, _ = _profile_arm(profile, tmp_path)
+    assert not (tmp_path / "out" / "profile-16.trace.json").exists()
+    assert "trace_file" not in result["run"]
+
+    kept, _, _ = _profile_arm(profile, tmp_path, keep_trace=True)
+    assert (tmp_path / "out" / "profile-16.trace.json").is_file()
+    assert kept["run"]["trace_file"].endswith("profile-16.trace.json")
+
+
+def test_the_trace_file_loader_reads_the_trace_events_list(profile, tmp_path):
+    path = tmp_path / "t.trace.json"
+    events = [
+        {"ph": "X", "cat": "user_annotation", "name": "g7::forward_visit", "ts": 0, "dur": 500,
+         "tid": 1, "args": {}},
+    ]  # fmt: skip
+    path.write_text(json.dumps({"traceEvents": events}), encoding="utf-8")
+
+    analysis = profile.analyse_trace_file(path)
+
+    assert analysis["summary"]["forward"]["host_ms"] == pytest.approx(0.5)

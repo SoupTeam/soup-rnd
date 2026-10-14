@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Profile harness for G7, the fixed cost of a streamed layer visit on short steps.
 
-This file holds the fixture, the bare arm and the timer arm. Three subcommands, run on
-the RTX 3050 laptop on mains after a reboot::
+This file holds the fixture, the bare arm, the timer arm and the profile arm. Three
+subcommands, run on the RTX 3050 laptop on mains after a reboot::
 
     python benchmarks/harness/visit_profile.py fixture --root /var/tmp/g7
     python benchmarks/harness/visit_profile.py arm --root /var/tmp/g7 --seq 16 \\
-        --out-dir /var/tmp/g7/out [--arm timer]
+        --out-dir /var/tmp/g7/out [--arm timer|profile]
     python benchmarks/harness/visit_profile.py run ...    # the worker ``arm`` starts
 
 ``fixture`` writes the synthetic ``llama-8b`` checkpoint with the GPU hidden (the
@@ -15,14 +15,20 @@ on a disk under ``--root``. The step probe accepts a shard folder only under the
 directory, the working directory or the temp directory, and the system temp directory
 here is RAM-backed. So ``arm`` starts its worker with ``TMPDIR`` set to ``--root``.
 
-``arm`` runs one arm in a fresh process: ``bare`` (the default) has no instruments, and
-``timer`` installs ``visit_timer``'s patches inside the process. ``G7ArmWatch`` watches it
+``arm`` runs one arm in a fresh process: ``bare`` (the default) has no instruments,
+``timer`` installs ``visit_timer``'s patches inside the process, and ``profile`` installs
+``visit_ranges``' named ranges and runs the PyTorch profiler (CPU and CUDA, no stack) over its
+steps. The profile arm profiles ``PROFILE_STEPS`` steps by default, because eight steps of
+a 32-layer model make a trace of hundreds of megabytes. ``G7ArmWatch`` watches it
 with the label "RTX 3050, synthetic", the shard folder as the model path and five required
 checks. The worker writes ``<arm>-<seq>.run.json`` with the step times and the fused and old
 dequantization path counts, and the timer arm adds its per-visit, per-backward and per-step
 times and whether LoRA gradient accumulation falls inside the layer backward window. The
-driver writes ``<arm>-<seq>.arm.json`` with the arm record. A bare and a timer arm of one
-round leave separate files, so the validity row "timer is free" reads both JSONs.
+profile worker exports the trace, and the driver, after the arm watch has closed, cuts it with
+``trace_analyser`` into the ``profile`` field of the run JSON (parts, kernel time, launches,
+reconciliation) and notes, then deletes the trace unless ``--keep-trace``. The driver writes
+``<arm>-<seq>.arm.json`` with the arm record. A bare and a timer arm of one round leave
+separate files, so the validity row "timer is free" reads both JSONs.
 
 Benchmark harness code, not shipped. Heavy dependencies are imported inside the worker.
 """
@@ -30,6 +36,7 @@ Benchmark harness code, not shipped. Heavy dependencies are imported inside the 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import statistics
@@ -63,12 +70,14 @@ LABEL = "RTX 3050, synthetic"
 TOKEN_COUNTS = (16, 32, 64, 128)
 BATCH = 1
 
-#: The arms this file runs. The profile and control arms come with ticket 04.
-ARMS = ("bare", "timer")
+#: The arms this file runs. The control arm comes with ticket 05.
+ARMS = ("bare", "timer", "profile")
 
 #: The step probe's defaults: 8 timed steps after 3 warm-up steps.
 TIMED_STEPS = 8
 WARMUP_STEPS = 3
+#: Profiled steps of the profile arm.
+PROFILE_STEPS = 3
 
 #: The step probe's LoRA and seed defaults (``stream_probe.py``).
 LORA_R = 8
@@ -180,6 +189,63 @@ def run_timer_arm(
     return result
 
 
+def run_profile_arm(
+    step: Callable[[], float],
+    count_paths: Callable[[], Dict[str, int]],
+    capture: Callable[[Callable[[], List[float]]], List[float]],
+    *,
+    warmup: int,
+    timed: int,
+    trace_file: str,
+) -> Dict[str, Any]:
+    """A bare run's fields for a profile arm: ``warmup`` untimed steps, then ``timed`` steps
+    inside ``capture``, which runs them under the profiler and exports the trace to
+    ``trace_file``. The analysis happens later, in the driver."""
+    if timed < 1:
+        raise ValueError(f"need at least one timed step, got {timed}")
+    for _ in range(warmup):
+        step()
+    seconds = capture(lambda: [step() for _ in range(timed)])
+    return {
+        "median_step_s": statistics.median(seconds),
+        "step_s": seconds,
+        "timed_steps": timed,
+        "warmup_steps": warmup,
+        "linear_paths": count_paths(),
+        "trace_file": trace_file,
+    }
+
+
+def analyse_trace_file(path: Path) -> Dict[str, Any]:
+    """Cut an exported chrome trace with the trace analyser."""
+    import trace_analyser
+
+    events = json.loads(Path(path).read_text(encoding="utf-8"))["traceEvents"]
+    return trace_analyser.analyse_trace(events)
+
+
+#: Found on 2026-10-14 with a Python-stack trace of one step (``clone``, ``contiguous`` and
+#: ``copy_`` calls caught with their callers), on the streamed ``llama-8b`` fixture, peft 0.21.2.
+COPY_SOURCE_NOTE = (
+    "the 4 device-to-device copies per visit come from `result = result.clone()` in peft's "
+    "LoRA Linear4bit forward (peft/tuners/lora/bnb.py line 533, peft 0.21.2), once each for "
+    "q_proj, k_proj, v_proj and o_proj. They do not come from functional_call itself."
+)
+
+
+def profile_notes(analysis: Mapping[str, Any]) -> List[str]:
+    """Notes for the run JSON, read off the analysis."""
+    notes = []
+    sources = analysis.get("memcpy_sources") or {}
+    if sources:
+        listed = "; ".join(f"{count:g} x {chain}" for chain, count in sources.items())
+        notes.append(f"device-to-device copies per visit, by the ops that issued them: {listed}")
+    else:
+        notes.append("device-to-device copies per visit: none found in the trace")
+    notes.append(COPY_SOURCE_NOTE)
+    return notes
+
+
 def _count_linear_paths(model: Any, step: Callable[[], float]) -> Dict[str, int]:
     """Run one more step and count the Linear layers that took the fused path and the old one.
 
@@ -218,6 +284,7 @@ def worker(args: argparse.Namespace) -> int:
     import stream_probe
     import torch
     import transformers
+    import visit_ranges
     import visit_timer
 
     from soup_cli.utils.layer_stream import resolve_stream_dtype
@@ -254,17 +321,22 @@ def worker(args: argparse.Namespace) -> int:
     timer = args.arm == "timer"
     recorder = visit_timer.Recorder() if timer else None
 
+    profiling = args.arm == "profile"
+
     def step() -> float:
         torch.cuda.synchronize()
         if recorder is None:
             started = time.perf_counter()
         else:
             recorder.begin_step()
-        out = model(input_ids=ids, labels=ids)
-        out.loss.backward()
-        optimizer.step()
-        optimizer.zero_grad(set_to_none=True)
-        torch.cuda.synchronize()
+        # The step range opens after the first synchronize and closes after the last one, so
+        # the final GPU wait is the last synchronize inside it.
+        with visit_ranges.step_range() if profiling else contextlib.nullcontext():
+            out = model(input_ids=ids, labels=ids)
+            out.loss.backward()
+            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
+            torch.cuda.synchronize()
         if recorder is None:
             return time.perf_counter() - started
         return recorder.end_step()
@@ -272,7 +344,25 @@ def worker(args: argparse.Namespace) -> int:
     def count() -> Dict[str, int]:
         return _count_linear_paths(model, step)
 
-    if recorder is None:
+    if profiling:
+        from torch.profiler import ProfilerActivity, profile
+
+        out_file = Path(args.out)
+        trace_file = out_file.with_name(out_file.name.replace(".run.json", "") + ".trace.json")
+
+        def capture(body: Callable[[], List[float]]) -> List[float]:
+            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+                seconds = body()
+            prof.export_chrome_trace(str(trace_file))
+            return seconds
+
+        layers = list(decoder_owner(model).layers)
+        with visit_ranges.install_ranges(layers):
+            result = run_profile_arm(
+                step, count, capture, warmup=args.warmup, timed=args.steps,
+                trace_file=str(trace_file),
+            )  # fmt: skip
+    elif recorder is None:
         result = run_arm(step, count, warmup=args.warmup, timed=args.steps)
     else:
         layers = list(decoder_owner(model).layers)
@@ -320,21 +410,27 @@ def run_arm_process(
     out_dir: Path,
     round: int = 1,
     run: int = 1,
-    steps: int = TIMED_STEPS,
+    steps: Optional[int] = None,
     warmup: int = WARMUP_STEPS,
     runner: Runner = run_process,
     watch: Callable[..., ContextManager[Watched]] = G7ArmWatch,
+    analyse: Callable[[Path], Dict[str, Any]] = analyse_trace_file,
+    keep_trace: bool = False,
 ) -> Dict[str, Any]:
-    """Run one ``arm`` (bare or timer) at ``seq`` tokens in a fresh process under the arm watch.
+    """Run one ``arm`` at ``seq`` tokens in a fresh process under the arm watch.
 
     The worker's ``TMPDIR`` is ``root``, a directory on the NVMe disk. Writes
     ``<arm>-<seq>.run.json`` (the worker's) and ``<arm>-<seq>.arm.json`` (the arm record)
-    into ``out_dir`` and returns both.
+    into ``out_dir`` and returns both. ``steps`` defaults to ``PROFILE_STEPS`` for the profile
+    arm and ``TIMED_STEPS`` for the others. For the profile arm, ``analyse`` cuts the trace
+    once the watch has closed, and the run JSON gets the ``profile`` field and ``notes``.
     """
     if arm not in ARMS:
         raise ValueError(f"the arm is one of {', '.join(ARMS)}; got {arm}")
     if seq not in TOKEN_COUNTS:
         raise ValueError(f"the sequence length is 16, 32, 64 or 128; got {seq}")
+    if steps is None:
+        steps = PROFILE_STEPS if arm == "profile" else TIMED_STEPS
     out_dir.mkdir(parents=True, exist_ok=True)
     # The foreign reads check finds the disk from this folder, so it must exist at the start.
     fixture.shards.mkdir(parents=True, exist_ok=True)
@@ -364,12 +460,26 @@ def run_arm_process(
     assert record is not None
     arm_file = out_dir / f"{stem}.arm.json"
     arm_file.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-    return {"run": json.loads(run_file.read_text(encoding="utf-8")), "arm": record}
+    result: Dict[str, Any] = json.loads(run_file.read_text(encoding="utf-8"))
+    if arm == "profile":
+        trace_file = Path(result["trace_file"])
+        result["profile"] = analyse(trace_file)
+        result["notes"] = profile_notes(result["profile"])
+        if not keep_trace:
+            trace_file.unlink()
+            del result["trace_file"]
+        run_file.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    return {"run": result, "arm": record}
 
 
 def run_bare_arm(**kwargs: Any) -> Dict[str, Any]:
     """``run_arm_process`` for the bare arm, with no instruments."""
     return run_arm_process(arm="bare", **kwargs)
+
+
+def run_profile_process(**kwargs: Any) -> Dict[str, Any]:
+    """``run_arm_process`` for the profile arm: named ranges and the PyTorch profiler."""
+    return run_arm_process(arm="profile", **kwargs)
 
 
 def run_timer_process(**kwargs: Any) -> Dict[str, Any]:
@@ -394,8 +504,9 @@ def _parser() -> argparse.ArgumentParser:
     arm.add_argument("--arm", choices=ARMS, default="bare")
     arm.add_argument("--round", type=int, default=1)
     arm.add_argument("--run", type=int, default=1)
-    arm.add_argument("--steps", type=int, default=TIMED_STEPS)
+    arm.add_argument("--steps", type=int, default=None, help="timed steps (profile arm: 3)")
     arm.add_argument("--warmup", type=int, default=WARMUP_STEPS)
+    arm.add_argument("--keep-trace", action="store_true", help="keep the profile arm's trace")
 
     work = sub.add_parser("run", help="the worker: one run in this process")
     work.add_argument("--arm", choices=ARMS, default="bare")
@@ -428,6 +539,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         run=args.run,
         steps=args.steps,
         warmup=args.warmup,
+        keep_trace=args.keep_trace,
     )
     console.print(
         f"{args.arm} arm at {args.seq} tokens: median step {result['run']['median_step_s']:.4f} s, "
