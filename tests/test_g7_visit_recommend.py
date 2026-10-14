@@ -204,6 +204,21 @@ def test_a_missing_prototype_number_is_no_verdict_not_an_error(verdicts):
     assert "payback_steps" in branch["reason"]
 
 
+@pytest.mark.parametrize("key", ["saving_fraction", "payback_steps", "pool_bytes_per_layer"])
+@pytest.mark.parametrize(
+    "bad", [float("nan"), float("inf"), float("-inf"), True, False], ids=repr
+)
+def test_a_nonfinite_or_boolean_prototype_number_is_no_verdict(verdicts, key, bad):
+    proto = prototype()
+    proto[key] = bad
+    result = recommend(verdicts, proto=proto)
+    branch = result["branches"]["cuda_graphs"]
+    assert branch["verdict"] == "no_verdict"
+    assert branch["row"] == "prototype"
+    assert key in branch["reason"]
+    assert result["recommendation"] != GRAPHS
+
+
 # --- the rounds ---------------------------------------------------------------------------
 
 

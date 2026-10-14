@@ -466,8 +466,10 @@ def _prototype_branch(prototype: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
     numbers = {}
     for key in ("saving_fraction", "payback_steps", "pool_bytes_per_layer"):
         value = prototype.get(key)
-        if not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
             return _branch(NO_VERDICT, f"the prototype result has no {key}", "prototype")
+        if not math.isfinite(value):
+            return _branch(NO_VERDICT, f"the prototype result has a nonfinite {key}", "prototype")
         numbers[key] = float(value)
     pool_total = numbers["pool_bytes_per_layer"] * GRAPH_LAYERS
     misses = []
