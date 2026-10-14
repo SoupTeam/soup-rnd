@@ -664,7 +664,7 @@ def attach_adapter(model: Any, peft_config: Any) -> Any:
     """
     from peft import get_peft_model
 
-    target_modules = peft_config.target_modules
+    target_modules = getattr(peft_config, "target_modules", None)
     if not target_modules or not (
         _names_a_shared_expert(target_modules)
         if isinstance(target_modules, str)
