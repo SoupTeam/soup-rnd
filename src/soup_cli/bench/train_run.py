@@ -294,6 +294,10 @@ def run_bench_train(
             "python": platform.python_version(),
             "versions": _versions(),
             "dtype": str(getattr(model, "dtype", None)),
+            "training_precision": {
+                "bf16": trainer.args.bf16,
+                "fp16": trainer.args.fp16,
+            },
             "optimizer": str(trainer.args.optim),
             "seed": trainer.args.seed,
             "data_seed": trainer.args.data_seed,

@@ -163,6 +163,58 @@ def validate_report(report: dict, steps: int, mode: str, examples: int) -> None:
             raise ValueError("No warm-cache hits observed in epoch 2")
 
 
+def validate_precision_provenance(
+    report: dict, expected_mode: str
+) -> dict:
+    """Fail closed when actual training precision differs from protocol."""
+    expected_flags = {
+        "bf16": (True, False),
+        "fp16": (False, True),
+    }
+
+    if expected_mode not in expected_flags:
+        raise ValueError(f"Unsupported precision: {expected_mode!r}")
+
+    provenance = report.get("provenance")
+    if not isinstance(provenance, dict):
+        raise ValueError("Missing precision provenance")
+
+    expected_dtype = {
+        "bf16": "torch.bfloat16",
+        "fp16": "torch.float16",
+    }[expected_mode]
+
+    actual_dtype = provenance.get("dtype")
+    if actual_dtype != expected_dtype:
+        raise ValueError(
+            f"Precision dtype mismatch: "
+            f"{actual_dtype!r} != {expected_dtype!r}"
+        )
+
+    flags = provenance.get("training_precision")
+    if not isinstance(flags, dict):
+        raise ValueError("Missing actual training precision flags")
+
+    bf16 = flags.get("bf16")
+    fp16 = flags.get("fp16")
+
+    if type(bf16) is not bool or type(fp16) is not bool:
+        raise ValueError("Training precision flags must be booleans")
+
+    if (bf16, fp16) != expected_flags[expected_mode]:
+        raise ValueError(
+            f"Training precision mismatch: "
+            f"bf16={bf16}, fp16={fp16}, "
+            f"expected={expected_mode}"
+        )
+
+    return {
+        "mode": expected_mode,
+        "reported_dtype": actual_dtype,
+        "training_precision": {"bf16": bf16, "fp16": fp16},
+    }
+
+
 def _median_epoch(records: list[dict], index: int) -> float:
     return statistics.median(
         item["report"]["epoch_timing"][index]["duration_seconds"] for item in records
@@ -254,6 +306,12 @@ def main() -> None:
     parser.add_argument("--warmup", type=int, default=8)
     parser.add_argument("--amp-init-scale", type=float, default=None)
     parser.add_argument(
+        "--precision",
+        choices=("fp16", "bf16"),
+        default=None,
+        help="Expected CUDA precision; required for final experiments",
+    )
+    parser.add_argument(
         "--run-dir",
         help="New destination; defaults to timestamped benchmarks/e2/full_abba_*",
     )
@@ -275,8 +333,14 @@ def main() -> None:
 
         if not math.isfinite(args.amp_init_scale) or args.amp_init_scale <= 0:
             parser.error("--amp-init-scale must be finite and >0")
-    if args.execute and not args.pilot and args.amp_init_scale is None:
-        parser.error("Final CUDA FP16 run must explicitly set --amp-init-scale")
+    if args.execute and not args.pilot and args.precision is None:
+        parser.error("Final execution requires --precision fp16 or bf16")
+
+    if args.precision == "bf16" and args.amp_init_scale is not None:
+        parser.error("BF16 must not use --amp-init-scale")
+
+    if args.execute and args.precision == "fp16" and args.amp_init_scale is None:
+        parser.error("FP16 execution requires --amp-init-scale")
 
     if args.execute and os.environ.get("SOUP_E2_PROFILE_CACHE", "").strip().lower() in {
         "1",
@@ -298,6 +362,33 @@ def main() -> None:
         _a, _b, dataset, examples = config_and_lines(root, baseline, cached)
     except ValueError as exc:
         parser.error(str(exc))
+    detected_precision = None
+
+    if args.execute:
+        from soup_cli.utils.gpu import bf16_fp16_flags
+
+        if _a["training"].get("auto_mixed_precision", False):
+            parser.error("ABBA requires auto_mixed_precision=False")
+
+        use_bf16, use_fp16 = bf16_fp16_flags("cuda")
+
+        if (use_bf16, use_fp16) == (True, False):
+            detected_precision = "bf16"
+        elif (use_bf16, use_fp16) == (False, True):
+            detected_precision = "fp16"
+        else:
+            parser.error("Could not establish CUDA precision mode")
+
+        if args.precision is not None and args.precision != detected_precision:
+            parser.error(
+                f"Requested {args.precision}, "
+                f"but Soup selects {detected_precision}"
+            )
+
+        if args.amp_init_scale is not None and detected_precision != "fp16":
+            parser.error("GradScaler requested for non-FP16 training")
+
+    precision_mode = args.precision or detected_precision
     steps = examples * 2
     if args.cycles < 1 or not 0 <= args.warmup < steps:
         parser.error("Require cycles >= 1 and 0 <= warmup < 2 * dataset rows")
@@ -371,6 +462,12 @@ def main() -> None:
         "decision_rule": rule,
         "runner_sha256": sha256(root / "benchmarks/e2/run_e2_abba_verified.py"),
         "amp_initial_scale_requested": args.amp_init_scale,
+        "precision_contract": {
+            "requested": args.precision,
+            "detected": detected_precision,
+            "effective": precision_mode,
+            "verification": "report.provenance.dtype",
+        },
         "amp_wrapper_sha256": sha256(root / "benchmarks/e2/bench_train_amp.py")
         if args.amp_init_scale is not None
         else None,
@@ -469,6 +566,12 @@ def main() -> None:
             report = json.loads(report_path.read_text(encoding="utf-8"))
             record["report"] = report
             validate_report(report, steps, mode, examples)
+
+            if precision_mode is not None:
+                record["precision"] = validate_precision_provenance(
+                    report, precision_mode
+                )
+
             record["report_sha256"] = sha256(report_path)
             save_json(directory / "manifest.json", manifest)
             first_epoch_seconds = report["epoch_timing"][0]["duration_seconds"]
