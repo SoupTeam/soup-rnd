@@ -244,3 +244,7 @@ None. The threshold has no verdict, so the prototype did not run (ticket 09 clos
 - Environment: Linux 7.0.0-38-generic, RTX 3050 Laptop GPU 4 GB, driver 595.99.02, torch 2.14.1+cu130, bitsandbytes 0.50.2, transformers 5.19.0. Harness commit measured: `aa90c5b4`. Power limit 80.00 W, on mains.
 - Withdrawn numbers: none.
 
+
+### 9.11 Evidence scope
+
+The saved arm and run JSON hold the derived per-visit numbers and the recommendation. They do not hold the original CUDA profiler traces: `run_arm_process` deletes them by default. A reader can replay the verdicts from the JSON, but cannot re-parse the measured launch and kernel attribution from this package. The control discrepancy in 9.5 therefore cannot be diagnosed from these records alone. No traces or source hashes were reconstructed after the run.
