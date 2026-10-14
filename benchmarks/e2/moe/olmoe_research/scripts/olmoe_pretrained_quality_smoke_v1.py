@@ -185,7 +185,7 @@ def main():
         raise RuntimeError('Repeated tokenized train inputs would invalidate cache hit audit')
     tokenized_train_hash = named_tensors_sha256([(str(i), t) for i, t in enumerate(tokenized_train)])
     tokenized_val_hash = named_tensors_sha256([(str(i), t) for i, t in enumerate(tokenized_val)])
-    print(f'DATA CHECK: train_rows={len(tokenized_train)} val_rows={len(tokenized_val)} ' 
+    print(f'DATA CHECK: train_rows={len(tokenized_train)} val_rows={len(tokenized_val)} '
           f'train_token_hash={tokenized_train_hash[:16]}', flush=True)
 
     print(f'Loading pinned pretrained OLMoE in FP16; K={args.k}, mode={args.mode}', flush=True)
