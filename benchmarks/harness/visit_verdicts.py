@@ -31,6 +31,10 @@ an arm it reads is missing, void or unknown, when a number it reads is missing, 
 arms disagree on the token count, or when a row it depends on has no pass. The control and
 the threshold also need a readable profile, and the threshold needs a passing control.
 
+- ``recommend``: the recommendation of the rule (ticket 07). It reads the 16-token rows, the
+  experiment verdict and the prototype's result, and gives a verdict per branch.
+- ``combine_rounds``: the profile's two rounds into one row per name.
+
 Benchmark harness code, not shipped.
 """
 
@@ -401,3 +405,156 @@ def evaluate_experiment(
             **evidence,
         )
     return _row(FAIL, f"{DETECTION_LIMIT} (p = {p_value:.3f}, {interval})", **evidence)
+
+
+# --- the recommendation ------------------------------------------------------------------
+
+CONTINUE_TIE = "Continue: `tie_weights=False` upstream"
+CONTINUE_GRAPHS = "Continue: CUDA graphs in the runtime"
+STOP = "Stop"
+NO_RECOMMENDATION = "No verdict"
+
+#: The replay must save at least this share of the capturable host time.
+GRAPH_SAVING_MIN = 0.30
+#: The capture cost must be paid back within this many steps.
+GRAPH_PAYBACK_MAX_STEPS = 100
+#: The graph needs a private pool per layer: all of them must fit in this many bytes (1.1 GB,
+#: the free VRAM of the card).
+GRAPH_LAYERS = 32
+GRAPH_POOL_BUDGET_BYTES = 1.1e9
+
+#: The rerun that would clear a row without a pass.
+RERUN = {
+    "timer_is_free": "rerun the bare and timer arms at 16 tokens on a quiet machine",
+    "profile_is_readable": "rerun the timer and profile arms at 16 tokens",
+    "control": "rerun the control arm at 16 tokens, then the profile arm",
+    "cpu_bound": "rerun the timer and profile arms at 16 tokens",
+    "experiment": "rerun `tie_experiment.py run` (the gate, then the blocks)",
+    "prototype": "run the CUDA graph prototype (ticket 09) or close it as blocked",
+}
+#: The rows the graph branch reads, in the order the first one without a pass is named.
+_GRAPH_ROWS = ("timer_is_free", "profile_is_readable", "control", "cpu_bound")
+
+
+def _branch(verdict: str, reason: str, row: Optional[str] = None) -> Dict[str, Any]:
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "row": row,
+        "rerun": RERUN[row] if verdict == NO_VERDICT and row else None,
+    }
+
+
+def _tie_branch(experiment: Mapping[str, Any]) -> Dict[str, Any]:
+    verdict = experiment["verdict"]
+    if verdict == NO_VERDICT:
+        return _branch(NO_VERDICT, experiment["reason"], "experiment")
+    return _branch(verdict, experiment["reason"])
+
+
+def _prototype_branch(prototype: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    if prototype is None:
+        return _branch(NO_VERDICT, "the threshold fired and the prototype was not run", "prototype")
+    if prototype.get("blocked_reason"):
+        return _branch(
+            NO_VERDICT, f"prototype blocked: {prototype['blocked_reason']}", "prototype"
+        )
+    if not prototype.get("gate_passed"):
+        return _branch(FAIL, "the prototype's bit-exact gate was not passed")
+    numbers = {}
+    for key in ("saving_fraction", "payback_steps", "pool_bytes_per_layer"):
+        value = prototype.get(key)
+        if not isinstance(value, (int, float)):
+            return _branch(NO_VERDICT, f"the prototype result has no {key}", "prototype")
+        numbers[key] = float(value)
+    pool_total = numbers["pool_bytes_per_layer"] * GRAPH_LAYERS
+    misses = []
+    if numbers["saving_fraction"] < GRAPH_SAVING_MIN - _EPS:
+        misses.append(
+            f"the replay saves {numbers['saving_fraction']:.0%} of capturable host time, "
+            f"under {GRAPH_SAVING_MIN:.0%}"
+        )
+    if numbers["payback_steps"] > GRAPH_PAYBACK_MAX_STEPS + _EPS:
+        misses.append(
+            f"payback is {numbers['payback_steps']:g} steps, over {GRAPH_PAYBACK_MAX_STEPS} steps"
+        )
+    if pool_total > GRAPH_POOL_BUDGET_BYTES * (1 + _EPS):
+        misses.append(
+            f"{GRAPH_LAYERS} private pools take {pool_total / 1e9:.2f} GB, over 1.1 GB"
+        )
+    if misses:
+        return _branch(FAIL, "; ".join(misses))
+    return _branch(
+        PASS,
+        f"the replay saves {numbers['saving_fraction']:.0%} of capturable host time, payback is "
+        f"{numbers['payback_steps']:g} steps, {GRAPH_LAYERS} private pools take "
+        f"{pool_total / 1e9:.2f} GB",
+    )
+
+
+def _graph_branch(
+    rows: Mapping[str, Mapping[str, Any]], prototype: Optional[Mapping[str, Any]]
+) -> Dict[str, Any]:
+    for name in _GRAPH_ROWS:
+        row = rows[name]
+        if row["verdict"] == NO_VERDICT or (name != "cpu_bound" and row["verdict"] != PASS):
+            return _branch(NO_VERDICT, f"{name}: {row['reason']}", name)
+    if rows["cpu_bound"]["verdict"] != PASS:
+        return _branch(
+            FAIL, f"the visit is not CPU-bound, so no prototype ran: {rows['cpu_bound']['reason']}"
+        )
+    return _prototype_branch(prototype)
+
+
+def recommend(
+    rows: Mapping[str, Mapping[str, Any]],
+    experiment: Mapping[str, Any],
+    prototype: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    """The recommendation of the rule.
+
+    ``rows`` is ``evaluate``'s result at 16 tokens (after ``combine_rounds``), ``experiment``
+    is ``evaluate_experiment``'s verdict and ``prototype`` is the prototype's result, or None
+    if it was not run. The prototype result has ``gate_passed``, ``blocked_reason`` (or None),
+    ``saving_fraction`` (of capturable host time), ``payback_steps`` and
+    ``pool_bytes_per_layer``.
+
+    Each branch gets ``pass``, ``fail`` or ``no_verdict``. A branch without a verdict names the
+    row and the rerun that would clear it. The recommendation is each branch that passed, or
+    "Stop" if both failed, or "No verdict" if none passed and a branch has no verdict.
+    """
+    branches = {
+        "tie_weights": _tie_branch(experiment),
+        "cuda_graphs": _graph_branch(rows, prototype),
+    }
+    names = {"tie_weights": CONTINUE_TIE, "cuda_graphs": CONTINUE_GRAPHS}
+    continuing = [names[key] for key, branch in branches.items() if branch["verdict"] == PASS]
+    if continuing:
+        recommendation = "; ".join(continuing)
+    elif any(branch["verdict"] == NO_VERDICT for branch in branches.values()):
+        recommendation = NO_RECOMMENDATION
+    else:
+        recommendation = STOP
+    return {"recommendation": recommendation, "continue": continuing, "branches": branches}
+
+
+def combine_rounds(
+    rounds: Sequence[Mapping[str, Mapping[str, Any]]],
+) -> Dict[str, Dict[str, Any]]:
+    """One row per name from the profile's rounds. Rounds that agree keep their verdict. A
+    round without a verdict, or rounds that disagree, give no verdict."""
+    combined: Dict[str, Dict[str, Any]] = {}
+    for name in rounds[0]:
+        found = [round_rows[name] for round_rows in rounds]
+        verdicts = {row["verdict"] for row in found}
+        if verdicts == {PASS} or verdicts == {FAIL}:
+            combined[name] = dict(found[0])
+            continue
+        if NO_VERDICT in verdicts:
+            detail = "; ".join(row["reason"] for row in found if row["verdict"] == NO_VERDICT)
+            combined[name] = _no_verdict(f"a round has no verdict: {detail}")
+        else:
+            combined[name] = _no_verdict(
+                "the rounds disagree: " + "; ".join(row["reason"] for row in found)
+            )
+    return combined
