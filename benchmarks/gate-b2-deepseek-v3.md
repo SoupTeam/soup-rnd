@@ -75,11 +75,11 @@ timestamp, clocks.current.sm [MHz], power.draw [W], clocks_event_reasons.active
 
 Each cell says "proven by gate", "refused: reason" or "not tested". Arms: 1 base fixture, 2 `q_lora_rank=None`, 3 `rope_interleave=False`,
 4 yarn rope, 5 padded batch, 6 Kimi K2 shape, 7 MTP layer, 8 NF4, 9 Qwen3.5-MoE fused experts,
-10 `moe_lora`, 11 disk tier. "Proven" means the arm passed on CUDA in fp32 here. Every arm except 8 also runs on CPU in CI.
+10 `moe_lora`, 11 disk tier, 12 LoRA on the shared experts. "Proven" means the arm passed on CUDA in fp32 here. Every arm except 8 also runs on CPU in CI.
 
 | Model type | Forward | Backward | NF4 | Disk tier | LoRA on attention | LoRA on shared experts | `moe_lora` on routed experts |
 |---|---|---|---|---|---|---|---|
-| `deepseek_v3` | proven by gate (arm 1) | proven by gate (arm 1) | proven by gate (arm 8; routed experts stay bf16, the base dtype of the run) | proven by gate (arms 8 and 11) | proven by gate (arms 1 to 8) | not tested [^1] | proven by gate (arm 10) |
+| `deepseek_v3` | proven by gate (arm 1) | proven by gate (arm 1) | proven by gate (arm 8; routed experts stay bf16, the base dtype of the run) | proven by gate (arms 8 and 11) | proven by gate (arms 1 to 8) | proven by gate (arm 12; `attach_adapter`) [^1] | proven by gate (arm 10) |
 | `kimi_k2` (tiny shape) | proven by gate (arm 6) | proven by gate (arm 6) | not tested | not tested | proven by gate (arm 6) | not tested [^1] | not tested |
 | `qwen3_5_moe` fused | proven by gate (arm 9, logits only) | not tested | not tested | not tested | not tested [^2] | not tested | not tested |
 | `deepseek_v32` | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist |
@@ -87,9 +87,17 @@ Each cell says "proven by gate", "refused: reason" or "not tested". Arms: 1 base
 | `kimi_k25` | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist | refused: not on the allowlist |
 
 [^1]: peft 0.21 rewrites `gate_proj`, `up_proj` and `down_proj` on `deepseek_v3` onto the routed
-    experts, so no LoRA config reaches the shared experts. Ticket 10 did not refuse the rewrite
-    (arm 10 serves it), so the cell stays "not tested". The rewrite itself was observed in ticket 10
-    on peft 0.21.2. No test in this gate asserts it.
+    experts, so a plain `get_peft_model` never reaches the shared experts.
+    `peft_wiring.attach_adapter` resolves shared-expert targets to full module paths and skips the
+    rewrite for that one config (ticket 15). Arm 12 is `tests/test_b2_shared_expert_lora.py`: the
+    adapters sit on exactly `mlp.shared_experts.{gate,up,down}_proj` of every MoE layer, streamed
+    logits equal resident logits, and all 12 `lora_A` / `lora_B` gradients are non-zero and equal,
+    on the RAM and disk tiers and with NF4, on CPU (not NF4) and on CUDA in fp32, with both expert
+    implementations. Two controls show the check can fail: nudging one `lora_B` changes logits and
+    gradients, and plain peft builds a model with different logits. `load_adapter` reloads a saved
+    shared-expert adapter onto the shared experts, and a routed-expert adapter loads as peft loads it.
+    The rewrite is pinned by a test, so a peft release that changes it fails CI. Not covered: a real
+    checkpoint, and `kimi_k2` (tiny shape), which stays "not tested".
 
 [^2]: Arm 9 uses a LoRA config on `q_proj` and `in_proj_qkv` with `lora_B` left at zero, so the
     adapter adds nothing and the logits comparison says nothing about LoRA.

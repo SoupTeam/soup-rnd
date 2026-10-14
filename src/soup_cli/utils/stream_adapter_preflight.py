@@ -65,7 +65,7 @@ def build_stream_adapter_plan(
 ) -> StreamAdapterPlan:
     """Use the same resolvers/patches as the real build, without materializing weights."""
     from accelerate import init_empty_weights
-    from peft import TaskType, get_peft_model
+    from peft import TaskType
 
     from soup_cli.utils.layer_stream_runtime import (
         build_meta_skeleton,
@@ -76,6 +76,7 @@ def build_stream_adapter_plan(
     from soup_cli.utils.moe import resolve_moe_lora_targets
     from soup_cli.utils.peft_wiring import (
         apply_pre_lora_patches,
+        attach_adapter,
         build_lora_config,
         resolve_lora_target_modules,
     )
@@ -100,7 +101,7 @@ def build_stream_adapter_plan(
         apply_pre_lora_patches(model, base)
         # PEFT mutates config during fused-MoE conversion. Keep the real build pristine.
         probe_config = deepcopy(config)
-        model = get_peft_model(model, probe_config)
+        model = attach_adapter(model, probe_config)
         if any(not param.is_meta for param in model.parameters()):
             raise ValueError("stream adapter preflight unexpectedly materialized model parameters")
         tensors = []

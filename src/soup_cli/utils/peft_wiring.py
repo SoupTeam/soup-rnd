@@ -675,7 +675,10 @@ def attach_adapter(model: Any, peft_config: Any) -> Any:
             "move them onto the routed experts, which this config did not ask for. Name "
             "them by full path, or set training.moe_lora: true for the routed experts."
         )
-    peft_config.target_modules = set(shared) | set(rest)
+    if not isinstance(target_modules, str):
+        # A regex stays a regex: peft matches it against every module, so the attention
+        # half of "attention + shared expert" keeps its adapters.
+        peft_config.target_modules = set(shared) | set(rest)
     with _without_peft_moe_conversion(lambda config: config is peft_config):
         peft_model = get_peft_model(model, peft_config)
 

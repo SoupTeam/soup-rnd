@@ -400,3 +400,67 @@ def test_the_peft_conversion_is_restored_after_a_reload(tmp_path: Any) -> None:
     load_adapter(_tiny_model(), str(tmp_path / "adapter"))
 
     assert conversion.convert_peft_config_for_transformers is before
+
+
+# ==========================================================================
+# the adapter preflight sizes the adapter the build will attach
+# ==========================================================================
+
+
+def test_the_adapter_plan_counts_the_shared_expert_adapters_not_the_routed_ones(
+    tmp_path: Any,
+) -> None:
+    from types import SimpleNamespace
+
+    from soup_cli.utils.stream_adapter_preflight import build_stream_adapter_plan
+
+    config = _tiny_deepseek_v3_config()
+    config.save_pretrained(tmp_path)
+    tcfg = SimpleNamespace(
+        optimizer="adamw_torch",
+        moe_lora=False,
+        use_lorafa=False,
+        lora=SimpleNamespace(
+            r=4,
+            alpha=8,
+            dropout=0,
+            target_modules=["shared_experts.gate_proj", "shared_experts.up_proj"],
+            use_dora=False,
+            use_rslora=False,
+            rank_pattern=None,
+            alpha_pattern=None,
+            init_strategy="random",
+        ),
+        quantization="none",
+        double_quant_on=True,
+        stream_vram_override=None,
+    )
+
+    plan = build_stream_adapter_plan(
+        str(tmp_path), config, tcfg, dtype="float32", quant="none",
+        double_quant=True, trust_remote_code=False, on_cuda=False,
+    )
+
+    owners = {t.name.rsplit(".lora_", 1)[0].removeprefix("base_model.model.") for t in plan.tensors}
+    assert owners == {
+        f"model.layers.{idx}.mlp.shared_experts.{proj}_proj"
+        for idx in _moe_layers(config)
+        for proj in ("gate", "up")
+    }
+
+
+def test_a_regex_naming_attention_and_shared_experts_keeps_both() -> None:
+    """The adapter-budget recommendation builds this form; it must not lose the attention half."""
+    from soup_cli.utils.peft_wiring import attach_adapter
+
+    model = _tiny_model()
+    regex = r".*\.(?:self_attn\.(?:q_a_proj|q_b_proj)|mlp\.shared_experts\.(?:gate|up|down)_proj)"
+
+    peft_model = attach_adapter(model, _config(regex))
+
+    attention = {
+        f"model.layers.{idx}.self_attn.{name}"
+        for idx in range(model.config.num_hidden_layers)
+        for name in ("q_a_proj", "q_b_proj")
+    }
+    assert _adapter_modules(peft_model) == attention | _expected_shared_modules(model.config)
