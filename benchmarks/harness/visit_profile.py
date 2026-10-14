@@ -59,6 +59,7 @@ from typing import (
     Sequence,
 )
 
+import visit_control
 from arm_validity import disk_device as find_disk_device
 from g7_checks import G7_REQUIRED, G7ArmWatch
 from rich.console import Console
@@ -76,8 +77,7 @@ ARMS = ("bare", "timer", "profile", "control")
 #: The arms that run the PyTorch profiler, and the arms that run the timer.
 PROFILED_ARMS = ("profile", "control")
 TIMED_ARMS = ("timer", "control")
-#: The control arm runs at this token count only.
-CONTROL_TOKENS = 16
+CONTROL_TOKENS = visit_control.CONTROL_TOKENS
 
 #: The step probe's defaults: 8 timed steps after 3 warm-up steps.
 TIMED_STEPS = 8
@@ -297,7 +297,6 @@ def worker(args: argparse.Namespace) -> int:
     import stream_probe
     import torch
     import transformers
-    import visit_control
     import visit_ranges
     import visit_timer
 

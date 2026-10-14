@@ -32,6 +32,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
+import visit_control
+
 PASS = "pass"
 FAIL = "fail"
 NO_VERDICT = "no_verdict"
@@ -41,10 +43,10 @@ TIMER_EXCESS_LIMIT = 0.02
 #: The profile arm's host time per visit may be at most this many times the timer arm's.
 INFLATION_LIMIT = 1.5
 #: The control's injections, and how far a measured delay may stray from the spin.
-CONTROL_SPIN_MS = 0.2
+CONTROL_SPIN_MS = visit_control.SPIN_NS / 1e6
 CONTROL_TOLERANCE = 0.2
-CONTROL_LAUNCHES = 50
-CONTROL_TOKENS = 16
+CONTROL_LAUNCHES = visit_control.LAUNCHES
+CONTROL_TOKENS = visit_control.CONTROL_TOKENS
 #: CPU-bound: capturable host time per visit over GPU kernel time per visit.
 CPU_BOUND_RATIO = 2.0
 

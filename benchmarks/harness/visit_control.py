@@ -21,6 +21,8 @@ from typing import Any, Callable, Dict, Optional
 
 SPIN_NS = 200_000
 LAUNCHES = 50
+#: The control arm runs at this token count only.
+CONTROL_TOKENS = 16
 
 
 def cuda_launch() -> Callable[[], None]:
