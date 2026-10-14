@@ -155,10 +155,8 @@ def gate_worker(weights: Path, shards: Path, out: Path) -> int:
         untied = one_pass(ids)
     control = one_pass(changed)
     result = compare_passes(shipped, untied, control)
-    result["shipped_repeat_equal"] = (
-        compare_passes(shipped, repeat, control)["loss_equal"]
-        and (compare_passes(shipped, repeat, control)["grads_equal"])
-    )
+    twice = compare_passes(shipped, repeat, control)
+    result["shipped_repeat_equal"] = twice["loss_equal"] and twice["grads_equal"]
     result["tokens"] = TOKENS
     result["lora_b_init"] = "seeded randn * 0.02 (bitexact.make_non_vacuous_lora)"
     runtime.close()
