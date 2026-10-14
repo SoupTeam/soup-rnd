@@ -13,7 +13,15 @@ from typing import Any, Set
 import pytest
 import torch
 
-from tests.test_b2_deepseek_v3_stream import _moe_layers, _tiny_deepseek_v3_config
+from tests.test_b2_deepseek_v3_stream import (
+    _DEVICES,
+    _EXPERT_IMPLEMENTATIONS,
+    _moe_layers,
+    _run_parity,
+    _tiny_deepseek_v3_config,
+    deterministic,  # noqa: F401  (pytest fixture)
+)
+from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 
 _SHARED_TARGETS = r".*mlp\.shared_experts\.(gate|up|down)_proj"
 
@@ -183,3 +191,91 @@ def test_streamed_model_attaches_shared_expert_lora_to_the_shared_experts(tmp_pa
     modules = _streamed_adapter_modules(tmp_path, _config(_SHARED_TARGETS))
 
     assert modules == _expected_shared_modules(_tiny_deepseek_v3_config())
+
+
+# ==========================================================================
+# parity: the streamed model against the resident one
+# ==========================================================================
+
+
+def _assert_shared_parity(parity: Any) -> None:
+    """Both sides adapted the shared experts only, every gradient is live and equal."""
+    config = parity.config
+    expected = {
+        f"base_model.model.model.layers.{idx}.mlp.shared_experts.{proj}_proj.lora_{ab}.default.weight"
+        for idx in _moe_layers(config)
+        for proj in ("gate", "up", "down")
+        for ab in ("A", "B")
+    }
+    assert set(parity.lora_names) == expected
+    for name in parity.lora_names:
+        for side in (parity.streamed, parity.resident):
+            grad = side.grads[name]
+            assert grad is not None and bool(grad.ne(0).any()), f"{name}: no or zero gradient"
+    assert parity.forward_equal(), parity.report()
+    assert not parity.backward_mismatches(), parity.report()
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.usefixtures("deterministic")
+@pytest.mark.parametrize("experts", _EXPERT_IMPLEMENTATIONS)
+@pytest.mark.parametrize("device", _DEVICES)
+def test_streamed_shared_expert_lora_matches_resident(
+    tmp_path: Any, device: str, experts: str
+) -> None:
+    parity = _run_parity(
+        tmp_path,
+        device=device,
+        experts=experts,
+        lora_config=lambda weights: _config(_SHARED_TARGETS),
+    )
+
+    _assert_shared_parity(parity)
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.usefixtures("deterministic")
+@pytest.mark.parametrize("experts", _EXPERT_IMPLEMENTATIONS)
+@pytest.mark.parametrize("device", _DEVICES)
+def test_streamed_shared_expert_lora_from_the_disk_tier_matches_resident(
+    tmp_path: Any, device: str, experts: str
+) -> None:
+    parity = _run_parity(
+        tmp_path,
+        device=device,
+        experts=experts,
+        tier="disk",
+        lora_config=lambda weights: _config(_SHARED_TARGETS),
+    )
+
+    assert (parity.tier, parity.source) == ("disk", "AsyncDiskSource")
+    _assert_shared_parity(parity)
+
+
+@_REQUIRES_TRAINING_FLOOR
+@pytest.mark.usefixtures("deterministic")
+@pytest.mark.parametrize("experts", _EXPERT_IMPLEMENTATIONS)
+@pytest.mark.parametrize("tier", ["ram", "disk"])
+@pytest.mark.parametrize(
+    "device", [pytest.param("cuda", marks=pytest.mark.gpu(reason="the 4-bit kernels are GPU-only"))]
+)
+def test_streamed_nf4_shared_expert_lora_matches_resident_nf4(
+    tmp_path: Any, device: str, tier: str, experts: str
+) -> None:
+    """The shared experts are NF4 here, so the adapters sit on ``Linear4bit`` layers."""
+    pytest.importorskip("bitsandbytes")
+
+    parity = _run_parity(
+        tmp_path,
+        device=device,
+        experts=experts,
+        quant="nf4",
+        tier=tier,
+        lora_config=lambda weights: _config(_SHARED_TARGETS),
+    )
+
+    shared = {f"mlp.shared_experts.{name}_proj.weight" for name in ("gate", "up", "down")}
+    for idx in _moe_layers(parity.config):
+        assert shared <= parity.quantized[idx]
+        assert shared <= parity.resident_quantized[idx]
+    _assert_shared_parity(parity)

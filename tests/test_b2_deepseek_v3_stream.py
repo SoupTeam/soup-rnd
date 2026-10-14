@@ -352,12 +352,12 @@ def _run_parity(
 ) -> _Parity:
     """Shard and stream the fixture the way the training setup does, then run
     the resident model and the streamed model on one batch."""
-    from peft import get_peft_model
     from transformers import AutoConfig, AutoModelForCausalLM
 
     from soup_cli.utils.layer_shard import shard_checkpoint
     from soup_cli.utils.layer_stream import stream_arch_of
     from soup_cli.utils.layer_stream_runtime import build_streamed_model, decoder_owner
+    from soup_cli.utils.peft_wiring import attach_adapter
 
     config = config if config is not None else _tiny_deepseek_v3_config()
     weights = tmp_path / "weights"
@@ -424,7 +424,7 @@ def _run_parity(
         if not nf4:
             resident_base.to(device)
         assert resident_base.config._experts_implementation == experts
-        resident = get_peft_model(resident_base, lora)
+        resident = attach_adapter(resident_base, lora)
         _copy_lora(streamed, resident)
         if edit_streamed is not None:
             edit_streamed(streamed)
