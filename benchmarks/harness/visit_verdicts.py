@@ -418,8 +418,8 @@ NO_RECOMMENDATION = "No verdict"
 GRAPH_SAVING_MIN = 0.30
 #: The capture cost must be paid back within this many steps.
 GRAPH_PAYBACK_MAX_STEPS = 100
-#: The graph needs a private pool per layer: all of them must fit in this many bytes (1.1 GB,
-#: the free VRAM of the card).
+#: The graph needs a private pool per layer. This many layers' pools must fit in the budget
+#: (1.1 GB, the free VRAM of the card).
 GRAPH_LAYERS = 32
 GRAPH_POOL_BUDGET_BYTES = 1.1e9
 
@@ -460,7 +460,9 @@ def _prototype_branch(prototype: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
             NO_VERDICT, f"prototype blocked: {prototype['blocked_reason']}", "prototype"
         )
     if not prototype.get("gate_passed"):
-        return _branch(FAIL, "the prototype's bit-exact gate was not passed")
+        return _branch(
+            NO_VERDICT, "prototype blocked: its bit-exact gate was not passed", "prototype"
+        )
     numbers = {}
     for key in ("saving_fraction", "payback_steps", "pool_bytes_per_layer"):
         value = prototype.get(key)
@@ -548,7 +550,10 @@ def combine_rounds(
         found = [round_rows[name] for round_rows in rounds]
         verdicts = {row["verdict"] for row in found}
         if verdicts == {PASS} or verdicts == {FAIL}:
-            combined[name] = dict(found[0])
+            combined[name] = {
+                **found[0],
+                "evidence": {**found[0]["evidence"], "rounds": [r["evidence"] for r in found]},
+            }
             continue
         if NO_VERDICT in verdicts:
             detail = "; ".join(row["reason"] for row in found if row["verdict"] == NO_VERDICT)

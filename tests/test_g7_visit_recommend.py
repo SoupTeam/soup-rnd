@@ -122,10 +122,11 @@ def test_prototype_thresholds_hold_at_their_edge(verdicts, kwargs):
     assert recommend(verdicts, proto=prototype(**kwargs))["recommendation"] == GRAPHS
 
 
-def test_a_prototype_that_failed_its_gate_stops_the_graph_branch(verdicts):
-    result = recommend(verdicts, proto=prototype(gate=False))
-    assert result["branches"]["cuda_graphs"]["verdict"] == "fail"
-    assert "gate" in result["branches"]["cuda_graphs"]["reason"]
+def test_a_prototype_that_failed_its_gate_is_blocked_with_no_verdict(verdicts):
+    branch = recommend(verdicts, proto=prototype(gate=False))["branches"]["cuda_graphs"]
+    assert branch["verdict"] == "no_verdict"
+    assert branch["row"] == "prototype"
+    assert "gate" in branch["reason"]
 
 
 # --- no verdict ---------------------------------------------------------------------------
@@ -211,6 +212,14 @@ def test_rounds_that_agree_keep_their_verdict(verdicts):
     assert all(r["verdict"] == "pass" for r in combined.values())
     combined = verdicts.combine_rounds([rows(cpu_bound="fail"), rows(cpu_bound="fail")])
     assert combined["cpu_bound"]["verdict"] == "fail"
+
+
+def test_agreeing_rounds_keep_both_rounds_evidence(verdicts):
+    first, second = rows(), rows()
+    first["cpu_bound"]["evidence"] = {"ratio": 3.0}
+    second["cpu_bound"]["evidence"] = {"ratio": 3.4}
+    combined = verdicts.combine_rounds([first, second])
+    assert [e["ratio"] for e in combined["cpu_bound"]["evidence"]["rounds"]] == [3.0, 3.4]
 
 
 def test_rounds_that_disagree_give_no_verdict(verdicts):
