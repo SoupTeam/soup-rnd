@@ -25,6 +25,23 @@ from soup_cli.eval.gate import write_baseline_file
 
 REVISION = "caa1feb0e54d415e2df31207e5f4e273e33509b1"
 
+RESPONSE_NORMALIZATION_REVISION = "chatml-terminal-im-end-v1"
+
+
+def normalize_response_text(text: str) -> str:
+    """Remove one terminal ChatML end marker; preserve other content."""
+    if not isinstance(text, str):
+        raise TypeError("Model output must be a string")
+
+    end_marker = "<|im_end|>"
+    stripped = text.rstrip()
+
+    if stripped.endswith(end_marker):
+        return stripped[:-len(end_marker)].rstrip()
+
+    return text
+
+
 
 def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -154,8 +171,13 @@ def main() -> None:
             with torch.inference_mode():
                 output = model.generate(**batch, generation_config=generation)
             new_ids = output[0, length:].detach().cpu()
-            answer = tokenizer.decode(new_ids, skip_special_tokens=True)
+            raw_answer = tokenizer.decode(new_ids, skip_special_tokens=True)
+            answer = normalize_response_text(raw_answer)
             row.update({
+                "raw_output_text": raw_answer,
+                "scored_output_text": answer,
+                "raw_output_sha256": sha(raw_answer.encode()),
+                "response_normalized": raw_answer != answer,
                 "input_tokens": length,
                 "new_tokens": int(new_ids.numel()),
                 "output_sha256": sha(answer.encode()),
@@ -223,6 +245,8 @@ def main() -> None:
         "prompt_template_sha256": sha(tokenizer.chat_template.encode()),
         "prompt_token_limit": 2048, "prompt_truncation": False,
         "e2_activation_cache_installed": False,
+        "response_normalization_revision": RESPONSE_NORMALIZATION_REVISION,
+        "runner_source_sha256": sha(Path(__file__).read_bytes()),
         "scorer_revision": suites.BUNDLED_SCORER_REVISION,
         "scorer_fingerprint": suites.BUNDLED_SCORER_FINGERPRINT,
         "scores": results, "research_verdict": "NOT_ASSESSED",
