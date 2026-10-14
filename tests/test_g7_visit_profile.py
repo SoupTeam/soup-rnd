@@ -372,7 +372,7 @@ def test_profile_run_profiles_only_the_timed_steps_and_names_the_trace(profile):
 ANALYSIS = {
     "summary": {"forward": {"count": 96}},
     "reconciliation": {"ok": True, "gap_fraction": 0.01},
-    "memcpy_sources": {"aten::to > aten::copy_": 4},
+    "memcpy_sources": {"aten::clone > aten::copy_": 4},
 }
 
 
@@ -432,7 +432,7 @@ def test_profile_arm_names_the_device_to_device_copy_source_in_the_notes(profile
     result, _, _ = _profile_arm(profile, tmp_path)
 
     notes = " ".join(result["run"]["notes"])
-    assert "aten::to > aten::copy_" in notes
+    assert "aten::clone > aten::copy_" in notes
     assert "device-to-device" in notes
 
 

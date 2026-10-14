@@ -9,13 +9,17 @@ trace (times in microseconds) and returns, as plain dicts:
   rest, the kernel time and the launches per API;
 - ``summary``: the medians of the two lists, in ms;
 - ``reconciliation``: for the profiled steps, the visits, layer backwards, work outside the
-  layers and the final GPU wait against the step time, with the gap;
+  layers and the final GPU wait against the step time, with the gap. Work outside the layers
+  is the host time covered by any CPU op, CUDA runtime call or other annotation on the step's
+  threads that no visit, layer backward or final wait already covers. The gap is therefore
+  the step time with no traced event at all, so a small gap shows the trace has no hole, not
+  that each part was timed by an independent clock;
 - ``memcpy_sources``: the chain of PyTorch ops that issued each device-to-device copy in a
   visit, with the median count per visit.
 
-The ranges come from ``visit_ranges.py`` and carry the names in ``RANGES``. The four parts of
-a visit are cut in this order, so each microsecond has one owner and python_dispatcher is the
-remainder:
+The ranges come from ``visit_ranges.py`` and carry the names in ``RANGES``. The analyser
+cuts the four parts of a visit in this order, so no time counts twice and python_dispatcher
+is the remainder:
 
 1. launch time: every queueing CUDA API call on the visit's thread (``QUEUEING_APIS``),
    wherever it falls, even inside weight preparation;
@@ -81,7 +85,8 @@ SYNC_APIS = frozenset(("cudaDeviceSynchronize", "cudaStreamSynchronize", "cudaEv
 
 RECONCILIATION_TOLERANCE = 0.05
 
-_US = 1000.0
+#: Microseconds per millisecond. Event times are microseconds, results are milliseconds.
+_US_PER_MS = 1000.0
 
 
 # --- intervals -------------------------------------------------------------------------
@@ -147,6 +152,10 @@ class _Spans:
             items.sort(key=lambda item: (item[0], -item[1]))
             self._starts[tid] = [item[0] for item in items]
 
+    def all(self) -> List[Tuple[Any, float, float]]:
+        """Every span as (tid, start, end)."""
+        return [(tid, s, e) for tid, items in self._items.items() for s, e, _ in items]
+
     def starting_in(self, tid: Any, lo: float, hi: float) -> List[Tuple[float, float, Any]]:
         """Spans of ``tid`` whose start is in [lo, hi)."""
         items = self._items.get(tid, [])
@@ -177,7 +186,6 @@ class _Spans:
 
 class _Index:
     def __init__(self, events: Sequence[Mapping[str, Any]]) -> None:
-        self.names = RANGES
         self.ranges: Dict[str, _Spans] = defaultdict(_Spans)
         self.launches = _Spans()
         self.ops = _Spans()
@@ -218,7 +226,7 @@ class _Index:
         spans = self.ranges.get(name)
         if spans is None:
             return []
-        return [(tid, s, e) for tid, items in spans._items.items() for s, e, _ in items]
+        return spans.all()
 
     def intervals(self, name: str, tid: Any, lo: float, hi: float) -> Intervals:
         spans = self.ranges.get(name)
@@ -267,9 +275,14 @@ def _visit(index: _Index, kind: str, tid: Any, lo: float, hi: float) -> Dict[str
         "functional_call_ms": _length(machinery),
     }
     parts["python_dispatcher_ms"] = host - sum(parts.values())
-    result: Dict[str, Any] = {"kind": kind, "tid": tid, "start_us": lo, "host_ms": host / _US}
-    result.update({name: value / _US for name, value in parts.items()})
-    result["kernel_ms"] = kernel_us / _US
+    result: Dict[str, Any] = {
+        "kind": kind,
+        "tid": tid,
+        "start_us": lo,
+        "host_ms": host / _US_PER_MS,
+    }
+    result.update({name: value / _US_PER_MS for name, value in parts.items()})
+    result["kernel_ms"] = kernel_us / _US_PER_MS
     result["launches"] = counts
     return result
 
@@ -286,10 +299,10 @@ def _layer_backward(index: _Index, tid: Any, lo: float, hi: float) -> Dict[str, 
     return {
         "tid": tid,
         "start_us": lo,
-        "host_ms": host / _US,
-        "launch_ms": launch_us / _US,
-        "rest_ms": (host - launch_us) / _US,
-        "kernel_ms": kernel_us / _US,
+        "host_ms": host / _US_PER_MS,
+        "launch_ms": launch_us / _US_PER_MS,
+        "rest_ms": (host - launch_us) / _US_PER_MS,
+        "kernel_ms": kernel_us / _US_PER_MS,
         "launches": counts,
     }
 
@@ -356,12 +369,12 @@ def _reconcile(index: _Index, tolerance: float) -> Optional[Dict[str, Any]]:
             row[k] for k in ("visits_ms", "layer_backward_ms", "outside_ms", "final_wait_ms")
         )
         row["gap_fraction"] = row["gap_ms"] / step_us if step_us else 0.0
-        per_step.append({key: value / _US if key.endswith("_ms") else value
+        per_step.append({key: value / _US_PER_MS if key.endswith("_ms") else value
                          for key, value in row.items()})
         totals.update(row)
     gap_fraction = totals["gap_ms"] / totals["step_ms"] if totals["step_ms"] else 0.0
     result: Dict[str, Any] = {
-        key: value / _US for key, value in totals.items()
+        key: value / _US_PER_MS for key, value in totals.items()
     }
     result.update(
         {
@@ -383,7 +396,7 @@ def _memcpy_sources(index: _Index, visits: Sequence[Mapping[str, Any]]) -> Dict[
     per_visit: List[Counter] = []
     for visit in visits:
         tid, lo = visit["tid"], visit["start_us"]
-        hi = lo + visit["host_ms"] * _US
+        hi = lo + visit["host_ms"] * _US_PER_MS
         ops = index.ops.starting_in(tid, lo, hi)
         chains: Counter = Counter()
         for start, _end, (name, corr) in index.launches.starting_in(tid, lo, hi):

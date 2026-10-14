@@ -229,7 +229,7 @@ def analyse_trace_file(path: Path) -> Dict[str, Any]:
 COPY_SOURCE_NOTE = (
     "the 4 device-to-device copies per visit come from `result = result.clone()` in peft's "
     "LoRA Linear4bit forward (peft/tuners/lora/bnb.py line 533, peft 0.21.2), once each for "
-    "q_proj, k_proj, v_proj and o_proj. They do not come from functional_call itself."
+    "q_proj, k_proj, v_proj and o_proj. They run in the call into the layer, inside functional_call, not in its own machinery."
 )
 
 
@@ -242,7 +242,8 @@ def profile_notes(analysis: Mapping[str, Any]) -> List[str]:
         notes.append(f"device-to-device copies per visit, by the ops that issued them: {listed}")
     else:
         notes.append("device-to-device copies per visit: none found in the trace")
-    notes.append(COPY_SOURCE_NOTE)
+    if any("aten::clone" in chain for chain in sources):
+        notes.append(COPY_SOURCE_NOTE)
     return notes
 
 
@@ -504,7 +505,7 @@ def _parser() -> argparse.ArgumentParser:
     arm.add_argument("--arm", choices=ARMS, default="bare")
     arm.add_argument("--round", type=int, default=1)
     arm.add_argument("--run", type=int, default=1)
-    arm.add_argument("--steps", type=int, default=None, help="timed steps (profile arm: 3)")
+    arm.add_argument("--steps", type=int, default=None, help="timed steps (profile arm: fewer)")
     arm.add_argument("--warmup", type=int, default=WARMUP_STEPS)
     arm.add_argument("--keep-trace", action="store_true", help="keep the profile arm's trace")
 
