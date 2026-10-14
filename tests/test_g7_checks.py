@@ -125,8 +125,17 @@ def test_a_cap_that_appears_during_the_arm_voids_the_check(g7):
     assert check["evidence"]["power_limit_w_end"] == 10.0
 
 
-def test_a_limit_above_80_watts_is_void_too(g7):
-    check = _power_check(g7, _power_query("95.00 W"), _power_query("95.00 W"))
+@pytest.mark.parametrize("limit", ["80.00 W", "85.06 W", "90.00 W", "95.00 W"])
+def test_boost_between_80_and_95_watts_is_ok(g7, limit):
+    check = _power_check(g7, _power_query("80.00 W"), _power_query(limit))
+
+    assert check["outcome"] == "ok"
+    assert check["evidence"]["power_limit_w_end"] == float(limit.split()[0])
+
+
+@pytest.mark.parametrize("limit", ["79.99 W", "96.00 W"])
+def test_a_limit_outside_80_to_95_watts_is_void(g7, limit):
+    check = _power_check(g7, _power_query(limit), _power_query(limit))
 
     assert check["outcome"] == "void"
 

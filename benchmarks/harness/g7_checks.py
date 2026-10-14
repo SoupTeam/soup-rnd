@@ -32,9 +32,12 @@ from arm_validity import (
     arm_outcome,
 )
 
-#: The only power limit a G7 arm may run under. The card's default on this laptop; a
+#: The power limits a G7 arm may run under, in watts: the card's default and its maximum.
+#: Under load the limit rises from 80 W to about 90 W (Dynamic Boost), which is healthy. A
 #: card stuck at 10 or 15 W gives tight, clean-looking numbers that describe the cap.
-POWER_LIMIT_OK_W = 80.0
+POWER_LIMIT_MIN_W = 80.0
+POWER_LIMIT_MAX_W = 95.0
+POWER_LIMIT_RANGE = f"{POWER_LIMIT_MIN_W:.2f} to {POWER_LIMIT_MAX_W:.2f} W"
 
 #: The field of the full power query the check reads, and the section that holds it.
 POWER_LIMIT_FIELD = "Current Power Limit"
@@ -107,7 +110,7 @@ def swap_counters() -> Dict[str, Optional[int]]:
 def gpu_power_limit_check_result(
     start: Tuple[Optional[float], Optional[str]], end: Tuple[Optional[float], Optional[str]]
 ) -> Dict[str, object]:
-    """Void if the limit read anything but 80.00 W at either end of the arm.
+    """Void if the limit read outside 80.00 to 95.00 W at either end of the arm.
 
     Each argument is ``(watts, problem)``. A value the sensor gave decides, even when
     the other end gave nothing. Otherwise a silent end makes the check unknown.
@@ -116,22 +119,24 @@ def gpu_power_limit_check_result(
     evidence: Dict[str, object] = {
         "power_limit_w_start": before,
         "power_limit_w_end": after,
-        "expected_w": POWER_LIMIT_OK_W,
+        "expected_w": [POWER_LIMIT_MIN_W, POWER_LIMIT_MAX_W],
     }
     wrong = [
         f"{when} the arm the limit was {watts:.2f} W"
         for when, watts in (("before", before), ("after", after))
-        if watts is not None and watts != POWER_LIMIT_OK_W
+        if watts is not None and not POWER_LIMIT_MIN_W <= watts <= POWER_LIMIT_MAX_W
     ]
     if wrong:
         return _check_result(
-            VOID, f"{'; '.join(wrong)} (expected {POWER_LIMIT_OK_W:.2f} W)", evidence
+            VOID, f"{'; '.join(wrong)} (expected {POWER_LIMIT_RANGE})", evidence
         )
     problems = [problem for problem in (before_problem, after_problem) if problem]
     if problems:
         return _check_result(UNKNOWN, "; ".join(problems), evidence)
     return _check_result(
-        OK, f"limit {POWER_LIMIT_OK_W:.2f} W before and after the arm", evidence
+        OK,
+        f"limit {before:.2f} W before and {after:.2f} W after the arm (within {POWER_LIMIT_RANGE})",
+        evidence,
     )
 
 
