@@ -387,7 +387,7 @@ def arm(args: argparse.Namespace) -> None:
     tokens = fixture.pop("input_ids").to(args.device)
     observed, handles = probe._execution_hooks(model) if args.backend == "soup" else ({}, [])
     # Check backend execution outside measured regions; hooks are then removed.
-    with torch.autograd.profiler.profile(use_cuda=False) as trace:
+    with torch.autograd.profiler.profile(use_device=None) as trace:
         initial_loss = model(input_ids=tokens, labels=tokens).loss
         initial_loss.backward()
     probe.require_finite(initial_loss, "preflight loss")

@@ -128,6 +128,22 @@ unmeasured GPU speedup. Production Fast-LoRA arithmetic was unchanged by this
 comparison work. Final-head full CI and team review remain separate acceptance
 requirements.
 
+The first full CI at `8d7d8496` failed the new CPU training integration test in
+all six completed matrix jobs: PyTorch 2.14.1 removed the profiler's `use_cuda`
+argument. Windows/Python 3.10 was cancelled. The worker now requests the same
+CPU-only preflight trace with `use_device=None`, supported by the
+[current profiler API](https://docs.pytorch.org/docs/stable/autograd.html#torch.autograd.profiler.profile).
+The integration test runs the real profiler and training through a signature
+that rejects the removed argument; the old invocation reproduces the CI error.
+This changes preflight instrumentation only, not model arithmetic or numerical
+criteria. Frozen GPU worker/source archives remain the authority for the GPU
+results above; the compatibility edit has not been rerun on a paid GPU.
+All 59 selected cases also pass on an actual Windows/Python 3.10 environment
+with torch 2.14.1+cpu; the
+[test environment record](evidence/d2-baselines-20261014/ci-profiler-fix.json)
+and its JUnit retain that check. This local environment inherits other system
+packages and does not stand in for a completed full CI matrix.
+
 Before requesting another paid run, diagnose the retained first-step discrepancies
 on CPU and review whether the declared whole-stack criterion is the intended
 acceptance criterion. Any proposed change to backend configuration or criterion

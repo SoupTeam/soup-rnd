@@ -132,11 +132,20 @@ def test_reject_modified_fixture_and_path_escape(harness, tmp_path):
 
 
 def test_complete_cpu_step_soup_matches_peft(harness, tmp_path, monkeypatch):
+    import torch
+
     # Text-only fixture: do not import unused sklearn/audio/vision native extensions.
     import transformers.utils.import_utils as imports
 
     for name in ("is_sklearn_available", "is_librosa_available", "is_torchvision_available"):
         monkeypatch.setattr(imports, name, lambda: False)
+    real_profile = torch.autograd.profiler.profile
+
+    def current_profile_api(*, use_device=None):
+        # PyTorch 2.14 removed use_cuda. Keep actual event collection and training.
+        return real_profile(use_device=use_device)
+
+    monkeypatch.setattr(torch.autograd.profiler, "profile", current_profile_api)
     fixture = tmp_path / "fixture"
     harness.prepare(fixture, "smoke", "float32")
     for backend in ("peft", "soup"):

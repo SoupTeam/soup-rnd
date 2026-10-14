@@ -108,7 +108,14 @@ expected: numerical gates failed and all 72 performance arms are absent.
 
 Use `sources/source-v5.zip` for the executed final worker and pinned dependency
 lock. Current protocol/report files contain post-run conclusions and therefore
-have different hashes from their frozen pre-run versions. The worker itself is
-unchanged. `sources/source-v4-worker-reconstructed.py` is explicitly reconstructed
+have different hashes from their frozen pre-run versions. The current worker
+also replaces the removed profiler argument `use_cuda=False` with
+`use_device=None` for PyTorch 2.14 compatibility. This changes the CPU preflight
+trace API only; the frozen GPU worker is preserved in the archive, and the
+compatibility edit has not been rerun on a paid GPU.
+The archived post-run source check describes the original evidence publication,
+before that compatibility edit. [The CI fix record](ci-profiler-fix.json) and
+[its JUnit](ci-profiler-fix-tests.xml) record 59 actual torch 2.14.1+cpu passes.
+`sources/source-v4-worker-reconstructed.py` is explicitly reconstructed
 and SHA-verified against the captured ready record; the original v4 outer ZIP is
 not preserved. `source-v4-reconstruction.json` describes that boundary.
