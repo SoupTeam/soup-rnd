@@ -229,7 +229,8 @@ def analyse_trace_file(path: Path) -> Dict[str, Any]:
 COPY_SOURCE_NOTE = (
     "the 4 device-to-device copies per visit come from `result = result.clone()` in peft's "
     "LoRA Linear4bit forward (peft/tuners/lora/bnb.py line 533, peft 0.21.2), once each for "
-    "q_proj, k_proj, v_proj and o_proj. They run in the call into the layer, inside functional_call, not in its own machinery."
+    "q_proj, k_proj, v_proj and o_proj. They run in the call into the layer, inside "
+    "functional_call, not in its own machinery."
 )
 
 
