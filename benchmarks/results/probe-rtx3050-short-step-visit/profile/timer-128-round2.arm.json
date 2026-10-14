@@ -1,0 +1,154 @@
+{
+  "arm": "timer-128-round2",
+  "round": 2,
+  "run": 15,
+  "label": "RTX 3050, synthetic",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads",
+    "gpu_power_limit",
+    "swap"
+  ],
+  "outcome": "ok",
+  "box_stamp_before": {
+    "unix_s": 1792005675.1115127,
+    "ram_available_bytes": 12339671040,
+    "commit_charge": {
+      "used_bytes": 8485490688,
+      "limit_bytes": 7914143744
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1792005701.5863025,
+    "ram_available_bytes": 12422303744,
+    "commit_charge": {
+      "used_bytes": 8486141952,
+      "limit_bytes": 7914143744
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 210 to 1942 MHz over 15 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+    "samples": 15,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 210,
+      "median": 1942,
+      "max": 1942
+    },
+    "reasons_seen": {
+      "gpu_idle": 3,
+      "sw_power_cap": 2
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 1",
+      "evidence": {
+        "sleep_offset_start_s": 6657.882424264001,
+        "sleep_offset_end_s": 6657.882424357001,
+        "suspend_count_start": 1,
+        "suspend_count_end": 1
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 15 power samples",
+      "evidence": {
+        "samples": 15,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 49582080 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/var/tmp/g7/shards",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 199150661120,
+        "disk_read_bytes_end": 205263162880,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 6062919680,
+        "foreign_read_bytes": 49582080,
+        "foreign_read_bytes_min": 49582080,
+        "foreign_read_bytes_max": 49582080,
+        "uninspectable_processes": 284
+      },
+      "readers": [
+        {
+          "pid": 26734,
+          "name": "claude",
+          "read_bytes": 47050752
+        }
+      ],
+      "unattributed_bytes": 2531328
+    },
+    "gpu_power_limit": {
+      "outcome": "ok",
+      "reason": "limit 90.00 W before and 90.00 W after the arm (within 80.00 to 95.00 W)",
+      "evidence": {
+        "power_limit_w_start": 90.0,
+        "power_limit_w_end": 90.0,
+        "expected_w": [
+          80.0,
+          95.0
+        ]
+      }
+    },
+    "swap": {
+      "outcome": "ok",
+      "reason": "no swap-in or swap-out during the arm",
+      "evidence": {
+        "swapped_in_pages": 0,
+        "swapped_out_pages": 0,
+        "counters_start": {
+          "pswpin": 603137,
+          "pswpout": 685622
+        },
+        "counters_end": {
+          "pswpin": 603137,
+          "pswpout": 685622
+        }
+      }
+    }
+  }
+}
