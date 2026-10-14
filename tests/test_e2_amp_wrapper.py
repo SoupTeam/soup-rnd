@@ -13,6 +13,8 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
+from tests.conftest import strip_ansi
+
 WRAPPER = Path(__file__).resolve().parents[1] / "benchmarks/e2/bench_train_amp.py"
 
 
@@ -60,7 +62,7 @@ def test_amp_wrapper_sets_scale_and_restores_original(monkeypatch, capsys):
 
     monkeypatch.setattr(module.runpy, "run_module", fake_run_module)
     module.main()
-    stdout = capsys.readouterr().out
+    stdout = strip_ansi(capsys.readouterr().out)
     assert "E2_AMP_SCALER_CREATED init_scale=1024.0" in stdout
     assert "E2_AMP_SCALERS_CREATED: 1" in stdout
     assert "E2_AMP_FINAL_SCALE: 1024.0" in stdout
