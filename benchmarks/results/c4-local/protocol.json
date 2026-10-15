@@ -1,0 +1,55 @@
+{
+  "status": "frozen",
+  "task": "C4",
+  "scope": "Single-host, single-pattern exploratory sustained direct-read measurement; not an ABBA comparison or complete formal F1 certification",
+  "patterns": [
+    "seq4m"
+  ],
+  "duration_s": 3600,
+  "planned_runs": 1,
+  "sources": {
+    "sustained.py": "5730f246f66433d73dd95de718b873294d162cc8efcadf1a48ccc0224c184c35",
+    "preflight.py": "589001c4503549260df329d297dfd5c3e2d44712b858a2761671865282373e5c",
+    "source/arm_validity.py": "38dc91a5893159c2bf0e2c4b8fb2ac75f09ea14ed4f768e888265bda128ba353",
+    "source/safetensors_reader.py": "978d0f78a4f765d346a3e59b26b50071a3ca3f75a62e7a895fe4696323f8927f"
+  },
+  "fixture_sha256": "99dc1ee1a0662da894fe4dfda146310f835b3d945a2bc35c6378ff4163018aa7",
+  "fixture_bytes": 34359738368,
+  "physical_ram_bytes": 16857817088,
+  "preparation": "16 MiB instrument controls and 64 MiB 15-second smoke observed before this protocol. No sustained arm yet.",
+  "hardware": "Windows laptop; C: on PhysicalDrive0, Micron MTFDKCD512QFM-1BD1AABLA; one physical SSD; combined-drive test not applicable",
+  "reading": "Sequential 4 MiB aligned direct reads using Soup open_direct; wrap at EOF; 32 GiB random-byte fixture",
+  "start_conditions": [
+    "AC connected",
+    "Close nonessential applications and pause voluntary downloads/sync",
+    "Wait until disk temperature is at most 40 C before starting",
+    "Keep laptop on a hard ventilated surface and prevent sleep during this run"
+  ],
+  "stopping": [
+    "Temperature at or above 65 C: operational cutoff, not manufacturer rating",
+    "Missing/error/stale temperature sensor",
+    "AC absent or unknown",
+    "I/O error or short read",
+    "Manual interruption retained as invalid"
+  ],
+  "analysis": {
+    "warmup_s": 600,
+    "plots": [
+      "one-second throughput",
+      "temperature over time",
+      "physical-disk read and write counter deltas"
+    ],
+    "summary": "Report whole-run and post-600s throughput, with nonoverlapping 60-second time-weighted windows. Preserve final partial window separately.",
+    "planner_rule": "0.9 times the 10th percentile (linear interpolation) of complete post-warmup 60-second throughput windows; heuristic for this host and read pattern, not a confidence bound",
+    "invalid": "Incomplete duration, failed required F1 check, safety stop, changed source/fixture, missing counters: exclude from planner recommendation; preserve all logs",
+    "attribution": "Correlate dips with temperature, physical-disk activity and recorded process reads. Temporal association alone is not thermal causation; unexplained dips remain unknown."
+  },
+  "limitations": [
+    "One run and one pattern: no repeatability or comparative speedup claim",
+    "Windows F1 process I/O is logical and covers all devices; physical counters are aggregate, not per-process attribution",
+    "F1 ok does not establish absence of all background I/O; writes and paging can affect throughput",
+    "Sensor polling cannot interrupt a hung kernel I/O",
+    "No GPU or Soup training throughput claim; this is a Soup-reader disk primitive",
+    "If background activity prevents attribution, report inconclusive rather than relaxing thresholds after observing results"
+  ]
+}
