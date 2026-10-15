@@ -76,6 +76,10 @@ def provenance(require_clean: bool) -> dict:
         "runtime_sha256": digest(ROOT / "src/soup_cli/utils/layer_stream_runtime.py"),
         "qa_harness_sha256": digest(Path(__file__).with_name("d1_qa.py")),
         "rule_amendment_sha256": digest(ROOT / "benchmarks/d1-amendment-20261015-a.md"),
+        "amendments_sha256": {
+            path.name: digest(path)
+            for path in sorted((ROOT / "benchmarks").glob("d1-amendment-*.md"))
+        },
     }
 
 
@@ -419,12 +423,23 @@ class Telemetry:
         self.thread.join(timeout=10)
 
 
-def timed_steps(step: Callable[[], None], count: int, warmup: int) -> dict:
+def timed_steps(
+    step: Callable[[], None], count: int, warmup: int, warmup_seconds: float = 0
+) -> dict:
     import torch
 
+    warm_started = time.perf_counter()
+    warm_steps = warmup
     for _index in range(warmup):
         step()
     torch.cuda.synchronize()
+    # Only frozen projection arms may request time-based warm-up. Synchronize
+    # each extra step to bound real elapsed work instead of queueing CUDA work.
+    while time.perf_counter() - warm_started < warmup_seconds:
+        step()
+        torch.cuda.synchronize()
+        warm_steps += 1
+    warm_elapsed = time.perf_counter() - warm_started
     torch.cuda.reset_peak_memory_stats()
     pairs, wall_ms = [], []
     with Telemetry() as telemetry:
@@ -448,6 +463,8 @@ def timed_steps(step: Callable[[], None], count: int, warmup: int) -> dict:
     actual_uuid = canonical_gpu_uuid(raw_uuid)
     return {
         "step_cuda_ms": pairs,
+        "actual_warmup_steps": warm_steps,
+        "actual_warmup_seconds": warm_elapsed,
         "step_wall_ms": wall_ms,
         "median_step_ms": statistics.median(wall_ms),
         "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
@@ -497,7 +514,7 @@ def projection(args: argparse.Namespace) -> dict:
         result = checkpoint(forward, value, use_reentrant=False)
         result.float().square().mean().backward()
 
-    measured = timed_steps(step, args.steps, args.warmup)
+    measured = timed_steps(step, args.steps, args.warmup, args.warmup_seconds)
     # Oracle tensors and the dense GEMM ceiling are created AFTER recording peaks.
     from bitsandbytes.backends.cuda import ops as cuda_ops
 
@@ -567,7 +584,9 @@ def projection(args: argparse.Namespace) -> dict:
         "settings_sha256": settings_digest(
             {
                 key: getattr(args, key)
-                for key in ("dtype", "m", "n", "k", "no_nested", "steps", "warmup")
+                for key in (
+                    "dtype", "m", "n", "k", "no_nested", "steps", "warmup", "warmup_seconds"
+                )
             }
         ),
         "timing_scope": "checkpointed frozen projection forward/backward; no optimizer",
@@ -600,9 +619,10 @@ def train(args: argparse.Namespace) -> dict:
     model_hashes = {path.name: digest(path) for path in sorted(args.weights.glob("*.safetensors"))}
     if not model_hashes:
         raise ValueError("no local safetensors model files")
+    temporary_shards = tempfile.TemporaryDirectory(prefix="d1-shards-")
     build_args = SimpleNamespace(
         weights=str(args.weights),
-        shards=tempfile.mkdtemp(prefix="d1-shards-"),
+        shards=temporary_shards.name,
         quant="nf4",
         lazy_shard_handles=False,
         control_sync_source=False,
@@ -726,6 +746,7 @@ def train(args: argparse.Namespace) -> dict:
     finally:
         runtime_module._can_use_checkpoint_visible_nf4_gemm = real_gate
         runtime.close()
+        temporary_shards.cleanup()
 
 
 def ablation(args: argparse.Namespace) -> dict:
@@ -736,9 +757,10 @@ def ablation(args: argparse.Namespace) -> dict:
 
     from stream_probe import Instruments, build, measure_ceiling, model_shapes
 
+    temporary_shards = tempfile.TemporaryDirectory(prefix="d1-shards-")
     build_args = SimpleNamespace(
         weights=str(args.weights),
-        shards=tempfile.mkdtemp(prefix="d1-shards-"),
+        shards=temporary_shards.name,
         quant="nf4",
         lazy_shard_handles=False,
         control_sync_source=False,
@@ -797,6 +819,7 @@ def ablation(args: argparse.Namespace) -> dict:
         }
     finally:
         runtime.close()
+        temporary_shards.cleanup()
 
 
 def block_readings() -> dict:
@@ -817,7 +840,7 @@ def run_blocks(args: argparse.Namespace) -> dict:
     routes = {"A": args.pair.split("-")[0], "B": args.pair.split("-")[1]}
     records = []
     monitor = GPUMonitor()
-    for block in range(args.blocks):
+    for block in range(args.block_start, args.block_start + args.blocks):
         for run, arm in enumerate("ABBA"):
             output = args.output / f"block-{block:03d}-run-{run}-{arm}"
             output.mkdir(parents=True, exist_ok=False)
@@ -833,14 +856,14 @@ def run_blocks(args: argparse.Namespace) -> dict:
                 args.dtype,
             ]
             keys = (
-                ("m", "n", "k", "steps", "warmup")
+                ("m", "n", "k", "steps", "warmup", "warmup_seconds")
                 if args.kind == "projection"
                 else ("steps", "warmup", "seq", "weights", "data")
                 if args.kind == "train"
                 else ("steps", "warmup", "seq", "weights")
             )
             for key in keys:
-                command.extend(["--" + key, str(getattr(args, key))])
+                command.extend(["--" + key.replace("_", "-"), str(getattr(args, key))])
             if args.kind == "projection" and args.no_nested:
                 command.append("--no-nested")
             watch = ArmWatch(
@@ -913,7 +936,7 @@ def run_blocks(args: argparse.Namespace) -> dict:
                 result["validity"] = {**validity, "outcome": "void"}
             write_new_json(output / "watched.json", result)
             records.append(result)
-            CONSOLE.print(f"block {block + 1}/{args.blocks}, arm {arm}: {result.get('status')}")
+            CONSOLE.print(f"global block {block}, arm {arm}: {result.get('status')}")
             if process.returncode:
                 return {
                     "status": "NO_VERDICT",
@@ -983,6 +1006,7 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--k", type=int, default=4096)
             command.add_argument("--steps", type=int, default=100)
             command.add_argument("--warmup", type=int, default=20)
+            command.add_argument("--warmup-seconds", type=float, default=0)
             command.add_argument("--no-nested", action="store_true")
         if name in ("projection", "train"):
             command.add_argument("--route", choices=("dense", "native", "forced"), required=True)
@@ -998,6 +1022,7 @@ def parser() -> argparse.ArgumentParser:
                 default="dense-native",
             )
             command.add_argument("--blocks", type=int, default=5)
+            command.add_argument("--block-start", type=int, default=0)
         if name in ("train", "ablation", "run"):
             command.add_argument("--weights", type=Path, required=name != "run")
             command.add_argument("--data", type=Path)
@@ -1026,6 +1051,13 @@ def validate_args(args: argparse.Namespace) -> None:
             raise ValueError(f"--{name} must be positive")
     if hasattr(args, "warmup") and args.warmup < 0:
         raise ValueError("--warmup must be nonnegative")
+    if hasattr(args, "block_start") and args.block_start < 0:
+        raise ValueError("--block-start must be nonnegative")
+    if hasattr(args, "warmup_seconds"):
+        if not math.isfinite(args.warmup_seconds) or args.warmup_seconds < 0:
+            raise ValueError("--warmup-seconds must be finite and nonnegative")
+        if args.warmup_seconds and kind != "projection":
+            raise ValueError("time-based warm-up is only allowed for a frozen projection")
 
 
 def main(argv: list[str] | None = None) -> int:

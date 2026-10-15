@@ -199,6 +199,7 @@ def _comparison(case: str, rows: list[dict]) -> dict:
     result = {
         "case": case,
         "accepted_blocks": len(accepted),
+        "accepted_block_ids": [block[0]["block"] for block in accepted],
         "rejected_blocks": rejected,
         "status": "NO_VERDICT",
         "ratio_a_over_b": None,

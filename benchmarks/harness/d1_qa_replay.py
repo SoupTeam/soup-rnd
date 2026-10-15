@@ -30,15 +30,28 @@ def metric_difference(left: dict, right: dict) -> float:
     return max(differences, default=0.0)
 
 
-def audit(root: Path, expected_predictions: int = 64, gold: list[dict] | None = None) -> dict:
+def audit(
+    root: Path,
+    expected_predictions: int = 64,
+    gold: list[dict] | None = None,
+    block_ids: list[int] | None = None,
+) -> dict:
     import torch
 
+    block_ids = [0] if block_ids is None else block_ids
+    if not block_ids or len(set(block_ids)) != len(block_ids) or any(
+        block < 0 for block in block_ids
+    ):
+        raise ValueError("block IDs must be unique nonnegative integers")
     records, tensors, metric_differences = [], [], []
-    for run, arm in enumerate("ABBA"):
-        directory = root / f"block-000-run-{run}-{arm}"
-        path = directory / "result.json"
-        if not path.is_file():
-            raise ValueError(f"missing completed arm: {path}")
+    for block, run, arm in (
+        (block, run, arm) for block in block_ids for run, arm in enumerate("ABBA")
+    ):
+        matches = list(root.rglob(f"block-{block:03d}-run-{run}-{arm}/result.json"))
+        if len(matches) != 1:
+            raise ValueError(f"missing or duplicate completed arm: block {block}, run {run}")
+        path = matches[0]
+        directory = path.parent
         record = json.loads(path.read_text(encoding="utf-8"))
         if record["status"] != "MEASURED" or record["route"] != (
             "native" if arm == "A" else "forced"
@@ -100,7 +113,8 @@ def audit(root: Path, expected_predictions: int = 64, gold: list[dict] | None = 
         raise ValueError("no adapter changed during training")
     return {
         "status": "PASS",
-        "arms": 4,
+        "arms": 4 * len(block_ids),
+        "block_ids": block_ids,
         "updates_per_arm": 276,
         "predictions_per_arm": expected_predictions,
         "initial_adapters_equal": True,
@@ -122,8 +136,9 @@ def main() -> None:
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--block-ids", type=int, nargs="+", default=[0])
     args = parser.parse_args()
-    result = audit(args.input, gold=load_split(args.data, "test"))
+    result = audit(args.input, gold=load_split(args.data, "test"), block_ids=args.block_ids)
     write_new_json(args.output, result)
     Console().print(result)
 

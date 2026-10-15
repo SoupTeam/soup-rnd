@@ -215,3 +215,47 @@ def test_all_block_reads_bound_includes_own_io_and_rejects_sensor_gaps():
     assert all_block_reads_check(start, {"nvme0n1": 200})["outcome"] == "unknown"
     assert all_block_reads_check({}, {})["outcome"] == "unknown"
     assert all_block_reads_check(start, {"nvme0n1": 99, "nvme0n1p1": 200})["outcome"] == "unknown"
+
+
+def test_top_up_blocks_keep_distinct_global_ids():
+    from d1_nf4_study import parser, validate_args
+
+    args = parser().parse_args(
+        ["run", "--output", "unused", "--block-start", "5", "--warmup-seconds", "5"]
+    )
+    validate_args(args)
+    assert args.block_start == 5
+    assert args.warmup_seconds == 5
+    args.block_start = -1
+    with pytest.raises(ValueError, match="block-start"):
+        validate_args(args)
+
+
+def test_time_based_warm_up_cannot_silently_add_optimizer_updates(tmp_path):
+    from d1_nf4_study import parser, validate_args
+
+    args = parser().parse_args(
+        [
+            "run",
+            "--kind",
+            "train",
+            "--pair",
+            "native-forced",
+            "--output",
+            "unused",
+            "--weights",
+            str(tmp_path),
+            "--data",
+            str(tmp_path),
+            "--warmup-seconds",
+            "5",
+        ]
+    )
+    (tmp_path / "dataset.json").write_text("{}")
+    with pytest.raises(ValueError, match="projection"):
+        validate_args(args)
+
+
+def test_summary_exposes_accepted_block_ids_for_unambiguous_replay():
+    comparison = rules().summarize(clean_blocks())["comparisons"][0]
+    assert comparison["accepted_block_ids"] == [0, 1, 2, 3, 4]

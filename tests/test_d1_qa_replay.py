@@ -110,3 +110,22 @@ def test_audit_rejects_changed_or_incomplete_evidence(tmp_path, change):
         path.write_text(json.dumps(record))
     with pytest.raises(ValueError):
         audit(root, expected_predictions=2)
+
+
+def test_every_selected_training_repeat_is_checked(tmp_path):
+    import shutil
+
+    from d1_qa_replay import audit
+
+    root = fixture(tmp_path)
+    for path in list(root.glob("block-*")):
+        shutil.copytree(path, root / path.name.replace("000", "005", 1))
+    result = audit(root, expected_predictions=2, block_ids=[0, 5])
+    assert result["arms"] == 8
+    assert result["block_ids"] == [0, 5]
+    path = root / "block-005-run-2-B/result.json"
+    record = json.loads(path.read_text())
+    record["losses"][100] = 9.0
+    path.write_text(json.dumps(record))
+    with pytest.raises(ValueError, match="losses"):
+        audit(root, expected_predictions=2, block_ids=[0, 5])
