@@ -1,0 +1,236 @@
+{
+  "profile_rows": {
+    "16": {
+      "timer_is_free": {
+        "verdict": "pass",
+        "reason": "the timer arm's step is -0.1% against the bare arm's (limit +2%)",
+        "evidence": {
+          "excess": -0.0006113365303447305,
+          "bare_step_s": 0.8432098759999462,
+          "timer_step_s": 0.842694391,
+          "rounds": [
+            {
+              "excess": -0.0006113365303447305,
+              "bare_step_s": 0.8432098759999462,
+              "timer_step_s": 0.842694391
+            },
+            {
+              "excess": -0.004824346877190022,
+              "bare_step_s": 0.845621615500022,
+              "timer_step_s": 0.8415420435000001
+            }
+          ]
+        }
+      },
+      "profile_is_readable": {
+        "verdict": "pass",
+        "reason": "the profile's host time per visit is 1.07 times the timer's (limit 1.5)",
+        "evidence": {
+          "inflation": 1.0697705227021979,
+          "timer_host_ms": 2.6606785,
+          "profile_host_ms": 2.8463154296875,
+          "rounds": [
+            {
+              "inflation": 1.0697705227021979,
+              "timer_host_ms": 2.6606785,
+              "profile_host_ms": 2.8463154296875
+            },
+            {
+              "inflation": 1.1133327949559026,
+              "timer_host_ms": 2.683773,
+              "profile_host_ms": 2.9879324951171875
+            }
+          ]
+        }
+      },
+      "control": {
+        "verdict": "fail",
+        "reason": "the timer's host time per visit grew by 7160 us, expected 6959 to 7039 us (200 us +/- 20% plus 6799 us for the launches)",
+        "evidence": {
+          "weight_prep_delta_ms": 0.2075650634765625,
+          "launch_delta": 50.0,
+          "launch_cost_ms": 6.798845336914062,
+          "timer_delta_ms": 7.160311070312499,
+          "rounds": [
+            {
+              "weight_prep_delta_ms": 0.2075650634765625,
+              "launch_delta": 50.0,
+              "launch_cost_ms": 6.798845336914062,
+              "timer_delta_ms": 7.160311070312499
+            },
+            {
+              "weight_prep_delta_ms": 0.19790063476562497,
+              "launch_delta": 50.0,
+              "launch_cost_ms": 6.770176879882812,
+              "timer_delta_ms": 7.027015004882813
+            }
+          ]
+        }
+      },
+      "cpu_bound": {
+        "verdict": "no_verdict",
+        "reason": "a round has no verdict: control is fail: the timer's host time per visit grew by 7160 us, expected 6959 to 7039 us (200 us +/- 20% plus 6799 us for the launches); control is fail: the timer's host time per visit grew by 7027 us, expected 6930 to 7010 us (200 us +/- 20% plus 6770 us for the launches)",
+        "evidence": {}
+      }
+    },
+    "32": {
+      "timer_is_free": {
+        "verdict": "pass",
+        "reason": "the timer arm's step is -0.4% against the bare arm's (limit +2%)",
+        "evidence": {
+          "excess": -0.0037286891961648694,
+          "bare_step_s": 0.8476830149998023,
+          "timer_step_s": 0.8445222685,
+          "rounds": [
+            {
+              "excess": -0.0037286891961648694,
+              "bare_step_s": 0.8476830149998023,
+              "timer_step_s": 0.8445222685
+            },
+            {
+              "excess": 0.001026689112861856,
+              "bare_step_s": 0.8439604440004587,
+              "timer_step_s": 0.844826929
+            }
+          ]
+        }
+      },
+      "profile_is_readable": {
+        "verdict": "no_verdict",
+        "reason": "the rounds disagree: the profile's host time per visit is 1.07 times the timer's (limit 1.5); the profile's host time per visit is 1.67 times the timer's (limit 1.5)",
+        "evidence": {}
+      }
+    },
+    "64": {
+      "timer_is_free": {
+        "verdict": "pass",
+        "reason": "the timer arm's step is +0.1% against the bare arm's (limit +2%)",
+        "evidence": {
+          "excess": 0.0009937224646401344,
+          "bare_step_s": 0.9054318805001458,
+          "timer_step_s": 0.9063316285,
+          "rounds": [
+            {
+              "excess": 0.0009937224646401344,
+              "bare_step_s": 0.9054318805001458,
+              "timer_step_s": 0.9063316285
+            },
+            {
+              "excess": 0.002707940676204945,
+              "bare_step_s": 0.9066841905000729,
+              "timer_step_s": 0.9091394374999999
+            }
+          ]
+        }
+      },
+      "profile_is_readable": {
+        "verdict": "pass",
+        "reason": "the profile's host time per visit is 1.03 times the timer's (limit 1.5)",
+        "evidence": {
+          "inflation": 1.0327667938013598,
+          "timer_host_ms": 6.446574999999999,
+          "profile_host_ms": 6.6578085937500004,
+          "rounds": [
+            {
+              "inflation": 1.0327667938013598,
+              "timer_host_ms": 6.446574999999999,
+              "profile_host_ms": 6.6578085937500004
+            },
+            {
+              "inflation": 1.0626846018566456,
+              "timer_host_ms": 6.318417500000001,
+              "profile_host_ms": 6.714484985351563
+            }
+          ]
+        }
+      }
+    },
+    "128": {
+      "timer_is_free": {
+        "verdict": "pass",
+        "reason": "the timer arm's step is +0.1% against the bare arm's (limit +2%)",
+        "evidence": {
+          "excess": 0.0007166110294660744,
+          "bare_step_s": 1.0323061879998932,
+          "timer_step_s": 1.03304595,
+          "rounds": [
+            {
+              "excess": 0.0007166110294660744,
+              "bare_step_s": 1.0323061879998932,
+              "timer_step_s": 1.03304595
+            },
+            {
+              "excess": -0.0019968150724133382,
+              "bare_step_s": 1.0340699690000292,
+              "timer_step_s": 1.0320051225
+            }
+          ]
+        }
+      },
+      "profile_is_readable": {
+        "verdict": "pass",
+        "reason": "the profile's host time per visit is 1.05 times the timer's (limit 1.5)",
+        "evidence": {
+          "inflation": 1.0529904581498808,
+          "timer_host_ms": 6.1368045,
+          "profile_host_ms": 6.46199658203125,
+          "rounds": [
+            {
+              "inflation": 1.0529904581498808,
+              "timer_host_ms": 6.1368045,
+              "profile_host_ms": 6.46199658203125
+            },
+            {
+              "inflation": 0.9900146620122579,
+              "timer_host_ms": 6.6085505,
+              "profile_host_ms": 6.542561889648438
+            }
+          ]
+        }
+      }
+    }
+  },
+  "experiment": {
+    "gate": {
+      "passed": true,
+      "loss_equal": true,
+      "grads_equal": true,
+      "grads_compared": 256,
+      "control_differs": true,
+      "reason": "loss and 256 LoRA gradients are bit-equal, the control differs",
+      "shipped_repeat_equal": true,
+      "tokens": 16,
+      "lora_b_init": "seeded randn * 0.02 (bitexact.make_non_vacuous_lora)"
+    },
+    "verdict": {
+      "verdict": "fail",
+      "reason": "effect below the detection limit, about 10% of a step (p = 0.093, 95% interval -0.0006 to +0.0051 s)",
+      "evidence": {
+        "blocks": 5,
+        "gain_s": 0.002257247549960084,
+        "gain_fraction": 0.002672672201735339,
+        "ci_low_s": -0.0005928636525946904,
+        "ci_high_s": 0.005107358752514859,
+        "p_value": 0.09276585064385522,
+        "mean_a_s": 0.8445658051497957
+      }
+    }
+  },
+  "prototype": null,
+  "recommendation": "No verdict",
+  "continue": [],
+  "branches": {
+    "tie_weights": {
+      "verdict": "fail",
+      "reason": "effect below the detection limit, about 10% of a step (p = 0.093, 95% interval -0.0006 to +0.0051 s)",
+      "row": null,
+      "rerun": null
+    },
+    "cuda_graphs": {
+      "verdict": "no_verdict",
+      "reason": "control: the timer's host time per visit grew by 7160 us, expected 6959 to 7039 us (200 us +/- 20% plus 6799 us for the launches)",
+      "row": "control",
+      "rerun": "rerun the control arm at 16 tokens, then the profile arm"
+    }
+  }
+}
