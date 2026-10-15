@@ -346,3 +346,194 @@ def test_module_does_not_import_torch_at_top_level(audit):
     source = (HARNESS / "f3_audit.py").read_text(encoding="utf-8")
     top_level = [line for line in source.splitlines() if line.startswith(("import ", "from "))]
     assert not any("torch" in line or "transformers" in line for line in top_level)
+
+
+# --- speed verdict (ticket 05) --------------------------------------------------
+
+
+def passed(audit, arm):
+    return audit.Verdict("C1", arm, "pass", "", 1)
+
+
+def speed_report(seconds, useful=1000, total=1000):
+    return {
+        "valid": True,
+        "failures": [],
+        "timing": {"median_seconds": seconds},
+        "tokens": {"useful": useful, "total": total},
+    }
+
+
+class FakeSpeedRunner:
+    """Answers each run from per-label seconds; ``noise`` is added in call order."""
+
+    def __init__(self, a=1.0, b=1.0, noise=(0.0,), tokens=(1000, 1000)):
+        self.base = {"A": a, "B": b}
+        self.noise = noise
+        self.tokens = tokens
+        self.calls = []
+
+    def __call__(self, label, round, run):
+        self.calls.append((label, round, run))
+        jitter = self.noise[(run - 1) % len(self.noise)]
+        useful, total = self.tokens
+        return speed_report(self.base[label] + jitter, useful, total)
+
+
+class SpeedWatch:
+    """FakeWatch-like: records get a chosen outcome per run number and a gpu_clock."""
+
+    def __init__(self, outcomes=None):
+        self.outcomes = outcomes or {}
+        self.made = []
+
+    def __call__(self, *, arm, round, run, **kwargs):
+        self.made.append({"arm": arm, "round": round, "run": run, **kwargs})
+        outcome = self.outcomes.get(run, "ok")
+        clock = {"max_sm_mhz": 1410, "run": run}
+
+        class Watched:
+            record = None
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                self.record = {"arm": arm, "run": run, "outcome": outcome, "gpu_clock": clock}
+
+        return Watched()
+
+
+def speed(audit, runner=None, watch=None, validity=None):
+    runner = runner or FakeSpeedRunner()
+    watch = watch or SpeedWatch()
+    if validity is None:
+        validity = [passed(audit, "A"), passed(audit, "B")]
+    result = audit.speed_audit("C1", ("A", "B"), validity, runner, watch)
+    return result, runner, watch
+
+
+# +-1% jitter that cancels within each block (no bias between A and B), so five blocks suffice.
+QUIET = (0.01, -0.01, 0.01, -0.01, -0.01, 0.01, -0.01, 0.01)
+# Large spread relative to the mean, so the repeats rule asks for more than five blocks.
+LOUD = (0.15, -0.1, 0.2, -0.25, 0.05, -0.15, 0.1, 0.25)
+
+
+@pytest.mark.parametrize(
+    "validity",
+    [
+        lambda a: [passed(a, "A"), a.Verdict("C1", "B", "fail", "x", 2)],
+        lambda a: [a.Verdict("C1", "A", "no verdict", "x", 1), passed(a, "B")],
+        lambda a: [passed(a, "A")],
+        lambda a: [],
+    ],
+)
+def test_no_speed_blocks_unless_both_arms_pass(audit, validity):
+    result, runner, watch = speed(audit, validity=validity(audit))
+    assert result.verdict == "no verdict"
+    assert runner.calls == [] and watch.made == []
+    assert result.reason
+
+
+def test_validity_of_other_configs_does_not_count(audit):
+    other = [audit.Verdict("C2", "A", "pass", "", 1), audit.Verdict("C2", "B", "pass", "", 1)]
+    result, runner, _ = speed(audit, validity=other)
+    assert result.verdict == "no verdict" and runner.calls == []
+
+
+def test_pilot_is_five_blocks_in_a_b_b_a_order(audit):
+    result, runner, _ = speed(audit, FakeSpeedRunner(noise=QUIET))
+    assert [call[0] for call in runner.calls] == list("ABBA") * 5
+    assert result.verdict == "measured"
+    assert len(result.blocks) == 5
+
+
+def test_block_count_comes_from_arm_validity(audit):
+    import arm_validity as av
+
+    result, runner, _ = speed(audit, FakeSpeedRunner(noise=LOUD))
+    runs = [[av.Run(r["value"], r["outcome"]) for r in block] for block in result.blocks]
+    assert len(result.blocks) > 5
+    assert av.blocks_to_add(runs) == 0
+    assert len(runner.calls) == 4 * len(result.blocks)
+
+
+def test_speed_watch_requires_suspend_and_power_only(audit):
+    _, _, watch = speed(audit, FakeSpeedRunner(noise=QUIET))
+    assert all(tuple(made["required"]) == ("suspend", "power") for made in watch.made)
+
+
+def test_void_block_is_replaced_and_kept_on_record(audit):
+    result, runner, _ = speed(audit, FakeSpeedRunner(noise=QUIET), SpeedWatch({6: "void"}))
+    assert result.verdict == "measured"
+    assert len(result.blocks) == 6
+    assert any(run["outcome"] == "void" for run in result.blocks[1])
+    assert len(runner.calls) == 24
+
+
+def test_two_void_blocks_are_replaced(audit):
+    watch = SpeedWatch({2: "void", 9: "void"})
+    result, _, _ = speed(audit, FakeSpeedRunner(noise=QUIET), watch)
+    assert result.verdict == "measured"
+    assert len(result.blocks) == 7
+
+
+def test_third_void_block_gives_no_verdict_and_stops(audit):
+    watch = SpeedWatch({1: "void", 5: "void", 9: "void"})
+    result, runner, _ = speed(audit, FakeSpeedRunner(noise=QUIET), watch)
+    assert result.verdict == "no verdict"
+    assert "void" in result.reason
+    assert len(runner.calls) == 12
+
+
+def test_unknown_outcome_gives_no_verdict(audit):
+    result, runner, _ = speed(audit, FakeSpeedRunner(noise=QUIET), SpeedWatch({3: "unknown"}))
+    assert result.verdict == "no verdict"
+    assert "unknown" in result.reason
+    assert len(runner.calls) == 4
+
+
+def test_a_run_that_does_not_start_gives_no_verdict(audit):
+    class Broken(FakeSpeedRunner):
+        def __call__(self, label, round, run):
+            if run == 3:
+                raise RuntimeError("CUDA out of memory")
+            return super().__call__(label, round, run)
+
+    result, _, _ = speed(audit, Broken())
+    assert result.verdict == "no verdict"
+    assert "CUDA out of memory" in result.reason
+
+
+def test_a_clear_difference_is_reported_with_its_direction(audit):
+    result, _, _ = speed(audit, FakeSpeedRunner(a=1.0, b=0.7, noise=QUIET))
+    assert result.verdict == "measured"
+    assert result.evidence["significant"] is True
+    assert result.evidence["faster"] == "B"
+    assert result.evidence["p_value"] < 0.05
+
+
+def test_equal_arms_report_no_difference(audit):
+    result, _, _ = speed(audit, FakeSpeedRunner(a=1.0, b=1.0, noise=QUIET))
+    assert result.evidence["significant"] is False
+    assert result.evidence["faster"] is None
+    assert "10%" in result.evidence["detection_limit"]
+
+
+def test_record_says_neighbour_reads_were_not_checked(audit):
+    result, _, _ = speed(audit, FakeSpeedRunner(noise=QUIET))
+    assert any("neighbour disk reads were not checked" in note for note in result.notes)
+
+
+def test_gpu_clock_of_every_run_is_in_the_result(audit):
+    result, _, _ = speed(audit, FakeSpeedRunner(noise=QUIET))
+    assert len(result.gpu_clock) == 20
+    assert result.gpu_clock[0]["gpu_clock"]["max_sm_mhz"] == 1410
+
+
+def test_gap_between_useful_and_total_tokens_is_a_note_not_a_status(audit):
+    gap, _, _ = speed(audit, FakeSpeedRunner(noise=QUIET, tokens=(400, 1000)))
+    same, _, _ = speed(audit, FakeSpeedRunner(noise=QUIET, tokens=(1000, 1000)))
+    assert gap.verdict == same.verdict == "measured"
+    assert any("40%" in note and "useful" in note for note in gap.notes)
+    assert not any("useful" in note for note in same.notes)
