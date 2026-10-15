@@ -99,6 +99,7 @@ def describe(case: dict, rows: list[dict]) -> dict:
         if case["kind"] == "train"
         else ()
     )
+    fields += ("memory_util_pct", "clock_sm_mhz")
     result["descriptive_metrics"] = {
         arm: {
             field: statistics.median(
