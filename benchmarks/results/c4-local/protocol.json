@@ -8,15 +8,15 @@
   "duration_s": 3600,
   "planned_runs": 1,
   "sources": {
-    "sustained.py": "5730f246f66433d73dd95de718b873294d162cc8efcadf1a48ccc0224c184c35",
-    "preflight.py": "589001c4503549260df329d297dfd5c3e2d44712b858a2761671865282373e5c",
+    "sustained.py": "d9dfd0681abdb28b4fcd960071cbb1d17c38437d13ee42b0f666e7a53513b546",
+    "preflight.py": "8ccdb99c70b6d2651042e81adee993cc162a2ad7578b73452699920504be2101",
     "source/arm_validity.py": "38dc91a5893159c2bf0e2c4b8fb2ac75f09ea14ed4f768e888265bda128ba353",
     "source/safetensors_reader.py": "978d0f78a4f765d346a3e59b26b50071a3ca3f75a62e7a895fe4696323f8927f"
   },
   "fixture_sha256": "99dc1ee1a0662da894fe4dfda146310f835b3d945a2bc35c6378ff4163018aa7",
   "fixture_bytes": 34359738368,
   "physical_ram_bytes": 16857817088,
-  "preparation": "16 MiB instrument controls and 64 MiB 15-second smoke observed before this protocol. No sustained arm yet.",
+  "preparation": "Initial preparation and smoke preceded revision 1. Run run-run-2589873dea stopped at the original 65 C cutoff after approximately 226 seconds and is retained as invalid. Revision 2 is declared after that observation and before one replacement attempt; not a wholly unobserved initial protocol.",
   "hardware": "Windows laptop; C: on PhysicalDrive0, Micron MTFDKCD512QFM-1BD1AABLA; one physical SSD; combined-drive test not applicable",
   "reading": "Sequential 4 MiB aligned direct reads using Soup open_direct; wrap at EOF; 32 GiB random-byte fixture",
   "start_conditions": [
@@ -26,7 +26,7 @@
     "Keep laptop on a hard ventilated surface and prevent sleep during this run"
   ],
   "stopping": [
-    "Temperature at or above 65 C: operational cutoff, not manufacturer rating",
+    "Temperature at or above 75 C: experimental cutoff below observed controller warning threshold; not a manufacturer-rated continuous operating limit",
     "Missing/error/stale temperature sensor",
     "AC absent or unknown",
     "I/O error or short read",
@@ -51,5 +51,14 @@
     "Sensor polling cannot interrupt a hung kernel I/O",
     "No GPU or Soup training throughput claim; this is a Soup-reader disk primitive",
     "If background activity prevents attribution, report inconclusive rather than relaxing thresholds after observing results"
-  ]
+  ],
+  "amendment": {
+    "revision": 2,
+    "prior_protocol_commit": "a90268259d56503be13100b9ed2857370a2a02ad",
+    "excluded_run": "run-run-2589873dea",
+    "planned_replacement_attempts": 1,
+    "reason": "65 C was an investigator-selected limit, not evidence of overheating. Read-only SMART for exact OEM model reports warning 87 C, critical 90 C, current 38 C, critical warning 0 and zero warning/critical temperature time. Use 75 C as experimental margin, not a verified continuous temperature rating.",
+    "evidence": "nvme-health-redacted.txt",
+    "unchanged": "Same fixture, duration, read pattern, analysis rules and F1 checks; do not pool invalid run into sustained estimate"
+  }
 }
