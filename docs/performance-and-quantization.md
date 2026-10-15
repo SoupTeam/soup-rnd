@@ -864,6 +864,14 @@ the run refuses before either write when that volume lacks free space. Override 
 roots with `SOUP_SPECTRUM_CACHE_DIR` and `SOUP_LAYER_STREAM_CACHE_DIR`; both retain Soup's
 home/cwd/tmp containment policy.
 
+For block-scaled FP8 source checkpoints, both disk and early RAM estimates use
+one source byte per parameter from `quantization_config`, rather than treating
+the FP8 files as bf16. Plain output expands to the selected target dtype; NF4
+output is charged at the selected codec rate (single-quant by default for FP8).
+Ordinary-source estimates are unchanged. These are coarse pre-flight estimates:
+headers, scale grids, mixed-dtype tensors and unquantised embeddings/norms limit
+their accuracy. Actual shard sizes remain authoritative after sharding.
+
 **Two or more NVMe drives.** On a cold store larger than RAM the disk-tier step can wait on the
 read (measured for a 70B-shaped store), and then one drive is the ceiling. Set
 `SOUP_LAYER_STREAM_STRIPE_DIRS` to extra folders on OTHER NVMe drives (`os.pathsep`-separated:
