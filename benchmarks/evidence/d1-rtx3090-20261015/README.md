@@ -17,7 +17,7 @@ bitsandbytes 0.50.1; isolated 0.50.2 checks concern correctness only.
 | Real-task QA replay | PASS: all 176 changed matrices, 276 losses and 64 predictions match across four arms |
 | Real-task speed verdict | NO_VERDICT: one ABBA block only |
 | Rental cleanup | Deleted and verified absent; provider reports $0.47, final invoice unsettled |
-| Final focused Windows CPU regressions | 68 passed, 13 hardware skips; full lint clean |
+| Final focused Windows CPU regressions after merging main | 88 passed, 13 hardware skips; full lint clean |
 | Full D1 acceptance / independent review | Outstanding |
 
 ## Complete raw witness package
@@ -66,6 +66,9 @@ consistency evidence by the experiment author, **not independent acceptance**.
 - `rental-summary.json`: sanitized instance-specific charge/cleanup record.
 - `local-focused-tests-final.log` and `local-ruff-final.log`: final local checks;
   the earlier 64-test record predates the projection replay additions.
+- `post-main-tests-correct-source.log`: final 88-test run, including 20 new
+  upstream FP8 cases. The [validation note](validation-note.md) retains the
+  initial wrong-checkout import failure and the corrected source selection.
 - `data/`: prepared split and original D2 manifest, with
   [SQuAD data attribution](data/NOTICE.md).
 
