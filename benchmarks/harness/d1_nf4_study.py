@@ -424,7 +424,11 @@ class Telemetry:
 
 
 def timed_steps(
-    step: Callable[[], None], count: int, warmup: int, warmup_seconds: float = 0
+    step: Callable[[], None],
+    count: int,
+    warmup: int,
+    warmup_seconds: float = 0,
+    before_timing: Callable[[], None] | None = None,
 ) -> dict:
     import torch
 
@@ -440,6 +444,8 @@ def timed_steps(
         torch.cuda.synchronize()
         warm_steps += 1
     warm_elapsed = time.perf_counter() - warm_started
+    if before_timing is not None:
+        before_timing()
     torch.cuda.reset_peak_memory_stats()
     pairs, wall_ms = [], []
     with Telemetry() as telemetry:
@@ -501,6 +507,12 @@ def projection(args: argparse.Namespace) -> dict:
     native_fused = bool(_can_use_checkpoint_visible_nf4_gemm(value, state))
     fused = args.route == "forced" or args.route == "native" and native_fused
     counts = {"function": 0, "dense": 0}
+    split_events = []
+    collect_splits = False
+
+    def begin_splits() -> None:
+        nonlocal collect_splits
+        collect_splits = True
 
     def forward(current: Any) -> Any:
         counts["function" if fused else "dense"] += 1
@@ -511,10 +523,27 @@ def projection(args: argparse.Namespace) -> dict:
 
     def step() -> None:
         value.grad = None
+        if collect_splits:
+            start, middle, end = (torch.cuda.Event(enable_timing=True) for _index in range(3))
+            start.record()
         result = checkpoint(forward, value, use_reentrant=False)
+        if collect_splits:
+            middle.record()
         result.float().square().mean().backward()
+        if collect_splits:
+            end.record()
+            split_events.append((start, middle, end))
 
-    measured = timed_steps(step, args.steps, args.warmup, args.warmup_seconds)
+    measured = timed_steps(step, args.steps, args.warmup, args.warmup_seconds, begin_splits)
+    collect_splits = False
+    if len(split_events) != args.steps:
+        raise RuntimeError("missing projection forward/backward CUDA event pairs")
+    measured["forward_cuda_ms"] = [start.elapsed_time(middle) for start, middle, end in split_events]
+    measured["backward_cuda_ms"] = [middle.elapsed_time(end) for start, middle, end in split_events]
+    measured["split_timing_scope"] = (
+        "checkpoint forward; loss/backward including checkpoint recomputation and dense dX; "
+        "CUDA events without intermediate synchronization"
+    )
     # Oracle tensors and the dense GEMM ceiling are created AFTER recording peaks.
     from bitsandbytes.backends.cuda import ops as cuda_ops
 

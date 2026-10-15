@@ -39,6 +39,11 @@ https://docs.nvidia.com/deploy/nvidia-smi/index.html
 For frozen PROJECTION arms only, warm up at least 20 steps AND 5 seconds,
 synchronizing additional warm-up steps. Retain actual warm-up count/time.
 Use 200 synchronized timed steps instead of the original 100. This replaces
+the projection combined timer with the same combined wall/CUDA timer PLUS
+separate CUDA events for checkpoint forward and loss/backward (including
+checkpoint recomputation and dense dX), without an intermediate synchronization.
+All event arrays are retained; event instrumentation is identical across paths.
+The five-second policy replaces
 the pilot subset's expensive 5000-step thermal warm-up under an explicitly
 fixed clock, and increases timed observations. No optimizer is present here.
 Train and ablation remain exactly 20 warm-up optimizer updates and their original
