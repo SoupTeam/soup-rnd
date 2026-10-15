@@ -538,7 +538,9 @@ def projection(args: argparse.Namespace) -> dict:
     collect_splits = False
     if len(split_events) != args.steps:
         raise RuntimeError("missing projection forward/backward CUDA event pairs")
-    measured["forward_cuda_ms"] = [start.elapsed_time(middle) for start, middle, end in split_events]
+    measured["forward_cuda_ms"] = [
+        start.elapsed_time(middle) for start, middle, end in split_events
+    ]
     measured["backward_cuda_ms"] = [middle.elapsed_time(end) for start, middle, end in split_events]
     measured["split_timing_scope"] = (
         "checkpoint forward; loss/backward including checkpoint recomputation and dense dX; "
@@ -614,7 +616,14 @@ def projection(args: argparse.Namespace) -> dict:
             {
                 key: getattr(args, key)
                 for key in (
-                    "dtype", "m", "n", "k", "no_nested", "steps", "warmup", "warmup_seconds"
+                    "dtype",
+                    "m",
+                    "n",
+                    "k",
+                    "no_nested",
+                    "steps",
+                    "warmup",
+                    "warmup_seconds",
                 )
             }
         ),
