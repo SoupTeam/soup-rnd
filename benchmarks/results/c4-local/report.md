@@ -125,3 +125,75 @@ Validation: numeric interval/byte continuity, required F1 outcomes, start temper
 thermal sample freshness, protocol/source identities and prospective commit time
 checked. Three arithmetic tests and 26 runner/control tests pass. No full Soup test
 suite or fresh training run was performed for this documentation change.
+
+## Remaining work: C4 is open
+
+The original C4 questions (agent context, source PDF page 7) extend beyond this
+record. This PR preserves reproducible exploratory evidence; it is not task
+completion or merge approval.
+
+| Original question | Coverage and remaining gap |
+|---|---|
+| Sustained rate after warmup | One 60-minute, 4 MiB sequential run on this Micron SSD; repeatability remains unmeasured. |
+| Are the sustained drops thermal? | Temperature and throughput are recorded, but there is no controlled cooling contrast or firmware thermal-transition evidence. Stable throughput up to 65 °C does not establish absence of throttling. The historical drive's periodic dips remain unexplained. |
+| Does read pattern matter? | Only one pattern was measured; pattern dependence remains unanswered. |
+| How does each drive behave? | This SSD only. Other physical drives, including those in the original observation, remain untested. |
+| Does the two-drive benefit persist over a multi-hour epoch? | Unanswered: no second SSD, striped run or matched per-drive baselines. The historical 1.75× benefit is not validated here. |
+| Which speed should a planner use? | 1.342 GB/s is a provisional host/pattern heuristic; a repeatable multi-drive planning rule remains outstanding. |
+
+### Proposed prospective study (not authorization to run)
+
+Before any further measurement, agree scope and resources, implement and test the
+instrumentation, then commit exact source/fixture identities, settings, order,
+attempt budget, exclusions and analysis. Do not amend the historical protocols.
+
+For the available drive, a candidate design is two read patterns (sequential
+4 MiB and 64 MiB, both direct I/O) crossed with two documented cooling conditions
+(normal unobstructed ventilation and an available safe cooling improvement).
+Use eight fresh-process one-hour attempts: A-B-D-C / C-D-B-A, where A/B are the
+two patterns under normal cooling and C/D the same patterns under improved cooling.
+This gives two observations per condition and reverses their order. Fix start
+temperature, cooldown criteria, ambient-temperature measurement, AC/no-sleep,
+background-service state, RAM pressure and all other settings before starting.
+If a reproducible cooling contrast is unavailable, explicitly leave thermal
+attribution open rather than treating temperature correlation as causation.
+
+Budget: **eight attempted arms total**, including setup failures and interruptions;
+no automatic replacements or extension until a desired outcome appears. Invalid
+arms remain excluded and preserved; missing matched observations yield no verdict
+for the affected contrast. Require the existing F1 checks, complete logs, verified
+device identity, temperature freshness and operational stop, plus before/after
+SMART warnings/errors and thermal-management counters where supported. Missing
+thermal counters must be reported as missing, not zero.
+
+Predeclare 600-second warmup, 60-second throughput windows, late-run versus early
+post-warmup comparisons, and matched pattern/cooling contrasts within each block.
+Define a dip before collecting data (proposed: at least 10 consecutive seconds
+below 90% of that arm's median rate during minutes 10–20). Report duration/count,
+I/O context and both replicate contrasts, including disagreement. A cooling effect
+or a temperature association alone does not prove firmware throttling; use device
+thermal evidence where available and keep unexplained causes unknown.
+
+### Per-drive and multi-hour striped coverage
+
+Needed: two independently identifiable physical NVMe drives with adequate free
+space, a fixture whose active footprint exceeds effective RAM/cache, known striping
+and interconnect topology, and administrator/root access to each drive's SMART,
+temperature and physical I/O counters. Also needed are stable AC power, cooling,
+background-I/O controls and the original read/striping implementation or a clearly
+declared replacement. Access to the original drives is necessary to reproduce
+their specific historical dips; a different host answers only a scoped replication.
+
+Before this separate stage, commit the precise epoch duration (proposed: three
+hours per arm), per-drive and striped layouts, equal aggregate byte workload,
+validity controls and balanced order. A candidate fixed budget is nine attempts:
+drive 1 / drive 2 / striped, then drive 2 / striped / drive 1, then striped / drive 1 /
+drive 2, each in a fresh process; invalid attempts consume the budget. Compare
+late-hour sustained rates and striped benefit against matched individual-drive
+baselines, not against the historical 1.75× number alone. This is a substantial
+separate study, not a request to run it now.
+
+Two-drive coverage remains outstanding while only one SSD is available. No purchase,
+rental or paid run is authorized by this plan. Formal acceptance must be resolved
+separately with the reviewer. All exclusions and the revision-4 replacement-budget
+deviation remain unchanged; further evidence cannot retrospectively repair them.
