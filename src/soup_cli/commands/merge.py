@@ -130,6 +130,10 @@ def merge(
             )
             raise typer.Exit(1)
 
+    from soup_cli.utils.kimi_k2 import exit_if_kimi_k2_outside_streaming
+
+    exit_if_kimi_k2_outside_streaming(console, base)
+
     # --- Validate dtype ---
     valid_dtypes = ("float16", "bfloat16", "float32")
     if dtype not in valid_dtypes:

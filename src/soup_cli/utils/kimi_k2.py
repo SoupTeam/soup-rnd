@@ -9,9 +9,22 @@ transformers keys on ``model_type`` and does not list for ``kimi_k2``. Without i
 load leaves every routed expert at its random init, and a save writes fused keys.
 """
 
+import json
+import os
 from typing import Any, Dict
 
 KIMI_K2_MODEL_TYPE = "kimi_k2"
+
+_OUTSIDE_STREAMING = (
+    "model_type 'kimi_k2' ({model_id}) is not supported outside layer streaming yet. "
+    "transformers has no kimi_k2 config type, so a plain load fails with a custom-code "
+    "error or leaves the routed experts at random init. Set training.stream_layers: true "
+    "to train it."
+)
+
+
+class KimiK2OutsideStreamingError(ValueError):
+    """A ``kimi_k2`` folder reached a path that loads the base model without streaming."""
 
 #: Fields Moonshot's config carries for the auxiliary balance loss. The native
 #: ``DeepseekV3`` classes never read them. That is harmless while the router is frozen,
@@ -99,3 +112,36 @@ def load_stream_config(model_id: str, trust_remote_code: bool) -> Any:
         )
     register_kimi_k2_conversion()
     return DeepseekV3Config.from_pretrained(model_id)
+
+
+def refuse_kimi_k2_outside_streaming(model_id: str) -> None:
+    """Raise :class:`KimiK2OutsideStreamingError` if ``model_id`` is a ``kimi_k2`` folder.
+
+    Reads ``config.json`` as plain JSON, so nothing is loaded and no Hub code runs. Any
+    other folder, a missing path, a folder without ``config.json`` and a Hub id all
+    pass. The caller's own loader then reports a real error.
+    """
+    config_path = os.path.join(str(model_id), "config.json")
+    if not os.path.isfile(config_path):
+        return
+    try:
+        with open(config_path, encoding="utf-8") as handle:
+            raw = json.load(handle)
+    except (OSError, ValueError):
+        return
+    if isinstance(raw, dict) and raw.get("model_type") == KIMI_K2_MODEL_TYPE:
+        raise KimiK2OutsideStreamingError(_OUTSIDE_STREAMING.format(model_id=model_id))
+
+
+def exit_if_kimi_k2_outside_streaming(console: Any, *model_ids: Any) -> None:
+    """The CLI form of the refusal: print it in red and exit with code 1."""
+    import typer
+    from rich.markup import escape
+
+    try:
+        for model_id in model_ids:
+            if model_id:
+                refuse_kimi_k2_outside_streaming(str(model_id))
+    except KimiK2OutsideStreamingError as exc:
+        console.print(f"[red]{escape(str(exc))}[/]")
+        raise typer.Exit(1) from exc

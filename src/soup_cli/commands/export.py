@@ -173,6 +173,15 @@ def export(
         )
         raise typer.Exit(1)
 
+    from soup_cli.utils.kimi_k2 import exit_if_kimi_k2_outside_streaming
+
+    adapter_config = model_path / "adapter_config.json"
+    exit_if_kimi_k2_outside_streaming(
+        console,
+        model_path,
+        base or (_detect_base_model(adapter_config) if adapter_config.exists() else None),
+    )
+
     # --- ONNX export path ---
     if fmt == "onnx":
         _export_onnx(model_path, output, base, onnx_task, trust_remote_code)
@@ -405,6 +414,10 @@ def _merge_adapter(
         console=console,
         requires_remote_code=requires,
     )
+
+    from soup_cli.utils.kimi_k2 import refuse_kimi_k2_outside_streaming
+
+    refuse_kimi_k2_outside_streaming(base_model)
 
     console.print(f"[dim]Loading base model: {for_terminal(base_model)}...[/]")
     model = AutoModelForCausalLM.from_pretrained(

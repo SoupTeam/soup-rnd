@@ -701,6 +701,10 @@ def serve(
             )
             raise typer.Exit(1)
 
+    from soup_cli.utils.kimi_k2 import exit_if_kimi_k2_outside_streaming
+
+    exit_if_kimi_k2_outside_streaming(console, base_model if is_adapter else model_path)
+
     # Detect device (only for transformers backend)
     if not device and backend == "transformers":
         from soup_cli.utils.gpu import detect_device
@@ -1371,6 +1375,9 @@ def _load_model(
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     from soup_cli.utils.gpu import resolve_inference_device_map_and_dtype
+    from soup_cli.utils.kimi_k2 import refuse_kimi_k2_outside_streaming
+
+    refuse_kimi_k2_outside_streaming(base_model if is_adapter else model_path)
 
     device_map, default_dtype = resolve_inference_device_map_and_dtype(device)
     if kv_cache_dtype == "bfloat16":
