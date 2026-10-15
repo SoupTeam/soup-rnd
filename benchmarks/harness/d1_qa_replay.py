@@ -7,15 +7,33 @@ import json
 import math
 from pathlib import Path
 
-from d1_qa import score
+from d1_qa import load_split, score
 from d1_rules import digest, evidence_path, write_new_json
 from rich.console import Console
 
 
-def audit(root: Path, expected_predictions: int = 64) -> dict:
+def metric_difference(left: dict, right: dict) -> float:
+    if left.keys() != right.keys():
+        raise ValueError("stored metric keys differ from rescored predictions")
+    differences = []
+    for key, value in left.items():
+        other = right[key]
+        if isinstance(value, dict) and isinstance(other, dict):
+            differences.append(metric_difference(value, other))
+        elif isinstance(value, float) and isinstance(other, float):
+            # Python 3.12 changed float summation; this does not relax tensor equality.
+            if not math.isclose(value, other, abs_tol=1e-12, rel_tol=0):
+                raise ValueError("stored metrics differ from rescored predictions")
+            differences.append(abs(value - other))
+        elif type(value) is not type(other) or value != other:
+            raise ValueError("stored metric counts/values differ from rescored predictions")
+    return max(differences, default=0.0)
+
+
+def audit(root: Path, expected_predictions: int = 64, gold: list[dict] | None = None) -> dict:
     import torch
 
-    records, tensors = [], []
+    records, tensors, metric_differences = [], [], []
     for run, arm in enumerate("ABBA"):
         directory = root / f"block-000-run-{run}-{arm}"
         path = directory / "result.json"
@@ -35,8 +53,17 @@ def audit(root: Path, expected_predictions: int = 64) -> dict:
             {row["id"] for row in predictions}
         ) != expected_predictions:
             raise ValueError("incomplete or duplicate held-out predictions")
-        if score(predictions) != record["quality"]:
-            raise ValueError("stored metrics differ from rescored predictions")
+        if gold is not None:
+            observed_gold = [
+                (row["id"], row["answers"], row["unanswerable"]) for row in predictions
+            ]
+            expected_gold = [
+                (row["id"], [answer["text"] for answer in row["answers"]], row["unanswerable"])
+                for row in gold
+            ]
+            if observed_gold != expected_gold:
+                raise ValueError("predictions differ from the pinned held-out gold")
+        metric_differences.append(metric_difference(score(predictions), record["quality"]))
         loaded = {}
         for name in ("initial", "final"):
             bundle = record[name + "_adapters"]
@@ -81,6 +108,8 @@ def audit(root: Path, expected_predictions: int = 64) -> dict:
         "changed_parameters": changed,
         "losses_equal": True,
         "predictions_equal": True,
+        "gold_verified": gold is not None,
+        "metric_rounding_max_abs": max(metric_differences),
         "quality": reference["quality"],
         "performance_acceptance": False,
         "scope": "Hash-verified stored CPU tensors, losses and predictions only; "
@@ -91,9 +120,10 @@ def audit(root: Path, expected_predictions: int = 64) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
+    parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    result = audit(args.input)
+    result = audit(args.input, gold=load_split(args.data, "test"))
     write_new_json(args.output, result)
     Console().print(result)
 

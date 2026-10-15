@@ -121,8 +121,26 @@ measured runtime and F1 repeats; retain short/void cohorts as such.
 
 ## Remaining before a D1 result
 
-CUDA branches, native half-precision equality, the large negative control,
-backend counters, real pretrained generation and timing all remain unexecuted.
-CPU tests and a ready script do not establish those outcomes. The full repository
-test matrix/CI has not run for this branch. No PR was opened and no D1 acceptance
-or speedup is claimed.
+The original preparation ledger is retained in the immutable rule. The
+[2026-10-15 RTX 3090 pilot report](d1-rtx3090-report-20261015.md) records the
+subsequent CUDA runs, their exact source cohorts, failures and limits. Read the
+report rather than interpreting the original NOT RUN rows as current status.
+
+For the repeated projection subset, use amendment B's `--warmup 5000`; do not
+silently pool those rows with the earlier 20-step screen. Amendment C's package
+compatibility checks are separate from primary bitsandbytes 0.50.1 timings.
+
+Replay the QA evidence on CPU, using the hash-checked held-out gold:
+
+```bash
+python benchmarks/harness/d1_qa_replay.py --input "$d1_raw_results/cohort-a/qa-screen" --data benchmarks/evidence/d1-rtx3090-20261015/data --output /tmp/d1-qa-replay.json
+```
+
+This checks saved finite LoRA tensors, initial/final equality, all 276 losses,
+ordered predictions and rescored metrics. It is an offline consistency check,
+not an independent reviewer or performance acceptance.
+
+The full five-shape/six-M/two-dtype grid, five-block real-task timing and
+independent review remain outside this bounded pilot. The full repository test
+matrix/CI is not established by the focused local checks. No D1 closure or
+achieved fused-backward speedup follows from the pilot.

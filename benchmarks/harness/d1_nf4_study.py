@@ -18,8 +18,10 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable, Iterator
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 
@@ -77,7 +79,7 @@ def provenance(require_clean: bool) -> dict:
     }
 
 
-def configure(device: str, dtype: str):
+def configure(device: str, dtype: str) -> tuple[Any, Any]:
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     import torch
@@ -107,7 +109,7 @@ def tensor_bundle(path: Path, tensors: dict) -> dict:
     return {"file": path.name, "sha256": digest(path)}
 
 
-def _gemm(x, packed, state):
+def _gemm(x: Any, packed: Any, state: Any) -> Any:
     import torch
 
     kwargs = {}
@@ -150,7 +152,7 @@ def alias_control(directory: Path, device: str, dtype: str) -> dict:
     if device == "cuda" and not dispatch:
         raise RuntimeError("large-alias fixture has no fused dispatch; retain failure, re-scope")
 
-    def refill(source, quant_state):
+    def refill(source: Any, quant_state: Any) -> None:
         with torch.no_grad():
             packed.copy_(source)
             for name in ("absmax", "code", "offset"):
@@ -163,13 +165,13 @@ def alias_control(directory: Path, device: str, dtype: str) -> dict:
 
     class PlainContext(torch.autograd.Function):
         @staticmethod
-        def forward(ctx, value):
+        def forward(ctx: Any, value: Any) -> Any:
             ctx.packed = packed  # Intentionally broken negative control.
             ctx.state = state
             return _gemm(value, packed, state)
 
         @staticmethod
-        def backward(ctx, grad):
+        def backward(ctx: Any, grad: Any) -> Any:
             dense = functional.dequantize_4bit(ctx.packed, ctx.state).to(grad.dtype)
             return grad @ dense
 
@@ -178,7 +180,7 @@ def alias_control(directory: Path, device: str, dtype: str) -> dict:
     for mode in ("private", "safe", "broken"):
         value = x0.clone().requires_grad_(True)
 
-        def body(current):
+        def body(current: Any) -> Any:
             counters[mode] += 1
             refill(packed0, state0)
             if mode == "broken":
@@ -238,15 +240,15 @@ def streaming_control(directory: Path, device: str, dtype: str, seq: int) -> dic
         real_matmul = bnb.matmul_4bit
         real_gate = runtime_module._can_use_checkpoint_visible_nf4_gemm
 
-        def counted_function(*args, **kwargs):
+        def counted_function(*args: Any, **kwargs: Any) -> Any:
             calls["function"] += 1
             return real_function(*args, **kwargs)
 
-        def counted_matmul(*args, **kwargs):
+        def counted_matmul(*args: Any, **kwargs: Any) -> Any:
             calls[phase + "_matmul"] += 1
             return real_matmul(*args, **kwargs)
 
-        def counted_gate(*args, **kwargs):
+        def counted_gate(*args: Any, **kwargs: Any) -> bool:
             result = real_gate(*args, **kwargs)
             decisions.append(bool(result))
             return result
@@ -304,7 +306,7 @@ def streaming_control(directory: Path, device: str, dtype: str, seq: int) -> dic
             runtime.close()
 
 
-def correctness(args) -> dict:
+def correctness(args: argparse.Namespace) -> dict:
     source = provenance(args.device == "cuda")
     configure(args.device, args.dtype)
     alias = alias_control(args.output, args.device, args.dtype)
@@ -327,7 +329,7 @@ def correctness(args) -> dict:
 
 
 @contextlib.contextmanager
-def route(mode: str):
+def route(mode: str) -> Iterator[None]:
     """Harness-only route choice; production configuration is unchanged."""
     from soup_cli.utils import layer_stream_runtime as runtime_module
 
@@ -343,7 +345,7 @@ def route(mode: str):
 class GPUMonitor:
     """Read-only NVML lifecycle observations; unavailable is never clean."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         try:
             import pynvml
             from arm_validity import workload_gpu
@@ -362,7 +364,7 @@ class GPUMonitor:
         except Exception as exc:
             self.error = str(exc)
 
-    def sample(self):
+    def sample(self) -> dict:
         result = {"time_ns": time.monotonic_ns(), "available": False}
         if self.error:
             return {**result, "error": self.error}
@@ -393,14 +395,14 @@ class GPUMonitor:
 class Telemetry:
     """Sample SM clock and memory-controller utilization during timed work."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.samples = []
         self.errors = []
         self.stop_event = threading.Event()
         self.monitor = GPUMonitor()
         self.thread = threading.Thread(target=self.sample_loop, daemon=True)
 
-    def sample_loop(self):
+    def sample_loop(self) -> None:
         while not self.stop_event.is_set():
             row = self.monitor.sample()
             self.samples.append(row)
@@ -408,16 +410,16 @@ class Telemetry:
                 self.errors.append(row.get("error", "unavailable NVML"))
             self.stop_event.wait(0.05)
 
-    def __enter__(self):
+    def __enter__(self) -> Telemetry:
         self.thread.start()
         return self
 
-    def __exit__(self, *_args):
+    def __exit__(self, *_args: Any) -> None:
         self.stop_event.set()
         self.thread.join(timeout=10)
 
 
-def timed_steps(step, count: int, warmup: int) -> dict:
+def timed_steps(step: Callable[[], None], count: int, warmup: int) -> dict:
     import torch
 
     for _index in range(warmup):
@@ -462,7 +464,7 @@ def timed_steps(step, count: int, warmup: int) -> dict:
     }
 
 
-def projection(args) -> dict:
+def projection(args: argparse.Namespace) -> dict:
     source = provenance(True)
     torch, precision = configure("cuda", args.dtype)
     import bitsandbytes.functional as functional
@@ -483,14 +485,14 @@ def projection(args) -> dict:
     fused = args.route == "forced" or args.route == "native" and native_fused
     counts = {"function": 0, "dense": 0}
 
-    def forward(current):
+    def forward(current: Any) -> Any:
         counts["function" if fused else "dense"] += 1
         if fused:
             return checkpoint_visible_nf4_linear(current, packed, state)
         dense = functional.dequantize_4bit(packed, state).to(current.dtype)
         return torch.nn.functional.linear(current, dense)
 
-    def step():
+    def step() -> None:
         value.grad = None
         result = checkpoint(forward, value, use_reentrant=False)
         result.float().square().mean().backward()
@@ -503,11 +505,11 @@ def projection(args) -> dict:
     real_custom = cuda_ops._gemm_4bit_kernel_impl
     real_fallback = cuda_ops._dequant_linear_fallback
 
-    def counted_custom(*values, **keywords):
+    def counted_custom(*values: Any, **keywords: Any) -> Any:
         backend_counts["custom"] += 1
         return real_custom(*values, **keywords)
 
-    def counted_fallback(*values, **keywords):
+    def counted_fallback(*values: Any, **keywords: Any) -> Any:
         backend_counts["fallback"] += 1
         return real_fallback(*values, **keywords)
 
@@ -572,7 +574,7 @@ def projection(args) -> dict:
     }
 
 
-def train(args) -> dict:
+def train(args: argparse.Namespace) -> dict:
     """Full SFT updates and held-out greedy QA on the fixed real-data pilot."""
     source = provenance(True)
     torch, _precision = configure("cuda", args.dtype)
@@ -625,7 +627,7 @@ def train(args) -> dict:
     decisions = []
     real_gate = runtime_module._can_use_checkpoint_visible_nf4_gemm
 
-    def step():
+    def step() -> None:
         row = training[len(losses) % len(training)]
         batch = {name: torch.tensor([value], device="cuda") for name, value in row.items()}
         optimizer.zero_grad(set_to_none=True)
@@ -641,7 +643,7 @@ def train(args) -> dict:
         with route(args.route):
             active_gate = runtime_module._can_use_checkpoint_visible_nf4_gemm
 
-            def record_active_gate(*values):
+            def record_active_gate(*values: Any) -> bool:
                 decision = active_gate(*values)
                 decisions.append(bool(decision))
                 return decision
@@ -726,7 +728,7 @@ def train(args) -> dict:
         runtime.close()
 
 
-def ablation(args) -> dict:
+def ablation(args: argparse.Namespace) -> dict:
     """A/C mechanism ablation; cached-zero C is explicitly garbage mathematics."""
     source = provenance(True)
     torch, _precision = configure("cuda", args.dtype)
@@ -759,7 +761,7 @@ def ablation(args) -> dict:
         [value for value in model.parameters() if value.requires_grad], lr=2e-4, foreach=False
     )
 
-    def step():
+    def step() -> None:
         optimizer.zero_grad(set_to_none=True)
         loss = model(input_ids=inputs, labels=inputs, use_cache=False).loss
         loss.backward()
@@ -807,7 +809,7 @@ def block_readings() -> dict:
         return {}
 
 
-def run_blocks(args) -> dict:
+def run_blocks(args: argparse.Namespace) -> dict:
     """One new child/CUDA context per arm; F1 watches every child, including failures."""
     provenance(True)
     from arm_validity import ArmWatch, arm_outcome
@@ -854,7 +856,7 @@ def run_blocks(args) -> dict:
                 raise RuntimeError("GPU pre-context is occupied or unknown; no child launched")
             peer_samples, stop = [], threading.Event()
 
-            def sample_peers():
+            def sample_peers() -> None:
                 while not stop.is_set():
                     peer_samples.append(monitor.sample())
                     stop.wait(0.1)
@@ -922,13 +924,13 @@ def run_blocks(args) -> dict:
     return {**summarize(records), "rows": records}
 
 
-def replay(args) -> dict:
+def replay(args: argparse.Namespace) -> dict:
     import torch
 
     record = json.loads((args.input / "result.json").read_text())
     comparisons = []
 
-    def load(bundle):
+    def load(bundle: dict) -> dict:
         path = evidence_path(args.input, bundle["file"])
         if digest(path) != bundle["sha256"]:
             raise ValueError("tensor SHA-256 mismatch")
@@ -954,7 +956,7 @@ def replay(args) -> dict:
     }
 
 
-def parser():
+def parser() -> argparse.ArgumentParser:
     argument_parser = argparse.ArgumentParser(description=__doc__)
     commands = argument_parser.add_subparsers(dest="command", required=True)
     for name in (
@@ -1005,7 +1007,7 @@ def parser():
     return argument_parser
 
 
-def validate_args(args) -> None:
+def validate_args(args: argparse.Namespace) -> None:
     kind = args.kind if args.command == "run" else args.command
     if kind == "train" and (args.weights is None or args.data is None):
         raise ValueError("train requires local --weights and --data")
@@ -1026,7 +1028,7 @@ def validate_args(args) -> None:
         raise ValueError("--warmup must be nonnegative")
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     args.output.mkdir(parents=True, exist_ok=True)
     result_path = args.output / "result.json"

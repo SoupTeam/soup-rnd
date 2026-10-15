@@ -54,6 +54,38 @@ def test_complete_finite_equal_training_replays(tmp_path):
     assert result["performance_acceptance"] is False
 
 
+def test_matching_predictions_cannot_replace_the_held_out_gold(tmp_path):
+    from d1_qa import score
+    from d1_qa_replay import audit
+
+    root = fixture(tmp_path)
+    for path in root.glob("block-*/result.json"):
+        record = json.loads(path.read_text())
+        record["predictions"][0]["answers"] = ["London"]
+        record["predictions"][0]["prediction"] = "London"
+        record["quality"] = score(record["predictions"])
+        path.write_text(json.dumps(record))
+    gold = [
+        {"id": "one", "answers": [{"text": "Paris"}], "unanswerable": False},
+        {"id": "two", "answers": [], "unanswerable": True},
+    ]
+    with pytest.raises(ValueError, match="gold"):
+        audit(root, expected_predictions=2, gold=gold)
+
+
+def test_metric_float_rounding_does_not_change_the_tensor_equality_gate(tmp_path):
+    from d1_qa_replay import audit
+
+    root = fixture(tmp_path)
+    path = root / "block-000-run-1-B/result.json"
+    record = json.loads(path.read_text())
+    record["quality"]["f1"] -= 1e-14
+    path.write_text(json.dumps(record))
+    result = audit(root, expected_predictions=2)
+    assert result["status"] == "PASS"
+    assert 0 < result["metric_rounding_max_abs"] < 1e-12
+
+
 @pytest.mark.parametrize("change", ["loss", "prediction", "quality", "tensor", "missing"])
 def test_audit_rejects_changed_or_incomplete_evidence(tmp_path, change):
     from d1_qa_replay import audit
