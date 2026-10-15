@@ -342,7 +342,7 @@ timestamp, clocks.current.sm [MHz], power.draw [W], clocks_event_reasons.active
 
 - No real checkpoint. Every model is a tiny randomly initialised network built from a config.
 - No tokenizer. The Kimi K2 tokenizer parity is in `tests/test_b2_kimi_k2_tokenizer.py`, which this run did not include.
-- `tests/test_b2_shared_expert_adapter_consumers.py` and `tests/test_b2_kimi_k2_outside_streaming.py` were not run.
+- `tests/test_b2_shared_expert_adapter_consumers.py` and `tests/test_b2_kimi_k2_outside_streaming.py` were not run. Neither file has a `cuda` or `gpu` case (`grep -cE "cuda|gpu"` returns 0 for both), so there is no CUDA evidence to collect from them.
 - No quality, speed or memory result.
 
 ### Raw pytest output for this run
