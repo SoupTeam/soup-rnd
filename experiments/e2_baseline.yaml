@@ -1,0 +1,41 @@
+
+base: experiments/tiny_mistral
+task: sft
+backend: transformers
+
+data:
+  train: experiments/e2_smoke_data.jsonl
+  format: alpaca
+  max_length: 128
+  val_split: 0.0
+  chat_template: chatml
+  train_on_responses_only: false
+training:
+  epochs: 2
+  lr: 0.0001
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  quantization: none
+  scheduler: linear
+  warmup_ratio: 0.0
+  weight_decay: 0.0
+  logging_steps: 1
+  save_steps: 50
+
+  frozen_prefix_cache: false
+  gradient_checkpointing: false
+  stream_layers: false
+  packing: false
+  multipack: false
+
+  lora:
+    r: 4
+    alpha: 8
+    dropout: 0.0
+    top_k_layers: 2
+    target_modules:
+      - q_proj
+      - v_proj
+
+output: ./experiments/e2_baseline_output/
+

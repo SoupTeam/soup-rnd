@@ -1,0 +1,44 @@
+{
+  "status": "APPROVED",
+  "scope": "Mistral-7B FP16 E2 warm performance only",
+  "model": "mistralai/Mistral-7B-v0.3",
+  "top_k_layers": 8,
+  "dataset_examples": 128,
+  "epochs": 2,
+  "cycles": 3,
+  "order_per_cycle": [
+    "A",
+    "B",
+    "B",
+    "A"
+  ],
+  "warmup_steps": 8,
+  "performance": {
+    "metric": "second_epoch_summed_step_wall_seconds",
+    "cycle_speedup": "mean(A1,A2)/mean(B1,B2)",
+    "aggregate": "median of three cycle speedups",
+    "minimum_median_speedup": 1.1,
+    "minimum_each_cycle_speedup": 1.0
+  },
+  "quality": {
+    "proposed_max_validation_loss_degradation_percent": 1.0,
+    "approval": "NOT_APPROVED_SEPARATE_EVALUATION",
+    "evaluation": "SEPARATE"
+  },
+  "limitations": [
+    "Cold-cache build time not independently measured",
+    "Epoch step-time sums are not full wall-clock times",
+    "Quality and Small-MoE acceptance remain separate",
+    "No automatic overall research PASS"
+  ],
+  "approval_scope": "Mistral-7B FP16 ABBA128 warm-performance evaluation only",
+  "approved_by": "Team lead (@nurikw)",
+  "approval_reference": "Telegram confirmation, 2026-10-15 19:18 local chat time",
+  "overall_e2_research_verdict": "NO_VERDICT",
+  "additional_reporting": [
+    "Preserve first-epoch summed step wall time",
+    "Preserve second-epoch summed step wall time",
+    "Preserve full subprocess wall time for every arm",
+    "Do not interpret epoch-1 time as isolated cache-build cost"
+  ]
+}

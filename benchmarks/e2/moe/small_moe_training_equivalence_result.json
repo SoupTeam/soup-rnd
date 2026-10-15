@@ -1,0 +1,57 @@
+{
+  "kind": "small_moe_training_equivalence",
+  "architecture": "random_small_mixtral",
+  "steps": 5,
+  "optimizer": "AdamW",
+  "fixed_input": true,
+  "trainable_scope": "all_non_frozen_parameters",
+  "exact_training_equivalence": true,
+  "cache_hits": 4,
+  "cache_misses": 1,
+  "frozen_layer_calls": 2,
+  "skipped_layer_calls": 8,
+  "history": [
+    {
+      "step": 1,
+      "baseline_loss": 5.539474010467529,
+      "cached_loss": 5.539474010467529,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 2,
+      "baseline_loss": 5.449955463409424,
+      "cached_loss": 5.449955463409424,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 3,
+      "baseline_loss": 5.364024639129639,
+      "cached_loss": 5.364024639129639,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 4,
+      "baseline_loss": 5.283262252807617,
+      "cached_loss": 5.283262252807617,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 5,
+      "baseline_loss": 5.2107834815979,
+      "cached_loss": 5.2107834815979,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    }
+  ],
+  "production_e2_supported": false,
+  "performance_benchmark": false
+}

@@ -387,6 +387,25 @@ def resolve_lora_target_parameters(model: Any, configured: Any) -> Any:
         "provide an explicit parameter-name list or omit target_parameters"
     )
 
+def resolve_top_k_layers(model: Any, top_k: int) -> list[int]:
+    """Select the last K decoder layers for LoRA."""
+    from soup_cli.utils.lisa import locate_decoder_layer_indices
+
+    indices = locate_decoder_layer_indices(model)
+
+    if not indices:
+        raise ValueError("E2: Could not detect decoder layers")
+
+    if isinstance(top_k, bool) or not isinstance(top_k, int):
+        raise ValueError("E2: top_k_layers must be an integer")
+
+    if top_k < 1 or top_k > len(indices):
+        raise ValueError(
+            f"E2: top_k_layers={top_k}, "
+            f"but model has {len(indices)} decoder layers"
+        )
+
+    return indices[-top_k:]
 
 def build_lora_config_kwargs(
     lora_cfg: Any,
@@ -394,6 +413,7 @@ def build_lora_config_kwargs(
     target_modules: Any,
     target_parameters: Any,
     task_type: Any,
+    layers_to_transform: list[int] | None = None,
 ) -> dict[str, Any]:
     """Build the shared PEFT LoRA kwargs used by every trainer path."""
     kwargs = {
@@ -430,6 +450,8 @@ def build_lora_config_kwargs(
             loftq_iter=lora_cfg.loftq_iter,
             loftq_bits=lora_cfg.loftq_bits,
         )
+    if layers_to_transform is not None:
+        kwargs["layers_to_transform"] = list(layers_to_transform)
     return kwargs
 
 
@@ -439,6 +461,7 @@ def build_peft_config_spec(
     target_modules: Any,
     task_type: Any,
     target_parameters: Any = None,
+    layers_to_transform: list[int] | None = None,
 ) -> dict[str, Any]:
     """Return the PEFT class name and kwargs for the configured adapter.
 
@@ -464,6 +487,7 @@ def build_peft_config_spec(
             target_modules=target_modules,
             target_parameters=target_parameters,
             task_type=task_type,
+            layers_to_transform=layers_to_transform,
         ),
     }
 
@@ -498,6 +522,7 @@ def build_lora_config(
     target_modules: Any,
     task_type: Any,
     target_parameters: Any = None,
+    layers_to_transform: list[int] | None = None,
 ) -> Any:
     """Build the configured PEFT adapter through the single shared path.
 
@@ -513,6 +538,7 @@ def build_lora_config(
         target_modules=target_modules,
         target_parameters=target_parameters,
         task_type=task_type,
+        layers_to_transform=layers_to_transform,
     )
     config_cls = getattr(peft, spec["peft_cls"])
     return config_cls(**spec["init_kwargs"])

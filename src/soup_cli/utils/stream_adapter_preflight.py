@@ -83,7 +83,37 @@ def build_stream_adapter_plan(
         targets = resolve_lora_target_modules(model_config, tcfg.lora.target_modules, console)
         if moe_targets:
             targets = moe_targets
-        config = build_lora_config(tcfg.lora, target_modules=targets, task_type=TaskType.CAUSAL_LM)
+        layers_to_transform = None
+
+        if getattr(tcfg.lora, "top_k_layers", None) is not None:
+            total_layers = getattr(
+                model_config, "num_hidden_layers", None
+            )
+
+            if not isinstance(total_layers, int) or total_layers < 1:
+                raise ValueError(
+                    "E2: Cannot determine decoder layer count "
+                    "from model configuration."
+                )
+
+            top_k = getattr(tcfg.lora, "top_k_layers", None)
+
+            if top_k > total_layers:
+                raise ValueError(
+                    f"E2: top_k_layers={top_k} exceeds "
+                    f"model layers={total_layers}"
+                )
+
+            layers_to_transform = list(
+                range(total_layers - top_k, total_layers)
+            )
+
+        config = build_lora_config(
+            tcfg.lora,
+            target_modules=targets,
+            task_type=TaskType.CAUSAL_LM,
+            layers_to_transform=layers_to_transform,
+        )
         for param in model.parameters():
             param.requires_grad = False
         apply_pre_lora_patches(model, base)

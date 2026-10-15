@@ -1,0 +1,72 @@
+{
+  "kind": "small_moe_lora_multibatch_equivalence",
+  "architecture": "random_small_mixtral",
+  "steps": 6,
+  "optimizer": "AdamW",
+  "fixed_input": false,
+  "unique_batches": 3,
+  "trainable_scope": "top_k_lora_q_v_layers_2_3",
+  "exact_training_equivalence": true,
+  "cache_hits": 3,
+  "cache_misses": 3,
+  "frozen_layer_calls": 6,
+  "skipped_layer_calls": 6,
+  "history": [
+    {
+      "step": 1,
+      "batch": "A",
+      "baseline_loss": 5.454012870788574,
+      "cached_loss": 5.454012870788574,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 2,
+      "batch": "B",
+      "baseline_loss": 5.433236122131348,
+      "cached_loss": 5.433236122131348,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 3,
+      "batch": "C",
+      "baseline_loss": 5.549283027648926,
+      "cached_loss": 5.549283027648926,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 4,
+      "batch": "A",
+      "baseline_loss": 5.452691555023193,
+      "cached_loss": 5.452691555023193,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 5,
+      "batch": "B",
+      "baseline_loss": 5.432195663452148,
+      "cached_loss": 5.432195663452148,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    },
+    {
+      "step": 6,
+      "batch": "C",
+      "baseline_loss": 5.548226833343506,
+      "cached_loss": 5.548226833343506,
+      "loss_equal": true,
+      "gradients_equal": true,
+      "weights_equal": true
+    }
+  ],
+  "production_e2_supported": false,
+  "performance_benchmark": false
+}

@@ -177,7 +177,7 @@ class TestTheRunCutsSamplesToTheCountedSteps:
         sampler = ClockSampler(interval=0.001, read=lambda: "1500")
 
         def break_training(wrapper):
-            def boom():
+            def boom(*args, **kwargs):
                 raise RuntimeError("training broke")
 
             wrapper.trainer.train = boom
@@ -305,3 +305,49 @@ class TestAPreFlightRefusalWritesNoReport:
         assert result.exit_code == 0, result.output
         report = json.loads((workdir / "r.json").read_text(encoding="utf-8"))
         assert _busy(report)["unavailable_reason"] == "not a CUDA run"
+
+def test_mps_synchronization_at_step_boundaries(monkeypatch):
+    from soup_cli.bench.collector import BenchCollector
+
+    collector = BenchCollector(warmup_steps=0)
+    calls = []
+
+    def fake_sync():
+        calls.append("sync")
+
+    collector._sync = fake_sync
+
+    collector.on_step_begin()
+    collector.on_step_end()
+
+    assert calls == ["sync", "sync"]
+    assert len(collector.steps) == 1
+
+
+def test_epoch_cache_counters_are_deltas():
+    from types import SimpleNamespace
+
+    from soup_cli.bench.collector import BenchCollector
+
+    collector = BenchCollector()
+    runner = SimpleNamespace(hits=0, misses=0)
+
+    collector.e2_runner_getter = lambda: runner
+
+    collector.on_epoch_begin()
+    runner.misses = 8
+    collector.on_epoch_end()
+
+    collector.on_epoch_begin()
+    runner.hits = 8
+    collector.on_epoch_end()
+
+    assert len(collector.epoch_records) == 2
+
+    first, second = collector.epoch_records
+
+    assert first["cache_hits"] == 0
+    assert first["cache_misses"] == 8
+
+    assert second["cache_hits"] == 8
+    assert second["cache_misses"] == 0

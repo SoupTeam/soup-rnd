@@ -1,0 +1,273 @@
+{
+  "kind": "olmoe_pretrained_real_alpaca_quality_pipeline_smoke_v1",
+  "verdict": "TECHNICAL_SMOKE_ONLY",
+  "quality_acceptance": "NO VERDICT",
+  "model_id": "allenai/OLMoE-1B-7B-0924",
+  "revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "mode": "cached",
+  "k": 8,
+  "frozen_layers": 8,
+  "pretrained": true,
+  "device": "NVIDIA GeForce RTX 2080 Ti",
+  "compute_capability": [
+    7,
+    5
+  ],
+  "precision": {
+    "base_fp16": true,
+    "lora_fp32": true,
+    "autocast_fp16": true,
+    "gradscaler_enabled": true,
+    "final_scale": 1024.0
+  },
+  "data": {
+    "train": "/workspace/soup-rnd/benchmarks/e2/quality/data/train.jsonl",
+    "validation": "/workspace/soup-rnd/benchmarks/e2/quality/data/validation.jsonl",
+    "train_sha256": "535f364382cca5a5fe82b8c0b6788182db89b7c55439061dab0d47cbaff319a1",
+    "validation_sha256": "39c8736ea6b123e01f7d0c56eced3d579e486155fb5773e666375557e42edf55",
+    "training_subset_rows": 8,
+    "eval_subset_rows": 8,
+    "tokenized_train_sha256": "7fbcc618710461099652276940b370f63a9d9b4baac0e5080cc669ecf5d696b8",
+    "tokenized_validation_sha256": "0ca549897095c063f3cf206287be6f83131c34376c7e28a61d9f0ee9c8d832b2",
+    "text_format": "user: instruction + optional input, assistant: output; Soup chatml override",
+    "train_on_responses_only": false,
+    "max_length": 128,
+    "chatml_template_sha256": "9fe579a2c222698c7ba22d46e26466362fbe951569a89096c366267f9b82ab92"
+  },
+  "training": {
+    "seed": 42,
+    "epochs": 2,
+    "optimizer": "AdamW",
+    "lr": 0.0001,
+    "weight_decay": 0.0,
+    "scheduler": "constant (SMOKE ONLY, not Mistral linear schedule)",
+    "batch_size": 1,
+    "grad_accumulation": 1,
+    "optimizer_steps_verified": 16,
+    "losses": [
+      {
+        "epoch": 1,
+        "example_index": 1,
+        "total_loss": 2.65952205657959,
+        "task_loss_estimate": 2.5773276901245117,
+        "aux_loss": 8.219436645507812,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 1,
+        "example_index": 2,
+        "total_loss": 3.1579275131225586,
+        "task_loss_estimate": 3.0749939346313475,
+        "aux_loss": 8.293357849121094,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 1,
+        "example_index": 3,
+        "total_loss": 3.0330636501312256,
+        "task_loss_estimate": 2.950477457046509,
+        "aux_loss": 8.25861930847168,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 1,
+        "example_index": 4,
+        "total_loss": 2.440986394882202,
+        "task_loss_estimate": 2.3582054233551024,
+        "aux_loss": 8.278097152709961,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 1,
+        "example_index": 5,
+        "total_loss": 2.503171443939209,
+        "task_loss_estimate": 2.421651630401611,
+        "aux_loss": 8.151981353759766,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 1,
+        "example_index": 6,
+        "total_loss": 2.861210584640503,
+        "task_loss_estimate": 2.775168914794922,
+        "aux_loss": 8.604166984558105,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 1,
+        "example_index": 7,
+        "total_loss": 2.3841700553894043,
+        "task_loss_estimate": 2.302341423034668,
+        "aux_loss": 8.182863235473633,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 1,
+        "example_index": 8,
+        "total_loss": 2.1695451736450195,
+        "task_loss_estimate": 2.088290977478027,
+        "aux_loss": 8.125419616699219,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 1,
+        "total_loss": 2.615541934967041,
+        "task_loss_estimate": 2.533348970413208,
+        "aux_loss": 8.2192964553833,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 2,
+        "total_loss": 3.0996997356414795,
+        "task_loss_estimate": 3.0167827892303465,
+        "aux_loss": 8.291694641113281,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 3,
+        "total_loss": 2.9825258255004883,
+        "task_loss_estimate": 2.8999486446380613,
+        "aux_loss": 8.257718086242676,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 4,
+        "total_loss": 2.395581007003784,
+        "task_loss_estimate": 2.3128121089935303,
+        "aux_loss": 8.27688980102539,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 5,
+        "total_loss": 2.476344347000122,
+        "task_loss_estimate": 2.394823818206787,
+        "aux_loss": 8.152052879333496,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 6,
+        "total_loss": 2.804123640060425,
+        "task_loss_estimate": 2.7181007480621338,
+        "aux_loss": 8.602289199829102,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 7,
+        "total_loss": 2.326139211654663,
+        "task_loss_estimate": 2.2443289279937746,
+        "aux_loss": 8.181028366088867,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      },
+      {
+        "epoch": 2,
+        "example_index": 8,
+        "total_loss": 2.137505292892456,
+        "task_loss_estimate": 2.056252670288086,
+        "aux_loss": 8.125262260437012,
+        "scaler_before": 1024.0,
+        "scaler_after": 1024.0
+      }
+    ],
+    "seconds_including_cache_build": 16.018297
+  },
+  "validation": {
+    "mean_task_loss_estimate": 2.5626000452041624,
+    "mean_total_loss": 2.6449867486953735,
+    "mean_aux_loss": 8.238670349121094,
+    "per_example": [
+      {
+        "total_loss": 2.434541940689087,
+        "task_loss_estimate": 2.353318748474121,
+        "aux_loss": 8.122319221496582
+      },
+      {
+        "total_loss": 2.5201289653778076,
+        "task_loss_estimate": 2.4375446319580076,
+        "aux_loss": 8.25843334197998
+      },
+      {
+        "total_loss": 2.3213000297546387,
+        "task_loss_estimate": 2.2400827407836914,
+        "aux_loss": 8.121728897094727
+      },
+      {
+        "total_loss": 2.5692079067230225,
+        "task_loss_estimate": 2.4872701930999757,
+        "aux_loss": 8.193771362304688
+      },
+      {
+        "total_loss": 3.0904340744018555,
+        "task_loss_estimate": 3.0082458877563476,
+        "aux_loss": 8.218818664550781
+      },
+      {
+        "total_loss": 2.86913800239563,
+        "task_loss_estimate": 2.7867180347442626,
+        "aux_loss": 8.241996765136719
+      },
+      {
+        "total_loss": 2.8658134937286377,
+        "task_loss_estimate": 2.7820741653442385,
+        "aux_loss": 8.373932838439941
+      },
+      {
+        "total_loss": 2.4893295764923096,
+        "task_loss_estimate": 2.405545959472656,
+        "aux_loss": 8.378361701965332
+      }
+    ],
+    "warning": "Only a tiny subset; not task accuracy, safety evaluation, or accepted K-comparison"
+  },
+  "adapter": {
+    "initial_sha256": "c485bd40acee29bf0e486f15178789d74adc1b1771ee9fa8a55af1ab977cd489",
+    "final_trainable_sha256": "8a59e8201bb4d3d4564c4f07858fd3797558d24a842281346f651b33093cbfda",
+    "safetensors_sha256": "8c1dca4563ba0258ab23b90e17a35f264c12a1d0fcd68884156fa8acae5992c8"
+  },
+  "cache": {
+    "enabled": true,
+    "hits": 8,
+    "misses": 8,
+    "skipped_frozen_layer_calls": 64,
+    "full_sha256_recomputes": 1
+  },
+  "provenance": {
+    "script_sha256": "07f747ad8c4e8027a0cebc3b14b140044204d8444b32f34cfe07ef4753809699",
+    "verified_cache_sha256": "20c3dbdd1e7515c89d7c22967f4d2e87a1b3d10bcb2134b3d81a0c73edc05b6b",
+    "guard_sha256": "e0852684edbc6fc740506b7212f896ae48d835ab8f5dab5b247afa6201804a26",
+    "torch": "2.14.0a0+4fdf77b940.nv26.08",
+    "transformers": "5.19.0",
+    "peft": "0.21.2",
+    "python": "3.12.3",
+    "host": "02ea09978f8f",
+    "CUDA_VISIBLE_DEVICES": "0"
+  },
+  "limitations": [
+    "Not exact Soup SFT preparation, even though using its registered ChatML Jinja template",
+    "Eight-row subsets and constant LR; no real quality or safety acceptance",
+    "Version-counter guard requires explicit invalidation for .data/raw-storage mutations",
+    "No repeated ABBA, no benchmark speed claim",
+    "Does not compare K values or establish K16 reference quality"
+  ]
+}

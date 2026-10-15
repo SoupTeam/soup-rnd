@@ -1,0 +1,50 @@
+{
+  "kind": "olmoe_kmatrix_pretrained_fp16_gradscaler_research_performance_comparison_v1",
+  "k": 12,
+  "frozen_layers": 4,
+  "model_layers": 16,
+  "precision": "pretrained FP16 weights, FP16 CUDA autocast, FP32 PEFT LoRA, GradScaler enabled",
+  "hardware": "NVIDIA GeForce RTX 2080 Ti",
+  "quality_evaluation": false,
+  "not_abba": true,
+  "research_acceptance": "NO VERDICT",
+  "steps_per_epoch": 128,
+  "max_loss_or_aux_delta": 0.0,
+  "final_adapters_exact_sha_match": true,
+  "fp16_gradscaler_steps_verified": true,
+  "cold_epoch_step_sum_seconds": {
+    "baseline": 23.16456,
+    "cached": 30.336791
+  },
+  "warm_epoch_step_sum_seconds": {
+    "baseline": 19.882109,
+    "cached": 18.286577
+  },
+  "training_wall_seconds_including_cache_build": {
+    "baseline": 43.335108,
+    "cached": 48.918545
+  },
+  "warm_speed_ratio_baseline_over_cache": 1.0872515397496207,
+  "two_epoch_training_wall_ratio_baseline_over_cache": 0.8858625701152804,
+  "cache": {
+    "enabled": true,
+    "hits": 128,
+    "misses": 128,
+    "skipped_frozen_layer_calls": 512
+  },
+  "guard_profile": {
+    "guard_kind": "torch_tensor_version_identity_plus_config_sha",
+    "full_sha256_recomputes": 1,
+    "full_sha256_seconds": 7.475479,
+    "guard_seconds": 0.207526,
+    "metadata_seconds_total": 7.711885,
+    "metadata_calls": 256,
+    "explicit_invalidations": 0
+  },
+  "code": {
+    "pilot_sha256": "5e04ad26a10182a04649ef5e0543c678db4578e58e5b0877571b8ebb3f1245d6",
+    "verified_cache_sha256": "20c3dbdd1e7515c89d7c22967f4d2e87a1b3d10bcb2134b3d81a0c73edc05b6b",
+    "guard_cache_sha256": "e0852684edbc6fc740506b7212f896ae48d835ab8f5dab5b247afa6201804a26"
+  },
+  "caveat": "Preliminary two-process Turing FP16+GradScaler synthetic-data timing only. Not repeated ABBA, no continuous GPU-peer monitor, not real-dataset quality, not performance acceptance. Version-based frozen-state guard assumes no unannounced .data/raw-storage mutations."
+}

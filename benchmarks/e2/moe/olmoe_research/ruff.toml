@@ -1,0 +1,7 @@
+extend = "../../../../pyproject.toml"
+
+# Preserve SHA256-pinned exploratory research snapshots.
+# Only style-specific findings are exempted.
+# Correctness rules remain enabled.
+[lint.per-file-ignores]
+"scripts/*.py" = ["E501", "I001", "N806"]
