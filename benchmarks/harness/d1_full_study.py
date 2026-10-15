@@ -111,7 +111,7 @@ def run(args: argparse.Namespace) -> dict:
         "cases": cases(),
         "weights": str(args.weights),
         "data": str(args.data),
-        "clock_policy": "A100 provider clocks; unchanged <=5% guard per comparison",
+        "clock_policy": "Recorded A100 clock policy; unchanged <=5% guard per comparison",
         "thermal_policy": ">=20 steps and 5 seconds for projections; exactly 20 QA warm-up updates",
     }
     plan_path = args.output / "plan.json"
