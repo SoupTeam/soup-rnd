@@ -38,7 +38,6 @@ def cases() -> list[dict]:
             "seq": 1024,
             "steps": 256,
             "warmup": 20,
-            "preheat_steps": 200,
         },
     ]
     for dtype in ("float16", "bfloat16"):
@@ -56,10 +55,12 @@ def cases() -> list[dict]:
                             "k": inner,
                             "steps": 200,
                             "warmup": 20,
-                            "warmup_seconds": 15,
+                            "warmup_seconds": 5,
                         }
                     )
-    return result
+    # Diagnose the full projection grid before committing more real-task repeats
+    # on a new physical GPU. The plan still contains every one of the 98 cases.
+    return [result[0], *result[2:], result[1]]
 
 
 def next_block(root: Path) -> int:
@@ -110,8 +111,8 @@ def run(args: argparse.Namespace) -> dict:
         "cases": cases(),
         "weights": str(args.weights),
         "data": str(args.data),
-        "clock_policy": "provider stock clocks and power limit; >=15-second projection warm-up",
-        "thermal_policy": "independent 200-step synthetic training prelude before every QA arm",
+        "clock_policy": "A100 provider clocks; unchanged <=5% guard per comparison",
+        "thermal_policy": ">=20 steps and 5 seconds for projections; exactly 20 QA warm-up updates",
     }
     plan_path = args.output / "plan.json"
     if plan_path.exists():

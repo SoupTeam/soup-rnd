@@ -16,10 +16,10 @@ def test_complete_plan_has_96_distinct_projection_cases_and_unchanged_training()
     assert len(projections) == 96
     assert {row["m"] for row in projections} == {1, 8, 32, 128, 512, 2048}
     assert {row["dtype"] for row in projections} == {"float16", "bfloat16"}
-    assert all(row["warmup_seconds"] == 15 and row["steps"] == 200 for row in projections)
-    qa = plan[1]
+    assert all(row["warmup_seconds"] == 5 and row["steps"] == 200 for row in projections)
+    qa = plan[-1]
     assert qa["kind"] == "train" and qa["steps"] + qa["warmup"] == 276
-    assert qa["preheat_steps"] == 200
+    assert "preheat_steps" not in qa
     assert "preheat_steps" not in plan[0]
     assert "warmup_seconds" not in qa
 

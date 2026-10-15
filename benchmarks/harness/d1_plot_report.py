@@ -27,6 +27,12 @@ def draw(index: dict, output: Path) -> None:
     shapes = ((4096, 4096), (1024, 4096), (14336, 4096), (4096, 14336))
     labels = ("q/o 4096 x 4096", "k/v 1024 x 4096", "gate/up 14336 x 4096", "down 4096 x 14336")
     sizes = (1, 8, 32, 128, 512, 2048)
+    if not index.get("gpu_context"):
+        raise ValueError("the figure needs the measured GPU context, not a guessed card label")
+    gpu_name = index["gpu_context"]["name"]
+    power_limits = sorted(
+        {value / 1000 for case in index["cases"] for value in case.get("power_limit_mw", [])}
+    )
     figure, axes = pyplot.subplots(2, 2, figsize=(15, 8.4))
     colormap = pyplot.get_cmap("RdYlGn").copy()
     colormap.set_bad("#dedede")
@@ -74,7 +80,11 @@ def draw(index: dict, output: Path) -> None:
         "Grey = identical backend path.\n"
         "Frozen base + input gradient + non-reentrant checkpoint; no LoRA/optimizer. "
         "Ratios are descriptive, not significance claims.\n"
-        "RTX 3090, nested NF4, stock 370 W; source " + index["source_sha"][:12],
+        + gpu_name
+        + ", nested NF4, provider limits "
+        + "/".join(f"{value:g}" for value in power_limits)
+        + " W; clocks recorded per case; source "
+        + index["source_sha"][:12],
         fontsize=10,
     )
     output.parent.mkdir(parents=True, exist_ok=True)

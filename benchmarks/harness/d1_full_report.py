@@ -82,6 +82,9 @@ def describe(case: dict, rows: list[dict]) -> dict:
         for row in accepted:
             qa_contract(case, row)
     result["accepted_arms"] = len(accepted)
+    result["power_limit_mw"] = sorted(
+        {value for row in rows for value in row.get("power_limit_mw", [])}
+    )
     result["all_attempt_clock_range_mhz"] = [
         min((value for row in rows for value in row.get("clock_sm_mhz", [])), default=None),
         max((value for row in rows for value in row.get("clock_sm_mhz", [])), default=None),
@@ -139,6 +142,10 @@ def build_index(root: Path) -> dict:
         raise ValueError("full cohort mixes source/GPU/runtime/harness/environment identities")
     if identities and next(iter(identities))[0] != plan["source_sha"]:
         raise ValueError("executed source differs from the frozen plan")
+    context_path = root.parent / "gpu-context-setup.json"
+    context = json.loads(context_path.read_text()) if context_path.exists() else None
+    if context and identities and context["gpu_uuid"] != next(iter(identities))[1]:
+        raise ValueError("setup GPU context differs from the measured physical GPU")
     complete = [
         row
         for row in described
@@ -183,6 +190,7 @@ def build_index(root: Path) -> dict:
         "attempted_arms": sum(row["attempted_arms"] for row in described),
         "accepted_arms": sum(row.get("accepted_arms", 0) for row in described),
         "source_sha": plan["source_sha"],
+        "gpu_context": context,
         "identities": sorted(identities),
         "packages": json.loads(next(iter(packages))) if packages else {},
         "cuda_correctness": correctness,

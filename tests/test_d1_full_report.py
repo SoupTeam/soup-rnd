@@ -35,14 +35,14 @@ def test_split_timing_contract_rejects_missing_events_and_changed_warmup():
     from d1_full_study import cases
     from d1_rules import settings_digest
 
-    case = cases()[2]
+    case = next(row for row in cases() if row["kind"] == "projection")
     settings = {key: case[key] for key in ("dtype", "m", "n", "k", "steps", "warmup")}
-    settings.update(no_nested=False, warmup_seconds=15.0)
+    settings.update(no_nested=False, warmup_seconds=float(case["warmup_seconds"]))
     row = {
         "settings_sha256": settings_digest(settings),
         "shape": [1, 4096, 4096],
         "actual_warmup_steps": 25,
-        "actual_warmup_seconds": 15.01,
+        "actual_warmup_seconds": case["warmup_seconds"] + 0.01,
         **{
             field: [1.0] * 200
             for field in ("forward_cuda_ms", "backward_cuda_ms", "step_cuda_ms", "step_wall_ms")
@@ -53,7 +53,7 @@ def test_split_timing_contract_rejects_missing_events_and_changed_warmup():
     with pytest.raises(ValueError, match="array"):
         projection_contract(case, row)
     row["forward_cuda_ms"] = [1.0] * 200
-    row["actual_warmup_seconds"] = 14.9
+    row["actual_warmup_seconds"] = case["warmup_seconds"] - 0.1
     with pytest.raises(ValueError, match="warm-up"):
         projection_contract(case, row)
 
@@ -82,11 +82,12 @@ def test_conditioning_is_separate_from_the_fixed_qa_update_budget():
         "thermal_prelude_elapsed_seconds": 60.0,
         "fresh_arm_elapsed_seconds": 160.0,
     }
-    qa_contract(cases()[1], row)
+    legacy_case = {**cases()[-1], "preheat_steps": 200}
+    qa_contract(legacy_case, row)
     row["updates"] += 200
     with pytest.raises(ValueError, match="update budget"):
-        qa_contract(cases()[1], row)
+        qa_contract(legacy_case, row)
     row["updates"] = 276
     row["thermal_prelude_elapsed_seconds"] = 0
     with pytest.raises(ValueError, match="elapsed time"):
-        qa_contract(cases()[1], row)
+        qa_contract(legacy_case, row)
