@@ -2,11 +2,14 @@
 
 ## Status
 
-This is the skeleton. It holds the decision rule and nothing else. The first commit of
-this record must come before the `box_stamp_before.unix_s` of the first arm. A reviewer
-compares the two to confirm the rule was not fitted to a result (house rule 1). No code
-has run and nothing has been measured. The condition and refusal tables below are empty
-on purpose and are filled after the arms run.
+Finished. The decision rule was committed in `0e17ab6d` (Unix time 1792100938) before the first
+arm, whose `box_stamp_before.unix_s` is 1792106218.86, so the rule came 5,280 s earlier. The
+rule section below is unchanged since that commit (a test pins its sha256).
+
+Outcome in one line. The zero-gradient control was rejected in both paths. C1 arm A
+(Unsloth `2026.1.2`) is **pass** in two fresh processes, so no public number was struck. C1
+arm B (Chronicals) is **out of scope** and has no verdict. C2 and the speed blocks did not
+run. "No public number changed" is a finished result under this rule, not a failure.
 
 ## Question
 
@@ -168,20 +171,148 @@ instance is destroyed after the last upload.
   label masked, version compatibility, memory at batch 16) are confirmed by the first
   run, not assumed.
 
+## Results
+
+Labels: laptop results are `"RTX 3050 Laptop, control"` and `"RTX 3050 Laptop, rehearsal"`,
+the rented card is `"A100-PCIE-80GB vast.ai, real"`. Cards never share a column and no
+number from one card is compared with a number from another (house rule 3).
+
+Harness commit: results were committed in `aba89347`; the harness is `benchmarks/harness/f3_*.py`.
+The commit checked out on the instance was not recorded, so I cannot tie the run to a single
+hash more tightly than the branch `feat/f3-benchmark-audit` at `127d4ab0` to `aba89347`.
+Versions: Unsloth and unsloth-zoo `2026.1.2`, torch `2.9.1+cu128`, triton `3.5.1`, transformers
+`4.57.3`, trl `0.24.0`, peft `0.18.0`, Python 3.12, Chronicals at `9b33605177a98bc798387c1742b9d36e53ea9712`
+(not installed, not run). Dataset `yahma/alpaca-cleaned` at revision
+`12567cabf869d7c92e573c7c783905fc160e9639`, 51,760 examples, token sha256 for
+`Qwen/Qwen2.5-0.5B` `f968d82c9244011d9c36d88cad0a00d8c8c1f8e69f35e53c900d89af390afed3`.
+Versions and hashes: `benchmarks/results/f3-benchmark-audit/setup-notes.md`.
+
+### Verdicts
+
+| Row | Published (A100-40GB, not measured by me) | Ours (A100-PCIE-80GB vast.ai, real) | Ours (RTX 3050 Laptop, control) | Verdict | Inference step |
+|---|---|---|---|---|---|
+| Zero-gradient control, native trainer | none | not rerun on the A100 | rejected: `grad_norm` and `parameters_changed` both refused (SmolLM2-135M, 12 steps, `weight_decay` 0) | control passed | none |
+| Zero-gradient control, Unsloth trainer | none | not rerun on the A100 | rejected: both checks refused | control passed | none |
+| C1 arm A, Unsloth `2026.1.2` | 11,736 tok/s ("Unsloth (actual training)", figure 10 and table 2) | `pass` in two fresh processes, 290 trainable tensors, `grad_norm` finite and non-zero, `parameters_changed` true, 20 of 20 steps | none | pass | not reproduced: no number struck |
+| C1 arm B, Chronicals `9b33605` | 41,184 tok/s | out of scope, no run | none | no verdict | none |
+| C1 speed row | 11,736 vs 41,184, not compared by me | not run | none | no verdict | none |
+| C2 | 11,699 (Chronicals LoRA+) vs 2,857 (Unsloth MAX) | not run | none | no verdict | none |
+| Run at 46,482 tok/s ("Unsloth (grad_norm=0)") | 46,482 (the text rounds to 46,000) | not run | none | config not found, not audited | at most not reproduced |
+
+The line on 46,000: **config not found, not audited**. The preprint names no script, version
+or date for it, and the Unsloth repository, issues and docs hold no such number. The status of
+this number is **not checked**. It is neither confirmed nor refuted. Step 3 is not allowed.
+
+Our peak allocated memory for arm A at batch 16 was 11.18 GB (11,182,846,976 bytes). The
+preprint gives 12.8, 16.8 and 22.4 GB for the same config on another card; no comparison is
+made. Our `total` and `useful` token counts and the step times are in the raw JSON and are not
+a speed claim. The first step includes compilation and took 15.0 s in process 1 and 4.8 s in
+process 2, which is why the two reports differ in timing and agree in checks.
+
+`gpu_clock` for arm A: the SM clock sampled 210 to 1410 MHz and the clock event reasons
+included `sw_power_cap` (5 of 26 samples in process 1). The speed row did not run, so this
+did not gate a verdict. Neighbour disk reads were not checked: `foreign_reads` was `unknown`
+because the model path maps to no block device. `suspend` and `power` answered `ok`.
+
+### Raw reports
+
+- Rental: `benchmarks/results/f3-benchmark-audit/rental/f3-results/audit-c1.json`,
+  `benchmarks/results/f3-benchmark-audit/rental/f3-results/c1/A-unsloth-p1.json`,
+  `benchmarks/results/f3-benchmark-audit/rental/f3-results/c1/A-unsloth-p2.json`,
+  `benchmarks/results/f3-benchmark-audit/rental/f3-results/lifecycle/summary.json`,
+  `benchmarks/results/f3-benchmark-audit/rental/f3-results/observe-sleep60.json`,
+  `benchmarks/results/f3-benchmark-audit/rental/f3-results/refusals.jsonl` (empty: no check refused),
+  logs `benchmarks/results/f3-benchmark-audit/rental/c1.log` and
+  `benchmarks/results/f3-benchmark-audit/rental/bootstrap.log`, notes
+  `benchmarks/results/f3-benchmark-audit/rental/NOTES.md`.
+- Control: `benchmarks/results/f3-benchmark-audit/control/control.json`,
+  `benchmarks/results/f3-benchmark-audit/control/control-native.json`,
+  `benchmarks/results/f3-benchmark-audit/control/control-unsloth.json`.
+- Rehearsal: `benchmarks/results/f3-benchmark-audit/rehearsal/audit.json`, void or out of scope
+  arms included. There is no void run on the A100.
+- Copy: the same files are in the private Hugging Face repo `m1kado/f3-audit-results`. Private
+  means a reviewer needs access from the owner; the paths above are the public reference.
+- Spend: about 0.15 USD of the 2.50 USD ceiling (offer 1.00 USD per hour, instance 56167498,
+  alive about 12 minutes).
+
+## What was not done and why
+
+- **Chronicals (arm B).** Its loop is custom (`ChronicalsTrainer`), not an HF `Trainer`, so the
+  collector cannot attach. Recorded as out of scope, no verdict. No Chronicals versus Unsloth
+  comparison and no "our number versus theirs" column exists.
+- **C2.** Not run. `f3_arm.py` has no LoRA path and `unsloth_max_benchmark.py` is not in this
+  repository (it lives in the Chronicals repository, fetched at run time).
+- **Speed blocks.** The speed blocks did not run: arm B has no verdict, so the rule forbids the speed row.
+- **Unsloth `2026.10.6`.** The extra arm never ran. Whether it fits transformers 5.19.0 was not tested.
+- **The `destroy` path with the per-instance key.** Not verified. `CONTAINER_ID` was not set in
+  the ssh shell, the on-instance destroy raised after the upload, and the instance was destroyed
+  from the laptop by hand.
+- **The control was not rerun on the A100.** The record holds the laptop reports,
+  labelled `"RTX 3050 Laptop, control"`, copied to the instance. The control model is
+  SmolLM2-135M, not Qwen2.5-0.5B.
+- **Other frameworks.** Axolotl, LLaMA-Factory and the Unsloth docs have no published pair of
+  number and config on a small model that fits the budget.
+- **Docs of Soup.** The "2-5x faster" lines (`README.md`, `docs/models.md`,
+  `docs/backends-and-ops.md`) are not edited here. A separate card covers them.
+
+## Prepared statements
+
+Prepared before any result, one per outcome. Use the one that matches. The Chronicals
+preprint (arXiv 2601.02609) is not peer-reviewed, and it is inconsistent: three peak memory
+figures for one config, two sequence lengths, two licences and commands with no script.
+
+- **Confirmed.** "Chronicals reports that a 46,000 tok/s Unsloth run had a `grad_norm` of
+  zero. We ran Unsloth `<version>` on the public config `<config>` at `<commit>` and our run
+  was refused by `<checks>` in two fresh processes, with the zero-gradient control rejected.
+  This is the step `<2 or 3>` result, `our run invalid` or `published run invalid`."
+- **Not confirmed.** "Chronicals reports that a 46,000 tok/s Unsloth run had a `grad_norm` of
+  zero. We could not find the config for that run, so we did not audit it. We ran Unsloth
+  `2026.1.2` on the public C1 config and it passed in two fresh processes. This says nothing
+  about the published run."
+
+For this audit the second statement applies.
+
 ## Conditions table
+
+A changed condition means the number is not compared with the published one. No number was
+compared in this audit, because no speed row ran. The table is here so the changes stay visible.
 
 | Config | Condition | Published | Ours | Match |
 |---|---|---|---|---|
-| | | | | |
+| C1 | Model | Qwen2.5-0.5B | Qwen2.5-0.5B | yes |
+| C1 | Dataset | Alpaca-cleaned | `yahma/alpaca-cleaned` at `12567cab`, 51,760 examples | yes, revision pinned |
+| C1 | Sequence length | 512 (the preprint also names another) | 512, truncated | yes |
+| C1 | Batch per device | 16 | 16, fit on 80 GB | yes |
+| C1 | Gradient accumulation | not stated for table 2 | 2 (effective batch 32) | unknown |
+| C1 | Precision | bf16 | float32 weights with bf16 autocast, because the collector hashes weights with `.numpy()`, which fails on bf16 | **changed** |
+| C1 | Optimizer | not stated | Trainer default, learning rate 1e-5, `weight_decay` 0.01 | unknown |
+| C1 | Steps | 10 warmup and 100 measured (also 100 warmup and 5 runs in another section) | 20 steps, no separate warmup, first step includes compilation | **changed** |
+| C1 | Gradient checkpointing | not stated | not enabled | unknown |
+| C1 | Packing | not stated for C1 | off | unknown |
+| C1 | Token formula | `steps x batch x seq / time` | collector `total` (padded tokens per batch) and `useful`; no tok/s claim | **changed** |
+| C1 | Card | A100-40GB (also named A100-80GB) | A100 PCIE 80 GB | **changed**, never compared |
+| C1 | Unsloth version | not stated | `2026.1.2` (closest release to the preprint date) | inferred |
+| C2 | all | LoRA r32, `unsloth_max_benchmark.py` | not run | not applicable |
 
 ## Refusal table
 
+`refusals.jsonl` of the rental run is empty: no report had `valid: false` and every arm that
+started produced a report. The rows below list what refused or did not start.
+
 | Config | Arm | Process | Check | Outcome | Reason | Commit | Report |
 |---|---|---|---|---|---|---|---|
-| | | | | | | | |
+| control | native | 1 | `grad_norm` | refused (expected) | step 0 logged `grad_norm == 0.0` | `c125040c` | `benchmarks/results/f3-benchmark-audit/control/control-native.json` |
+| control | native | 1 | `parameters_changed` | refused (expected) | trainable parameters bit-identical between first and last step | `c125040c` | `benchmarks/results/f3-benchmark-audit/control/control-native.json` |
+| control | unsloth | 1 | `grad_norm` | refused (expected) | step 0 logged `grad_norm == 0.0` | `c125040c` | `benchmarks/results/f3-benchmark-audit/control/control-unsloth.json` |
+| control | unsloth | 1 | `parameters_changed` | refused (expected) | trainable parameters bit-identical between first and last step | `c125040c` | `benchmarks/results/f3-benchmark-audit/control/control-unsloth.json` |
+| C1 | A-unsloth | 1, 2 | none | no refusal | all checks ok | `aba89347` | `benchmarks/results/f3-benchmark-audit/rental/f3-results/audit-c1.json` |
+| C1 | B-chronicals | none | none | did not start | custom loop, not an HF `Trainer`; out of scope | `aba89347` | `benchmarks/results/f3-benchmark-audit/rental/f3-results/lifecycle/summary.json` |
 
 ## Labels
 
 Results are labelled `"RTX 3050 Laptop, control"`, `"RTX 3050 Laptop, rehearsal"` and
 `"A100-PCIE-80GB vast.ai, real"`. Published numbers sit in their own column, marked
 "A100-40GB, not measured by me".
+
+The datasets and models above are not in git. The tokens stay outside the repository.
+Results are also in the private Hugging Face repo `m1kado/f3-audit-results`.
