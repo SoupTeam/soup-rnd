@@ -55,7 +55,7 @@ def cases() -> list[dict]:
                             "k": inner,
                             "steps": 200,
                             "warmup": 20,
-                            "warmup_seconds": 5,
+                        "warmup_seconds": 15,
                         }
                     )
     return result
@@ -109,7 +109,7 @@ def run(args: argparse.Namespace) -> dict:
         "cases": cases(),
         "weights": str(args.weights),
         "data": str(args.data),
-        "clock_policy": "1500 MHz locked SM; unchanged provider power limit",
+        "clock_policy": "provider stock clocks and power limit; >=15-second projection warm-up",
     }
     plan_path = args.output / "plan.json"
     if plan_path.exists():

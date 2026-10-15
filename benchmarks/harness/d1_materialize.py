@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import tarfile
 import tempfile
@@ -14,7 +15,7 @@ from d1_rules import digest, evidence_path
 from rich.console import Console
 
 
-def materialize(manifest_path: Path, output: Path) -> dict:
+def materialize(manifest_path: Path, output: Path, hardlink_duplicates: bool = False) -> dict:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     expected = {row["file"]: row for row in manifest["files"]}
     if len(expected) != len(manifest["files"]) or not expected:
@@ -54,8 +55,11 @@ def materialize(manifest_path: Path, output: Path) -> dict:
                     if member.linkname not in restored:
                         raise ValueError("hard link target is not a previously verified file")
                     source = evidence_path(output, member.linkname)
-                    with source.open("rb") as handle, target.open("xb") as destination:
-                        shutil.copyfileobj(handle, destination)
+                    if hardlink_duplicates:
+                        os.link(source, target)
+                    else:
+                        with source.open("rb") as handle, target.open("xb") as destination:
+                            shutil.copyfileobj(handle, destination)
                 else:
                     raise ValueError("symlinks and special files are not evidence files")
                 row = expected[member.name]
@@ -68,6 +72,7 @@ def materialize(manifest_path: Path, output: Path) -> dict:
         "status": "MATERIALIZED",
         "files": len(restored),
         "archive_sha256": manifest["archive_sha256"],
+        "duplicate_storage": "filesystem hard links" if hardlink_duplicates else "copies",
         "scope": "Exact stored bytes only; run numerical replay separately.",
     }
 
@@ -76,8 +81,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--hardlink-duplicates", action="store_true")
     args = parser.parse_args()
-    Console().print(materialize(args.manifest, args.output))
+    Console().print(materialize(args.manifest, args.output, args.hardlink_duplicates))
 
 
 if __name__ == "__main__":

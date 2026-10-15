@@ -57,6 +57,18 @@ def test_hard_links_restore_exact_duplicate_bytes(tmp_path):
     assert (tmp_path / "out/qa/second.pt").read_bytes() == b"saved tensor bytes"
 
 
+def test_explicit_disk_saving_restore_links_only_verified_duplicate_bytes(tmp_path):
+    import os
+
+    from d1_materialize import materialize
+
+    result = materialize(package(tmp_path), tmp_path / "out", hardlink_duplicates=True)
+    first, second = tmp_path / "out/qa/first.pt", tmp_path / "out/qa/second.pt"
+    assert os.path.samefile(first, second)
+    assert first.read_bytes() == second.read_bytes() == b"saved tensor bytes"
+    assert result["duplicate_storage"] == "filesystem hard links"
+
+
 @pytest.mark.parametrize("attack", ["traversal", "symlink", "tampered"])
 def test_rejects_unsafe_or_changed_archive(tmp_path, attack):
     from d1_materialize import materialize
