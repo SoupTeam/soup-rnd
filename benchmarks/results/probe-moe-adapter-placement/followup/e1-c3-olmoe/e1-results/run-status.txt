@@ -1,0 +1,12 @@
+PLAN-START <box-home>/plan-olmoe-c3.txt 2026-10-14T07:41:33Z PYTORCH_CUDA_ALLOC_CONF=unset
+=== 2026-10-14T07:41:33Z confirmcheck-olmoe-base-box3 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirmcheck-olmoe-base-box3.json --model olmoe --arm base
+EXIT confirmcheck-olmoe-base-box3 0 2026-10-14T08:07:54Z
+=== 2026-10-14T08:07:54Z confirm-olmoe-A-lr2e-4-s2 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-olmoe-A-lr2e-4-s2.json --model olmoe --arm A --lr 2e-4 --seed 2
+EXIT confirm-olmoe-A-lr2e-4-s2 0 2026-10-14T08:44:43Z
+=== 2026-10-14T08:44:43Z confirm-olmoe-AT-lr1e-4-s2 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-olmoe-AT-lr1e-4-s2.json --model olmoe --arm AT --lr 1e-4 --seed 2 --hot <box-home>/e1-results/hot-olmoe.json
+EXIT confirm-olmoe-AT-lr1e-4-s2 0 2026-10-14T09:19:37Z
+=== 2026-10-14T09:19:37Z confirm-olmoe-AE-lr1e-4-s2 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-olmoe-AE-lr1e-4-s2.json --model olmoe --arm AE --lr 1e-4 --seed 2
+EXIT confirm-olmoe-AE-lr1e-4-s2 0 2026-10-14T10:05:00Z
+=== 2026-10-14T10:05:00Z confirm-olmoe-AE-lr4e-4-s0 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-olmoe-AE-lr4e-4-s0.json --model olmoe --arm AE --lr 4e-4 --seed 0
+EXIT confirm-olmoe-AE-lr4e-4-s0 0 2026-10-14T10:51:12Z
+PLAN-DONE <box-home>/plan-olmoe-c3.txt 2026-10-14T10:51:12Z

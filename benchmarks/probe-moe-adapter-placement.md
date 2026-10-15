@@ -14,7 +14,11 @@ message. Nothing here is a product promise; it is quality-gated, not bit-exact
 
 **Follow-up, 2026-10-13 (review of PR #7):** §8's task numbers are tuning-set scores
 (§3 limitation). §11 pre-registers a confirmation set of questions E1 never used and
-Qwen3.5 in Soup's RAM tier, before any of their runs.
+Qwen3.5 in Soup's RAM tier, before any of their runs. **Reported 2026-10-14 (§11.5):**
+on that set every §8 verdict and gap sign holds on both models, and all 19 counted
+configurations, trained again from scratch, reproduce their published records
+exactly. The RAM-tier parity pilot did not pass, so no RAM-tier verdict is counted and
+that regime stays open.
 
 ## 1. Question
 
@@ -83,6 +87,7 @@ written to the JSON before training starts.
   further seeds answer the same questions and do not remove that dependence. Until
   §11's confirmation set is scored, §9 claims only what was observed on this set. §11
   pre-registers that set and its rule; the records and thresholds here stay as they are.
+  *Scored 2026-10-14 (§11.5): on C every verdict, gap sign and gap materiality holds.*
 
 ## 4. Measurements per run
 
@@ -170,7 +175,7 @@ run JSON records the counted value]:
 
 AdamW fp32 adapter state is 16 bytes per trainable parameter: 0.24 / 0.32 / 3.75 /
 14.07 GiB on Qwen3.5. Its bf16 base is ~65 GiB, so Qwen3.5 runs resident on one
-96 GB card (`massedcompute_RTXPro6000`, USD 2.63/h) and `AE` is attempted there:
+96 GB card (`massedcompute_RTXPro6000`) and `AE` is attempted there:
 **fit** means the 256-step run completes without a CUDA out-of-memory error; a run
 that does not fit is recorded as such and `AT` becomes the fullest arm. OLMoE runs
 on 48 GB cards. These boxes are not the 8 GB target: E1 is a quality question, and
@@ -179,9 +184,7 @@ about an 8 GB step.
 
 **Pilot.** One OLMoE `AE` run at 2e-4 and one Qwen3.5 `A` run first, to measure
 step time and peak memory. Pilot runs are feasibility only and never enter a
-verdict. If the pilot puts the full plan over the spend cap, the LR sweep shrinks
-to {1e-4, 4e-4} before anything else is cut, and the change is written here before
-the sweep starts.
+verdict.
 
 **Correction before any counted run (2026-10-11).** The first OLMoE pilot was
 launched on a row-level split from commit `8509f196`: 81 of its 253 evaluation
@@ -194,8 +197,8 @@ end. `AE` at 2e-4: zero-adapter check exact (0.97017 both), 121,634,816 trainabl
 parameters as estimated, 256 steps at 3.12 s/step (13.3 min), peak 16.0 GiB
 allocated on an RTX A6000, 1395 s end to end. Training loss 0.55 -> 0.23 over the
 epoch; evaluation NLL 0.925 -> 0.228 [RUN]. These numbers size the plan (about 23
-minutes per OLMoE run, so 12 sweep runs + 6 seed runs fit one box in about 7 hours
-at USD 0.68/h) and are not results.
+minutes per OLMoE run, so 12 sweep runs + 6 seed runs fit one box in about 7 hours)
+and are not results.
 
 **Plan changes, written before any counted trained result (2026-10-11, 03:45 UTC).**
 
@@ -228,9 +231,8 @@ at USD 0.68/h) and are not results.
 **Added 04:20 UTC, before any counted trained result was read.**
 
 - *Second Qwen3.5 box.* `e1-qwen2`, the same `massedcompute_RTXPro6000` type,
-  bundle and allocator setting, so the Qwen3.5 seed runs fit before the first box's
-  deadline. Its `AT` runs use `hot-qwen35.json` from the first box (SHA-256
-  `7009faed…`), copied and hash-checked.
+  bundle and allocator setting. Its `AT` runs use `hot-qwen35.json` from the first
+  box (SHA-256 `7009faed…`), copied and hash-checked.
 - *Cross-box base checks.* Each second box runs the base once more, named
   `check-<model>-base-box2`. Checks never enter a verdict, and `run-*` is the only
   name the analysis reads. If a check's suite scores differ from the counted
@@ -309,7 +311,7 @@ rule and its thresholds do not change.**
   Qwen3.5 leg-2 table. The Soup-side finding is written separately at the end of
   this record.
 - *LR transfer check, outside the rule.* One extra Qwen3.5 run,
-  `lrcheck-qwen35-AE-lr5e-5-s0` (about USD 3), is queued after the counted `AE`
+  `lrcheck-qwen35-AE-lr5e-5-s0`, is queued after the counted `AE`
   runs on `e1-qwen`. The analysis does not read `lrcheck-*`. With it and the
   uncounted 2e-4 runs, Qwen3.5 `AE` has three rates. If the sign of the
   `A`/`AS`-vs-`AE` gap depends on the rate, the record says so and does not conclude
@@ -408,17 +410,11 @@ thresholds, the verdicts and the measured numbers do not change.**
 ## 7. Cloud protocol
 
 As in [`probe-moe-expert-holdout.md`](probe-moe-expert-holdout.md): source bundle
-from a committed revision with its SHA-256 checked on the box, an instance-side
-shutdown and a workstation deadline armed before setup, output copied and its hash
-verified before every delete, `brev ls` empty at the end. Spend cap for the whole
-record: USD 60.
+from a committed revision with its SHA-256 checked on the box, and output copied
+and hash-verified before publication.
 
-**Outcome.** All four boxes (`e1-olmoe`, `e1-olmoe2`, `e1-qwen`, `e1-qwen2`) were
-copied, hash- and content-verified, and deleted by their watchers between 06:38 and
-09:26 UTC; `brev ls` then listed no instance, and no deadline task remained. From
-create-to-delete times at list price the spend is about USD 34 (OLMoE boxes 4.2 h
-and 3.2 h at USD 0.68/h, Qwen3.5 boxes 6.6 h and 4.4 h at USD 2.63/h) [ESTIMATE; the
-provider's bill is authoritative]. The raw records are published in
+**Records.** Outputs from all four boxes (`e1-olmoe`, `e1-olmoe2`, `e1-qwen`,
+`e1-qwen2`) were copied, hash- and content-verified. The raw records are published in
 `benchmarks/results/probe-moe-adapter-placement/` with the box's home directory
 replaced by a placeholder (the publishing script also replaces the workstation's user
 path, which occurred in no published raw file). `publication-redactions.json` gives
@@ -694,6 +690,20 @@ OLMoE. Under it:
 evaluation set the rates were chosen on (§3 limitation). Until §11 reports, each line
 is a tuning-set observation for this recipe, not an independent quality
 recommendation; the wording below is held to that.
+
+*Added 2026-10-14, after §11 reported.* On C, 256 questions E1 never used, new runs of
+every counted configuration keep each arm's verdict, gap sign and gap materiality on
+both models (§11.5), so the lines below hold for this recipe on new questions, not only
+on the set the rates were chosen on. Their numbers are E's. On C they read: OLMoE `A`
++0.0072 nat and -3.9 accuracy points against `AE` (p 0.020), `AT` +0.0009 nat (above
+on all three seeds) and -1.8 points (p 0.18); Qwen3.5 `A` / `AS` -0.0029 / -0.0024
+nat and +0.8 / +0.4 points (p 0.69 / 0.89). Of these accuracy differences only OLMoE
+`A`'s has p below 0.05. Every Qwen3.5 line is for resident bf16 training: nothing in
+Soup's RAM tier is counted (§11.5), and there the adapter state is bf16, 8 bytes per
+trainable parameter, so the memory line's 16 bytes does not carry over.
+Neither the resident runs nor the larger-RAM streamed runs establish fit or quality on
+the brief's 8 GB GPU / 32 GB host tier. A pre-flight recommendation for that tier
+remains conditional; it must not present these resident verdicts as RAM-tier evidence.
 
 - **OLMoE-1B-7B: no target is named acceptable** (§5's added branch; every arm
   fails leg 2). The pre-flight would give the raw deltas against `AE` instead: `A`
@@ -971,6 +981,8 @@ python -m pytest tests/test_moe_adapter_rule.py tests/test_moe_adapter_placement
 python benchmarks/harness/moe_adapter_budget.py   # §9 extrapolation; fetches two configs
 ```
 
+The follow-up's commands (§11) are in §11.6.
+
 ## 11. Follow-up after the review of PR #7 (pre-registered 2026-10-13, before any run)
 
 The review of PR #7 (2026-10-12) left E1 open on two points. (1) §3 chooses each
@@ -1007,9 +1019,8 @@ Every counted E1 configuration is trained again from scratch, at the rate §8 ch
 `AT` and `AE` 1e-4), with the measured harness (`harness-348f6a48.py.txt`, bytes
 unchanged), on the same GPU models as §6 (RTX A6000 48 GB for OLMoE, RTX PRO 6000
 96 GB for Qwen3.5) rented on vast.ai, with §10's stack plus peft, trl, bitsandbytes,
-accelerate and datasets for §11.3. The protocol is §7's: a bundle of the pushed
-commit, hash-checked on the box, deadlines armed before setup, results copied and
-hash-checked before every delete. `moe_adapter_confirm.py run` imports the measured
+accelerate and datasets for §11.3. As in §7, the pushed source bundle and the copied
+results are hash-checked. `moe_adapter_confirm.py run` imports the measured
 file, lets it train and score exactly as it did, and on the same adapter, after its
 leg 2, adds C's NLL and accuracy and per-row NLL on E and C. The OLMoE seed-0 sweep
 (§3's grid and its extension) is also run again, so a rate chosen on C can be
@@ -1088,11 +1099,7 @@ bf16 and the RAM store is about 65 GB; that regime cannot hold this model in cur
 Soup, and the run uses a box with enough RAM. It tests Soup's code path, not the
 brief's hardware, and its absolute peaks are a 96 GB card's, not an 8 GB card's.
 
-**Budget.** At most USD 25 for all of §11, on the team's vast.ai account (instances
-labelled `e1-`). The RAM-tier seed-1 runs go ahead only if the forecast after seed 0
-stays inside it; otherwise they are recorded as not run, with the reason.
-
-### 11.4 How the runs went (dated, written as they happened)
+### 11.4 Run status and provenance (updated 2026-10-15)
 
 - **Code, before any result.** `adb9b32e` (C, the wrapper, the confirmation rule),
   `7b7430cb` (this pre-registration), `d17e63de` (the RAM-tier harness, parity rule
@@ -1106,18 +1113,323 @@ stays inside it; otherwise they are recorded as not run, with the reason.
   verdicts read NOT COUNTED and every number is kept as description.
 - **What still ran in the RAM tier, not counted.** `A` and `AS`, seed 0, as planned, for
   the regime's own measurements (trainable parameters, adapter dtype and bytes, peak
-  memory) and descriptive quality. A post-hoc noise check (`69d9941e`, streamed and
-  resident each run twice from one snapshot) and the RAM-tier seed 1 were queued and
-  then cancelled before they started, for budget (next item).
-- **Budget.** At 18:22 UTC the resident Qwen3.5 box ran at 7.3 s/step against E1's 4.0
-  (an RTX PRO 6000 *Workstation* Edition; E1's and the RAM-tier box are *Server*
-  Edition), which put the forecast near the USD 25 cap. The last three resident Qwen3.5
-  runs (`AT` and `AS` and `A`, seed 1) moved to the RAM-tier box, a Server Edition, so
-  the resident Qwen3.5 records come from two card variants of the same chip; a second
-  base run there checks that both score the base identically. Timings are compared
-  only within a box.
+  memory) and descriptive quality. The RAM-tier seed 1 and a post-hoc noise check
+  (`69d9941e`, streamed and resident each run twice from one snapshot) were not run.
+- **Boxes.** OLMoE ran on three RTX A6000 boxes: `e1-c-olmoe1` and `e1-c-olmoe2` on
+  2026-10-13, and `e1-c3-olmoe` on 2026-10-14 (07:41-10:51 UTC; `A`, `AT` and `AE` seed
+  2, `AE` 4e-4 seed 0). The resident Qwen3.5 records come from three boxes: `e1-c-qwen`,
+  an RTX PRO 6000 Blackwell *Workstation* Edition (base, and `A`, `AS` and `AT` seed 0),
+  and two *Server* Edition boxes like E1's: `e1-c-rt` (`AT` and `AS` seed 1, after its
+  RAM-tier runs) and `e1-c3-qwen` on 2026-10-14 (07:30-10:58 UTC; `AE` seeds 0 and 1,
+  `A` seed 1). Every box ran a bundle of `7b7430cb`, except `e1-c-rt`: `d17e63de`, the
+  same files plus the RAM-tier harness and its test; all used the same hash-checked
+  inputs. The base was scored again as a box check on `e1-c-olmoe2` and, first, on both
+  boxes of 2026-10-14; no base check ran on `e1-c-rt`, whose two resident records
+  reproduce their published E1 records exactly (§11.5). Timings are compared only
+  within a box.
 - **Box stamps.** Per-arm stamps (SM clock, commit charge, free RAM, GPU processes,
   processes holding the model files) started at about 18:30 UTC
   (`stamps.txt` on each box). Arms that finished before have the clocks, temperature and
   `free -b` lines of their logs only; their commit charge, GPU peers and readers were not
-  recorded and are not reconstructed.
+  recorded and are not reconstructed. The boxes of 2026-10-14 stamped every arm.
+- **Records.** Published in `results/probe-moe-adapter-placement/followup/<box>/` with
+  E1's redaction. `followup/publication-redactions.json` gives every published file's
+  original and published SHA-256, and lists excluded staged files with their SHA-256
+  and reason: Soup's saved adapters and checkpoints (their hashes are in the train
+  records), Soup's copy of the train rows, input copies identical to the published
+  inputs, and box-side operations logs without measurements. Retained originals are
+  kept outside the repository: for the boxes of 2026-10-13, records and logs extracted
+  from a CRC-checked ZIP copy; for those of 2026-10-14, archives checked against the
+  box's SHA-256 and file list.
+
+### 11.5 Results (2026-10-14)
+
+Written after every §11 record was read. The verdicts come from
+`moe_adapter_confirm_rule.py` (commit `ed90feef`, unchanged since) over the published
+records (§11.6 gives the command). The generated report is published in
+`results/probe-moe-adapter-placement/followup-report/` (`tables.md` and
+`summary.json`); its resident tables are copied below. Every run §11.2 plans
+has an `ok` record (OLMoE's 10 counted runs and the 8 other runs of its seed-0 sweep;
+Qwen3.5's 9 counted runs), and so has every box check that ran: the base on
+`e1-c-olmoe2`, `e1-c3-olmoe` and `e1-c3-qwen`. Each carries harness `dd55825c…`, split
+`4b41de1b…`, C `7224983f…`, wrapper `67830752…` and, for `AT`, its model's hot-set
+hash; the rule rejected no §11 record. As in §7, it excludes E1's two withdrawn-split
+pilot run records. Leg 2 scores the same adapters' gate outputs for both sets, so a
+verdict can differ between E and C only through the task gap.
+
+**OLMoE-1B-7B.** E and C: MEASURED; V1, V2, V3 (not re-decided: the rates are frozen)
+and V4 pass on both. Arm order by mean NLL: `AE` < `AT` < `A` on both sets.
+
+| Arm | E verdict | C verdict | Holds | E gap | C gap | Gap holds | Per-seed gaps E / C | Accuracy E / C |
+|---|---|---|---|---|---|---|---|---|
+| `A` | REGRESSES | REGRESSES | yes | +0.0083 (not material) | +0.0072 (not material) | yes | s0: +0.0081 / +0.0072; s1: +0.0085 / +0.0079; s2: +0.0083 / +0.0066 | 0.574, 0.586, 0.609 / 0.582, 0.613, 0.594 |
+| `AT` | REGRESSES | REGRESSES | yes | +0.0016 (not material) | +0.0009 (not material) | yes | s0: +0.0011 / +0.0012; s1: +0.0020 / +0.0013; s2: +0.0018 / +0.0001 | 0.645, 0.582, 0.645 / 0.629, 0.617, 0.605 |
+| `AE` | REGRESSES | REGRESSES | yes | +0.0000 (not material) | +0.0000 (not material) | yes | s0: +0.0000 / +0.0000; s1: +0.0000 / +0.0000; s2: +0.0000 / +0.0000 | 0.621, 0.586, 0.656 / 0.637, 0.637, 0.633 |
+
+Paired accuracy against `AE` on C, clustered by question: `A` -3.9 points (p 0.020; on
+E -3.1, p 0.058), `AT` -1.8 points (p 0.18; on E +0.3, p 0.92). Leg 2 fails on common
+sense for every arm and on instruction for `AT`, as in §8.
+
+**Qwen3.5-35B-A3B.** E and C: MEASURED; V1-V4 pass on both. Arm order by mean NLL:
+`A` < `AS` < `AT` < `AE` on both sets.
+
+| Arm | E verdict | C verdict | Holds | E gap | C gap | Gap holds | Per-seed gaps E / C | Accuracy E / C |
+|---|---|---|---|---|---|---|---|---|
+| `A` | ACCEPTABLE | ACCEPTABLE | yes | -0.0038 (not material) | -0.0029 (not material) | yes | s0: -0.0038 / -0.0030; s1: -0.0038 / -0.0027 | 0.910, 0.898 / 0.891, 0.875 |
+| `AS` | ACCEPTABLE | ACCEPTABLE | yes | -0.0031 (not material) | -0.0024 (not material) | yes | s0: -0.0030 / -0.0026; s1: -0.0032 / -0.0022 | 0.898, 0.906 / 0.883, 0.875 |
+| `AT` | REGRESSES | REGRESSES | yes | -0.0020 (not material) | -0.0017 (not material) | yes | s0: -0.0017 / -0.0017; s1: -0.0023 / -0.0018 | 0.863, 0.883 / 0.875, 0.871 |
+| `AE` | REGRESSES | REGRESSES | yes | +0.0000 (not material) | +0.0000 (not material) | yes | s0: +0.0000 / +0.0000; s1: +0.0000 / +0.0000 | 0.879, 0.883 / 0.879, 0.871 |
+
+Paired accuracy against `AE` on C: `A` +0.8 points (p 0.69; on E +2.3, p 0.081), `AS`
++0.4 (p 0.89; on E +2.1, p 0.14), `AT` -0.2 (p 1.0; on E -0.8, p 0.54).
+
+**Does E1 hold.** Yes, on both models: every arm keeps its verdict on C, its task gap
+keeps its sign on every seed and stays not material, and the arm order by NLL is the
+same on both sets. By §11.2, §9's wording stands for this recipe on new questions (§9,
+addendum of 2026-10-14).
+
+**How much E and C differ.** Base-corrected E/C generalisation contrast: (E - C) of
+the arm minus (E - C) of the base; the 95% interval reflects question-sampling noise
+only (E and C rows resampled independently, 10,000 draws, seed 0) and the contrast is
+not called a tuning effect (§11.2). Gap difference = (X - `AE`) on E minus (X - `AE`)
+on C.
+
+| Model | Arm | NLL E | NLL C | E-C | Contrast [95% CI] | Accuracy E | Accuracy C | Contrast [95% CI] | Gap difference NLL [95% CI] |
+|---|---|---:|---:|---:|---|---:|---:|---|---|
+| OLMoE | base | 0.9360 | 0.9028 | +0.0332 | - | 0.512 | 0.512 | - | - |
+| OLMoE | `A` | 0.2508 | 0.2396 | +0.0112 | -0.0220 [-0.0594, +0.0151] | 0.590 | 0.596 | -0.007 [-0.095, +0.081] | +0.0011 [-0.0009, +0.0031] |
+| OLMoE | `AT` | 0.2442 | 0.2333 | +0.0109 | -0.0223 [-0.0599, +0.0151] | 0.624 | 0.617 | +0.007 [-0.081, +0.094] | +0.0008 [-0.0003, +0.0019] |
+| OLMoE | `AE` | 0.2426 | 0.2324 | +0.0102 | -0.0230 [-0.0607, +0.0145] | 0.621 | 0.635 | -0.014 [-0.102, +0.072] | - |
+| Qwen3.5 | base | 0.6341 | 0.6143 | +0.0198 | - | 0.477 | 0.488 | - | - |
+| Qwen3.5 | `A` | 0.1348 | 0.1275 | +0.0073 | -0.0125 [-0.0398, +0.0142] | 0.904 | 0.883 | +0.033 [-0.055, +0.121] | -0.0010 [-0.0022, +0.0003] |
+| Qwen3.5 | `AS` | 0.1355 | 0.1279 | +0.0076 | -0.0123 [-0.0396, +0.0145] | 0.902 | 0.879 | +0.035 [-0.053, +0.123] | -0.0007 [-0.0019, +0.0004] |
+| Qwen3.5 | `AT` | 0.1366 | 0.1286 | +0.0080 | -0.0118 [-0.0390, +0.0150] | 0.873 | 0.873 | +0.012 [-0.074, +0.098] | -0.0003 [-0.0010, +0.0005] |
+| Qwen3.5 | `AE` | 0.1386 | 0.1303 | +0.0083 | -0.0115 [-0.0386, +0.0150] | 0.881 | 0.875 | +0.018 [-0.066, +0.104] | - |
+
+Against the base, every arm, `AE` included, gained about 0.022 nat more on E than on C
+on OLMoE and about 0.012 nat more on Qwen3.5, within 0.0011 nat of each other on each
+model; every interval includes zero. The gaps between arms, which decide placement,
+move by at most 0.0011 nat from E to C, with every interval inside ±0.0032 nat, against
+the 0.02 materiality floor.
+
+**Learning rate on C.** The seed-0 sweep scored on C picks E1's rate for every arm; the
+E values equal §8's rate table:
+
+| Arm | Set | 5e-05 | 0.0001 | 0.0002 | 0.0004 | Winner | Status | Frozen | C winner differs |
+|---|---|---:|---:|---:|---:|---:|---|---:|---|
+| `A` | E | - | 0.2548 | 0.2515 | 0.2529 | 0.0002 | ok | 0.0002 |  |
+| `A` | C | - | 0.2432 | 0.2401 | 0.2420 | 0.0002 | ok | 0.0002 | False |
+| `AE` | E | 0.2446 | 0.2435 | 0.2469 | 0.2691 | 0.0001 | ok | 0.0001 |  |
+| `AE` | C | 0.2338 | 0.2330 | 0.2380 | 0.2595 | 0.0001 | ok | 0.0001 | False |
+| `AT` | E | 0.2475 | 0.2446 | 0.2448 | 0.2576 | 0.0001 | ok | 0.0001 |  |
+| `AT` | C | 0.2365 | 0.2341 | 0.2349 | 0.2468 | 0.0001 | ok | 0.0001 | False |
+
+**Reproduction of E1's published records.** All 19 counted configurations (OLMoE base
+and 3 arms x 3 seeds; Qwen3.5 base and 4 arms x 2 seeds), trained again from scratch,
+reproduce their published records exactly: the training log (step times aside), E's
+NLL and token count, every task and leg-2 output and score, V4 and the trainable
+parameters; peak CUDA memory is equal too. The Qwen3.5 reruns came from three boxes and
+both RTX PRO 6000 variants (Workstation and Server Edition); E1's records, from two
+other Server Edition boxes. The 8 other OLMoE sweep runs reproduce their published
+records as well (the rule's own field-by-field comparison, run outside the rule, which
+checks only the counted configurations). Box checks: the base scored again on
+`e1-c-olmoe2`, `e1-c3-olmoe` and `e1-c3-qwen` is identical to the counted base.
+
+**RAM tier (Qwen3.5): NOT COUNTED.** The parity pilot did not pass (§11.4), so under
+§11.3 nothing below is a verdict; every number is description.
+
+| Parity step | Streamed loss | Resident loss | Relative |
+|---:|---:|---:|---:|
+| 0 | 0.708621 | 0.708621 | 0.000000 |
+| 1 | 0.485761 | 0.480979 | 0.009942 |
+| 2 | 0.260612 | 0.264705 | 0.015461 |
+| 3 | 0.152288 | 0.154201 | 0.012409 |
+
+Loss rule: relative <= 0.001. Step-0 gradient: global relative L2 0.010718 (rule <=
+0.01), min cosine 0.999748 (rule >= 0.99), max abs 0.003021; neither the losses after
+step 0 nor the step-0 gradients are bit-exact. Whether the miss is run-to-run noise of
+either side or a systematic difference was not measured: the noise check did not run.
+
+Before any training, Soup's assistant-only labels equalled E1's on all 4,096 train, 256
+E and 256 C rows (`labels-qwen35.json`). Soup's pre-flight (`preflight-qwen35.json`)
+built `A` and `AS` with E1's trainable parameters (16,250,880 and 21,166,080) and no
+routed-expert adapter. For the expert arms it gives: `training.lora.target_parameters`
+is refused at config load under `stream_layers`; `experts` in `target_modules` is
+rejected by peft (`Qwen3_5MoeExperts` is not a supported module type);
+`training.moe_lora: true` builds a plan with no routed-expert adapter, 8,355,840
+parameters on `q/k/v/o_proj` and the shared expert, without the listed linear-attention
+projections; `AT` has no Soup spelling. Both trained arms pass V4.
+
+`A` and `AS`, seed 0 (seed 1 not run), against the resident `AE` of §11.2 (seeds 0 and
+1). The last column, RAM-tier minus resident run of the same arm (mean of seeds 0-1),
+mixes the NF4 base, Soup's warmup and data order, and initialisation, and is not
+attributed:
+
+| Arm | Set | NLL | Gap vs resident `AE` | Leg 2 | Accuracy vs `AE`, clustered | Verdict if counted | NLL / accuracy minus resident same arm |
+|---|---|---:|---:|---|---|---|---|
+| `A` | E | 0.1359 | -0.0026 | passes | +3.5 pp, p 0.093 | ACCEPTABLE | +0.0012 / +0.010 |
+| `AS` | E | 0.1365 | -0.0020 | passes | +3.1 pp, p 0.15 | ACCEPTABLE | +0.0011 / +0.008 |
+| `A` | C | 0.1280 | -0.0023 | passes | +0.4 pp, p 1.0 | ACCEPTABLE | +0.0006 / +0.000 |
+| `AS` | C | 0.1291 | -0.0013 | passes | +1.2 pp, p 0.69 | ACCEPTABLE | +0.0011 / +0.012 |
+
+**Memory in the RAM tier** (a property of the regime, reported whether or not the pilot
+passed, §11.3; seed 0 only). Peak CUDA memory allocated during Soup's training: `A`
+28.22 GiB, `AS` 28.24 GiB, on a 96 GB card. On the host: a 62.6 GiB RAM store of the
+streamed layers, 82.0 GiB pinned, peak RSS 85.9 and 86.0 GiB. After the first optimizer
+step the trainer's adapter weights, gradients and both AdamW moments are bf16: 8 bytes
+per trainable parameter, not E1's 16. §8's increment rule does not hold in this regime;
+with the measured 8 bytes it does:
+
+| `AS` - `A` peak, seed 0 | Predicted | Measured | Residual | Holds (13.2 MiB) |
+|---|---:|---:|---:|---|
+| §8's rule: 16 bytes x 4,915,200 extra parameters | 75.0 MiB | 28.1 MiB | -46.9 MiB | no |
+| measured bytes: 8 x 4,915,200 | 37.5 MiB | 28.1 MiB | -9.4 MiB | yes |
+
+Soup's adapter pre-flight for the same two plans counts fp32 tensors, 16 bytes per
+parameter (0.24 and 0.32 GiB); the trainer holds 8 (0.12 and 0.16 GiB).
+
+**What §11 settles.** Point (1) of the review: on questions E1 never used, every §8
+verdict, gap sign and gap materiality holds on both models, the gaps between arms move
+by at most 0.0011 nat, and the rate sweep picks the same rates; §9's lines stand for
+this recipe. Point (2) stays open: Soup's streamed NF4 training missed the
+pre-registered parity rule against the same base loaded resident by bitsandbytes, so
+no RAM-tier verdict is counted, and `AT` and `AE` cannot be spelled in that regime.
+
+### 11.6 Reproducing §11
+
+As §10, from the repository root, with §10's `$repo`, `$work` and `$r`, its environment,
+and the hot sets restored into `$work/e1-results/`. The boxes ran Python 3.12.3 (E1's:
+3.12.15) with §10's pins; every box's `runtime-freeze.txt` is identical to E1's. The
+RAM-tier commands run in a second environment with the same pins plus `peft==0.21.2
+trl==0.29.1 bitsandbytes==0.50.2 accelerate==1.15.0 datasets==5.1.0 pydantic==2.14.1
+pyyaml==6.0.3 typer==0.20.1 plotext==6.1.0` (`runtime-freeze-ramtier.txt`).
+
+**Code.** The boxes ran bundles of `7b7430cb`, `e1-c-rt` of `d17e63de`, which adds only
+the RAM-tier harness and its test. `moe_adapter_confirm.py` is the same file in both and
+at the branch head (SHA-256 `67830752…`, the wrapper hash every confirmation record
+carries), and it imports the measured harness from `harness-348f6a48.py.txt`. The
+RAM-tier records carry `moe_adapter_ramtier.py`'s hash at `d17e63de` (`c9655dd9…`); the
+branch head adds only the post-hoc `noise` subcommand.
+
+**Confirmation set.** A record carries its split's file hash, so C and every run need
+the counted split's exact bytes (`4b41de1b…`): §10's CRLF form, written here from a
+published copy. C's file also lists a second excluded split, `d0c76f2b…`: the split of
+E1's CPU smoke test on a tiny random model (2026-10-11), the withdrawn split's first 4
+calibration, 16 train and 8 evaluation rows. Being a subset of the withdrawn split, it
+removes no further row: without it `prepare-c` selects the same rows and only the
+file's hash differs (`7231cd64…`, checked). `prepare-c` needs the two pinned tokenizers,
+as `prepare` does (about a minute on a CPU):
+
+```bash
+python -c 'import sys, pathlib; b = pathlib.Path(sys.argv[1]).read_bytes()
+pathlib.Path(sys.argv[2]).write_bytes(b.removesuffix(b"\n").replace(b"\n", b"\r\n"))' \
+  "$r/e1-qwen/e1-results/split.json" "$work/e1-results/split.json"
+python -c 'import json, sys; d = json.load(open(sys.argv[1]))
+d.update(calibration=d["calibration"][:4], train=d["train"][:16], eval=d["eval"][:8])
+open(sys.argv[2], "w").write(json.dumps(d))' "$r/e1-olmoe/e1-results/split.json" "$work/split-smoke.json"
+python benchmarks/harness/moe_adapter_confirm.py prepare-c --data "$work/data/MetaMathQA-395K.json" \
+  --split "$work/e1-results/split.json" --exclude "$r/e1-olmoe/e1-results/split.json" \
+  --exclude "$work/split-smoke.json" --out "$work/e1-results/confirm-split.json"
+sha256sum "$work/e1-results/split.json" "$work/split-smoke.json" "$work/e1-results/confirm-split.json"
+# 4b41de1b... split, d0c76f2b... smoke split, 7224983f... C (byte-identical to $r/confirm-split.json)
+```
+
+**Runs.** The runner is the boxes' `e1f_run.sh` reduced to its arguments: a plan line is
+`<name> <script> <arguments>`; for `moe_adapter_confirm.py` it adds the four arguments
+every confirmation run takes, and it fills the placeholders. `$qwen` is the pinned
+Qwen3.5 snapshot's directory, used by the RAM-tier lines only.
+
+```bash
+e1f_plan() {  # e1f_plan <plan-file> [allocator setting]
+  while read -r name script args; do
+    [[ -z $name || $name == \#* ]] && continue
+    [[ $script == moe_adapter_confirm.py ]] &&
+      args="$args --confirm-split {CSPLIT} --data {DATA} --split {SPLIT} --out {OUT}"
+    args=${args//\{DATA\}/$work/data/MetaMathQA-395K.json}
+    args=${args//\{SPLIT\}/$work/e1-results/split.json}
+    args=${args//\{CSPLIT\}/$work/e1-results/confirm-split.json}
+    args=${args//\{RES\}/$work/e1-results}
+    args=${args//\{QWEN\}/$qwen}
+    args=${args//\{OUT\}/$work/e1-results/$name.json}
+    # shellcheck disable=SC2086
+    env ${2:+PYTORCH_CUDA_ALLOC_CONF=$2} python "benchmarks/harness/$script" $args \
+      > "$work/e1-results/$name.log" 2>&1
+    echo "EXIT $name $?"
+  done < "$1"
+}
+```
+
+Every plan line that ran, grouped by box, in the order run. The OLMoE groups ran with
+no allocator setting, the Qwen3.5 groups with `expandable_segments:True`:
+
+```text
+# e1-c-olmoe1, RTX A6000, 2026-10-13
+confirm-olmoe-base moe_adapter_confirm.py run --model olmoe --arm base
+confirm-olmoe-A-lr2e-4-s0 moe_adapter_confirm.py run --model olmoe --arm A --lr 2e-4 --seed 0
+confirm-olmoe-AT-lr1e-4-s0 moe_adapter_confirm.py run --model olmoe --arm AT --lr 1e-4 --seed 0 --hot {RES}/hot-olmoe.json
+confirm-olmoe-AE-lr1e-4-s0 moe_adapter_confirm.py run --model olmoe --arm AE --lr 1e-4 --seed 0
+confirm-olmoe-AE-lr1e-4-s1 moe_adapter_confirm.py run --model olmoe --arm AE --lr 1e-4 --seed 1
+confirm-olmoe-AT-lr1e-4-s1 moe_adapter_confirm.py run --model olmoe --arm AT --lr 1e-4 --seed 1 --hot {RES}/hot-olmoe.json
+confirm-olmoe-A-lr2e-4-s1 moe_adapter_confirm.py run --model olmoe --arm A --lr 2e-4 --seed 1
+
+# e1-c-olmoe2, RTX A6000, 2026-10-13
+confirmcheck-olmoe-base-box2 moe_adapter_confirm.py run --model olmoe --arm base
+confirm-olmoe-A-lr1e-4-s0 moe_adapter_confirm.py run --model olmoe --arm A --lr 1e-4 --seed 0
+confirm-olmoe-AT-lr5e-5-s0 moe_adapter_confirm.py run --model olmoe --arm AT --lr 5e-5 --seed 0 --hot {RES}/hot-olmoe.json
+confirm-olmoe-AE-lr5e-5-s0 moe_adapter_confirm.py run --model olmoe --arm AE --lr 5e-5 --seed 0
+confirm-olmoe-AE-lr2e-4-s0 moe_adapter_confirm.py run --model olmoe --arm AE --lr 2e-4 --seed 0
+confirm-olmoe-AT-lr2e-4-s0 moe_adapter_confirm.py run --model olmoe --arm AT --lr 2e-4 --seed 0 --hot {RES}/hot-olmoe.json
+confirm-olmoe-A-lr4e-4-s0 moe_adapter_confirm.py run --model olmoe --arm A --lr 4e-4 --seed 0
+confirm-olmoe-AT-lr4e-4-s0 moe_adapter_confirm.py run --model olmoe --arm AT --lr 4e-4 --seed 0 --hot {RES}/hot-olmoe.json
+
+# e1-c3-olmoe, RTX A6000, 2026-10-14
+confirmcheck-olmoe-base-box3 moe_adapter_confirm.py run --model olmoe --arm base
+confirm-olmoe-A-lr2e-4-s2 moe_adapter_confirm.py run --model olmoe --arm A --lr 2e-4 --seed 2
+confirm-olmoe-AT-lr1e-4-s2 moe_adapter_confirm.py run --model olmoe --arm AT --lr 1e-4 --seed 2 --hot {RES}/hot-olmoe.json
+confirm-olmoe-AE-lr1e-4-s2 moe_adapter_confirm.py run --model olmoe --arm AE --lr 1e-4 --seed 2
+confirm-olmoe-AE-lr4e-4-s0 moe_adapter_confirm.py run --model olmoe --arm AE --lr 4e-4 --seed 0
+
+# e1-c-qwen, RTX PRO 6000 Blackwell Workstation Edition, 2026-10-13
+confirm-qwen35-base moe_adapter_confirm.py run --model qwen35 --arm base --gen-batch 16
+confirm-qwen35-A-lr2e-4-s0 moe_adapter_confirm.py run --model qwen35 --arm A --lr 2e-4 --seed 0 --gen-batch 16
+confirm-qwen35-AS-lr2e-4-s0 moe_adapter_confirm.py run --model qwen35 --arm AS --lr 2e-4 --seed 0 --gen-batch 16
+confirm-qwen35-AT-lr1e-4-s0 moe_adapter_confirm.py run --model qwen35 --arm AT --lr 1e-4 --seed 0 --hot {RES}/hot-qwen35.json --gen-batch 16
+
+# e1-c-rt, RTX PRO 6000 Blackwell Server Edition, 2026-10-13: RAM tier (second environment),
+# training only after the labels matched; parity-qwen35 exits 1 when the pilot does not pass
+preflight-qwen35 moe_adapter_ramtier.py preflight --base {QWEN} --out {OUT}
+labels-qwen35 moe_adapter_ramtier.py labels --data {DATA} --split {SPLIT} --confirm-split {CSPLIT} --base {QWEN} --out {OUT}
+parity-qwen35 moe_adapter_ramtier.py parity --base {QWEN} --data {DATA} --split {SPLIT} --out {OUT}
+soup-train-qwen35-A-s0 moe_adapter_ramtier.py train --arm A --seed 0 --lr 2e-4 --base {QWEN} --data {DATA} --split {SPLIT} --run-dir {RES}/rt-A-s0 --out {OUT}
+ramtier-qwen35-A-s0 moe_adapter_ramtier.py score --arm A --seed 0 --lr 2e-4 --train-record {RES}/soup-train-qwen35-A-s0.json --adapter-dir {RES}/rt-A-s0/out --data {DATA} --split {SPLIT} --confirm-split {CSPLIT} --out {OUT}
+soup-train-qwen35-AS-s0 moe_adapter_ramtier.py train --arm AS --seed 0 --lr 2e-4 --base {QWEN} --data {DATA} --split {SPLIT} --run-dir {RES}/rt-AS-s0 --out {OUT}
+ramtier-qwen35-AS-s0 moe_adapter_ramtier.py score --arm AS --seed 0 --lr 2e-4 --train-record {RES}/soup-train-qwen35-AS-s0.json --adapter-dir {RES}/rt-AS-s0/out --data {DATA} --split {SPLIT} --confirm-split {CSPLIT} --out {OUT}
+
+# e1-c-rt, then resident (E1's environment), 2026-10-13
+confirm-qwen35-AT-lr1e-4-s1 moe_adapter_confirm.py run --model qwen35 --arm AT --lr 1e-4 --seed 1 --hot {RES}/hot-qwen35.json --gen-batch 16
+confirm-qwen35-AS-lr2e-4-s1 moe_adapter_confirm.py run --model qwen35 --arm AS --lr 2e-4 --seed 1 --gen-batch 16
+
+# e1-c3-qwen, RTX PRO 6000 Blackwell Server Edition, 2026-10-14
+confirmcheck-qwen35-base-box3 moe_adapter_confirm.py run --model qwen35 --arm base --gen-batch 16
+confirm-qwen35-AE-lr1e-4-s0 moe_adapter_confirm.py run --model qwen35 --arm AE --lr 1e-4 --seed 0 --gen-batch 16
+confirm-qwen35-AE-lr1e-4-s1 moe_adapter_confirm.py run --model qwen35 --arm AE --lr 1e-4 --seed 1 --gen-batch 16
+confirm-qwen35-A-lr2e-4-s1 moe_adapter_confirm.py run --model qwen35 --arm A --lr 2e-4 --seed 1 --gen-batch 16
+```
+
+**Rule and tests.** Over the published records, with the hashes they carry; about 40 s
+on a CPU. For a fresh collection, give `$work/e1-results` as the first argument and as
+`--ram-tier-dir`; its `confirm-split.json` is then listed as a rejected record, since it
+is an input, not a run.
+
+```bash
+python benchmarks/harness/moe_adapter_confirm_rule.py "$r/followup" "$r" "$work/e1-confirm" \
+  --ram-tier-dir "$r/followup/e1-c-rt" \
+  --harness-sha256 dd55825c67ccc61d532af150fa798d02e07fe72c97b9e5859669f02c2ecf87b3 \
+  --split-sha256 4b41de1bf2c0ada0eb112779487cca9d68669f751f3515ecbd4ee4caf1e04362 \
+  --confirm-split-sha256 7224983fbec5802231f31fca9e28b628e08d81c74f81b2ffb6d81b3fa01b9683 \
+  --wrapper-sha256 67830752812da7f2a90ebae754bfd61b629b96f7c28e4c97d4c3a73559e4c599 \
+  --hot olmoe=59e3d4f492a6f2484c8bbc4f93cde9a755dee1abab0e3b1ff169cca03ee94b60 \
+  --hot qwen35=7009faed64223751eca475b5d50e7a63e3602a11b000746ec463de7d76045e40
+python -m pytest tests/test_moe_adapter_confirm.py tests/test_moe_adapter_confirm_rule.py \
+  tests/test_moe_adapter_ramtier.py -q --no-cov
+```

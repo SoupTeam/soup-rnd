@@ -1,0 +1,26 @@
+PLAN-START <box-home>/plan-qwen-rt-s0.txt 2026-10-13T17:08:07Z PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+=== 2026-10-13T17:08:07Z preflight-qwen35 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py preflight --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --out <box-home>/e1-results/preflight-qwen35.json
+EXIT preflight-qwen35 0 2026-10-13T17:08:14Z
+=== 2026-10-13T17:08:14Z labels-qwen35 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py labels --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --confirm-split <box-home>/e1-results/confirm-split.json --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --out <box-home>/e1-results/labels-qwen35.json
+EXIT labels-qwen35 0 2026-10-13T17:08:27Z
+=== 2026-10-13T17:08:27Z parity-qwen35 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py parity --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/parity-qwen35.json
+EXIT parity-qwen35 1 2026-10-13T17:10:57Z
+PLAN-DONE <box-home>/plan-qwen-rt-s0.txt 2026-10-13T17:10:57Z
+PLAN-START <box-home>/plan-qwen-rt-s0-uncounted.txt 2026-10-13T17:19:39Z PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+GATE-PASS @require labels-qwen35 status="ok"
+GATE-PASS @require parity-qwen35 status="not_passed"
+=== 2026-10-13T17:19:39Z soup-train-qwen35-A-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py train --arm A --seed 0 --lr 2e-4 --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --run-dir <box-home>/e1-results/rt-A-s0 --out <box-home>/e1-results/soup-train-qwen35-A-s0.json
+EXIT soup-train-qwen35-A-s0 0 2026-10-13T17:36:32Z
+=== 2026-10-13T17:36:32Z ramtier-qwen35-A-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py score --arm A --seed 0 --lr 2e-4 --train-record <box-home>/e1-results/soup-train-qwen35-A-s0.json --adapter-dir <box-home>/e1-results/rt-A-s0/out --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --confirm-split <box-home>/e1-results/confirm-split.json --out <box-home>/e1-results/ramtier-qwen35-A-s0.json
+EXIT ramtier-qwen35-A-s0 0 2026-10-13T17:58:10Z
+=== 2026-10-13T17:58:10Z soup-train-qwen35-AS-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py train --arm AS --seed 0 --lr 2e-4 --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --run-dir <box-home>/e1-results/rt-AS-s0 --out <box-home>/e1-results/soup-train-qwen35-AS-s0.json
+EXIT soup-train-qwen35-AS-s0 0 2026-10-13T18:15:18Z
+=== 2026-10-13T18:15:18Z ramtier-qwen35-AS-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py score --arm AS --seed 0 --lr 2e-4 --train-record <box-home>/e1-results/soup-train-qwen35-AS-s0.json --adapter-dir <box-home>/e1-results/rt-AS-s0/out --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --confirm-split <box-home>/e1-results/confirm-split.json --out <box-home>/e1-results/ramtier-qwen35-AS-s0.json
+EXIT ramtier-qwen35-AS-s0 0 2026-10-13T18:37:49Z
+PLAN-DONE <box-home>/plan-qwen-rt-s0-uncounted.txt 2026-10-13T18:37:49Z
+PLAN-START <box-home>/plan-qwen-c2-rt.txt 2026-10-13T18:37:51Z PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+=== 2026-10-13T18:37:51Z confirm-qwen35-AT-lr1e-4-s1 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-AT-lr1e-4-s1.json --model qwen35 --arm AT --lr 1e-4 --seed 1 --hot <box-home>/e1-results/hot-qwen35.json --gen-batch 16
+EXIT confirm-qwen35-AT-lr1e-4-s1 0 2026-10-13T20:03:33Z
+=== 2026-10-13T20:03:33Z confirm-qwen35-AS-lr2e-4-s1 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-AS-lr2e-4-s1.json --model qwen35 --arm AS --lr 2e-4 --seed 1 --gen-batch 16
+EXIT confirm-qwen35-AS-lr2e-4-s1 0 2026-10-13T20:49:36Z
+PLAN-DONE <box-home>/plan-qwen-c2-rt.txt 2026-10-13T20:49:36Z

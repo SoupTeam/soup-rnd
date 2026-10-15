@@ -1,0 +1,14 @@
+E1F_COMMAND <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-AT-lr1e-4-s0.json --model qwen35 --arm AT --lr 1e-4 --seed 0 --hot <box-home>/e1-results/hot-qwen35.json --gen-batch 16
+NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 2610 MHz, 47, 0 MiB, 108.81 W
+               total        used        free      shared  buff/cache   available
+Mem:     540847951872 16638140416 227308191744    23007232 302190415872 524209811456
+Swap:     8589930496    71041024  8518889472
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `fused_recurrent_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+run: wrote <box-home>/e1-results/confirm-qwen35-AT-lr1e-4-s0.json status=ok
+NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 2610 MHz, 33, 0 MiB, 89.45 W
+               total        used        free      shared  buff/cache   available
+Mem:     540847951872 16580194304 227444715520    23162880 302111969280 524267757568
+Swap:     8589930496    71041024  8518889472

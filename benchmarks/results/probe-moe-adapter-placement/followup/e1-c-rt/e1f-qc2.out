@@ -1,0 +1,8 @@
+PLAN-START <box-home>/plan-qwen-c2-rt.txt 2026-10-13T18:37:51Z PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+=== 2026-10-13T18:37:51Z confirm-qwen35-AT-lr1e-4-s1 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-AT-lr1e-4-s1.json --model qwen35 --arm AT --lr 1e-4 --seed 1 --hot <box-home>/e1-results/hot-qwen35.json --gen-batch 16
+EXIT confirm-qwen35-AT-lr1e-4-s1 0 2026-10-13T20:03:33Z
+=== 2026-10-13T20:03:33Z confirm-qwen35-AS-lr2e-4-s1 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-AS-lr2e-4-s1.json --model qwen35 --arm AS --lr 2e-4 --seed 1 --gen-batch 16
+EXIT confirm-qwen35-AS-lr2e-4-s1 0 2026-10-13T20:49:36Z
+SKIP confirm-qwen35-A-lr2e-4-s1 (exists)
+SKIP confirmcheck-qwen35-base-boxrt (exists)
+PLAN-DONE <box-home>/plan-qwen-c2-rt.txt 2026-10-13T20:49:36Z

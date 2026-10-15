@@ -1,0 +1,49 @@
+base: <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754
+task: sft
+backend: transformers
+modality: text
+data:
+  train: ./train.jsonl
+  format: chatml
+  val_split: 0
+  max_length: 512
+  chat_template: '{%- for message in messages %}{%- if message[''role''] == ''user'' %}{{- ''<|im_start|>user\n''
+    + message[''content'']|trim + ''<|im_end|>\n'' }}{%- elif message[''role''] == ''assistant'' %}{%-
+    set content = message[''content'']|trim %}{%- set reasoning_content = '''' %}{%- if ''</think>'' in
+    content %}{%- set reasoning_content = content.split(''</think>'')[0].rstrip(''\n'').split(''<think>'')[-1].lstrip(''\n'')
+    %}{%- set content = content.split(''</think>'')[-1].lstrip(''\n'') %}{%- endif %}{{- ''<|im_start|>assistant\n<think>\n''
+    + reasoning_content|trim + ''\n</think>\n\n'' }}{%- generation %}{{- content + ''<|im_end|>\n'' }}{%-
+    endgeneration %}{%- else %}{{- raise_exception(''this template renders user and assistant turns only'')
+    }}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- ''<|im_start|>assistant\n<think>\n\n</think>\n\n''
+    }}{%- endif %}'
+training:
+  epochs: 1
+  lr: 0.0002
+  batch_size: 16
+  gradient_accumulation_steps: 1
+  quantization: 4bit
+  stream_layers: true
+  stream_source: ram
+  optimizer: adamw_torch
+  scheduler: constant_with_warmup
+  warmup_ratio: 0.0625
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  seed: 0
+  logging_steps: 1
+  save_steps: 100000
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.0
+    target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - in_proj_qkv
+    - in_proj_z
+    - in_proj_a
+    - in_proj_b
+    - out_proj
+output: ./out
