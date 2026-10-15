@@ -105,7 +105,7 @@ _CONSUMERS: list[Callable[[str], Any]] = [
 _IDS = ["chat", "infer", "diff", "live_eval", "iterative_dpo", "mole_routing"]
 
 
-def _adapter_path_in(tmp_path: Any) -> str:
+def _saved_adapter_dir(tmp_path: Any) -> str:
     # an adapter dir the consumers treat as a local adapter
     return str(tmp_path / "adapter")
 
@@ -118,7 +118,7 @@ def test_consumer_loads_a_shared_expert_adapter_onto_the_shared_experts(
 
     _patch_hub(monkeypatch)
     _save(tmp_path, _SHARED_TARGETS)
-    path = _adapter_path_in(tmp_path)
+    path = _saved_adapter_dir(tmp_path)
     expected = _logits(load_adapter(_tiny_model(), path))
 
     model = load(path)
@@ -135,7 +135,7 @@ def test_consumer_loads_a_routed_expert_adapter_the_way_peft_does(
 
     _patch_hub(monkeypatch)
     _save(tmp_path, ["gate_proj", "up_proj", "down_proj"], plain=True)
-    path = _adapter_path_in(tmp_path)
+    path = _saved_adapter_dir(tmp_path)
     theirs = PeftModel.from_pretrained(_tiny_model(), path)
 
     model = load(path)
@@ -150,9 +150,35 @@ def test_control_plain_peft_differs_from_the_helper_reload(tmp_path: Any) -> Non
     from soup_cli.utils.peft_wiring import load_adapter
 
     _save(tmp_path, _SHARED_TARGETS)
-    path = _adapter_path_in(tmp_path)
+    path = _saved_adapter_dir(tmp_path)
 
     plain = _logits(PeftModel.from_pretrained(_tiny_model(), path))
     helper = _logits(load_adapter(_tiny_model(), path))
 
     assert not torch.equal(plain, helper)
+
+
+def test_mole_serve_and_training_load_every_task_adapter_onto_the_shared_experts(
+    tmp_path: Any,
+) -> None:
+    """``load_task_adapters`` serves both ``setup`` and ``load_mole_for_serve``."""
+    from soup_cli.utils.mole_routing import load_task_adapters
+    from soup_cli.utils.peft_wiring import attach_adapter
+
+    for name in ("a", "b"):
+        trained = attach_adapter(_tiny_model(), _config(_SHARED_TARGETS))
+        _randomise_adapter(trained)
+        trained.save_pretrained(tmp_path / name)
+
+    model, names = load_task_adapters(
+        _tiny_model(), [str(tmp_path / "a"), str(tmp_path / "b")]
+    )
+
+    assert names == ["task_0", "task_1"]
+    for name in names:
+        owners = {
+            n.rsplit(".lora_", 1)[0].removeprefix("base_model.model.")
+            for n, _ in model.named_parameters()
+            if f".lora_A.{name}." in n or f".lora_B.{name}." in n
+        }
+        assert owners == _expected_shared_modules(model.config), name
