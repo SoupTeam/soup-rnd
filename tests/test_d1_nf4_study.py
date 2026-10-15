@@ -190,3 +190,28 @@ def test_invalid_training_or_ablation_plan_is_rejected_before_a_gpu_child():
     )
     with pytest.raises(ValueError, match="baseline-nodequant"):
         validate_args(args)
+
+
+def test_gpu_uuid_prefix_normalization_does_not_accept_another_gpu():
+    from d1_rules import canonical_gpu_uuid
+
+    value = "0acc0e0b-b6d2-6310-47c7-922123d0dc8c"
+    assert canonical_gpu_uuid(value) == canonical_gpu_uuid("GPU-" + value)
+    assert canonical_gpu_uuid(value) != canonical_gpu_uuid("1acc0e0b-b6d2-6310-47c7-922123d0dc8c")
+    with pytest.raises(ValueError):
+        canonical_gpu_uuid("not-a-GPU")
+
+
+def test_all_block_reads_bound_includes_own_io_and_rejects_sensor_gaps():
+    from d1_rules import all_block_reads_check
+
+    start = {"nvme0n1": 100, "nvme0n1p1": 100}
+    assert all_block_reads_check(start, {"nvme0n1": 200, "nvme0n1p1": 200})["outcome"] == "ok"
+    # This counts physical disks and partitions; even own I/O is not subtracted.
+    assert (
+        all_block_reads_check(start, {"nvme0n1": 600000100, "nvme0n1p1": 600000100})["outcome"]
+        == "void"
+    )
+    assert all_block_reads_check(start, {"nvme0n1": 200})["outcome"] == "unknown"
+    assert all_block_reads_check({}, {})["outcome"] == "unknown"
+    assert all_block_reads_check(start, {"nvme0n1": 99, "nvme0n1p1": 200})["outcome"] == "unknown"

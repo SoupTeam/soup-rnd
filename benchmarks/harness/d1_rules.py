@@ -7,12 +7,50 @@ import json
 import math
 import os
 import statistics
+import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 MIN_BLOCKS = 5
 CLOCK_SPREAD = 0.05
+
+
+def canonical_gpu_uuid(value: str) -> str:
+    return "GPU-" + str(uuid.UUID(value.removeprefix("GPU-")))
+
+
+def all_block_reads_check(before: dict, after: dict) -> dict:
+    """Conservative upper bound: all visible block reads, no own-I/O subtraction."""
+    evidence = {
+        "before": before,
+        "after": after,
+        "limit_bytes": 1_000_000_000,
+        "scope": "all entries in /proc/diskstats, including stacked devices and "
+        "partitions; own I/O is included, not subtracted",
+    }
+    if (
+        not before
+        or before.keys() != after.keys()
+        or any(
+            not isinstance(before[name], int)
+            or not isinstance(after[name], int)
+            or after[name] < before[name]
+            for name in before
+        )
+    ):
+        return {
+            "outcome": "unknown",
+            "reason": "missing/changing block counters",
+            "evidence": evidence,
+        }
+    delta = sum(after[name] - before[name] for name in before)
+    evidence["all_block_read_bytes"] = delta
+    return {
+        "outcome": "ok" if delta < 1_000_000_000 else "void",
+        "reason": f"all block-device reads, own reads included: {delta} bytes",
+        "evidence": evidence,
+    }
 
 
 def digest(path: Path) -> str:

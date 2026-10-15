@@ -29,6 +29,8 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from d1_rules import (  # noqa: E402
+    all_block_reads_check,
+    canonical_gpu_uuid,
     compare_tensors,
     digest,
     evidence_path,
@@ -71,6 +73,7 @@ def provenance(require_clean: bool) -> dict:
         "harness_sha256": digest(Path(__file__)),
         "runtime_sha256": digest(ROOT / "src/soup_cli/utils/layer_stream_runtime.py"),
         "qa_harness_sha256": digest(Path(__file__).with_name("d1_qa.py")),
+        "rule_amendment_sha256": digest(ROOT / "benchmarks/d1-amendment-20261015-a.md"),
     }
 
 
@@ -439,7 +442,8 @@ def timed_steps(step, count: int, warmup: int) -> dict:
         for row in telemetry.samples
         if started_ns <= row["time_ns"] <= ended_ns and row["available"]
     ]
-    actual_uuid = str(torch.cuda.get_device_properties(0).uuid)
+    raw_uuid = str(torch.cuda.get_device_properties(0).uuid)
+    actual_uuid = canonical_gpu_uuid(raw_uuid)
     return {
         "step_cuda_ms": pairs,
         "step_wall_ms": wall_ms,
@@ -452,6 +456,7 @@ def timed_steps(step, count: int, warmup: int) -> dict:
         "telemetry": telemetry.samples,
         "telemetry_errors": telemetry.errors,
         "gpu_uuid": actual_uuid,
+        "cuda_uuid_raw": raw_uuid,
         "telemetry_gpu_matches_cuda": bool(samples)
         and all(row["uuid"] == actual_uuid for row in samples),
     }
@@ -595,7 +600,7 @@ def train(args) -> dict:
         raise ValueError("no local safetensors model files")
     build_args = SimpleNamespace(
         weights=str(args.weights),
-        shards=str(args.output / "shards"),
+        shards=tempfile.mkdtemp(prefix="d1-shards-"),
         quant="nf4",
         lazy_shard_handles=False,
         control_sync_source=False,
@@ -731,7 +736,7 @@ def ablation(args) -> dict:
 
     build_args = SimpleNamespace(
         weights=str(args.weights),
-        shards=str(args.output / "shards"),
+        shards=tempfile.mkdtemp(prefix="d1-shards-"),
         quant="nf4",
         lazy_shard_handles=False,
         control_sync_source=False,
@@ -792,10 +797,20 @@ def ablation(args) -> dict:
         runtime.close()
 
 
+def block_readings() -> dict:
+    try:
+        with open("/proc/diskstats", encoding="ascii") as handle:
+            return {
+                parts[2]: int(parts[5]) * 512 for line in handle if len(parts := line.split()) >= 6
+            }
+    except (OSError, ValueError):
+        return {}
+
+
 def run_blocks(args) -> dict:
     """One new child/CUDA context per arm; F1 watches every child, including failures."""
     provenance(True)
-    from arm_validity import ArmWatch
+    from arm_validity import ArmWatch, arm_outcome
 
     routes = {"A": args.pair.split("-")[0], "B": args.pair.split("-")[1]}
     records = []
@@ -846,6 +861,7 @@ def run_blocks(args) -> dict:
 
             thread = threading.Thread(target=sample_peers, daemon=True)
             thread.start()
+            block_before = block_readings()
             with watch:
                 with (output / "stdout.log").open("x", encoding="utf-8") as log:
                     try:
@@ -856,6 +872,21 @@ def run_blocks(args) -> dict:
                         stop.set()
                         thread.join(timeout=10)
             after = monitor.sample()
+            block_after = block_readings()
+            validity = watch.record
+            foreign = validity["checks"]["foreign_reads"]
+            if foreign["outcome"] == "unknown" and "maps to no block device" in foreign["reason"]:
+                checks = {
+                    **validity["checks"],
+                    "all_block_reads": all_block_reads_check(block_before, block_after),
+                }
+                required = ["power", "suspend", "all_block_reads"]
+                validity = {
+                    **validity,
+                    "checks": checks,
+                    "required": required,
+                    "outcome": arm_outcome(checks, required),
+                }
             record_path = output / "result.json"
             result = json.loads(record_path.read_text()) if record_path.exists() else {}
             result.update(
@@ -865,7 +896,7 @@ def run_blocks(args) -> dict:
                 case=f"{args.kind}-{args.pair}-{args.m}x{args.n}x{args.k}-{args.dtype}"
                 if args.kind == "projection"
                 else f"{args.kind}-{args.pair}-{args.seq}-{args.dtype}",
-                validity=watch.record,
+                validity=validity,
                 returncode=process.returncode,
                 artifact=str(record_path.relative_to(args.output)),
                 peer_lifecycle={"before": before, "during": peer_samples, "after": after},
@@ -877,7 +908,7 @@ def run_blocks(args) -> dict:
                 or result.get("telemetry_errors")
                 or not result.get("telemetry_gpu_matches_cuda")
             ):
-                result["validity"] = {**(watch.record or {}), "outcome": "void"}
+                result["validity"] = {**validity, "outcome": "void"}
             write_new_json(output / "watched.json", result)
             records.append(result)
             CONSOLE.print(f"block {block + 1}/{args.blocks}, arm {arm}: {result.get('status')}")
