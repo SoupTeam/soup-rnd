@@ -25,6 +25,9 @@ All raw file hashes were verified on materialization; replays verify tensor bund
   arms; it must not be treated as the later H/I plan.
 - `g-diagnostic-summary.json`: two accepted single-block clock diagnostics,
   both still NO_VERDICT for performance. No G full-grid timing claim.
+- `constant-abstention-baseline.json`: post-hoc fixed always-NO_ANSWER control,
+  EM/F1 45.3125 on the same 64 gold records. It uses no model and is not a
+  before-training baseline or evidence of training improvement.
 
 ## Existing F training observation
 

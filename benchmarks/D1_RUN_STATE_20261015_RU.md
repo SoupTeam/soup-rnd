@@ -9,13 +9,16 @@
 
 - Рабочая ветка `koko/d1-nf4-study`, draft PR https://github.com/SoupTeam/soup-rnd/pull/16.
 - Измеряемый K source: `87b3bc1747ff78ff0fe16b8bdd2fa2eb0105d77c`.
+- Прежний K контроллер продолжен с контрольной точки после полного завершения
+  текущего child, без повторения готовых сравнений. Операционная бюджетная
+  ревизия: `d1-resource-budget-revision-20261015.md`; научные настройки прежние.
 - Аренда **56108892**, machine 145857, NVIDIA A100-SXM4-40GB,
   UUID `GPU-b0245e84-f202-902b-9331-f732ab021e57`.
-- Цена с диском 100 GB: $0.6944444444/ч. Резерв предыдущих расходов $1.80,
-  сетевых расходов/неопределённости $0.80; максимум 10.5 часа новой аренды.
-  Консервативный общий потолок $9.891666667.
-- Измерительный deadline: 16 октября **04:32 Asia/Qyzylorda**;
-  абсолютное удаление: 16 октября **06:02 Asia/Qyzylorda**.
+- Цена с диском 100 GB: $0.6944444444/ч. Предыдущие наблюдавшиеся расходы $1.279;
+  резерв предыдущих расходов $1.50 и сети/неопределённости $0.30.
+  Максимум 11.75 часа новой аренды; общий консервативный потолок $9.959722222.
+- Измерительный deadline: 16 октября **05:47 Asia/Qyzylorda**;
+  абсолютное удаление: 16 октября **07:17 Asia/Qyzylorda**.
   Эти пределы не продлевать. Значения Unix — в public `lease.json`.
 - Изолированный D1 checkout:
   `C:\Users\esenb\.codex\worktrees\soup-d1-nf4-study\soup-rnd-d2`.
@@ -39,11 +42,14 @@ K заново запускает correctness, GPU-регрессии и пол�
 Папки находятся в `C:\Users\esenb\.codex\worktrees\soup-d1-nf4-study`:
 
 - `cloud-a100-k-20261015`: текущие `lease.json`, SSH transport,
-  `progress-latest.json`, `finish_local.py`, `finish.log`, `finish-error.log`.
-  Read-only `watch_k.py` следит за измерениями и локальной выгрузкой.
+  `progress-latest.json`, `finish_local.py`, `finish-resume1.log`,
+  `finish-resume1-error.log`. Read-only `watch_k_v2.py` следит за прогрессом.
+  Текущий exit marker — `setup-k-resume1.exit`; прежний `setup-k.exit`
+  относится к штатно заменённому родительскому контроллеру и сохранён как история.
 - `cloud-a100-j-20261015`: исходная аренда того же инстанса, GPU context,
   установка Ubuntu/Python/torch, диагностические логи и **активный локальный
-  бюджетный guard**. Его старый finish-controller остановлен; текущий finish — K.
+  бюджетный guard `api_budget_v2.py`** (`guard-v2-last.json`). Старый guard/finish
+  J остановлены; текущий finish — K. Remote guard после замены имеет PID 54005.
 - `cloud-a100-i-20261015`: неработавший первый хост 56106516. Он не дошёл до SSH
   или численных запусков; удалён и проверен отсутствующим. Логи загрузки сохранены.
 - Старые `cloud-control`, `cloud-full-20261015`, `cloud-a100-g-20261015`
@@ -64,6 +70,8 @@ Remote guard с привязанным per-instance credential работает 
 5. Запускает `finalize_analysis.py`: полный индекс, CPU numerical replay,
    QA audit при допустимых повторах, CSV и график только при полной валидности.
    Результаты — `offline-k`; `status.json` явно сохраняет INCOMPLETE при нехватке данных.
+   Затем `build_packet.py` собирает `teamlead-packet/D1_TEAMLEAD_RU.md`,
+   таблицы, manifest, подтверждение закрытия аренды и DATA_NOTICE.
 
 Если контроллер записал `finish-error.json`, устранить причину до deadline;
 не запускать новый измерительный процесс и не переименовывать старые выводы.
@@ -82,3 +90,8 @@ native 241.1833 ms, forced 255.9017 ms, одинаковые allocator peaks и 
 пакет файлов тимлиду, проверка CI и актуализация draft PR. Сообщения тимлиду
 и публикация GitHub Release не поручались. Не объявлять глобальное завершение
 по части сетки, по одним correctness-тестам или по сгенерированному отчёту.
+
+Локально все D1 CPU tests: **65 passed**, полный Ruff чистый. Повторный CI run
+38754323943 для измеряемого source 87b3bc17 завершён успешно, включая Ubuntu
+Python 3.12; остальные платформы/smoke были пропущены планом quick CI.
+Не выдавать это за полный cross-platform или финальный-head CUDA прогон.
