@@ -122,15 +122,25 @@ Notes on the rows:
   `-inf` mask for biases from -3 to +2, and with four groups and a negative bias the two masks differ.
 - `kimi_k2` is read from `config.json` fields recorded in `research.md`, not from a downloaded
   file. Not covered: a real K2 checkpoint (about 1 TB, 61 shards), one real MoE layer (about 17 GB
-  in FP8, so a real run needs sub-layer streaming, B1), the K2 tokenizer (Hub code; its parity test
-  waits for an owner decision), and K2-Thinking or K2.5 (INT4 `compressed-tensors`, refused by name).
+  in FP8, so a real run needs sub-layer streaming, B1), and K2-Thinking or K2.5 (INT4 `compressed-tensors`, refused by name).
   `kimi_k25` stays refused although its `text_config.model_type` is `kimi_k2`.
+- The K2 tokenizer is built natively from `tiktoken.model`. Moonshot's `tokenization_kimi.py` ran
+  once (2026-10-15, Kimi-K2-Instruct revision `fd1984e2b7a3`, transformers 4.55.4, tiktoken 0.14.0,
+  throwaway venv, files in their own empty directory, `python -I`, no weights). The ids it gave for 59
+  texts (ASCII, CJK, code, emoji, every special token) and 6 rendered chat templates (system default,
+  multi-turn, tool call and tool result) are the fixture `tests/fixtures/kimi_k2_tokenizer_reference.json`,
+  with the SHA-256 of the four source files. All match. The parity tests skip unless
+  `SOUP_K2_TOKENIZER_DIR` holds those files, so CI does not run them. CI does pin the split pattern's
+  hash, which catches an edit to it but nothing else. The native tokenizer is used for a local
+  folder only; a Hub id reaches `AutoTokenizer` and fails with its Hub-code error. `soup train
+  --find-lr` still loads a tokenizer and model through `AutoTokenizer` and `AutoModelForCausalLM`. Not covered: K2-Base's own tokenizer files (not
+  downloaded; compare their `tiktoken.model` hash to the fixture's), and texts beyond the fixed set.
 - The `kimi_k2` config reader and conversion registration run on the layer-streaming path only
-  (`stream_setup` and `build_meta_skeleton`). `export`, `merge`, `serve`, the resident trainers and
-  `soup recipes` still call `AutoConfig` or `from_pretrained` directly, so a `kimi_k2` folder fails
-  there with transformers' own "custom code" error. `register_kimi_k2_conversion` edits a private
-  transformers table and PEFT's import-time copy of it; a test pins both, so a release that moves
-  them fails CI.
+  (`stream_setup` and `build_meta_skeleton`). `export`, `merge`, `serve`, `soup train` without
+  `training.stream_layers` and `soup recipes verify` refuse a local `kimi_k2` folder by name before
+  loading (ticket 19). A Hub id, `soup shrink` and `soup draft` are not guarded. `register_kimi_k2_conversion`
+  edits a private transformers table and PEFT's import-time copy of it; a test pins both, so a release
+  that moves them fails CI.
 - `deepseek_v32`, `deepseek_v2` and `kimi_k25` get the ordinary message,
   `layer streaming does not support model_type=<type>. Supported: ...`. The tests pin the text.
 - `qwen3_5_moe` fused compares logits only. It has no expert-coverage check, no `meta` check and no gradient comparison.

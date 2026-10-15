@@ -581,9 +581,7 @@ class StreamingSetupMixin:
         """
         from dataclasses import replace
 
-        from transformers import AutoTokenizer
-
-        from soup_cli.utils.kimi_k2 import load_stream_config
+        from soup_cli.utils.kimi_k2 import load_stream_config, load_stream_tokenizer
 
         # BEFORE the tokenizer load, the weight resolve and the shard write:
         # this configuration cannot work, and finding out minutes into disk I/O
@@ -639,9 +637,7 @@ class StreamingSetupMixin:
         from soup_cli.utils.terminal import for_terminal
 
         console.print(f"[dim]Loading tokenizer: {cfg.base}[/]")
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            cfg.base, trust_remote_code=self._trust_remote_code
-        )
+        self.tokenizer = load_stream_tokenizer(cfg.base, self._trust_remote_code)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
