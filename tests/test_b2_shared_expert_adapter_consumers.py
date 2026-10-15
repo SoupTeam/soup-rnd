@@ -182,3 +182,111 @@ def test_mole_serve_and_training_load_every_task_adapter_onto_the_shared_experts
             if f".lora_A.{name}." in n or f".lora_B.{name}." in n
         }
         assert owners == _expected_shared_modules(model.config), name
+
+
+# ==========================================================================
+# merge, scoring and interference helpers
+# ==========================================================================
+
+
+def _capture_cmaes_model(path: str, monkeypatch: pytest.MonkeyPatch, how: str) -> Any:
+    """Return the adapter modules and logits of the model the scorer generates with."""
+    from soup_cli.utils import cmaes_merge
+
+    seen: list[Any] = []
+
+    def fake_generate(model: Any, tokenizer: Any, prompt: str) -> str:
+        seen.append((_adapter_modules(model), _logits(model)))
+        return ""
+
+    monkeypatch.setattr(cmaes_merge, "_generate", fake_generate)
+    monkeypatch.setattr(cmaes_merge, "_read_merged_base_name", lambda _dir: "tiny")
+    if how == "generator":
+        cmaes_merge._load_adapter_generator(path)("p")
+    else:
+        from soup_cli.eval import custom
+
+        task = SimpleNamespace(prompt="p")
+        monkeypatch.setattr(custom, "load_eval_tasks", lambda _suite: [task])
+        monkeypatch.setattr(custom, "score_task", lambda t, o: SimpleNamespace(score=1.0))
+        cmaes_merge._CachedBaseScorer()(path, "suite")
+    return seen[0]
+
+
+def _capture_interference_model(path: str, monkeypatch: pytest.MonkeyPatch) -> Any:
+    from soup_cli.utils import interference_live, live_eval
+
+    monkeypatch.setattr(
+        live_eval, "load_model_and_tokenizer", lambda *a, **k: (_tiny_model(), _Tok(), "cpu")
+    )
+    monkeypatch.setattr(live_eval, "_build_pairs", lambda *a, **k: [("p", "t")])
+    seen: list[Any] = []
+
+    def fake_loss(model: Any, *args: Any, **kwargs: Any) -> float:
+        if not seen:
+            seen.append(_adapter_modules(model))
+            seen.append(_logits(model))
+        return 1.0
+
+    monkeypatch.setattr(live_eval, "compute_eval_loss", fake_loss)
+    interference_live.measure_interference_losses(
+        "tiny", {"a": path, "b": path}, [{"prompt": "p", "response": "t"}]
+    )
+    return seen
+
+
+@pytest.mark.parametrize("how", ["generator", "cached_scorer"])
+def test_cmaes_scoring_loads_a_shared_expert_adapter_onto_the_shared_experts(
+    how: str, tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from soup_cli.utils.peft_wiring import load_adapter
+
+    _patch_hub(monkeypatch)
+    _save(tmp_path, _SHARED_TARGETS)
+    path = _saved_adapter_dir(tmp_path)
+    expected = _logits(load_adapter(_tiny_model(), path))
+
+    modules, logits = _capture_cmaes_model(path, monkeypatch, how)
+
+    assert modules == _expected_shared_modules(_tiny_model().config)
+    assert torch.equal(logits, expected)
+
+
+def test_interference_measure_loads_shared_expert_adapters_onto_the_shared_experts(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from soup_cli.utils.peft_wiring import load_adapter
+
+    _save(tmp_path, _SHARED_TARGETS)
+    path = _saved_adapter_dir(tmp_path)
+    expected = _logits(load_adapter(_tiny_model(), path))
+
+    modules, logits = _capture_interference_model(path, monkeypatch)
+
+    assert modules == _expected_shared_modules(_tiny_model().config)
+    assert torch.equal(logits, expected)
+
+
+def test_fuse_merges_a_shared_expert_adapter_into_the_shared_experts(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from transformers import AutoModelForCausalLM
+
+    from soup_cli.utils.adapter_fuse import merge_adapter_to_dense
+    from soup_cli.utils.peft_wiring import load_adapter
+
+    monkeypatch.chdir(tmp_path)
+    _patch_hub(monkeypatch)
+    _save(tmp_path, _SHARED_TARGETS)
+    path = _saved_adapter_dir(tmp_path)
+    expected = _logits(load_adapter(_tiny_model(), path).merge_and_unload())
+
+    tok = SimpleNamespace(save_pretrained=lambda d: None)
+    monkeypatch.setattr(
+        "transformers.AutoTokenizer.from_pretrained", lambda *a, **k: tok
+    )
+    merge_adapter_to_dense(base_model="tiny", adapter_dir=path, out_dir="fused")
+    monkeypatch.undo()
+
+    merged = AutoModelForCausalLM.from_pretrained(str(tmp_path / "fused"))
+    assert torch.allclose(_logits(merged), expected, atol=1e-6)

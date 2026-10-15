@@ -749,6 +749,17 @@ def add_adapter(peft_model: Any, adapter_path: str, adapter_name: str) -> None:
         peft_model.load_adapter(adapter_path, adapter_name=adapter_name)
 
 
+def add_weighted_adapter(peft_model: Any, adapters: list[str], **kwargs: Any) -> None:
+    """``PeftModel.add_weighted_adapter`` with the same rule as :func:`load_adapter`.
+
+    The combined adapter is injected with a config that names the shared experts, and
+    peft's v4-to-v5 rewrite would move it onto the routed experts, where the loaded
+    adapters are absent.
+    """
+    with _without_peft_moe_conversion(_skip_conversion_for_saved_shared_experts):
+        peft_model.add_weighted_adapter(adapters, **kwargs)
+
+
 def apply_pre_lora_patches(model: Any, base: str) -> None:
     """Run pre-LoRA surgical patches (v0.39.0 Part D, multi-trainer in v0.40.6).
 
