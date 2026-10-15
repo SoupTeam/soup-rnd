@@ -9,14 +9,14 @@
   "planned_runs": 1,
   "sources": {
     "sustained.py": "d9dfd0681abdb28b4fcd960071cbb1d17c38437d13ee42b0f666e7a53513b546",
-    "preflight.py": "8ccdb99c70b6d2651042e81adee993cc162a2ad7578b73452699920504be2101",
+    "preflight.py": "9b427893b477e3b8c9a66cd5bbc32b98e167950dcdd04237c53b95abff1f1562",
     "source/arm_validity.py": "38dc91a5893159c2bf0e2c4b8fb2ac75f09ea14ed4f768e888265bda128ba353",
     "source/safetensors_reader.py": "978d0f78a4f765d346a3e59b26b50071a3ca3f75a62e7a895fe4696323f8927f"
   },
   "fixture_sha256": "99dc1ee1a0662da894fe4dfda146310f835b3d945a2bc35c6378ff4163018aa7",
   "fixture_bytes": 34359738368,
   "physical_ram_bytes": 16857817088,
-  "preparation": "Initial preparation and smoke preceded revision 1. Run run-run-2589873dea stopped at the original 65 C cutoff after approximately 226 seconds and is retained as invalid. Revision 2 is declared after that observation and before one replacement attempt; not a wholly unobserved initial protocol.",
+  "preparation": "Initial preparation and smoke preceded revision 1. Run run-run-2589873dea stopped at the original 65 C cutoff after approximately 226 seconds and is retained as invalid. Revision 2 is declared after that observation and before one replacement attempt; not a wholly unobserved initial protocol. Revision 3 follows the stale-sensor rejection; updated sensor passed separate 15-second small-fixture smoke run-smoke-83a153091b. No new sustained measurement yet.",
   "hardware": "Windows laptop; C: on PhysicalDrive0, Micron MTFDKCD512QFM-1BD1AABLA; one physical SSD; combined-drive test not applicable",
   "reading": "Sequential 4 MiB aligned direct reads using Soup open_direct; wrap at EOF; 32 GiB random-byte fixture",
   "start_conditions": [
@@ -53,12 +53,28 @@
     "If background activity prevents attribution, report inconclusive rather than relaxing thresholds after observing results"
   ],
   "amendment": {
-    "revision": 2,
-    "prior_protocol_commit": "a90268259d56503be13100b9ed2857370a2a02ad",
-    "excluded_run": "run-run-2589873dea",
+    "revision": 3,
+    "prior_protocol_commit": "3ac9dae09ae8f995ae94d6bfd1d410f623dea076",
+    "excluded_run": "run-run-2589873dea; run-run-2a67b99be3",
     "planned_replacement_attempts": 1,
-    "reason": "65 C was an investigator-selected limit, not evidence of overheating. Read-only SMART for exact OEM model reports warning 87 C, critical 90 C, current 38 C, critical warning 0 and zero warning/critical temperature time. Use 75 C as experimental margin, not a verified continuous temperature rating.",
+    "reason": "Second attempt stopped because PowerShell temperature query took 14.422 seconds and exceeded the unchanged 15-second freshness budget with the polling interval. Replace temperature provider with smartctl 7.5 JSON, 5-second command timeout, exact model/serial check and rejection of nonzero or missing critical warning. Cutoff stays 75 C. One replacement attempt; previous failed attempts remain invalid.",
     "evidence": "nvme-health-redacted.txt",
     "unchanged": "Same fixture, duration, read pattern, analysis rules and F1 checks; do not pool invalid run into sustained estimate"
+  },
+  "temperature_provider": {
+    "tool": "smartctl 7.5",
+    "binary_sha256": "b5db94e5082c042be44994b7a4fa8f7b5c8e713b2ab1c9a560d8f7a7995ea27d",
+    "args": [
+      "-a",
+      "-j",
+      "-d",
+      "nvme",
+      "/dev/sda"
+    ],
+    "metric": "nvme_smart_health_information_log.temperature",
+    "timeout_s": 5,
+    "polling_pause_s": 5,
+    "stale_limit_s": 15,
+    "stop_c": 75
   }
 }
