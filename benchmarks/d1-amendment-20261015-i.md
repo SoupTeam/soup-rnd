@@ -13,6 +13,13 @@ numerical work, NVML queries and clock reset; other team resources are untouched
 The inherited provider credential remains inside its rental and is used only
 to delete that same rental at its immutable deadline. No master key is uploaded.
 
+The initial large PyTorch Docker image stalled during layer download, before
+any numerical arm or assigned-device probe. Recreate the same instance with
+the official `ubuntu:24.04` image and install `torch==2.11.0` from the official
+`https://download.pytorch.org/whl/cu126` wheel index in a dedicated Python 3.12
+virtual environment. The pinned numerical stack and measurement plan stay the
+same; retain bootstrap, image-change, package and driver evidence separately.
+
 Attempt `nvidia-smi -i <assigned UUID> -lgc 1200,1200` once before measuring.
 If accepted, retain that policy through diagnostics and full measurements;
 if denied, retain the unchanged provider clock policy and denial log.
