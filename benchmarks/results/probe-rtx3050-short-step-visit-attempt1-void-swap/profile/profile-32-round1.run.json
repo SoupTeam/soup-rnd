@@ -1,0 +1,4596 @@
+{
+  "median_step_s": 0.849226641000314,
+  "step_s": [
+    0.8485779570000886,
+    0.849226641000314,
+    0.8502817700000378
+  ],
+  "timed_steps": 3,
+  "warmup_steps": 3,
+  "linear_paths": {
+    "fused_layers": 224,
+    "old_layers": 0,
+    "fused_calls": 448,
+    "old_calls": 0
+  },
+  "arm": "profile",
+  "variant": "shipped",
+  "label": "RTX 3050, synthetic",
+  "tokens_per_step": 32,
+  "batch": 1,
+  "seq": 32,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "torch": "2.14.1+cu130",
+  "bitsandbytes": "0.50.2",
+  "transformers": "5.19.0",
+  "weights": "/var/tmp/g7/llama-8b-synth",
+  "shards": "/var/tmp/g7/shards",
+  "started": "2026-10-15T00:10:16",
+  "profile": {
+    "visits": [
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986015789.826,
+        "host_ms": 3.8507451171875,
+        "launch_ms": 0.26942626953125,
+        "weight_prep_ms": 0.115885009765625,
+        "functional_call_ms": 0.22135302734375,
+        "python_dispatcher_ms": 3.244080810546875,
+        "kernel_ms": 2.92367578125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 5,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986019771.94,
+        "host_ms": 2.84960009765625,
+        "launch_ms": 0.290896728515625,
+        "weight_prep_ms": 0.213390869140625,
+        "functional_call_ms": 0.199048828125,
+        "python_dispatcher_ms": 2.146263671875,
+        "kernel_ms": 2.936317626953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986022750.777,
+        "host_ms": 2.68944189453125,
+        "launch_ms": 0.291597900390625,
+        "weight_prep_ms": 0.21275634765625,
+        "functional_call_ms": 0.1955439453125,
+        "python_dispatcher_ms": 1.989543701171875,
+        "kernel_ms": 2.926686767578125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986025610.901,
+        "host_ms": 2.722839111328125,
+        "launch_ms": 0.284144287109375,
+        "weight_prep_ms": 0.219608642578125,
+        "functional_call_ms": 0.2008759765625,
+        "python_dispatcher_ms": 2.018210205078125,
+        "kernel_ms": 2.9187470703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986028461.326,
+        "host_ms": 2.8365859375,
+        "launch_ms": 0.28667041015625,
+        "weight_prep_ms": 0.2154306640625,
+        "functional_call_ms": 0.193673828125,
+        "python_dispatcher_ms": 2.14081103515625,
+        "kernel_ms": 2.926427001953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986031421.055,
+        "host_ms": 2.604528076171875,
+        "launch_ms": 0.27249169921875,
+        "weight_prep_ms": 0.21104248046875,
+        "functional_call_ms": 0.19327001953125,
+        "python_dispatcher_ms": 1.927723876953125,
+        "kernel_ms": 2.926813232421875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986034141.519,
+        "host_ms": 2.710347900390625,
+        "launch_ms": 0.280096435546875,
+        "weight_prep_ms": 0.2208671875,
+        "functional_call_ms": 0.190708984375,
+        "python_dispatcher_ms": 2.01867529296875,
+        "kernel_ms": 2.92988720703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986036968.047,
+        "host_ms": 2.701839111328125,
+        "launch_ms": 0.278430908203125,
+        "weight_prep_ms": 0.20981298828125,
+        "functional_call_ms": 0.218870849609375,
+        "python_dispatcher_ms": 1.994724365234375,
+        "kernel_ms": 2.927099365234375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986039782.31,
+        "host_ms": 2.726968994140625,
+        "launch_ms": 0.273969970703125,
+        "weight_prep_ms": 0.210397216796875,
+        "functional_call_ms": 0.188383056640625,
+        "python_dispatcher_ms": 2.05421875,
+        "kernel_ms": 2.91843359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986042623.428,
+        "host_ms": 2.67535205078125,
+        "launch_ms": 0.296624755859375,
+        "weight_prep_ms": 0.20896875,
+        "functional_call_ms": 0.191780029296875,
+        "python_dispatcher_ms": 1.977978515625,
+        "kernel_ms": 2.91993505859375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986045416.156,
+        "host_ms": 2.628337890625,
+        "launch_ms": 0.274318359375,
+        "weight_prep_ms": 0.2075615234375,
+        "functional_call_ms": 0.19133984375,
+        "python_dispatcher_ms": 1.9551181640625,
+        "kernel_ms": 2.91964404296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986048157.896,
+        "host_ms": 2.618135986328125,
+        "launch_ms": 0.271480712890625,
+        "weight_prep_ms": 0.2147431640625,
+        "functional_call_ms": 0.188340087890625,
+        "python_dispatcher_ms": 1.943572021484375,
+        "kernel_ms": 2.920989990234375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986050888.496,
+        "host_ms": 2.6259990234375,
+        "launch_ms": 0.28075634765625,
+        "weight_prep_ms": 0.206711181640625,
+        "functional_call_ms": 0.18722119140625,
+        "python_dispatcher_ms": 1.951310302734375,
+        "kernel_ms": 2.92230126953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986053625.012,
+        "host_ms": 2.682675048828125,
+        "launch_ms": 0.27287939453125,
+        "weight_prep_ms": 0.234349609375,
+        "functional_call_ms": 0.19268994140625,
+        "python_dispatcher_ms": 1.982756103515625,
+        "kernel_ms": 2.930844482421875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986056423.958,
+        "host_ms": 2.59689404296875,
+        "launch_ms": 0.27193017578125,
+        "weight_prep_ms": 0.20913037109375,
+        "functional_call_ms": 0.186156005859375,
+        "python_dispatcher_ms": 1.929677490234375,
+        "kernel_ms": 2.930078125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986059130.346,
+        "host_ms": 2.62984912109375,
+        "launch_ms": 0.27966650390625,
+        "weight_prep_ms": 0.210290771484375,
+        "functional_call_ms": 0.1905830078125,
+        "python_dispatcher_ms": 1.949308837890625,
+        "kernel_ms": 2.919034423828125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986061871.943,
+        "host_ms": 2.6402080078125,
+        "launch_ms": 0.268693115234375,
+        "weight_prep_ms": 0.208563232421875,
+        "functional_call_ms": 0.189427001953125,
+        "python_dispatcher_ms": 1.973524658203125,
+        "kernel_ms": 2.932029296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986064623.789,
+        "host_ms": 63.89818188476563,
+        "launch_ms": 61.54440014648438,
+        "weight_prep_ms": 0.209128662109375,
+        "functional_call_ms": 0.187885986328125,
+        "python_dispatcher_ms": 1.95676708984375,
+        "kernel_ms": 2.922620849609375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986128637.322,
+        "host_ms": 10.0497451171875,
+        "launch_ms": 7.53608984375,
+        "weight_prep_ms": 0.229445068359375,
+        "functional_call_ms": 0.191532958984375,
+        "python_dispatcher_ms": 2.09267724609375,
+        "kernel_ms": 2.911680419921875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986138798.0,
+        "host_ms": 10.06756298828125,
+        "launch_ms": 7.684236328125,
+        "weight_prep_ms": 0.211150146484375,
+        "functional_call_ms": 0.185819091796875,
+        "python_dispatcher_ms": 1.986357421875,
+        "kernel_ms": 2.925983154296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986148979.912,
+        "host_ms": 9.985071044921876,
+        "launch_ms": 7.65049267578125,
+        "weight_prep_ms": 0.208341552734375,
+        "functional_call_ms": 0.193404052734375,
+        "python_dispatcher_ms": 1.932832763671875,
+        "kernel_ms": 2.92505712890625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986159078.038,
+        "host_ms": 9.997,
+        "launch_ms": 7.57413330078125,
+        "weight_prep_ms": 0.21278125,
+        "functional_call_ms": 0.189841796875,
+        "python_dispatcher_ms": 2.02024365234375,
+        "kernel_ms": 2.92882861328125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986169186.395,
+        "host_ms": 10.411012939453125,
+        "launch_ms": 7.704909423828125,
+        "weight_prep_ms": 0.213592529296875,
+        "functional_call_ms": 0.190890869140625,
+        "python_dispatcher_ms": 2.3016201171875,
+        "kernel_ms": 2.926266357421875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986179709.981,
+        "host_ms": 9.7579169921875,
+        "launch_ms": 7.334878662109375,
+        "weight_prep_ms": 0.21010791015625,
+        "functional_call_ms": 0.1862958984375,
+        "python_dispatcher_ms": 2.026634521484375,
+        "kernel_ms": 2.921529541015625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986189593.65,
+        "host_ms": 10.219948974609375,
+        "launch_ms": 7.6611103515625,
+        "weight_prep_ms": 0.218599609375,
+        "functional_call_ms": 0.192495849609375,
+        "python_dispatcher_ms": 2.1477431640625,
+        "kernel_ms": 2.91753271484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986199937.546,
+        "host_ms": 10.10035595703125,
+        "launch_ms": 7.566939208984375,
+        "weight_prep_ms": 0.21879052734375,
+        "functional_call_ms": 0.232259033203125,
+        "python_dispatcher_ms": 2.0823671875,
+        "kernel_ms": 2.924191650390625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986210161.816,
+        "host_ms": 10.02226611328125,
+        "launch_ms": 7.54302783203125,
+        "weight_prep_ms": 0.21485791015625,
+        "functional_call_ms": 0.1942958984375,
+        "python_dispatcher_ms": 2.07008447265625,
+        "kernel_ms": 2.920573486328125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986220303.424,
+        "host_ms": 9.977447021484375,
+        "launch_ms": 7.535232421875,
+        "weight_prep_ms": 0.217319091796875,
+        "functional_call_ms": 0.189840087890625,
+        "python_dispatcher_ms": 2.035055419921875,
+        "kernel_ms": 2.915034423828125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986230401.958,
+        "host_ms": 10.047406005859376,
+        "launch_ms": 7.593979248046875,
+        "weight_prep_ms": 0.212681640625,
+        "functional_call_ms": 0.191016845703125,
+        "python_dispatcher_ms": 2.049728271484375,
+        "kernel_ms": 2.92562939453125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986240567.047,
+        "host_ms": 9.94339111328125,
+        "launch_ms": 7.5580869140625,
+        "weight_prep_ms": 0.2103935546875,
+        "functional_call_ms": 0.190261962890625,
+        "python_dispatcher_ms": 1.984648681640625,
+        "kernel_ms": 2.92108642578125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986250627.857,
+        "host_ms": 10.009680908203125,
+        "launch_ms": 7.53106396484375,
+        "weight_prep_ms": 0.236787109375,
+        "functional_call_ms": 0.191945068359375,
+        "python_dispatcher_ms": 2.049884765625,
+        "kernel_ms": 2.925017822265625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986260755.636,
+        "host_ms": 10.10960009765625,
+        "launch_ms": 7.81567333984375,
+        "weight_prep_ms": 0.035928955078125,
+        "functional_call_ms": 0.185717041015625,
+        "python_dispatcher_ms": 2.07228076171875,
+        "kernel_ms": 2.818845458984375,
+        "launches": {
+          "cudaStreamWaitEvent": 1,
+          "cudaLaunchKernel": 62,
+          "cudaMemcpyAsync": 4
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986861382.078,
+        "host_ms": 2.469699951171875,
+        "launch_ms": 0.238969482421875,
+        "weight_prep_ms": 0.10426806640625,
+        "functional_call_ms": 0.199544921875,
+        "python_dispatcher_ms": 1.92691748046875,
+        "kernel_ms": 2.923485595703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 5,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986863966.967,
+        "host_ms": 2.737468994140625,
+        "launch_ms": 0.280174560546875,
+        "weight_prep_ms": 0.25351171875,
+        "functional_call_ms": 0.194946044921875,
+        "python_dispatcher_ms": 2.008836669921875,
+        "kernel_ms": 2.925052490234375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986866826.993,
+        "host_ms": 2.644760009765625,
+        "launch_ms": 0.270260986328125,
+        "weight_prep_ms": 0.21128955078125,
+        "functional_call_ms": 0.187662109375,
+        "python_dispatcher_ms": 1.97554736328125,
+        "kernel_ms": 2.9298203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986869589.353,
+        "host_ms": 2.660389892578125,
+        "launch_ms": 0.300708984375,
+        "weight_prep_ms": 0.2110869140625,
+        "functional_call_ms": 0.187549072265625,
+        "python_dispatcher_ms": 1.961044921875,
+        "kernel_ms": 2.92956640625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986872362.486,
+        "host_ms": 2.725237060546875,
+        "launch_ms": 0.27641650390625,
+        "weight_prep_ms": 0.211474853515625,
+        "functional_call_ms": 0.18672607421875,
+        "python_dispatcher_ms": 2.05061962890625,
+        "kernel_ms": 2.92223193359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986875200.001,
+        "host_ms": 2.594964111328125,
+        "launch_ms": 0.27590966796875,
+        "weight_prep_ms": 0.21517138671875,
+        "functional_call_ms": 0.186258056640625,
+        "python_dispatcher_ms": 1.917625,
+        "kernel_ms": 2.92191650390625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986877906.405,
+        "host_ms": 2.6999541015625,
+        "launch_ms": 0.274704345703125,
+        "weight_prep_ms": 0.20858154296875,
+        "functional_call_ms": 0.18793896484375,
+        "python_dispatcher_ms": 2.028729248046875,
+        "kernel_ms": 2.929020263671875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986880715.845,
+        "host_ms": 2.868988037109375,
+        "launch_ms": 0.2873076171875,
+        "weight_prep_ms": 0.23365771484375,
+        "functional_call_ms": 0.26531787109375,
+        "python_dispatcher_ms": 2.082704833984375,
+        "kernel_ms": 2.9282265625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986883697.087,
+        "host_ms": 2.5909609375,
+        "launch_ms": 0.27191796875,
+        "weight_prep_ms": 0.2104775390625,
+        "functional_call_ms": 0.18385400390625,
+        "python_dispatcher_ms": 1.92471142578125,
+        "kernel_ms": 2.9149384765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986886405.237,
+        "host_ms": 2.889091064453125,
+        "launch_ms": 0.286483642578125,
+        "weight_prep_ms": 0.24948828125,
+        "functional_call_ms": 0.18593994140625,
+        "python_dispatcher_ms": 2.16717919921875,
+        "kernel_ms": 2.9230380859375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986889411.694,
+        "host_ms": 2.61581494140625,
+        "launch_ms": 0.270579833984375,
+        "weight_prep_ms": 0.212199951171875,
+        "functional_call_ms": 0.18739111328125,
+        "python_dispatcher_ms": 1.94564404296875,
+        "kernel_ms": 2.918654296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986892136.143,
+        "host_ms": 2.6298798828125,
+        "launch_ms": 0.282927490234375,
+        "weight_prep_ms": 0.212478515625,
+        "functional_call_ms": 0.1879111328125,
+        "python_dispatcher_ms": 1.946562744140625,
+        "kernel_ms": 2.917761962890625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986894876.062,
+        "host_ms": 2.73725,
+        "launch_ms": 0.277798583984375,
+        "weight_prep_ms": 0.2114970703125,
+        "functional_call_ms": 0.1877958984375,
+        "python_dispatcher_ms": 2.060158447265625,
+        "kernel_ms": 2.922106201171875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986897723.651,
+        "host_ms": 2.600052978515625,
+        "launch_ms": 0.27170263671875,
+        "weight_prep_ms": 0.2094296875,
+        "functional_call_ms": 0.184427001953125,
+        "python_dispatcher_ms": 1.93449365234375,
+        "kernel_ms": 2.933343505859375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986900441.07,
+        "host_ms": 2.612033935546875,
+        "launch_ms": 0.2714248046875,
+        "weight_prep_ms": 0.206609130859375,
+        "functional_call_ms": 0.18937890625,
+        "python_dispatcher_ms": 1.94462109375,
+        "kernel_ms": 2.915552490234375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986903162.514,
+        "host_ms": 2.652625,
+        "launch_ms": 0.284735595703125,
+        "weight_prep_ms": 0.216969970703125,
+        "functional_call_ms": 0.18680908203125,
+        "python_dispatcher_ms": 1.9641103515625,
+        "kernel_ms": 2.91570751953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986905923.256,
+        "host_ms": 2.67018701171875,
+        "launch_ms": 0.27514697265625,
+        "weight_prep_ms": 0.210919677734375,
+        "functional_call_ms": 0.191689208984375,
+        "python_dispatcher_ms": 1.99243115234375,
+        "kernel_ms": 2.916665283203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986908706.303,
+        "host_ms": 67.3334619140625,
+        "launch_ms": 64.92706518554688,
+        "weight_prep_ms": 0.208811767578125,
+        "functional_call_ms": 0.192921875,
+        "python_dispatcher_ms": 2.0046630859375,
+        "kernel_ms": 2.9241875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986976153.75,
+        "host_ms": 10.02535302734375,
+        "launch_ms": 7.60370263671875,
+        "weight_prep_ms": 0.215381103515625,
+        "functional_call_ms": 0.1871220703125,
+        "python_dispatcher_ms": 2.019147216796875,
+        "kernel_ms": 2.918558837890625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986986292.699,
+        "host_ms": 10.064824951171875,
+        "launch_ms": 7.6218974609375,
+        "weight_prep_ms": 0.237569091796875,
+        "functional_call_ms": 0.1862470703125,
+        "python_dispatcher_ms": 2.019111328125,
+        "kernel_ms": 2.923837158203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147986996476.546,
+        "host_ms": 9.996284912109376,
+        "launch_ms": 7.652201171875,
+        "weight_prep_ms": 0.210678955078125,
+        "functional_call_ms": 0.187333984375,
+        "python_dispatcher_ms": 1.94607080078125,
+        "kernel_ms": 2.91932470703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987006588.304,
+        "host_ms": 10.036501953125,
+        "launch_ms": 7.5859912109375,
+        "weight_prep_ms": 0.20900048828125,
+        "functional_call_ms": 0.1898671875,
+        "python_dispatcher_ms": 2.05164306640625,
+        "kernel_ms": 2.91772509765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987016739.006,
+        "host_ms": 10.1028740234375,
+        "launch_ms": 7.67910595703125,
+        "weight_prep_ms": 0.207892578125,
+        "functional_call_ms": 0.192426025390625,
+        "python_dispatcher_ms": 2.023449462890625,
+        "kernel_ms": 2.929661376953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987026959.181,
+        "host_ms": 9.970238037109375,
+        "launch_ms": 7.5661416015625,
+        "weight_prep_ms": 0.212014892578125,
+        "functional_call_ms": 0.21422314453125,
+        "python_dispatcher_ms": 1.9778583984375,
+        "kernel_ms": 2.916634521484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987037046.17,
+        "host_ms": 10.684597900390624,
+        "launch_ms": 7.93835791015625,
+        "weight_prep_ms": 0.23627978515625,
+        "functional_call_ms": 0.206996826171875,
+        "python_dispatcher_ms": 2.30296337890625,
+        "kernel_ms": 2.91493994140625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987047881.988,
+        "host_ms": 9.98977587890625,
+        "launch_ms": 7.47765625,
+        "weight_prep_ms": 0.25099267578125,
+        "functional_call_ms": 0.207943115234375,
+        "python_dispatcher_ms": 2.053183837890625,
+        "kernel_ms": 2.923097900390625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987058002.117,
+        "host_ms": 10.146587890625,
+        "launch_ms": 7.69973876953125,
+        "weight_prep_ms": 0.21816015625,
+        "functional_call_ms": 0.214011962890625,
+        "python_dispatcher_ms": 2.014677001953125,
+        "kernel_ms": 2.91237646484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987068288.384,
+        "host_ms": 10.263923095703126,
+        "launch_ms": 7.3022021484375,
+        "weight_prep_ms": 0.226158203125,
+        "functional_call_ms": 0.19431201171875,
+        "python_dispatcher_ms": 2.541250732421875,
+        "kernel_ms": 2.914172607421875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987078679.946,
+        "host_ms": 10.223326904296876,
+        "launch_ms": 7.733381103515625,
+        "weight_prep_ms": 0.29429296875,
+        "functional_call_ms": 0.189697998046875,
+        "python_dispatcher_ms": 2.005954833984375,
+        "kernel_ms": 2.928317138671875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987089026.352,
+        "host_ms": 10.044341064453125,
+        "launch_ms": 7.642447265625,
+        "weight_prep_ms": 0.2130126953125,
+        "functional_call_ms": 0.2014638671875,
+        "python_dispatcher_ms": 1.987417236328125,
+        "kernel_ms": 2.924060791015625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987099192.631,
+        "host_ms": 10.138556884765626,
+        "launch_ms": 7.5618154296875,
+        "weight_prep_ms": 0.243088623046875,
+        "functional_call_ms": 0.19702197265625,
+        "python_dispatcher_ms": 2.136630859375,
+        "kernel_ms": 2.920121337890625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987109483.706,
+        "host_ms": 10.076322998046875,
+        "launch_ms": 7.839519775390625,
+        "weight_prep_ms": 0.039263916015625,
+        "functional_call_ms": 0.192197998046875,
+        "python_dispatcher_ms": 2.00534130859375,
+        "kernel_ms": 2.81897021484375,
+        "launches": {
+          "cudaStreamWaitEvent": 1,
+          "cudaLaunchKernel": 62,
+          "cudaMemcpyAsync": 4
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987711659.417,
+        "host_ms": 2.707419921875,
+        "launch_ms": 0.250838134765625,
+        "weight_prep_ms": 0.112625,
+        "functional_call_ms": 0.218912841796875,
+        "python_dispatcher_ms": 2.1250439453125,
+        "kernel_ms": 2.922109130859375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 5,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987714494.431,
+        "host_ms": 2.7403740234375,
+        "launch_ms": 0.285873779296875,
+        "weight_prep_ms": 0.213544189453125,
+        "functional_call_ms": 0.19919091796875,
+        "python_dispatcher_ms": 2.04176513671875,
+        "kernel_ms": 2.920989013671875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987717355.057,
+        "host_ms": 2.684132080078125,
+        "launch_ms": 0.278989501953125,
+        "weight_prep_ms": 0.2191640625,
+        "functional_call_ms": 0.1948720703125,
+        "python_dispatcher_ms": 1.9911064453125,
+        "kernel_ms": 2.92009033203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987720153.84,
+        "host_ms": 2.680073974609375,
+        "launch_ms": 0.2852822265625,
+        "weight_prep_ms": 0.218244384765625,
+        "functional_call_ms": 0.193488037109375,
+        "python_dispatcher_ms": 1.983059326171875,
+        "kernel_ms": 2.92121240234375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987722948.182,
+        "host_ms": 2.714294921875,
+        "launch_ms": 0.28624365234375,
+        "weight_prep_ms": 0.248416259765625,
+        "functional_call_ms": 0.194928955078125,
+        "python_dispatcher_ms": 1.9847060546875,
+        "kernel_ms": 2.9214072265625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987725775.271,
+        "host_ms": 2.654404052734375,
+        "launch_ms": 0.271364013671875,
+        "weight_prep_ms": 0.211211669921875,
+        "functional_call_ms": 0.186579833984375,
+        "python_dispatcher_ms": 1.98524853515625,
+        "kernel_ms": 2.926977783203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987728543.849,
+        "host_ms": 2.646653076171875,
+        "launch_ms": 0.2758115234375,
+        "weight_prep_ms": 0.211987060546875,
+        "functional_call_ms": 0.188131103515625,
+        "python_dispatcher_ms": 1.970723388671875,
+        "kernel_ms": 2.9238671875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987731303.283,
+        "host_ms": 2.760802001953125,
+        "launch_ms": 0.307975830078125,
+        "weight_prep_ms": 0.219298583984375,
+        "functional_call_ms": 0.18826708984375,
+        "python_dispatcher_ms": 2.045260498046875,
+        "kernel_ms": 2.916031005859375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987734176.821,
+        "host_ms": 2.669943115234375,
+        "launch_ms": 0.284438720703125,
+        "weight_prep_ms": 0.22438671875,
+        "functional_call_ms": 0.191787841796875,
+        "python_dispatcher_ms": 1.969329833984375,
+        "kernel_ms": 2.9244453125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987736960.114,
+        "host_ms": 2.73126806640625,
+        "launch_ms": 0.2836015625,
+        "weight_prep_ms": 0.212385498046875,
+        "functional_call_ms": 0.19156689453125,
+        "python_dispatcher_ms": 2.043714111328125,
+        "kernel_ms": 2.9238330078125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987739801.678,
+        "host_ms": 2.692491943359375,
+        "launch_ms": 0.272338134765625,
+        "weight_prep_ms": 0.211907958984375,
+        "functional_call_ms": 0.191447021484375,
+        "python_dispatcher_ms": 2.016798828125,
+        "kernel_ms": 2.92242919921875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987742606.058,
+        "host_ms": 2.59535205078125,
+        "launch_ms": 0.276507080078125,
+        "weight_prep_ms": 0.208256103515625,
+        "functional_call_ms": 0.1865009765625,
+        "python_dispatcher_ms": 1.924087890625,
+        "kernel_ms": 2.92332421875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987745313.335,
+        "host_ms": 2.7190009765625,
+        "launch_ms": 0.277378662109375,
+        "weight_prep_ms": 0.217115478515625,
+        "functional_call_ms": 0.190197998046875,
+        "python_dispatcher_ms": 2.034308837890625,
+        "kernel_ms": 2.928925537109375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987748145.352,
+        "host_ms": 2.87918603515625,
+        "launch_ms": 0.28509375,
+        "weight_prep_ms": 0.2160556640625,
+        "functional_call_ms": 0.18851123046875,
+        "python_dispatcher_ms": 2.189525390625,
+        "kernel_ms": 2.92422265625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987751137.883,
+        "host_ms": 2.62093994140625,
+        "launch_ms": 0.2714990234375,
+        "weight_prep_ms": 0.2179677734375,
+        "functional_call_ms": 0.187587890625,
+        "python_dispatcher_ms": 1.94388525390625,
+        "kernel_ms": 2.920989501953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987753868.743,
+        "host_ms": 2.66212109375,
+        "launch_ms": 0.280869384765625,
+        "weight_prep_ms": 0.2107509765625,
+        "functional_call_ms": 0.188908935546875,
+        "python_dispatcher_ms": 1.981591796875,
+        "kernel_ms": 2.923832763671875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987756639.582,
+        "host_ms": 2.62298095703125,
+        "launch_ms": 0.268892822265625,
+        "weight_prep_ms": 0.211462890625,
+        "functional_call_ms": 0.1896240234375,
+        "python_dispatcher_ms": 1.953001220703125,
+        "kernel_ms": 2.919326904296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987759381.421,
+        "host_ms": 67.65219409179687,
+        "launch_ms": 65.15380053710938,
+        "weight_prep_ms": 0.21226708984375,
+        "functional_call_ms": 0.188235107421875,
+        "python_dispatcher_ms": 2.097891357421875,
+        "kernel_ms": 2.929402587890625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987827151.185,
+        "host_ms": 10.028826904296874,
+        "launch_ms": 7.549492919921875,
+        "weight_prep_ms": 0.257252197265625,
+        "functional_call_ms": 0.201451171875,
+        "python_dispatcher_ms": 2.020630615234375,
+        "kernel_ms": 2.91743896484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987837293.567,
+        "host_ms": 10.141200927734374,
+        "launch_ms": 7.6967939453125,
+        "weight_prep_ms": 0.2154453125,
+        "functional_call_ms": 0.188283935546875,
+        "python_dispatcher_ms": 2.040677734375,
+        "kernel_ms": 2.917661865234375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987847547.813,
+        "host_ms": 10.1193369140625,
+        "launch_ms": 7.6943056640625,
+        "weight_prep_ms": 0.2102216796875,
+        "functional_call_ms": 0.189987060546875,
+        "python_dispatcher_ms": 2.024822509765625,
+        "kernel_ms": 2.92054443359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987857779.655,
+        "host_ms": 10.00620703125,
+        "launch_ms": 7.58268115234375,
+        "weight_prep_ms": 0.20919091796875,
+        "functional_call_ms": 0.19152685546875,
+        "python_dispatcher_ms": 2.02280810546875,
+        "kernel_ms": 2.929245361328125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987867897.218,
+        "host_ms": 10.01610498046875,
+        "launch_ms": 7.583238525390625,
+        "weight_prep_ms": 0.20863427734375,
+        "functional_call_ms": 0.18873388671875,
+        "python_dispatcher_ms": 2.035498291015625,
+        "kernel_ms": 2.92482568359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987878025.99,
+        "host_ms": 10.058305908203126,
+        "launch_ms": 7.6618251953125,
+        "weight_prep_ms": 0.208527099609375,
+        "functional_call_ms": 0.191199951171875,
+        "python_dispatcher_ms": 1.996753662109375,
+        "kernel_ms": 2.930585205078125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987888202.456,
+        "host_ms": 9.989155029296874,
+        "launch_ms": 7.52744921875,
+        "weight_prep_ms": 0.2253837890625,
+        "functional_call_ms": 0.186616943359375,
+        "python_dispatcher_ms": 2.049705078125,
+        "kernel_ms": 2.92418994140625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987898310.588,
+        "host_ms": 10.86287109375,
+        "launch_ms": 8.24098779296875,
+        "weight_prep_ms": 0.224667724609375,
+        "functional_call_ms": 0.197452880859375,
+        "python_dispatcher_ms": 2.1997626953125,
+        "kernel_ms": 2.935326416015625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987909315.921,
+        "host_ms": 10.294656005859375,
+        "launch_ms": 7.73153857421875,
+        "weight_prep_ms": 0.25572509765625,
+        "functional_call_ms": 0.2020419921875,
+        "python_dispatcher_ms": 2.105350341796875,
+        "kernel_ms": 2.916638916015625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987919750.016,
+        "host_ms": 10.1125,
+        "launch_ms": 7.524530517578125,
+        "weight_prep_ms": 0.217375,
+        "functional_call_ms": 0.194449951171875,
+        "python_dispatcher_ms": 2.17614453125,
+        "kernel_ms": 2.91932568359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987929988.752,
+        "host_ms": 10.4720419921875,
+        "launch_ms": 7.672797607421875,
+        "weight_prep_ms": 0.2117568359375,
+        "functional_call_ms": 0.236822998046875,
+        "python_dispatcher_ms": 2.35066455078125,
+        "kernel_ms": 2.920570068359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987940601.239,
+        "host_ms": 9.933367919921874,
+        "launch_ms": 7.310013671875,
+        "weight_prep_ms": 0.226861572265625,
+        "functional_call_ms": 0.20115185546875,
+        "python_dispatcher_ms": 2.1953408203125,
+        "kernel_ms": 2.91782373046875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987950671.944,
+        "host_ms": 10.021840087890626,
+        "launch_ms": 7.50490234375,
+        "weight_prep_ms": 0.2225283203125,
+        "functional_call_ms": 0.196723876953125,
+        "python_dispatcher_ms": 2.097685546875,
+        "kernel_ms": 2.917405029296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 62
+        }
+      },
+      {
+        "kind": "forward",
+        "tid": 67167,
+        "start_us": 1147987960819.299,
+        "host_ms": 10.4927548828125,
+        "launch_ms": 7.704769775390625,
+        "weight_prep_ms": 0.04027099609375,
+        "functional_call_ms": 0.188993896484375,
+        "python_dispatcher_ms": 2.55872021484375,
+        "kernel_ms": 2.815931884765625,
+        "launches": {
+          "cudaStreamWaitEvent": 1,
+          "cudaLaunchKernel": 62,
+          "cudaMemcpyAsync": 4
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986280592.215,
+        "host_ms": 10.122429931640625,
+        "launch_ms": 7.82557275390625,
+        "weight_prep_ms": 0.055300048828125,
+        "functional_call_ms": 0.249148193359375,
+        "python_dispatcher_ms": 1.992408935546875,
+        "kernel_ms": 2.821407470703125,
+        "launches": {
+          "cudaStreamWaitEvent": 1,
+          "cudaLaunchKernel": 61,
+          "cudaMemcpyAsync": 4
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986303180.098,
+        "host_ms": 9.7532919921875,
+        "launch_ms": 7.4352880859375,
+        "weight_prep_ms": 0.231799072265625,
+        "functional_call_ms": 0.195947021484375,
+        "python_dispatcher_ms": 1.8902578125,
+        "kernel_ms": 2.925243896484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986332806.173,
+        "host_ms": 10.440365966796875,
+        "launch_ms": 8.00347900390625,
+        "weight_prep_ms": 0.21766162109375,
+        "functional_call_ms": 0.1964521484375,
+        "python_dispatcher_ms": 2.022773193359375,
+        "kernel_ms": 2.918846923828125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986363042.058,
+        "host_ms": 10.4244560546875,
+        "launch_ms": 8.065947998046875,
+        "weight_prep_ms": 0.21931884765625,
+        "functional_call_ms": 0.207538818359375,
+        "python_dispatcher_ms": 1.931650390625,
+        "kernel_ms": 2.92066357421875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986393334.721,
+        "host_ms": 10.504326904296875,
+        "launch_ms": 7.991773193359375,
+        "weight_prep_ms": 0.242544921875,
+        "functional_call_ms": 0.2046220703125,
+        "python_dispatcher_ms": 2.06538671875,
+        "kernel_ms": 2.9264296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986423586.728,
+        "host_ms": 15.225950927734376,
+        "launch_ms": 12.704979736328125,
+        "weight_prep_ms": 0.2229833984375,
+        "functional_call_ms": 0.2013701171875,
+        "python_dispatcher_ms": 2.09661767578125,
+        "kernel_ms": 2.9124775390625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986447256.05,
+        "host_ms": 2.874568115234375,
+        "launch_ms": 0.308755126953125,
+        "weight_prep_ms": 0.243889892578125,
+        "functional_call_ms": 0.249703125,
+        "python_dispatcher_ms": 2.072219970703125,
+        "kernel_ms": 2.92642578125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986457189.888,
+        "host_ms": 2.812970947265625,
+        "launch_ms": 0.3242685546875,
+        "weight_prep_ms": 0.235378173828125,
+        "functional_call_ms": 0.21093994140625,
+        "python_dispatcher_ms": 2.04238427734375,
+        "kernel_ms": 2.918653564453125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986467616.43,
+        "host_ms": 2.885916015625,
+        "launch_ms": 0.300631103515625,
+        "weight_prep_ms": 0.262639892578125,
+        "functional_call_ms": 0.212737060546875,
+        "python_dispatcher_ms": 2.109907958984375,
+        "kernel_ms": 2.9186845703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986478018.898,
+        "host_ms": 2.80295703125,
+        "launch_ms": 0.2939453125,
+        "weight_prep_ms": 0.230144287109375,
+        "functional_call_ms": 0.206147216796875,
+        "python_dispatcher_ms": 2.07272021484375,
+        "kernel_ms": 2.92585546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986488397.724,
+        "host_ms": 2.7404150390625,
+        "launch_ms": 0.292330810546875,
+        "weight_prep_ms": 0.232732177734375,
+        "functional_call_ms": 0.206571044921875,
+        "python_dispatcher_ms": 2.008781005859375,
+        "kernel_ms": 2.924257568359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986498803.753,
+        "host_ms": 2.766800048828125,
+        "launch_ms": 0.286947509765625,
+        "weight_prep_ms": 0.229894287109375,
+        "functional_call_ms": 0.238966064453125,
+        "python_dispatcher_ms": 2.0109921875,
+        "kernel_ms": 2.913597412109375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986509003.284,
+        "host_ms": 2.7780009765625,
+        "launch_ms": 0.2912109375,
+        "weight_prep_ms": 0.22358349609375,
+        "functional_call_ms": 0.2160830078125,
+        "python_dispatcher_ms": 2.04712353515625,
+        "kernel_ms": 2.92408935546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986519386.18,
+        "host_ms": 2.76147412109375,
+        "launch_ms": 0.28551220703125,
+        "weight_prep_ms": 0.298043212890625,
+        "functional_call_ms": 0.209011962890625,
+        "python_dispatcher_ms": 1.96890673828125,
+        "kernel_ms": 2.92140673828125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986529698.334,
+        "host_ms": 2.608827880859375,
+        "launch_ms": 0.279739990234375,
+        "weight_prep_ms": 0.22110546875,
+        "functional_call_ms": 0.199657958984375,
+        "python_dispatcher_ms": 1.908324462890625,
+        "kernel_ms": 2.920252197265625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986540040.521,
+        "host_ms": 2.6616630859375,
+        "launch_ms": 0.279870361328125,
+        "weight_prep_ms": 0.223141357421875,
+        "functional_call_ms": 0.209068115234375,
+        "python_dispatcher_ms": 1.949583251953125,
+        "kernel_ms": 2.913665283203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986550293.577,
+        "host_ms": 2.611114013671875,
+        "launch_ms": 0.28099072265625,
+        "weight_prep_ms": 0.2215400390625,
+        "functional_call_ms": 0.200133056640625,
+        "python_dispatcher_ms": 1.9084501953125,
+        "kernel_ms": 2.91539453125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986560536.688,
+        "host_ms": 2.640512939453125,
+        "launch_ms": 0.282530517578125,
+        "weight_prep_ms": 0.22137109375,
+        "functional_call_ms": 0.203946044921875,
+        "python_dispatcher_ms": 1.932665283203125,
+        "kernel_ms": 2.915674560546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986570827.475,
+        "host_ms": 2.6072548828125,
+        "launch_ms": 0.2794248046875,
+        "weight_prep_ms": 0.21676123046875,
+        "functional_call_ms": 0.195550048828125,
+        "python_dispatcher_ms": 1.915518798828125,
+        "kernel_ms": 2.92332958984375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986581010.829,
+        "host_ms": 2.739387939453125,
+        "launch_ms": 0.282635498046875,
+        "weight_prep_ms": 0.234822509765625,
+        "functional_call_ms": 0.255509033203125,
+        "python_dispatcher_ms": 1.9664208984375,
+        "kernel_ms": 2.917660400390625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986591246.486,
+        "host_ms": 2.71352294921875,
+        "launch_ms": 0.306470703125,
+        "weight_prep_ms": 0.254681640625,
+        "functional_call_ms": 0.2083369140625,
+        "python_dispatcher_ms": 1.94403369140625,
+        "kernel_ms": 2.92617724609375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986601663.847,
+        "host_ms": 2.726906005859375,
+        "launch_ms": 0.3175830078125,
+        "weight_prep_ms": 0.2274814453125,
+        "functional_call_ms": 0.216138916015625,
+        "python_dispatcher_ms": 1.96570263671875,
+        "kernel_ms": 2.9163828125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986611834.983,
+        "host_ms": 2.76751806640625,
+        "launch_ms": 0.308537841796875,
+        "weight_prep_ms": 0.217583740234375,
+        "functional_call_ms": 0.19493310546875,
+        "python_dispatcher_ms": 2.04646337890625,
+        "kernel_ms": 2.927424072265625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986622120.935,
+        "host_ms": 2.7144130859375,
+        "launch_ms": 0.28554443359375,
+        "weight_prep_ms": 0.219868896484375,
+        "functional_call_ms": 0.198723876953125,
+        "python_dispatcher_ms": 2.01027587890625,
+        "kernel_ms": 2.914627685546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986632369.272,
+        "host_ms": 2.66514697265625,
+        "launch_ms": 0.28059375,
+        "weight_prep_ms": 0.22329931640625,
+        "functional_call_ms": 0.196333984375,
+        "python_dispatcher_ms": 1.964919921875,
+        "kernel_ms": 2.92402783203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986642668.591,
+        "host_ms": 2.667340087890625,
+        "launch_ms": 0.28374755859375,
+        "weight_prep_ms": 0.222046630859375,
+        "functional_call_ms": 0.2048349609375,
+        "python_dispatcher_ms": 1.9567109375,
+        "kernel_ms": 2.925114990234375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986652943.086,
+        "host_ms": 2.665597900390625,
+        "launch_ms": 0.28150830078125,
+        "weight_prep_ms": 0.21871923828125,
+        "functional_call_ms": 0.212001953125,
+        "python_dispatcher_ms": 1.953368408203125,
+        "kernel_ms": 2.925372802734375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986663108.747,
+        "host_ms": 2.648257080078125,
+        "launch_ms": 0.27384033203125,
+        "weight_prep_ms": 0.2236865234375,
+        "functional_call_ms": 0.201406982421875,
+        "python_dispatcher_ms": 1.9493232421875,
+        "kernel_ms": 2.919097900390625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986673293.095,
+        "host_ms": 3.035032958984375,
+        "launch_ms": 0.30695263671875,
+        "weight_prep_ms": 0.316646484375,
+        "functional_call_ms": 0.23487109375,
+        "python_dispatcher_ms": 2.176562744140625,
+        "kernel_ms": 2.925726806640625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986683607.11,
+        "host_ms": 2.7351640625,
+        "launch_ms": 0.2961669921875,
+        "weight_prep_ms": 0.227523193359375,
+        "functional_call_ms": 0.207325927734375,
+        "python_dispatcher_ms": 2.00414794921875,
+        "kernel_ms": 2.922494384765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986694023.342,
+        "host_ms": 2.5477099609375,
+        "launch_ms": 0.268160888671875,
+        "weight_prep_ms": 0.211562255859375,
+        "functional_call_ms": 0.197870849609375,
+        "python_dispatcher_ms": 1.870115966796875,
+        "kernel_ms": 2.919195556640625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147986704402.894,
+        "host_ms": 2.437325927734375,
+        "launch_ms": 0.229728271484375,
+        "weight_prep_ms": 0.112830810546875,
+        "functional_call_ms": 0.210416015625,
+        "python_dispatcher_ms": 1.884350830078125,
+        "kernel_ms": 2.92946875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 5,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987128932.659,
+        "host_ms": 10.17110791015625,
+        "launch_ms": 7.956632080078125,
+        "weight_prep_ms": 0.04297412109375,
+        "functional_call_ms": 0.191648193359375,
+        "python_dispatcher_ms": 1.979853515625,
+        "kernel_ms": 2.82866796875,
+        "launches": {
+          "cudaStreamWaitEvent": 1,
+          "cudaLaunchKernel": 61,
+          "cudaMemcpyAsync": 4
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987151575.305,
+        "host_ms": 9.891823974609375,
+        "launch_ms": 7.448528076171875,
+        "weight_prep_ms": 0.225968505859375,
+        "functional_call_ms": 0.201833984375,
+        "python_dispatcher_ms": 2.015493408203125,
+        "kernel_ms": 2.91372314453125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987181321.935,
+        "host_ms": 10.83641796875,
+        "launch_ms": 8.27859228515625,
+        "weight_prep_ms": 0.223888671875,
+        "functional_call_ms": 0.2132841796875,
+        "python_dispatcher_ms": 2.12065283203125,
+        "kernel_ms": 2.91423779296875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987212161.366,
+        "host_ms": 10.555533935546874,
+        "launch_ms": 8.041865234375,
+        "weight_prep_ms": 0.253458740234375,
+        "functional_call_ms": 0.212244873046875,
+        "python_dispatcher_ms": 2.047965087890625,
+        "kernel_ms": 2.919968994140625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987242607.579,
+        "host_ms": 10.538383056640624,
+        "launch_ms": 7.975121337890625,
+        "weight_prep_ms": 0.2263134765625,
+        "functional_call_ms": 0.2114951171875,
+        "python_dispatcher_ms": 2.125453125,
+        "kernel_ms": 2.919740966796875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987272900.981,
+        "host_ms": 15.16227392578125,
+        "launch_ms": 12.77648193359375,
+        "weight_prep_ms": 0.22196875,
+        "functional_call_ms": 0.211662109375,
+        "python_dispatcher_ms": 1.9521611328125,
+        "kernel_ms": 2.92195068359375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987296787.333,
+        "host_ms": 3.088926025390625,
+        "launch_ms": 0.32883349609375,
+        "weight_prep_ms": 0.260231201171875,
+        "functional_call_ms": 0.248843017578125,
+        "python_dispatcher_ms": 2.251018310546875,
+        "kernel_ms": 2.921561767578125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987306469.554,
+        "host_ms": 4.226243896484375,
+        "launch_ms": 1.614236572265625,
+        "weight_prep_ms": 0.2650771484375,
+        "functional_call_ms": 0.2334599609375,
+        "python_dispatcher_ms": 2.11347021484375,
+        "kernel_ms": 2.924283935546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987317292.929,
+        "host_ms": 2.697777099609375,
+        "launch_ms": 0.287349853515625,
+        "weight_prep_ms": 0.24544921875,
+        "functional_call_ms": 0.215410888671875,
+        "python_dispatcher_ms": 1.949567138671875,
+        "kernel_ms": 2.923807373046875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987327958.327,
+        "host_ms": 2.75943994140625,
+        "launch_ms": 0.296397216796875,
+        "weight_prep_ms": 0.238138671875,
+        "functional_call_ms": 0.21522705078125,
+        "python_dispatcher_ms": 2.009677001953125,
+        "kernel_ms": 2.9155791015625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987338200.197,
+        "host_ms": 2.6417080078125,
+        "launch_ms": 0.2816943359375,
+        "weight_prep_ms": 0.224435791015625,
+        "functional_call_ms": 0.2042431640625,
+        "python_dispatcher_ms": 1.931334716796875,
+        "kernel_ms": 2.91775439453125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987348510.642,
+        "host_ms": 2.764780029296875,
+        "launch_ms": 0.29884716796875,
+        "weight_prep_ms": 0.2571201171875,
+        "functional_call_ms": 0.208925048828125,
+        "python_dispatcher_ms": 1.9998876953125,
+        "kernel_ms": 2.919227783203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987358618.765,
+        "host_ms": 2.611583984375,
+        "launch_ms": 0.27574560546875,
+        "weight_prep_ms": 0.242096923828125,
+        "functional_call_ms": 0.205741943359375,
+        "python_dispatcher_ms": 1.88799951171875,
+        "kernel_ms": 2.92271435546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987368915.115,
+        "host_ms": 2.650613037109375,
+        "launch_ms": 0.28164794921875,
+        "weight_prep_ms": 0.22086669921875,
+        "functional_call_ms": 0.211524169921875,
+        "python_dispatcher_ms": 1.93657421875,
+        "kernel_ms": 2.926906494140625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987379161.189,
+        "host_ms": 2.669575927734375,
+        "launch_ms": 0.289149658203125,
+        "weight_prep_ms": 0.222682861328125,
+        "functional_call_ms": 0.203125,
+        "python_dispatcher_ms": 1.954618408203125,
+        "kernel_ms": 2.919548828125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987389450.627,
+        "host_ms": 2.710902099609375,
+        "launch_ms": 0.287360107421875,
+        "weight_prep_ms": 0.2651875,
+        "functional_call_ms": 0.205923095703125,
+        "python_dispatcher_ms": 1.952431396484375,
+        "kernel_ms": 2.926556396484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987399678.554,
+        "host_ms": 2.6175400390625,
+        "launch_ms": 0.286068603515625,
+        "weight_prep_ms": 0.218599853515625,
+        "functional_call_ms": 0.205712890625,
+        "python_dispatcher_ms": 1.90715869140625,
+        "kernel_ms": 2.92463916015625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987409860.67,
+        "host_ms": 2.645952880859375,
+        "launch_ms": 0.278375,
+        "weight_prep_ms": 0.21972607421875,
+        "functional_call_ms": 0.23443603515625,
+        "python_dispatcher_ms": 1.913415771484375,
+        "kernel_ms": 2.9274208984375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987420127.018,
+        "host_ms": 2.6015830078125,
+        "launch_ms": 0.28476123046875,
+        "weight_prep_ms": 0.2227685546875,
+        "functional_call_ms": 0.22831689453125,
+        "python_dispatcher_ms": 1.865736328125,
+        "kernel_ms": 2.928697509765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987430375.809,
+        "host_ms": 2.608547119140625,
+        "launch_ms": 0.281141357421875,
+        "weight_prep_ms": 0.223114013671875,
+        "functional_call_ms": 0.209260009765625,
+        "python_dispatcher_ms": 1.89503173828125,
+        "kernel_ms": 2.916575927734375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987440550.28,
+        "host_ms": 2.57664404296875,
+        "launch_ms": 0.27873876953125,
+        "weight_prep_ms": 0.219896240234375,
+        "functional_call_ms": 0.20252197265625,
+        "python_dispatcher_ms": 1.875487060546875,
+        "kernel_ms": 2.923583984375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987450791.691,
+        "host_ms": 2.6845390625,
+        "launch_ms": 0.2894619140625,
+        "weight_prep_ms": 0.22503369140625,
+        "functional_call_ms": 0.204691162109375,
+        "python_dispatcher_ms": 1.965352294921875,
+        "kernel_ms": 2.91596630859375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987460988.692,
+        "host_ms": 2.681830078125,
+        "launch_ms": 0.28235693359375,
+        "weight_prep_ms": 0.218039794921875,
+        "functional_call_ms": 0.227016845703125,
+        "python_dispatcher_ms": 1.95441650390625,
+        "kernel_ms": 2.935484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987471114.401,
+        "host_ms": 2.66681298828125,
+        "launch_ms": 0.293413818359375,
+        "weight_prep_ms": 0.24474658203125,
+        "functional_call_ms": 0.210080810546875,
+        "python_dispatcher_ms": 1.91857177734375,
+        "kernel_ms": 2.924219970703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987481325.203,
+        "host_ms": 2.6540390625,
+        "launch_ms": 0.282958251953125,
+        "weight_prep_ms": 0.222447021484375,
+        "functional_call_ms": 0.201398193359375,
+        "python_dispatcher_ms": 1.947235595703125,
+        "kernel_ms": 2.918556884765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987491584.38,
+        "host_ms": 2.69960498046875,
+        "launch_ms": 0.284764892578125,
+        "weight_prep_ms": 0.225259521484375,
+        "functional_call_ms": 0.201415771484375,
+        "python_dispatcher_ms": 1.988164794921875,
+        "kernel_ms": 2.924477783203125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987501866.758,
+        "host_ms": 2.682097900390625,
+        "launch_ms": 0.28340966796875,
+        "weight_prep_ms": 0.219073974609375,
+        "functional_call_ms": 0.199927001953125,
+        "python_dispatcher_ms": 1.979687255859375,
+        "kernel_ms": 2.917980224609375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987512062.004,
+        "host_ms": 2.71916796875,
+        "launch_ms": 0.310630126953125,
+        "weight_prep_ms": 0.24666015625,
+        "functional_call_ms": 0.200076904296875,
+        "python_dispatcher_ms": 1.96180078125,
+        "kernel_ms": 2.927520263671875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987522201.891,
+        "host_ms": 2.708498046875,
+        "launch_ms": 0.3096728515625,
+        "weight_prep_ms": 0.22629736328125,
+        "functional_call_ms": 0.20789599609375,
+        "python_dispatcher_ms": 1.9646318359375,
+        "kernel_ms": 2.92678466796875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987532427.347,
+        "host_ms": 2.708407958984375,
+        "launch_ms": 0.28271484375,
+        "weight_prep_ms": 0.260537841796875,
+        "functional_call_ms": 0.2046708984375,
+        "python_dispatcher_ms": 1.960484375,
+        "kernel_ms": 2.923994873046875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987542605.585,
+        "host_ms": 2.607156005859375,
+        "launch_ms": 0.28299365234375,
+        "weight_prep_ms": 0.2461533203125,
+        "functional_call_ms": 0.191159912109375,
+        "python_dispatcher_ms": 1.88684912109375,
+        "kernel_ms": 2.937984619140625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987552927.007,
+        "host_ms": 2.451990966796875,
+        "launch_ms": 0.221712646484375,
+        "weight_prep_ms": 0.108042236328125,
+        "functional_call_ms": 0.2533349609375,
+        "python_dispatcher_ms": 1.868901123046875,
+        "kernel_ms": 2.927226806640625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 5,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147987980140.158,
+        "host_ms": 10.20605810546875,
+        "launch_ms": 7.90097021484375,
+        "weight_prep_ms": 0.0396240234375,
+        "functional_call_ms": 0.1871259765625,
+        "python_dispatcher_ms": 2.078337890625,
+        "kernel_ms": 2.820126953125,
+        "launches": {
+          "cudaStreamWaitEvent": 1,
+          "cudaLaunchKernel": 61,
+          "cudaMemcpyAsync": 4
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988002740.401,
+        "host_ms": 9.876596923828124,
+        "launch_ms": 7.428652099609375,
+        "weight_prep_ms": 0.22065869140625,
+        "functional_call_ms": 0.19247900390625,
+        "python_dispatcher_ms": 2.03480712890625,
+        "kernel_ms": 2.921310546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988032278.972,
+        "host_ms": 10.462610107421876,
+        "launch_ms": 8.07523681640625,
+        "weight_prep_ms": 0.22321728515625,
+        "functional_call_ms": 0.19836083984375,
+        "python_dispatcher_ms": 1.965795166015625,
+        "kernel_ms": 2.918074951171875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988062598.934,
+        "host_ms": 10.4241669921875,
+        "launch_ms": 7.999467529296875,
+        "weight_prep_ms": 0.220828369140625,
+        "functional_call_ms": 0.20151513671875,
+        "python_dispatcher_ms": 2.00235595703125,
+        "kernel_ms": 2.919353759765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988092859.183,
+        "host_ms": 10.3705419921875,
+        "launch_ms": 7.961870361328125,
+        "weight_prep_ms": 0.221244384765625,
+        "functional_call_ms": 0.2040048828125,
+        "python_dispatcher_ms": 1.98342236328125,
+        "kernel_ms": 2.922427734375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988123097.403,
+        "host_ms": 15.20849609375,
+        "launch_ms": 12.75337109375,
+        "weight_prep_ms": 0.256530029296875,
+        "functional_call_ms": 0.20398486328125,
+        "python_dispatcher_ms": 1.994610107421875,
+        "kernel_ms": 2.91823876953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988146728.282,
+        "host_ms": 2.620717041015625,
+        "launch_ms": 0.280480712890625,
+        "weight_prep_ms": 0.2185595703125,
+        "functional_call_ms": 0.20373291015625,
+        "python_dispatcher_ms": 1.91794384765625,
+        "kernel_ms": 2.918751220703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988156682.255,
+        "host_ms": 2.613320068359375,
+        "launch_ms": 0.28131103515625,
+        "weight_prep_ms": 0.2197666015625,
+        "functional_call_ms": 0.196360107421875,
+        "python_dispatcher_ms": 1.91588232421875,
+        "kernel_ms": 2.92028662109375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988166958.584,
+        "host_ms": 2.6624990234375,
+        "launch_ms": 0.282130615234375,
+        "weight_prep_ms": 0.219143798828125,
+        "functional_call_ms": 0.203375,
+        "python_dispatcher_ms": 1.957849609375,
+        "kernel_ms": 2.924701416015625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988177119.822,
+        "host_ms": 2.663785888671875,
+        "launch_ms": 0.2847861328125,
+        "weight_prep_ms": 0.222949951171875,
+        "functional_call_ms": 0.2058720703125,
+        "python_dispatcher_ms": 1.950177734375,
+        "kernel_ms": 2.917464599609375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988187247.092,
+        "host_ms": 2.867139892578125,
+        "launch_ms": 0.31712890625,
+        "weight_prep_ms": 0.26136865234375,
+        "functional_call_ms": 0.20068896484375,
+        "python_dispatcher_ms": 2.087953369140625,
+        "kernel_ms": 2.90876708984375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988197711.374,
+        "host_ms": 2.9396259765625,
+        "launch_ms": 0.34372119140625,
+        "weight_prep_ms": 0.2454453125,
+        "functional_call_ms": 0.214493896484375,
+        "python_dispatcher_ms": 2.135965576171875,
+        "kernel_ms": 2.911610595703125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988208133.426,
+        "host_ms": 2.812887939453125,
+        "launch_ms": 0.31469140625,
+        "weight_prep_ms": 0.236661865234375,
+        "functional_call_ms": 0.212840087890625,
+        "python_dispatcher_ms": 2.048694580078125,
+        "kernel_ms": 2.92536962890625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988218435.903,
+        "host_ms": 2.746118896484375,
+        "launch_ms": 0.304741943359375,
+        "weight_prep_ms": 0.226729736328125,
+        "functional_call_ms": 0.206623046875,
+        "python_dispatcher_ms": 2.008024169921875,
+        "kernel_ms": 2.9169873046875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988228722.209,
+        "host_ms": 4.028298095703125,
+        "launch_ms": 0.296217529296875,
+        "weight_prep_ms": 1.41590087890625,
+        "functional_call_ms": 0.217280029296875,
+        "python_dispatcher_ms": 2.098899658203125,
+        "kernel_ms": 2.92716259765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988239232.738,
+        "host_ms": 3.2831669921875,
+        "launch_ms": 0.36073095703125,
+        "weight_prep_ms": 0.25590185546875,
+        "functional_call_ms": 0.227677978515625,
+        "python_dispatcher_ms": 2.438856201171875,
+        "kernel_ms": 2.91561376953125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988249752.841,
+        "host_ms": 2.99372509765625,
+        "launch_ms": 0.335009033203125,
+        "weight_prep_ms": 0.24574755859375,
+        "functional_call_ms": 0.21539697265625,
+        "python_dispatcher_ms": 2.197571533203125,
+        "kernel_ms": 2.919869140625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988260657.67,
+        "host_ms": 2.690237060546875,
+        "launch_ms": 0.2961650390625,
+        "weight_prep_ms": 0.23781884765625,
+        "functional_call_ms": 0.24214501953125,
+        "python_dispatcher_ms": 1.914108154296875,
+        "kernel_ms": 2.922620361328125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988271055.759,
+        "host_ms": 2.84672998046875,
+        "launch_ms": 0.305407470703125,
+        "weight_prep_ms": 0.257406005859375,
+        "functional_call_ms": 0.21475,
+        "python_dispatcher_ms": 2.06916650390625,
+        "kernel_ms": 2.91845849609375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988281503.55,
+        "host_ms": 2.899196044921875,
+        "launch_ms": 0.318380126953125,
+        "weight_prep_ms": 0.224362548828125,
+        "functional_call_ms": 0.22406884765625,
+        "python_dispatcher_ms": 2.132384521484375,
+        "kernel_ms": 2.920957763671875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988291861.589,
+        "host_ms": 2.6498798828125,
+        "launch_ms": 0.289083251953125,
+        "weight_prep_ms": 0.230875,
+        "functional_call_ms": 0.209364013671875,
+        "python_dispatcher_ms": 1.9205576171875,
+        "kernel_ms": 2.920003173828125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988302363.341,
+        "host_ms": 2.7560458984375,
+        "launch_ms": 0.29147509765625,
+        "weight_prep_ms": 0.260593994140625,
+        "functional_call_ms": 0.202291015625,
+        "python_dispatcher_ms": 2.001685791015625,
+        "kernel_ms": 2.929182373046875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988312668.288,
+        "host_ms": 2.65027587890625,
+        "launch_ms": 0.295061767578125,
+        "weight_prep_ms": 0.2263369140625,
+        "functional_call_ms": 0.205927001953125,
+        "python_dispatcher_ms": 1.9229501953125,
+        "kernel_ms": 2.918847412109375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988322951.95,
+        "host_ms": 2.72268994140625,
+        "launch_ms": 0.28048876953125,
+        "weight_prep_ms": 0.22423291015625,
+        "functional_call_ms": 0.257369873046875,
+        "python_dispatcher_ms": 1.960598388671875,
+        "kernel_ms": 2.927805419921875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988333248.673,
+        "host_ms": 2.674407958984375,
+        "launch_ms": 0.28488720703125,
+        "weight_prep_ms": 0.230079345703125,
+        "functional_call_ms": 0.2046259765625,
+        "python_dispatcher_ms": 1.9548154296875,
+        "kernel_ms": 2.9285712890625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988343522.981,
+        "host_ms": 2.674248046875,
+        "launch_ms": 0.28396044921875,
+        "weight_prep_ms": 0.221295166015625,
+        "functional_call_ms": 0.19881494140625,
+        "python_dispatcher_ms": 1.970177490234375,
+        "kernel_ms": 2.91900634765625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988353850.789,
+        "host_ms": 2.666322021484375,
+        "launch_ms": 0.28533642578125,
+        "weight_prep_ms": 0.22030322265625,
+        "functional_call_ms": 0.20547705078125,
+        "python_dispatcher_ms": 1.955205322265625,
+        "kernel_ms": 2.930720947265625,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988364128.108,
+        "host_ms": 2.6600029296875,
+        "launch_ms": 0.28589697265625,
+        "weight_prep_ms": 0.226523193359375,
+        "functional_call_ms": 0.202010009765625,
+        "python_dispatcher_ms": 1.94557275390625,
+        "kernel_ms": 2.922040771484375,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988374319.14,
+        "host_ms": 2.715322998046875,
+        "launch_ms": 0.28277197265625,
+        "weight_prep_ms": 0.23245263671875,
+        "functional_call_ms": 0.2101259765625,
+        "python_dispatcher_ms": 1.989972412109375,
+        "kernel_ms": 2.92038330078125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988384657.694,
+        "host_ms": 2.7579990234375,
+        "launch_ms": 0.339876220703125,
+        "weight_prep_ms": 0.22993212890625,
+        "functional_call_ms": 0.205571044921875,
+        "python_dispatcher_ms": 1.98261962890625,
+        "kernel_ms": 2.924735107421875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988394861.026,
+        "host_ms": 2.67581103515625,
+        "launch_ms": 0.279708740234375,
+        "weight_prep_ms": 0.219508056640625,
+        "functional_call_ms": 0.200412109375,
+        "python_dispatcher_ms": 1.97618212890625,
+        "kernel_ms": 2.91935546875,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 34,
+          "cudaLaunchKernel": 61
+        }
+      },
+      {
+        "kind": "recompute",
+        "tid": 67237,
+        "start_us": 1147988405249.567,
+        "host_ms": 2.495076904296875,
+        "launch_ms": 0.232592041015625,
+        "weight_prep_ms": 0.15385693359375,
+        "functional_call_ms": 0.216630126953125,
+        "python_dispatcher_ms": 1.891997802734375,
+        "kernel_ms": 2.926366455078125,
+        "launches": {
+          "cudaStreamWaitEvent": 2,
+          "cudaEventRecordWithFlags": 2,
+          "cudaMemcpyAsync": 5,
+          "cudaLaunchKernel": 61
+        }
+      }
+    ],
+    "layer_backwards": [
+      {
+        "tid": 67237,
+        "start_us": 1147986280356.362,
+        "host_ms": 12.585214111328124,
+        "launch_ms": 8.670439697265625,
+        "rest_ms": 3.9147744140625,
+        "kernel_ms": 4.672221923828125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986303043.08,
+        "host_ms": 19.89908203125,
+        "launch_ms": 16.769742431640626,
+        "rest_ms": 3.129339599609375,
+        "kernel_ms": 4.93234521484375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986332679.621,
+        "host_ms": 19.814700927734375,
+        "launch_ms": 9.693935302734374,
+        "rest_ms": 10.120765625,
+        "kernel_ms": 4.92018896484375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986362918.867,
+        "host_ms": 19.882180908203125,
+        "launch_ms": 9.70863232421875,
+        "rest_ms": 10.173548583984376,
+        "kernel_ms": 4.926646728515625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986393208.082,
+        "host_ms": 19.7575771484375,
+        "launch_ms": 16.7125263671875,
+        "rest_ms": 3.04505078125,
+        "kernel_ms": 4.918906982421875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986423453.766,
+        "host_ms": 8.4286640625,
+        "launch_ms": 5.080704833984375,
+        "rest_ms": 3.347959228515625,
+        "kernel_ms": 4.92191943359375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986447084.98,
+        "host_ms": 7.100093994140625,
+        "launch_ms": 3.977922607421875,
+        "rest_ms": 3.12217138671875,
+        "kernel_ms": 4.924985595703125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986457040.577,
+        "host_ms": 7.591804931640625,
+        "launch_ms": 4.47104052734375,
+        "rest_ms": 3.120764404296875,
+        "kernel_ms": 4.92847509765625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986467424.946,
+        "host_ms": 7.588740966796875,
+        "launch_ms": 4.52465625,
+        "rest_ms": 3.064084716796875,
+        "kernel_ms": 4.9249287109375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986477883.25,
+        "host_ms": 7.5537099609375,
+        "launch_ms": 4.452857177734375,
+        "rest_ms": 3.100852783203125,
+        "kernel_ms": 4.9323505859375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986488217.084,
+        "host_ms": 7.727117919921875,
+        "launch_ms": 4.599136962890625,
+        "rest_ms": 3.12798095703125,
+        "kernel_ms": 4.92968212890625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986498668.186,
+        "host_ms": 7.453719970703125,
+        "launch_ms": 4.455312744140625,
+        "rest_ms": 2.9984072265625,
+        "kernel_ms": 4.926332275390625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986508871.894,
+        "host_ms": 7.610677978515625,
+        "launch_ms": 4.651906494140625,
+        "rest_ms": 2.958771484375,
+        "kernel_ms": 4.92438134765625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986519219.067,
+        "host_ms": 7.603781982421875,
+        "launch_ms": 4.56106787109375,
+        "rest_ms": 3.042714111328125,
+        "kernel_ms": 4.93237255859375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986529567.463,
+        "host_ms": 7.745876220703125,
+        "launch_ms": 4.73517578125,
+        "rest_ms": 3.010700439453125,
+        "kernel_ms": 4.923674072265625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986539905.826,
+        "host_ms": 7.615531982421875,
+        "launch_ms": 4.61152392578125,
+        "rest_ms": 3.004008056640625,
+        "kernel_ms": 4.9358056640625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986550167.058,
+        "host_ms": 7.6417041015625,
+        "launch_ms": 4.601596435546875,
+        "rest_ms": 3.040107666015625,
+        "kernel_ms": 4.9198974609375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986560402.677,
+        "host_ms": 7.6688271484375,
+        "launch_ms": 4.654950927734375,
+        "rest_ms": 3.013876220703125,
+        "kernel_ms": 4.92752001953125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986570696.006,
+        "host_ms": 7.594166015625,
+        "launch_ms": 4.669896484375,
+        "rest_ms": 2.92426953125,
+        "kernel_ms": 4.93017236328125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986580881.572,
+        "host_ms": 7.509337158203125,
+        "launch_ms": 4.377942138671875,
+        "rest_ms": 3.13139501953125,
+        "kernel_ms": 4.93208935546875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986591114.247,
+        "host_ms": 7.714986083984375,
+        "launch_ms": 4.798443359375,
+        "rest_ms": 2.916542724609375,
+        "kernel_ms": 4.927004150390625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986601526.125,
+        "host_ms": 7.4676630859375,
+        "launch_ms": 4.556614990234375,
+        "rest_ms": 2.911048095703125,
+        "kernel_ms": 4.930137451171875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986611705.193,
+        "host_ms": 7.53402099609375,
+        "launch_ms": 4.61790234375,
+        "rest_ms": 2.91611865234375,
+        "kernel_ms": 4.93430224609375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986621990.759,
+        "host_ms": 7.51410986328125,
+        "launch_ms": 4.64751416015625,
+        "rest_ms": 2.866595703125,
+        "kernel_ms": 4.923234130859375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986632204.0,
+        "host_ms": 7.6829609375,
+        "launch_ms": 4.65198388671875,
+        "rest_ms": 3.03097705078125,
+        "kernel_ms": 4.933022705078125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986642536.364,
+        "host_ms": 7.620906982421875,
+        "launch_ms": 4.64910009765625,
+        "rest_ms": 2.971806884765625,
+        "kernel_ms": 4.922202880859375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986652808.355,
+        "host_ms": 7.52106201171875,
+        "launch_ms": 4.632837158203125,
+        "rest_ms": 2.888224853515625,
+        "kernel_ms": 4.928702392578125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986662979.584,
+        "host_ms": 7.545386962890625,
+        "launch_ms": 4.638085205078125,
+        "rest_ms": 2.9073017578125,
+        "kernel_ms": 4.93362255859375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986673156.503,
+        "host_ms": 7.29426904296875,
+        "launch_ms": 3.8494677734375,
+        "rest_ms": 3.44480126953125,
+        "kernel_ms": 4.929756591796875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986683466.615,
+        "host_ms": 7.71066796875,
+        "launch_ms": 4.660551513671875,
+        "rest_ms": 3.050116455078125,
+        "kernel_ms": 4.93125830078125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147986693896.836,
+        "host_ms": 7.80522705078125,
+        "launch_ms": 4.806555908203125,
+        "rest_ms": 2.998671142578125,
+        "kernel_ms": 4.923196533203125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987128775.523,
+        "host_ms": 12.4770009765625,
+        "launch_ms": 9.35605419921875,
+        "rest_ms": 3.12094677734375,
+        "kernel_ms": 4.66361279296875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987151394.444,
+        "host_ms": 19.925,
+        "launch_ms": 16.83131884765625,
+        "rest_ms": 3.09368115234375,
+        "kernel_ms": 4.910650390625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987181195.446,
+        "host_ms": 20.000416015625,
+        "launch_ms": 9.443488037109375,
+        "rest_ms": 10.556927978515626,
+        "kernel_ms": 4.922779296875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987212012.09,
+        "host_ms": 19.913135986328125,
+        "launch_ms": 9.6506181640625,
+        "rest_ms": 10.262517822265625,
+        "kernel_ms": 4.921662841796875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987242463.505,
+        "host_ms": 19.781546875,
+        "launch_ms": 16.655005859375,
+        "rest_ms": 3.126541015625,
+        "kernel_ms": 4.934720947265625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987272767.873,
+        "host_ms": 8.688904052734374,
+        "launch_ms": 5.3230166015625,
+        "rest_ms": 3.365887451171875,
+        "kernel_ms": 4.929337890625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987296589.115,
+        "host_ms": 6.628282958984375,
+        "launch_ms": 3.3954453125,
+        "rest_ms": 3.232837646484375,
+        "kernel_ms": 4.9335322265625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987306282.153,
+        "host_ms": 6.646439208984375,
+        "launch_ms": 3.47141845703125,
+        "rest_ms": 3.175020751953125,
+        "kernel_ms": 4.923576904296875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987317135.478,
+        "host_ms": 7.996846923828125,
+        "launch_ms": 4.93526025390625,
+        "rest_ms": 3.061586669921875,
+        "kernel_ms": 4.92671728515625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987327812.958,
+        "host_ms": 7.511673095703125,
+        "launch_ms": 4.518827392578125,
+        "rest_ms": 2.992845703125,
+        "kernel_ms": 4.931158935546875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987338067.164,
+        "host_ms": 7.680402099609375,
+        "launch_ms": 4.57858935546875,
+        "rest_ms": 3.101812744140625,
+        "kernel_ms": 4.927585693359375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987348367.086,
+        "host_ms": 7.370307861328125,
+        "launch_ms": 4.38543994140625,
+        "rest_ms": 2.984867919921875,
+        "kernel_ms": 4.9338515625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987358486.019,
+        "host_ms": 7.68939990234375,
+        "launch_ms": 4.681768798828125,
+        "rest_ms": 3.007631103515625,
+        "kernel_ms": 4.9322783203125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987368771.133,
+        "host_ms": 7.618217041015625,
+        "launch_ms": 4.646630126953125,
+        "rest_ms": 2.9715869140625,
+        "kernel_ms": 4.92505419921875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987379023.628,
+        "host_ms": 7.628823974609375,
+        "launch_ms": 4.619005859375,
+        "rest_ms": 3.009818115234375,
+        "kernel_ms": 4.93116552734375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987389300.351,
+        "host_ms": 7.55344287109375,
+        "launch_ms": 4.51077099609375,
+        "rest_ms": 3.042671875,
+        "kernel_ms": 4.929724853515625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987399548.52,
+        "host_ms": 7.579593994140625,
+        "launch_ms": 4.580527099609375,
+        "rest_ms": 2.99906689453125,
+        "kernel_ms": 4.921080810546875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987409729.578,
+        "host_ms": 7.637717041015625,
+        "launch_ms": 4.659718505859375,
+        "rest_ms": 2.97799853515625,
+        "kernel_ms": 4.92719384765625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987419997.424,
+        "host_ms": 7.65477197265625,
+        "launch_ms": 4.6216279296875,
+        "rest_ms": 3.03314404296875,
+        "kernel_ms": 4.932245361328125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987430237.998,
+        "host_ms": 7.5857978515625,
+        "launch_ms": 4.6077978515625,
+        "rest_ms": 2.978,
+        "kernel_ms": 4.9223349609375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987440415.998,
+        "host_ms": 7.68572900390625,
+        "launch_ms": 4.66278515625,
+        "rest_ms": 3.02294384765625,
+        "kernel_ms": 4.9335,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987450662.017,
+        "host_ms": 7.528421875,
+        "launch_ms": 4.55186767578125,
+        "rest_ms": 2.97655419921875,
+        "kernel_ms": 4.93522607421875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987460859.274,
+        "host_ms": 7.458184814453125,
+        "launch_ms": 4.533899169921875,
+        "rest_ms": 2.92428564453125,
+        "kernel_ms": 4.936572998046875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987470983.568,
+        "host_ms": 7.514677001953125,
+        "launch_ms": 4.6224462890625,
+        "rest_ms": 2.892230712890625,
+        "kernel_ms": 4.924762451171875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987481148.923,
+        "host_ms": 7.662531005859375,
+        "launch_ms": 4.564858154296875,
+        "rest_ms": 3.0976728515625,
+        "kernel_ms": 4.92997509765625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987491448.644,
+        "host_ms": 7.603843994140625,
+        "launch_ms": 4.631726318359375,
+        "rest_ms": 2.97211767578125,
+        "kernel_ms": 4.928384033203125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987501736.677,
+        "host_ms": 7.52301513671875,
+        "launch_ms": 4.543671142578125,
+        "rest_ms": 2.979343994140625,
+        "kernel_ms": 4.9272607421875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987511925.669,
+        "host_ms": 7.44230810546875,
+        "launch_ms": 4.539923828125,
+        "rest_ms": 2.90238427734375,
+        "kernel_ms": 4.928847900390625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987522070.81,
+        "host_ms": 7.52648095703125,
+        "launch_ms": 4.62367529296875,
+        "rest_ms": 2.9028056640625,
+        "kernel_ms": 4.93596142578125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987532289.625,
+        "host_ms": 7.495863037109375,
+        "launch_ms": 4.56700048828125,
+        "rest_ms": 2.928862548828125,
+        "kernel_ms": 4.929043212890625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987542478.459,
+        "host_ms": 7.727787109375,
+        "launch_ms": 4.662694580078125,
+        "rest_ms": 3.065092529296875,
+        "kernel_ms": 4.923455810546875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147987979962.128,
+        "host_ms": 12.449294921875,
+        "launch_ms": 9.305603515625,
+        "rest_ms": 3.14369140625,
+        "kernel_ms": 4.672217529296875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988002600.889,
+        "host_ms": 19.68468017578125,
+        "launch_ms": 16.63835888671875,
+        "rest_ms": 3.0463212890625,
+        "kernel_ms": 4.926110595703125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988032146.48,
+        "host_ms": 19.840782958984374,
+        "launch_ms": 9.705515869140624,
+        "rest_ms": 10.13526708984375,
+        "kernel_ms": 4.91836767578125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988062433.455,
+        "host_ms": 19.885989013671875,
+        "launch_ms": 9.670256103515625,
+        "rest_ms": 10.21573291015625,
+        "kernel_ms": 4.93020263671875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988092726.845,
+        "host_ms": 19.883737060546874,
+        "launch_ms": 16.780781494140626,
+        "rest_ms": 3.10295556640625,
+        "kernel_ms": 4.931673828125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988122965.359,
+        "host_ms": 8.43957080078125,
+        "launch_ms": 5.429791259765625,
+        "rest_ms": 3.009779541015625,
+        "kernel_ms": 4.915934814453125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988146597.487,
+        "host_ms": 7.347951904296875,
+        "launch_ms": 4.36321533203125,
+        "rest_ms": 2.984736572265625,
+        "kernel_ms": 4.918615234375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988156550.284,
+        "host_ms": 7.674794921875,
+        "launch_ms": 4.654623779296875,
+        "rest_ms": 3.020171142578125,
+        "kernel_ms": 4.934971435546875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988166821.433,
+        "host_ms": 7.520222900390625,
+        "launch_ms": 4.559251220703125,
+        "rest_ms": 2.9609716796875,
+        "kernel_ms": 4.928512451171875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988176988.23,
+        "host_ms": 7.479739990234375,
+        "launch_ms": 4.54368017578125,
+        "rest_ms": 2.936059814453125,
+        "kernel_ms": 4.929306640625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988187116.135,
+        "host_ms": 7.54664599609375,
+        "launch_ms": 4.435155029296875,
+        "rest_ms": 3.111490966796875,
+        "kernel_ms": 4.917661376953125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988197506.609,
+        "host_ms": 7.563403076171875,
+        "launch_ms": 4.403950439453125,
+        "rest_ms": 3.15945263671875,
+        "kernel_ms": 4.927770263671875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988207991.85,
+        "host_ms": 7.50226708984375,
+        "launch_ms": 4.444623046875,
+        "rest_ms": 3.05764404296875,
+        "kernel_ms": 4.9216962890625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988218290.707,
+        "host_ms": 7.563258056640625,
+        "launch_ms": 4.52010791015625,
+        "rest_ms": 3.043150146484375,
+        "kernel_ms": 4.9292783203125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988228582.884,
+        "host_ms": 6.4293798828125,
+        "launch_ms": 3.294609375,
+        "rest_ms": 3.1347705078125,
+        "kernel_ms": 4.91827685546875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988239018.42,
+        "host_ms": 7.300487060546875,
+        "launch_ms": 3.84496533203125,
+        "rest_ms": 3.455521728515625,
+        "kernel_ms": 4.930845703125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988249578.994,
+        "host_ms": 7.91325390625,
+        "launch_ms": 4.6217861328125,
+        "rest_ms": 3.2914677734375,
+        "kernel_ms": 4.920447265625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988260438.716,
+        "host_ms": 7.76733984375,
+        "launch_ms": 4.57533935546875,
+        "rest_ms": 3.19200048828125,
+        "kernel_ms": 4.92309814453125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988270877.041,
+        "host_ms": 7.63906298828125,
+        "launch_ms": 4.444740966796875,
+        "rest_ms": 3.194322021484375,
+        "kernel_ms": 4.922524658203125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988281345.965,
+        "host_ms": 7.491742919921875,
+        "launch_ms": 4.356706787109375,
+        "rest_ms": 3.1350361328125,
+        "kernel_ms": 4.932289794921875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988291719.854,
+        "host_ms": 7.872190185546875,
+        "launch_ms": 4.7854345703125,
+        "rest_ms": 3.086755615234375,
+        "kernel_ms": 4.91676171875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988302224.608,
+        "host_ms": 7.56730322265625,
+        "launch_ms": 4.461667236328125,
+        "rest_ms": 3.105635986328125,
+        "kernel_ms": 4.930236572265625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988312532.039,
+        "host_ms": 7.65109716796875,
+        "launch_ms": 4.571903076171875,
+        "rest_ms": 3.079194091796875,
+        "kernel_ms": 4.92918017578125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988322817.739,
+        "host_ms": 7.590886962890625,
+        "launch_ms": 4.5386533203125,
+        "rest_ms": 3.052233642578125,
+        "kernel_ms": 4.931605712890625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988333115.198,
+        "host_ms": 7.563677978515625,
+        "launch_ms": 4.637359619140625,
+        "rest_ms": 2.926318359375,
+        "kernel_ms": 4.93084765625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988343338.087,
+        "host_ms": 7.724695068359375,
+        "launch_ms": 4.6390869140625,
+        "rest_ms": 3.085608154296875,
+        "kernel_ms": 4.918298583984375,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988353717.774,
+        "host_ms": 7.6313779296875,
+        "launch_ms": 4.632962158203125,
+        "rest_ms": 2.998415771484375,
+        "kernel_ms": 4.926206298828125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988364000.137,
+        "host_ms": 7.53743603515625,
+        "launch_ms": 4.569765380859375,
+        "rest_ms": 2.967670654296875,
+        "kernel_ms": 4.93273095703125,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988374181.285,
+        "host_ms": 7.614030029296875,
+        "launch_ms": 4.636875732421875,
+        "rest_ms": 2.977154296875,
+        "kernel_ms": 4.928771728515625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988384494.119,
+        "host_ms": 7.492321044921875,
+        "launch_ms": 4.349332275390625,
+        "rest_ms": 3.14298876953125,
+        "kernel_ms": 4.92866259765625,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      },
+      {
+        "tid": 67237,
+        "start_us": 1147988394728.501,
+        "host_ms": 7.723824951171875,
+        "launch_ms": 4.74456689453125,
+        "rest_ms": 2.979258056640625,
+        "kernel_ms": 4.92630029296875,
+        "launches": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        }
+      }
+    ],
+    "summary": {
+      "forward": {
+        "count": 96,
+        "host_ms": 2.8740870361328126,
+        "launch_ms": 0.29411132812499996,
+        "weight_prep_ms": 0.2124320068359375,
+        "functional_call_ms": 0.19095385742187498,
+        "python_dispatcher_ms": 2.018893310546875,
+        "kernel_ms": 2.9222666015625,
+        "launches_per_visit": {
+          "cudaEventRecordWithFlags": 2.0,
+          "cudaLaunchKernel": 62.0,
+          "cudaMemcpyAsync": 34.0,
+          "cudaStreamWaitEvent": 2.0
+        },
+        "launches_total": 100.0
+      },
+      "recompute": {
+        "count": 96,
+        "host_ms": 2.7172454833984374,
+        "launch_ms": 0.291343017578125,
+        "weight_prep_ms": 0.2247347412109375,
+        "functional_call_ms": 0.206037109375,
+        "python_dispatcher_ms": 1.9657489013671876,
+        "kernel_ms": 2.9211341552734376,
+        "launches_per_visit": {
+          "cudaEventRecordWithFlags": 2.0,
+          "cudaLaunchKernel": 61.0,
+          "cudaMemcpyAsync": 34.0,
+          "cudaStreamWaitEvent": 2.0
+        },
+        "launches_total": 99.0
+      },
+      "layer_backward": {
+        "count": 93,
+        "host_ms": 7.615531982421875,
+        "launch_ms": 4.6217861328125,
+        "rest_ms": 3.043150146484375,
+        "kernel_ms": 4.928384033203125,
+        "launches_per_visit": {
+          "cudaLaunchKernel": 113,
+          "cudaLaunchKernelExC": 6,
+          "cudaMemcpyAsync": 2
+        },
+        "launches_total": 121
+      }
+    },
+    "reconciliation": {
+      "step_ms": 2547.424141113281,
+      "visits_ms": 1176.558189453125,
+      "layer_backward_ms": 865.7895693359375,
+      "outside_ms": 484.512337890625,
+      "final_wait_ms": 0.016080078125,
+      "gap_ms": 20.54796435546875,
+      "gap_fraction": 0.00806617320761074,
+      "steps": [
+        {
+          "step_ms": 847.9677939453125,
+          "visits_ms": 388.4735544433594,
+          "layer_backward_ms": 289.24411694335936,
+          "outside_ms": 162.13192700195313,
+          "final_wait_ms": 0.005050048828125,
+          "gap_ms": 8.1131455078125,
+          "gap_fraction": 0.009567751942635379
+        },
+        {
+          "step_ms": 849.2005180664063,
+          "visits_ms": 392.7878322753906,
+          "layer_backward_ms": 288.1983671875,
+          "outside_ms": 161.98235791015625,
+          "final_wait_ms": 0.0059619140625,
+          "gap_ms": 6.225998779296875,
+          "gap_fraction": 0.007331600307396434
+        },
+        {
+          "step_ms": 850.2558291015625,
+          "visits_ms": 395.296802734375,
+          "layer_backward_ms": 288.34708520507814,
+          "outside_ms": 160.39805297851564,
+          "final_wait_ms": 0.005068115234375,
+          "gap_ms": 6.208820068359375,
+          "gap_fraction": 0.007302296386394707
+        }
+      ],
+      "tolerance": 0.05,
+      "ok": true
+    },
+    "memcpy_sources": {
+      "aten::clone > aten::copy_": 4.0
+    }
+  },
+  "notes": [
+    "device-to-device copies per visit, by the ops that issued them: 4 x aten::clone > aten::copy_",
+    "the 4 device-to-device copies per visit come from `result = result.clone()` in peft's LoRA Linear4bit forward (peft/tuners/lora/bnb.py line 533, peft 0.21.2), once each for q_proj, k_proj, v_proj and o_proj. They run in the call into the layer, inside functional_call, not in its own machinery."
+  ]
+}

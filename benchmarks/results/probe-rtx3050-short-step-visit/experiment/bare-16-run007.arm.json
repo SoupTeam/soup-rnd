@@ -1,0 +1,163 @@
+{
+  "arm": "bare-16-run007",
+  "round": 4,
+  "run": 7,
+  "label": "RTX 3050, synthetic",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads",
+    "gpu_power_limit",
+    "swap"
+  ],
+  "outcome": "ok",
+  "box_stamp_before": {
+    "unix_s": 1792006120.7365696,
+    "ram_available_bytes": 12416032768,
+    "commit_charge": {
+      "used_bytes": 8503308288,
+      "limit_bytes": 7914143744
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1792006144.4438016,
+    "ram_available_bytes": 12460584960,
+    "commit_charge": {
+      "used_bytes": 8503140352,
+      "limit_bytes": 7914143744
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 240 to 1950 MHz over 13 samples; clock event reasons seen: gpu_idle",
+    "samples": 13,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 240,
+      "median": 1740,
+      "max": 1950
+    },
+    "reasons_seen": {
+      "gpu_idle": 2
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 1",
+      "evidence": {
+        "sleep_offset_start_s": 6657.882424331,
+        "sleep_offset_end_s": 6657.882424237,
+        "suspend_count_start": 1,
+        "suspend_count_end": 1
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 13 power samples",
+      "evidence": {
+        "samples": 13,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 49840128 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/var/tmp/g7/shards",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 317783612928,
+        "disk_read_bytes_end": 324070186496,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 6236733440,
+        "foreign_read_bytes": 49840128,
+        "foreign_read_bytes_min": 49840128,
+        "foreign_read_bytes_max": 49840128,
+        "uninspectable_processes": 285
+      },
+      "readers": [
+        {
+          "pid": 26734,
+          "name": "claude",
+          "read_bytes": 48431104
+        },
+        {
+          "pid": 7013,
+          "name": "crashpad_handle",
+          "read_bytes": 409600
+        },
+        {
+          "pid": 5674,
+          "name": "gnome-shell",
+          "read_bytes": 122880
+        }
+      ],
+      "unattributed_bytes": 876544
+    },
+    "gpu_power_limit": {
+      "outcome": "ok",
+      "reason": "limit 89.69 W before and 90.00 W after the arm (within 80.00 to 95.00 W)",
+      "evidence": {
+        "power_limit_w_start": 89.69,
+        "power_limit_w_end": 90.0,
+        "expected_w": [
+          80.0,
+          95.0
+        ]
+      }
+    },
+    "swap": {
+      "outcome": "ok",
+      "reason": "no swap-in or swap-out during the arm",
+      "evidence": {
+        "swapped_in_pages": 0,
+        "swapped_out_pages": 0,
+        "counters_start": {
+          "pswpin": 603137,
+          "pswpout": 685622
+        },
+        "counters_end": {
+          "pswpin": 603137,
+          "pswpout": 685622
+        }
+      }
+    }
+  }
+}

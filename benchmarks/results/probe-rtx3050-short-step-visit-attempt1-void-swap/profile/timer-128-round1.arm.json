@@ -1,0 +1,168 @@
+{
+  "arm": "timer-128-round1",
+  "round": 1,
+  "run": 12,
+  "label": "RTX 3050, synthetic",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads",
+    "gpu_power_limit",
+    "swap"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1792005103.6130722,
+    "ram_available_bytes": 13390401536,
+    "commit_charge": {
+      "used_bytes": 8477384704,
+      "limit_bytes": 12209106944
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1792005127.74207,
+    "ram_available_bytes": 13435985920,
+    "commit_charge": {
+      "used_bytes": 8474984448,
+      "limit_bytes": 12209106944
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 457 to 1942 MHz over 13 samples; clock event reasons seen: gpu_idle",
+    "samples": 13,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 457,
+      "median": 1927,
+      "max": 1942
+    },
+    "reasons_seen": {
+      "gpu_idle": 2
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 1",
+      "evidence": {
+        "sleep_offset_start_s": 6657.882424348001,
+        "sleep_offset_end_s": 6657.882424254,
+        "suspend_count_start": 1,
+        "suspend_count_end": 1
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 14 power samples",
+      "evidence": {
+        "samples": 14,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 38633472 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/var/tmp/g7/shards",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 105301904896,
+        "disk_read_bytes_end": 108976094720,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 3635556352,
+        "foreign_read_bytes": 38633472,
+        "foreign_read_bytes_min": 38633472,
+        "foreign_read_bytes_max": 38633472,
+        "uninspectable_processes": 286
+      },
+      "readers": [
+        {
+          "pid": 26734,
+          "name": "claude",
+          "read_bytes": 24526848
+        },
+        {
+          "pid": 26177,
+          "name": "ghostty",
+          "read_bytes": 8450048
+        },
+        {
+          "pid": 5674,
+          "name": "gnome-shell",
+          "read_bytes": 2523136
+        },
+        {
+          "pid": 19008,
+          "name": "gjs",
+          "read_bytes": 2203648
+        }
+      ],
+      "unattributed_bytes": 929792
+    },
+    "gpu_power_limit": {
+      "outcome": "ok",
+      "reason": "limit 87.43 W before and 90.00 W after the arm (within 80.00 to 95.00 W)",
+      "evidence": {
+        "power_limit_w_start": 87.43,
+        "power_limit_w_end": 90.0,
+        "expected_w": [
+          80.0,
+          95.0
+        ]
+      }
+    },
+    "swap": {
+      "outcome": "void",
+      "reason": "the machine swapped in 4038 pages and swapped out 3829 pages during the arm",
+      "evidence": {
+        "swapped_in_pages": 4038,
+        "swapped_out_pages": 3829,
+        "counters_start": {
+          "pswpin": 400385,
+          "pswpout": 674461
+        },
+        "counters_end": {
+          "pswpin": 404423,
+          "pswpout": 678290
+        }
+      }
+    }
+  }
+}
