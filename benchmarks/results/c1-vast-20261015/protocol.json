@@ -1,0 +1,57 @@
+{
+  "study": "C1 batch control on Vast RTX3090; prospective new series",
+  "scope": "Synthetic 70B-shaped NF4 fixture; guest 24 GiB GPU / ~30 GB RAM. Not reference 8 GB GPU or physical NVMe certification. Previous Colab batch results were observed and are excluded from new statistics.",
+  "fixture": {
+    "bytes": 36388404614,
+    "layers": 80,
+    "parameters": 68989231104,
+    "certificate_sha256": "03ef0c3e27384993d59329afc8d064d658b8c3925ac5c3b07d9135ec693fa07b"
+  },
+  "recipe": {
+    "sequence_length": 512,
+    "batches": [
+      1,
+      2,
+      3
+    ],
+    "rank": 8,
+    "alpha": 16,
+    "targets": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj"
+    ],
+    "optimizer": "PagedAdamW8bit",
+    "lr": 0.0001,
+    "model_seed": 3,
+    "input_seed": 17,
+    "warmup_steps": 1,
+    "measured_steps": 3,
+    "tier": "disk",
+    "buffers": 2,
+    "read_ahead": 2,
+    "double_quant": true
+  },
+  "schedule": "For rounds 1..5, run pairs 1,2 then 1,3 then 2,3. Each pair is A-B-B-A in four fresh processes. Inspect first block before continuing; never concurrent GPU jobs or file transfers.",
+  "metrics": "Per arm median synchronized step seconds; throughput=batch*512/median seconds. Also retain all step times, peak PyTorch allocated/reserved VRAM, sampled device VRAM and sampled process RSS; do not equate them. Report input tokens (not shifted-label tokens).",
+  "validity": "All required F1 suspend/power/foreign_reads must be ok. Unknown/void/failure stops execution; retain whole block and exclude it from accepted statistics. Replace under a new ID only after cause review. No selective arm reuse. Same boot/GPU/fixture/code. Direct IO must be true; otherwise no disk-tier conclusion. GPU peer contamination or unexplained throttling requires review, not automatic acceptance.",
+  "oom": "Retain CUDA OOM and logs; do not call it a timing sample. Verify no competing workload/config error before declaring batch infeasible. Comparisons involving that batch stop; complete remaining feasible pairs. Non-OOM errors are not infeasibility evidence.",
+  "repetitions": "Use pinned F1 blocks_to_add separately per pair on per-arm median step seconds, only complete valid blocks. Five pilot blocks per pair; N=max(2,ceil(7.85*(pooled_sigma/(0.10*mean_A))**2)); pilot counts. Reach max(5,N), recompute once and top up once. Insufficient budget -> incomplete/no final verdict, never relax rule.",
+  "decision": "Among feasible batches with complete required comparisons, rank by mean per-arm throughput pooled across accepted blocks; report pair-specific ratios and variability. Highest observed throughput is the operational winner on this box, not a significance or general-hardware claim. Gains below 10% described as below design target; inconsistent pair rankings -> no unique recommendation.",
+  "limits": "No quality claim from synthetic data. Guest direct IO may still hit hypervisor/host cache. Guest disk controls do not prove physical-host isolation. GPU24GB results do not establish batch fit at8GB. No power/clock isolation claim beyond recorded sensors.",
+  "execution_caps": "Each arm 40 min, each block 3 hours, no automatic long series. On timeout stop and report incomplete; timers do not stop billing.",
+  "preregistration": "Commit this protocol and source manifest before first new Vast C1 training arm. Supply actual full commit SHA to runner and preserve Git evidence. A supplied SHA alone is not independently verified by remote runner.",
+  "source_hashes": {
+    "run_overlay_c1.py": "c4ed32b74bcc178c46183957c77e7c1ce50fdbf7db6c8baec8ece32993a257f0",
+    "c1_overlay_control.py": "d22ea037b143ffd317aa5b283d10a87f937125ca727bd06998a5db0b0cf76e74",
+    "diagnose_c1_overlay.py": "957b1bb74ce365376ec2fab270dd526112c56a8a3ee30d8e9fe6703fee8f344c",
+    "block.py": "a62d9103b4a4cf12bb00fae4ec55ea8c7b8c0ba2d992427dda3341b523a41e3d",
+    "run.py": "9a50e4efa58b1785315b66888bdbda27b40527a73bca9b789fa07e97145a529f",
+    "arm_validity.py": "ae7e6e5f4d4df460202c8229deb167c43a350f41538c25dc571f21a5791190f9",
+    "manifest.json": "c6b9f22092106fc370268cfe6b671634bd664daed6c1e1be0380c5af56730cb9",
+    "c1/full_pilot.py": "fa617b6501568e785b2a672eb3f6e81c0bef58866b080cca28530936b4a12738",
+    "c1/chunk_cache.py": "97e45b230310d0c387fcc91ef9f1f843b02ecae438c5dc1ab9633668f31a103b",
+    "c1/stream_probe.py": "9d563611a7963ebed025ca14d4ecd5fae0f86fc1571d6bc7b643116a0e68b46b"
+  }
+}
