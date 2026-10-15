@@ -10,6 +10,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV="$HOME/.venvs/f3-unsloth"
 DATA="$HOME/f3-data/qwen2.5-0.5b"
 
+command -v gcc >/dev/null || { apt-get update -qq; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential; }
 command -v uv >/dev/null || pip install -q uv
 mkdir -p "$HOME/.venvs"
 uv venv --python 3.12 "$VENV"
