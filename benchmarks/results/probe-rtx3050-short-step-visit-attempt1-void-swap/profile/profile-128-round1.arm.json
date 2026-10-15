@@ -1,0 +1,163 @@
+{
+  "arm": "profile-128-round1",
+  "round": 1,
+  "run": 13,
+  "label": "RTX 3050, synthetic",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads",
+    "gpu_power_limit",
+    "swap"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1792005127.8271804,
+    "ram_available_bytes": 13414408192,
+    "commit_charge": {
+      "used_bytes": 8475041792,
+      "limit_bytes": 12209106944
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1792005145.9605193,
+    "ram_available_bytes": 13379588096,
+    "commit_charge": {
+      "used_bytes": 8475115520,
+      "limit_bytes": 12209106944
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 277 to 1942 MHz over 10 samples; clock event reasons seen: gpu_idle",
+    "samples": 10,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 277,
+      "median": 1927.0,
+      "max": 1942
+    },
+    "reasons_seen": {
+      "gpu_idle": 2
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 1",
+      "evidence": {
+        "sleep_offset_start_s": 6657.88242429,
+        "sleep_offset_end_s": 6657.882424331001,
+        "suspend_count_start": 1,
+        "suspend_count_end": 1
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 11 power samples",
+      "evidence": {
+        "samples": 11,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 3190784 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/var/tmp/g7/shards",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 108976094720,
+        "disk_read_bytes_end": 110478523904,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 1499238400,
+        "foreign_read_bytes": 3190784,
+        "foreign_read_bytes_min": 3190784,
+        "foreign_read_bytes_max": 3190784,
+        "uninspectable_processes": 286
+      },
+      "readers": [
+        {
+          "pid": 26734,
+          "name": "claude",
+          "read_bytes": 2949120
+        },
+        {
+          "pid": 5674,
+          "name": "gnome-shell",
+          "read_bytes": 98304
+        },
+        {
+          "pid": 26177,
+          "name": "ghostty",
+          "read_bytes": 12288
+        }
+      ],
+      "unattributed_bytes": 131072
+    },
+    "gpu_power_limit": {
+      "outcome": "ok",
+      "reason": "limit 90.00 W before and 89.38 W after the arm (within 80.00 to 95.00 W)",
+      "evidence": {
+        "power_limit_w_start": 90.0,
+        "power_limit_w_end": 89.38,
+        "expected_w": [
+          80.0,
+          95.0
+        ]
+      }
+    },
+    "swap": {
+      "outcome": "void",
+      "reason": "the machine swapped in 97 pages and swapped out 272 pages during the arm",
+      "evidence": {
+        "swapped_in_pages": 97,
+        "swapped_out_pages": 272,
+        "counters_start": {
+          "pswpin": 404423,
+          "pswpout": 678290
+        },
+        "counters_end": {
+          "pswpin": 404520,
+          "pswpout": 678562
+        }
+      }
+    }
+  }
+}
