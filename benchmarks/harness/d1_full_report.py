@@ -13,6 +13,38 @@ from d1_full_study import cases, records
 from d1_rules import settings_digest, summarize, write_new_json
 from rich.console import Console
 
+DATA_SHA256 = "65025efbd8b11960995d241fb7bb164c9d448abcb2085b9bb66ba2c74dfd8d22"
+
+
+def qa_contract(case: dict, row: dict) -> None:
+    settings = row["settings"]
+    expected = {
+        "steps": 256,
+        "warmup": 20,
+        "seq": 1024,
+        "seed": 842,
+        "rank": 16,
+        "lr": 2e-4,
+        "dtype": "bfloat16",
+        "dataset_sha256": DATA_SHA256,
+    }
+    if any(settings.get(name) != value for name, value in expected.items()) or (
+        row["settings_sha256"] != settings_digest(settings)
+    ):
+        raise ValueError("QA settings differ from the fixed study")
+    if row["updates"] != 276 or row["warmup_updates"] != 20 or len(row["losses"]) != 276:
+        raise ValueError("thermal conditioning changed the measured QA update budget")
+    if case.get("preheat_steps"):
+        elapsed = row.get("thermal_prelude_elapsed_seconds", 0)
+        total = row.get("fresh_arm_elapsed_seconds", 0)
+        if (
+            not math.isfinite(elapsed)
+            or elapsed <= 0
+            or not math.isfinite(total)
+            or total <= elapsed
+        ):
+            raise ValueError("missing separate thermal-prelude/fresh-arm elapsed time")
+
 
 def projection_contract(case: dict, row: dict) -> None:
     expected = {key: case[key] for key in ("dtype", "m", "n", "k", "steps", "warmup")}
@@ -46,6 +78,9 @@ def describe(case: dict, rows: list[dict]) -> dict:
         # contribute to reported timings and the numerical timing contract.
         for row in accepted:
             projection_contract(case, row)
+    elif case["kind"] == "train":
+        for row in accepted:
+            qa_contract(case, row)
     result["accepted_arms"] = len(accepted)
     result["all_attempt_clock_range_mhz"] = [
         min((value for row in rows for value in row.get("clock_sm_mhz", [])), default=None),

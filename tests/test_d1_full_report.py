@@ -56,3 +56,37 @@ def test_split_timing_contract_rejects_missing_events_and_changed_warmup():
     row["actual_warmup_seconds"] = 14.9
     with pytest.raises(ValueError, match="warm-up"):
         projection_contract(case, row)
+
+
+def test_conditioning_is_separate_from_the_fixed_qa_update_budget():
+    from d1_full_report import DATA_SHA256, qa_contract
+    from d1_full_study import cases
+    from d1_rules import settings_digest
+
+    settings = {
+        "steps": 256,
+        "warmup": 20,
+        "seq": 1024,
+        "seed": 842,
+        "rank": 16,
+        "lr": 2e-4,
+        "dtype": "bfloat16",
+        "dataset_sha256": DATA_SHA256,
+    }
+    row = {
+        "settings": settings,
+        "settings_sha256": settings_digest(settings),
+        "updates": 276,
+        "warmup_updates": 20,
+        "losses": [1.0] * 276,
+        "thermal_prelude_elapsed_seconds": 60.0,
+        "fresh_arm_elapsed_seconds": 160.0,
+    }
+    qa_contract(cases()[1], row)
+    row["updates"] += 200
+    with pytest.raises(ValueError, match="update budget"):
+        qa_contract(cases()[1], row)
+    row["updates"] = 276
+    row["thermal_prelude_elapsed_seconds"] = 0
+    with pytest.raises(ValueError, match="elapsed time"):
+        qa_contract(cases()[1], row)
