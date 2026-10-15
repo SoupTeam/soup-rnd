@@ -880,8 +880,47 @@ def run_blocks(args: argparse.Namespace) -> dict:
     monitor = GPUMonitor()
     for block in range(args.block_start, args.block_start + args.blocks):
         for run, arm in enumerate("ABBA"):
+            arm_started = time.perf_counter()
             output = args.output / f"block-{block:03d}-run-{run}-{arm}"
             output.mkdir(parents=True, exist_ok=False)
+            preheat_seconds = 0.0
+            if args.preheat_steps:
+                initial_gpu = monitor.sample()
+                write_new_json(output / "gpu-before-preheat.json", initial_gpu)
+                if (
+                    not initial_gpu["available"]
+                    or initial_gpu.get("compute")
+                    or initial_gpu.get("graphics")
+                ):
+                    raise RuntimeError("GPU occupied or unknown before thermal prelude")
+                preheat = [
+                    sys.executable,
+                    str(Path(__file__)),
+                    "ablation",
+                    "--route",
+                    "baseline",
+                    "--weights",
+                    str(args.weights),
+                    "--seq",
+                    str(args.seq),
+                    "--dtype",
+                    args.dtype,
+                    "--steps",
+                    str(args.preheat_steps),
+                    "--warmup",
+                    "20",
+                    "--output",
+                    str(output / "thermal-prelude"),
+                ]
+                write_new_json(output / "thermal-prelude-command.json", preheat)
+                began = time.perf_counter()
+                with (output / "thermal-prelude.log").open("x", encoding="utf-8") as log:
+                    completed = subprocess.run(
+                        preheat, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT
+                    )
+                preheat_seconds = time.perf_counter() - began
+                if completed.returncode:
+                    raise RuntimeError("thermal prelude failed; no primary training arm launched")
             command = [
                 sys.executable,
                 str(Path(__file__)),
@@ -964,6 +1003,8 @@ def run_blocks(args: argparse.Namespace) -> dict:
                 artifact=str(record_path.relative_to(args.output)),
                 peer_lifecycle={"before": before, "during": peer_samples, "after": after},
                 peers_clean=peer_check(before, peer_samples, after, result.get("gpu_uuid")),
+                thermal_prelude_elapsed_seconds=preheat_seconds,
+                fresh_arm_elapsed_seconds=time.perf_counter() - arm_started,
             )
             if (
                 process.returncode
@@ -1061,6 +1102,7 @@ def parser() -> argparse.ArgumentParser:
             )
             command.add_argument("--blocks", type=int, default=5)
             command.add_argument("--block-start", type=int, default=0)
+            command.add_argument("--preheat-steps", type=int, default=0)
         if name in ("train", "ablation", "run"):
             command.add_argument("--weights", type=Path, required=name != "run")
             command.add_argument("--data", type=Path)
@@ -1091,6 +1133,10 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--warmup must be nonnegative")
     if hasattr(args, "block_start") and args.block_start < 0:
         raise ValueError("--block-start must be nonnegative")
+    if hasattr(args, "preheat_steps") and (
+        args.preheat_steps < 0 or args.preheat_steps and kind != "train"
+    ):
+        raise ValueError("--preheat-steps must be nonnegative and is only allowed for train")
     if hasattr(args, "warmup_seconds"):
         if not math.isfinite(args.warmup_seconds) or args.warmup_seconds < 0:
             raise ValueError("--warmup-seconds must be finite and nonnegative")

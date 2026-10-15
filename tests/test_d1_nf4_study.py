@@ -259,3 +259,14 @@ def test_time_based_warm_up_cannot_silently_add_optimizer_updates(tmp_path):
 def test_summary_exposes_accepted_block_ids_for_unambiguous_replay():
     comparison = rules().summarize(clean_blocks())["comparisons"][0]
     assert comparison["accepted_block_ids"] == [0, 1, 2, 3, 4]
+
+
+def test_thermal_prelude_cannot_be_added_to_a_projection_or_negative(tmp_path):
+    from d1_nf4_study import parser, validate_args
+
+    args = parser().parse_args(["run", "--output", str(tmp_path), "--preheat-steps", "200"])
+    with pytest.raises(ValueError, match="only allowed for train"):
+        validate_args(args)
+    args.preheat_steps = -1
+    with pytest.raises(ValueError, match="nonnegative"):
+        validate_args(args)

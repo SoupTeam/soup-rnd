@@ -38,6 +38,7 @@ def cases() -> list[dict]:
             "seq": 1024,
             "steps": 256,
             "warmup": 20,
+            "preheat_steps": 200,
         },
     ]
     for dtype in ("float16", "bfloat16"):
@@ -55,7 +56,7 @@ def cases() -> list[dict]:
                             "k": inner,
                             "steps": 200,
                             "warmup": 20,
-                        "warmup_seconds": 15,
+                            "warmup_seconds": 15,
                         }
                     )
     return result
@@ -110,6 +111,7 @@ def run(args: argparse.Namespace) -> dict:
         "weights": str(args.weights),
         "data": str(args.data),
         "clock_policy": "provider stock clocks and power limit; >=15-second projection warm-up",
+        "thermal_policy": "independent 200-step synthetic training prelude before every QA arm",
     }
     plan_path = args.output / "plan.json"
     if plan_path.exists():
