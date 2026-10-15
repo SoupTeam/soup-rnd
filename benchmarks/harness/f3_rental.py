@@ -109,13 +109,14 @@ def cmd_observe() -> int:
 
 def cmd_c1(rate: float) -> int:
     WORKDIR.mkdir(parents=True, exist_ok=True)
-    control = [
-        f3_audit.ControlRun(
-            "unsloth",
-            json.loads((WORKDIR / "control-unsloth.json").read_text(encoding="utf-8")),
-            0.0,
-        )
-    ] if (WORKDIR / "control-unsloth.json").exists() else []
+    control = []
+    for path in f3_audit.CONTROL_PATHS:
+        file = WORKDIR / f"control-{path}.json"
+        if file.exists():
+            report = json.loads(file.read_text(encoding="utf-8"))
+            control.append(
+                f3_audit.ControlRun(path, report, float(report["provenance"]["weight_decay"]))
+            )
     specs = c1_specs()
 
     def runner(spec: f3_audit.ArmSpec, process: int) -> Dict[str, Any]:
