@@ -8,6 +8,12 @@ official authenticated instance list. There are no I numerical results.
 Keep its local allocation, daemon logs, image-change and release ledger.
 
 Replacement J rental: 56108892, machine 145857, NVIDIA A100 SXM4.
+Before numerical work the assigned device was verified as A100-SXM4-40GB,
+UUID `GPU-b0245e84-f202-902b-9331-f732ab021e57`, 108 SMs, exactly one CUDA
+device, torch `2.11.0+cu126`. Both original visibility variables were unset.
+The scoped 1200 MHz lock attempt was denied (exit 4); use unchanged provider
+clocks and retain the actual timed-work <=5% guard. The remote deadline guard's
+inherited per-instance credential and exact rental identity were verified.
 Use official Ubuntu 24.04, dedicated Python 3.12 venv and official torch
 2.11.0 CUDA 12.6 wheels, followed by the same pinned bitsandbytes 0.50.2,
 transformers 5.17.0, peft 0.20.0 and psutil 7.2.2 stack.
