@@ -1011,6 +1011,7 @@ def estimate_stream_store_bytes(
     dtype: str,
     quant: str = QUANT_NONE,
     double_quant: bool = True,
+    fp8_source: bool = False,
 ) -> int:
     """Scale an on-disk checkpoint size to the RAM store streaming will hold.
 
@@ -1020,11 +1021,18 @@ def estimate_stream_store_bytes(
     file size would refuse an 8B run on a 16.9 GB box — precisely the
     configuration this release exists to enable.
 
-    Deliberately coarse: it assumes the source is stored at ``dtype`` and
-    charges the NF4 rate to every parameter, while layernorms and (in the shard
-    set) the embeddings actually stay unquantised. That errs slightly LOW, which
-    is the safe direction — the authoritative check runs after sharding, on the
-    real shard sizes.
+    ``fp8_source`` is determined from the model's quantization_config before
+    materialization. Such sources store their dominant linear weights at one
+    byte per parameter, regardless of the target ``dtype``. Unquantised output
+    expands to the target dtype; NF4 output uses its own bytes-per-parameter.
+    Ordinary sources retain the historical dtype-based estimate.
+
+    Deliberately coarse: source headers, FP8 scale grids and mixed-dtype tensors
+    are counted as weight bytes. Under NF4 every parameter is charged the NF4
+    rate even though norms and embeddings stay unquantised. These effects can
+    over- or under-estimate a mixed checkpoint; there is no universal error
+    bound. The authoritative post-sharding checks still use actual shard sizes.
+    An underestimate is not a safety guarantee.
     """
     if quant not in SUPPORTED_STREAM_QUANTS:
         raise ValueError(
@@ -1034,9 +1042,10 @@ def estimate_stream_store_bytes(
     if source_bytes < 0:
         raise ValueError(f"source_bytes must be non-negative; got {source_bytes}")
     if quant == QUANT_NONE:
-        return int(source_bytes)
+        return int(source_bytes * dtype_bytes(dtype)) if fp8_source else int(source_bytes)
     per_param = NF4_BYTES_PER_PARAM if double_quant else NF4_BYTES_PER_PARAM_SINGLE
-    return int(source_bytes * per_param / dtype_bytes(dtype))
+    source_itemsize = 1 if fp8_source else dtype_bytes(dtype)
+    return int(source_bytes * per_param / source_itemsize)
 
 
 def estimate_stream_tokens_per_sec(params: int, effective_tflops: float) -> float:

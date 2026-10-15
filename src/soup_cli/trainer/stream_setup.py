@@ -668,8 +668,9 @@ class StreamingSetupMixin:
         # OFF and refuses an explicit true: with double-quant on, the codec fails
         # the preregistered per-block reconstruction gate on real FP8-sourced
         # weights. Same helper as the sharder, so the two cannot disagree.
-        from soup_cli.utils.fp8_source import stream_double_quant
+        from soup_cli.utils.fp8_source import is_block_fp8_model_config, stream_double_quant
 
+        fp8_source = is_block_fp8_model_config(model_config)
         double_quant = stream_double_quant(tcfg, model_config, quant=quant)
 
         adapter_plan = build_stream_adapter_plan(
@@ -726,6 +727,7 @@ class StreamingSetupMixin:
                 dtype=dtype,
                 quant=quant,
                 double_quant=double_quant,
+                fp8_source=fp8_source,
             )
             oq_shard_estimate = estimate_oq_stream_cache_bytes(
                 weights_plan.weights_dir,
@@ -783,7 +785,8 @@ class StreamingSetupMixin:
         if early_free_ram is not None:
             source_bytes = source_weight_bytes(weights_dir)
             store_estimate = estimate_stream_store_bytes(
-                source_bytes, dtype=dtype, quant=quant, double_quant=double_quant
+                source_bytes, dtype=dtype, quant=quant, double_quant=double_quant,
+                fp8_source=fp8_source,
             )
             # Qwen4's source size includes the PLE table, which the sharder
             # leaves external. Its exact RAM/disk decision is made from the
