@@ -1,0 +1,63 @@
+{
+  "experiment": "zero_copy_e2e_diagnostic_v1",
+  "status": "COMPLETE_DIAGNOSTIC",
+  "research_verdict": "NO VERDICT",
+  "original_mean_wall_seconds": 42.794653877965175,
+  "optimized_mean_wall_seconds": 35.26483889602241,
+  "end_to_end_speedup": 1.213521888024053,
+  "wall_seconds_saved": 7.5298149819427636,
+  "original_mean_epoch2_seconds": 0.5048020675021689,
+  "optimized_mean_epoch2_seconds": 0.5029336559819058,
+  "runs": [
+    {
+      "run": 1,
+      "mode": "A",
+      "full_wall_seconds": 41.873942966980394,
+      "epoch1_seconds": 1.4897090180311352,
+      "epoch2_seconds": 0.500195746019017,
+      "outside_step_seconds": 39.88403820293024,
+      "valid": true,
+      "cache_misses": 8,
+      "cache_hits": 8
+    },
+    {
+      "run": 2,
+      "mode": "B",
+      "full_wall_seconds": 37.14904619404115,
+      "epoch1_seconds": 1.7798537100316025,
+      "epoch2_seconds": 0.5047247659531422,
+      "outside_step_seconds": 34.8644677180564,
+      "valid": true,
+      "cache_misses": 8,
+      "cache_hits": 8
+    },
+    {
+      "run": 3,
+      "mode": "B",
+      "full_wall_seconds": 33.380631598003674,
+      "epoch1_seconds": 1.448900629999116,
+      "epoch2_seconds": 0.5011425460106693,
+      "outside_step_seconds": 31.43058842199389,
+      "valid": true,
+      "cache_misses": 8,
+      "cache_hits": 8
+    },
+    {
+      "run": 4,
+      "mode": "A",
+      "full_wall_seconds": 43.715364788949955,
+      "epoch1_seconds": 1.6050686939852312,
+      "epoch2_seconds": 0.5094083889853209,
+      "outside_step_seconds": 41.6008877059794,
+      "valid": true,
+      "cache_misses": 8,
+      "cache_hits": 8
+    }
+  ],
+  "limitations": [
+    "Two runs per implementation",
+    "Short eight-example diagnostic",
+    "Not the approved final ABBA128 experiment",
+    "Concurrent GPU activity between checks is not excluded"
+  ]
+}

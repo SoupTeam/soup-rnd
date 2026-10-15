@@ -138,7 +138,7 @@ def fingerprint_frozen_prefix(
                 digest.update(f"{prefix}.{name}".encode())
                 digest.update(str(value.dtype).encode())
                 digest.update(str(tuple(value.shape)).encode())
-                digest.update(value.view(torch.uint8).numpy().tobytes())
+                digest.update(memoryview(value.view(torch.uint8).numpy()))
 
     return digest.hexdigest()
 
