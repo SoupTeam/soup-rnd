@@ -12,6 +12,13 @@
 - Прежний K контроллер продолжен с контрольной точки после полного завершения
   текущего child, без повторения готовых сравнений. Операционная бюджетная
   ревизия: `d1-resource-budget-revision-20261015.md`; научные настройки прежние.
+- Позже K остановился после 26 принятых сравнений: FP16 M=8, N=14336, K=4096
+  dense/native нарушил прежний clock guard. Все пять ABBA-блоков этой ячейки
+  отклонены; повторять её или ослаблять критерий нельзя. До следующих запусков
+  зафиксирован `d1-coverage-continuation-20261015.md` (commit f5cdf85c).
+  Внешний `launch-k-coverage.py` на прежнем чистом source 87b3bc17 собирает
+  остальные независимые ячейки; coverage и acceptance учитываются раздельно.
+  Исходный `d1_full_report.py` не менялся и оставляет INCOMPLETE при NO_VERDICT.
 - Аренда **56108892**, machine 145857, NVIDIA A100-SXM4-40GB,
   UUID `GPU-b0245e84-f202-902b-9331-f732ab021e57`.
 - Цена с диском 100 GB: $0.6944444444/ч. Предыдущие наблюдавшиеся расходы $1.279;
@@ -42,10 +49,11 @@ K заново запускает correctness, GPU-регрессии и пол�
 Папки находятся в `C:\Users\esenb\.codex\worktrees\soup-d1-nf4-study`:
 
 - `cloud-a100-k-20261015`: текущие `lease.json`, SSH transport,
-  `progress-latest.json`, `finish_local.py`, `finish-resume1.log`,
-  `finish-resume1-error.log`. Read-only `watch_k_v2.py` следит за прогрессом.
-  Текущий exit marker — `setup-k-resume1.exit`; прежний `setup-k.exit`
-  относится к штатно заменённому родительскому контроллеру и сохранён как история.
+  `progress-latest.json`, `finish_local.py`, `finish-coverage.log`,
+  `finish-coverage-error.log`. Read-only `watch_k_v3.py` следит за прогрессом;
+  live unified exec session 73284. Текущий exit marker — `setup-k-coverage.exit`.
+  Прежний `setup-k-resume1.exit=1` относится к clock-остановке и не запускает
+  текущую выгрузку. Локальный finish перезапущен (launcher PID 8376).
 - `cloud-a100-j-20261015`: исходная аренда того же инстанса, GPU context,
   установка Ubuntu/Python/torch, диагностические логи и **активный локальный
   бюджетный guard `api_budget_v2.py`** (`guard-v2-last.json`). Старый guard/finish
@@ -57,6 +65,19 @@ K заново запускает correctness, GPU-регрессии и пол�
 
 На GPU: `/workspace/d1/source`, `/workspace/d1/results/full-k`,
 сохранённые `/workspace/d1/results/full-j` и `diagnostic-j`.
+Текущий лог — `/workspace/d1/results/full-k-coverage.log`; `progress.json`
+содержит `processed_cases`, `terminal_no_verdict_cases` и отдельно принятые
+`completed_cases`. `coverage-complete.json` означает только обработку всех
+98 ячеек, без глобального PASS. Validation перед запуском: 26 accepted reused,
+1 terminal not retried, 71 pending, 0 новых CUDA contexts в проверке контроллера.
+
+Снимок до продолжения сохранён локально как `d1-a100-k-before-coverage.tgz`:
+177,094,108 bytes, SHA-256
+`3ed056fd904cd44926a1a0cc369a33ccf6e7f53d4244c2d0c5a9cab85133caf8`.
+4,929 файлов, 10,989,497,459 logical bytes; архив скачан за 343.33 s восемью
+bounded range readers и проверен по общему SHA. Это ещё не materialization
+каждого файла. Итоговый fetch также использует bounded parallel ranges.
+Частичные прежние скачивания сохранены отдельно и не считаются доказательством.
 Remote guard с привязанным per-instance credential работает независимо от
 локального ноутбука и удаляет только свой инстанс по deadline. Приватный ключ SSH
 и мастер API-ключ остаются локальными, не копировать их на сервер.
@@ -95,3 +116,5 @@ native 241.1833 ms, forced 255.9017 ms, одинаковые allocator peaks и 
 38754323943 для измеряемого source 87b3bc17 завершён успешно, включая Ubuntu
 Python 3.12; остальные платформы/smoke были пропущены планом quick CI.
 Не выдавать это за полный cross-platform или финальный-head CUDA прогон.
+Для doc-head 9037f689 CI run 38765064152 также завершён успешно, включая Ubuntu
+Python 3.12. После новых документов нужно проверить актуальный CI отдельно.
