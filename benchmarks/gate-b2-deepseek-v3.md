@@ -300,3 +300,205 @@ tests/test_b2_deepseek_v3_stream.py::test_streamed_deepseek_v3_moe_lora_matches_
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 ======================= 72 passed, 20 warnings in 13.46s =======================
 ```
+
+## CUDA run: shared-expert LoRA and Kimi K2 modules
+
+2026-10-15, commit `3482d9cc` (clean tree), same machine and venv as above. Power limit checked
+first: current 80.00 W, default 80.00 W, so no cap. The run is the CUDA evidence for the
+`tests/test_b2_shared_expert_lora.py` and `tests/test_b2_kimi_k2.py` rows. CPU CI does not count
+for those rows.
+
+Command, from the repository root:
+
+```bash
+export CUBLAS_WORKSPACE_CONFIG=:4096:8 PYTHONPATH=$PWD
+~/.venvs/soup-rnd-cuda/bin/python -m pytest \
+  tests/test_b2_shared_expert_lora.py tests/test_b2_kimi_k2.py \
+  -m "gpu or not gpu" --no-cov -v -p no:cacheprovider
+```
+
+| Item | Value |
+|---|---|
+| Driver | 595.99.02 |
+| torch | 2.14.1+cu130 |
+| transformers | 5.19.0 |
+| peft | 0.21.2 |
+| soup_cli import path | this checkout (`src/soup_cli/__init__.py`) |
+
+Result: 79 passed, 0 failed, 0 skipped, 0 errors. 50 of the 79 cases are `cuda` parameters
+(21 in `test_b2_shared_expert_lora.py`, 29 in `test_b2_kimi_k2.py`).
+
+Clock log, sampled every 5 seconds. It holds 4 samples spanning 15 seconds, because the sampler process died early. The suite itself took 12.33 s. The GPU reached 1740 MHz with no throttle bits (`0x0`) under load:
+
+```text
+timestamp, clocks.current.sm [MHz], power.draw [W], clocks_event_reasons.active
+2026/10/15 23:31:30.176, 210 MHz, 3.39 W, 0x0000000000000001
+2026/10/15 23:31:35.185, 210 MHz, 3.51 W, 0x0000000000000001
+2026/10/15 23:31:40.186, 1740 MHz, 18.61 W, 0x0000000000000000
+2026/10/15 23:31:45.187, 1740 MHz, 18.55 W, 0x0000000000000000
+```
+
+### What this run does not cover
+
+- No real checkpoint. Every model is a tiny randomly initialised network built from a config.
+- No tokenizer. The Kimi K2 tokenizer parity is in `tests/test_b2_kimi_k2_tokenizer.py`, which this run did not include.
+- `tests/test_b2_shared_expert_adapter_consumers.py` and `tests/test_b2_kimi_k2_outside_streaming.py` were not run.
+- No quality, speed or memory result.
+
+### Raw pytest output for this run
+
+```text
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- /home/m1kadoo/.venvs/soup-rnd-cuda/bin/python
+rootdir: /home/m1kadoo/Documents/soup-rnd
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.15.1
+collecting ... collected 79 items
+
+tests/test_b2_shared_expert_lora.py::test_plain_peft_moves_shared_expert_targets_onto_the_routed_experts PASSED [  1%]
+tests/test_b2_shared_expert_lora.py::test_shared_expert_targets_attach_to_exactly_the_shared_experts PASSED [  2%]
+tests/test_b2_shared_expert_lora.py::test_a_list_of_shared_expert_names_attaches_the_same_way PASSED [  3%]
+tests/test_b2_shared_expert_lora.py::test_attention_and_shared_experts_attach_together_and_nothing_else PASSED [  5%]
+tests/test_b2_shared_expert_lora.py::test_a_bare_projection_name_beside_shared_experts_is_refused PASSED [  6%]
+tests/test_b2_shared_expert_lora.py::test_the_peft_conversion_is_restored_after_the_attach PASSED [  7%]
+tests/test_b2_shared_expert_lora.py::test_a_config_with_no_shared_expert_target_goes_through_plain_peft PASSED [  8%]
+tests/test_b2_shared_expert_lora.py::test_streamed_model_attaches_shared_expert_lora_to_the_shared_experts PASSED [ 10%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_matches_resident[cpu-grouped_mm] PASSED [ 11%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_matches_resident[cpu-eager] PASSED [ 12%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_matches_resident[cuda-grouped_mm] PASSED [ 13%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_matches_resident[cuda-eager] PASSED [ 15%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_from_the_disk_tier_matches_resident[cpu-grouped_mm] PASSED [ 16%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_from_the_disk_tier_matches_resident[cpu-eager] PASSED [ 17%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_from_the_disk_tier_matches_resident[cuda-grouped_mm] PASSED [ 18%]
+tests/test_b2_shared_expert_lora.py::test_streamed_shared_expert_lora_from_the_disk_tier_matches_resident[cuda-eager] PASSED [ 20%]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-grouped_mm] PASSED [ 21%]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-eager] PASSED [ 22%]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-grouped_mm] PASSED [ 24%]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-eager] PASSED [ 25%]
+tests/test_b2_shared_expert_lora.py::test_control_a_perturbed_shared_expert_adapter_changes_logits_and_gradients[cpu] PASSED [ 26%]
+tests/test_b2_shared_expert_lora.py::test_control_a_perturbed_shared_expert_adapter_changes_logits_and_gradients[cuda] PASSED [ 27%]
+tests/test_b2_shared_expert_lora.py::test_control_plain_peft_gives_different_logits_for_the_same_config PASSED [ 29%]
+tests/test_b2_shared_expert_lora.py::test_a_saved_shared_expert_adapter_reloads_onto_the_shared_experts PASSED [ 30%]
+tests/test_b2_shared_expert_lora.py::test_an_existing_routed_expert_adapter_loads_the_way_peft_loads_it PASSED [ 31%]
+tests/test_b2_shared_expert_lora.py::test_the_peft_conversion_is_restored_after_a_reload PASSED [ 32%]
+tests/test_b2_shared_expert_lora.py::test_the_adapter_plan_counts_the_shared_expert_adapters_not_the_routed_ones PASSED [ 34%]
+tests/test_b2_shared_expert_lora.py::test_a_regex_naming_attention_and_shared_experts_keeps_both PASSED [ 35%]
+tests/test_b2_shared_expert_lora.py::test_routed_expert_adapters_the_config_did_not_ask_for_fail_the_attach PASSED [ 36%]
+tests/test_b2_shared_expert_lora.py::test_moe_lora_beside_explicit_shared_expert_targets_is_refused PASSED [ 37%]
+tests/test_b2_shared_expert_lora.py::test_moe_lora_with_auto_targets_is_unchanged PASSED [ 39%]
+tests/test_b2_shared_expert_lora.py::test_a_saved_adapter_mixing_shared_names_and_a_bare_projection_is_refused PASSED [ 40%]
+tests/test_b2_shared_expert_lora.py::test_serve_loads_every_named_shared_expert_adapter_onto_the_shared_experts PASSED [ 41%]
+tests/test_b2_kimi_k2.py::test_native_autoconfig_cannot_read_a_k2_config PASSED [ 43%]
+tests/test_b2_kimi_k2.py::test_real_k2_config_identities_load_without_hub_code PASSED [ 44%]
+tests/test_b2_kimi_k2.py::test_k2_instruct_0905_style_rope_and_context_are_read_not_defaulted PASSED [ 45%]
+tests/test_b2_kimi_k2.py::test_other_model_types_still_go_through_autoconfig PASSED [ 46%]
+tests/test_b2_kimi_k2.py::test_a_k2_config_with_trust_remote_code_is_refused PASSED [ 48%]
+tests/test_b2_kimi_k2.py::test_the_aux_loss_fields_are_recorded_as_ignored PASSED [ 49%]
+tests/test_b2_kimi_k2.py::test_registering_the_conversion_gives_kimi_k2_the_deepseek_v3_rules PASSED [ 50%]
+tests/test_b2_kimi_k2.py::test_registering_twice_is_a_no_op_and_touches_no_other_model_type PASSED [ 51%]
+tests/test_b2_kimi_k2.py::test_registering_does_not_replace_a_mapping_someone_else_registered PASSED [ 53%]
+tests/test_b2_kimi_k2.py::test_a_kimi_k2_checkpoint_loads_complete_with_the_deepseek_v3_logits PASSED [ 54%]
+tests/test_b2_kimi_k2.py::test_without_the_conversion_a_kimi_k2_load_leaves_the_experts_at_init PASSED [ 55%]
+tests/test_b2_kimi_k2.py::test_saving_a_kimi_k2_model_writes_per_expert_keys_and_reloads_identically PASSED [ 56%]
+tests/test_b2_kimi_k2.py::test_the_aux_loss_fields_change_nothing_under_a_frozen_router PASSED [ 58%]
+tests/test_b2_kimi_k2.py::test_the_router_selects_the_same_experts_as_moonshots_zero_mask_with_one_group[0.0] PASSED [ 59%]
+tests/test_b2_kimi_k2.py::test_the_router_selects_the_same_experts_as_moonshots_zero_mask_with_one_group[-3.0] PASSED [ 60%]
+tests/test_b2_kimi_k2.py::test_the_router_selects_the_same_experts_as_moonshots_zero_mask_with_one_group[2.0] PASSED [ 62%]
+tests/test_b2_kimi_k2.py::test_the_zero_mask_does_differ_when_groups_are_excluded PASSED [ 63%]
+tests/test_b2_kimi_k2.py::test_kimi_k2_streams_as_a_deepseek_v3_alias PASSED [ 64%]
+tests/test_b2_kimi_k2.py::test_the_kimi_k25_wrapper_stays_refused_although_its_text_tower_is_kimi_k2 PASSED [ 65%]
+tests/test_b2_kimi_k2.py::test_an_int4_kimi_k2_checkpoint_is_refused_naming_the_remaining_limits PASSED [ 67%]
+tests/test_b2_kimi_k2.py::test_a_block_fp8_kimi_k2_config_is_not_refused PASSED [ 68%]
+tests/test_b2_kimi_k2.py::test_the_sharder_drops_the_rotary_keys_k2_checkpoints_carry PASSED [ 69%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_matches_resident[cpu-grouped_mm] PASSED [ 70%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_matches_resident[cpu-eager] PASSED [ 72%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_matches_resident[cuda-grouped_mm] PASSED [ 73%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_matches_resident[cuda-eager] PASSED [ 74%]
+tests/test_b2_kimi_k2.py::test_control_a_kimi_k2_stream_with_a_zero_router_bias_differs[cpu] PASSED [ 75%]
+tests/test_b2_kimi_k2.py::test_control_a_kimi_k2_stream_with_a_zero_router_bias_differs[cuda] PASSED [ 77%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_from_the_disk_tier_matches_resident[cpu-grouped_mm] PASSED [ 78%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_from_the_disk_tier_matches_resident[cpu-eager] PASSED [ 79%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_from_the_disk_tier_matches_resident[cuda-grouped_mm] PASSED [ 81%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_from_the_disk_tier_matches_resident[cuda-eager] PASSED [ 82%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-grouped_mm] PASSED [ 83%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-eager] PASSED [ 84%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-grouped_mm] PASSED [ 86%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-eager] PASSED [ 87%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cpu-grouped_mm] PASSED [ 88%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cpu-eager] PASSED [ 89%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cuda-grouped_mm] PASSED [ 91%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cuda-eager] PASSED [ 92%]
+tests/test_b2_kimi_k2.py::test_peft_rewrites_expert_targets_onto_the_fused_experts_only_once_registered PASSED [ 93%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_shared_expert_lora_matches_resident[cpu-grouped_mm] PASSED [ 94%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_shared_expert_lora_matches_resident[cpu-eager] PASSED [ 96%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_shared_expert_lora_matches_resident[cuda-grouped_mm] PASSED [ 97%]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_shared_expert_lora_matches_resident[cuda-eager] PASSED [ 98%]
+tests/test_b2_kimi_k2.py::test_an_int4_text_config_under_an_unknown_wrapper_is_refused_too PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_b2_shared_expert_lora.py::test_plain_peft_moves_shared_expert_targets_onto_the_routed_experts
+tests/test_b2_shared_expert_lora.py::test_control_plain_peft_gives_different_logits_for_the_same_config
+tests/test_b2_shared_expert_lora.py::test_an_existing_routed_expert_adapter_loads_the_way_peft_loads_it
+tests/test_b2_shared_expert_lora.py::test_routed_expert_adapters_the_config_did_not_ask_for_fail_the_attach
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cpu-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cpu-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cuda-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cuda-eager]
+  /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:1123: RuntimeWarning: The following rank_pattern keys did not match any targeted module and were ignored: ['.*\\.gate_up_proj'].
+    warnings.warn(
+
+tests/test_b2_shared_expert_lora.py::test_plain_peft_moves_shared_expert_targets_onto_the_routed_experts
+tests/test_b2_shared_expert_lora.py::test_control_plain_peft_gives_different_logits_for_the_same_config
+tests/test_b2_shared_expert_lora.py::test_an_existing_routed_expert_adapter_loads_the_way_peft_loads_it
+tests/test_b2_shared_expert_lora.py::test_routed_expert_adapters_the_config_did_not_ask_for_fail_the_attach
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cpu-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cpu-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cuda-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_moe_lora_matches_resident[cuda-eager]
+  /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:1123: RuntimeWarning: The following alpha_pattern keys did not match any targeted module and were ignored: ['.*\\.gate_up_proj'].
+    warnings.warn(
+
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-grouped_mm]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-eager]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-grouped_mm]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-eager]
+  /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/bitsandbytes/backends/cuda/ops.py:957: UserWarning: inner dimension (32) is not aligned for fast kernel with blocksize=64, falling back to slower implementation.
+    warn(
+
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-grouped_mm]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-eager]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-grouped_mm]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-eager]
+  /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/bitsandbytes/backends/cuda/ops.py:957: UserWarning: inner dimension (24) is not aligned for fast kernel with blocksize=64, falling back to slower implementation.
+    warn(
+
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-grouped_mm]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-ram-eager]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-grouped_mm]
+tests/test_b2_shared_expert_lora.py::test_streamed_nf4_shared_expert_lora_matches_resident_nf4[cuda-disk-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-ram-eager]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-grouped_mm]
+tests/test_b2_kimi_k2.py::test_streamed_kimi_k2_nf4_matches_resident_nf4[cuda-disk-eager]
+  /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/bitsandbytes/backends/cuda/ops.py:957: UserWarning: inner dimension (16) is not aligned for fast kernel with blocksize=64, falling back to slower implementation.
+    warn(
+
+tests/test_b2_shared_expert_lora.py::test_serve_loads_every_named_shared_expert_adapter_onto_the_shared_experts
+  /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/typer/__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+tests/test_b2_shared_expert_lora.py::test_serve_loads_every_named_shared_expert_adapter_onto_the_shared_experts
+  /home/m1kadoo/.venvs/soup-rnd-cuda/lib/python3.12/site-packages/typer/__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 79 passed, 42 warnings in 12.33s =======================
+```
