@@ -16,14 +16,15 @@
   "fixture_sha256": "99dc1ee1a0662da894fe4dfda146310f835b3d945a2bc35c6378ff4163018aa7",
   "fixture_bytes": 34359738368,
   "physical_ram_bytes": 16857817088,
-  "preparation": "Initial preparation and smoke preceded revision 1. Run run-run-2589873dea stopped at the original 65 C cutoff after approximately 226 seconds and is retained as invalid. Revision 2 is declared after that observation and before one replacement attempt; not a wholly unobserved initial protocol. Revision 3 follows the stale-sensor rejection; updated sensor passed separate 15-second small-fixture smoke run-smoke-83a153091b. No new sustained measurement yet.",
+  "preparation": "Initial preparation and smoke preceded revision 1. Run run-run-2589873dea stopped at the original 65 C cutoff after approximately 226 seconds and is retained as invalid. Revision 2 is declared after that observation and before one replacement attempt; not a wholly unobserved initial protocol. Revision 3 follows the stale-sensor rejection; updated sensor passed separate 15-second small-fixture smoke run-smoke-83a153091b. No new sustained measurement yet. Revision 4 follows full-duration invalid run-run-87143d8f23 and idle observation idle-minute-1792050607672311100.json. This is a prospective replacement declaration after observed exclusions, not an unobserved initial design.",
   "hardware": "Windows laptop; C: on PhysicalDrive0, Micron MTFDKCD512QFM-1BD1AABLA; one physical SSD; combined-drive test not applicable",
   "reading": "Sequential 4 MiB aligned direct reads using Soup open_direct; wrap at EOF; 32 GiB random-byte fixture",
   "start_conditions": [
     "AC connected",
     "Close nonessential applications and pause voluntary downloads/sync",
     "Wait until disk temperature is at most 40 C before starting",
-    "Keep laptop on a hard ventilated surface and prevent sleep during this run"
+    "Keep laptop on a hard ventilated surface and prevent sleep during this run",
+    "InventorySvc temporarily stopped; ActivityWatch closed; verify before launching. Close ChatGPT/Codex and browser before launch; restore InventorySvc after completion or interruption."
   ],
   "stopping": [
     "Temperature at or above 75 C: experimental cutoff below observed controller warning threshold; not a manufacturer-rated continuous operating limit",
@@ -53,11 +54,11 @@
     "If background activity prevents attribution, report inconclusive rather than relaxing thresholds after observing results"
   ],
   "amendment": {
-    "revision": 3,
-    "prior_protocol_commit": "3ac9dae09ae8f995ae94d6bfd1d410f623dea076",
-    "excluded_run": "run-run-2589873dea; run-run-2a67b99be3",
+    "revision": 4,
+    "prior_protocol_commit": "e1ae7d05c065f89d8596e4ca9441abc15fc9e171",
+    "excluded_run": "run-run-2589873dea; run-run-2a67b99be3; run-run-87143d8f23",
     "planned_replacement_attempts": 1,
-    "reason": "Second attempt stopped because PowerShell temperature query took 14.422 seconds and exceeded the unchanged 15-second freshness budget with the polling interval. Replace temperature provider with smartctl 7.5 JSON, 5-second command timeout, exact model/serial check and rejection of nonzero or missing critical warning. Cutoff stays 75 C. One replacement attempt; previous failed attempts remain invalid.",
+    "reason": "The previous 3600-second arm failed the predeclared F1 foreign-read limit (InventorySvc svchost and ActivityWatch). Retain it as invalid; do not use its throughput for the planner. Declare one replacement with InventorySvc temporarily stopped and ActivityWatch closed. Restore InventorySvc afterwards. Cutoff 75 C, read pattern, duration, source hashes, analysis and validity thresholds unchanged.",
     "evidence": "nvme-health-redacted.txt",
     "unchanged": "Same fixture, duration, read pattern, analysis rules and F1 checks; do not pool invalid run into sustained estimate"
   },
