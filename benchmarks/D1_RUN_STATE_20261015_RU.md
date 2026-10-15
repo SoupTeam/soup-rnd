@@ -49,11 +49,14 @@ K заново запускает correctness, GPU-регрессии и пол�
 Папки находятся в `C:\Users\esenb\.codex\worktrees\soup-d1-nf4-study`:
 
 - `cloud-a100-k-20261015`: текущие `lease.json`, SSH transport,
-  `progress-latest.json`, `finish_local.py`, `finish-coverage.log`,
-  `finish-coverage-error.log`. Read-only `watch_k_v3.py` следит за прогрессом;
-  live unified exec session 73284. Текущий exit marker — `setup-k-coverage.exit`.
+  `progress-latest.json`, `finish_local.py`, `finish-detached.log`,
+  `finish-detached-error.log`. Read-only `watch_k_v3.py` следит за прогрессом
+  через `watch-detached.log`. Текущий exit marker — `setup-k-coverage.exit`.
   Прежний `setup-k-resume1.exit=1` относится к clock-остановке и не запускает
-  текущую выгрузку. Локальный finish перезапущен (launcher PID 8376).
+  текущую выгрузку. После сброса tool-host локальные helper processes были
+  восстановлены вне его job: WMI-created hidden supervisor 6856 запустил
+  finish launcher 20768 / worker 8204, watch 18892 / 19360 и budget guard
+  11840 / 2028. Актуальные PID проверять по CIM, не по старому номеру.
 - `cloud-a100-j-20261015`: исходная аренда того же инстанса, GPU context,
   установка Ubuntu/Python/torch, диагностические логи и **активный локальный
   бюджетный guard `api_budget_v2.py`** (`guard-v2-last.json`). Старый guard/finish
@@ -81,6 +84,11 @@ bounded range readers и проверен по общему SHA. Это ещё �
 Remote guard с привязанным per-instance credential работает независимо от
 локального ноутбука и удаляет только свой инстанс по deadline. Приватный ключ SSH
 и мастер API-ключ остаются локальными, не копировать их на сервер.
+`supervise-d1-detached.ps1` в control parent запускает helpers через скрытый
+WMI supervisor, вне дерева процессов инструмента. Он переиспользует уже
+работающие роли и не создаёт дубликаты. `supervisor-detached.json` хранит их PID;
+guard logs — `budget-detached*.log` в папке J. При сбое мониторинга сначала
+проверить существующие helpers и удалённый процесс; CUDA job повторно не запускать.
 
 Локальный K finish-controller после любого завершения, включая ошибку:
 
