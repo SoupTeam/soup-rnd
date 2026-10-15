@@ -19,7 +19,9 @@ def test_complete_plan_has_96_distinct_projection_cases_and_unchanged_training()
     assert all(row["warmup_seconds"] == 5 and row["steps"] == 200 for row in projections)
     qa = plan[-1]
     assert qa["kind"] == "train" and qa["steps"] + qa["warmup"] == 276
-    assert "preheat_steps" not in qa
+    assert qa["preheat_steps"] == 200
+    assert plan[-2]["kind"] == "ablation" and plan[-2]["warmup"] == 200
+    assert all(row["kind"] == "projection" for row in plan[:-2])
     assert "preheat_steps" not in plan[0]
     assert "warmup_seconds" not in qa
 

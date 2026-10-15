@@ -28,7 +28,7 @@ def cases() -> list[dict]:
             "dtype": "bfloat16",
             "seq": 512,
             "steps": 100,
-            "warmup": 20,
+            "warmup": 200,
         },
         {
             "name": "qa",
@@ -38,6 +38,7 @@ def cases() -> list[dict]:
             "seq": 1024,
             "steps": 256,
             "warmup": 20,
+            "preheat_steps": 200,
         },
     ]
     for dtype in ("float16", "bfloat16"):
@@ -58,9 +59,9 @@ def cases() -> list[dict]:
                             "warmup_seconds": 5,
                         }
                     )
-    # Diagnose the full projection grid before committing more real-task repeats
-    # on a new physical GPU. The plan still contains every one of the 98 cases.
-    return [result[0], *result[2:], result[1]]
+    # Run the projection grid before RAM-tier model comparisons, whose bursty
+    # workloads need separate conditioning. All 98 cases remain required.
+    return [*result[2:], result[0], result[1]]
 
 
 def next_block(root: Path) -> int:
@@ -112,7 +113,8 @@ def run(args: argparse.Namespace) -> dict:
         "weights": str(args.weights),
         "data": str(args.data),
         "clock_policy": "Recorded A100 clock policy; unchanged <=5% guard per comparison",
-        "thermal_policy": ">=20 steps and 5 seconds for projections; exactly 20 QA warm-up updates",
+        "thermal_policy": ">=20 steps and 5 seconds for projections; 200 ablation warm-up steps; "
+        "independent 200-step QA prelude, then exactly 20 QA warm-up updates",
     }
     plan_path = args.output / "plan.json"
     if plan_path.exists():
