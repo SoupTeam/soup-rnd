@@ -35,10 +35,10 @@ extern "C" __global__ void fused(
         long long pos=transpose ? (long long)inner*K+out : (long long)out*K+inner;
         int byte=packed[pos/2];
         int nibble=(pos%2==0) ? byte>>4 : byte&15;
-        long long scale=pos/blocksize;
+        long long scale=pos/BLOCKSIZE;
         float magnitude;
         if (nested) {
-          magnitude=code2[((const unsigned char*)absmax)[scale]]*absmax2[scale/block2];
+          magnitude=code2[((const unsigned char*)absmax)[scale]]*absmax2[scale/BLOCK2];
           magnitude=magnitude+offset[0];
         } else magnitude=((const float*)absmax)[scale];
         weight=code[nibble]*magnitude;
@@ -68,10 +68,12 @@ def check(library, function, *args):
         raise RuntimeError(f"{function} failed: {code}")
 
 
-def compile_kernel(dtype):
+def compile_kernel(dtype, blocksize=64, block2=256):
     import torch
 
-    key = (torch.cuda.current_device(), dtype)
+    if blocksize <= 0 or block2 < 0:
+        raise ValueError("invalid NF4 scale block sizes")
+    key = (torch.cuda.current_device(), dtype, int(blocksize), int(block2))
     if key in _CACHE:
         return _CACHE[key]
     packages = Path(torch.__file__).parents[1]
@@ -84,7 +86,13 @@ def compile_kernel(dtype):
         if dtype == torch.float16
         else ("__nv_bfloat16", "__float2bfloat16_rn")
     )
-    source = SOURCE.replace("SCALAR", scalar).replace("CONVERT", conversion).encode()
+    source = (
+        SOURCE.replace("SCALAR", scalar)
+        .replace("CONVERT", conversion)
+        .replace("BLOCKSIZE", str(int(blocksize)))
+        .replace("BLOCK2", str(max(1, int(block2))))
+        .encode()
+    )
     check(
         nvrtc,
         "nvrtcCreateProgram",
@@ -141,7 +149,7 @@ def matmul(value, saved, metadata, transpose):
         raise ValueError("WMMA dimension mismatch")
     m = value.numel() // reduce
     result = torch.empty((*value.shape[:-1], outsize), device=value.device, dtype=value.dtype)
-    driver, _module, function, _ptx, _log = compile_kernel(value.dtype)
+    driver, _module, function, _ptx, _log = compile_kernel(value.dtype, blocksize, block2)
     pointers = [ctypes.c_void_p(t.data_ptr()) for t in (value, *saved, result)]
     scalars = [ctypes.c_int(i) for i in (m, n, k, blocksize, int(nested), block2, int(transpose))]
     parameters = (ctypes.c_void_p * 15)(
