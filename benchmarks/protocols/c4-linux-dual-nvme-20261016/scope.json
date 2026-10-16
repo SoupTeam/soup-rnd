@@ -1,0 +1,85 @@
+{
+  "kind": "Prospective C4 stage one protocol and setup evidence; no sustained measurements",
+  "source_protocol_sha256": "7ceabcd726c85fe6241b2c102aed0bb0108d0adcd28e09136be5e59c173c8250",
+  "origin": "Scaleway EM-B220E-NVMe, Ubuntu 24.04, two independently mapped Samsung NVMe drives",
+  "timed_reads_hours": 4,
+  "attempts": [
+    {
+      "condition": "drive1",
+      "seconds": 3600
+    },
+    {
+      "condition": "drive2",
+      "seconds": 3600
+    },
+    {
+      "condition": "both",
+      "seconds": 7200
+    }
+  ],
+  "attempt_budget": 3,
+  "replacements": 0,
+  "setup_controls": {
+    "rounds_executed": 1,
+    "cases_passed": 9,
+    "round_budget": 2,
+    "evidence": "setup-evidence.zip:evidence/controls-01/"
+  },
+  "data": {
+    "bytes_per_file": 85899345920,
+    "host_ram_bytes": 67283333120,
+    "single_drive_active_bytes": 85899345920,
+    "combined_active_bytes": 85899345920,
+    "kind": "synthetic random bytes"
+  },
+  "before_timed_reads": "Commit these exact protocol bytes and the source archive, publish the commit, verify its Git receipt, then run in tmux. Protocol chronology is independently reviewable; a receipt alone is not proof of publication.",
+  "before_each_arm": [
+    "Require the same boot, device identity and source hashes",
+    "Wait until all SSD sensors are at most 45 C",
+    "Save SMART health, available thermal counters and physical I/O counters",
+    "Start original F1 power, suspend and foreign-read collection"
+  ],
+  "analysis": "Record the first 600 seconds but exclude them from sustained-rate estimates. Use complete 60-second windows thereafter. 0.9 * window P10 is a provisional planner heuristic, not a guaranteed lower bound.",
+  "requirement_coverage": [
+    {
+      "requirement": "Read each physical disk separately and both concurrently",
+      "coverage": "Planned in this stage, one observation per condition"
+    },
+    {
+      "requirement": "Dataset larger than RAM and OS cache bypass",
+      "coverage": "80 GiB active aggregate footprint; aligned O_DIRECT reads, no buffered fallback"
+    },
+    {
+      "requirement": "Record speed, temperature, power and foreign I/O",
+      "coverage": "Per-device counters, temperature and original F1; power is the no-battery mains inference, not independent PSU measurement"
+    },
+    {
+      "requirement": "Sustained behavior after warmup",
+      "coverage": "Planned one-hour singles and two-hour concurrent primitive; first 600 seconds retained"
+    },
+    {
+      "requirement": "Conservative planner estimate",
+      "coverage": "Descriptive 0.9 * P10 heuristic for this host and pattern only"
+    },
+    {
+      "requirement": "Repeatability and order effects",
+      "coverage": "Not tested by this stage"
+    },
+    {
+      "requirement": "Thermal cause and read-pattern dependence",
+      "coverage": "Not tested causally; only one read pattern and no cooling intervention"
+    },
+    {
+      "requirement": "Multi-hour Soup training with striped layers",
+      "coverage": "Not tested; independent concurrent readers are a different workload"
+    }
+  ],
+  "formal_c4_acceptance": false,
+  "commands": {
+    "receipt": "python receipt.py --repo REPO --commit FULL_SHA --path benchmarks/protocols/c4-linux-dual-nvme-20261016/protocol.json --output protocol-receipt.json",
+    "run": "python3 runner.py run-series --receipt protocol-receipt.json",
+    "analyze": "python3 analyze.py --session c4-session",
+    "bundle": "python3 runner.py bundle"
+  },
+  "validation": "43 bundled CPU tests passed on Windows and on this Linux host before setup; 9 live controls passed. No claim about a full repository test suite."
+}
