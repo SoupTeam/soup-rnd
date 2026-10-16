@@ -47,13 +47,25 @@ def route(mode: str) -> None:
 
     from soup_cli.utils import layer_stream_runtime as runtime
 
-    runtime.checkpoint_visible_nf4_linear = lambda *a, **kw: candidate.linear(
-        *a, **kw, backend="wmma_native64"
-    )
+    original_linear = runtime.checkpoint_visible_nf4_linear
+    original_gate = runtime._can_use_checkpoint_visible_nf4_gemm
+
+    def covered(x: Any, state: Any) -> bool:
+        return x.dtype == state.dtype and (x.numel() // x.shape[-1], *map(int, state.shape)) in {
+            (128, 4096, 4096),
+            (128, 64, 64),
+            (2048, 64, 64),
+            (128, 32768, 12288),
+        }
+
+    def selected(x: Any, packed: Any, state: Any, bias: Any = None) -> Any:
+        if covered(x, state):
+            return candidate.linear(x, packed, state, bias, backend="wmma_native64")
+        return original_linear(x, packed, state, bias)
+
+    runtime.checkpoint_visible_nf4_linear = selected
     runtime._can_use_checkpoint_visible_nf4_gemm = lambda x, state: (
-        x.dtype == state.dtype
-        and (x.numel() // x.shape[-1], *map(int, state.shape))
-        in {(128, 4096, 4096), (128, 64, 64), (2048, 64, 64), (128, 32768, 12288)}
+        covered(x, state) or original_gate(x, state)
     )
 
 
