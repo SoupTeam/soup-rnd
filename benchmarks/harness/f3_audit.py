@@ -336,7 +336,8 @@ def speed_audit(
 
     Runs nothing unless both arms passed. The pilot, the top-up and the replacement of void
     blocks come from ``arm_validity.blocks_to_add``; more than ``MAX_VOID_REPLACEMENTS`` void
-    blocks, an unknown outcome, or a run that does not start gives no verdict.
+    blocks, an unknown outcome, a run that does not start, or a run whose own report is not
+    valid gives no verdict.
     """
     result = SpeedAudit(config, NO_VERDICT, notes=[FOREIGN_READS_NOTE])
     by_arm = {v.arm: v for v in validity if v.config == config}
@@ -377,6 +378,15 @@ def speed_audit(
             result.gpu_clock.append(
                 {"arm": label, "round": round, "run": run, "gpu_clock": record.get("gpu_clock")}
             )
+            if not report.get("valid"):
+                # An earlier pass does not vouch for this process: its own report decides.
+                # The report stays in the block, its latency is never counted.
+                result.reason = (
+                    f"run {run} (arm {label}) did not train, refused by "
+                    f"{', '.join(_failed_checks(report)) or 'its own checks'}; "
+                    f"its latency is not counted"
+                )
+                return result
         unknown = [run["run"] for run in block if run["outcome"] == UNKNOWN]
         if unknown:
             result.reason = (

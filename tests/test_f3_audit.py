@@ -505,6 +505,45 @@ def test_a_run_that_does_not_start_gives_no_verdict(audit):
     assert "CUDA out of memory" in result.reason
 
 
+def test_a_speed_run_that_does_not_train_gives_no_verdict_and_keeps_its_report(audit):
+    """Two prior passes do not make a later timing process valid: its own report decides."""
+
+    class NotTraining(FakeSpeedRunner):
+        def __call__(self, label, round, run):
+            report = super().__call__(label, round, run)
+            report.update(
+                valid=False,
+                failures=[failure("grad_norm"), failure("parameters_changed")],
+                report_path=f"speed-{run}.json",
+            )
+            # B looks much faster, as a run that skips the backward pass would.
+            report["timing"]["median_seconds"] = 0.1 if label == "B" else 1.0
+            return report
+
+    result, runner, _ = speed(audit, NotTraining(noise=QUIET))
+    assert result.verdict == "no verdict"
+    assert result.evidence == {}
+    assert "grad_norm" in result.reason and "run 1" in result.reason
+    assert len(runner.calls) == 1
+    kept = result.blocks[0][0]["report"]
+    assert kept["valid"] is False and kept["report_path"] == "speed-1.json"
+
+
+def test_a_late_speed_run_that_stops_training_stops_the_blocks(audit):
+    class LateFailure(FakeSpeedRunner):
+        def __call__(self, label, round, run):
+            report = super().__call__(label, round, run)
+            if run == 6:
+                report.update(valid=False, failures=[failure("parameters_changed")])
+            return report
+
+    result, runner, _ = speed(audit, LateFailure(noise=QUIET))
+    assert result.verdict == "no verdict"
+    assert "parameters_changed" in result.reason and "run 6" in result.reason
+    assert len(runner.calls) == 6
+    assert result.blocks[1][1]["report"]["valid"] is False
+
+
 def test_a_clear_difference_is_reported_with_its_direction(audit):
     result, _, _ = speed(audit, FakeSpeedRunner(a=1.0, b=0.7, noise=QUIET))
     assert result.verdict == "measured"
