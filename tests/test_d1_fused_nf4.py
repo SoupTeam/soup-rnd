@@ -145,6 +145,27 @@ def test_wmma_dispatch_rejects_reduced_precision_without_changing_global_mode(mo
     assert torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction is True
 
 
+@pytest.mark.parametrize("reduced", [True, False])
+def test_native_wmma_matches_observed_split_without_changing_global_mode(monkeypatch, reduced):
+    import d1_fused_nf4
+    import d1_wmma_nf4
+    import torch
+
+    calls = []
+    monkeypatch.setattr(
+        torch.backends.cuda.matmul, "allow_bf16_reduced_precision_reduction", reduced
+    )
+    monkeypatch.setattr(d1_wmma_nf4, "matmul", lambda *a, **kw: calls.append((a, kw)))
+    value = SimpleNamespace(shape=(128, 32768), numel=lambda: 128 * 32768)
+    meta = (32768, 12288, 64, True, 256, torch.bfloat16, "wmma_native")
+    d1_fused_nf4._dispatch(value, (), meta, True)
+    assert len(calls) == 1
+    assert calls[0][0][2:] == (meta[:6], True)
+    assert calls[0][1]["reduction_span"] == (8192 if reduced else 0)
+    assert calls[0][1]["round_mode"] == (1 if reduced else 0)
+    assert torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction is reduced
+
+
 def test_backend_is_saved_per_autograd_call_instead_of_global_monkeypatch(candidate, monkeypatch):
     import d1_wmma_nf4
     import torch
