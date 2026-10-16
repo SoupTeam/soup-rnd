@@ -211,3 +211,4 @@ pip install "soup-cli[train]"
 ```
 
 - [C4: two Linux NVMe sustained reads (exploratory)](results/c4-linux-dual-nvme-20261016/report.md) — one hour per SSD and two hours concurrent; full C4 acceptance remains open.
+- [C4: concurrent NVMe 4/64 MiB ABBA](results/c4-linux-pattern-abba-20261016/report.md) — four accepted one-hour arms; paired +14.9%/+17.3% for 64 MiB, with slower later repeats; exploratory scope.
