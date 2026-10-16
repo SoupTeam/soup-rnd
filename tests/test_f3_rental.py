@@ -84,3 +84,154 @@ def test_sleep_observation_without_a_record_answers_nothing(rental):
     result = rental.observe_sleep(lambda **kw: Watch(), lambda s: None)
     assert result["answering"] == []
     assert result["outcome"] == "unknown"
+
+
+# --- cmd_c1 through its public entry point (review of PR 18) -----------------------------
+
+
+def refusing(check_names=("grad_norm", "parameters_changed")):
+    return {
+        "valid": False,
+        "failures": [{"check": name, "message": f"{name} refused"} for name in check_names],
+        "checks": {"grad_norm": "failed", "parameters_changed": False},
+        "provenance": {"weight_decay": 0.0},
+    }
+
+
+def training_report(path):
+    return {
+        "valid": True,
+        "failures": [],
+        "checks": {"trainable_parameters": 290, "grad_norm": "finite", "parameters_changed": True},
+        "timing": {"median_seconds": 0.5},
+        "report_path": str(path),
+    }
+
+
+class World:
+    """Fake instance: training, watch, upload and destroy are recorded in one event list."""
+
+    def __init__(self, rental, monkeypatch, tmp_path, *, ceiling=2.5, upload_fail=()):
+        import json
+
+        self.events = []
+        self.uploaded = {}
+        self.upload_fail = set(upload_fail)
+        self.workdir = tmp_path / "f3-results"
+        self.workdir.mkdir()
+        for path in ("native", "unsloth"):
+            (self.workdir / f"control-{path}.json").write_text(json.dumps(refusing()))
+        world = self
+
+        def run_arm(path, out, steps=20):
+            world.events.append(("train", out.name))
+            out.parent.mkdir(parents=True, exist_ok=True)
+            report = training_report(out)
+            out.write_text(json.dumps(report))
+            return report
+
+        class Watched:
+            record = None
+
+            def __init__(self, kwargs):
+                self.kwargs = kwargs
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                self.record = {"outcome": "ok", "arm": self.kwargs["arm"], "checks": {}}
+
+        def upload_factory(repo):
+            def upload(name, path):
+                if name in world.upload_fail:
+                    raise OSError("network down")
+                world.events.append(("upload", name))
+                world.uploaded[name] = path.read_text(encoding="utf-8")
+
+            return upload
+
+        monkeypatch.setattr(rental, "WORKDIR", self.workdir)
+        monkeypatch.setattr(rental, "CEILING", ceiling)
+        monkeypatch.setattr(rental, "LEASE_FILE", tmp_path / "no-lease-file")
+        monkeypatch.setattr(rental, "run_arm", run_arm)
+        monkeypatch.setattr(rental, "_watch", lambda **kw: Watched(kw))
+        monkeypatch.setattr(rental.f3_run, "default_upload_factory", upload_factory)
+        monkeypatch.setattr(
+            rental.f3_run, "default_destroy", lambda: world.events.append(("destroy", None))
+        )
+        monkeypatch.setenv("F3_HF_REPO", "someone/private-repo")
+
+    def trained(self):
+        return [name for kind, name in self.events if kind == "train"]
+
+
+def test_a_zero_ceiling_trains_nothing_and_still_destroys(rental, monkeypatch, tmp_path):
+    world = World(rental, monkeypatch, tmp_path, ceiling=0.0)
+    assert rental.cmd_c1(1.0) == 0
+    assert world.trained() == []
+    assert world.events[-1] == ("destroy", None)
+    import json
+
+    summary = json.loads(world.uploaded["summary"])
+    assert summary["outcomes"]["A-unsloth"] == "skipped: budget"
+
+
+def test_the_paid_lease_start_counts_against_the_ceiling(rental, monkeypatch, tmp_path):
+    import time
+
+    world = World(rental, monkeypatch, tmp_path, ceiling=2.5)
+    # 2.45 h already paid at 1.00 $/h: the 300 s arm would pass the 2.50 $ ceiling.
+    assert rental.cmd_c1(1.0, lease_start=time.time() - 2.45 * 3600) == 0
+    assert world.trained() == []
+
+
+def test_the_lease_start_before_the_arm_lets_a_cheap_lease_train(rental, monkeypatch, tmp_path):
+    import time
+
+    world = World(rental, monkeypatch, tmp_path, ceiling=2.5)
+    assert rental.cmd_c1(1.0, lease_start=time.time() - 3600) == 0
+    assert world.trained() == ["A-unsloth-p1.json", "A-unsloth-p2.json"]
+
+
+def test_a_broken_control_file_still_ends_in_upload_and_destroy(rental, monkeypatch, tmp_path):
+    world = World(rental, monkeypatch, tmp_path)
+    (world.workdir / "control-native.json").write_text("{not json")
+    assert rental.cmd_c1(1.0) == 0
+    assert world.trained() == []
+    assert world.events[-1] == ("destroy", None)
+    assert "A-unsloth" in world.uploaded
+
+
+def test_the_raw_evidence_is_uploaded_before_destroy(rental, monkeypatch, tmp_path):
+    import json
+
+    world = World(rental, monkeypatch, tmp_path)
+    log = tmp_path / "c1.log"
+    log.write_text("training log")
+    assert rental.cmd_c1(1.0, logs=(log,)) == 0
+    for name in (
+        "c1/A-unsloth-p1.json",
+        "c1/A-unsloth-p2.json",
+        "audit-c1.json",
+        "refusals.jsonl",
+        "control-native.json",
+        "control-unsloth.json",
+        "c1.log",
+    ):
+        assert name in world.uploaded, name
+    arm = json.loads(world.uploaded["A-unsloth"])
+    assert len(arm["records"]) == 2
+    assert arm["records"][0]["watch"]["outcome"] == "ok"
+    assert arm["records"][0]["report"]["valid"] is True
+    audit = json.loads(world.uploaded["audit-c1.json"])
+    assert [v["verdict"] for v in audit["verdicts"]] == ["pass", "out of scope"]
+    assert len(audit["records"]) == 2
+    uploads = [i for i, (kind, _) in enumerate(world.events) if kind == "upload"]
+    assert max(uploads) < world.events.index(("destroy", None))
+
+
+def test_a_failed_evidence_upload_keeps_the_instance(rental, monkeypatch, tmp_path):
+    world = World(rental, monkeypatch, tmp_path, upload_fail={"c1/A-unsloth-p2.json"})
+    rental.cmd_c1(1.0)
+    assert ("destroy", None) not in world.events

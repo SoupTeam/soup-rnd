@@ -28,7 +28,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Mapping, Optional, Sequence
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 STATE_FILE = "state.json"
 UPLOAD_ATTEMPTS = 3
@@ -79,14 +79,21 @@ def default_destroy() -> None:
 
 
 def default_upload_factory(repo: str) -> Callable[[str, Path], None]:
-    """Upload one file to the private repo ``repo``, with the token from ``HF_TOKEN``."""
+    """Upload one file to the private repo ``repo``, with the token from ``HF_TOKEN``.
+
+    A name with a slash is the path in the repo (raw evidence keeps its folders); any other
+    name uploads under the file's own name. The upload counts only once the repo lists the file.
+    """
 
     def upload(name: str, path: Path) -> None:
         from huggingface_hub import HfApi
 
+        in_repo = name if "/" in name else Path(path).name
         api = HfApi(token=os.environ["HF_TOKEN"])
         api.create_repo(repo, private=True, exist_ok=True)
-        api.upload_file(path_or_fileobj=str(path), path_in_repo=Path(path).name, repo_id=repo)
+        api.upload_file(path_or_fileobj=str(path), path_in_repo=in_repo, repo_id=repo)
+        if not api.file_exists(repo_id=repo, filename=in_repo):
+            raise OSError(f"{in_repo} is not in {repo} after the upload")
 
     return upload
 
@@ -113,7 +120,16 @@ def run_lifecycle(
     clock: Callable[[], float] = time.time,
     log: Optional[Callable[[str], None]] = None,
     secrets: Sequence[str] = (),
+    started: Optional[float] = None,
+    evidence: Optional[Callable[[], Sequence[Tuple[str, Path]]]] = None,
 ) -> Lifecycle:
+    """Run the arms, upload every record and the raw evidence, then destroy the instance.
+
+    ``started`` is the Unix time the paid lease began, so spend counts from the rental and not
+    from this call. ``evidence`` runs after the last arm and returns ``(name, path)`` pairs, the
+    raw reports, watch records, controls and logs. Each must upload before the instance is
+    destroyed. A failure to collect them counts as a pending upload.
+    """
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
     state_path = workdir / STATE_FILE
@@ -122,8 +138,8 @@ def run_lifecycle(
     secrets = tuple(secrets) + tuple(
         os.environ[key] for key in ("HF_TOKEN", "CONTAINER_API_KEY") if os.environ.get(key)
     )
-    if state["started"] is None:
-        state["started"] = clock()
+    if state["started"] is None or (started is not None and started < state["started"]):
+        state["started"] = clock() if started is None else started
         _write(state_path, state)
 
     def say(line: str) -> None:
@@ -180,6 +196,16 @@ def run_lifecycle(
             result.pending_uploads.append(plan.name)
         spent = cost(clock() - state["started"])
         say(f"{plan.name}: {record['status']}, spent ${spent:.2f} of ${ceiling:.2f}")
+
+    try:
+        raw_files = list(evidence()) if evidence else []
+    except Exception as error:  # noqa: BLE001 - nothing may be destroyed while evidence is missing
+        say(f"collecting the raw evidence failed: {error}")
+        raw_files = []
+        result.pending_uploads.append("evidence")
+    for name, path in raw_files:
+        if not attempt_upload(name, Path(path)):
+            result.pending_uploads.append(name)
 
     result.spent = cost(clock() - state["started"])
     summary = workdir / "summary.json"

@@ -10,6 +10,9 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV="$HOME/.venvs/f3-unsloth"
 DATA="$HOME/f3-data/qwen2.5-0.5b"
 
+# The lease is paid from the rental, so f3_rental.py counts spend from this first action.
+[ -f "$HOME/f3-lease-start" ] || date +%s > "$HOME/f3-lease-start"
+
 command -v gcc >/dev/null || { apt-get update -qq; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential; }
 command -v uv >/dev/null || pip install -q uv
 mkdir -p "$HOME/.venvs"

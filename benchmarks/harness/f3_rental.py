@@ -40,6 +40,10 @@ TIME_LIMIT_SECONDS = 3 * 3600
 VENVS = Path.home() / ".venvs"
 DATA = Path.home() / "f3-data" / "qwen2.5-0.5b"
 WORKDIR = Path.home() / "f3-results"
+#: Written by the bootstrap when the lease begins, so the spend counts from the rental.
+LEASE_FILE = Path.home() / "f3-lease-start"
+#: Expected seconds of one arm (two fresh processes), for the budget projection.
+ARM_SECONDS = {"A-unsloth": 300.0}
 
 PYTHONS = {"unsloth": VENVS / "f3-unsloth" / "bin" / "python"}
 
@@ -107,8 +111,7 @@ def cmd_observe() -> int:
     return 0
 
 
-def cmd_c1(rate: float) -> int:
-    WORKDIR.mkdir(parents=True, exist_ok=True)
+def _load_controls() -> List[f3_audit.ControlRun]:
     control = []
     for path in f3_audit.CONTROL_PATHS:
         file = WORKDIR / f"control-{path}.json"
@@ -117,33 +120,81 @@ def cmd_c1(rate: float) -> int:
             control.append(
                 f3_audit.ControlRun(path, report, float(report["provenance"]["weight_decay"]))
             )
+    return control
+
+
+def _lease_start() -> Optional[float]:
+    """Unix time the bootstrap wrote when the paid lease began, if it ran."""
+    if LEASE_FILE.exists():
+        return float(LEASE_FILE.read_text(encoding="utf-8").strip())
+    return None
+
+
+def _evidence(specs: Sequence[f3_audit.ArmSpec], logs: Sequence[Path]) -> List[Any]:
+    """Write ``audit-c1.json`` and ``refusals.jsonl`` from the per-arm records, then list every
+    raw file to upload: reports, watch records, controls, refusals and logs."""
+    verdicts: List[Any] = []
+    records: List[Any] = []
+    refusals: List[Any] = []
+    arms: Dict[str, str] = {}
+    for spec in specs:
+        file = WORKDIR / "lifecycle" / f"{spec.arm}.json"
+        if not file.exists():
+            arms[spec.arm] = "not run"
+            continue
+        record = json.loads(file.read_text(encoding="utf-8"))
+        arms[spec.arm] = record.get("status", "unknown")
+        verdicts += record.get("verdicts", [])
+        records += record.get("records", [])
+        refusals += record.get("refusals", [])
+    (WORKDIR / "audit-c1.json").write_text(
+        json.dumps({"label": LABEL, "arms": arms, "verdicts": verdicts, "records": records},
+                   indent=2, default=str)
+    )  # fmt: skip
+    f3_audit.write_refusals(refusals, WORKDIR / "refusals.jsonl")
+    files = []
+    for path in sorted(WORKDIR.rglob("*")):
+        relative = path.relative_to(WORKDIR)
+        if path.is_file() and path.suffix in (".json", ".jsonl") and not (
+            {"lifecycle", "trainer"} & set(relative.parts)
+        ):
+            files.append((relative.as_posix(), path))
+    files += [(Path(log).name, Path(log)) for log in logs if Path(log).exists()]
+    return files
+
+
+def cmd_c1(
+    rate: float, lease_start: Optional[float] = None, logs: Sequence[Path] = ()
+) -> int:
+    """Run C1 inside the lifecycle: the clock, the budget check and the resume state come first,
+    each arm trains under them, and the raw evidence uploads before the instance is destroyed."""
+    WORKDIR.mkdir(parents=True, exist_ok=True)
     specs = c1_specs()
+    by_name = {spec.arm: spec for spec in specs}
 
     def runner(spec: f3_audit.ArmSpec, process: int) -> Dict[str, Any]:
         return run_arm("unsloth", WORKDIR / "c1" / f"{spec.arm}-p{process}.json")
 
-    audit = f3_audit.audit(specs, runner, _watch, control)
-    f3_audit.write_refusals(audit.refusals, WORKDIR / "refusals.jsonl")
-    verdicts = [vars(v) for v in audit.verdicts]
-    (WORKDIR / "audit-c1.json").write_text(
-        json.dumps({"label": LABEL, "verdicts": verdicts, "records": audit.records}, indent=2,
-                   default=str)
-    )
-
-    def arm_record(name: str) -> Dict[str, Any]:
-        return {"arm": name, "label": LABEL, "verdicts": verdicts}
+    def audit_arm(name: str) -> Dict[str, Any]:
+        audit = f3_audit.audit([by_name[name]], runner, _watch, _load_controls())
+        record = {
+            "arm": name, "label": LABEL, "verdicts": [vars(v) for v in audit.verdicts],
+            "records": audit.records, "refusals": audit.refusals,
+        }  # fmt: skip
+        return json.loads(json.dumps(record, default=str))
 
     lifecycle = f3_run.run_lifecycle(
-        [f3_run.ArmPlan(spec.arm, 0.0) for spec in specs],
-        arm_record,
+        [f3_run.ArmPlan(spec.arm, ARM_SECONDS.get(spec.arm, 0.0)) for spec in specs],
+        audit_arm,
         f3_run.default_upload_factory(os.environ["F3_HF_REPO"]),
         f3_run.default_destroy,
         WORKDIR / "lifecycle",
         rate_per_hour=rate,
         ceiling=CEILING,
         time_limit_seconds=TIME_LIMIT_SECONDS,
+        started=lease_start if lease_start is not None else _lease_start(),
+        evidence=lambda: _evidence(specs, logs),
     )
-    print(json.dumps(verdicts, indent=2, default=str))
     print("lifecycle:", lifecycle.outcomes, "destroyed:", lifecycle.destroyed)
     return 0
 
@@ -154,8 +205,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     sub.add_parser("observe")
     c1 = sub.add_parser("c1")
     c1.add_argument("--rate", type=float, required=True, help="instance price, $ per hour")
+    c1.add_argument("--lease-start", type=float, help="Unix time the paid lease began")
+    c1.add_argument("--log", type=Path, action="append", default=[], help="log file to upload")
     args = parser.parse_args(argv)
-    return cmd_observe() if args.cmd == "observe" else cmd_c1(args.rate)
+    if args.cmd == "observe":
+        return cmd_observe()
+    return cmd_c1(args.rate, args.lease_start, args.log)
 
 
 if __name__ == "__main__":

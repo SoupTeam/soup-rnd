@@ -213,3 +213,82 @@ def test_budget_stop_skips_later_shorter_arms(run_mod, tmp_path):
 def test_destroy_needs_the_container_key(run_mod):
     with pytest.raises(RuntimeError):
         run_mod.destroy_command({"CONTAINER_ID": "1"})
+
+
+def test_evidence_uploads_before_the_summary_and_destroy(run_mod, tmp_path):
+    clock = Clock()
+    env = Env(clock)
+    raw = tmp_path / "raw.json"
+    raw.write_text("{}")
+    go(run_mod, tmp_path, env, clock, plans(run_mod, "a"), evidence=lambda: [("c1/raw.json", raw)])
+    names = [name for kind, name in env.events if kind == "upload"]
+    assert names == ["a", "c1/raw.json", "summary"]
+    assert env.events[-1] == ("destroy", None)
+
+
+def test_failed_evidence_upload_or_collection_keeps_the_instance(run_mod, tmp_path):
+    clock = Clock()
+    raw = tmp_path / "raw.json"
+    raw.write_text("{}")
+    env = Env(clock, upload_fail={"c1/raw.json"})
+    result = go(
+        run_mod, tmp_path / "one", env, clock, plans(run_mod, "a"),
+        evidence=lambda: [("c1/raw.json", raw)],
+    )  # fmt: skip
+    assert result.pending_uploads == ["c1/raw.json"]
+    assert ("destroy", None) not in env.events
+
+    def broken():
+        raise OSError("disk gone")
+
+    env = Env(clock)
+    result = go(run_mod, tmp_path / "two", env, clock, plans(run_mod, "a"), evidence=broken)
+    assert "evidence" in result.pending_uploads
+    assert ("destroy", None) not in env.events
+
+
+def test_the_paid_lease_start_sets_the_spend_clock(run_mod, tmp_path):
+    clock = Clock()
+    clock.now = 10 * 3600.0
+    env = Env(clock, seconds=0.0)
+    # Leased 2.4 h ago at 0.80 $/h is 1.92 $; a 1 h arm would reach 2.72 $, past 2.50 $.
+    result = go(
+        run_mod, tmp_path, env, clock, plans(run_mod, "a", estimate=3600.0),
+        started=clock.now - 2.4 * 3600, time_limit_seconds=100 * 3600,
+    )  # fmt: skip
+    assert result.outcomes["a"] == "skipped: budget"
+
+
+def test_default_upload_keeps_folders_and_checks_the_repo_lists_the_file(
+    run_mod, tmp_path, monkeypatch
+):
+    import types
+
+    calls = []
+
+    class FakeApi:
+        listed = True
+
+        def __init__(self, token=None):
+            pass
+
+        def create_repo(self, repo, **kwargs):
+            pass
+
+        def upload_file(self, *, path_or_fileobj, path_in_repo, repo_id):
+            calls.append(path_in_repo)
+
+        def file_exists(self, *, repo_id, filename):
+            return FakeApi.listed
+
+    monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(HfApi=FakeApi))
+    monkeypatch.setenv("HF_TOKEN", "x")
+    file = tmp_path / "A-unsloth-p1.json"
+    file.write_text("{}")
+    upload = run_mod.default_upload_factory("someone/repo")
+    upload("c1/A-unsloth-p1.json", file)
+    upload("summary", file)
+    assert calls == ["c1/A-unsloth-p1.json", "A-unsloth-p1.json"]
+    FakeApi.listed = False
+    with pytest.raises(OSError):
+        upload("c1/A-unsloth-p1.json", file)
