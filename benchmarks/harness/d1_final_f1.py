@@ -406,7 +406,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--route", choices=("native", "candidate"), default="native")
     args = parser.parse_args()
-    if args.command in ("prepare", "run", "arm", "resident"):
+    if args.command in ("prepare", "run", "resident"):
         args.output.mkdir(parents=True, exist_ok=False)
     if args.command == "prepare":
         args.data.mkdir(parents=True, exist_ok=False)
