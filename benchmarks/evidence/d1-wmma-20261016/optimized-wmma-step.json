@@ -1,0 +1,215 @@
+{
+  "allow_bf16_reduced_precision_reduction": false,
+  "candidate_over_native": 1.4323758475342971,
+  "correctness": [
+    {
+      "extra": [],
+      "missing": [],
+      "passed": true,
+      "quantities": [
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "a"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "b"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "dx"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "grad_a"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "grad_b"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "loss"
+        }
+      ]
+    },
+    {
+      "extra": [],
+      "missing": [],
+      "passed": true,
+      "quantities": [
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "a"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "b"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "dx"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "grad_a"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "grad_b"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "loss"
+        }
+      ]
+    },
+    {
+      "extra": [],
+      "missing": [],
+      "passed": true,
+      "quantities": [
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "a"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "b"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "dx"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "grad_a"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "grad_b"
+        },
+        {
+          "exact": true,
+          "finite": true,
+          "max_abs": 0.0,
+          "name": "loss"
+        }
+      ]
+    }
+  ],
+  "d1_complete": false,
+  "dense_gemm": {
+    "calls": 200,
+    "end_ns": 1792140724368747483,
+    "gemm_cuda_ms": 0.09972224235534669,
+    "start_ns": 1792140724348777160
+  },
+  "gpu_uuid": "f6a81a9c-198c-c8e5-0be8-91e1deb3b94f",
+  "median_step_ms": {
+    "candidate": 4.0924465942382815,
+    "native": 2.8571038818359376
+  },
+  "performance_verdict": "NO_FINAL_SPEED_CLAIM: short windows; raw clocks retained",
+  "ptx_signed_64bit_divisions": 0,
+  "real_model_training": "NOT_RUN",
+  "rows": [
+    {
+      "arm": "native",
+      "block": 0,
+      "end_ns": 1792140720781507132,
+      "peak_allocated_bytes": 119809024,
+      "peak_reserved_bytes": 146800640,
+      "start_ns": 1792140720064240119,
+      "step_cuda_ms": 3.585745849609375,
+      "steps": 200
+    },
+    {
+      "arm": "candidate",
+      "block": 0,
+      "end_ns": 1792140721592707964,
+      "peak_allocated_bytes": 95433728,
+      "peak_reserved_bytes": 146800640,
+      "start_ns": 1792140720791684638,
+      "step_cuda_ms": 4.004551391601563,
+      "steps": 200
+    },
+    {
+      "arm": "candidate",
+      "block": 1,
+      "end_ns": 1792140722412878928,
+      "peak_allocated_bytes": 95433728,
+      "peak_reserved_bytes": 146800640,
+      "start_ns": 1792140721594313115,
+      "step_cuda_ms": 4.0924465942382815,
+      "steps": 200
+    },
+    {
+      "arm": "native",
+      "block": 1,
+      "end_ns": 1792140722949871736,
+      "peak_allocated_bytes": 119809024,
+      "peak_reserved_bytes": 146800640,
+      "start_ns": 1792140722414396177,
+      "step_cuda_ms": 2.677043151855469,
+      "steps": 200
+    },
+    {
+      "arm": "native",
+      "block": 2,
+      "end_ns": 1792140723523679316,
+      "peak_allocated_bytes": 119809024,
+      "peak_reserved_bytes": 146800640,
+      "start_ns": 1792140722952188650,
+      "step_cuda_ms": 2.8571038818359376,
+      "steps": 200
+    },
+    {
+      "arm": "candidate",
+      "block": 2,
+      "end_ns": 1792140724345274758,
+      "peak_allocated_bytes": 95433728,
+      "peak_reserved_bytes": 146800640,
+      "start_ns": 1792140723526601897,
+      "step_cuda_ms": 4.092917785644532,
+      "steps": 200
+    }
+  ],
+  "scope": "synthetic single-projection LoRA forward/backward/SGD, weights already on GPU",
+  "source_sha": "ba6928e9af116c11d56257cf8d532ec51c3dee17",
+  "status": "SHORT_SCREEN_ONLY"
+}

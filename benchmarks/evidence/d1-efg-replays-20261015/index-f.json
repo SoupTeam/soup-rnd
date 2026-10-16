@@ -1,0 +1,2083 @@
+{
+  "accepted_arms": 40,
+  "attempted_arms": 64,
+  "cases": [
+    {
+      "accepted_arms": 20,
+      "all_attempt_clock_range_mhz": [
+        1935,
+        1980
+      ],
+      "attempted_arms": 24,
+      "comparisons": [
+        {
+          "accepted_block_ids": [
+            0,
+            2,
+            3,
+            4,
+            5
+          ],
+          "accepted_blocks": 5,
+          "blocks_to_add_for_10_percent_effect": 0,
+          "case": "ablation-baseline-nodequant-512-bfloat16",
+          "median_ms": {
+            "A": 157.08333882503211,
+            "B": 127.83712660893798
+          },
+          "paths": {
+            "A": [
+              "baseline"
+            ],
+            "B": [
+              "nodequant"
+            ]
+          },
+          "peak_allocated_bytes": {
+            "A": 546899456,
+            "B": 602473984
+          },
+          "peak_reserved_bytes": {
+            "A": 702545920,
+            "B": 721420288
+          },
+          "ranges_ms": {
+            "A": [
+              156.12002974376082,
+              157.97526948153973
+            ],
+            "B": [
+              126.66189298033714,
+              136.45435823127627
+            ]
+          },
+          "ratio_a_over_b": 1.2287771400366356,
+          "rejected_blocks": [
+            {
+              "block": 1,
+              "reasons": [
+                "void or unknown required validity"
+              ]
+            }
+          ],
+          "speedup_claim": false,
+          "status": "MEASURED"
+        }
+      ],
+      "d1_complete": false,
+      "descriptive_metrics": {
+        "A": {
+          "clock_sm_mhz": 1950.0,
+          "memory_util_pct": 37.0
+        },
+        "B": {
+          "clock_sm_mhz": 1965.0,
+          "memory_util_pct": 37.0
+        }
+      },
+      "plan": {
+        "dtype": "bfloat16",
+        "kind": "ablation",
+        "name": "ablation",
+        "pair": "baseline-nodequant",
+        "seq": 512,
+        "steps": 100,
+        "warmup": 20
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "MEASURED_SUBSET"
+    },
+    {
+      "accepted_arms": 20,
+      "all_attempt_clock_range_mhz": [
+        1860,
+        1950
+      ],
+      "attempted_arms": 20,
+      "comparisons": [
+        {
+          "accepted_block_ids": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "accepted_blocks": 5,
+          "blocks_to_add_for_10_percent_effect": 0,
+          "case": "train-native-forced-1024-bfloat16",
+          "median_ms": {
+            "A": 241.18334031663835,
+            "B": 255.9017480816692
+          },
+          "paths": {
+            "A": [
+              "dense"
+            ],
+            "B": [
+              "function"
+            ]
+          },
+          "peak_allocated_bytes": {
+            "A": 863867904,
+            "B": 863867904
+          },
+          "peak_reserved_bytes": {
+            "A": 1042284544,
+            "B": 1042284544
+          },
+          "ranges_ms": {
+            "A": [
+              241.1602195352316,
+              241.23796122148633
+            ],
+            "B": [
+              255.7745878584683,
+              256.1860177665949
+            ]
+          },
+          "ratio_a_over_b": 0.9424841452808927,
+          "rejected_blocks": [],
+          "speedup_claim": false,
+          "status": "MEASURED"
+        }
+      ],
+      "d1_complete": false,
+      "descriptive_metrics": {
+        "A": {
+          "clock_sm_mhz": 1935.0,
+          "memory_util_pct": 46.0,
+          "nonpadding_tokens_s": 1076.016492763545,
+          "supervised_tokens_s": 26.10104762083644
+        },
+        "B": {
+          "clock_sm_mhz": 1920.0,
+          "memory_util_pct": 47.0,
+          "nonpadding_tokens_s": 1006.7659197524997,
+          "supervised_tokens_s": 24.421229034330153
+        }
+      },
+      "plan": {
+        "dtype": "bfloat16",
+        "kind": "train",
+        "name": "qa",
+        "pair": "native-forced",
+        "preheat_steps": 200,
+        "seq": 1024,
+        "steps": 256,
+        "warmup": 20
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "MEASURED_SUBSET"
+    },
+    {
+      "accepted_arms": 0,
+      "all_attempt_clock_range_mhz": [
+        1755,
+        1980
+      ],
+      "attempted_arms": 20,
+      "comparisons": [
+        {
+          "accepted_block_ids": [],
+          "accepted_blocks": 0,
+          "case": "projection-dense-native-1x4096x4096-float16",
+          "ratio_a_over_b": null,
+          "rejected_blocks": [
+            {
+              "block": 0,
+              "reasons": [
+                "missing clock or >5% clock spread"
+              ]
+            },
+            {
+              "block": 1,
+              "reasons": [
+                "void or unknown required validity",
+                "missing clock or >5% clock spread"
+              ]
+            },
+            {
+              "block": 2,
+              "reasons": [
+                "missing clock or >5% clock spread"
+              ]
+            },
+            {
+              "block": 3,
+              "reasons": [
+                "missing clock or >5% clock spread"
+              ]
+            },
+            {
+              "block": 4,
+              "reasons": [
+                "missing clock or >5% clock spread"
+              ]
+            }
+          ],
+          "speedup_claim": false,
+          "status": "NO_VERDICT"
+        }
+      ],
+      "d1_complete": false,
+      "descriptive_metrics": {},
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-float16-1x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NO_VERDICT"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-float16-1x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-float16-8x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-float16-8x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-float16-32x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-float16-32x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-float16-128x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-float16-128x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-float16-512x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-float16-512x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-float16-2048x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-float16-2048x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 1024,
+        "name": "projection-float16-1x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 1024,
+        "name": "projection-float16-1x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 1024,
+        "name": "projection-float16-8x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 1024,
+        "name": "projection-float16-8x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 1024,
+        "name": "projection-float16-32x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 1024,
+        "name": "projection-float16-32x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 1024,
+        "name": "projection-float16-128x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 1024,
+        "name": "projection-float16-128x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 1024,
+        "name": "projection-float16-512x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 1024,
+        "name": "projection-float16-512x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 1024,
+        "name": "projection-float16-2048x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 1024,
+        "name": "projection-float16-2048x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 14336,
+        "name": "projection-float16-1x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 14336,
+        "name": "projection-float16-1x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 14336,
+        "name": "projection-float16-8x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 14336,
+        "name": "projection-float16-8x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 14336,
+        "name": "projection-float16-32x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 14336,
+        "name": "projection-float16-32x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 14336,
+        "name": "projection-float16-128x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 14336,
+        "name": "projection-float16-128x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 14336,
+        "name": "projection-float16-512x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 14336,
+        "name": "projection-float16-512x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 14336,
+        "name": "projection-float16-2048x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 14336,
+        "name": "projection-float16-2048x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-float16-1x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-float16-1x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-float16-8x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-float16-8x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-float16-32x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-float16-32x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-float16-128x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-float16-128x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-float16-512x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-float16-512x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-float16-2048x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "float16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-float16-2048x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-bfloat16-1x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-bfloat16-1x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-bfloat16-8x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-bfloat16-8x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-bfloat16-32x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-bfloat16-32x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-bfloat16-128x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-bfloat16-128x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-bfloat16-512x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-bfloat16-512x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-bfloat16-2048x4096x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-bfloat16-2048x4096x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 1024,
+        "name": "projection-bfloat16-1x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 1024,
+        "name": "projection-bfloat16-1x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 1024,
+        "name": "projection-bfloat16-8x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 1024,
+        "name": "projection-bfloat16-8x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 1024,
+        "name": "projection-bfloat16-32x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 1024,
+        "name": "projection-bfloat16-32x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 1024,
+        "name": "projection-bfloat16-128x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 1024,
+        "name": "projection-bfloat16-128x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 1024,
+        "name": "projection-bfloat16-512x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 1024,
+        "name": "projection-bfloat16-512x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 1024,
+        "name": "projection-bfloat16-2048x1024x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 1024,
+        "name": "projection-bfloat16-2048x1024x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 14336,
+        "name": "projection-bfloat16-1x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 1,
+        "n": 14336,
+        "name": "projection-bfloat16-1x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 14336,
+        "name": "projection-bfloat16-8x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 8,
+        "n": 14336,
+        "name": "projection-bfloat16-8x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 14336,
+        "name": "projection-bfloat16-32x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 32,
+        "n": 14336,
+        "name": "projection-bfloat16-32x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 14336,
+        "name": "projection-bfloat16-128x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 128,
+        "n": 14336,
+        "name": "projection-bfloat16-128x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 14336,
+        "name": "projection-bfloat16-512x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 512,
+        "n": 14336,
+        "name": "projection-bfloat16-512x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 14336,
+        "name": "projection-bfloat16-2048x14336x4096-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 4096,
+        "kind": "projection",
+        "m": 2048,
+        "n": 14336,
+        "name": "projection-bfloat16-2048x14336x4096-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-bfloat16-1x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 1,
+        "n": 4096,
+        "name": "projection-bfloat16-1x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-bfloat16-8x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 8,
+        "n": 4096,
+        "name": "projection-bfloat16-8x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-bfloat16-32x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 32,
+        "n": 4096,
+        "name": "projection-bfloat16-32x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-bfloat16-128x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 128,
+        "n": 4096,
+        "name": "projection-bfloat16-128x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-bfloat16-512x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 512,
+        "n": 4096,
+        "name": "projection-bfloat16-512x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-bfloat16-2048x4096x14336-dense-native",
+        "pair": "dense-native",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    },
+    {
+      "attempted_arms": 0,
+      "comparisons": [],
+      "d1_complete": false,
+      "plan": {
+        "dtype": "bfloat16",
+        "k": 14336,
+        "kind": "projection",
+        "m": 2048,
+        "n": 4096,
+        "name": "projection-bfloat16-2048x4096x14336-native-forced",
+        "pair": "native-forced",
+        "steps": 200,
+        "warmup": 20,
+        "warmup_seconds": 15
+      },
+      "scope": "Only the recorded cases; D1 closure also needs correctness, large-alias controls, pretrained real-data training and independent acceptance.",
+      "status": "NOT_RUN"
+    }
+  ],
+  "completed_cases": 2,
+  "completed_projection_cases": 0,
+  "cuda_correctness": {
+    "bfloat16": "PASS",
+    "float16": "PASS"
+  },
+  "d1_complete": false,
+  "existing_gpu_tests": {
+    "deselected": 17,
+    "errors": 0,
+    "exit_code": 0,
+    "failed": 0,
+    "passed": 12,
+    "skipped": 0
+  },
+  "expected_cases": 98,
+  "expected_projection_cases": 96,
+  "identities": [
+    [
+      "ca1c5b005fcc3d53d91ac0a7599d97f7e10266fd",
+      "GPU-ba2be847-d6cd-29a4-ac92-cfe08ee3083f",
+      "8f70b6996673c423835f7cf0f2a0f567b99f720e3cd0bae99e9a5ef1be8e5f6e",
+      "01ca113b0ee29c1dcc5811b81f7900809c2bfcddc1f7046ae4616b168db9b889",
+      "55fc7093bb7fe20762dd107f49733c8211b55d386b6b9cccfdf80a15905dcfd8"
+    ]
+  ],
+  "independent_acceptance": false,
+  "packages": {
+    "bitsandbytes": "0.50.2",
+    "peft": "0.20.0",
+    "psutil": "7.2.2",
+    "torch": "2.11.0+cu126",
+    "transformers": "5.17.0"
+  },
+  "scope": "Recomputed F1/clock/identity acceptance and timing contracts for retained records. Numerical tensor/QA replays and independent review are separate checks. Ratios and ranges are descriptive; no multiple-comparison significance claim.",
+  "source_sha": "ca1c5b005fcc3d53d91ac0a7599d97f7e10266fd",
+  "status": "INCOMPLETE"
+}

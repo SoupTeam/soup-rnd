@@ -1,0 +1,71 @@
+{
+  "gates": [
+    {
+      "gate": "192 MiB alias",
+      "exact": true,
+      "negative_detected": true
+    },
+    {
+      "gate": "stream-128",
+      "exact_quantities": 17,
+      "nonvacuous": true
+    },
+    {
+      "gate": "stream-2048",
+      "exact_quantities": 17,
+      "nonvacuous": true
+    }
+  ],
+  "source_sha": "ba6928e9af116c11d56257cf8d532ec51c3dee17",
+  "source_files": [
+    {
+      "file": "benchmarks/harness/d1_fused_nf4.py",
+      "archive_sha256": "b74b0c25bd2c33be1435e112676c0fe04df37eded92a19beacd15d1df1548c90",
+      "git_blob_sha256": "5504384e920c4894a8e93138a355836c98e649083bed97d70571068bb8b72053",
+      "git_blob_matches_after_crlf_normalization": true
+    },
+    {
+      "file": "benchmarks/harness/d1_wmma_nf4.py",
+      "archive_sha256": "86820dd5b918e3cef0355b4b9966d8241fb5d0b1e704702e048cb6484c5f61df",
+      "git_blob_sha256": "140d76841879364e690ff064ce0c84211ad764011f9bd134952bca9123e9ef90",
+      "git_blob_matches_after_crlf_normalization": true
+    },
+    {
+      "file": "benchmarks/harness/d1_wmma_acceptance.py",
+      "archive_sha256": "98bf9b54887277122605b4b33f055528281b0da01cf17db58944e5949ceca548",
+      "git_blob_sha256": "f4891920fbd628068ffe8e99ec277ba37a15ca889883bd0bf41e4058b1c39783",
+      "git_blob_matches_after_crlf_normalization": true
+    },
+    {
+      "file": "benchmarks/harness/d1_wmma_step_screen.py",
+      "archive_sha256": "0b4a4147058f9a67f805893a2698947a54152a3927c7dbf4a02743313ebab1a9",
+      "git_blob_sha256": "1462f3ba12791324c8c2a2245619d9cd8a9964412bf9ff754be352ed4e0349d6",
+      "git_blob_matches_after_crlf_normalization": true
+    },
+    {
+      "file": "benchmarks/harness/d1_nf4_study.py",
+      "archive_sha256": "508a838ea66139e167838724208923629c944ee249539b563863f459865d9202",
+      "git_blob_sha256": "a95e215f978d54a9b07177fb6a6088d2bac5af83882e7ca681f50170349ed6b1",
+      "git_blob_matches_after_crlf_normalization": true
+    }
+  ],
+  "secret_scan": "PASS",
+  "medians_recomputed": {
+    "native": 2.8571038818359376,
+    "candidate": 4.0924465942382815
+  },
+  "peak_allocated_bytes": {
+    "native": 119809024,
+    "candidate": 95433728
+  },
+  "observed_saved_bytes": 24375296,
+  "telemetry_samples": 43,
+  "whole_csv_sm_mhz_range": [
+    1545,
+    1965
+  ],
+  "power_limits_w": [
+    "200.00"
+  ],
+  "timing_verdict": "SHORT SCREEN; no final speed claim"
+}

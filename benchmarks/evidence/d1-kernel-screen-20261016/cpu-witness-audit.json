@@ -1,0 +1,56 @@
+{
+  "cuda_status": "SMALL_CUDA_GATE_FAIL",
+  "source_sha": "6ead078a2c375fe3aa31f52beab4703ccfb9dc5b",
+  "packages": {
+    "bitsandbytes": "0.50.2",
+    "torch": "2.11.0+cu126"
+  },
+  "triton": "3.6.0",
+  "gpu_uuid": "ba5c145e-97a6-ca5b-45c9-6f391d10e8db",
+  "gpu_name": "NVIDIA GeForce RTX 3090",
+  "shape": [
+    128,
+    64,
+    128
+  ],
+  "dtype": "float16",
+  "nested": false,
+  "native_dispatch": {
+    "custom": 0,
+    "fallback": 1
+  },
+  "cpu_audit": [
+    {
+      "name": "forward",
+      "exact": false,
+      "different_elements": 4,
+      "elements": 8192,
+      "finite": true,
+      "max_abs": 0.00390625
+    },
+    {
+      "name": "dx",
+      "exact": false,
+      "different_elements": 10,
+      "elements": 16384,
+      "finite": true,
+      "max_abs": 0.00390625
+    },
+    {
+      "name": "decoded",
+      "exact": true,
+      "different_elements": 0,
+      "elements": 8192,
+      "finite": true,
+      "max_abs": 0.0
+    }
+  ],
+  "raw_archive_sha256": "f8dcb9a2789ef6d8f0f8cc9e5563593c703efa2e93a73db914481f59fa6a7cf8",
+  "performance_measured": false,
+  "verified_deleted": {
+    "instance_id": 56216532,
+    "verified_unix": 1792136428.343048,
+    "verified_absent": true,
+    "verification": "fresh Vast CLI instance listing"
+  }
+}
