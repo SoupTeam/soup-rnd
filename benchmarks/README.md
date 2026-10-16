@@ -209,3 +209,5 @@ user.
 ```bash
 pip install "soup-cli[train]"
 ```
+
+- [C4: two Linux NVMe sustained reads (exploratory)](results/c4-linux-dual-nvme-20261016/report.md) — one hour per SSD and two hours concurrent; full C4 acceptance remains open.
