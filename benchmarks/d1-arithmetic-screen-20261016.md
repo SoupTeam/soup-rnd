@@ -16,6 +16,15 @@ Calibration alone never establishes correctness. No tolerance relaxation and
 no replacement of the native reference. Native GPU kernel names are collected
 with Torch profiler when available; this is diagnosis, not performance evidence.
 
+A separately pinned follow-up tests eighteen configurations: chunks of 4/8/16
+products, chained/independent accumulation, and both operand orientations.
+Masking unused reduction lanes keeps the minimum Triton MMA tile size at 16.
+The transposed output formulation mirrors cuBLAS's column-major orientation.
+FP16 and BF16 are evaluated independently, so failure of one cannot hide evidence
+for the other. Each dtype needs 16 independent cases (two seeds, two nesting
+modes, four shapes including M512/N4096/K4096), stopping at its first failure.
+Only a fully validated dtype could proceed to checkpoint and full-step gates.
+
 Run one physical CUDA instance, single GPU, no model download, with an independent
 local deletion guard and per-instance remote watchdog. Bound this iteration to
 $0.20, keeping total short screens below the previously approved $0.25 and

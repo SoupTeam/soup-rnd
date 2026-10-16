@@ -43,25 +43,34 @@ def _kernel() -> Any:
         bn: tl.constexpr,
         bk: tl.constexpr,
         partial: tl.constexpr,
+        chunk: tl.constexpr,
+        swap: tl.constexpr,
     ):
         rows = (tl.program_id(0) * bm + tl.arange(0, bm)).to(tl.int64)
         columns = (tl.program_id(1) * bn + tl.arange(0, bn)).to(tl.int64)
         reduction = tl.arange(0, bk)
         reduce_size: tl.constexpr = n if transpose else k
         output_size: tl.constexpr = k if transpose else n
-        accumulator = tl.full((bm, bn), 0, tl.float32)
-        for start in range(tl.cdiv(reduce_size, bk)):
-            inner = (start * bk + reduction).to(tl.int64)
+        if swap:
+            accumulator = tl.full((bn, bm), 0, tl.float32)
+        else:
+            accumulator = tl.full((bm, bn), 0, tl.float32)
+        for start in range(tl.cdiv(reduce_size, chunk)):
+            inner = (start * chunk + reduction).to(tl.int64)
             inputs = tl.load(
                 input_ptr + rows[:, None] * reduce_size + inner[None, :],
-                (rows[:, None] < m) & (inner[None, :] < reduce_size),
+                (rows[:, None] < m) & (inner[None, :] < reduce_size) & (reduction[None, :] < chunk),
                 other=0,
             )
             if transpose:
                 positions = inner[:, None] * k + columns[None, :]
             else:
                 positions = columns[None, :] * k + inner[:, None]
-            valid = (inner[:, None] < reduce_size) & (columns[None, :] < output_size)
+            valid = (
+                (inner[:, None] < reduce_size)
+                & (columns[None, :] < output_size)
+                & (reduction[:, None] < chunk)
+            )
             packed = tl.load(packed_ptr + positions // 2, valid, other=0).to(tl.int32)
             indices = tl.where(positions % 2 == 0, packed >> 4, packed & 15)
             values = tl.load(code_ptr + indices)
@@ -78,10 +87,16 @@ def _kernel() -> Any:
             # Match dequantize_4bit's weight rounding BEFORE multiplying by x.
             weights = (values * scales).to(weight_dtype).to(inputs.dtype)
             weights = tl.where(valid, weights, 0)
-            if partial:
-                accumulator += tl.dot(inputs, weights, input_precision="ieee")
+            if swap:
+                left, right = tl.trans(weights), tl.trans(inputs)
             else:
-                accumulator = tl.dot(inputs, weights, accumulator, input_precision="ieee")
+                left, right = inputs, weights
+            if partial:
+                accumulator += tl.dot(left, right, input_precision="ieee")
+            else:
+                accumulator = tl.dot(left, right, accumulator, input_precision="ieee")
+        if swap:
+            accumulator = tl.trans(accumulator)
         tl.store(
             output_ptr + rows[:, None] * output_size + columns[None, :],
             accumulator,
@@ -112,11 +127,15 @@ def _launch(value: Any, saved: tuple, metadata: tuple, transpose: bool, config: 
         raise RuntimeError("BF16 is not supported reliably by the Triton CPU interpreter")
     import triton
     import triton.language as tl
+
     value = value.contiguous()
     m = value.numel() // reduce_size
     result = torch.empty((*value.shape[:-1], output_size), dtype=value.dtype, device=value.device)
     types = {torch.float16: tl.float16, torch.bfloat16: tl.bfloat16, torch.float32: tl.float32}
-    bm, bn, bk, warps, partial = config
+    bm, bn, bk, warps, partial = config[:5]
+    chunk, swap = config[5:] if len(config) == 7 else (bk, False)
+    if chunk <= 0 or chunk > bk:
+        raise ValueError("invalid reduction chunk")
     _kernel()[(triton.cdiv(m, bm), triton.cdiv(output_size, bn))](
         value,
         *saved,
@@ -133,6 +152,8 @@ def _launch(value: Any, saved: tuple, metadata: tuple, transpose: bool, config: 
         bn,
         bk,
         partial,
+        chunk,
+        swap,
         num_warps=warps,
         enable_fp_fusion=False,
     )
