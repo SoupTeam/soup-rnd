@@ -1,0 +1,179 @@
+{
+  "scope": "complete TinyLlama 1.1B, fixed synthetic tokens, dense LoRA",
+  "table": [
+    {
+      "dtype": "float16",
+      "backend": "peft",
+      "steps": 50,
+      "loss_matches_3dp": 50,
+      "tensor_quantities": 1232,
+      "tensor_failures": 0,
+      "max_relative_l2": 0.0,
+      "final_loss": 7.026005268096924,
+      "numerical_passed": true,
+      "lifecycle_passed": true
+    },
+    {
+      "dtype": "float16",
+      "backend": "soup",
+      "steps": 50,
+      "loss_matches_3dp": 50,
+      "tensor_quantities": 1232,
+      "tensor_failures": 0,
+      "max_relative_l2": 0.0,
+      "final_loss": 7.026005268096924,
+      "numerical_passed": true,
+      "lifecycle_passed": true
+    },
+    {
+      "dtype": "float16",
+      "backend": "liger",
+      "steps": 50,
+      "loss_matches_3dp": 1,
+      "tensor_quantities": 1232,
+      "tensor_failures": 1232,
+      "max_relative_l2": 2.915889571444396,
+      "final_loss": 8.41463851928711,
+      "numerical_passed": false,
+      "lifecycle_passed": true
+    },
+    {
+      "dtype": "float16",
+      "backend": "unsloth",
+      "steps": 50,
+      "loss_matches_3dp": 1,
+      "tensor_quantities": 1232,
+      "tensor_failures": 1232,
+      "max_relative_l2": 2.026422051790787,
+      "final_loss": 8.413683891296387,
+      "numerical_passed": false,
+      "lifecycle_passed": true
+    },
+    {
+      "dtype": "bfloat16",
+      "backend": "peft",
+      "steps": 50,
+      "loss_matches_3dp": 50,
+      "tensor_quantities": 1232,
+      "tensor_failures": 0,
+      "max_relative_l2": 0.0,
+      "final_loss": 8.380362510681152,
+      "numerical_passed": true,
+      "lifecycle_passed": true
+    },
+    {
+      "dtype": "bfloat16",
+      "backend": "soup",
+      "steps": 50,
+      "loss_matches_3dp": 50,
+      "tensor_quantities": 1232,
+      "tensor_failures": 0,
+      "max_relative_l2": 0.0,
+      "final_loss": 8.380362510681152,
+      "numerical_passed": true,
+      "lifecycle_passed": true
+    },
+    {
+      "dtype": "bfloat16",
+      "backend": "liger",
+      "steps": 50,
+      "loss_matches_3dp": 1,
+      "tensor_quantities": 1232,
+      "tensor_failures": 1226,
+      "max_relative_l2": 182.58616262029605,
+      "final_loss": 8.377808570861816,
+      "numerical_passed": false,
+      "lifecycle_passed": true
+    },
+    {
+      "dtype": "bfloat16",
+      "backend": "unsloth",
+      "steps": 50,
+      "loss_matches_3dp": 0,
+      "tensor_quantities": 1232,
+      "tensor_failures": 1225,
+      "max_relative_l2": 24.32730022163894,
+      "final_loss": 8.374558448791504,
+      "numerical_passed": false,
+      "lifecycle_passed": true
+    }
+  ],
+  "witnesses": [
+    {
+      "file": "float16-liger-gradient.safetensors",
+      "dtype": "float16",
+      "backend": "liger",
+      "quantity": "step-1/gradient/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.09376395953020113,
+      "passed": false,
+      "exact": false
+    },
+    {
+      "file": "float16-liger-weight.safetensors",
+      "dtype": "float16",
+      "backend": "liger",
+      "quantity": "step-1/weight/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.11713666813183797,
+      "passed": false,
+      "exact": false
+    },
+    {
+      "file": "float16-unsloth-gradient.safetensors",
+      "dtype": "float16",
+      "backend": "unsloth",
+      "quantity": "step-1/gradient/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.09294483757722094,
+      "passed": false,
+      "exact": false
+    },
+    {
+      "file": "float16-unsloth-weight.safetensors",
+      "dtype": "float16",
+      "backend": "unsloth",
+      "quantity": "step-1/weight/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.11692965976315703,
+      "passed": false,
+      "exact": false
+    },
+    {
+      "file": "bfloat16-liger-gradient.safetensors",
+      "dtype": "bfloat16",
+      "backend": "liger",
+      "quantity": "step-1/gradient/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.048789500316225615,
+      "passed": false,
+      "exact": false
+    },
+    {
+      "file": "bfloat16-liger-weight.safetensors",
+      "dtype": "bfloat16",
+      "backend": "liger",
+      "quantity": "step-1/weight/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.09156708295079363,
+      "passed": false,
+      "exact": false
+    },
+    {
+      "file": "bfloat16-unsloth-gradient.safetensors",
+      "dtype": "bfloat16",
+      "backend": "unsloth",
+      "quantity": "step-1/gradient/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.05144533149584922,
+      "passed": false,
+      "exact": false
+    },
+    {
+      "file": "bfloat16-unsloth-weight.safetensors",
+      "dtype": "bfloat16",
+      "backend": "unsloth",
+      "quantity": "step-1/weight/base_model.model.model.layers.0.mlp.down_proj.lora_A.default.weight",
+      "relative_l2": 0.09361192840980183,
+      "passed": false,
+      "exact": false
+    }
+  ],
+  "accepted_timing_arms": 0,
+  "full_equivalence_passed": false,
+  "criterion": "50 losses at .3f; each saved weight/gradient relative L2 <= 1%",
+  "limit": "Only failure witnesses are public here; full tensors remain in the raw bundle."
+}
