@@ -172,4 +172,3 @@ if __name__ == "__main__":
         raise FileExistsError("use a fresh output directory")
     args.output.mkdir(parents=True)
     run(args.output)
-

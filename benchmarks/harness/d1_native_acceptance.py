@@ -182,4 +182,3 @@ if __name__ == "__main__":
     result = run(args.output, args.diagnose_full_fp32_reduction)
     if not result["passed"]:
         sys.exit(2)
-

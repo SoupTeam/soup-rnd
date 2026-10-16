@@ -171,4 +171,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     run(args.output)
-
