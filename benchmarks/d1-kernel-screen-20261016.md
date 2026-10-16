@@ -19,7 +19,10 @@ properties, not evidence of physical-GPU correctness or speed.
 3. Physical-CUDA screen: seed 842, TF32 off, deterministic algorithms,
    `CUBLAS_WORKSPACE_CONFIG=:4096:8`, same-process unpatched native bitsandbytes
    reference; independently compare forward, dX and the decoded-weight oracle.
-   Shapes (M,N,K): (3,32,128), (17,67,96), FP16/BF16, plain/nested NF4.
+   Shapes (M,N,K): (128,64,128), (133,67,96), FP16/BF16, plain/nested NF4.
+   These training-M shapes were selected before CUDA execution to test the
+   missing large-M path, rather than replacing the already fused small-M op.
+   CPU interpreter controls retain (3,32,128), (17,67,96).
    Retain raw CPU tensor witnesses and their hashes. Stop at the first exactness
    failure, before timing, training, model downloads or the larger alias test.
 4. Only a passing candidate proceeds to the existing >165 MiB alias and

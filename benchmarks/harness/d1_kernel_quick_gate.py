@@ -155,9 +155,12 @@ def run(device: str, witness_root: Path | None = None) -> dict:
     torch.use_deterministic_algorithms(True)
     rows = []
     dtypes = ("float16", "bfloat16") if device == "cuda" else ("float16",)
+    # Target the missing training-M fused path first; small-M native GEMM is
+    # already fused and has different arithmetic from dense dequant + linear.
+    shapes = ((128, 64, 128), (133, 67, 96)) if device == "cuda" else ((3, 32, 128), (17, 67, 96))
     for dtype in dtypes:
         for nested in (False, True):
-            for shape in ((3, 32, 128), (17, 67, 96)):
+            for shape in shapes:
                 row = numerical_case(device, dtype, nested, shape, witness_root)
                 rows.append(row)
                 Console().print(
