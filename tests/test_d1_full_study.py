@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parents[1] / "benchmarks/harness"))
 
 
@@ -39,3 +41,20 @@ def test_empty_case_needs_the_five_counted_pilot_blocks():
     from d1_full_study import remaining_blocks
 
     assert remaining_blocks([]) == 5
+
+
+def test_selected_followup_keeps_fixed_case_settings_and_is_not_complete_grid():
+    from d1_full_study import cases, select_cases
+
+    assert select_cases() == cases()
+    selected = select_cases(["ablation"])
+    assert selected == [cases()[-2]]
+    assert len(selected) != 98
+
+
+@pytest.mark.parametrize("names", [[], ["missing"], ["qa", "qa"]])
+def test_followup_rejects_unknown_empty_or_duplicate_selection(names):
+    from d1_full_study import select_cases
+
+    with pytest.raises(ValueError, match="unique known"):
+        select_cases(names)

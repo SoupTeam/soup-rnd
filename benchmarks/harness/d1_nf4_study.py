@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
+from d1_reference import validate_reference  # noqa: E402
 from d1_rules import (  # noqa: E402
     all_block_reads_check,
     canonical_gpu_uuid,
@@ -58,7 +59,7 @@ def provenance(require_clean: bool) -> dict:
         raise RuntimeError("commit the rule and source before CUDA arms; tracked tree is dirty")
     if require_clean:
         git("ls-files", "--error-unmatch", "benchmarks/gate-d1-nf4-rule.md")
-        for name in ("d1_nf4_study.py", "d1_rules.py", "d1_qa.py"):
+        for name in ("d1_nf4_study.py", "d1_rules.py", "d1_qa.py", "d1_reference.py"):
             git("ls-files", "--error-unmatch", "benchmarks/harness/" + name)
     packages = {}
     for name in ("torch", "bitsandbytes", "transformers", "peft", "psutil"):
@@ -75,6 +76,7 @@ def provenance(require_clean: bool) -> dict:
         "harness_sha256": digest(Path(__file__)),
         "runtime_sha256": digest(ROOT / "src/soup_cli/utils/layer_stream_runtime.py"),
         "qa_harness_sha256": digest(Path(__file__).with_name("d1_qa.py")),
+        "reference_harness_sha256": digest(Path(__file__).with_name("d1_reference.py")),
         "rule_amendment_sha256": digest(ROOT / "benchmarks/d1-amendment-20261015-a.md"),
         "amendments_sha256": {
             path.name: digest(path)
@@ -429,6 +431,7 @@ def timed_steps(
     warmup: int,
     warmup_seconds: float = 0,
     before_timing: Callable[[], None] | None = None,
+    timed_seconds: float = 0,
 ) -> dict:
     import torch
 
@@ -450,7 +453,7 @@ def timed_steps(
     pairs, wall_ms = [], []
     with Telemetry() as telemetry:
         started_ns = time.monotonic_ns()
-        for _index in range(count):
+        while len(pairs) < count or (time.monotonic_ns() - started_ns) / 1e9 < timed_seconds:
             start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
             began = time.perf_counter()
             start.record()
@@ -469,6 +472,10 @@ def timed_steps(
     actual_uuid = canonical_gpu_uuid(raw_uuid)
     return {
         "step_cuda_ms": pairs,
+        "timed_start_ns": started_ns,
+        "timed_end_ns": ended_ns,
+        "actual_timed_steps": len(pairs),
+        "actual_timed_seconds": (ended_ns - started_ns) / 1e9,
         "actual_warmup_steps": warm_steps,
         "actual_warmup_seconds": warm_elapsed,
         "step_wall_ms": wall_ms,
@@ -586,15 +593,15 @@ def projection(args: argparse.Namespace) -> dict:
         raise RuntimeError("candidate differs from unpatched native reference; reject timing")
     dense = functional.dequantize_4bit(packed, state).to(value.dtype)
     with torch.no_grad():
-        for _index in range(5):
-            torch.nn.functional.linear(value, dense)
-        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-        start.record()
-        for _index in range(20):
-            torch.nn.functional.linear(value, dense)
-        end.record()
-        end.synchronize()
-    ceiling_ms = start.elapsed_time(end) / 20
+        ceiling = timed_steps(
+            lambda: torch.nn.functional.linear(value, dense),
+            count=200,
+            warmup=20,
+            warmup_seconds=1,
+            timed_seconds=1,
+        )
+    ceiling_ms = statistics.median(ceiling["step_cuda_ms"])
+    reference_validation = validate_reference(measured, ceiling)
     return {
         **source,
         **measured,
@@ -612,6 +619,11 @@ def projection(args: argparse.Namespace) -> dict:
         "shape": [args.m, args.n, args.k],
         "dense_gemm_ms": ceiling_ms,
         "dense_gemm_tflops": 2 * args.m * args.n * args.k / (ceiling_ms * 1e9),
+        "dense_gemm_reference": ceiling,
+        "dense_gemm_reference_validation": reference_validation,
+        "dense_gemm_reference_scope": "same-process dense F.linear forward only, "
+        "median per-call CUDA event; separate sampled window after primary peak capture; "
+        "not an end-to-end forward/backward speedup",
         "settings_sha256": settings_digest(
             {
                 key: getattr(args, key)
@@ -1011,6 +1023,10 @@ def run_blocks(args: argparse.Namespace) -> dict:
                 or result.get("status") != "MEASURED"
                 or result.get("telemetry_errors")
                 or not result.get("telemetry_gpu_matches_cuda")
+                or (
+                    args.kind == "projection"
+                    and not result.get("dense_gemm_reference_validation", {}).get("passed")
+                )
             ):
                 result["validity"] = {**validity, "outcome": "void"}
             write_new_json(output / "watched.json", result)

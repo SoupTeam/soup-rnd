@@ -64,6 +64,17 @@ def cases() -> list[dict]:
     return [*result[2:], result[0], result[1]]
 
 
+def select_cases(names: list[str] | None = None) -> list[dict]:
+    """Select a separately declared follow-up, never fill a different cohort."""
+    available = cases()
+    if names is None:
+        return available
+    known = {row["name"] for row in available}
+    if not names or len(names) != len(set(names)) or set(names) - known:
+        raise ValueError("follow-up requires unique known case names")
+    return [row for row in available if row["name"] in names]
+
+
 def next_block(root: Path) -> int:
     numbers = [
         int(path.name.split("-")[1]) for path in root.rglob("block-*-run-*") if path.is_dir()
@@ -106,16 +117,19 @@ def execute(command: list[str], log: Path, deadline: float) -> int:
 
 def run(args: argparse.Namespace) -> dict:
     source = provenance(True)
+    study_cases = select_cases(getattr(args, "case", None))
     args.output.mkdir(parents=True, exist_ok=True)
     plan = {
         "source_sha": source["source_sha"],
-        "cases": cases(),
+        "cases": study_cases,
         "weights": str(args.weights),
         "data": str(args.data),
         "clock_policy": "Recorded A100 clock policy; unchanged <=5% guard per comparison",
         "thermal_policy": ">=20 steps and 5 seconds for projections; 200 ablation warm-up steps; "
         "independent 200-step QA prelude, then exactly 20 QA warm-up updates",
     }
+    if getattr(args, "case", None) is not None:
+        plan["scope"] = "SELECTED_FOLLOWUP; separate cohort; not full-grid acceptance"
     plan_path = args.output / "plan.json"
     if plan_path.exists():
         if json.loads(plan_path.read_text()) != plan:
@@ -169,7 +183,7 @@ def run(args: argparse.Namespace) -> dict:
     if json.loads(regression.read_text())["exit_code"]:
         raise RuntimeError("new-cohort GPU regression failed")
     completed = []
-    for case in cases():
+    for case in study_cases:
         root = args.output / case["name"]
         root.mkdir(exist_ok=True)
         while True:
@@ -217,7 +231,8 @@ def run(args: argparse.Namespace) -> dict:
             write_new_json(snapshot, result)
         completed.append({"name": case["name"], **result})
         Console().print(
-            f"{len(completed)}/{len(cases())}: {case['name']} {result['comparisons'][0]['status']}"
+            f"{len(completed)}/{len(study_cases)}: "
+            f"{case['name']} {result['comparisons'][0]['status']}"
         )
         # Mutable progress is explicitly separate from immutable raw arms and snapshots.
         (args.output / "progress.json").write_text(
@@ -225,7 +240,7 @@ def run(args: argparse.Namespace) -> dict:
                 {
                     "status": "RUNNING",
                     "completed_cases": len(completed),
-                    "total_cases": len(cases()),
+                    "total_cases": len(study_cases),
                     "cases": completed,
                     "updated_unix": time.time(),
                 },
@@ -234,7 +249,9 @@ def run(args: argparse.Namespace) -> dict:
             encoding="utf-8",
         )
     return {
-        "status": "COMPLETE_MEASUREMENTS_REVIEW_REQUIRED",
+        "status": "COMPLETE_FOLLOWUP_REVIEW_REQUIRED"
+        if getattr(args, "case", None) is not None
+        else "COMPLETE_MEASUREMENTS_REVIEW_REQUIRED",
         "d1_complete": False,
         "cases": completed,
         "source": source,
@@ -247,6 +264,7 @@ def main() -> None:
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--deadline", type=float, required=True)
+    parser.add_argument("--case", action="append", help="separate selected follow-up case name")
     args = parser.parse_args()
     result = run(args)
     write_new_json(args.output / "complete.json", result)

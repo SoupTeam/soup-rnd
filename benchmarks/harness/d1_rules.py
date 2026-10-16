@@ -158,13 +158,15 @@ def _comparison(case: str, rows: list[dict]) -> dict:
         for field in identities
         if len({row.get(field) for row in rows}) != 1 or any(not row.get(field) for row in rows)
     ]
-    clocks = [sample for row in rows for sample in row.get("clock_sm_mhz", [])]
+    references = [row["dense_gemm_reference"] for row in rows if "dense_gemm_reference" in row]
+    windows = [*rows, *references]
+    clocks = [sample for row in windows for sample in row.get("clock_sm_mhz", [])]
     clocks_ok = (
         all(row.get("clock_sm_mhz") for row in rows)
         and all(_positive(sample) for sample in clocks)
         and max(clocks, default=0) <= min(clocks, default=0) * (1 + CLOCK_SPREAD)
     )
-    limits = [sample for row in rows for sample in row.get("power_limit_mw", [])]
+    limits = [sample for row in windows for sample in row.get("power_limit_mw", [])]
     power_ok = (
         all(row.get("power_limit_mw") for row in rows)
         and all(_positive(value) for value in limits)
@@ -192,6 +194,15 @@ def _comparison(case: str, rows: list[dict]) -> dict:
             reasons.append("missing or changed GPU power limit")
         if any(not row.get("memory_util_pct") for row in block):
             reasons.append("missing memory-controller utilization")
+        for row in block:
+            if ("reference_harness_sha256" in row and row.get("shape")) or (
+                "dense_gemm_reference" in row
+            ):
+                from d1_reference import validate_reference
+
+                validation = validate_reference(row, row.get("dense_gemm_reference", {}))
+                if not validation["passed"]:
+                    reasons.append("dense GEMM reference: " + "; ".join(validation["reasons"]))
         if reasons:
             rejected.append({"block": number, "reasons": reasons})
         else:
