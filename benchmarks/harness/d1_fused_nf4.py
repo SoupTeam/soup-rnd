@@ -112,6 +112,33 @@ def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
 
 
 def _dispatch(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
+    if len(metadata) == 7 and metadata[-1] == "wmma_native":
+        import torch
+        from d1_wmma_nf4 import matmul
+
+        n, k, blocksize, nested, block2, _dtype = metadata[:6]
+        m = value.numel() // value.shape[-1]
+        large_split = (m, n, k) == (128, 32768, 12288)
+        if large_split and not transpose:
+            # Reuse upstream's already fused forward in this observed dispatch region.
+            packed, absmax, _code, absmax2, code2, offset = saved
+            kwargs = (
+                dict(absmax_8bit=absmax, absmax_code=code2, absmax_offset=offset) if nested else {}
+            )
+            return torch.ops.bitsandbytes.gemm_4bit.default(
+                value, packed, (n, k), absmax2 if nested else absmax, blocksize, "nf4", **kwargs
+            )
+        reduced = torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction
+        return matmul(
+            value,
+            saved,
+            metadata[:6],
+            transpose,
+            tile=32,
+            reduction_tile=128,
+            reduction_span=8192 if large_split and transpose and reduced else 0,
+            round_mode=1 if large_split and transpose and reduced else 0,
+        )
     if len(metadata) == 7 and metadata[-1] == "wmma":
         import torch
         from d1_wmma_nf4 import matmul
@@ -206,7 +233,7 @@ def linear(
     """Candidate only: all frozen tensor state goes through save_for_backward."""
     import torch
 
-    if backend not in ("triton", "wmma"):
+    if backend not in ("triton", "wmma", "wmma_native"):
         raise ValueError("unknown research NF4 backend")
     if state.quant_type != "nf4" or len(state.shape) != 2:
         raise ValueError("candidate supports canonical 2D NF4 weights only")
@@ -242,7 +269,7 @@ def linear(
     if any(tensor.device != value.device for tensor in saved):
         raise ValueError("all NF4 state must be on the input device")
     metadata = (n, k, blocksize, bool(state.nested), state2_block, state.dtype)
-    if backend == "wmma":
+    if backend in ("wmma", "wmma_native"):
         if (
             value.device.type != "cuda"
             or value.dtype != torch.bfloat16
@@ -252,6 +279,6 @@ def linear(
             or value.numel() // value.shape[-1] < 128
         ):
             raise ValueError("WMMA gated scope requires CUDA BF16, M>=128, N%64=0, K%32=0")
-        metadata += ("wmma",)
+        metadata += (backend,)
     output = _function().apply(value, *saved, metadata)
     return output if bias is None else output + bias
