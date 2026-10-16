@@ -3,6 +3,7 @@
 import argparse
 import copy
 import os
+import sys
 from pathlib import Path
 
 from d1_rules import compare_tensors, digest, write_new_json
@@ -166,6 +167,7 @@ def run(output, full_fp32_reduction=False):
         "default_math_acceptance": not full_fp32_reduction,
     }
     write_new_json(output / "acceptance.json", result)
+    return result
 
 
 if __name__ == "__main__":
@@ -176,4 +178,6 @@ if __name__ == "__main__":
     if args.output.exists():
         raise FileExistsError("use a fresh output directory")
     args.output.mkdir(parents=True)
-    run(args.output, args.diagnose_full_fp32_reduction)
+    result = run(args.output, args.diagnose_full_fp32_reduction)
+    if not result["passed"]:
+        sys.exit(2)
