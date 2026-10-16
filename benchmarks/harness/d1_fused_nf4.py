@@ -281,15 +281,12 @@ def linear(
             raise ValueError("WMMA gated scope requires CUDA BF16, M>=128, N%64=0, K%32=0")
         if backend in ("wmma_native", "wmma_native64"):
             m = value.numel() // value.shape[-1]
-            if (n, k) not in {
-                (64, 64),
-                (64, 128),
-                (128, 96),
-                (256, 512),
-                (4096, 4096),
-                (11008, 4096),
-                (32768, 12288),
-            } or ((n, k) == (32768, 12288) and m != 128):
+            if (m, n, k) not in {
+                (128, 64, 64),
+                (2048, 64, 64),
+                (128, 4096, 4096),
+                (128, 32768, 12288),
+            }:
                 raise ValueError("native WMMA research descriptor is not covered")
         metadata += (backend,)
     output = _function().apply(value, *saved, metadata)
