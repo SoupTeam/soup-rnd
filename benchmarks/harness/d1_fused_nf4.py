@@ -111,6 +111,19 @@ def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
     return _launch(value, saved, metadata, transpose, (16, 32, 64, 4, False))
 
 
+def _dispatch(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
+    if len(metadata) == 7 and metadata[-1] == "wmma":
+        import torch
+        from d1_wmma_nf4 import matmul
+
+        if torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction:
+            raise RuntimeError(
+                "WMMA requires full FP32 BF16 reduction in both forward and backward"
+            )
+        return matmul(value, saved, metadata[:6], transpose)
+    return _matmul(value, saved, metadata, transpose)
+
+
 def _launch(value: Any, saved: tuple, metadata: tuple, transpose: bool, config: tuple) -> Any:
     """Explicit experiment configuration; production dispatch never calls this."""
     import torch
@@ -173,24 +186,28 @@ def _function() -> Any:
             ctx.save_for_backward(*saved)
             ctx.nf4_meta = metadata
             ctx.owner_check = getattr(packed, "_soup_stream_owner_check", None)
-            return _matmul(value, saved, metadata, False)
+            return _dispatch(value, saved, metadata, False)
 
         @staticmethod
         def backward(ctx, grad_output):
             if ctx.owner_check is not None:
                 ctx.owner_check()
             # Access through saved_tensors triggers checkpoint recomputation.
-            grad_value = _matmul(grad_output, ctx.saved_tensors, ctx.nf4_meta, True)
+            grad_value = _dispatch(grad_output, ctx.saved_tensors, ctx.nf4_meta, True)
             return (grad_value,) + (None,) * 7
 
     _FUNCTION = FusedNF4
     return _FUNCTION
 
 
-def linear(value: Any, packed: Any, state: Any, bias: Any = None) -> Any:
+def linear(
+    value: Any, packed: Any, state: Any, bias: Any = None, *, backend: str = "triton"
+) -> Any:
     """Candidate only: all frozen tensor state goes through save_for_backward."""
     import torch
 
+    if backend not in ("triton", "wmma"):
+        raise ValueError("unknown research NF4 backend")
     if state.quant_type != "nf4" or len(state.shape) != 2:
         raise ValueError("candidate supports canonical 2D NF4 weights only")
     if packed.dtype != torch.uint8 or not packed.is_contiguous():
@@ -225,5 +242,16 @@ def linear(value: Any, packed: Any, state: Any, bias: Any = None) -> Any:
     if any(tensor.device != value.device for tensor in saved):
         raise ValueError("all NF4 state must be on the input device")
     metadata = (n, k, blocksize, bool(state.nested), state2_block, state.dtype)
+    if backend == "wmma":
+        if (
+            value.device.type != "cuda"
+            or value.dtype != torch.bfloat16
+            or state.dtype != torch.bfloat16
+            or n % 64
+            or k % 32
+            or value.numel() // value.shape[-1] < 128
+        ):
+            raise ValueError("WMMA gated scope requires CUDA BF16, M>=128, N%64=0, K%32=0")
+        metadata += ("wmma",)
     output = _function().apply(value, *saved, metadata)
     return output if bias is None else output + bias

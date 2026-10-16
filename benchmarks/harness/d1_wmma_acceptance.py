@@ -43,7 +43,7 @@ def large_alias(output):
     def body(x):
         calls.append(True)
         refill(packed, state)
-        return linear(x, pool, pooled_state)
+        return linear(x, pool, pooled_state, backend="wmma")
 
     x = value.clone().requires_grad_(True)
     result = checkpoint(body, x, use_reentrant=False)
@@ -57,7 +57,7 @@ def large_alias(output):
         @staticmethod
         def forward(ctx, x):
             ctx.pool = pool
-            return linear(x, pool, pooled_state)
+            return linear(x, pool, pooled_state, backend="wmma")
 
         @staticmethod
         def backward(ctx, gradient):
@@ -134,7 +134,9 @@ def run(output, full_fp32_reduction=False):
 
             original_linear = runtime.checkpoint_visible_nf4_linear
             original_gate = runtime._can_use_checkpoint_visible_nf4_gemm
-            runtime.checkpoint_visible_nf4_linear = candidate.linear
+            runtime.checkpoint_visible_nf4_linear = lambda *args, **kwargs: candidate.linear(
+                *args, **kwargs, backend="wmma"
+            )
             runtime._can_use_checkpoint_visible_nf4_gemm = lambda x, state: (
                 x.dtype == torch.bfloat16
                 and x.numel() // x.shape[-1] >= 128

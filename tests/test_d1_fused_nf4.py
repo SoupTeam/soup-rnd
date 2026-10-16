@@ -135,6 +135,51 @@ def test_candidate_never_silently_falls_back_to_cpu(monkeypatch):
         d1_fused_nf4.linear(torch.ones(2, 8), torch.full((16, 1), 0xA5, dtype=torch.uint8), state())
 
 
+def test_wmma_dispatch_rejects_reduced_precision_without_changing_global_mode(monkeypatch):
+    import d1_fused_nf4
+    import torch
+
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_bf16_reduced_precision_reduction", True)
+    with pytest.raises(RuntimeError, match="requires full FP32"):
+        d1_fused_nf4._dispatch(None, (), (4, 8, 8, True, 256, torch.float32, "wmma"), False)
+    assert torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction is True
+
+
+def test_backend_is_saved_per_autograd_call_instead_of_global_monkeypatch(candidate, monkeypatch):
+    import d1_wmma_nf4
+    import torch
+
+    oracle = candidate._matmul
+    calls = []
+
+    def wmma_oracle(value, saved, metadata, transpose):
+        calls.append(transpose)
+        return oracle(value, saved, metadata, transpose)
+
+    def forbidden(*_args):
+        pytest.fail("WMMA autograd unexpectedly used the default Triton backend")
+
+    monkeypatch.setattr(d1_wmma_nf4, "matmul", wmma_oracle)
+    monkeypatch.setattr(candidate, "_matmul", forbidden)
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_bf16_reduced_precision_reduction", False)
+    quant = state()
+    saved = (
+        torch.full((16, 1), 0xA5, dtype=torch.uint8),
+        quant.absmax,
+        quant.code,
+        quant.state2.absmax,
+        quant.state2.code,
+        quant.offset,
+    )
+    metadata = (4, 8, 8, True, 256, torch.float32, "wmma")
+    value = torch.ones(2, 8, requires_grad=True)
+    # CPU oracle checks routing/state only, never CUDA arithmetic.
+    output = candidate._function().apply(value, *saved, metadata)
+    output.sum().backward()
+    assert calls == [False, True]
+    assert value.grad is not None
+
+
 @pytest.mark.parametrize("failed", ["comparison", "decode"])
 def test_cuda_screen_stops_at_first_failure_before_alias_or_timing(monkeypatch, failed):
     import d1_kernel_quick_gate as screen

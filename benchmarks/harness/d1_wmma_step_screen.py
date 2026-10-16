@@ -17,13 +17,12 @@ def run(output):
     import bitsandbytes.functional as functional
     import d1_fused_nf4 as candidate
     import torch
-    from d1_wmma_nf4 import compile_kernel, matmul
+    from d1_wmma_nf4 import compile_kernel
 
     torch.manual_seed(1977)
     torch.use_deterministic_algorithms(True)
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False
-    candidate._matmul = matmul
     n = k = 4096
     m, rank = 128, 8
     weight = torch.randn(n, k, dtype=torch.bfloat16, device="cuda") / k**0.5
@@ -45,7 +44,7 @@ def run(output):
         base = (
             bnb.matmul_4bit(x, packed.t(), quant_state=state)
             if name == "native"
-            else (candidate.linear(x, packed, state))
+            else (candidate.linear(x, packed, state, backend="wmma"))
         )
         result = base + ((x.float() @ a.t()) @ b.t()).to(base.dtype)
         loss = result.float().square().mean()
