@@ -71,6 +71,7 @@ def run(output: Path):
     import bitsandbytes as bnb
     import torch
     import triton
+    from triton.runtime.errors import OutOfResources
 
     if not torch.cuda.is_available() or os.environ.get("TRITON_INTERPRET") == "1":
         raise RuntimeError("physical CUDA required")
@@ -96,6 +97,7 @@ def run(output: Path):
         )
     except RuntimeError as exc:
         profile = ["PROFILER_UNAVAILABLE: " + str(exc)]
+    write_new_json(output.parent / "native-profile.json", {"cuda_kernels": profile})
     rows = []
     witnesses = {
         "input": value.cpu(),
@@ -105,11 +107,20 @@ def run(output: Path):
         "packed": saved[0].cpu(),
     }
     for index, config in enumerate(CONFIGS):
-        row, result, dx = evaluate(data, config, config)
+        try:
+            row, result, dx = evaluate(data, config, config)
+        except OutOfResources as exc:
+            row = {
+                "status": "RESOURCE_REJECTED",
+                "error": str(exc),
+                "differing": {"forward": None, "dx": None},
+                "comparison": {"passed": False},
+            }
+        else:
+            witnesses[f"config{index}_forward"] = result.cpu()
+            witnesses[f"config{index}_dx"] = dx.cpu()
         row.update(index=index, config=list(config))
         rows.append(row)
-        witnesses[f"config{index}_forward"] = result.cpu()
-        witnesses[f"config{index}_dx"] = dx.cpu()
         Console().print({"index": index, "config": config, "differing": row["differing"]})
         # Incremental evidence survives interruption or a later compiler error.
         write_new_json(output.parent / f"calibration-{index:02}.json", row)
