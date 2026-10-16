@@ -29,7 +29,9 @@ extern "C" __global__ void fused(
   wmma::fragment<wmma::matrix_a,16,16,16,scalar,wmma::row_major> a;
   wmma::fragment<wmma::matrix_b,16,16,16,scalar,wmma::col_major> b;
   wmma::fragment<wmma::accumulator,16,16,16,float> c;
+  wmma::fragment<wmma::accumulator,16,16,16,float> total;
   wmma::fill_fragment(c,0.0f);
+  wmma::fill_fragment(total,0.0f);
   for (int start=0; start<reduce; start+=REDUCE_TILE) {
     for (int q=threadIdx.x; q<TILE_SIZE*REDUCE_TILE; q+=blockDim.x) {
       // Decode contiguous original W rows, then transpose in shared memory.
@@ -59,8 +61,18 @@ extern "C" __global__ void fused(
       wmma::load_matrix_sync(b,B+warp_m*16*REDUCE_TILE+inner,REDUCE_TILE);
       wmma::mma_sync(c,a,b,c);
     }
+    if (ROUND_MODE && ((start+REDUCE_TILE)%REDUCTION_SPAN==0 || start+REDUCE_TILE>=reduce)) {
+      for (int item=0; item<c.num_elements; ++item) {
+        if (ROUND_MODE==1) total.x[item]=TO_FLOAT(CONVERT(c.x[item]+total.x[item]));
+        if (ROUND_MODE==2) total.x[item]+=TO_FLOAT(CONVERT(c.x[item]));
+        if (ROUND_MODE==3)
+          total.x[item]=TO_FLOAT(CONVERT(TO_FLOAT(CONVERT(c.x[item]))+total.x[item]));
+        c.x[item]=0.0f;
+      }
+    }
     __syncthreads();
   }
+  if (ROUND_MODE) for (int item=0; item<c.num_elements; ++item) c.x[item]=total.x[item];
   wmma::store_matrix_sync(C+warp_m*16*TILE_SIZE+warp_out*16,c,TILE_SIZE,wmma::mem_col_major);
   __syncthreads();
   for (int q=threadIdx.x; q<TILE_SIZE*TILE_SIZE; q+=blockDim.x) {
@@ -84,6 +96,8 @@ def compile_kernel(
     *,
     tile: int = 16,
     reduction_tile: int = 16,
+    reduction_span: int = 0,
+    round_mode: int = 0,
 ) -> tuple[Any, ...]:
     import torch
 
@@ -91,7 +105,23 @@ def compile_kernel(
         raise ValueError("invalid NF4 scale block sizes")
     if tile not in (16, 32, 64) or reduction_tile not in (16, 32, 64, 128):
         raise ValueError("invalid research WMMA tile")
-    key = (torch.cuda.current_device(), dtype, int(blocksize), int(block2), tile, reduction_tile)
+    if not (
+        reduction_span == round_mode == 0
+        or reduction_span > 0
+        and reduction_span % reduction_tile == 0
+        and round_mode in (1, 2, 3)
+    ):
+        raise ValueError("invalid research split reduction")
+    key = (
+        torch.cuda.current_device(),
+        dtype,
+        int(blocksize),
+        int(block2),
+        tile,
+        reduction_tile,
+        reduction_span,
+        round_mode,
+    )
     if key in _CACHE:
         return _CACHE[key]
     packages = Path(torch.__file__).parents[1]
@@ -111,6 +141,9 @@ def compile_kernel(
         .replace("BLOCK2", str(max(1, int(block2))))
         .replace("TILE_SIZE", str(tile))
         .replace("REDUCE_TILE", str(reduction_tile))
+        .replace("REDUCTION_SPAN", str(max(1, reduction_span)))
+        .replace("ROUND_MODE", str(round_mode))
+        .replace("TO_FLOAT", "__half2float" if dtype == torch.float16 else "__bfloat162float")
         .encode()
     )
     check(
@@ -163,6 +196,8 @@ def matmul(
     *,
     tile: int = 16,
     reduction_tile: int = 16,
+    reduction_span: int = 0,
+    round_mode: int = 0,
 ) -> Any:
     import torch
 
@@ -178,7 +213,13 @@ def matmul(
     m = value.numel() // reduce
     result = torch.empty((*value.shape[:-1], outsize), device=value.device, dtype=value.dtype)
     driver, _module, function, _ptx, _log = compile_kernel(
-        value.dtype, blocksize, block2, tile=tile, reduction_tile=reduction_tile
+        value.dtype,
+        blocksize,
+        block2,
+        tile=tile,
+        reduction_tile=reduction_tile,
+        reduction_span=reduction_span,
+        round_mode=round_mode,
     )
     pointers = [ctypes.c_void_p(t.data_ptr()) for t in (value, *saved, result)]
     scalars = [ctypes.c_int(i) for i in (m, n, k, blocksize, int(nested), block2, int(transpose))]
