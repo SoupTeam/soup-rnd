@@ -43,7 +43,7 @@ def large_alias(output):
     def body(x):
         calls.append(True)
         refill(packed, state)
-        return linear(x, pool, pooled_state, backend="wmma_native")
+        return linear(x, pool, pooled_state, backend="wmma_native64")
 
     x = value.clone().requires_grad_(True)
     result = checkpoint(body, x, use_reentrant=False)
@@ -57,7 +57,7 @@ def large_alias(output):
         @staticmethod
         def forward(ctx, x):
             ctx.pool = pool
-            return linear(x, pool, pooled_state, backend="wmma_native")
+            return linear(x, pool, pooled_state, backend="wmma_native64")
 
         @staticmethod
         def backward(ctx, gradient):
@@ -72,7 +72,7 @@ def large_alias(output):
                 pooled_state.offset,
             )
             meta = (n, k, state.blocksize, True, state.state2.blocksize, state.dtype)
-            return candidate_dispatch(gradient, saved, meta + ("wmma_native",), True)
+            return candidate_dispatch(gradient, saved, meta + ("wmma_native64",), True)
 
     refill(packed, state)
     broken_x = value.clone().requires_grad_(True)
@@ -134,7 +134,7 @@ def run(output, full_fp32_reduction=False):
             original_linear = runtime.checkpoint_visible_nf4_linear
             original_gate = runtime._can_use_checkpoint_visible_nf4_gemm
             runtime.checkpoint_visible_nf4_linear = lambda *args, **kwargs: candidate.linear(
-                *args, **kwargs, backend="wmma_native"
+                *args, **kwargs, backend="wmma_native64"
             )
             runtime._can_use_checkpoint_visible_nf4_gemm = lambda x, state: (
                 x.dtype == torch.bfloat16
@@ -182,3 +182,4 @@ if __name__ == "__main__":
     result = run(args.output, args.diagnose_full_fp32_reduction)
     if not result["passed"]:
         sys.exit(2)
+

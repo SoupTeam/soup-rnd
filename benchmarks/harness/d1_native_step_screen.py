@@ -44,7 +44,7 @@ def run(output):
         base = (
             bnb.matmul_4bit(x, packed.t(), quant_state=state)
             if name == "native"
-            else (candidate.linear(x, packed, state, backend="wmma_native"))
+            else (candidate.linear(x, packed, state, backend="wmma_native64"))
         )
         result = base + ((x.float() @ a.t()) @ b.t()).to(base.dtype)
         loss = result.float().square().mean()
@@ -172,3 +172,4 @@ if __name__ == "__main__":
         raise FileExistsError("use a fresh output directory")
     args.output.mkdir(parents=True)
     run(args.output)
+

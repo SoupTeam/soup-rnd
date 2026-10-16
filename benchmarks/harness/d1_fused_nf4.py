@@ -112,7 +112,7 @@ def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
 
 
 def _dispatch(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
-    if len(metadata) == 7 and metadata[-1] == "wmma_native":
+    if len(metadata) == 7 and metadata[-1] in ("wmma_native", "wmma_native64"):
         import torch
         from d1_wmma_nf4 import matmul
 
@@ -134,8 +134,8 @@ def _dispatch(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any
             saved,
             metadata[:6],
             transpose,
-            tile=32,
-            reduction_tile=128,
+            tile=64 if metadata[-1] == "wmma_native64" else 32,
+            reduction_tile=64 if metadata[-1] == "wmma_native64" else 128,
             reduction_span=8192 if large_split and transpose and reduced else 0,
             round_mode=1 if large_split and transpose and reduced else 0,
         )
@@ -233,7 +233,7 @@ def linear(
     """Candidate only: all frozen tensor state goes through save_for_backward."""
     import torch
 
-    if backend not in ("triton", "wmma", "wmma_native"):
+    if backend not in ("triton", "wmma", "wmma_native", "wmma_native64"):
         raise ValueError("unknown research NF4 backend")
     if state.quant_type != "nf4" or len(state.shape) != 2:
         raise ValueError("candidate supports canonical 2D NF4 weights only")
@@ -269,7 +269,7 @@ def linear(
     if any(tensor.device != value.device for tensor in saved):
         raise ValueError("all NF4 state must be on the input device")
     metadata = (n, k, blocksize, bool(state.nested), state2_block, state.dtype)
-    if backend in ("wmma", "wmma_native"):
+    if backend in ("wmma", "wmma_native", "wmma_native64"):
         if (
             value.device.type != "cuda"
             or value.dtype != torch.bfloat16
@@ -279,7 +279,7 @@ def linear(
             or value.numel() // value.shape[-1] < 128
         ):
             raise ValueError("WMMA gated scope requires CUDA BF16, M>=128, N%64=0, K%32=0")
-        if backend == "wmma_native":
+        if backend in ("wmma_native", "wmma_native64"):
             m = value.numel() // value.shape[-1]
             if (n, k) not in {
                 (64, 64),

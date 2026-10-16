@@ -53,7 +53,7 @@ def run(output: Path) -> dict[str, Any]:
             runtime_module.checkpoint_visible_nf4_linear = (
                 old_linear
                 if name == "native"
-                else lambda *a, **kw: candidate.linear(*a, **kw, backend="wmma_native")
+                else lambda *a, **kw: candidate.linear(*a, **kw, backend="wmma_native64")
             )
             runtime_module._can_use_checkpoint_visible_nf4_gemm = (
                 old_gate
@@ -171,3 +171,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     run(args.output)
+
