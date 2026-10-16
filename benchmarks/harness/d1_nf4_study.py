@@ -222,7 +222,9 @@ def alias_control(directory: Path, device: str, dtype: str) -> dict:
     }
 
 
-def streaming_control(directory: Path, device: str, dtype: str, seq: int) -> dict:
+def streaming_control(
+    directory: Path, device: str, dtype: str, seq: int, expected_fused: bool | None = None
+) -> dict:
     """Reuse the production fixture; the resident model remains unpatched."""
     torch, _precision = configure(device, dtype)
     sys.path.insert(0, str(ROOT / "tests"))
@@ -295,7 +297,8 @@ def streaming_control(directory: Path, device: str, dtype: str, seq: int) -> dic
                 and (calls["function"] > 0) == any(decisions)
             )
             if device == "cuda":
-                route_ok = route_ok and any(decisions) == (seq <= 8)
+                expected = seq <= 8 if expected_fused is None else expected_fused
+                route_ok = route_ok and any(decisions) == expected
             return {
                 "passed": comparison["passed"] and route_ok,
                 "comparison": comparison,
