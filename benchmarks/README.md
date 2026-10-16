@@ -16,6 +16,7 @@ They are the evidence behind the preprint:
 
 | File | What it gates | Headline |
 |---|---|---|
+| [`C4 sustained laptop NVMe`](results/c4-local/report.md) | Exploratory single-drive direct-read record; formal acceptance not claimed | One complete hour: 1.493 GB/s after warmup, 29–65 °C; provisional planner heuristic 1.342 GB/s. Retains five excluded/incomplete attempts and the replacement-count deviation. |
 | [`probe-c1-batch-vast.md`](probe-c1-batch-vast.md) | C1 synthetic 70B batch control on RTX 3090; guest virtual-disk scope | 60 accepted arms: batch 1/2/3 at 48.05/95.45/124.74 input tok/s; batch 3 wins among tested choices. One void block retained; no additional F1 repeats requested. |
 | [`probe-e3-lorafa-vast.md`](probe-e3-lorafa-vast.md) | E3 LoRA / LoRA-FA under RAM streaming at 512, 2048 and 4096 tokens | Exploratory RTX 3090 study: 60 accepted arms, 5.25 MiB lower peak allocated memory with FA and longer observed steps. Preserves invalid runs and the missing pre-run protocol commit as an acceptance limitation. |
 | [`gate-674-quest-mixed-route.md`](gate-674-quest-mixed-route.md) | Evaluation-only confirmation of the mixed W4/A4+A16 route retained after strict W4A4 failed ([#674](https://github.com/MakazhanAlpamys/Soup/issues/674)); not training-quality or efficiency evidence | **Gate passed:** the predeclared seven-A16 rescue measured 0.086344 nat [0.080241, 0.093190] above fixed FP over 704 examples / 25,017 targets and improved native W4A4 by -0.015452 [-0.017552, -0.013528]. Three training seeds, one model, fake quantization, zero backwards/updates; FINAL256 remains untouched. |
@@ -208,3 +209,6 @@ user.
 ```bash
 pip install "soup-cli[train]"
 ```
+
+- [C4: two Linux NVMe sustained reads (exploratory)](results/c4-linux-dual-nvme-20261016/report.md) — one hour per SSD and two hours concurrent; full C4 acceptance remains open.
+- [C4: concurrent NVMe 4/64 MiB ABBA](results/c4-linux-pattern-abba-20261016/report.md) — four accepted one-hour arms; paired +14.9%/+17.3% for 64 MiB, with slower later repeats; exploratory scope.

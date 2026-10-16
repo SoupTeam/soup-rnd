@@ -1,0 +1,81 @@
+{
+  "status": "frozen",
+  "task": "C4",
+  "scope": "Single-host, single-pattern exploratory sustained direct-read measurement; not an ABBA comparison or complete formal F1 certification",
+  "patterns": [
+    "seq4m"
+  ],
+  "duration_s": 3600,
+  "planned_runs": 1,
+  "sources": {
+    "sustained.py": "d9dfd0681abdb28b4fcd960071cbb1d17c38437d13ee42b0f666e7a53513b546",
+    "preflight.py": "9b427893b477e3b8c9a66cd5bbc32b98e167950dcdd04237c53b95abff1f1562",
+    "source/arm_validity.py": "38dc91a5893159c2bf0e2c4b8fb2ac75f09ea14ed4f768e888265bda128ba353",
+    "source/safetensors_reader.py": "978d0f78a4f765d346a3e59b26b50071a3ca3f75a62e7a895fe4696323f8927f"
+  },
+  "fixture_sha256": "99dc1ee1a0662da894fe4dfda146310f835b3d945a2bc35c6378ff4163018aa7",
+  "fixture_bytes": 34359738368,
+  "physical_ram_bytes": 16857817088,
+  "preparation": "Initial preparation and smoke preceded revision 1. Run run-run-2589873dea stopped at the original 65 C cutoff after approximately 226 seconds and is retained as invalid. Revision 2 is declared after that observation and before one replacement attempt; not a wholly unobserved initial protocol. Revision 3 follows the stale-sensor rejection; updated sensor passed separate 15-second small-fixture smoke run-smoke-83a153091b. No new sustained measurement yet. Revision 4 follows full-duration invalid run-run-87143d8f23 and idle observation idle-minute-1792050607672311100.json. This is a prospective replacement declaration after observed exclusions, not an unobserved initial design.",
+  "hardware": "Windows laptop; C: on PhysicalDrive0, Micron MTFDKCD512QFM-1BD1AABLA; one physical SSD; combined-drive test not applicable",
+  "reading": "Sequential 4 MiB aligned direct reads using Soup open_direct; wrap at EOF; 32 GiB random-byte fixture",
+  "start_conditions": [
+    "AC connected",
+    "Close nonessential applications and pause voluntary downloads/sync",
+    "Wait until disk temperature is at most 40 C before starting",
+    "Keep laptop on a hard ventilated surface and prevent sleep during this run",
+    "InventorySvc temporarily stopped; ActivityWatch closed; verify before launching. Close ChatGPT/Codex and browser before launch; restore InventorySvc after completion or interruption."
+  ],
+  "stopping": [
+    "Temperature at or above 75 C: experimental cutoff below observed controller warning threshold; not a manufacturer-rated continuous operating limit",
+    "Missing/error/stale temperature sensor",
+    "AC absent or unknown",
+    "I/O error or short read",
+    "Manual interruption retained as invalid"
+  ],
+  "analysis": {
+    "warmup_s": 600,
+    "plots": [
+      "one-second throughput",
+      "temperature over time",
+      "physical-disk read and write counter deltas"
+    ],
+    "summary": "Report whole-run and post-600s throughput, with nonoverlapping 60-second time-weighted windows. Preserve final partial window separately.",
+    "planner_rule": "0.9 times the 10th percentile (linear interpolation) of complete post-warmup 60-second throughput windows; heuristic for this host and read pattern, not a confidence bound",
+    "invalid": "Incomplete duration, failed required F1 check, safety stop, changed source/fixture, missing counters: exclude from planner recommendation; preserve all logs",
+    "attribution": "Correlate dips with temperature, physical-disk activity and recorded process reads. Temporal association alone is not thermal causation; unexplained dips remain unknown."
+  },
+  "limitations": [
+    "One run and one pattern: no repeatability or comparative speedup claim",
+    "Windows F1 process I/O is logical and covers all devices; physical counters are aggregate, not per-process attribution",
+    "F1 ok does not establish absence of all background I/O; writes and paging can affect throughput",
+    "Sensor polling cannot interrupt a hung kernel I/O",
+    "No GPU or Soup training throughput claim; this is a Soup-reader disk primitive",
+    "If background activity prevents attribution, report inconclusive rather than relaxing thresholds after observing results"
+  ],
+  "amendment": {
+    "revision": 4,
+    "prior_protocol_commit": "e1ae7d05c065f89d8596e4ca9441abc15fc9e171",
+    "excluded_run": "run-run-2589873dea; run-run-2a67b99be3; run-run-87143d8f23",
+    "planned_replacement_attempts": 1,
+    "reason": "The previous 3600-second arm failed the predeclared F1 foreign-read limit (InventorySvc svchost and ActivityWatch). Retain it as invalid; do not use its throughput for the planner. Declare one replacement with InventorySvc temporarily stopped and ActivityWatch closed. Restore InventorySvc afterwards. Cutoff 75 C, read pattern, duration, source hashes, analysis and validity thresholds unchanged.",
+    "evidence": "nvme-health-redacted.txt",
+    "unchanged": "Same fixture, duration, read pattern, analysis rules and F1 checks; do not pool invalid run into sustained estimate"
+  },
+  "temperature_provider": {
+    "tool": "smartctl 7.5",
+    "binary_sha256": "b5db94e5082c042be44994b7a4fa8f7b5c8e713b2ab1c9a560d8f7a7995ea27d",
+    "args": [
+      "-a",
+      "-j",
+      "-d",
+      "nvme",
+      "/dev/sda"
+    ],
+    "metric": "nvme_smart_health_information_log.temperature",
+    "timeout_s": 5,
+    "polling_pause_s": 5,
+    "stale_limit_s": 15,
+    "stop_c": 75
+  }
+}
