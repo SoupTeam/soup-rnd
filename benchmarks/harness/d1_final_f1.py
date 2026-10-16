@@ -218,6 +218,21 @@ def child(args: argparse.Namespace) -> dict:
     inputs = torch.randint(0, 64, (1, 128), device="cuda")
     optimizer = torch.optim.SGD([p for p in model.parameters() if p.requires_grad], lr=0.001)
     try:
+        if args.command == "dispatch":
+            actual = training_step(model, optimizer, inputs, True)
+            expected = torch.load(args.data / "native.pt", map_location="cpu", weights_only=True)[0]
+            comparison = compare_tensors(actual, expected)
+            result = {
+                "passed": comparison["passed"] and counts["candidate"] > 0,
+                "comparison": comparison,
+                "dispatch_counts": counts,
+                "timing_run": False,
+                "source_sha": os.environ["D1_SOURCE_SHA"],
+            }
+            write_new_json(args.output / "result.json", result)
+            if not result["passed"]:
+                raise RuntimeError("scoped candidate dispatch proof failed")
+            return result
         if args.command == "resident":
             from test_v07202 import _randomise_lora_b, _resident_nf4, _sync_adapters
 
@@ -407,12 +422,14 @@ def run(args: argparse.Namespace) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("prepare", "correctness", "resident", "arm", "run"))
+    parser.add_argument(
+        "command", choices=("prepare", "correctness", "resident", "dispatch", "arm", "run")
+    )
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--route", choices=("native", "candidate"), default="native")
     args = parser.parse_args()
-    if args.command in ("prepare", "run", "resident"):
+    if args.command in ("prepare", "run", "resident", "dispatch"):
         args.output.mkdir(parents=True, exist_ok=False)
     if args.command == "prepare":
         args.data.mkdir(parents=True, exist_ok=False)
