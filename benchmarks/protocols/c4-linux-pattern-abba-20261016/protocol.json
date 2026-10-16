@@ -1,0 +1,563 @@
+{
+  "status": "frozen",
+  "frozen_unix_s": 1792163775.814543,
+  "config": {
+    "kind": "C4 Linux configuration; not frozen measurements",
+    "created_unix_s": 1792163348.6232488,
+    "sources": {
+      "runner.py": "b95bf6f29fb230cca68f8297b6be62508256820ad30ec8e2b0e7dc8e92a6e483",
+      "preflight.py": "fd4f20ab29ef56bf1125b919ba8627e4b3713d1d34855f617ad3b4c98c2c2914",
+      "storage_discovery.py": "89608eb7b8c39313a49bfb7d8d3212c8868dcd8abbfe6df364c17f9a6e9a5145",
+      "analyze.py": "cdcae37d53bf8ff8ab572ba73e39453c72a264b94fcee26925ddc8acfeb9f584",
+      "receipt.py": "db003beb3103583aebabe39121affb1086edb45c311fed8de5dca6bfb87141b1",
+      "plot.py": "9aa0031c37492977199353bcfc2e838de03e3f0b760d42c6913c745ffc2883c5",
+      "source/arm_validity.py": "38dc91a5893159c2bf0e2c4b8fb2ac75f09ea14ed4f768e888265bda128ba353",
+      "source/safetensors_reader.py": "978d0f78a4f765d346a3e59b26b50071a3ca3f75a62e7a895fe4696323f8927f",
+      "test_runner.py": "2f95cf446aaf47af6a7ab4d76698726ace67804fee54ca972a862cc55f117ec2",
+      "test_preflight.py": "388d8714596039d589eaf5fd2b91f17b809763233b3cc0f870337e3f39f0e048",
+      "test_pattern.py": "b26cf1920630c75c4d318d823d714d4b4c3784119653f66206167bee955ba481",
+      "README_RU.md": "aab746a298578dc93c1baa8d210466126565de932c4abb16f29b614133427a87"
+    },
+    "rules": {
+      "start_temperature_c": 45,
+      "stop_temperature_c": 70,
+      "temperature_interval_s": 2,
+      "temperature_stale_s": 8,
+      "foreign_read_limit_bytes": 1000000000,
+      "write_limit_bytes": 1000000000,
+      "physical_read_deficit_tolerance_bytes": 8388608,
+      "sample_interval_s": 1,
+      "max_sample_gap_s": 5,
+      "warmup_s": 600,
+      "window_s": 60,
+      "max_cooldown_s": 1800,
+      "order": [
+        "A",
+        "B",
+        "B",
+        "A"
+      ],
+      "durations_s": [
+        3600,
+        3600,
+        3600,
+        3600
+      ],
+      "attempt_budget": 4,
+      "replacements": 0,
+      "control_round_budget": 2,
+      "control_round_timeout_s": 2400,
+      "block_bytes_by_condition": {
+        "A": 4194304,
+        "B": 67108864
+      },
+      "control_modes": [
+        "A",
+        "B"
+      ],
+      "indices": [
+        0,
+        1
+      ],
+      "analysis": "Both B/A pair ratios and per-condition repeat ratios; all full 60s windows after 600s; no outlier deletion; first/last five-window ratio; no causal temperature claim",
+      "control_seconds": {
+        "baseline": 5,
+        "own": 60,
+        "foreign": 20
+      },
+      "scope": "sequential direct-read primitive, QD1 per drive; two observations per request size; concurrent reads only"
+    },
+    "ram_bytes": 67283333120,
+    "dataset_bytes": 85899345920,
+    "boot_id": "6f8fb71e-eb6f-4501-87c3-d9d634e7bfef",
+    "platform": "Linux-6.8.0-146-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "drives": [
+      {
+        "directory": "/mnt/c4-disk1",
+        "node": "nvme0n1",
+        "identities": [
+          {
+            "kind": "nvme_namespace",
+            "node": "nvme0n1",
+            "controller": "nvme0",
+            "controller_sysfs": "/sys/devices/pci0000:00/0000:00:03.1/0000:01:00.0/nvme/nvme0",
+            "model": "SAMSUNG MZVLQ1T0HBLB-00B00",
+            "serial_sha256": "cdcabeee55292378dfe866349fe7bf285d41496a16c54af5c33e818fff4d420b",
+            "transport": "pcie"
+          }
+        ],
+        "temperature_paths": [
+          "/sys/devices/pci0000:00/0000:00:03.1/0000:01:00.0/nvme/nvme0/hwmon1/temp1_input",
+          "/sys/devices/pci0000:00/0000:00:03.1/0000:01:00.0/nvme/nvme0/hwmon1/temp2_input"
+        ],
+        "smart_initial": {
+          "json_format_version": [
+            1,
+            0
+          ],
+          "smartctl": {
+            "version": [
+              7,
+              4
+            ],
+            "pre_release": false,
+            "svn_revision": "5530",
+            "platform_info": "x86_64-linux-6.8.0-146-generic",
+            "build_info": "(local build)",
+            "argv": [
+              "smartctl",
+              "-i",
+              "-H",
+              "-A",
+              "-j",
+              "/dev/nvme0n1"
+            ],
+            "exit_status": 0
+          },
+          "local_time": {
+            "time_t": 1792163348,
+            "asctime": "Fri Oct 16 15:09:08 2026 UTC"
+          },
+          "device": {
+            "name": "/dev/nvme0n1",
+            "info_name": "/dev/nvme0n1",
+            "type": "nvme",
+            "protocol": "NVMe"
+          },
+          "model_name": "SAMSUNG MZVLQ1T0HBLB-00B00",
+          "serial_number": "S6F7NU0T800694",
+          "firmware_version": "FXM7401Q",
+          "nvme_pci_vendor": {
+            "id": 5197,
+            "subsystem_id": 5197
+          },
+          "nvme_ieee_oui_identifier": 9528,
+          "nvme_total_capacity": 1024209543168,
+          "nvme_unallocated_capacity": 0,
+          "nvme_controller_id": 5,
+          "nvme_version": {
+            "string": "1.4",
+            "value": 66560
+          },
+          "nvme_number_of_namespaces": 1,
+          "nvme_namespaces": [
+            {
+              "id": 1,
+              "size": {
+                "blocks": 2000409264,
+                "bytes": 1024209543168
+              },
+              "capacity": {
+                "blocks": 2000409264,
+                "bytes": 1024209543168
+              },
+              "utilization": {
+                "blocks": 188591608,
+                "bytes": 96558903296
+              },
+              "formatted_lba_size": 512,
+              "eui64": {
+                "oui": 9528,
+                "ext_id": 928277137321
+              }
+            }
+          ],
+          "user_capacity": {
+            "blocks": 2000409264,
+            "bytes": 1024209543168
+          },
+          "logical_block_size": 512,
+          "smart_support": {
+            "available": true,
+            "enabled": true
+          },
+          "smart_status": {
+            "passed": true,
+            "nvme": {
+              "value": 0
+            }
+          },
+          "nvme_smart_health_information_log": {
+            "critical_warning": 0,
+            "temperature": 26,
+            "available_spare": 100,
+            "available_spare_threshold": 10,
+            "percentage_used": 0,
+            "data_units_read": 55370720,
+            "data_units_written": 742582,
+            "host_reads": 203329470,
+            "host_writes": 16603329,
+            "controller_busy_time": 403,
+            "power_cycles": 74,
+            "power_on_hours": 2307,
+            "unsafe_shutdowns": 73,
+            "media_errors": 0,
+            "num_err_log_entries": 0,
+            "warning_temp_time": 0,
+            "critical_comp_time": 0,
+            "temperature_sensors": [
+              26
+            ]
+          },
+          "temperature": {
+            "current": 26
+          },
+          "power_cycle_count": 74,
+          "power_on_time": {
+            "hours": 2307
+          },
+          "nvme_cli_health": {
+            "command": [
+              "nvme",
+              "smart-log",
+              "/dev/nvme0n1",
+              "-o",
+              "json"
+            ],
+            "returncode": 0,
+            "data": {
+              "critical_warning": 0,
+              "temperature": 299,
+              "avail_spare": 100,
+              "spare_thresh": 10,
+              "percent_used": 0,
+              "endurance_grp_critical_warning_summary": 0,
+              "data_units_read": 55370720,
+              "data_units_written": 742582,
+              "host_read_commands": 203329470,
+              "host_write_commands": 16603329,
+              "controller_busy_time": 403,
+              "power_cycles": 74,
+              "power_on_hours": 2307,
+              "unsafe_shutdowns": 73,
+              "media_errors": 0,
+              "num_err_log_entries": 0,
+              "warning_temp_time": 0,
+              "critical_comp_time": 0,
+              "temperature_sensor_1": 299,
+              "thm_temp1_trans_count": 0,
+              "thm_temp2_trans_count": 0,
+              "thm_temp1_total_time": 0,
+              "thm_temp2_total_time": 0
+            }
+          }
+        }
+      },
+      {
+        "directory": "/mnt/c4-disk2",
+        "node": "nvme1n1",
+        "identities": [
+          {
+            "kind": "nvme_namespace",
+            "node": "nvme1n1",
+            "controller": "nvme1",
+            "controller_sysfs": "/sys/devices/pci0000:00/0000:00:03.2/0000:02:00.0/nvme/nvme1",
+            "model": "SAMSUNG MZVLQ1T0HBLB-00B00",
+            "serial_sha256": "2e97850e70ae2a32ab7ba71b0e10b1484fa89d4411df4e3e50dae9d1f25e1129",
+            "transport": "pcie"
+          }
+        ],
+        "temperature_paths": [
+          "/sys/devices/pci0000:00/0000:00:03.2/0000:02:00.0/nvme/nvme1/hwmon0/temp1_input",
+          "/sys/devices/pci0000:00/0000:00:03.2/0000:02:00.0/nvme/nvme1/hwmon0/temp2_input"
+        ],
+        "smart_initial": {
+          "json_format_version": [
+            1,
+            0
+          ],
+          "smartctl": {
+            "version": [
+              7,
+              4
+            ],
+            "pre_release": false,
+            "svn_revision": "5530",
+            "platform_info": "x86_64-linux-6.8.0-146-generic",
+            "build_info": "(local build)",
+            "argv": [
+              "smartctl",
+              "-i",
+              "-H",
+              "-A",
+              "-j",
+              "/dev/nvme1n1"
+            ],
+            "exit_status": 0
+          },
+          "local_time": {
+            "time_t": 1792163348,
+            "asctime": "Fri Oct 16 15:09:08 2026 UTC"
+          },
+          "device": {
+            "name": "/dev/nvme1n1",
+            "info_name": "/dev/nvme1n1",
+            "type": "nvme",
+            "protocol": "NVMe"
+          },
+          "model_name": "SAMSUNG MZVLQ1T0HBLB-00B00",
+          "serial_number": "S6F7NU0T800688",
+          "firmware_version": "FXM7401Q",
+          "nvme_pci_vendor": {
+            "id": 5197,
+            "subsystem_id": 5197
+          },
+          "nvme_ieee_oui_identifier": 9528,
+          "nvme_total_capacity": 1024209543168,
+          "nvme_unallocated_capacity": 0,
+          "nvme_controller_id": 5,
+          "nvme_version": {
+            "string": "1.4",
+            "value": 66560
+          },
+          "nvme_number_of_namespaces": 1,
+          "nvme_namespaces": [
+            {
+              "id": 1,
+              "size": {
+                "blocks": 2000409264,
+                "bytes": 1024209543168
+              },
+              "capacity": {
+                "blocks": 2000409264,
+                "bytes": 1024209543168
+              },
+              "utilization": {
+                "blocks": 178309384,
+                "bytes": 91294404608
+              },
+              "formatted_lba_size": 512,
+              "eui64": {
+                "oui": 9528,
+                "ext_id": 928277137315
+              }
+            }
+          ],
+          "user_capacity": {
+            "blocks": 2000409264,
+            "bytes": 1024209543168
+          },
+          "logical_block_size": 512,
+          "smart_support": {
+            "available": true,
+            "enabled": true
+          },
+          "smart_status": {
+            "passed": true,
+            "nvme": {
+              "value": 0
+            }
+          },
+          "nvme_smart_health_information_log": {
+            "critical_warning": 0,
+            "temperature": 23,
+            "available_spare": 100,
+            "available_spare_threshold": 10,
+            "percentage_used": 1,
+            "data_units_read": 43991372,
+            "data_units_written": 9415593,
+            "host_reads": 165504633,
+            "host_writes": 39631230,
+            "controller_busy_time": 514,
+            "power_cycles": 74,
+            "power_on_hours": 2310,
+            "unsafe_shutdowns": 73,
+            "media_errors": 0,
+            "num_err_log_entries": 0,
+            "warning_temp_time": 0,
+            "critical_comp_time": 0,
+            "temperature_sensors": [
+              23
+            ]
+          },
+          "temperature": {
+            "current": 23
+          },
+          "power_cycle_count": 74,
+          "power_on_time": {
+            "hours": 2310
+          },
+          "nvme_cli_health": {
+            "command": [
+              "nvme",
+              "smart-log",
+              "/dev/nvme1n1",
+              "-o",
+              "json"
+            ],
+            "returncode": 0,
+            "data": {
+              "critical_warning": 0,
+              "temperature": 296,
+              "avail_spare": 100,
+              "spare_thresh": 10,
+              "percent_used": 1,
+              "endurance_grp_critical_warning_summary": 0,
+              "data_units_read": 43991372,
+              "data_units_written": 9415593,
+              "host_read_commands": 165504633,
+              "host_write_commands": 39631230,
+              "controller_busy_time": 514,
+              "power_cycles": 74,
+              "power_on_hours": 2310,
+              "unsafe_shutdowns": 73,
+              "media_errors": 0,
+              "num_err_log_entries": 0,
+              "warning_temp_time": 0,
+              "critical_comp_time": 0,
+              "temperature_sensor_1": 296,
+              "thm_temp1_trans_count": 0,
+              "thm_temp2_trans_count": 0,
+              "thm_temp1_total_time": 0,
+              "thm_temp2_total_time": 0
+            }
+          }
+        }
+      }
+    ],
+    "instrument_startup": {
+      "arm": "configure",
+      "round": 0,
+      "run": 0,
+      "label": null,
+      "gpu": {
+        "id": "0",
+        "source": "default"
+      },
+      "required": [
+        "suspend",
+        "power",
+        "foreign_reads"
+      ],
+      "outcome": "ok",
+      "box_stamp_before": {
+        "unix_s": 1792163348.791166,
+        "ram_available_bytes": 65886392320,
+        "commit_charge": {
+          "used_bytes": 525488128,
+          "limit_bytes": 33641664512
+        },
+        "power_source": "mains",
+        "gpu_processes": null,
+        "gpu_memory_used_mib": null,
+        "unknown": {
+          "gpu_processes": "gpu_processes sensor returned None",
+          "gpu_memory_used_mib": "gpu_memory_used_mib sensor returned None"
+        }
+      },
+      "box_stamp_after": {
+        "unix_s": 1792163349.8574064,
+        "ram_available_bytes": 65895297024,
+        "commit_charge": {
+          "used_bytes": 529629184,
+          "limit_bytes": 33641664512
+        },
+        "power_source": "mains",
+        "gpu_processes": null,
+        "gpu_memory_used_mib": null,
+        "unknown": {
+          "gpu_processes": "gpu_processes sensor returned None",
+          "gpu_memory_used_mib": "gpu_memory_used_mib sensor returned None"
+        }
+      },
+      "gpu_clock": {
+        "outcome": "unknown",
+        "reason": "2 of 2 GPU clock samples gave no reading; first: gpu_clock sensor returned None",
+        "samples": 2,
+        "unknown_samples": 2,
+        "sm_clock_mhz": {
+          "min": null,
+          "median": null,
+          "max": null
+        },
+        "reasons_seen": {}
+      },
+      "checks": {
+        "suspend": {
+          "outcome": "ok",
+          "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+          "evidence": {
+            "sleep_offset_start_s": -1.4300021575763822e-06,
+            "sleep_offset_end_s": -7.700000423938036e-07,
+            "suspend_count_start": 0,
+            "suspend_count_end": 0
+          }
+        },
+        "power": {
+          "outcome": "ok",
+          "reason": "no battery in any of 2 power samples, so on mains",
+          "evidence": {
+            "samples": 2,
+            "off_mains_samples": [],
+            "battery_present": false,
+            "unknown_samples": 0,
+            "last_reading": {
+              "battery": false,
+              "online": {}
+            }
+          }
+        },
+        "foreign_reads": {
+          "outcome": "ok",
+          "reason": "at most 0 bytes of foreign reads on nvme0n1+nvme1n1 (limit 1000000000)",
+          "evidence": {
+            "model_path": "target-device-set",
+            "device": "nvme0n1+nvme1n1",
+            "disk_read_bytes_start": 44500296855552,
+            "disk_read_bytes_end": 44500296855552,
+            "other_disk_read_bytes_start": 0,
+            "other_disk_read_bytes_end": 0,
+            "own_read_bytes": 0,
+            "foreign_read_bytes": 0,
+            "foreign_read_bytes_min": 0,
+            "foreign_read_bytes_max": 0,
+            "uninspectable_processes": 8
+          },
+          "readers": [
+            {
+              "pid": 1,
+              "name": "systemd",
+              "read_bytes": 421888
+            }
+          ],
+          "unattributed_bytes": 0
+        }
+      }
+    }
+  },
+  "fixtures": [
+    {
+      "path": "/mnt/c4-disk1/c4-c4-session/dataset.bin",
+      "sha256": "7a7276067b401f2033023a7f34fed5b63eeabb643807e06e5c84c8bcdf0b26e4",
+      "identity": {
+        "dev": 66311,
+        "ino": 4194307,
+        "size": 85899345920,
+        "mtime_ns": 1792136275786263126
+      },
+      "kind": "synthetic random bytes"
+    },
+    {
+      "path": "/mnt/c4-disk2/c4-c4-session/dataset.bin",
+      "sha256": "117d04227e3bdf6144576551e0618e7a106007ab5150b717cfa1d3fcdbdb8e12",
+      "identity": {
+        "dev": 66305,
+        "ino": 11272195,
+        "size": 85899345920,
+        "mtime_ns": 1792136760899662159
+      },
+      "kind": "synthetic random bytes"
+    }
+  ],
+  "controls_path": "controls-01/controls.json",
+  "controls_sha256": "5116d0a0c434a7990a1d0509231e2ac0e1f7fcb3b5aab72a39948a76ebf4d8a1",
+  "limitations": [
+    "ABBA: two observations per request size, concurrent reads only; descriptive repeatability, no broad certification.",
+    "New-host direct-read primitive, not original Soup training striping.",
+    "4 vs 64 MiB sequential requests only; no controlled cooling/random access. Thermal causality remains open.",
+    "Power uses original F1 no-battery inference; no independent PSU telemetry.",
+    "Physical counters and O_DIRECT do not certify the SSD internal cache or firmware.",
+    "Kernel-hung I/O cannot be guaranteed interruptible by Python."
+  ]
+}
