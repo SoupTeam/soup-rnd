@@ -1,0 +1,14 @@
+E1F_COMMAND <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py score --arm AS --seed 0 --lr 2e-4 --train-record <box-home>/e1-results/soup-train-qwen35-AS-s0.json --adapter-dir <box-home>/e1-results/rt-AS-s0/out --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --confirm-split <box-home>/e1-results/confirm-split.json --out <box-home>/e1-results/ramtier-qwen35-AS-s0.json
+NVIDIA RTX PRO 6000 Blackwell Server Edition, 2422 MHz, 46, 0 MiB, 83.83 W
+               total        used        free      shared  buff/cache   available
+Mem:     1073242869760 339718688768 126399000576  1824366592 614587367424 733524180992
+Swap:              0           0           0
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `fused_recurrent_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+score: wrote <box-home>/e1-results/ramtier-qwen35-AS-s0.json status=ok
+NVIDIA RTX PRO 6000 Blackwell Server Edition, 2422 MHz, 49, 0 MiB, 94.37 W
+               total        used        free      shared  buff/cache   available
+Mem:     1073242869760 271186714624 181115527168  1719488512 628295876608 802056155136
+Swap:              0           0           0

@@ -1,0 +1,56 @@
+{
+ "command": "labels",
+ "status": "ok",
+ "harness_sha256": "c9655dd98a8270280d1b3cf96d8e38045c38633caab66224bd7b21fd3390bc48",
+ "measured_harness_sha256": "dd55825c67ccc61d532af150fa798d02e07fe72c97b9e5859669f02c2ecf87b3",
+ "host": {
+  "platform": "Linux-7.0.0-1012-aws-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "cpus": 96,
+  "torch": "2.14.1+cu130",
+  "cuda": "13.0",
+  "transformers": "5.19.0",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "gpu_bytes": 102071664640,
+  "capability": [
+   12,
+   0
+  ],
+  "ram_total": 1073242869760,
+  "ram_available": 807726637056,
+  "soup_source": "unknown",
+  "env": {
+   "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+   "CUDA_VISIBLE_DEVICES": "0",
+   "HF_HUB_OFFLINE": "1",
+   "SOUP_LAYER_STREAM_CACHE_DIR": null
+  },
+  "visible_gpus": 1
+ },
+ "split_sha256": "4b41de1bf2c0ada0eb112779487cca9d68669f751f3515ecbd4ee4caf1e04362",
+ "template_sha256": "607eb307f086c21f5467bb474f13a979437907af35cba75429fa4176be49f448",
+ "template": "{%- for message in messages %}{%- if message['role'] == 'user' %}{{- '<|im_start|>user\\n' + message['content']|trim + '<|im_end|>\\n' }}{%- elif message['role'] == 'assistant' %}{%- set content = message['content']|trim %}{%- set reasoning_content = '' %}{%- if '</think>' in content %}{%- set reasoning_content = content.split('</think>')[0].rstrip('\\n').split('<think>')[-1].lstrip('\\n') %}{%- set content = content.split('</think>')[-1].lstrip('\\n') %}{%- endif %}{{- '<|im_start|>assistant\\n<think>\\n' + reasoning_content|trim + '\\n</think>\\n\\n' }}{%- generation %}{{- content + '<|im_end|>\\n' }}{%- endgeneration %}{%- else %}{{- raise_exception('this template renders user and assistant turns only') }}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\\n<think>\\n\\n</think>\\n\\n' }}{%- endif %}",
+ "base": "<box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754",
+ "confirm_split_sha256": "7224983fbec5802231f31fca9e28b628e08d81c74f81b2ffb6d81b3fa01b9683",
+ "sets": {
+  "train": {
+   "rows": 4096,
+   "identical": 4096,
+   "all_identical": true,
+   "mismatches": []
+  },
+  "E": {
+   "rows": 256,
+   "identical": 256,
+   "all_identical": true,
+   "mismatches": []
+  },
+  "C": {
+   "rows": 256,
+   "identical": 256,
+   "all_identical": true,
+   "mismatches": []
+  }
+ },
+ "seconds": 12.107264041900635
+}

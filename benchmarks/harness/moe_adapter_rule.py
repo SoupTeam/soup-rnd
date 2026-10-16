@@ -1,0 +1,457 @@
+"""Verdicts for probe-moe-adapter-placement.md section 5, from the run JSONs alone.
+
+Pure Python on purpose: the rule is checked without torch, and a reader can
+rerun it over the published JSONs. ``analyse`` is the only entry point the record
+uses (through ``moe_adapter_report.py``): it picks each arm's rate from the sweep,
+then ``summarise`` gives each model its verdicts on the runs at those rates.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import pathlib
+import random
+import statistics
+from typing import Any, Dict, List, Optional, Sequence
+
+MIN_LEARNED_NAT = 0.05  # V1
+MATERIAL_NAT = 0.02
+SD_MULTIPLE = 2.0
+FORGETTING_THRESHOLD = 0.05  # soup ship leg 2 (DEFAULT_FORGETTING_THRESHOLD)
+# Float slack on every threshold comparison, so a value exactly on a threshold is judged
+# as the record states it (0.81 - 0.79 is 0.020000000000000018 in binary floating point).
+TOLERANCE = 1e-12
+FULLEST_ORDER = ("AE", "AT", "AS", "A")
+# The committed plan (sections 2 and 3): every counted (arm, seed) at its arm's chosen rate.
+# A planned run without an ok record withholds the model's verdict.
+PLAN = {"olmoe": {"arms": ("A", "AT", "AE"), "seeds": (0, 1, 2)},
+        "qwen35": {"arms": ("A", "AS", "AT", "AE"), "seeds": (0, 1)}}
+# Section 6: AE "does not fit" only when a run of it died of a CUDA out-of-memory error.
+# The caching allocator's "memory allocation failed with OOM" warning is a retry, not this.
+OOM_MARKERS = ("torch.OutOfMemoryError: CUDA out of memory",
+               "torch.cuda.OutOfMemoryError: CUDA out of memory")
+BOOTSTRAP_DRAWS = 10_000
+GRID = (1e-4, 2e-4, 4e-4)  # section 3: swept per arm on SWEEP_MODEL at seed 0
+EXTENSION = {1e-4: 5e-5, 4e-4: 8e-4}  # the one extra rate past a grid-edge winner
+SWEEP_MODEL = "olmoe"
+RATE_FROM = {"AS": "A"}  # section 6 addendum: Qwen3.5 AS reuses OLMoE A's rate
+# The quality gate's standing: tables.md prints it once at the top and summary.json carries
+# it, and every model's verdict prints its rate scope (SCOPE), so no verdict is read alone.
+GATE = {
+    "thresholds": {"min_learned_nat": MIN_LEARNED_NAT, "material_nat": MATERIAL_NAT,
+                   "sd_multiple": SD_MULTIPLE, "forgetting": FORGETTING_THRESHOLD},
+    "status": "proposed by the AI assistant before the first run; approved by the record "
+              "owner after the results, unchanged (2026-10-11)",
+    "scope": "this recipe only (section 3): rank 16, 256 steps on the group-disjoint "
+             "MetaMathQA split, soup ship's leg 2 at 256 new tokens",
+}
+SCOPE = {"olmoe": "learning rates swept on this model",
+         "qwen35": "learning rates transferred from OLMoE, not swept on this model"}
+
+
+def sample_sd(values: Sequence[float]) -> float:
+    return statistics.stdev(values) if len(values) > 1 else 0.0
+
+
+def material_gap(arm: Sequence[float], full: Sequence[float]) -> Dict[str, Any]:
+    """``g = mean(arm) - mean(full)``; material when > 0.02 nat AND > 2 x the larger SD."""
+    gap = statistics.fmean(arm) - statistics.fmean(full)
+    noise = SD_MULTIPLE * max(sample_sd(arm), sample_sd(full))
+    return {"gap": gap, "noise": noise,
+            "material": gap > MATERIAL_NAT + TOLERANCE and gap > noise + TOLERANCE}
+
+
+def leg2_failures(base: Dict[str, float], runs: Sequence[Dict[str, float]]) -> List[str]:
+    """Suites where ANY seed dropped more than the threshold below the base."""
+    failed = []
+    for suite, base_score in sorted(base.items()):
+        if any(base_score - run[suite] > FORGETTING_THRESHOLD + TOLERANCE for run in runs):
+            failed.append(suite)
+    return failed
+
+
+def bootstrap_interval(values: Sequence[float], seed: int = 0) -> List[float]:
+    """95% percentile interval of the mean of ``values``, resampled with replacement."""
+    rng = random.Random(seed)
+    n = len(values)
+    means = sorted(sum(values[rng.randrange(n)] for _ in range(n)) / n
+                   for _ in range(BOOTSTRAP_DRAWS))
+    return [means[int(0.025 * BOOTSTRAP_DRAWS)], means[int(0.975 * BOOTSTRAP_DRAWS) - 1]]
+
+
+def per_question_accuracy(runs: Sequence[Dict[str, Any]]) -> List[float]:
+    """Mean over seeds of each evaluation question's correctness.
+
+    The seeds answer the same questions, so the question is the unit a confidence
+    interval resamples: three seeds are not three times as many questions.
+    """
+    vectors = [r["task"]["correct"] for r in runs]
+    if len({len(v) for v in vectors}) != 1:
+        raise ValueError("seeds scored different evaluation rows")
+    return [sum(column) / len(column) for column in zip(*vectors)]
+
+
+def signflip_exact(per_question: Sequence[int]) -> float:
+    """Two-sided exact sign-flip p for the sum of integer per-question differences.
+
+    Under the null that X and F are exchangeable on every question, each question's
+    difference (summed over seeds) is equally likely to carry either sign. Questions
+    with no difference drop out; with one seed this is the exact McNemar test.
+    """
+    magnitudes = [abs(d) for d in per_question if d]
+    observed = abs(sum(per_question))
+    counts = {0: 1}
+    for m in magnitudes:
+        step: Dict[int, int] = {}
+        for total, ways in counts.items():
+            step[total + m] = step.get(total + m, 0) + ways
+            step[total - m] = step.get(total - m, 0) + ways
+        counts = step
+    extreme = sum(ways for total, ways in counts.items() if abs(total) >= observed)
+    return extreme / 2 ** len(magnitudes)
+
+
+def paired_clustered(runs: Sequence[Dict[str, Any]],
+                     full_by_seed: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
+    """X against F on the same questions, seeds matched, clustered by question.
+
+    ``d_i`` sums X - F correctness over seeds for question ``i``; the difference is
+    the mean of ``d_i`` / seeds and the p-value is the exact sign-flip test on ``d``.
+    """
+    vectors = [(r["task"]["correct"], full_by_seed[r["seed"]]["task"]["correct"]) for r in runs]
+    if len({len(x) for x, f in vectors} | {len(f) for x, f in vectors}) != 1:
+        raise ValueError("paired runs scored different evaluation rows")
+    d = [sum(int(x[i]) - int(f[i]) for x, f in vectors) for i in range(len(vectors[0][0]))]
+    return {"difference": sum(d) / (len(d) * len(vectors)),
+            "questions_x_better": sum(v > 0 for v in d),
+            "questions_f_better": sum(v < 0 for v in d), "p": signflip_exact(d)}
+
+
+def mcnemar_exact(x_only: int, f_only: int) -> float:
+    """Two-sided exact McNemar p: binomial(n = x_only + f_only, 1/2) on the discordant pairs."""
+    n = x_only + f_only
+    if n == 0:
+        return 1.0
+    tail = sum(math.comb(n, k) for k in range(min(x_only, f_only) + 1)) / 2 ** n
+    return min(1.0, 2 * tail)
+
+
+def paired_accuracy(run: Dict[str, Any], full: Dict[str, Any]) -> Dict[str, Any]:
+    """Seed-matched X against F on the same evaluation questions (reporting only)."""
+    x, f = run["task"]["correct"], full["task"]["correct"]
+    if len(x) != len(f):
+        raise ValueError("paired runs scored different evaluation rows")
+    x_only = sum(a and not b for a, b in zip(x, f))
+    f_only = sum(b and not a for a, b in zip(x, f))
+    return {"seed": run["seed"], "x_only": x_only, "f_only": f_only,
+            "difference": (x_only - f_only) / len(x), "p": mcnemar_exact(x_only, f_only)}
+
+
+def oom_evidence(log: Optional[str]) -> Optional[str]:
+    """The log line proving a CUDA out-of-memory death, or None."""
+    for line in (log or "").splitlines():
+        if any(marker in line for marker in OOM_MARKERS):
+            return line.strip()
+    return None
+
+
+def _ok(record: Dict[str, Any]) -> bool:
+    return record.get("status") == "ok"
+
+
+def _eval_nll(record: Dict[str, Any]) -> float:
+    """The record's evaluation NLL; an ``ok`` record without a numeric one is refused."""
+    nll = record.get("eval", {}).get("nll")
+    if isinstance(nll, bool) or not isinstance(nll, (int, float)):
+        raise ValueError(f"{record.get('_path')}: status ok without a numeric eval.nll "
+                         f"({nll!r})")
+    return float(nll)
+
+
+def _nonfinite(record: Dict[str, Any]) -> bool:
+    """A run whose training or evaluation produced a NaN or infinity (V2)."""
+    if record.get("status") == "void_nonfinite":
+        return True
+    losses = [entry.get("loss") for entry in record.get("train", {}).get("log", [])]
+    if any(isinstance(v, float) and not math.isfinite(v) for v in losses):
+        return True
+    nll = record.get("eval", {}).get("nll")
+    if _ok(record):
+        nll = _eval_nll(record)
+    return isinstance(nll, float) and not math.isfinite(nll)
+
+
+def _completeness(model: str, arms: Dict[str, List[Dict[str, Any]]],
+                  plan: Dict[str, Dict[str, Sequence]], ae_log: Optional[str],
+                  ae_fit: bool) -> Dict[str, Any]:
+    """Planned runs that have no ok record, and whether AE left the plan on OOM proof.
+
+    ``ae_fit``: an ok AE run exists at any rate or seed, which proves AE fits, so no
+    out-of-memory log can drop it.
+    """
+    if model not in plan:
+        return {"missing": [], "reason": f"no committed plan for {model}"}
+    arms_planned, seeds = plan[model]["arms"], plan[model]["seeds"]
+    have = {}
+    for arm, runs in arms.items():
+        for r in runs:
+            key = (arm, r["seed"])
+            if key in have:
+                raise ValueError(f"two ok runs for {arm} seed {r['seed']} on {model}")
+            have[key] = r
+    out: Dict[str, Any] = {"missing": [], "reason": None, "ae_did_not_fit": None}
+    if "AE" in arms_planned and not ae_fit:
+        proof = oom_evidence(ae_log)
+        if proof is not None:
+            out["ae_did_not_fit"] = proof
+            arms_planned = tuple(a for a in arms_planned if a != "AE")
+        elif ae_log is not None:
+            out["reason"] = "AE log has no CUDA out-of-memory error"
+    out["missing"] = [f"{arm} seed {seed}" for arm in arms_planned for seed in seeds
+                      if (arm, seed) not in have]
+    return out
+
+
+def summarise(records: Sequence[Dict[str, Any]], *, edge_lrs: Optional[Dict[str, bool]] = None,
+              plan: Optional[Dict[str, Dict[str, Sequence]]] = None,
+              ae_oom_logs: Optional[Dict[str, str]] = None,
+              uncounted: Sequence[Dict[str, Any]] = ()) -> Dict[str, Any]:
+    """Per model: validity rows and one verdict per applicable arm.
+
+    ``records`` are the final-rate runs (sweep runs belong in ``edge_lrs``: arm ->
+    True when its winning rate sat at the edge of the extended grid, V3). Only seeds
+    in ``plan`` (default: the committed PLAN) count; an ok run of another seed is
+    listed under ``not_counted``. Every planned run must have an ok record, or the
+    model is NO VERDICT with the ``missing`` runs listed (``base`` included); a model
+    in ``plan`` with no record at all is listed too. AE leaves the plan, and the
+    fullest arm falls to the next one, only when ``ae_oom_logs[model]`` proves an AE
+    run died of a CUDA out-of-memory error and no AE run, at any rate, completed.
+    ``uncounted`` holds the plan's other records (other rates): only V2 and that AE
+    fit check read them.
+    """
+    plan = PLAN if plan is None else plan
+    out: Dict[str, Any] = {}
+    for model in sorted({r["model"] for r in [*records, *uncounted]} | set(plan)):
+        mine = [r for r in records if r["model"] == model]
+        others = [r for r in uncounted if r["model"] == model]
+        base = [r for r in mine if r["arm"] == "base" and _ok(r)]
+        arms: Dict[str, List[Dict[str, Any]]] = {}
+        not_applicable = sorted({r["arm"] for r in mine if r.get("status") == "not_applicable"})
+        void = [{"arm": r["arm"], "seed": r.get("seed"), "status": r.get("status")}
+                for r in mine if r["arm"] != "base" and r.get("status")
+                not in ("ok", "not_applicable")]
+        not_counted = []
+        planned_seeds = plan[model]["seeds"] if model in plan else None
+        for r in mine:
+            if r["arm"] == "base" or not _ok(r):
+                continue
+            if planned_seeds is not None and r["seed"] not in planned_seeds:
+                not_counted.append({"arm": r["arm"], "seed": r["seed"], "source": r.get("_path")})
+            else:
+                arms.setdefault(r["arm"], []).append(r)
+        result: Dict[str, Any] = {"not_applicable": not_applicable, "void": void,
+                                  "not_counted": not_counted, "scope": SCOPE.get(model)}
+        ae_fit = any(r["arm"] == "AE" and _ok(r) for r in [*mine, *others])
+        complete = _completeness(model, arms, plan, (ae_oom_logs or {}).get(model), ae_fit)
+        if complete.get("ae_did_not_fit"):
+            result["ae_did_not_fit"] = complete["ae_did_not_fit"]
+        missing = (["base"] if not base and model in plan else []) + complete["missing"]
+        if missing:
+            result["missing"] = missing
+        if len(base) != 1:
+            result["verdict"] = "NO VERDICT"
+            result["reason"] = f"expected one base record, found {len(base)}"
+            out[model] = result
+            continue
+        base_nll = _eval_nll(base[0])
+        base_gate = base[0]["gate"]["scores"]
+        planned = plan[model]["arms"] if model in plan else ()
+        if "AE" in planned and not complete.get("ae_did_not_fit"):
+            fullest: Optional[str] = "AE"
+        else:
+            fullest = next((arm for arm in FULLEST_ORDER if arm in arms), None)
+        validity = {
+            "V1": fullest in arms and all(
+                base_nll - _eval_nll(r) >= MIN_LEARNED_NAT - TOLERANCE
+                for r in arms[fullest]),
+            "V2": not any(_nonfinite(r) for r in [*mine, *others]),
+            "V3": not any((edge_lrs or {}).values()),
+            "V4": all(r.get("v4", {}).get("passed", False) for r in mine
+                      if r["arm"] != "base" and r.get("status") != "not_applicable"),
+        }
+        result.update(fullest=fullest, validity=validity, base_nll=base_nll,
+                      base_gate=base_gate, base_source=base[0].get("_path"),
+                      base_accuracy=base[0]["task"]["accuracy"])
+        if complete["reason"]:
+            result["reason"] = complete["reason"]
+        if not all(validity.values()) or missing or complete["reason"]:
+            result["verdict"] = "NO VERDICT"
+            out[model] = result
+            continue
+        full_by_seed = {r["seed"]: r for r in arms[fullest]}
+        full_nll = [_eval_nll(r) for r in arms[fullest]]
+        rows = {}
+        for arm, runs in sorted(arms.items()):
+            runs = sorted(runs, key=lambda r: r["seed"])
+            nll = [_eval_nll(r) for r in runs]
+            gap = material_gap(nll, full_nll)
+            failures = leg2_failures(base_gate, [r["gate"]["scores"] for r in runs])
+            if failures:
+                verdict = "REGRESSES"
+            elif gap["material"] and arm != fullest:
+                verdict = "COSTS QUALITY"
+            else:
+                verdict = "ACCEPTABLE"
+            paired = None if arm == fullest else [
+                paired_accuracy(r, full_by_seed[r["seed"]]) for r in runs]
+            clustered = None if arm == fullest else paired_clustered(runs, full_by_seed)
+            rows[arm] = {
+                "seeds": [r["seed"] for r in runs], "nll": nll,
+                "nll_mean": statistics.fmean(nll), "nll_sd": sample_sd(nll),
+                "task_gap": gap, "leg2_failed": failures, "verdict": verdict,
+                "accuracy": [r["task"]["accuracy"] for r in runs],
+                "accuracy_ci95": bootstrap_interval(per_question_accuracy(runs)),
+                "trainable_parameters": runs[0]["trainable_parameters"],
+                "adapter_bytes_adamw_fp32": runs[0]["adapter_bytes_adamw_fp32"],
+                "peak_cuda_bytes": max(r.get("peak_cuda_bytes", 0) for r in runs),
+                "seconds_per_step": statistics.fmean(
+                    e["seconds"] for r in runs for e in r["train"]["log"][1:]),
+                "gate": {s: [r["gate"]["scores"][s] for r in runs] for s in base_gate},
+                "sources": [r.get("_path") for r in runs],
+                "paired_vs_fullest": paired,
+                "paired_clustered": clustered,
+            }
+        result["arms"] = rows
+        result["leg2_failed_by_every_arm"] = all(row["leg2_failed"] for row in rows.values())
+        result["verdict"] = "MEASURED"
+        out[model] = result
+    return out
+
+
+def rate_source(model: str, arm: str) -> str:
+    """The sweep arm whose winning rate ``arm`` trains at on ``model``."""
+    return arm if model == SWEEP_MODEL else RATE_FROM.get(arm, arm)
+
+
+def lr_sweep(records: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Per trained arm of SWEEP_MODEL: seed-0 evaluation NLL per rate and the winner.
+
+    ``status`` is ``ok`` (the winner is inside the extended grid), ``edge`` (the
+    extension won, V3 fails), ``needs_extension`` (a grid-edge rate won and its
+    extension has not run), ``incomplete`` (a grid rate has no ok seed-0 run) or
+    ``nonfinite`` (a rate's NLL is NaN or infinite: no winner, V2 fails on that run).
+    """
+    seed0 = [r for r in records if r["model"] == SWEEP_MODEL and r["arm"] != "base"
+             and r.get("seed") == 0 and _ok(r)]
+    out: Dict[str, Dict[str, Any]] = {}
+    for arm in sorted({r["arm"] for r in seed0}):
+        nll: Dict[float, float] = {}
+        for r in seed0:
+            if r["arm"] != arm:
+                continue
+            if r["lr"] in nll:
+                raise ValueError(f"two ok seed-0 {SWEEP_MODEL} {arm} runs at lr {r['lr']:g}")
+            nll[r["lr"]] = _eval_nll(r)
+        row: Dict[str, Any] = {"nll": {f"{lr:g}": v for lr, v in sorted(nll.items())},
+                               "winner": None}
+        out[arm] = row
+        if any(lr not in nll for lr in GRID):
+            row["status"] = "incomplete"
+            continue
+        if not all(math.isfinite(v) for v in nll.values()):
+            row["status"] = "nonfinite"
+            continue
+        winner = min(GRID, key=nll.__getitem__)
+        extension = EXTENSION.get(winner)
+        if extension is None:
+            row.update(status="ok", winner=winner)
+        elif extension not in nll:
+            row.update(status="needs_extension", extension=extension)
+        else:
+            winner = min((*GRID, extension), key=nll.__getitem__)
+            row.update(status="edge" if winner == extension else "ok", winner=winner,
+                       extension=extension)
+    return out
+
+
+def provenance_problem(record: Dict[str, Any], *, harness_sha256: str, split_sha256: str,
+                       hot_sha256: Dict[str, str]) -> Optional[str]:
+    """Why ``record`` was not made by the bundled harness on the committed inputs."""
+    if record.get("harness_sha256") != harness_sha256:
+        return f"harness {record.get('harness_sha256')}"
+    if record.get("split_sha256") != split_sha256:
+        return f"split {record.get('split_sha256')}"
+    if record["arm"] == "AT" and record.get("status") != "not_applicable" \
+            and record.get("hot_sha256") != hot_sha256.get(record["model"]):
+        return f"hot set {record.get('hot_sha256')}"
+    return None
+
+
+def analyse(records: Sequence[Dict[str, Any]], *, expect: Optional[Dict[str, Any]] = None,
+            plan: Optional[Dict[str, Dict[str, Sequence]]] = None,
+            ae_oom_logs: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Section 5 from every run record of the plan: rates first, then verdicts.
+
+    ``expect`` (keys of ``provenance_problem``) rejects records made by another
+    harness, split or hot set before anything else reads them. A trained run
+    counts only at its arm's winning rate (``rate_source``); the others are listed,
+    not scored; ``summarise`` still reads them for V2 and for whether AE fit. Runs
+    that did not end ``ok`` always reach ``summarise``, so V2 and V4 see them at any
+    rate. An arm whose rate is not settled (``incomplete`` or ``needs_extension``)
+    leaves its model at NO VERDICT; V3 fails only on ``edge``. ``plan`` and
+    ``ae_oom_logs`` go to ``summarise`` (completeness of the plan); a model in the
+    plan with no record at all is NO VERDICT with its missing runs listed.
+    """
+    plan = PLAN if plan is None else plan
+    rejected: List[Dict[str, Any]] = []
+    if expect is not None:
+        kept = []
+        for r in records:
+            problem = provenance_problem(r, **expect)
+            if problem is None:
+                kept.append(r)
+            else:
+                rejected.append({"source": r.get("_path"), "problem": problem})
+        records = kept
+    sweep = lr_sweep(records)
+    counted: List[Dict[str, Any]] = []
+    not_counted: List[Dict[str, Any]] = []
+    for r in records:
+        trained = r["arm"] != "base" and r.get("status") != "not_applicable"
+        winner = sweep.get(rate_source(r["model"], r["arm"]), {}).get("winner")
+        if not trained or not _ok(r) or r["lr"] == winner:
+            counted.append(r)
+        else:
+            not_counted.append(r)
+    models: Dict[str, Any] = {}
+    for model in sorted({r["model"] for r in records} | set(plan)):
+        arms = {r["arm"] for r in records if r["model"] == model and r["arm"] != "base"
+                and r.get("status") != "not_applicable"}
+        status = {arm: sweep.get(rate_source(model, arm), {}).get("status", "missing")
+                  for arm in arms}
+        result = summarise([r for r in counted if r["model"] == model],
+                           edge_lrs={arm: s == "edge" for arm, s in status.items()},
+                           plan={model: plan[model]} if model in plan else {},
+                           ae_oom_logs=ae_oom_logs,
+                           uncounted=[r for r in not_counted if r["model"] == model])[model]
+        unsettled = sorted(arm for arm, s in status.items() if s not in ("ok", "edge"))
+        if unsettled:
+            result.pop("arms", None)
+            result.update(verdict="NO VERDICT", unsettled_rates=unsettled)
+        models[model] = result
+    return {"gate": GATE, "sweep": sweep, "models": models, "rejected": rejected,
+            "not_counted": [{"model": r["model"], "arm": r["arm"], "lr": r["lr"],
+                             "seed": r.get("seed"), "source": r.get("_path")}
+                            for r in not_counted]}
+
+
+def load_runs(directory: str, pattern: str = "run-*.json") -> List[Dict[str, Any]]:
+    """Every ``pattern`` file under ``directory`` at any depth, with its relative ``_path``."""
+    root = pathlib.Path(directory)
+    records = []
+    for path in sorted(root.rglob(pattern)):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["_path"] = path.relative_to(root).as_posix()
+        records.append(record)
+    return records

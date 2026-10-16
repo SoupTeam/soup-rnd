@@ -1,0 +1,10 @@
+PLAN-START <box-home>/plan-qwen-c3.txt 2026-10-14T07:30:54Z PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+=== 2026-10-14T07:30:54Z confirmcheck-qwen35-base-box3 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirmcheck-qwen35-base-box3.json --model qwen35 --arm base --gen-batch 16
+EXIT confirmcheck-qwen35-base-box3 0 2026-10-14T07:52:52Z
+=== 2026-10-14T07:52:52Z confirm-qwen35-AE-lr1e-4-s0 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-AE-lr1e-4-s0.json --model qwen35 --arm AE --lr 1e-4 --seed 0 --gen-batch 16
+EXIT confirm-qwen35-AE-lr1e-4-s0 0 2026-10-14T09:08:38Z
+=== 2026-10-14T09:08:38Z confirm-qwen35-AE-lr1e-4-s1 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-AE-lr1e-4-s1.json --model qwen35 --arm AE --lr 1e-4 --seed 1 --gen-batch 16
+EXIT confirm-qwen35-AE-lr1e-4-s1 0 2026-10-14T10:24:02Z
+=== 2026-10-14T10:24:02Z confirm-qwen35-A-lr2e-4-s1 <box-home>/e1-venv/bin/python moe_adapter_confirm.py run --confirm-split <box-home>/e1-results/confirm-split.json --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/confirm-qwen35-A-lr2e-4-s1.json --model qwen35 --arm A --lr 2e-4 --seed 1 --gen-batch 16
+EXIT confirm-qwen35-A-lr2e-4-s1 0 2026-10-14T10:58:12Z
+PLAN-DONE <box-home>/plan-qwen-c3.txt 2026-10-14T10:58:12Z

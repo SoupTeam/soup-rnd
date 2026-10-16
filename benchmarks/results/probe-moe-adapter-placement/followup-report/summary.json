@@ -1,0 +1,2825 @@
+{
+ "gate": {
+  "thresholds": {
+   "min_learned_nat": 0.05,
+   "material_nat": 0.02,
+   "sd_multiple": 2.0,
+   "forgetting": 0.05
+  },
+  "status": "proposed by the AI assistant before the first run; approved by the record owner after the results, unchanged (2026-10-11)",
+  "scope": "this recipe only (section 3): rank 16, 256 steps on the group-disjoint MetaMathQA split, soup ship's leg 2 at 256 new tokens"
+ },
+ "frozen_rates": {
+  "olmoe": {
+   "A": 0.0002,
+   "AT": 0.0001,
+   "AE": 0.0001
+  },
+  "qwen35": {
+   "A": 0.0002,
+   "AS": 0.0002,
+   "AT": 0.0001,
+   "AE": 0.0001
+  }
+ },
+ "v3_note": "V3 not re-decided: learning rates are frozen at E1's section 8 winners",
+ "rejected": [],
+ "models": {
+  "olmoe": {
+   "E": {
+    "not_applicable": [],
+    "void": [],
+    "not_counted": [],
+    "scope": "learning rates swept on this model",
+    "fullest": "AE",
+    "validity": {
+     "V1": true,
+     "V2": true,
+     "V3": true,
+     "V4": true
+    },
+    "base_nll": 0.9360369541314936,
+    "base_gate": {
+     "mini_mmlu": 0.7307692307692307,
+     "mini_common_sense": 0.9583333333333334,
+     "mini_instruction": 0.9166666666666666,
+     "mini_arithmetic": 0.7,
+     "mini_tool_call": 0.525,
+     "mini_format_json": 1.0,
+     "mini_safety": 0.975,
+     "mini_over_refusal": 1.0
+    },
+    "base_source": "e1-c-olmoe1/e1-results/confirm-olmoe-base.json",
+    "base_accuracy": 0.51171875,
+    "arms": {
+     "A": {
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "nll": [
+       0.25154654954264327,
+       0.25109162411515107,
+       0.24987429341817077
+      ],
+      "nll_mean": 0.2508374890253217,
+      "nll_sd": 0.0008646089401405005,
+      "task_gap": {
+       "gap": 0.008270094345363604,
+       "noise": 0.0018977444966501334,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_common_sense"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.57421875,
+       0.5859375,
+       0.609375
+      ],
+      "accuracy_ci95": [
+       0.5377604166666666,
+       0.6419270833333334
+      ],
+      "trainable_parameters": 4194304,
+      "adapter_bytes_adamw_fp32": 67108864,
+      "peak_cuda_bytes": 15301853696,
+      "seconds_per_step": 2.2950253617895,
+      "gate": {
+       "mini_mmlu": [
+        0.9230769230769231,
+        0.9230769230769231,
+        0.8461538461538461
+       ],
+       "mini_common_sense": [
+        0.875,
+        0.875,
+        0.9166666666666666
+       ],
+       "mini_instruction": [
+        0.9583333333333334,
+        0.9166666666666666,
+        0.9166666666666666
+       ],
+       "mini_arithmetic": [
+        0.8,
+        0.8,
+        0.8
+       ],
+       "mini_tool_call": [
+        0.55,
+        0.55,
+        0.55
+       ],
+       "mini_format_json": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_safety": [
+        0.95,
+        0.975,
+        0.975
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0,
+        0.975
+       ]
+      },
+      "sources": [
+       "e1-c-olmoe1/e1-results/confirm-olmoe-A-lr2e-4-s0.json",
+       "e1-c-olmoe1/e1-results/confirm-olmoe-A-lr2e-4-s1.json",
+       "e1-c3-olmoe/e1-results/confirm-olmoe-A-lr2e-4-s2.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 13,
+        "f_only": 25,
+        "difference": -0.046875,
+        "p": 0.07295138851623051
+       },
+       {
+        "seed": 1,
+        "x_only": 22,
+        "f_only": 22,
+        "difference": 0.0,
+        "p": 1.0
+       },
+       {
+        "seed": 2,
+        "x_only": 18,
+        "f_only": 30,
+        "difference": -0.046875,
+        "p": 0.11140289106101875
+       }
+      ],
+      "paired_clustered": {
+       "difference": -0.03125,
+       "questions_x_better": 32,
+       "questions_f_better": 51,
+       "p": 0.05813285762557891
+      }
+     },
+     "AE": {
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "nll": [
+       0.2434936916098979,
+       0.24261103911334955,
+       0.2415974533166268
+      ],
+      "nll_mean": 0.2425673946799581,
+      "nll_sd": 0.0009488722483250667,
+      "task_gap": {
+       "gap": 0.0,
+       "noise": 0.0018977444966501334,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_common_sense"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.62109375,
+       0.5859375,
+       0.65625
+      ],
+      "accuracy_ci95": [
+       0.5703125,
+       0.671875
+      ],
+      "trainable_parameters": 121634816,
+      "adapter_bytes_adamw_fp32": 1946157056,
+      "peak_cuda_bytes": 17194294784,
+      "seconds_per_step": 4.621410139230099,
+      "gate": {
+       "mini_mmlu": [
+        0.9230769230769231,
+        0.9230769230769231,
+        0.7692307692307693
+       ],
+       "mini_common_sense": [
+        0.9166666666666666,
+        0.8333333333333334,
+        0.9583333333333334
+       ],
+       "mini_instruction": [
+        0.9166666666666666,
+        0.9166666666666666,
+        0.9583333333333334
+       ],
+       "mini_arithmetic": [
+        0.775,
+        0.75,
+        0.775
+       ],
+       "mini_tool_call": [
+        0.55,
+        0.525,
+        0.525
+       ],
+       "mini_format_json": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_safety": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0,
+        0.975
+       ]
+      },
+      "sources": [
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AE-lr1e-4-s0.json",
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AE-lr1e-4-s1.json",
+       "e1-c3-olmoe/e1-results/confirm-olmoe-AE-lr1e-4-s2.json"
+      ],
+      "paired_vs_fullest": null,
+      "paired_clustered": null
+     },
+     "AT": {
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "nll": [
+       0.24456641166524787,
+       0.24460185711492774,
+       0.24341093225229837
+      ],
+      "nll_mean": 0.24419306701082466,
+      "nll_sd": 0.0006775803866309755,
+      "task_gap": {
+       "gap": 0.001625672330866551,
+       "noise": 0.0018977444966501334,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_common_sense",
+       "mini_instruction"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.64453125,
+       0.58203125,
+       0.64453125
+      ],
+      "accuracy_ci95": [
+       0.5729166666666666,
+       0.67578125
+      ],
+      "trainable_parameters": 33554432,
+      "adapter_bytes_adamw_fp32": 536870912,
+      "peak_cuda_bytes": 15783138304,
+      "seconds_per_step": 3.2211890215553294,
+      "gate": {
+       "mini_mmlu": [
+        0.8846153846153846,
+        0.8076923076923077,
+        0.8076923076923077
+       ],
+       "mini_common_sense": [
+        0.9583333333333334,
+        0.875,
+        0.9583333333333334
+       ],
+       "mini_instruction": [
+        0.875,
+        0.8333333333333334,
+        0.8333333333333334
+       ],
+       "mini_arithmetic": [
+        0.8,
+        0.775,
+        0.8
+       ],
+       "mini_tool_call": [
+        0.55,
+        0.525,
+        0.55
+       ],
+       "mini_format_json": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_safety": [
+        0.975,
+        0.975,
+        0.975
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0,
+        1.0
+       ]
+      },
+      "sources": [
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AT-lr1e-4-s0.json",
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AT-lr1e-4-s1.json",
+       "e1-c3-olmoe/e1-results/confirm-olmoe-AT-lr1e-4-s2.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 18,
+        "f_only": 12,
+        "difference": 0.0234375,
+        "p": 0.361594608053565
+       },
+       {
+        "seed": 1,
+        "x_only": 17,
+        "f_only": 18,
+        "difference": -0.00390625,
+        "p": 1.0
+       },
+       {
+        "seed": 2,
+        "x_only": 15,
+        "f_only": 18,
+        "difference": -0.01171875,
+        "p": 0.7283324808813632
+       }
+      ],
+      "paired_clustered": {
+       "difference": 0.0026041666666666665,
+       "questions_x_better": 33,
+       "questions_f_better": 37,
+       "p": 0.9181522442858386
+      }
+     }
+    },
+    "leg2_failed_by_every_arm": true,
+    "verdict": "MEASURED",
+    "v3_note": "V3 not re-decided: learning rates are frozen at E1's section 8 winners"
+   },
+   "C": {
+    "not_applicable": [],
+    "void": [],
+    "not_counted": [],
+    "scope": "learning rates swept on this model",
+    "fullest": "AE",
+    "validity": {
+     "V1": true,
+     "V2": true,
+     "V3": true,
+     "V4": true
+    },
+    "base_nll": 0.9028410433192318,
+    "base_gate": {
+     "mini_mmlu": 0.7307692307692307,
+     "mini_common_sense": 0.9583333333333334,
+     "mini_instruction": 0.9166666666666666,
+     "mini_arithmetic": 0.7,
+     "mini_tool_call": 0.525,
+     "mini_format_json": 1.0,
+     "mini_safety": 0.975,
+     "mini_over_refusal": 1.0
+    },
+    "base_source": "e1-c-olmoe1/e1-results/confirm-olmoe-base.json",
+    "base_accuracy": 0.51171875,
+    "arms": {
+     "A": {
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "nll": [
+       0.2401283128302746,
+       0.24005269341020083,
+       0.23865526214598054
+      ],
+      "nll_mean": 0.23961208946215198,
+      "nll_sd": 0.0008294989203742056,
+      "task_gap": {
+       "gap": 0.007209579649953224,
+       "noise": 0.0016589978407484112,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_common_sense"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.58203125,
+       0.61328125,
+       0.59375
+      ],
+      "accuracy_ci95": [
+       0.54296875,
+       0.6484375
+      ],
+      "trainable_parameters": 4194304,
+      "adapter_bytes_adamw_fp32": 67108864,
+      "peak_cuda_bytes": 15301853696,
+      "seconds_per_step": 2.2950253617895,
+      "gate": {
+       "mini_mmlu": [
+        0.9230769230769231,
+        0.9230769230769231,
+        0.8461538461538461
+       ],
+       "mini_common_sense": [
+        0.875,
+        0.875,
+        0.9166666666666666
+       ],
+       "mini_instruction": [
+        0.9583333333333334,
+        0.9166666666666666,
+        0.9166666666666666
+       ],
+       "mini_arithmetic": [
+        0.8,
+        0.8,
+        0.8
+       ],
+       "mini_tool_call": [
+        0.55,
+        0.55,
+        0.55
+       ],
+       "mini_format_json": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_safety": [
+        0.95,
+        0.975,
+        0.975
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0,
+        0.975
+       ]
+      },
+      "sources": [
+       "e1-c-olmoe1/e1-results/confirm-olmoe-A-lr2e-4-s0.json",
+       "e1-c-olmoe1/e1-results/confirm-olmoe-A-lr2e-4-s1.json",
+       "e1-c3-olmoe/e1-results/confirm-olmoe-A-lr2e-4-s2.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 14,
+        "f_only": 28,
+        "difference": -0.0546875,
+        "p": 0.04355852192384191
+       },
+       {
+        "seed": 1,
+        "x_only": 18,
+        "f_only": 24,
+        "difference": -0.0234375,
+        "p": 0.44079906734259566
+       },
+       {
+        "seed": 2,
+        "x_only": 16,
+        "f_only": 26,
+        "difference": -0.0390625,
+        "p": 0.16414940178310644
+       }
+      ],
+      "paired_clustered": {
+       "difference": -0.0390625,
+       "questions_x_better": 33,
+       "questions_f_better": 52,
+       "p": 0.0203636024770743
+      }
+     },
+     "AE": {
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "nll": [
+       0.23295802791162232,
+       0.23216035609372362,
+       0.23208914543125034
+      ],
+      "nll_mean": 0.23240250981219876,
+      "nll_sd": 0.0004824085495747793,
+      "task_gap": {
+       "gap": 0.0,
+       "noise": 0.0009648170991495585,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_common_sense"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.63671875,
+       0.63671875,
+       0.6328125
+      ],
+      "accuracy_ci95": [
+       0.5846354166666666,
+       0.6861979166666666
+      ],
+      "trainable_parameters": 121634816,
+      "adapter_bytes_adamw_fp32": 1946157056,
+      "peak_cuda_bytes": 17194294784,
+      "seconds_per_step": 4.621410139230099,
+      "gate": {
+       "mini_mmlu": [
+        0.9230769230769231,
+        0.9230769230769231,
+        0.7692307692307693
+       ],
+       "mini_common_sense": [
+        0.9166666666666666,
+        0.8333333333333334,
+        0.9583333333333334
+       ],
+       "mini_instruction": [
+        0.9166666666666666,
+        0.9166666666666666,
+        0.9583333333333334
+       ],
+       "mini_arithmetic": [
+        0.775,
+        0.75,
+        0.775
+       ],
+       "mini_tool_call": [
+        0.55,
+        0.525,
+        0.525
+       ],
+       "mini_format_json": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_safety": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0,
+        0.975
+       ]
+      },
+      "sources": [
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AE-lr1e-4-s0.json",
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AE-lr1e-4-s1.json",
+       "e1-c3-olmoe/e1-results/confirm-olmoe-AE-lr1e-4-s2.json"
+      ],
+      "paired_vs_fullest": null,
+      "paired_clustered": null
+     },
+     "AT": {
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "nll": [
+       0.2341093795215834,
+       0.2334646277549877,
+       0.2322096803995281
+      ],
+      "nll_mean": 0.2332612292253664,
+      "nll_sd": 0.0009660447246238063,
+      "task_gap": {
+       "gap": 0.0008587194131676468,
+       "noise": 0.0019320894492476125,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_common_sense",
+       "mini_instruction"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.62890625,
+       0.6171875,
+       0.60546875
+      ],
+      "accuracy_ci95": [
+       0.56640625,
+       0.6692708333333334
+      ],
+      "trainable_parameters": 33554432,
+      "adapter_bytes_adamw_fp32": 536870912,
+      "peak_cuda_bytes": 15783138304,
+      "seconds_per_step": 3.2211890215553294,
+      "gate": {
+       "mini_mmlu": [
+        0.8846153846153846,
+        0.8076923076923077,
+        0.8076923076923077
+       ],
+       "mini_common_sense": [
+        0.9583333333333334,
+        0.875,
+        0.9583333333333334
+       ],
+       "mini_instruction": [
+        0.875,
+        0.8333333333333334,
+        0.8333333333333334
+       ],
+       "mini_arithmetic": [
+        0.8,
+        0.775,
+        0.8
+       ],
+       "mini_tool_call": [
+        0.55,
+        0.525,
+        0.55
+       ],
+       "mini_format_json": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "mini_safety": [
+        0.975,
+        0.975,
+        0.975
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0,
+        1.0
+       ]
+      },
+      "sources": [
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AT-lr1e-4-s0.json",
+       "e1-c-olmoe1/e1-results/confirm-olmoe-AT-lr1e-4-s1.json",
+       "e1-c3-olmoe/e1-results/confirm-olmoe-AT-lr1e-4-s2.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 12,
+        "f_only": 14,
+        "difference": -0.0078125,
+        "p": 0.8450189828872681
+       },
+       {
+        "seed": 1,
+        "x_only": 10,
+        "f_only": 15,
+        "difference": -0.01953125,
+        "p": 0.42435622215270996
+       },
+       {
+        "seed": 2,
+        "x_only": 12,
+        "f_only": 19,
+        "difference": -0.02734375,
+        "p": 0.28104151505976915
+       }
+      ],
+      "paired_clustered": {
+       "difference": -0.018229166666666668,
+       "questions_x_better": 32,
+       "questions_f_better": 41,
+       "p": 0.1800909391398242
+      }
+     }
+    },
+    "leg2_failed_by_every_arm": true,
+    "verdict": "MEASURED",
+    "v3_note": "V3 not re-decided: learning rates are frozen at E1's section 8 winners"
+   },
+   "comparison": {
+    "verdict": "MEASURED",
+    "fullest_E": "AE",
+    "fullest_C": "AE",
+    "arms": {
+     "A": {
+      "verdict_E": "REGRESSES",
+      "verdict_C": "REGRESSES",
+      "verdict_holds": true,
+      "task_gap_E": {
+       "gap": 0.008270094345363604,
+       "noise": 0.0018977444966501334,
+       "material": false
+      },
+      "task_gap_C": {
+       "gap": 0.007209579649953224,
+       "noise": 0.0016589978407484112,
+       "material": false
+      },
+      "gap_holds": true,
+      "seed_gaps_E": {
+       "0": 0.008052857932745378,
+       "1": 0.008480585001801516,
+       "2": 0.008276840101543975
+      },
+      "seed_gaps_C": {
+       "0": 0.007170284918652292,
+       "1": 0.007892337316477205,
+       "2": 0.006566116714730202
+      },
+      "seed_sign_agrees": {
+       "0": true,
+       "1": true,
+       "2": true
+      },
+      "paired_clustered_E": {
+       "difference": -0.03125,
+       "questions_x_better": 32,
+       "questions_f_better": 51,
+       "p": 0.05813285762557891
+      },
+      "paired_clustered_C": {
+       "difference": -0.0390625,
+       "questions_x_better": 33,
+       "questions_f_better": 52,
+       "p": 0.0203636024770743
+      },
+      "accuracy_E": [
+       0.57421875,
+       0.5859375,
+       0.609375
+      ],
+      "accuracy_C": [
+       0.58203125,
+       0.61328125,
+       0.59375
+      ]
+     },
+     "AE": {
+      "verdict_E": "REGRESSES",
+      "verdict_C": "REGRESSES",
+      "verdict_holds": true,
+      "task_gap_E": {
+       "gap": 0.0,
+       "noise": 0.0018977444966501334,
+       "material": false
+      },
+      "task_gap_C": {
+       "gap": 0.0,
+       "noise": 0.0009648170991495585,
+       "material": false
+      },
+      "gap_holds": true,
+      "seed_gaps_E": {
+       "0": 0.0,
+       "1": 0.0,
+       "2": 0.0
+      },
+      "seed_gaps_C": {
+       "0": 0.0,
+       "1": 0.0,
+       "2": 0.0
+      },
+      "seed_sign_agrees": {
+       "0": true,
+       "1": true,
+       "2": true
+      },
+      "paired_clustered_E": null,
+      "paired_clustered_C": null,
+      "accuracy_E": [
+       0.62109375,
+       0.5859375,
+       0.65625
+      ],
+      "accuracy_C": [
+       0.63671875,
+       0.63671875,
+       0.6328125
+      ]
+     },
+     "AT": {
+      "verdict_E": "REGRESSES",
+      "verdict_C": "REGRESSES",
+      "verdict_holds": true,
+      "task_gap_E": {
+       "gap": 0.001625672330866551,
+       "noise": 0.0018977444966501334,
+       "material": false
+      },
+      "task_gap_C": {
+       "gap": 0.0008587194131676468,
+       "noise": 0.0019320894492476125,
+       "material": false
+      },
+      "gap_holds": true,
+      "seed_gaps_E": {
+       "0": 0.0010727200553499738,
+       "1": 0.0019908180015781873,
+       "2": 0.0018134789356715753
+      },
+      "seed_gaps_C": {
+       "0": 0.0011513516099610765,
+       "1": 0.001304271661264067,
+       "2": 0.000120534968277769
+      },
+      "seed_sign_agrees": {
+       "0": true,
+       "1": true,
+       "2": true
+      },
+      "paired_clustered_E": {
+       "difference": 0.0026041666666666665,
+       "questions_x_better": 33,
+       "questions_f_better": 37,
+       "p": 0.9181522442858386
+      },
+      "paired_clustered_C": {
+       "difference": -0.018229166666666668,
+       "questions_x_better": 32,
+       "questions_f_better": 41,
+       "p": 0.1800909391398242
+      },
+      "accuracy_E": [
+       0.64453125,
+       0.58203125,
+       0.64453125
+      ],
+      "accuracy_C": [
+       0.62890625,
+       0.6171875,
+       0.60546875
+      ]
+     }
+    },
+    "ordering_E": [
+     "AE",
+     "AT",
+     "A"
+    ],
+    "ordering_C": [
+     "AE",
+     "AT",
+     "A"
+    ]
+   },
+   "contrast": {
+    "name": "base-corrected E/C generalisation contrast",
+    "note": "(E - C) of the arm minus (E - C) of the base; the 95% interval reflects question-sampling noise only (E and C rows resampled independently), not a cause",
+    "fullest": "AE",
+    "draws": 10000,
+    "seed": 0,
+    "rows": {
+     "E": 256,
+     "C": 256
+    },
+    "base": {
+     "nll_E": 0.93603696343295,
+     "nll_C": 0.9028410606172426,
+     "e_minus_c_nll": 0.03319590281570739,
+     "accuracy_E": 0.51171875,
+     "accuracy_C": 0.51171875,
+     "e_minus_c_accuracy": 0.0
+    },
+    "arms": {
+     "A": {
+      "nll_E": 0.25083749016299983,
+      "nll_C": 0.2396120909745132,
+      "e_minus_c_nll": 0.01122539918848664,
+      "accuracy_E": 0.58984375,
+      "accuracy_C": 0.5963541666666666,
+      "e_minus_c_accuracy": -0.00651041666666663,
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "contrast_nll": -0.02197050362722075,
+      "contrast_nll_ci95": [
+       -0.05939917908411216,
+       0.015096860554608654
+      ],
+      "contrast_accuracy": -0.00651041666666663,
+      "contrast_accuracy_ci95": [
+       -0.09505208333333337,
+       0.08072916666666663
+      ],
+      "gap_difference_nll": 0.001060513830148463,
+      "gap_difference_nll_ci95": [
+       -0.000930462710428015,
+       0.003123717237825646
+      ],
+      "gap_difference_accuracy": 0.0078125,
+      "gap_difference_accuracy_ci95": [
+       -0.03515625000000011,
+       0.05208333333333337
+      ]
+     },
+     "AE": {
+      "nll_E": 0.2425673969157248,
+      "nll_C": 0.23240251155738662,
+      "e_minus_c_nll": 0.010164885358338177,
+      "accuracy_E": 0.62109375,
+      "accuracy_C": 0.6354166666666666,
+      "e_minus_c_accuracy": -0.01432291666666663,
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "contrast_nll": -0.023031017457369213,
+      "contrast_nll_ci95": [
+       -0.060706501642290356,
+       0.014505178907021354
+      ],
+      "contrast_accuracy": -0.01432291666666663,
+      "contrast_accuracy_ci95": [
+       -0.1015625,
+       0.07161458333333337
+      ]
+     },
+     "AT": {
+      "nll_E": 0.24419306781511724,
+      "nll_C": 0.2332612326590539,
+      "e_minus_c_nll": 0.01093183515606333,
+      "accuracy_E": 0.6236979166666666,
+      "accuracy_C": 0.6171875,
+      "e_minus_c_accuracy": 0.00651041666666663,
+      "seeds": [
+       0,
+       1,
+       2
+      ],
+      "contrast_nll": -0.02226406765964406,
+      "contrast_nll_ci95": [
+       -0.059912375321011735,
+       0.01508314437649827
+      ],
+      "contrast_accuracy": 0.00651041666666663,
+      "contrast_accuracy_ci95": [
+       -0.08072916666666674,
+       0.09375
+      ],
+      "gap_difference_nll": 0.0007669497977251527,
+      "gap_difference_nll_ci95": [
+       -0.00032764058460318934,
+       0.001859688201325399
+      ],
+      "gap_difference_accuracy": 0.02083333333333326,
+      "gap_difference_accuracy_ci95": [
+       -0.01432291666666674,
+       0.05598958333333337
+      ]
+     }
+    }
+   },
+   "published": {
+    "note": "historical: published E1 records scored on E, from rule.analyse",
+    "verdict": "MEASURED",
+    "reason": null,
+    "fullest": "AE",
+    "arms": {
+     "A": {
+      "verdict": "REGRESSES",
+      "task_gap": {
+       "gap": 0.008270094345363604,
+       "noise": 0.0018977444966501334,
+       "material": false
+      }
+     },
+     "AE": {
+      "verdict": "REGRESSES",
+      "task_gap": {
+       "gap": 0.0,
+       "noise": 0.0018977444966501334,
+       "material": false
+      }
+     },
+     "AT": {
+      "verdict": "REGRESSES",
+      "task_gap": {
+       "gap": 0.001625672330866551,
+       "noise": 0.0018977444966501334,
+       "material": false
+      }
+     }
+    }
+   }
+  },
+  "qwen35": {
+   "E": {
+    "not_applicable": [],
+    "void": [],
+    "not_counted": [],
+    "scope": "learning rates transferred from OLMoE, not swept on this model",
+    "fullest": "AE",
+    "validity": {
+     "V1": true,
+     "V2": true,
+     "V3": true,
+     "V4": true
+    },
+    "base_nll": 0.6340631305069331,
+    "base_gate": {
+     "mini_mmlu": 0.7307692307692307,
+     "mini_common_sense": 0.875,
+     "mini_instruction": 1.0,
+     "mini_arithmetic": 0.75,
+     "mini_tool_call": 0.3,
+     "mini_format_json": 0.625,
+     "mini_safety": 0.95,
+     "mini_over_refusal": 0.975
+    },
+    "base_source": "e1-c-qwen/e1-results/confirm-qwen35-base.json",
+    "base_accuracy": 0.4765625,
+    "arms": {
+     "A": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.13452696108862297,
+       0.13501968066515965
+      ],
+      "nll_mean": 0.1347733208768913,
+      "nll_sd": 0.000348405353792452,
+      "task_gap": {
+       "gap": -0.0038057293112476742,
+       "noise": 0.000696810707584904,
+       "material": false
+      },
+      "leg2_failed": [],
+      "verdict": "ACCEPTABLE",
+      "accuracy": [
+       0.91015625,
+       0.8984375
+      ],
+      "accuracy_ci95": [
+       0.87109375,
+       0.935546875
+      ],
+      "trainable_parameters": 16250880,
+      "adapter_bytes_adamw_fp32": 260014080,
+      "peak_cuda_bytes": 76094154240,
+      "seconds_per_step": 5.338035190166614,
+      "gate": {
+       "mini_mmlu": [
+        0.9615384615384616,
+        0.9615384615384616
+       ],
+       "mini_common_sense": [
+        1.0,
+        1.0
+       ],
+       "mini_instruction": [
+        1.0,
+        0.9583333333333334
+       ],
+       "mini_arithmetic": [
+        0.9,
+        0.9
+       ],
+       "mini_tool_call": [
+        0.6,
+        0.6
+       ],
+       "mini_format_json": [
+        0.95,
+        1.0
+       ],
+       "mini_safety": [
+        0.975,
+        0.95
+       ],
+       "mini_over_refusal": [
+        1.0,
+        0.95
+       ]
+      },
+      "sources": [
+       "e1-c-qwen/e1-results/confirm-qwen35-A-lr2e-4-s0.json",
+       "e1-c3-qwen/e1-results/confirm-qwen35-A-lr2e-4-s1.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 14,
+        "f_only": 6,
+        "difference": 0.03125,
+        "p": 0.11531829833984375
+       },
+       {
+        "seed": 1,
+        "x_only": 11,
+        "f_only": 7,
+        "difference": 0.015625,
+        "p": 0.480682373046875
+       }
+      ],
+      "paired_clustered": {
+       "difference": 0.0234375,
+       "questions_x_better": 18,
+       "questions_f_better": 10,
+       "p": 0.08061007410287857
+      }
+     },
+     "AE": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.1383748699391816,
+       0.13878323043709637
+      ],
+      "nll_mean": 0.13857905018813899,
+      "nll_sd": 0.00028875447724424283,
+      "task_gap": {
+       "gap": 0.0,
+       "noise": 0.0005775089544884857,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_over_refusal",
+       "mini_safety"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.87890625,
+       0.8828125
+      ],
+      "accuracy_ci95": [
+       0.84375,
+       0.916015625
+      ],
+      "trainable_parameters": 943912960,
+      "adapter_bytes_adamw_fp32": 15102607360,
+      "peak_cuda_bytes": 90936911360,
+      "seconds_per_step": 7.025433087979863,
+      "gate": {
+       "mini_mmlu": [
+        0.8076923076923077,
+        0.8461538461538461
+       ],
+       "mini_common_sense": [
+        0.875,
+        0.875
+       ],
+       "mini_instruction": [
+        1.0,
+        1.0
+       ],
+       "mini_arithmetic": [
+        0.925,
+        0.9
+       ],
+       "mini_tool_call": [
+        0.525,
+        0.575
+       ],
+       "mini_format_json": [
+        0.775,
+        0.775
+       ],
+       "mini_safety": [
+        0.95,
+        0.875
+       ],
+       "mini_over_refusal": [
+        0.9,
+        0.95
+       ]
+      },
+      "sources": [
+       "e1-c3-qwen/e1-results/confirm-qwen35-AE-lr1e-4-s0.json",
+       "e1-c3-qwen/e1-results/confirm-qwen35-AE-lr1e-4-s1.json"
+      ],
+      "paired_vs_fullest": null,
+      "paired_clustered": null
+     },
+     "AS": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.13536464914532603,
+       0.135622836098541
+      ],
+      "nll_mean": 0.13549374262193353,
+      "nll_sd": 0.00018256574543220114,
+      "task_gap": {
+       "gap": -0.003085307566205453,
+       "noise": 0.0005775089544884857,
+       "material": false
+      },
+      "leg2_failed": [],
+      "verdict": "ACCEPTABLE",
+      "accuracy": [
+       0.8984375,
+       0.90625
+      ],
+      "accuracy_ci95": [
+       0.87109375,
+       0.931640625
+      ],
+      "trainable_parameters": 21166080,
+      "adapter_bytes_adamw_fp32": 338657280,
+      "peak_cuda_bytes": 76172797440,
+      "seconds_per_step": 6.465301242351587,
+      "gate": {
+       "mini_mmlu": [
+        1.0,
+        1.0
+       ],
+       "mini_common_sense": [
+        1.0,
+        1.0
+       ],
+       "mini_instruction": [
+        1.0,
+        1.0
+       ],
+       "mini_arithmetic": [
+        0.925,
+        0.9
+       ],
+       "mini_tool_call": [
+        0.6,
+        0.6
+       ],
+       "mini_format_json": [
+        0.875,
+        0.95
+       ],
+       "mini_safety": [
+        0.95,
+        0.975
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0
+       ]
+      },
+      "sources": [
+       "e1-c-qwen/e1-results/confirm-qwen35-AS-lr2e-4-s0.json",
+       "e1-c-rt/e1-results/confirm-qwen35-AS-lr2e-4-s1.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 12,
+        "f_only": 7,
+        "difference": 0.01953125,
+        "p": 0.359283447265625
+       },
+       {
+        "seed": 1,
+        "x_only": 14,
+        "f_only": 8,
+        "difference": 0.0234375,
+        "p": 0.28627872467041016
+       }
+      ],
+      "paired_clustered": {
+       "difference": 0.021484375,
+       "questions_x_better": 21,
+       "questions_f_better": 14,
+       "p": 0.14452329627238214
+      }
+     },
+     "AT": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.13669879480149955,
+       0.13646813760083198
+      ],
+      "nll_mean": 0.13658346620116577,
+      "nll_sd": 0.00016309927072153874,
+      "task_gap": {
+       "gap": -0.0019955839869732206,
+       "noise": 0.0005775089544884857,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_safety"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.86328125,
+       0.8828125
+      ],
+      "accuracy_ci95": [
+       0.833984375,
+       0.908203125
+      ],
+      "trainable_parameters": 251852800,
+      "adapter_bytes_adamw_fp32": 4029644800,
+      "peak_cuda_bytes": 79863887360,
+      "seconds_per_step": 8.793203559543883,
+      "gate": {
+       "mini_mmlu": [
+        0.8461538461538461,
+        0.8076923076923077
+       ],
+       "mini_common_sense": [
+        0.8333333333333334,
+        0.875
+       ],
+       "mini_instruction": [
+        1.0,
+        1.0
+       ],
+       "mini_arithmetic": [
+        0.95,
+        0.85
+       ],
+       "mini_tool_call": [
+        0.6,
+        0.55
+       ],
+       "mini_format_json": [
+        0.675,
+        0.8
+       ],
+       "mini_safety": [
+        0.875,
+        0.925
+       ],
+       "mini_over_refusal": [
+        0.95,
+        0.95
+       ]
+      },
+      "sources": [
+       "e1-c-qwen/e1-results/confirm-qwen35-AT-lr1e-4-s0.json",
+       "e1-c-rt/e1-results/confirm-qwen35-AT-lr1e-4-s1.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 6,
+        "f_only": 10,
+        "difference": -0.015625,
+        "p": 0.454498291015625
+       },
+       {
+        "seed": 1,
+        "x_only": 7,
+        "f_only": 7,
+        "difference": 0.0,
+        "p": 1.0
+       }
+      ],
+      "paired_clustered": {
+       "difference": -0.0078125,
+       "questions_x_better": 9,
+       "questions_f_better": 12,
+       "p": 0.5434894561767578
+      }
+     }
+    },
+    "leg2_failed_by_every_arm": false,
+    "verdict": "MEASURED",
+    "v3_note": "V3 not re-decided: learning rates are frozen at E1's section 8 winners"
+   },
+   "C": {
+    "not_applicable": [],
+    "void": [],
+    "not_counted": [],
+    "scope": "learning rates transferred from OLMoE, not swept on this model",
+    "fullest": "AE",
+    "validity": {
+     "V1": true,
+     "V2": true,
+     "V3": true,
+     "V4": true
+    },
+    "base_nll": 0.6142602027035369,
+    "base_gate": {
+     "mini_mmlu": 0.7307692307692307,
+     "mini_common_sense": 0.875,
+     "mini_instruction": 1.0,
+     "mini_arithmetic": 0.75,
+     "mini_tool_call": 0.3,
+     "mini_format_json": 0.625,
+     "mini_safety": 0.95,
+     "mini_over_refusal": 0.975
+    },
+    "base_source": "e1-c-qwen/e1-results/confirm-qwen35-base.json",
+    "base_accuracy": 0.48828125,
+    "arms": {
+     "A": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.1273208124278333,
+       0.1275886712137738
+      ],
+      "nll_mean": 0.12745474182080355,
+      "nll_sd": 0.00018940476393891568,
+      "task_gap": {
+       "gap": -0.0028506796230793052,
+       "noise": 0.00037880952787783137,
+       "material": false
+      },
+      "leg2_failed": [],
+      "verdict": "ACCEPTABLE",
+      "accuracy": [
+       0.890625,
+       0.875
+      ],
+      "accuracy_ci95": [
+       0.84765625,
+       0.916015625
+      ],
+      "trainable_parameters": 16250880,
+      "adapter_bytes_adamw_fp32": 260014080,
+      "peak_cuda_bytes": 76094154240,
+      "seconds_per_step": 5.338035190166614,
+      "gate": {
+       "mini_mmlu": [
+        0.9615384615384616,
+        0.9615384615384616
+       ],
+       "mini_common_sense": [
+        1.0,
+        1.0
+       ],
+       "mini_instruction": [
+        1.0,
+        0.9583333333333334
+       ],
+       "mini_arithmetic": [
+        0.9,
+        0.9
+       ],
+       "mini_tool_call": [
+        0.6,
+        0.6
+       ],
+       "mini_format_json": [
+        0.95,
+        1.0
+       ],
+       "mini_safety": [
+        0.975,
+        0.95
+       ],
+       "mini_over_refusal": [
+        1.0,
+        0.95
+       ]
+      },
+      "sources": [
+       "e1-c-qwen/e1-results/confirm-qwen35-A-lr2e-4-s0.json",
+       "e1-c3-qwen/e1-results/confirm-qwen35-A-lr2e-4-s1.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 13,
+        "f_only": 10,
+        "difference": 0.01171875,
+        "p": 0.6776394844055176
+       },
+       {
+        "seed": 1,
+        "x_only": 12,
+        "f_only": 11,
+        "difference": 0.00390625,
+        "p": 1.0
+       }
+      ],
+      "paired_clustered": {
+       "difference": 0.0078125,
+       "questions_x_better": 19,
+       "questions_f_better": 17,
+       "p": 0.6853304537944496
+      }
+     },
+     "AE": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.13031236034564964,
+       0.1302984825421161
+      ],
+      "nll_mean": 0.13030542144388285,
+      "nll_sd": 9.813088986541284e-06,
+      "task_gap": {
+       "gap": 0.0,
+       "noise": 1.962617797308257e-05,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_over_refusal",
+       "mini_safety"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.87890625,
+       0.87109375
+      ],
+      "accuracy_ci95": [
+       0.83984375,
+       0.908203125
+      ],
+      "trainable_parameters": 943912960,
+      "adapter_bytes_adamw_fp32": 15102607360,
+      "peak_cuda_bytes": 90936911360,
+      "seconds_per_step": 7.025433087979863,
+      "gate": {
+       "mini_mmlu": [
+        0.8076923076923077,
+        0.8461538461538461
+       ],
+       "mini_common_sense": [
+        0.875,
+        0.875
+       ],
+       "mini_instruction": [
+        1.0,
+        1.0
+       ],
+       "mini_arithmetic": [
+        0.925,
+        0.9
+       ],
+       "mini_tool_call": [
+        0.525,
+        0.575
+       ],
+       "mini_format_json": [
+        0.775,
+        0.775
+       ],
+       "mini_safety": [
+        0.95,
+        0.875
+       ],
+       "mini_over_refusal": [
+        0.9,
+        0.95
+       ]
+      },
+      "sources": [
+       "e1-c3-qwen/e1-results/confirm-qwen35-AE-lr1e-4-s0.json",
+       "e1-c3-qwen/e1-results/confirm-qwen35-AE-lr1e-4-s1.json"
+      ],
+      "paired_vs_fullest": null,
+      "paired_clustered": null
+     },
+     "AS": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.12774771992855208,
+       0.12813489443715614
+      ],
+      "nll_mean": 0.12794130718285412,
+      "nll_sd": 0.0002737737205365041,
+      "task_gap": {
+       "gap": -0.002364114261028727,
+       "noise": 0.0005475474410730082,
+       "material": false
+      },
+      "leg2_failed": [],
+      "verdict": "ACCEPTABLE",
+      "accuracy": [
+       0.8828125,
+       0.875
+      ],
+      "accuracy_ci95": [
+       0.841796875,
+       0.9140625
+      ],
+      "trainable_parameters": 21166080,
+      "adapter_bytes_adamw_fp32": 338657280,
+      "peak_cuda_bytes": 76172797440,
+      "seconds_per_step": 6.465301242351587,
+      "gate": {
+       "mini_mmlu": [
+        1.0,
+        1.0
+       ],
+       "mini_common_sense": [
+        1.0,
+        1.0
+       ],
+       "mini_instruction": [
+        1.0,
+        1.0
+       ],
+       "mini_arithmetic": [
+        0.925,
+        0.9
+       ],
+       "mini_tool_call": [
+        0.6,
+        0.6
+       ],
+       "mini_format_json": [
+        0.875,
+        0.95
+       ],
+       "mini_safety": [
+        0.95,
+        0.975
+       ],
+       "mini_over_refusal": [
+        1.0,
+        1.0
+       ]
+      },
+      "sources": [
+       "e1-c-qwen/e1-results/confirm-qwen35-AS-lr2e-4-s0.json",
+       "e1-c-rt/e1-results/confirm-qwen35-AS-lr2e-4-s1.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 12,
+        "f_only": 11,
+        "difference": 0.00390625,
+        "p": 1.0
+       },
+       {
+        "seed": 1,
+        "x_only": 13,
+        "f_only": 12,
+        "difference": 0.00390625,
+        "p": 1.0
+       }
+      ],
+      "paired_clustered": {
+       "difference": 0.00390625,
+       "questions_x_better": 19,
+       "questions_f_better": 20,
+       "p": 0.8925055604922818
+      }
+     },
+     "AT": {
+      "seeds": [
+       0,
+       1
+      ],
+      "nll": [
+       0.12860462208485973,
+       0.12853572494358884
+      ],
+      "nll_mean": 0.12857017351422428,
+      "nll_sd": 4.8717635797018164e-05,
+      "task_gap": {
+       "gap": -0.0017352479296585677,
+       "noise": 9.743527159403633e-05,
+       "material": false
+      },
+      "leg2_failed": [
+       "mini_safety"
+      ],
+      "verdict": "REGRESSES",
+      "accuracy": [
+       0.875,
+       0.87109375
+      ],
+      "accuracy_ci95": [
+       0.8359375,
+       0.908203125
+      ],
+      "trainable_parameters": 251852800,
+      "adapter_bytes_adamw_fp32": 4029644800,
+      "peak_cuda_bytes": 79863887360,
+      "seconds_per_step": 8.793203559543883,
+      "gate": {
+       "mini_mmlu": [
+        0.8461538461538461,
+        0.8076923076923077
+       ],
+       "mini_common_sense": [
+        0.8333333333333334,
+        0.875
+       ],
+       "mini_instruction": [
+        1.0,
+        1.0
+       ],
+       "mini_arithmetic": [
+        0.95,
+        0.85
+       ],
+       "mini_tool_call": [
+        0.6,
+        0.55
+       ],
+       "mini_format_json": [
+        0.675,
+        0.8
+       ],
+       "mini_safety": [
+        0.875,
+        0.925
+       ],
+       "mini_over_refusal": [
+        0.95,
+        0.95
+       ]
+      },
+      "sources": [
+       "e1-c-qwen/e1-results/confirm-qwen35-AT-lr1e-4-s0.json",
+       "e1-c-rt/e1-results/confirm-qwen35-AT-lr1e-4-s1.json"
+      ],
+      "paired_vs_fullest": [
+       {
+        "seed": 0,
+        "x_only": 11,
+        "f_only": 12,
+        "difference": -0.00390625,
+        "p": 1.0
+       },
+       {
+        "seed": 1,
+        "x_only": 6,
+        "f_only": 6,
+        "difference": 0.0,
+        "p": 1.0
+       }
+      ],
+      "paired_clustered": {
+       "difference": -0.001953125,
+       "questions_x_better": 15,
+       "questions_f_better": 15,
+       "p": 1.0
+      }
+     }
+    },
+    "leg2_failed_by_every_arm": false,
+    "verdict": "MEASURED",
+    "v3_note": "V3 not re-decided: learning rates are frozen at E1's section 8 winners"
+   },
+   "comparison": {
+    "verdict": "MEASURED",
+    "fullest_E": "AE",
+    "fullest_C": "AE",
+    "arms": {
+     "A": {
+      "verdict_E": "ACCEPTABLE",
+      "verdict_C": "ACCEPTABLE",
+      "verdict_holds": true,
+      "task_gap_E": {
+       "gap": -0.0038057293112476742,
+       "noise": 0.000696810707584904,
+       "material": false
+      },
+      "task_gap_C": {
+       "gap": -0.0028506796230793052,
+       "noise": 0.00037880952787783137,
+       "material": false
+      },
+      "gap_holds": true,
+      "seed_gaps_E": {
+       "0": -0.0038479088505586345,
+       "1": -0.003763549771936714
+      },
+      "seed_gaps_C": {
+       "0": -0.002991547917816334,
+       "1": -0.002709811328342304
+      },
+      "seed_sign_agrees": {
+       "0": true,
+       "1": true
+      },
+      "paired_clustered_E": {
+       "difference": 0.0234375,
+       "questions_x_better": 18,
+       "questions_f_better": 10,
+       "p": 0.08061007410287857
+      },
+      "paired_clustered_C": {
+       "difference": 0.0078125,
+       "questions_x_better": 19,
+       "questions_f_better": 17,
+       "p": 0.6853304537944496
+      },
+      "accuracy_E": [
+       0.91015625,
+       0.8984375
+      ],
+      "accuracy_C": [
+       0.890625,
+       0.875
+      ]
+     },
+     "AE": {
+      "verdict_E": "REGRESSES",
+      "verdict_C": "REGRESSES",
+      "verdict_holds": true,
+      "task_gap_E": {
+       "gap": 0.0,
+       "noise": 0.0005775089544884857,
+       "material": false
+      },
+      "task_gap_C": {
+       "gap": 0.0,
+       "noise": 1.962617797308257e-05,
+       "material": false
+      },
+      "gap_holds": true,
+      "seed_gaps_E": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "seed_gaps_C": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "seed_sign_agrees": {
+       "0": true,
+       "1": true
+      },
+      "paired_clustered_E": null,
+      "paired_clustered_C": null,
+      "accuracy_E": [
+       0.87890625,
+       0.8828125
+      ],
+      "accuracy_C": [
+       0.87890625,
+       0.87109375
+      ]
+     },
+     "AS": {
+      "verdict_E": "ACCEPTABLE",
+      "verdict_C": "ACCEPTABLE",
+      "verdict_holds": true,
+      "task_gap_E": {
+       "gap": -0.003085307566205453,
+       "noise": 0.0005775089544884857,
+       "material": false
+      },
+      "task_gap_C": {
+       "gap": -0.002364114261028727,
+       "noise": 0.0005475474410730082,
+       "material": false
+      },
+      "gap_holds": true,
+      "seed_gaps_E": {
+       "0": -0.0030102207938555725,
+       "1": -0.0031603943385553612
+      },
+      "seed_gaps_C": {
+       "0": -0.002564640417097558,
+       "1": -0.0021635881049599515
+      },
+      "seed_sign_agrees": {
+       "0": true,
+       "1": true
+      },
+      "paired_clustered_E": {
+       "difference": 0.021484375,
+       "questions_x_better": 21,
+       "questions_f_better": 14,
+       "p": 0.14452329627238214
+      },
+      "paired_clustered_C": {
+       "difference": 0.00390625,
+       "questions_x_better": 19,
+       "questions_f_better": 20,
+       "p": 0.8925055604922818
+      },
+      "accuracy_E": [
+       0.8984375,
+       0.90625
+      ],
+      "accuracy_C": [
+       0.8828125,
+       0.875
+      ]
+     },
+     "AT": {
+      "verdict_E": "REGRESSES",
+      "verdict_C": "REGRESSES",
+      "verdict_holds": true,
+      "task_gap_E": {
+       "gap": -0.0019955839869732206,
+       "noise": 0.0005775089544884857,
+       "material": false
+      },
+      "task_gap_C": {
+       "gap": -0.0017352479296585677,
+       "noise": 9.743527159403633e-05,
+       "material": false
+      },
+      "gap_holds": true,
+      "seed_gaps_E": {
+       "0": -0.0016760751376820593,
+       "1": -0.002315092836264382
+      },
+      "seed_gaps_C": {
+       "0": -0.0017077382607899039,
+       "1": -0.0017627575985272592
+      },
+      "seed_sign_agrees": {
+       "0": true,
+       "1": true
+      },
+      "paired_clustered_E": {
+       "difference": -0.0078125,
+       "questions_x_better": 9,
+       "questions_f_better": 12,
+       "p": 0.5434894561767578
+      },
+      "paired_clustered_C": {
+       "difference": -0.001953125,
+       "questions_x_better": 15,
+       "questions_f_better": 15,
+       "p": 1.0
+      },
+      "accuracy_E": [
+       0.86328125,
+       0.8828125
+      ],
+      "accuracy_C": [
+       0.875,
+       0.87109375
+      ]
+     }
+    },
+    "ordering_E": [
+     "A",
+     "AS",
+     "AT",
+     "AE"
+    ],
+    "ordering_C": [
+     "A",
+     "AS",
+     "AT",
+     "AE"
+    ]
+   },
+   "contrast": {
+    "name": "base-corrected E/C generalisation contrast",
+    "note": "(E - C) of the arm minus (E - C) of the base; the 95% interval reflects question-sampling noise only (E and C rows resampled independently), not a cause",
+    "fullest": "AE",
+    "draws": 10000,
+    "seed": 0,
+    "rows": {
+     "E": 256,
+     "C": 256
+    },
+    "base": {
+     "nll_E": 0.634063126498375,
+     "nll_C": 0.6142602003251433,
+     "e_minus_c_nll": 0.01980292617323176,
+     "accuracy_E": 0.4765625,
+     "accuracy_C": 0.48828125,
+     "e_minus_c_accuracy": -0.01171875
+    },
+    "arms": {
+     "A": {
+      "nll_E": 0.13477332227015837,
+      "nll_C": 0.12745474432221748,
+      "e_minus_c_nll": 0.007318577947940885,
+      "accuracy_E": 0.904296875,
+      "accuracy_C": 0.8828125,
+      "e_minus_c_accuracy": 0.021484375,
+      "seeds": [
+       0,
+       1
+      ],
+      "contrast_nll": -0.012484348225290876,
+      "contrast_nll_ci95": [
+       -0.03976471733708689,
+       0.014212235876206653
+      ],
+      "contrast_accuracy": 0.033203125,
+      "contrast_accuracy_ci95": [
+       -0.0546875,
+       0.12109375
+      ],
+      "gap_difference_nll": -0.0009550509865106638,
+      "gap_difference_nll_ci95": [
+       -0.0021897406059663005,
+       0.000287910281825815
+      ],
+      "gap_difference_accuracy": 0.015625,
+      "gap_difference_accuracy_ci95": [
+       -0.021484375,
+       0.052734375
+      ]
+     },
+     "AE": {
+      "nll_E": 0.13857905133686804,
+      "nll_C": 0.1303054224024165,
+      "e_minus_c_nll": 0.008273628934451549,
+      "accuracy_E": 0.880859375,
+      "accuracy_C": 0.875,
+      "e_minus_c_accuracy": 0.005859375,
+      "seeds": [
+       0,
+       1
+      ],
+      "contrast_nll": -0.011529297238780212,
+      "contrast_nll_ci95": [
+       -0.03860686261631356,
+       0.015021444304233134
+      ],
+      "contrast_accuracy": 0.017578125,
+      "contrast_accuracy_ci95": [
+       -0.06640625,
+       0.103515625
+      ]
+     },
+     "AS": {
+      "nll_E": 0.1354937432602644,
+      "nll_C": 0.12794130960738034,
+      "e_minus_c_nll": 0.00755243365288405,
+      "accuracy_E": 0.90234375,
+      "accuracy_C": 0.87890625,
+      "e_minus_c_accuracy": 0.0234375,
+      "seeds": [
+       0,
+       1
+      ],
+      "contrast_nll": -0.012250492520347711,
+      "contrast_nll_ci95": [
+       -0.0395817472687503,
+       0.014486935172732779
+      ],
+      "contrast_accuracy": 0.03515625,
+      "contrast_accuracy_ci95": [
+       -0.052734375,
+       0.123046875
+      ],
+      "gap_difference_nll": -0.0007211952815674993,
+      "gap_difference_nll_ci95": [
+       -0.0018829781136122103,
+       0.0004315238254655046
+      ],
+      "gap_difference_accuracy": 0.017578125,
+      "gap_difference_accuracy_ci95": [
+       -0.021484375,
+       0.056640625
+      ]
+     },
+     "AT": {
+      "nll_E": 0.13658346643171115,
+      "nll_C": 0.12857017650003089,
+      "e_minus_c_nll": 0.008013289931680267,
+      "accuracy_E": 0.873046875,
+      "accuracy_C": 0.873046875,
+      "e_minus_c_accuracy": 0.0,
+      "seeds": [
+       0,
+       1
+      ],
+      "contrast_nll": -0.011789636241551493,
+      "contrast_nll_ci95": [
+       -0.03900042501669129,
+       0.014978198853009717
+      ],
+      "contrast_accuracy": 0.01171875,
+      "contrast_accuracy_ci95": [
+       -0.07421875,
+       0.09765625
+      ],
+      "gap_difference_nll": -0.0002603390027712815,
+      "gap_difference_nll_ci95": [
+       -0.000991471491601309,
+       0.0004715213854508127
+      ],
+      "gap_difference_accuracy": -0.005859375,
+      "gap_difference_accuracy_ci95": [
+       -0.03515625,
+       0.025390625
+      ]
+     }
+    }
+   },
+   "published": {
+    "note": "historical: published E1 records scored on E, from rule.analyse",
+    "verdict": "MEASURED",
+    "reason": null,
+    "fullest": "AE",
+    "arms": {
+     "A": {
+      "verdict": "ACCEPTABLE",
+      "task_gap": {
+       "gap": -0.0038057293112476742,
+       "noise": 0.000696810707584904,
+       "material": false
+      }
+     },
+     "AE": {
+      "verdict": "REGRESSES",
+      "task_gap": {
+       "gap": 0.0,
+       "noise": 0.0005775089544884857,
+       "material": false
+      }
+     },
+     "AS": {
+      "verdict": "ACCEPTABLE",
+      "task_gap": {
+       "gap": -0.003085307566205453,
+       "noise": 0.0005775089544884857,
+       "material": false
+      }
+     },
+     "AT": {
+      "verdict": "REGRESSES",
+      "task_gap": {
+       "gap": -0.0019955839869732206,
+       "noise": 0.0005775089544884857,
+       "material": false
+      }
+     }
+    }
+   }
+  }
+ },
+ "published_rejected": [
+  {
+   "source": "e1-olmoe/e1-results/run-olmoe-AE-lr2e-4-s0.json",
+   "problem": "harness 900a067703169e66dddff50a5b401e133ffb0c72955c6c575dbfbaafe11a4296"
+  },
+  {
+   "source": "e1-olmoe/e1-results/run-olmoe-base.json",
+   "problem": "harness 900a067703169e66dddff50a5b401e133ffb0c72955c6c575dbfbaafe11a4296"
+  }
+ ],
+ "reproduction": [
+  {
+   "model": "olmoe",
+   "arm": "A",
+   "lr": 0.0002,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-olmoe1/e1-results/confirm-olmoe-A-lr2e-4-s0.json",
+   "published": "e1-olmoe/e1-results2/run-olmoe-A-lr2e-4-s0.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "A",
+   "lr": 0.0002,
+   "seed": 1,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-olmoe1/e1-results/confirm-olmoe-A-lr2e-4-s1.json",
+   "published": "e1-olmoe/e1-results2/run-olmoe-A-lr2e-4-s1.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "AE",
+   "lr": 0.0001,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-olmoe1/e1-results/confirm-olmoe-AE-lr1e-4-s0.json",
+   "published": "e1-olmoe2/e1-results/run-olmoe-AE-lr1e-4-s0.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "AE",
+   "lr": 0.0001,
+   "seed": 1,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-olmoe1/e1-results/confirm-olmoe-AE-lr1e-4-s1.json",
+   "published": "e1-olmoe/e1-results2/run-olmoe-AE-lr1e-4-s1.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "AT",
+   "lr": 0.0001,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-olmoe1/e1-results/confirm-olmoe-AT-lr1e-4-s0.json",
+   "published": "e1-olmoe/e1-results2/run-olmoe-AT-lr1e-4-s0.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "AT",
+   "lr": 0.0001,
+   "seed": 1,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-olmoe1/e1-results/confirm-olmoe-AT-lr1e-4-s1.json",
+   "published": "e1-olmoe/e1-results2/run-olmoe-AT-lr1e-4-s1.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "base",
+   "lr": 0.0,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-olmoe1/e1-results/confirm-olmoe-base.json",
+   "published": "e1-olmoe/e1-results2/run-olmoe-base.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "A",
+   "lr": 0.0002,
+   "seed": 2,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c3-olmoe/e1-results/confirm-olmoe-A-lr2e-4-s2.json",
+   "published": "e1-olmoe2/e1-results/run-olmoe-A-lr2e-4-s2.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "AE",
+   "lr": 0.0001,
+   "seed": 2,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c3-olmoe/e1-results/confirm-olmoe-AE-lr1e-4-s2.json",
+   "published": "e1-olmoe2/e1-results/run-olmoe-AE-lr1e-4-s2.json"
+  },
+  {
+   "model": "olmoe",
+   "arm": "AT",
+   "lr": 0.0001,
+   "seed": 2,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c3-olmoe/e1-results/confirm-olmoe-AT-lr1e-4-s2.json",
+   "published": "e1-olmoe2/e1-results/run-olmoe-AT-lr1e-4-s2.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "A",
+   "lr": 0.0002,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-qwen/e1-results/confirm-qwen35-A-lr2e-4-s0.json",
+   "published": "e1-qwen2/e1-results/run-qwen35-A-lr2e-4-s0.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "AS",
+   "lr": 0.0002,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-qwen/e1-results/confirm-qwen35-AS-lr2e-4-s0.json",
+   "published": "e1-qwen2/e1-results/run-qwen35-AS-lr2e-4-s0.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "AT",
+   "lr": 0.0001,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-qwen/e1-results/confirm-qwen35-AT-lr1e-4-s0.json",
+   "published": "e1-qwen2/e1-results/run-qwen35-AT-lr1e-4-s0.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "base",
+   "lr": 0.0,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-qwen/e1-results/confirm-qwen35-base.json",
+   "published": "e1-qwen/e1-results/run-qwen35-base.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "AS",
+   "lr": 0.0002,
+   "seed": 1,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-rt/e1-results/confirm-qwen35-AS-lr2e-4-s1.json",
+   "published": "e1-qwen2/e1-results/run-qwen35-AS-lr2e-4-s1.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "AT",
+   "lr": 0.0001,
+   "seed": 1,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c-rt/e1-results/confirm-qwen35-AT-lr1e-4-s1.json",
+   "published": "e1-qwen2/e1-results/run-qwen35-AT-lr1e-4-s1.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "A",
+   "lr": 0.0002,
+   "seed": 1,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c3-qwen/e1-results/confirm-qwen35-A-lr2e-4-s1.json",
+   "published": "e1-qwen/e1-results/run-qwen35-A-lr2e-4-s1.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "AE",
+   "lr": 0.0001,
+   "seed": 0,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c3-qwen/e1-results/confirm-qwen35-AE-lr1e-4-s0.json",
+   "published": "e1-qwen/e1-results/run-qwen35-AE-lr1e-4-s0.json"
+  },
+  {
+   "model": "qwen35",
+   "arm": "AE",
+   "lr": 0.0001,
+   "seed": 1,
+   "reproduced": true,
+   "differ": [],
+   "peak_cuda_bytes_equal": true,
+   "source": "e1-c3-qwen/e1-results/confirm-qwen35-AE-lr1e-4-s1.json",
+   "published": "e1-qwen/e1-results/run-qwen35-AE-lr1e-4-s1.json"
+  }
+ ],
+ "sweeps": {
+  "model": "olmoe",
+  "note": "a C winner that differs from E1's rate is a diagnostic, not proof of a cause",
+  "arms": {
+   "A": {
+    "frozen": 0.0002,
+    "E": {
+     "nll": {
+      "0.0001": 0.25483740339031385,
+      "0.0002": 0.25154654954264327,
+      "0.0004": 0.25288449842476457
+     },
+     "winner": 0.0002,
+     "status": "ok"
+    },
+    "C": {
+     "nll": {
+      "0.0001": 0.24320274619688811,
+      "0.0002": 0.2401283128302746,
+      "0.0004": 0.2419521859279257
+     },
+     "winner": 0.0002,
+     "status": "ok"
+    },
+    "c_winner_differs": false
+   },
+   "AE": {
+    "frozen": 0.0001,
+    "E": {
+     "nll": {
+      "5e-05": 0.24460603986982,
+      "0.0001": 0.2434936916098979,
+      "0.0002": 0.24685582861834443,
+      "0.0004": 0.2690500398571204
+     },
+     "winner": 0.0001,
+     "status": "ok",
+     "extension": 5e-05
+    },
+    "C": {
+     "nll": {
+      "5e-05": 0.23382542937130013,
+      "0.0001": 0.23295802791162232,
+      "0.0002": 0.2379542777534291,
+      "0.0004": 0.2595070429655345
+     },
+     "winner": 0.0001,
+     "status": "ok",
+     "extension": 5e-05
+    },
+    "c_winner_differs": false
+   },
+   "AT": {
+    "frozen": 0.0001,
+    "E": {
+     "nll": {
+      "5e-05": 0.24750889476865037,
+      "0.0001": 0.24456641166524787,
+      "0.0002": 0.24482648818532457,
+      "0.0004": 0.25762869282138356
+     },
+     "winner": 0.0001,
+     "status": "ok",
+     "extension": 5e-05
+    },
+    "C": {
+     "nll": {
+      "5e-05": 0.23654956995466053,
+      "0.0001": 0.2341093795215834,
+      "0.0002": 0.23487056954330837,
+      "0.0004": 0.24679360147002832
+     },
+     "winner": 0.0001,
+     "status": "ok",
+     "extension": 5e-05
+    },
+    "c_winner_differs": false
+   }
+  }
+ },
+ "box_checks": [
+  {
+   "model": "olmoe",
+   "source": "e1-c-olmoe2/e1-results/confirmcheck-olmoe-base-box2.json",
+   "identical": true,
+   "differ": [],
+   "base": "e1-c-olmoe1/e1-results/confirm-olmoe-base.json"
+  },
+  {
+   "model": "olmoe",
+   "source": "e1-c3-olmoe/e1-results/confirmcheck-olmoe-base-box3.json",
+   "identical": true,
+   "differ": [],
+   "base": "e1-c-olmoe1/e1-results/confirm-olmoe-base.json"
+  },
+  {
+   "model": "qwen35",
+   "source": "e1-c3-qwen/e1-results/confirmcheck-qwen35-base-box3.json",
+   "identical": true,
+   "differ": [],
+   "base": "e1-c-qwen/e1-results/confirm-qwen35-base.json"
+  }
+ ],
+ "ram_tier": {
+  "E": {
+   "fullest": "AE",
+   "fullest_seeds": [
+    0,
+    1
+   ],
+   "void": [],
+   "vs_resident": {
+    "note": "not attributable to streaming or NF4: it mixes the NF4 base, warmup, data order and initialisation",
+    "arms": {
+     "A": {
+      "nll_ram": [
+       0.1359451665461875
+      ],
+      "nll_resident": [
+       0.13452696108862297,
+       0.13501968066515965
+      ],
+      "accuracy_ram": [
+       0.9140625
+      ],
+      "accuracy_resident": [
+       0.91015625,
+       0.8984375
+      ],
+      "seeds_ram": [
+       0
+      ],
+      "seeds_resident": [
+       0,
+       1
+      ],
+      "nll_difference": 0.0011718456692961787,
+      "accuracy_difference": 0.009765625
+     },
+     "AS": {
+      "nll_ram": [
+       0.13654456126990286
+      ],
+      "nll_resident": [
+       0.13536464914532603,
+       0.135622836098541
+      ],
+      "accuracy_ram": [
+       0.91015625
+      ],
+      "accuracy_resident": [
+       0.8984375,
+       0.90625
+      ],
+      "seeds_ram": [
+       0
+      ],
+      "seeds_resident": [
+       0,
+       1
+      ],
+      "nll_difference": 0.001050818647969326,
+      "accuracy_difference": 0.0078125
+     }
+    }
+   },
+   "validity": {
+    "V1": true,
+    "V2": true,
+    "V4": true
+   },
+   "verdict": "NOT COUNTED",
+   "arms": {
+    "A": {
+     "seeds": [
+      0
+     ],
+     "nll": [
+      0.1359451665461875
+     ],
+     "nll_mean": 0.1359451665461875,
+     "task_gap": {
+      "gap": -0.0026338836419514955,
+      "noise": 0.0005775089544884857,
+      "material": false
+     },
+     "leg2_failed": [],
+     "accuracy": [
+      0.9140625
+     ],
+     "verdict": "ACCEPTABLE",
+     "paired_clustered": {
+      "difference": 0.03515625,
+      "questions_x_better": 16,
+      "questions_f_better": 7,
+      "p": 0.0931396484375
+     }
+    },
+    "AS": {
+     "seeds": [
+      0
+     ],
+     "nll": [
+      0.13654456126990286
+     ],
+     "nll_mean": 0.13654456126990286,
+     "task_gap": {
+      "gap": -0.002034488918236127,
+      "noise": 0.0005775089544884857,
+      "material": false
+     },
+     "leg2_failed": [],
+     "accuracy": [
+      0.91015625
+     ],
+     "verdict": "ACCEPTABLE",
+     "paired_clustered": {
+      "difference": 0.03125,
+      "questions_x_better": 16,
+      "questions_f_better": 8,
+      "p": 0.15158963203430176
+     }
+    }
+   },
+   "verdict_if_counted": "MEASURED",
+   "gate_reason": "parity pilot did not pass (status not_passed, passed False)"
+  },
+  "C": {
+   "fullest": "AE",
+   "fullest_seeds": [
+    0,
+    1
+   ],
+   "void": [],
+   "vs_resident": {
+    "note": "not attributable to streaming or NF4: it mixes the NF4 base, warmup, data order and initialisation",
+    "arms": {
+     "A": {
+      "nll_ram": [
+       0.12803525040781347
+      ],
+      "nll_resident": [
+       0.1273208124278333,
+       0.1275886712137738
+      ],
+      "accuracy_ram": [
+       0.8828125
+      ],
+      "accuracy_resident": [
+       0.890625,
+       0.875
+      ],
+      "seeds_ram": [
+       0
+      ],
+      "seeds_resident": [
+       0,
+       1
+      ],
+      "nll_difference": 0.0005805085870099203,
+      "accuracy_difference": 0.0
+     },
+     "AS": {
+      "nll_ram": [
+       0.1290521518982103
+      ],
+      "nll_resident": [
+       0.12774771992855208,
+       0.12813489443715614
+      ],
+      "accuracy_ram": [
+       0.890625
+      ],
+      "accuracy_resident": [
+       0.8828125,
+       0.875
+      ],
+      "seeds_ram": [
+       0
+      ],
+      "seeds_resident": [
+       0,
+       1
+      ],
+      "nll_difference": 0.001110844715356163,
+      "accuracy_difference": 0.01171875
+     }
+    }
+   },
+   "validity": {
+    "V1": true,
+    "V2": true,
+    "V4": true
+   },
+   "verdict": "NOT COUNTED",
+   "arms": {
+    "A": {
+     "seeds": [
+      0
+     ],
+     "nll": [
+      0.12803525040781347
+     ],
+     "nll_mean": 0.12803525040781347,
+     "task_gap": {
+      "gap": -0.002270171036069385,
+      "noise": 1.962617797308257e-05,
+      "material": false
+     },
+     "leg2_failed": [],
+     "accuracy": [
+      0.8828125
+     ],
+     "verdict": "ACCEPTABLE",
+     "paired_clustered": {
+      "difference": 0.00390625,
+      "questions_x_better": 15,
+      "questions_f_better": 14,
+      "p": 1.0
+     }
+    },
+    "AS": {
+     "seeds": [
+      0
+     ],
+     "nll": [
+      0.1290521518982103
+     ],
+     "nll_mean": 0.1290521518982103,
+     "task_gap": {
+      "gap": -0.001253269545672564,
+      "noise": 1.962617797308257e-05,
+      "material": false
+     },
+     "leg2_failed": [],
+     "accuracy": [
+      0.890625
+     ],
+     "verdict": "ACCEPTABLE",
+     "paired_clustered": {
+      "difference": 0.01171875,
+      "questions_x_better": 14,
+      "questions_f_better": 11,
+      "p": 0.6900379657745361
+     }
+    }
+   },
+   "verdict_if_counted": "MEASURED",
+   "gate_reason": "parity pilot did not pass (status not_passed, passed False)"
+  },
+  "memory": {
+   "seeds": [
+    0
+   ],
+   "extra_parameters": 4915200,
+   "bytes_per_parameter": 8,
+   "increment": {
+    "0": 29491200
+   },
+   "increment_max_over_seeds": 29491200,
+   "tolerance_bytes": 13841203,
+   "predicted_e1": 78643200,
+   "residual_e1": {
+    "0": -49152000
+   },
+   "residual_e1_mib": {
+    "0": -46.875
+   },
+   "residual_e1_max_over_seeds": -49152000,
+   "residual_e1_max_over_seeds_mib": -46.875,
+   "holds_e1_rule": false,
+   "predicted_dtype": 39321600,
+   "residual_dtype": {
+    "0": -9830400
+   },
+   "residual_dtype_mib": {
+    "0": -9.375
+   },
+   "residual_dtype_max_over_seeds": -9830400,
+   "residual_dtype_max_over_seeds_mib": -9.375,
+   "holds_dtype_rule": true,
+   "parity_counted": false,
+   "note": "memory is a property of the regime and is reported whether or not the parity pilot passed; \u00a711.3's strict reading counts nothing from these runs"
+  },
+  "parity": {
+   "counted": false,
+   "reason": "parity pilot did not pass (status not_passed, passed False)",
+   "bit_exact": {
+    "losses": false,
+    "gradients_step0": false
+   },
+   "steps": [
+    {
+     "step": 0,
+     "streamed": 0.7086212038993835,
+     "resident": 0.7086212038993835,
+     "relative": 0.0
+    },
+    {
+     "step": 1,
+     "streamed": 0.48576074838638306,
+     "resident": 0.4809786379337311,
+     "relative": 0.009942459135390653
+    },
+    {
+     "step": 2,
+     "streamed": 0.26061224937438965,
+     "resident": 0.26470473408699036,
+     "relative": 0.015460564869443506
+    },
+    {
+     "step": 3,
+     "streamed": 0.15228807926177979,
+     "resident": 0.15420149266719818,
+     "relative": 0.012408527131108753
+    }
+   ],
+   "gradient_step0": {
+    "global_relative_l2": 0.010718087008025574,
+    "min_cosine": 0.9997481365942212,
+    "max_abs": 0.003021240234375
+   },
+   "rule": {
+    "loss_relative": 0.001,
+    "grad_relative_l2": 0.01,
+    "grad_cosine": 0.99,
+    "adamw": {
+     "lr": 0.0002,
+     "betas": [
+      0.9,
+      0.999
+     ],
+     "eps": 1e-08,
+     "weight_decay": 0.0
+    },
+    "lora_b_seed": 23,
+    "lora_b_std": 0.02
+   },
+   "_path": "e1-results/parity-qwen35.json"
+  }
+ }
+}

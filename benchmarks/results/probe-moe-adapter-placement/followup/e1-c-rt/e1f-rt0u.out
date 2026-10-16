@@ -1,0 +1,16 @@
+RELEASED soup-train-qwen35-A-s0.json
+RELEASED soup-train-qwen35-AS-s0.json
+RELEASED ramtier-qwen35-A-s0.json
+RELEASED ramtier-qwen35-AS-s0.json
+PLAN-START <box-home>/plan-qwen-rt-s0-uncounted.txt 2026-10-13T17:19:39Z PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+GATE-PASS @require labels-qwen35 status="ok"
+GATE-PASS @require parity-qwen35 status="not_passed"
+=== 2026-10-13T17:19:39Z soup-train-qwen35-A-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py train --arm A --seed 0 --lr 2e-4 --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --run-dir <box-home>/e1-results/rt-A-s0 --out <box-home>/e1-results/soup-train-qwen35-A-s0.json
+EXIT soup-train-qwen35-A-s0 0 2026-10-13T17:36:32Z
+=== 2026-10-13T17:36:32Z ramtier-qwen35-A-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py score --arm A --seed 0 --lr 2e-4 --train-record <box-home>/e1-results/soup-train-qwen35-A-s0.json --adapter-dir <box-home>/e1-results/rt-A-s0/out --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --confirm-split <box-home>/e1-results/confirm-split.json --out <box-home>/e1-results/ramtier-qwen35-A-s0.json
+EXIT ramtier-qwen35-A-s0 0 2026-10-13T17:58:10Z
+=== 2026-10-13T17:58:10Z soup-train-qwen35-AS-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py train --arm AS --seed 0 --lr 2e-4 --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --run-dir <box-home>/e1-results/rt-AS-s0 --out <box-home>/e1-results/soup-train-qwen35-AS-s0.json
+EXIT soup-train-qwen35-AS-s0 0 2026-10-13T18:15:18Z
+=== 2026-10-13T18:15:18Z ramtier-qwen35-AS-s0 <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py score --arm AS --seed 0 --lr 2e-4 --train-record <box-home>/e1-results/soup-train-qwen35-AS-s0.json --adapter-dir <box-home>/e1-results/rt-AS-s0/out --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --confirm-split <box-home>/e1-results/confirm-split.json --out <box-home>/e1-results/ramtier-qwen35-AS-s0.json
+EXIT ramtier-qwen35-AS-s0 0 2026-10-13T18:37:49Z
+PLAN-DONE <box-home>/plan-qwen-rt-s0-uncounted.txt 2026-10-13T18:37:49Z

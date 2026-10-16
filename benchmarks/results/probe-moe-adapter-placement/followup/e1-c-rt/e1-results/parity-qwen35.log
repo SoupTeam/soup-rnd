@@ -1,0 +1,55 @@
+E1F_COMMAND <box-home>/e1rt-venv/bin/python moe_adapter_ramtier.py parity --base <box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65a6d9863b86d2e96597125219dc754 --data <box-home>/e1-data/MetaMathQA-395K.json --split <box-home>/e1-results/split.json --out <box-home>/e1-results/parity-qwen35.json
+NVIDIA RTX PRO 6000 Blackwell Server Edition, 180 MHz, 31, 0 MiB, 34.55 W
+               total        used        free      shared  buff/cache   available
+Mem:     1073242869760 264620990464 169900933120   634429440 644991098880 808621879296
+Swap:              0           0           0
+Loading tokenizer: 
+<box-home>/.cache/huggingface/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/59d61f3ce65
+a6d9863b86d2e96597125219dc754
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 21,166,080 parameters; weights=84664320, 
+gradients=84664320, optimizer=169328640 CUDA bytes; CPU tensors=2480 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 71.90 GB                                                    │
+│ Soup materialized copy: 71.90 GB (write required)                            │
+│ Layer-shard cache: 18.55 GB (write required)                                 │
+│ Projected total on disk: 162.35 GB                                           │
+│ Additional writes before training: 90.45 GB                                  │
+│ Free on target volume (materialized weight copy + layer-shard cache): 345.19 │
+│ GB                                                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> 
+<box-home>/.soup/layer-stream<box-home>__.cache__huggingface__hub__models--Qwen--Qwen3.5-3
+5B-A3B__snapshots__59d61f3ce65a6d9863b86d2e96597125219dc754
+Re-sharding layer cache: cache index is missing or unreadable.
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch qwen3, tier ram                                  │
+│   base store   67.23 GB across 40 layers (pinned)                            │
+│   VRAM buffers 2 x 1645 MB + 1 x 1017 MB large-layer slot = 4307 MB          │
+│   resident     2582 MB extras + adapters                                     │
+│   peak VRAM    ~37.28 GB at batch 16 x seq 512 (logits 28.48 GB)             │
+│   free VRAM    101.34 GB                                                     │
+│   forecast     1180-1736 tok/s — a compute-bound bound, not a promise        │
+│                (from 374.45 TFLOPS measured on this card now using bfloat16  │
+│ @ 2287 MHz)                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+Layer streaming ready: 40 layers, 67.23 GB pinned RAM store (88.05 GB 
+page-locked), 2 x 1645 MB decoder buffers + 1 x 1017 MB large-layer slot
+LoRA applied: 21,166,080 trainable / 35,951,822,704 total (0.06%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/16 [00:00<?, ? examples/s]Map: 100%|██████████| 16/16 [00:00<00:00, 562.45 examples/s]
+Map:   0%|          | 0/16 [00:00<?, ? examples/s]Map: 100%|██████████| 16/16 [00:00<00:00, 2737.46 examples/s]
+Truncating train dataset:   0%|          | 0/16 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 16/16 [00:00<00:00, 3278.72 examples/s]
+Rewind log: out/rewind.jsonl
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+parity: wrote <box-home>/e1-results/parity-qwen35.json status=not_passed
+NVIDIA RTX PRO 6000 Blackwell Server Edition, 2325 MHz, 42, 0 MiB, 148.27 W
+               total        used        free      shared  buff/cache   available
+Mem:     1073242869760 262024359936 116688617472   812687360 700978307072 811218509824
+Swap:              0           0           0
