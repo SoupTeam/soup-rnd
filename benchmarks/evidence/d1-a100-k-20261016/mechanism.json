@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "case": "projection-float16-512x4096x4096-native-forced",
+  "source_sha": "87b3bc1747ff78ff0fe16b8bdd2fa2eb0105d77c",
+  "source_file": "src/soup_cli/utils/layer_stream_runtime.py",
+  "source_blob_sha256": "01ca113b0ee29c1dcc5811b81f7900809c2bfcddc1f7046ae4616b168db9b889",
+  "accepted_block_ids": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "arms": 20,
+  "routes": {
+    "native": {
+      "paths": [
+        "dense"
+      ],
+      "untimed_forward_backend_controls": [
+        {
+          "custom": 0,
+          "fallback": 0
+        }
+      ],
+      "median_wall_ms": 2.441571676172316,
+      "median_forward_cuda_ms": 0.922111988067627,
+      "median_backward_cuda_ms": 1.4103040099143982
+    },
+    "forced": {
+      "paths": [
+        "function:dense_fallback"
+      ],
+      "untimed_forward_backend_controls": [
+        {
+          "custom": 0,
+          "fallback": 1
+        }
+      ],
+      "median_wall_ms": 3.122061607427895,
+      "median_forward_cuda_ms": 0.982015997171402,
+      "median_backward_cuda_ms": 2.0224000215530396
+    }
+  },
+  "scope": "Accepted timing rows and an untimed candidate-forward backend control. The control does not count checkpoint-step dequantizations or profile their cost.",
+  "static_source_observation": "The Function backward explicitly dequantizes dense W and uses torch.matmul for dX; forcing its forward does not fuse that backward.",
+  "dense_ceiling_scope": "Auxiliary same-session forward CUDA-event reference, taken after peak capture. A separate ceiling telemetry window was not retained; no frequency-matched ceiling multiplier is established."
+}

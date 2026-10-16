@@ -1,4 +1,88 @@
-# D1: работа возобновлена 15 октября 2026
+# D1: сбор данных завершён, аренда закрыта 16 октября 2026
+
+Актуальный итог: **98/98 ячеек исследованы, 81/98 сравнений принято**.
+Проекции: 80/96 принято, 16 NO_VERDICT; A100 cached-zero ablation тоже NO_VERDICT.
+QA: пять допустимых ABBA-блоков, 20 полных запусков. Полная приёмка D1 остаётся
+открытой из-за отклонённых таймингов, отсутствия отдельной телеметрии GEMM ceiling
+и ожидающего независимого review. Критерии не ослаблены.
+
+## Итоговые файлы
+
+- [Исследовательский отчёт](d1-final-research-20261016.md).
+- [Пакет проверенных результатов](evidence/d1-a100-k-20261016/README.md):
+  русский отчёт, полный index/CSV, coverage figure, CPU audits, manifest каждого
+  сырого файла и скрипт CPU-проверки для reviewer.
+- Локальный ZIP для передачи: `C:\Users\esenb\Desktop\D1_TEAMLEAD_20261016.zip`.
+  954,443,728 bytes, SHA-256
+  `a4dc005e549e3c5e904caa7baea97977ad234c7ea21a508799553cf506967828`.
+  Внутри пакет, полный K raw archive, отдельный исторический RTX 3090 archive,
+  подтверждение локального consumer replay и краткие расходы без данных аккаунта.
+- Канонические локальные файлы:
+  `C:\Users\esenb\.codex\worktrees\soup-d1-nf4-study\cloud-a100-k-20261015`.
+  Подпапки `teamlead-packet`, `offline-k`, `all-evidence`, `final-consumer-replay`.
+  Большой raw archive передаётся в ZIP и **не добавлен в Git**.
+
+Измеряемый source неизменен: `87b3bc1747ff78ff0fe16b8bdd2fa2eb0105d77c`.
+Последующие reporting commits не являются новыми CUDA прогонами.
+Ветка `koko/d1-nf4-study`, draft PR https://github.com/SoupTeam/soup-rnd/pull/16.
+Оригинальный D2 checkout и его пакеты не изменялись этой работой.
+
+## Проверенные результаты
+
+- 2,256 попыток; 1,892 допустимых arm в принятых сравнениях. Исходный report builder
+  сохраняет INCOMPLETE. Coverage-controller не повторял clock-invalid ячейки.
+- FP16/BF16 alias correctness PASS; 12 GPU regression tests passed, 17 deselected,
+  0 failed/skipped/errors. CPU replay проверил 2,216 projection witnesses:
+  2,054 exact-native и 162 заранее объявленных finite dense/fused differences.
+- K QA: 20 × 276 обновлений и 64 predictions. Все 176 адаптерных матриц изменились;
+  initial/final tensors, losses, predictions и gold совпали во всех 20 повторах.
+  EM 50.0, F1 52.7815934; 9/29 ложных ответов среди unanswerable.
+  Один фиксированный seed и маленький split не являются general quality validation.
+- A100 QA native/forced: 325.0902 / 368.8206 ms; allocated 863,867,904 bytes,
+  reserved 1,042,284,544 bytes с обеих сторон. Non-padding throughput
+  781.244 / 685.781 tokens/s. Отношения описательные, без significance claim.
+  RTX 3090 F показан отдельно; качество между cohorts различается, причина
+  этого различия отдельным контролем не изолирована.
+- Свежий локальный consumer replay завершился с exit 0 и PASS: все raw hashes,
+  пересборка индекса, redraw figure, correctness/projection/mechanism/QA audits.
+  Использован отдельный checkout source 87b3bc17; CUDA contexts/model downloads — 0.
+  Это локальная проверка воспроизводимости, независимая приёмка ещё не выполнена.
+- На CPU использовался Python 3.10.0, torch 2.13.0+cpu, rich 14.0.0,
+  numpy 1.26.4, matplotlib 3.10.1. CUDA stack записан отдельно в неизменном raw.
+  65 D1 CPU tests и выбранные проверки прежнего CI были зелёными;
+  текущий reporting head проверяется отдельно в PR.
+
+## Закрытие и расходы
+
+Аренда **56108892 удалена**, официальный CLI подтвердил отсутствие
+16 октября 2026 в **00:16:16 UTC / 05:16:16 Asia/Qyzylorda**.
+Новых GPU jobs нет. Наблюдавшиеся начисления: $6.782 текущая аренда + $1.279
+предыдущие = **$8.061 из разрешённых $10**. Это invoice snapshot с округлением
+провайдера, не утверждение о финальном settlement аккаунта.
+
+K archive: 909,977,469 bytes, SHA-256
+`d90fb904ebab09cf7f94d2b460f7b3bae2697c8aea4ef0c1dba2420479a49eb3`.
+14,285 файлов / 51,070,679,238 logical bytes, все SHA проверены; дубликаты —
+hard links. Локальная проверка 9,861 уникального file hash не нашла мастер-ключ
+Vast или приватный SSH-ключ. Сервер отдельно проверил своё instance credential.
+
+При выгрузке шесть SFTP ranges завершились; метаданные двух медленных ranges
+не показывали прогресс. Исходные partials сохранены после контролируемой остановки.
+Два полных ranges восстановлены через SSH exec за 35.84 s, затем общий SHA
+совпал. `finish_verified_archive.py` продолжил прежние materialize/scan/delete/
+offline этапы. Научные прогоны и raw bytes не менялись; журнал — в пакете.
+Старый transport error сохранён отдельно, текущей ошибки экспорта нет.
+
+Для полной приёмки нужен отдельный заранее зафиксированный эксперимент с
+доступным clock lock и telemetry window GEMM ceiling, затем независимый reviewer.
+Старые NO_VERDICT не исправлять фильтрацией/нормализацией, physical-GPU cohorts
+не объединять. sm120, 8B/70B full-model multiplier и новый fused backward не заявлены.
+Сообщения тимлиду, merge/issue close и GitHub Release не выполнялись.
+
+<details>
+<summary>История возобновления 15 октября; ниже не текущее состояние</summary>
+
+## Историческая операционная точка
 
 Это операционная точка продолжения, **не итоговый отчёт и не утверждение о завершении D1**.
 Историческое сохранение перед паузой: `D1_RESUME_20261015_RU.md`.
@@ -126,3 +210,5 @@ Python 3.12; остальные платформы/smoke были пропуще
 Не выдавать это за полный cross-platform или финальный-head CUDA прогон.
 Для doc-head 9037f689 CI run 38765064152 также завершён успешно, включая Ubuntu
 Python 3.12. После новых документов нужно проверить актуальный CI отдельно.
+
+</details>
