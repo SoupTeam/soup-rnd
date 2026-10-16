@@ -90,8 +90,6 @@ def _kernel() -> Any:
 
 def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
     import torch
-    import triton
-    import triton.language as tl
 
     n, k, blocksize, nested, state2_block, weight_dtype = metadata
     reduce_size, output_size = (n, k) if transpose else (k, n)
@@ -103,6 +101,8 @@ def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
         raise RuntimeError("CUDA required; CPU interpreter is logic preparation only")
     if value.device.type == "cpu" and value.dtype == torch.bfloat16:
         raise RuntimeError("BF16 is not supported reliably by the Triton CPU interpreter")
+    import triton
+    import triton.language as tl
     value = value.contiguous()
     m = value.numel() // reduce_size
     result = torch.empty((*value.shape[:-1], output_size), dtype=value.dtype, device=value.device)

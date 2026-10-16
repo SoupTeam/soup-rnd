@@ -124,3 +124,48 @@ def test_invalid_nested_extent_is_rejected_before_kernel(candidate):
     quant.state2.absmax = torch.empty(0)
     with pytest.raises(ValueError, match="invalid nested"):
         candidate.linear(torch.ones(2, 8), torch.empty((16, 1), dtype=torch.uint8), quant)
+
+
+def test_candidate_never_silently_falls_back_to_cpu(monkeypatch):
+    import d1_fused_nf4
+    import torch
+
+    monkeypatch.delenv("TRITON_INTERPRET", raising=False)
+    with pytest.raises(RuntimeError, match="CUDA required"):
+        d1_fused_nf4.linear(torch.ones(2, 8), torch.full((16, 1), 0xA5, dtype=torch.uint8), state())
+
+
+@pytest.mark.parametrize("failed", ["comparison", "decode"])
+def test_cuda_screen_stops_at_first_failure_before_alias_or_timing(monkeypatch, failed):
+    import d1_kernel_quick_gate as screen
+    import torch
+
+    calls = []
+
+    def fail_case(*_args):
+        calls.append(True)
+        return {
+            "comparison": {"passed": failed != "comparison"},
+            "decode": {"passed": failed != "decode"},
+        }
+
+    def forbidden(*_args):
+        pytest.fail("screen continued after a failed numerical gate")
+
+    monkeypatch.delenv("TRITON_INTERPRET", raising=False)
+    monkeypatch.setitem(sys.modules, "triton", SimpleNamespace(__version__="unit-test-only"))
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(
+        torch.cuda, "get_device_properties", lambda _i: SimpleNamespace(uuid="fake")
+    )
+    monkeypatch.setattr(torch.cuda, "get_device_name", lambda _i: "unit-test-only")
+    monkeypatch.setattr(torch, "set_num_threads", lambda _n: None)
+    monkeypatch.setattr(torch, "use_deterministic_algorithms", lambda _flag: None)
+    monkeypatch.setattr(screen, "numerical_case", fail_case)
+    monkeypatch.setattr(screen, "alias_case", forbidden)
+    result = screen.run("cuda")
+    assert len(calls) == 1
+    assert result["status"] == "SMALL_CUDA_GATE_FAIL"
+    assert result["small_alias"] == {"status": "NOT_RUN"}
+    assert result["performance_measured"] is False
+    assert result["d1_complete"] is False

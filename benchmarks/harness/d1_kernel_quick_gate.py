@@ -28,8 +28,26 @@ def numerical_case(
     value = torch.randn(m, k, device=device, dtype=precision, requires_grad=True)
     dy = torch.randn(m, n, device=device, dtype=precision)
     reference_x = value.detach().clone().requires_grad_(True)
+    backend_counts = {"custom": 0, "fallback": 0}
     if device == "cuda":
-        reference = bnb.matmul_4bit(reference_x, packed.t(), quant_state=state)
+        from bitsandbytes.backends.cuda import ops
+
+        custom, fallback = ops._gemm_4bit_kernel_impl, ops._dequant_linear_fallback
+
+        def counted_custom(*args, **kwargs):
+            backend_counts["custom"] += 1
+            return custom(*args, **kwargs)
+
+        def counted_fallback(*args, **kwargs):
+            backend_counts["fallback"] += 1
+            return fallback(*args, **kwargs)
+
+        ops._gemm_4bit_kernel_impl = counted_custom
+        ops._dequant_linear_fallback = counted_fallback
+        try:
+            reference = bnb.matmul_4bit(reference_x, packed.t(), quant_state=state)
+        finally:
+            ops._gemm_4bit_kernel_impl, ops._dequant_linear_fallback = custom, fallback
     else:
         reference = torch.nn.functional.linear(
             reference_x, functional.dequantize_4bit(packed, state)
@@ -52,6 +70,7 @@ def numerical_case(
         "shape": list(shape),
         "comparison": comparison,
         "decode": decode,
+        "native_forward_backend_counts": backend_counts if device == "cuda" else None,
     }
     if witness_root is not None:
         witness_root.mkdir(parents=True, exist_ok=True)
