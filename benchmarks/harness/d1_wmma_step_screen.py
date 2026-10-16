@@ -17,7 +17,7 @@ def run(output):
     import bitsandbytes.functional as functional
     import d1_fused_nf4 as candidate
     import torch
-    from d1_wmma_nf4 import matmul
+    from d1_wmma_nf4 import compile_kernel, matmul
 
     torch.manual_seed(1977)
     torch.use_deterministic_algorithms(True)
@@ -156,6 +156,9 @@ def run(output):
         "real_model_training": "NOT_RUN",
         "d1_complete": False,
     }
+    _driver, _module, _function, ptx, _log = compile_kernel(torch.bfloat16, 64, 256)
+    (output / "candidate.ptx").write_bytes(ptx)
+    result["ptx_signed_64bit_divisions"] = ptx.count(b"div.s64")
     write_new_json(output / "screen.json", result)
     Console().print(
         {"median_step_ms": medians, "candidate_over_native": result["candidate_over_native"]}
