@@ -42,6 +42,7 @@ def _kernel() -> Any:
         bm: tl.constexpr,
         bn: tl.constexpr,
         bk: tl.constexpr,
+        partial: tl.constexpr,
     ):
         rows = (tl.program_id(0) * bm + tl.arange(0, bm)).to(tl.int64)
         columns = (tl.program_id(1) * bn + tl.arange(0, bn)).to(tl.int64)
@@ -77,7 +78,10 @@ def _kernel() -> Any:
             # Match dequantize_4bit's weight rounding BEFORE multiplying by x.
             weights = (values * scales).to(weight_dtype).to(inputs.dtype)
             weights = tl.where(valid, weights, 0)
-            accumulator = tl.dot(inputs, weights, accumulator, input_precision="ieee")
+            if partial:
+                accumulator += tl.dot(inputs, weights, input_precision="ieee")
+            else:
+                accumulator = tl.dot(inputs, weights, accumulator, input_precision="ieee")
         tl.store(
             output_ptr + rows[:, None] * output_size + columns[None, :],
             accumulator,
@@ -89,6 +93,11 @@ def _kernel() -> Any:
 
 
 def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
+    return _launch(value, saved, metadata, transpose, (16, 32, 64, 4, False))
+
+
+def _launch(value: Any, saved: tuple, metadata: tuple, transpose: bool, config: tuple) -> Any:
+    """Explicit experiment configuration; production dispatch never calls this."""
     import torch
 
     n, k, blocksize, nested, state2_block, weight_dtype = metadata
@@ -107,7 +116,8 @@ def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
     m = value.numel() // reduce_size
     result = torch.empty((*value.shape[:-1], output_size), dtype=value.dtype, device=value.device)
     types = {torch.float16: tl.float16, torch.bfloat16: tl.bfloat16, torch.float32: tl.float32}
-    _kernel()[(triton.cdiv(m, 16), triton.cdiv(output_size, 32))](
+    bm, bn, bk, warps, partial = config
+    _kernel()[(triton.cdiv(m, bm), triton.cdiv(output_size, bn))](
         value,
         *saved,
         result,
@@ -119,10 +129,11 @@ def _matmul(value: Any, saved: tuple, metadata: tuple, transpose: bool) -> Any:
         state2_block,
         transpose,
         types[weight_dtype],
-        16,
-        32,
-        64,
-        num_warps=4,
+        bm,
+        bn,
+        bk,
+        partial,
+        num_warps=warps,
         enable_fp_fusion=False,
     )
     return result
