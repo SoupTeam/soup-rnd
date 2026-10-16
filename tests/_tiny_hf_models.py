@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import atexit
 import functools
+import json
+import os
 import shutil
 import tempfile
 from typing import TYPE_CHECKING
@@ -94,3 +96,23 @@ def tiny_model_dir(arch: str) -> str:
     model.save_pretrained(out_dir)
     tok.save_pretrained(out_dir)
     return out_dir
+
+
+def write_tiny_llama_config(weights_dir: str, n_layers: int) -> None:
+    """Write a ``config.json`` naming a tiny Llama with ``n_layers`` decoder layers.
+
+    The sharder builds its shard layout from the meta skeleton of this config
+    (ADR 0004). A hand-written checkpoint whose tensor shapes match no real
+    model needs only the layer count to be right.
+    """
+    config = {
+        "model_type": "llama",
+        "num_hidden_layers": n_layers,
+        "hidden_size": 8,
+        "intermediate_size": 16,
+        "num_attention_heads": 1,
+        "num_key_value_heads": 1,
+        "vocab_size": 32,
+    }
+    with open(os.path.join(weights_dir, "config.json"), "w", encoding="utf-8") as fh:
+        json.dump(config, fh)

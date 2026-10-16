@@ -730,6 +730,20 @@ def _sample_next(logits, temperature: float, top_p: float):
     return torch.multinomial(probs, num_samples=1)
 
 
+def load_task_adapters(base_model: Any, adapters: list[str]) -> tuple[Any, list[str]]:
+    """Wrap ``base_model`` with the first adapter and join the rest, named ``task_<i>``.
+
+    Both loads reload a shared-expert adapter onto the shared experts.
+    """
+    from soup_cli.utils.peft_wiring import add_adapter, load_adapter
+
+    names = [f"task_{i}" for i in range(len(adapters))]
+    model = load_adapter(base_model, adapters[0], adapter_name=names[0])
+    for name, path in zip(names[1:], adapters[1:]):
+        add_adapter(model, path, name)
+    return model, names
+
+
 def load_mole_for_serve(
     directory: str,
     *,
@@ -747,7 +761,6 @@ def load_mole_for_serve(
     target); when ``None`` the manifest base is used. Lazy heavy imports.
     """
     import torch
-    from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     manifest = load_mole_manifest(directory)
@@ -783,12 +796,7 @@ def load_mole_for_serve(
             f"{manifest.hidden_dim}; the gate was trained against a different "
             f"base. Serve with the base the gate was trained on."
         )
-    adapter_names = [f"task_{i}" for i in range(len(manifest.adapters))]
-    model = PeftModel.from_pretrained(
-        base_model, manifest.adapters[0], adapter_name=adapter_names[0]
-    )
-    for name, path in zip(adapter_names[1:], manifest.adapters[1:]):
-        model.load_adapter(path, adapter_name=name)
+    model, adapter_names = load_task_adapters(base_model, list(manifest.adapters))
     for param in model.parameters():
         param.requires_grad_(False)
     model.eval()
