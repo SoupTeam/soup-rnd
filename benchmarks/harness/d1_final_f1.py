@@ -40,15 +40,14 @@ def configure() -> Any:
     return torch
 
 
-def route(mode: str) -> None:
-    if mode == "native":
-        return
+def route(mode: str) -> dict[str, int]:
     import d1_fused_nf4 as candidate
 
     from soup_cli.utils import layer_stream_runtime as runtime
 
     original_linear = runtime.checkpoint_visible_nf4_linear
     original_gate = runtime._can_use_checkpoint_visible_nf4_gemm
+    counts = {"candidate": 0, "native_custom": 0}
 
     def covered(x: Any, state: Any) -> bool:
         return x.dtype == state.dtype and (x.numel() // x.shape[-1], *map(int, state.shape)) in {
@@ -59,14 +58,17 @@ def route(mode: str) -> None:
         }
 
     def selected(x: Any, packed: Any, state: Any, bias: Any = None) -> Any:
-        if covered(x, state):
+        if mode != "native" and covered(x, state):
+            counts["candidate"] += 1
             return candidate.linear(x, packed, state, bias, backend="wmma_native64")
+        counts["native_custom"] += 1
         return original_linear(x, packed, state, bias)
 
     runtime.checkpoint_visible_nf4_linear = selected
     runtime._can_use_checkpoint_visible_nf4_gemm = lambda x, state: (
-        covered(x, state) or original_gate(x, state)
+        (mode != "native" and covered(x, state)) or original_gate(x, state)
     )
+    return counts
 
 
 def build_model(directory: Path) -> tuple[Any, Any]:
@@ -211,7 +213,7 @@ def child(args: argparse.Namespace) -> dict:
     torch = configure()
     from d1_nf4_study import timed_steps
 
-    route(args.route)
+    counts = route(args.route)
     model, runtime = build_model(args.data)
     inputs = torch.randint(0, 64, (1, 128), device="cuda")
     optimizer = torch.optim.SGD([p for p in model.parameters() if p.requires_grad], lr=0.001)
@@ -237,6 +239,7 @@ def child(args: argparse.Namespace) -> dict:
                 "passed": all(row["passed"] for row in comparisons),
                 "comparisons": comparisons,
                 "witness_sha256": digest(args.output / "witness.pt"),
+                "dispatch_counts": counts,
             }
             write_new_json(args.output / "result.json", result)
             if not result["passed"]:
@@ -282,7 +285,10 @@ def child(args: argparse.Namespace) -> dict:
             "dense_gemm_reference": reference,
             "reference_reduced_precision": True,
             "tokens_per_second": 128000 / measured["median_step_ms"],
+            "dispatch_counts": counts,
         }
+        if args.route == "candidate" and not counts["candidate"]:
+            raise RuntimeError("no experimental calls; cannot label this a candidate arm")
         write_new_json(args.output / "result.json", result)
         return result
     finally:
