@@ -106,7 +106,7 @@ def large_alias(output):
     }
 
 
-def run(output):
+def run(output, full_fp32_reduction=False):
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     import d1_fused_nf4 as candidate
     import torch
@@ -115,6 +115,10 @@ def run(output):
     torch.use_deterministic_algorithms(True)
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
+    if full_fp32_reduction:
+        # Separate diagnosis, never overwrite the default-math failure or
+        # silently change Soup's production numerical settings.
+        torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False
     original = candidate._matmul
     candidate._matmul = matmul
     try:
@@ -156,6 +160,10 @@ def run(output):
         "passed": alias["passed"] and len(streams) == 2 and all(r["passed"] for r in streams),
         "d1_complete": False,
         "scope": "BF16 aligned only; native resident model unpatched",
+        "allow_bf16_reduced_precision_reduction": (
+            torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction
+        ),
+        "default_math_acceptance": not full_fp32_reduction,
     }
     write_new_json(output / "acceptance.json", result)
 
@@ -163,8 +171,9 @@ def run(output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--diagnose-full-fp32-reduction", action="store_true")
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError("use a fresh output directory")
     args.output.mkdir(parents=True)
-    run(args.output)
+    run(args.output, args.diagnose_full_fp32_reduction)
