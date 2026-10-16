@@ -11,6 +11,14 @@ Outcome in one line. The zero-gradient control was rejected in both paths. C1 ar
 arm B (Chronicals) is **out of scope** and has no verdict. C2 and the speed blocks did not
 run. "No public number changed" is a finished result under this rule, not a failure.
 
+Scope of this result. It is the reduced audit that fit the budget: one Unsloth arm on an
+altered-condition C1 (see the conditions table). It does not verify the published
+configuration and it makes no cross-framework speed comparison. The historical reports in
+`benchmarks/results/f3-benchmark-audit/` are kept as they were produced. Review of the PR then
+fixed three paths of the harness that the rented run did not exercise (a speed run is checked
+against its own report, training runs inside the guarded lifecycle, the raw evidence uploads
+before the instance is destroyed); the historical run used the earlier code.
+
 ## Question
 
 The Chronicals preprint (arXiv 2601.02609) says a widely quoted 46,000 tok/s fine-tuning
