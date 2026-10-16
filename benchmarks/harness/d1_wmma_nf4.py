@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 from pathlib import Path
+from typing import Any
 
 _CACHE = {}
 
@@ -17,19 +18,24 @@ extern "C" __global__ void fused(
     const scalar* x, const unsigned char* packed, const void* absmax,
     const float* code, const float* absmax2, const float* code2, const float* offset,
     scalar* output, int M, int N, int K, int blocksize, int nested, int block2, int transpose) {
-  __shared__ __align__(32) scalar A[256];
-  __shared__ __align__(32) scalar B[256];
-  __shared__ __align__(32) float C[256];
+  __shared__ __align__(32) scalar A[TILE_SIZE*REDUCE_TILE];
+  __shared__ __align__(32) scalar B[TILE_SIZE*REDUCE_TILE];
+  __shared__ __align__(32) float C[TILE_SIZE*TILE_SIZE];
   int outsize = transpose ? K : N;
   int reduce = transpose ? N : K;
-  int outbase = blockIdx.x * 16, mbase = blockIdx.y * 16;
+  int outbase = blockIdx.x * TILE_SIZE, mbase = blockIdx.y * TILE_SIZE;
+  int warp = threadIdx.x / 32;
+  int warp_out = warp % (TILE_SIZE/16), warp_m = warp / (TILE_SIZE/16);
   wmma::fragment<wmma::matrix_a,16,16,16,scalar,wmma::row_major> a;
   wmma::fragment<wmma::matrix_b,16,16,16,scalar,wmma::col_major> b;
   wmma::fragment<wmma::accumulator,16,16,16,float> c;
   wmma::fill_fragment(c,0.0f);
-  for (int start=0; start<reduce; start+=16) {
-    for (int q=threadIdx.x; q<256; q+=32) {
-      int i=q/16, j=q%16, out=outbase+i, inner=start+j;
+  for (int start=0; start<reduce; start+=REDUCE_TILE) {
+    for (int q=threadIdx.x; q<TILE_SIZE*REDUCE_TILE; q+=blockDim.x) {
+      // Decode contiguous original W rows, then transpose in shared memory.
+      int i=transpose ? q%TILE_SIZE : q/REDUCE_TILE;
+      int j=transpose ? q/TILE_SIZE : q%REDUCE_TILE;
+      int out=outbase+i, inner=start+j;
       float weight=0.0f;
       if (out<outsize && inner<reduce) {
         long long pos=transpose ? (long long)inner*K+out : (long long)out*K+inner;
@@ -43,37 +49,49 @@ extern "C" __global__ void fused(
         } else magnitude=((const float*)absmax)[scale];
         weight=code[nibble]*magnitude;
       }
-      A[q]=CONVERT(weight);
-      B[q]=(mbase+i<M && inner<reduce) ? x[(long long)(mbase+i)*reduce+inner] : CONVERT(0.0f);
+      A[i*REDUCE_TILE+j]=CONVERT(weight);
+      int row=mbase+q/REDUCE_TILE, red=start+q%REDUCE_TILE;
+      B[q]=(row<M && red<reduce) ? x[(long long)row*reduce+red] : CONVERT(0.0f);
     }
     __syncthreads();
-    wmma::load_matrix_sync(a,A,16);
-    wmma::load_matrix_sync(b,B,16);
-    wmma::mma_sync(c,a,b,c);
+    for (int inner=0; inner<REDUCE_TILE; inner+=16) {
+      wmma::load_matrix_sync(a,A+warp_out*16*REDUCE_TILE+inner,REDUCE_TILE);
+      wmma::load_matrix_sync(b,B+warp_m*16*REDUCE_TILE+inner,REDUCE_TILE);
+      wmma::mma_sync(c,a,b,c);
+    }
     __syncthreads();
   }
-  wmma::store_matrix_sync(C,c,16,wmma::mem_col_major);
+  wmma::store_matrix_sync(C+warp_m*16*TILE_SIZE+warp_out*16,c,TILE_SIZE,wmma::mem_col_major);
   __syncthreads();
-  for (int q=threadIdx.x; q<256; q+=32) {
-    int row=mbase+q/16, col=outbase+q%16;
+  for (int q=threadIdx.x; q<TILE_SIZE*TILE_SIZE; q+=blockDim.x) {
+    int row=mbase+q/TILE_SIZE, col=outbase+q%TILE_SIZE;
     if (row<M && col<outsize) output[(long long)row*outsize+col]=CONVERT(C[q]);
   }
 }
 """
 
 
-def check(library, function, *args):
+def check(library: ctypes.CDLL, function: str, *args: Any) -> None:
     code = getattr(library, function)(*args)
     if code:
         raise RuntimeError(f"{function} failed: {code}")
 
 
-def compile_kernel(dtype, blocksize=64, block2=256):
+def compile_kernel(
+    dtype: Any,
+    blocksize: int = 64,
+    block2: int = 256,
+    *,
+    tile: int = 16,
+    reduction_tile: int = 16,
+) -> tuple[Any, ...]:
     import torch
 
     if blocksize <= 0 or block2 < 0:
         raise ValueError("invalid NF4 scale block sizes")
-    key = (torch.cuda.current_device(), dtype, int(blocksize), int(block2))
+    if tile not in (16, 32, 64) or reduction_tile not in (16, 32, 64, 128):
+        raise ValueError("invalid research WMMA tile")
+    key = (torch.cuda.current_device(), dtype, int(blocksize), int(block2), tile, reduction_tile)
     if key in _CACHE:
         return _CACHE[key]
     packages = Path(torch.__file__).parents[1]
@@ -91,6 +109,8 @@ def compile_kernel(dtype, blocksize=64, block2=256):
         .replace("CONVERT", conversion)
         .replace("BLOCKSIZE", str(int(blocksize)))
         .replace("BLOCK2", str(max(1, int(block2))))
+        .replace("TILE_SIZE", str(tile))
+        .replace("REDUCE_TILE", str(reduction_tile))
         .encode()
     )
     check(
@@ -135,7 +155,15 @@ def compile_kernel(dtype, blocksize=64, block2=256):
     return _CACHE[key]
 
 
-def matmul(value, saved, metadata, transpose):
+def matmul(
+    value: Any,
+    saved: tuple,
+    metadata: tuple,
+    transpose: bool,
+    *,
+    tile: int = 16,
+    reduction_tile: int = 16,
+) -> Any:
     import torch
 
     if value.device.type != "cuda" or value.dtype not in (torch.float16, torch.bfloat16):
@@ -149,7 +177,9 @@ def matmul(value, saved, metadata, transpose):
         raise ValueError("WMMA dimension mismatch")
     m = value.numel() // reduce
     result = torch.empty((*value.shape[:-1], outsize), device=value.device, dtype=value.dtype)
-    driver, _module, function, _ptx, _log = compile_kernel(value.dtype, blocksize, block2)
+    driver, _module, function, _ptx, _log = compile_kernel(
+        value.dtype, blocksize, block2, tile=tile, reduction_tile=reduction_tile
+    )
     pointers = [ctypes.c_void_p(t.data_ptr()) for t in (value, *saved, result)]
     scalars = [ctypes.c_int(i) for i in (m, n, k, blocksize, int(nested), block2, int(transpose))]
     parameters = (ctypes.c_void_p * 15)(
@@ -159,10 +189,10 @@ def matmul(value, saved, metadata, transpose):
         driver,
         "cuLaunchKernel",
         function,
-        (outsize + 15) // 16,
-        (m + 15) // 16,
+        (outsize + tile - 1) // tile,
+        (m + tile - 1) // tile,
         1,
-        32,
+        32 * (tile // 16) ** 2,
         1,
         1,
         0,
