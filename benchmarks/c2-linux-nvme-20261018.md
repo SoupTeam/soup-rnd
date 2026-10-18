@@ -184,3 +184,20 @@ Rebuild the same seeded synthetic checkpoint/cache; never mix the two hosts.
 The overall rental cap remains $1; host C is limited to 90 minutes from its
 reported start (1792336337.477 UTC Unix seconds), including setup and evidence
 download. No host-C performance arm exists when this note is committed.
+
+## Host C startup failure; prospective host D admission
+
+Host C never launched: the provider's Docker daemon returned
+`unknown or invalid runtime name: nvidia`. Destroyed without SSH, package/model
+installation or measurements; API absence confirmed 2026-10-18 15:15:49 UTC.
+
+Host D, instance 56573182 / offer 54705057 / machine 143798, is independently
+subject to the same native admission and unchanged experimental rules. Claims:
+whole GPU (`gpu_frac=1`), RTX 3080 Ti 12 GB, Xeon E5-2640 v4, 31,936 MB RAM,
+WDS100T3X0C-00SJG0 NVMe, 300 GB allocated storage, $0.456667/hour. Pin the eleven
+critical package versions recorded in host B's environment via the accompanying
+`host-d-constraints.txt`; capture the resolved environment as well. Same seeded
+checkpoint, cache shape and per-arm settings, rebuilt locally on this host.
+Do not pool any results across hosts. Maximum host-D rental: 80 minutes from
+its provider start 1792336527.509 UTC Unix seconds, including setup and download,
+within the overall $1 attempt cap. No host-D performance arm exists at commit.
