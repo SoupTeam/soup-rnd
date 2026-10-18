@@ -50,3 +50,15 @@ def test_counter_rule_cannot_turn_zero_or_contaminated_reads_into_pass(
 def test_missing_or_negative_counters_refused(probe):
     for delta in ({}, {"read": -1, "write": 0}, {"read": 1000, "write": -1}):
         assert probe.arm_reasons(delta, 2.0, 1000)
+
+
+def test_temperature_reads_hwmon_class_even_without_nvme_class_mount(tmp_path, probe):
+    sensor = tmp_path / "hwmon1"
+    sensor.mkdir()
+    (sensor / "name").write_text("nvme\n")
+    (sensor / "temp1_input").write_text("42000\n")
+    assert probe.temperature_readings(tmp_path)[str(sensor)] == {
+        "name": "nvme", "millidegrees_c": {"temp1_input": 42000}
+    }
+    (sensor / "temp1_input").write_text("unavailable")
+    assert "error" in probe.temperature_readings(tmp_path)[str(sensor)]

@@ -67,20 +67,32 @@ def gpu_clients() -> list[str]:
     return sorted(line for line in done.stdout.splitlines() if line.strip())
 
 
+def temperature_readings(root: Path = Path("/sys/class/hwmon")) -> dict:
+    result = {}
+    for sensor in root.glob("hwmon*"):
+        try:
+            name = (sensor / "name").read_text().strip()
+            if name not in {"nvme", "coretemp"}:
+                continue
+            result[str(sensor)] = {
+                "name": name,
+                "millidegrees_c": {path.name: int(path.read_text())
+                                   for path in sensor.glob("temp*_input")},
+            }
+        except (OSError, ValueError) as error:
+            result[str(sensor)] = {"error": repr(error)}
+    return result
+
+
 def snapshot() -> dict:
     done = subprocess.run(
         ["nvidia-smi", "--query-gpu=name,driver_version,temperature.gpu,clocks.sm,"
          "memory.used,utilization.gpu,power.draw", "--format=csv,noheader"],
         check=True, capture_output=True, text=True, timeout=20,
     )
-    temperatures = {}
-    for path in Path("/sys/class/nvme").glob("nvme*/device/hwmon/hwmon*/temp*_input"):
-        try:
-            temperatures[str(path)] = path.read_text().strip()
-        except OSError:
-            pass
     return {"time": time.time(), "memory": memory(), "loadavg": os.getloadavg(),
-            "gpu": done.stdout, "gpu_clients": gpu_clients(), "temperatures": temperatures}
+            "gpu": done.stdout, "gpu_clients": gpu_clients(),
+            "temperatures": temperature_readings()}
 
 
 def quiet() -> dict:
