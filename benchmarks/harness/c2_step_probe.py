@@ -66,6 +66,7 @@ def main() -> int:
     class C2Sink(original_sink):
         def __init__(self, path: str, meta: dict) -> None:
             self.samples = []
+            self.sample_errors = []
             self.stop_event = threading.Event()
             self.idle = quiet()
             self.box_before = snapshot()
@@ -102,15 +103,18 @@ def main() -> int:
             self.thread.start()
 
         def observe(self) -> None:
-            while not self.stop_event.wait(0.25):
-                self.samples.append((time.time(), counters()[args.c2_device]))
+            try:
+                while not self.stop_event.wait(0.25):
+                    self.samples.append((time.time(), counters()[args.c2_device]))
+            except BaseException as error:
+                self.sample_errors.append(repr(error))
 
         def finish(self) -> None:
             self.stop_event.set()
             self.thread.join()
             self.samples.append((time.time(), counters()[args.c2_device]))
             after = snapshot()
-            reasons = []
+            reasons = self.sample_errors[:]
             if (after["gpu_clients"] != self.box_before["gpu_clients"]
                     or after["memory"]["MemAvailable"] < 4e9):
                 reasons.append("host memory/GPU state changed")

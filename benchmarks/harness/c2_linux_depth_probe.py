@@ -221,11 +221,15 @@ def run(args: argparse.Namespace) -> int:
                     raise RuntimeError("host memory/GPU boundary admission failed")
                 pipeline(offsets[:1], depth, 4, works)
                 samples = []
+                sample_errors = []
                 stop = threading.Event()
 
                 def observe() -> None:
-                    while not stop.wait(0.25):
-                        samples.append((time.monotonic(), counters()[device]))
+                    try:
+                        while not stop.wait(0.25):
+                            samples.append((time.monotonic(), counters()[device]))
+                    except BaseException as error:
+                        sample_errors.append(repr(error))
 
                 observer = threading.Thread(target=observe, daemon=True)
                 before = counters()[device]
@@ -240,6 +244,8 @@ def run(args: argparse.Namespace) -> int:
                     stop.set()
                     observer.join()
                     arm["samples"] = samples
+                    arm["sample_errors"] = sample_errors
+                    record["invalid_reasons"].extend(sample_errors)
                     arm["physical_delta"] = {key: after[key] - before[key] for key in before}
                 total = 24 * SPAN
                 arm["gb_s"] = total / arm["seconds"] / 1e9
