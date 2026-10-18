@@ -98,3 +98,71 @@ Required resource: an agreed quiet Windows/CUDA window, a pinned-memory-capable
 CUDA stack, and immutable >RAM fixtures on each target physical NVMe (test one
 at a time). This host's available environment is Python 3.10 / torch 2.13.0+cpu;
 no hardware throughput or end-to-end result has been collected.
+
+## Implementation audit and CPU evidence
+
+The research brief's historical explanation predates R4. On this base,
+`_read_layer` already submits asynchronously; `_claim_reads` limits each root
+through `if root in self._pending`. `_pending` maps each root to **one** read.
+Changing that condition alone would overwrite its bookkeeping: completion,
+busy-slot exclusion, oldest-read liveness and pool checks all consume that map.
+A depth-2 runtime candidate therefore needs a collection per root (or a
+separate per-layer map), as well as tests. It is not a safe one-line change.
+
+No runtime candidate was enabled without evidence of benefit. The new standalone
+`c2_depth_probe.py` keeps the old R3' harness and record intact. Its portable
+queue core owns a fixed-size executor, holds at most two spans, checks every
+range before publishing a span and drains outstanding writes on errors.
+The full-byte verification callback runs before that slot can be reused.
+The physical harness is **prepared, not hardware-validated**; platform calls,
+PDH instance naming and DMA behavior remain hardware acceptance items.
+
+Evidence directory: [`evidence/c2-per-drive-depth-20261018/`](evidence/c2-per-drive-depth-20261018/).
+`frozen-protocol.md` preserves the exact pre-measurement document bytes;
+`cpu-correctness.json` records that SHA256 and the tested harness SHA256.
+The JSON's `source_sha` is the protocol commit; the new harness was uncommitted
+then, so its explicit file hash identifies the implementation actually run.
+
+- TDD: the first collection failed because the new harness did not exist, before
+  implementation. Then the new tests passed.
+- New harness tests: **20 passed** (`c2-tests.log`). Includes a blocked slow
+  range with an idle worker, full-byte checks of all spans, bounded outstanding
+  ranges, slot reuse, read/submission/verification errors and their drain,
+  invalid limits, missing telemetry, contaminated arms and frozen verdicts.
+- Existing async source + striped-reader tests, plus the new tests:
+  **93 passed, 11 skipped in 28.29 s**. Command below; the skipped cases require
+  capabilities unavailable in this CPU environment. No CUDA lifetime claim.
+- Synthetic CPU exercise: **38/38 full-span byte checks**, 19 spans/depth,
+  four workers and 128 KiB allocated at either depth. Maximum pending spans
+  1/2; maximum pending ranges 4/8. Raw JSON deliberately has **NO VERDICT**;
+  its elapsed times are scheduler diagnostics, not disk-throughput results.
+- `ruff check src/soup_cli/ scripts/ tests/ benchmarks/`: **passed** (`ruff.log`).
+
+From the isolated worktree in PowerShell (the executable is an existing CPU
+environment; `PYTHONPATH` selects this worktree, confirmed in `environment.json`):
+
+```powershell
+$env:PYTHONPATH = "$PWD\src"
+$py = 'C:\Users\esenb\Desktop\soup-rnd-d2\.venv\Scripts\python.exe'
+& $py -m pytest tests/test_c2_depth_probe.py tests/test_issue971_async_disk_source.py tests/test_disk_tier_stripe_reader.py --no-cov -q
+ruff check src/soup_cli/ scripts/ tests/ benchmarks/
+& $py benchmarks/harness/c2_depth_probe.py --cpu-check --out cpu-new-sequence.json
+& $py -m pytest tests/ -v --tb=short
+```
+
+Only inside an agreed quiet window on a suitable Windows stand (replace the
+directory and identifier with actual agreed resources):
+
+```powershell
+& $py benchmarks/harness/c2_depth_probe.py --drive 'D:\immutable-large-store' --window 'agreed-window-id' --out c2-disk-D-sequence-1.json
+& $py benchmarks/harness/c2_depth_probe.py --evaluate c2-disk-D-sequence-1.json
+# After independently reviewing the saved host state and peer activity:
+& $py benchmarks/harness/c2_depth_probe.py --evaluate c2-disk-D-sequence-1.json --host-reviewed
+```
+
+No hardware sequence has run. Access to a cloud account does not establish an
+idle physical disk or make a Windows direct-I/O result transferable to Linux.
+The available cloud instance is assigned to another campaign; it was not used
+for C2. A Linux follow-up would require a separately frozen protocol and the
+shipped Linux direct-I/O primitive, physical-device visibility, a >RAM fixture
+and an agreed quiet window. No paid resource was rented or started for C2.
