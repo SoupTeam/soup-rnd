@@ -1,0 +1,2363 @@
+{
+  "kind": "primitive",
+  "blocks": [
+    [
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b0-p0-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b0-p0-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 1,
+          "run": 0,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792342989.7429843,
+            "ram_available_bytes": 30503366656,
+            "commit_charge": {
+              "used_bytes": 2060513280,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343006.8562386,
+            "ram_available_bytes": 30503342080,
+            "commit_charge": {
+              "used_bytes": 2069020672,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 210 to 1860 MHz over 10 samples; clock event reasons seen: gpu_idle",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 210,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {
+              "gpu_idle": 1
+            }
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -3.2001116778701544e-07,
+                "sleep_offset_end_s": -6.699992809444666e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 114688 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 487212479488,
+                "disk_read_bytes_end": 518904755200,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 114688,
+                "foreign_read_bytes_min": 114688,
+                "foreign_read_bytes_max": 114688,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 114688
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.261454975016688
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b0-p1-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b0-p1-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 1,
+          "run": 1,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343006.8903673,
+            "ram_available_bytes": 30450896896,
+            "commit_charge": {
+              "used_bytes": 2069037056,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343023.9426177,
+            "ram_available_bytes": 30469873664,
+            "commit_charge": {
+              "used_bytes": 2069020672,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.2000964488834143e-07,
+                "sleep_offset_end_s": -2.00001522898674e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 20480 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 518904755200,
+                "disk_read_bytes_end": 550596936704,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 20480,
+                "foreign_read_bytes_min": 20480,
+                "foreign_read_bytes_max": 20480,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 20480
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.317859946233359
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b0-p2-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b0-p2-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 1,
+          "run": 2,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343023.975688,
+            "ram_available_bytes": 30440976384,
+            "commit_charge": {
+              "used_bytes": 2069037056,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343041.0294836,
+            "ram_available_bytes": 30494388224,
+            "commit_charge": {
+              "used_bytes": 2069020672,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.8000719137489796e-07,
+                "sleep_offset_end_s": -2.2001040633767843e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 20480 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 550596936704,
+                "disk_read_bytes_end": 582289118208,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 20480,
+                "foreign_read_bytes_min": 20480,
+                "foreign_read_bytes_max": 20480,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 20480
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.3339193554506386
+      },
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b0-p3-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b0-p3-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 1,
+          "run": 3,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343041.0633278,
+            "ram_available_bytes": 30461673472,
+            "commit_charge": {
+              "used_bytes": 2069037056,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343058.1604095,
+            "ram_available_bytes": 30419714048,
+            "commit_charge": {
+              "used_bytes": 2069020672,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.799926394596696e-07,
+                "sleep_offset_end_s": -2.0999868866056204e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 32768 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 582289118208,
+                "disk_read_bytes_end": 613981312000,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 32768,
+                "foreign_read_bytes_min": 32768,
+                "foreign_read_bytes_max": 32768,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 32768
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.264632310109973
+      }
+    ],
+    [
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b1-p0-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b1-p0-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 2,
+          "run": 0,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343058.1946964,
+            "ram_available_bytes": 30407585792,
+            "commit_charge": {
+              "used_bytes": 2069037056,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343075.1988592,
+            "ram_available_bytes": 30495973376,
+            "commit_charge": {
+              "used_bytes": 2069020672,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.5999906938523054e-07,
+                "sleep_offset_end_s": -2.1999585442245007e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 135168 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 613981312000,
+                "disk_read_bytes_end": 645673608192,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 135168,
+                "foreign_read_bytes_min": 135168,
+                "foreign_read_bytes_max": 135168,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 135168
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.256868032319415
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b1-p1-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b1-p1-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 2,
+          "run": 1,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343075.2332916,
+            "ram_available_bytes": 30473666560,
+            "commit_charge": {
+              "used_bytes": 2069037056,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343092.2861993,
+            "ram_available_bytes": 30462717952,
+            "commit_charge": {
+              "used_bytes": 2071937024,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.00001522898674e-07,
+                "sleep_offset_end_s": -2.3000757209956646e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 36864 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 645673608192,
+                "disk_read_bytes_end": 677365806080,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 36864,
+                "foreign_read_bytes_min": 36864,
+                "foreign_read_bytes_max": 36864,
+                "uninspectable_processes": 1
+              },
+              "readers": [],
+              "unattributed_bytes": 36864
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.326847163008771
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b1-p2-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b1-p2-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 2,
+          "run": 2,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343092.319599,
+            "ram_available_bytes": 30443438080,
+            "commit_charge": {
+              "used_bytes": 2071953408,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343109.367157,
+            "ram_available_bytes": 30386290688,
+            "commit_charge": {
+              "used_bytes": 2070167552,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.809967216104269e-07,
+                "sleep_offset_end_s": -2.2001040633767843e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 798720 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 677365806080,
+                "disk_read_bytes_end": 709058765824,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 798720,
+                "foreign_read_bytes_min": 798720,
+                "foreign_read_bytes_max": 798720,
+                "uninspectable_processes": 0
+              },
+              "readers": [
+                {
+                  "pid": 298,
+                  "name": "sshd",
+                  "read_bytes": 188416
+                }
+              ],
+              "unattributed_bytes": 610304
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.3216450992471165
+      },
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b1-p3-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b1-p3-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 2,
+          "run": 3,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343109.4020748,
+            "ram_available_bytes": 30367469568,
+            "commit_charge": {
+              "used_bytes": 2070327296,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343126.4543602,
+            "ram_available_bytes": 30497898496,
+            "commit_charge": {
+              "used_bytes": 2070310912,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.6999547369778156e-07,
+                "sleep_offset_end_s": -2.0999868866056204e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 131072 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 709058765824,
+                "disk_read_bytes_end": 740751057920,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 131072,
+                "foreign_read_bytes_min": 131072,
+                "foreign_read_bytes_max": 131072,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 131072
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.26767430479126
+      }
+    ],
+    [
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b2-p0-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b2-p0-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 3,
+          "run": 0,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343126.4890373,
+            "ram_available_bytes": 30480629760,
+            "commit_charge": {
+              "used_bytes": 2070327296,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343143.4917643,
+            "ram_available_bytes": 30481166336,
+            "commit_charge": {
+              "used_bytes": 2070310912,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.00001522898674e-07,
+                "sleep_offset_end_s": -2.0999868866056204e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 4096 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 740751057920,
+                "disk_read_bytes_end": 772443223040,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 4096,
+                "foreign_read_bytes_min": 4096,
+                "foreign_read_bytes_max": 4096,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 4096
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.273267665233729
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b2-p1-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b2-p1-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 3,
+          "run": 1,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343143.5262115,
+            "ram_available_bytes": 30460727296,
+            "commit_charge": {
+              "used_bytes": 2070327296,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343160.5783353,
+            "ram_available_bytes": 30489718784,
+            "commit_charge": {
+              "used_bytes": 2070310912,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.9000435713678598e-07,
+                "sleep_offset_end_s": -2.0999868866056204e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 20480 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 772443223040,
+                "disk_read_bytes_end": 804135404544,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 20480,
+                "foreign_read_bytes_min": 20480,
+                "foreign_read_bytes_max": 20480,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 20480
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.333086066540326
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b2-p2-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b2-p2-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 3,
+          "run": 2,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343160.6130168,
+            "ram_available_bytes": 30487695360,
+            "commit_charge": {
+              "used_bytes": 2070327296,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343177.7645726,
+            "ram_available_bytes": 30481199104,
+            "commit_charge": {
+              "used_bytes": 2070310912,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.299922587350011e-07,
+                "sleep_offset_end_s": -2.299930201843381e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 327680 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 804135404544,
+                "disk_read_bytes_end": 835827893248,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 327680,
+                "foreign_read_bytes_min": 327680,
+                "foreign_read_bytes_max": 327680,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 327680
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.314742529550991
+      },
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b2-p3-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b2-p3-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 3,
+          "run": 3,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343177.8001566,
+            "ram_available_bytes": 30461878272,
+            "commit_charge": {
+              "used_bytes": 2071375872,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343194.8529727,
+            "ram_available_bytes": 30478024704,
+            "commit_charge": {
+              "used_bytes": 2071359488,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.00000761449337e-07,
+                "sleep_offset_end_s": -2.2001040633767843e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 249856 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 835827893248,
+                "disk_read_bytes_end": 867520304128,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 249856,
+                "foreign_read_bytes_min": 249856,
+                "foreign_read_bytes_max": 249856,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 249856
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.275349314124889
+      }
+    ],
+    [
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b3-p0-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b3-p0-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 4,
+          "run": 0,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343194.8895073,
+            "ram_available_bytes": 30449913856,
+            "commit_charge": {
+              "used_bytes": 2071375872,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343212.0417297,
+            "ram_available_bytes": 30443208704,
+            "commit_charge": {
+              "used_bytes": 2071359488,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.799926394596696e-07,
+                "sleep_offset_end_s": -2.0999868866056204e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 163840 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 867520304128,
+                "disk_read_bytes_end": 899212628992,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 163840,
+                "foreign_read_bytes_min": 163840,
+                "foreign_read_bytes_max": 163840,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 163840
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.263484646495159
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b3-p1-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b3-p1-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 4,
+          "run": 1,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343212.0764961,
+            "ram_available_bytes": 30434000896,
+            "commit_charge": {
+              "used_bytes": 2071375872,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343229.1729035,
+            "ram_available_bytes": 30462197760,
+            "commit_charge": {
+              "used_bytes": 2071359488,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.400047378614545e-07,
+                "sleep_offset_end_s": -1.9000435713678598e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 692224 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 899212628992,
+                "disk_read_bytes_end": 930905482240,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 692224,
+                "foreign_read_bytes_min": 692224,
+                "foreign_read_bytes_max": 692224,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 692224
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.32724750403845
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b3-p2-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b3-p2-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 4,
+          "run": 2,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343229.2080085,
+            "ram_available_bytes": 30430322688,
+            "commit_charge": {
+              "used_bytes": 2071375872,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343246.2610455,
+            "ram_available_bytes": 30495350784,
+            "commit_charge": {
+              "used_bytes": 2071359488,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.8000719137489796e-07,
+                "sleep_offset_end_s": -2.1999585442245007e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 45056 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 930905482240,
+                "disk_read_bytes_end": 962597688320,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 45056,
+                "foreign_read_bytes_min": 45056,
+                "foreign_read_bytes_max": 45056,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 45056
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.323693750177561
+      },
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b3-p3-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b3-p3-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 4,
+          "run": 3,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343246.2976553,
+            "ram_available_bytes": 30477508608,
+            "commit_charge": {
+              "used_bytes": 2071351296,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343263.350242,
+            "ram_available_bytes": 30461190144,
+            "commit_charge": {
+              "used_bytes": 2071334912,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.1999585442245007e-07,
+                "sleep_offset_end_s": -2.799934009090066e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 12288 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 962597688320,
+                "disk_read_bytes_end": 994289861632,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 12288,
+                "foreign_read_bytes_min": 12288,
+                "foreign_read_bytes_max": 12288,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 12288
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.27318768223364
+      }
+    ],
+    [
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b4-p0-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b4-p0-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 5,
+          "run": 0,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343263.3873732,
+            "ram_available_bytes": 30457409536,
+            "commit_charge": {
+              "used_bytes": 2071355392,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343280.3886425,
+            "ram_available_bytes": 30490783744,
+            "commit_charge": {
+              "used_bytes": 2070241280,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.00000761449337e-07,
+                "sleep_offset_end_s": -2.8000795282423496e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 114688 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 994289861632,
+                "disk_read_bytes_end": 1025982137344,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 114688,
+                "foreign_read_bytes_min": 114688,
+                "foreign_read_bytes_max": 114688,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 114688
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.261498085048119
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b4-p1-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b4-p1-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 5,
+          "run": 1,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343280.424462,
+            "ram_available_bytes": 30462648320,
+            "commit_charge": {
+              "used_bytes": 2070261760,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343297.4769032,
+            "ram_available_bytes": 30484119552,
+            "commit_charge": {
+              "used_bytes": 2070245376,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.6999547369778156e-07,
+                "sleep_offset_end_s": -1.8998980522155762e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 94208 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 1025982137344,
+                "disk_read_bytes_end": 1057674392576,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 94208,
+                "foreign_read_bytes_min": 94208,
+                "foreign_read_bytes_max": 94208,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 94208
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.3234749497519305
+      },
+      {
+        "depth": 2,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "2",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b4-p2-d2.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b4-p2-d2.json",
+        "status": "finished",
+        "watch": {
+          "arm": "B",
+          "round": 5,
+          "run": 2,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343297.5127048,
+            "ram_available_bytes": 30463668224,
+            "commit_charge": {
+              "used_bytes": 2070396928,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343314.5630763,
+            "ram_available_bytes": 30453440512,
+            "commit_charge": {
+              "used_bytes": 2070380544,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.299922587350011e-07,
+                "sleep_offset_end_s": -2.0999868866056204e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 126976 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 1057674392576,
+                "disk_read_bytes_end": 1089366680576,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 126976,
+                "foreign_read_bytes_min": 126976,
+                "foreign_read_bytes_max": 126976,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 126976
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.324291384472241
+      },
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-diag-primitive-e1/b4-p3-d1.json",
+          "--diagnostic-writes"
+        ],
+        "file": "b4-p3-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 5,
+          "run": 3,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792343314.6007826,
+            "ram_available_bytes": 30435495936,
+            "commit_charge": {
+              "used_bytes": 2070396928,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792343331.651618,
+            "ram_available_bytes": 30488006656,
+            "commit_charge": {
+              "used_bytes": 2070380544,
+              "limit_bytes": 24942018560
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 1,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 1860 to 1860 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 1860,
+              "median": 1860.0,
+              "max": 1860
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.7001002561300993e-07,
+                "sleep_offset_end_s": -2.0999868866056204e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 10 power samples, so on mains",
+              "evidence": {
+                "samples": 10,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 45056 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 1089366680576,
+                "disk_read_bytes_end": 1121058886656,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 31692161024,
+                "foreign_read_bytes": 45056,
+                "foreign_read_bytes_min": 45056,
+                "foreign_read_bytes_max": 45056,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 45056
+            }
+          }
+        },
+        "exit_code": 0,
+        "value": 7.271558224408187
+      }
+    ]
+  ],
+  "complete": true,
+  "errors": [],
+  "diagnostic_writes": true,
+  "admission_sha256": "5cc2fae7fa89b983cdc0a911ab3e79aa8df69fb27d4eea6ce15c6eaa5a06a07a",
+  "git_sha": "e10b7d9aeab0a9ffd86ee4df36a817e0464c0de2",
+  "device": "nvme0n1",
+  "max_blocks": 20,
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "cache_before": null,
+  "diagnostic_protocol_sha256": "7f4820bf6a0be25b67272677fd5946287b20c35d063a336bcb65c2216aaf504b",
+  "decision": {
+    "verdict": "DIAGNOSTIC ONLY / original quiet gate not met"
+  },
+  "effect_decision": {
+    "additional_blocks": 0,
+    "verdict": "FAIL benefit",
+    "repeats": {
+      "sigma": 0.006121080222483815,
+      "mean_a": 7.266897523978106,
+      "blocks_needed": 2
+    },
+    "ratios": [
+      1.0077677230542272,
+      1.0095375846130905,
+      1.0096431587811292,
+      1.007426143796823,
+      1.008224419072672,
+      1.0054146149862002,
+      1.008778549228993,
+      1.0069441447341299,
+      1.0085349970457784,
+      1.0072519752213558
+    ],
+    "median_ratio": 1.0079960710634497,
+    "memory_ok": true
+  }
+}

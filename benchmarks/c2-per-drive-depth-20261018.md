@@ -200,6 +200,10 @@ trainer also match the base by Git blob hash. No full-suite pass or coverage
 acceptance is claimed, and another unbounded rerun is not substituted for this
 failed attempt.
 
-Final C2 decision: **NO HARDWARE VERDICT; keep runtime depth 1**. The prepared
+Windows preparation decision: **NO HARDWARE VERDICT; keep runtime depth 1**. The prepared
 primitive harness and portable CPU checks are reviewable, but Windows hardware,
 CUDA staging lifetime and any end-to-end training benefit remain unmeasured.
+
+Later independent Linux follow-up: see [C2 results](c2-results-20261018.md) for
+physical NVMe diagnostics and real CUDA tests. This does not retroactively
+establish a Windows hardware result or turn these failed suite attempts green.
