@@ -162,3 +162,25 @@ same staging/VRAM limits; retain/check the original mean-step rule too before
 any production integration. Both independent gates must pass to implement.
 OMP_NUM_THREADS=8 and TOKENIZERS_PARALLELISM=false remain fixed in all children.
 All weights and losses remain synthetic; no quality or convergence claim.
+
+## Host B rejected; prospective host C admission
+
+Host B's first six-pair sequence stopped before pair 3 on idle writes
+1,680,616.6 B/s. Its four completed arms are all void. The first fresh-process
+F1 sequence stopped before its first timed arm: idle writes 1,301,333.7 B/s;
+the parent's three F1 checks were ok. A separate 180-second idle observation
+then found six contaminated five-second windows and at most 11 consecutive
+clean windows (55 seconds). This host did not provide a stable exclusive disk
+window. Preserve every record in `evidence/c2-linux-nvme-20261018/`, including
+the unknown/negative outcomes. Host B was destroyed after downloading evidence.
+No training-step timing ran there. No host-B rates enter another host's result.
+
+Host C, instance 56572675 / offer 56566107 / machine 152543, is a new independent
+attempt under the **unchanged** fixture, F1, validity and decision rules above.
+Provider claims: whole-GPU host (`gpu_frac=1`), RTX 5080 16 GB, i5-14400F,
+31,872 MB RAM, unnamed NVMe at 5.016 GB/s, 300 GB allocated disk, quoted total
+$0.404444/hour. All remain subject to native inventory and physical admission.
+Rebuild the same seeded synthetic checkpoint/cache; never mix the two hosts.
+The overall rental cap remains $1; host C is limited to 90 minutes from its
+reported start (1792336337.477 UTC Unix seconds), including setup and evidence
+download. No host-C performance arm exists when this note is committed.

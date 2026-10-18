@@ -1,0 +1,137 @@
+{
+  "kind": "primitive",
+  "blocks": [
+    [
+      {
+        "depth": 1,
+        "command": [
+          "/venv/main/bin/python",
+          "/workspace/c2-final/benchmarks/harness/c2_linux_depth_probe.py",
+          "--fixture",
+          "/workspace/c2-fixture.bin",
+          "--single-depth",
+          "1",
+          "--out",
+          "/workspace/c2-f1-primitive-1/b0-p0-d1.json"
+        ],
+        "file": "b0-p0-d1.json",
+        "status": "finished",
+        "watch": {
+          "arm": "A",
+          "round": 1,
+          "run": 0,
+          "label": "C2 primitive synthetic",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power",
+            "foreign_reads"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792335921.6391594,
+            "ram_available_bytes": 31322968064,
+            "commit_charge": {
+              "used_bytes": 1783406592,
+              "limit_bytes": 25258491904
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 10,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792335939.8608484,
+            "ram_available_bytes": 30902624256,
+            "commit_charge": {
+              "used_bytes": 1791913984,
+              "limit_bytes": 25258491904
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 10,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 180 to 2535 MHz over 10 samples; clock event reasons seen: none",
+            "samples": 10,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 180,
+              "median": 2535.0,
+              "max": 2535
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.2329546734690666e-06,
+                "sleep_offset_end_s": -1.0129879228770733e-06,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 11 power samples, so on mains",
+              "evidence": {
+                "samples": 11,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "ok",
+              "reason": "at most 2805760 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+              "evidence": {
+                "model_path": "/workspace/c2-fixture.bin",
+                "device": "nvme0n1",
+                "disk_read_bytes_start": 819651838464,
+                "disk_read_bytes_end": 840861045248,
+                "other_disk_read_bytes_start": 0,
+                "other_disk_read_bytes_end": 0,
+                "own_read_bytes": 21206401024,
+                "foreign_read_bytes": 2805760,
+                "foreign_read_bytes_min": 2805760,
+                "foreign_read_bytes_max": 2805760,
+                "uninspectable_processes": 0
+              },
+              "readers": [],
+              "unattributed_bytes": 2805760
+            }
+          }
+        },
+        "exit_code": 1
+      }
+    ]
+  ],
+  "complete": false,
+  "errors": [
+    "RuntimeError('b0-p0-d1 invalid; retain whole sequence and stop')"
+  ],
+  "admission_sha256": "ded6b0bbd26075e070de0726a3f464db2f7d73205b32d2cfdec4ac9c7b6dad32",
+  "git_sha": "0a3ff8058e80c446711af17e1050624d814d427b",
+  "device": "nvme0n1",
+  "max_blocks": 20,
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "cache_before": null,
+  "decision": {
+    "verdict": "NO VERDICT"
+  }
+}
