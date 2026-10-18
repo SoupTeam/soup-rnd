@@ -1,7 +1,8 @@
 # D1: исходные измерения и архив
 
 Исходные данные вынесены из diff PR #16 в отдельную архивную ветку.
-Текущий результат: [итоговый отчёт](d1-final-result-20261016.md).
+Текущий результат: [итоговый отчёт](d1-final-result-20261016.md) и
+[последнее продолжение F1](d1-review-followup-20261019.md).
 Код и тесты исследования остаются в PR; архивирование не меняет результаты
 и не закрывает открытый критерий скорости (**NO_VERDICT**).
 
@@ -32,7 +33,9 @@ git clone --depth 1 --single-branch --branch koko/d1-evidence-archive-20261018 \
   https://github.com/SoupTeam/soup-rnd.git d1-evidence-archive
 cd d1-evidence-archive
 git rev-parse HEAD
-# Expected: fa551398c457fbe52bcb148db90c75c3868b4afd
+# The branch also contains later follow-ups; original root is pinned below.
+git fetch --depth 1 origin fa551398c457fbe52bcb148db90c75c3868b4afd
+git checkout fa551398c457fbe52bcb148db90c75c3868b4afd
 python restore.py --output ../d1-evidence-restored
 ```
 

@@ -3,8 +3,9 @@
 Updated 2026-10-19 against the [reviewer's remaining-work list](https://github.com/SoupTeam/soup-rnd/pull/16#issuecomment-6253790872)
 and the [original #842 scope](https://github.com/MakazhanAlpamys/Soup/issues/842).
 This ledger describes evidence, not an owner decision to narrow or close the task.
-Latest [bounded GPU follow-up](d1-review-followup-20261019.md): A100 dX failed;
-the separate RTX lease did not start in its short window. Both rentals released.
+Latest [bounded GPU follow-up](d1-review-followup-20261019.md): two additional RTX
+3090 cohorts passed correctness but failed the unchanged clock guard. Both are
+exported and released. VM allocation was refused before any lease/CUDA execution.
 
 ## Current decision
 
@@ -17,10 +18,10 @@ An accepted performance comparison may show a speedup, a slowdown or no change.
 
 | Requirement | Evidence/status | Remaining action |
 |---|---|---|
-| Changelog | `changelog.d/0.75.1/16.added.md` describes the bounded research scope; fragment validator and 137 focused D1/changelog checks pass | Done; evaluate final-head CI separately |
+| Changelog | `changelog.d/0.75.1/16.added.md` describes the bounded research scope; fragment validator and 141 focused D1/changelog checks pass | Done; evaluate final-head CI separately |
 | Checkpoint-visible tensor state | All six frozen NF4 tensors use `save_for_backward`; no frozen tensor on plain `ctx` | Extend controls for any newly supported cohort |
 | Large recycled-buffer control | Nested BF16 `(128,32768,12288)`, 192 MiB packed buffer, two recomputations; forward and dX exact, finite differing plain-ctx control | Other accepted hardware/dtype cohorts need their own evidence |
-| Formal full-step performance | Historical first ABBA block rejected for primary/reference clock spread; **NO_VERDICT**, zero accepted blocks | Valid fresh-process interleaved blocks, same-session GEMM and all telemetry under the existing rule |
+| Formal full-step performance | Historical and both new RTX cohorts: **NO_VERDICT**, zero accepted blocks due to >5% primary/reference clock spread | Valid fresh-process interleaved blocks on a suitable clock-stable host; controller now stops after any invalid block |
 | Broader coverage | Limited matrix below; historical native/forced-Function results are not new-kernel coverage | Complete applicable gates or obtain an explicit owner decision narrowing this deliverable and leaving exclusions open |
 | Full-task acceptance | No owner sign-off narrowing coverage; performance not resolved | Keep D1/#842 open; record reviewer/owner decision explicitly |
 
@@ -115,7 +116,7 @@ clock-spread block and its NO_VERDICT; new UUID/source/date is a new cohort.
    power, suspend/foreign-read validity, peer lifecycle, SM clocks and memory-
    controller utilization. Measure the same-session dense GEMM after primary peaks
    with the preregistered warmup/duration. Apply the unchanged <=5% clock guard.
-4. Stop on invalid first block. After five valid blocks apply existing F1 sizing;
+4. Stop after the first invalid block, at any index. After five valid blocks apply existing F1 sizing;
    if more are required, retain NO_VERDICT rather than automatically extending.
 5. Export raw records and tensors with hashes, replay them independently and
    release only this D1 rental. Do not touch another team's/account's instance.
@@ -130,3 +131,9 @@ provider charges are $0.059; latest cumulative snapshot **$8.430/$10**, remainin
 **$1.570**, billing may update. Source is `28b0b724`, unchanged rules, separate
 UUID/cohorts with independent local/container cleanup guards. No GPU work remains running.
 No owner acceptance of excluded coverage is inferred from API access or green CI.
+
+Latest finish-session snapshot: **$8.502/$10**, remaining **$1.498**, billing may
+update. RTX leases56610875 and56613719 are exported/deleted; failed VM request
+created no lease. No GPU work remains running. Executed source was `e274b7e2`;
+the later controller-only early-stop fix has CPU regression/mutation checks and
+does not count as a new CUDA run or validate the rejected timing records.

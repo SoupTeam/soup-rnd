@@ -400,8 +400,8 @@ def run(args: argparse.Namespace) -> dict:
                 write_new_json(args.output / "summary.json", result)
                 return result
         provisional = summarize(rows)
-        # Stop on invalid first block rather than repeat a known-bad environment.
-        if block == 0 and not provisional["comparisons"][0]["accepted_blocks"]:
+        # A later invalid block also ends this cohort; never spend on known-bad timing.
+        if any(item["rejected_blocks"] for item in provisional["comparisons"]):
             result = {**provisional, "rows": rows, "stopped_early": True}
             write_new_json(args.output / "summary.json", result)
             return result
