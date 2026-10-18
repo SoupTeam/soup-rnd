@@ -217,3 +217,15 @@ and instance 56573182 destroyed. API confirmation at 15:22:09 UTC showed no C2
 instances remaining (`pause-cleanup.json`). No host-D fixture, model or timing
 was produced. No task PR was opened. Work stays paused until an explicit resume;
 the durable checkpoint and remaining steps are in `c2-resume-20261018.md`.
+
+## User resume and prospective host E — 2026-10-18
+
+The user explicitly resumed work after the pause. Native D was no longer
+available. Host E is a new independent attempt: instance 56584163, offer
+56410758, machine 137733. Provider claims: whole GPU (`gpu_frac=1`), RTX 3090,
+Ryzen 5 7600X, 31,189 MB RAM, WD_BLACK SN850X 2000GB, 300 GB allocated disk,
+$0.611111/hour. Verify natively before admitting it. Use the same eleven pinned
+versions, fixture, F1 repeat rule, sensor accounting and decision thresholds.
+Maximum E rental: 55 minutes from provider start 1792341456.849 UTC Unix
+seconds, including setup and evidence download. The overall attempt cap remains
+$1 including earlier rentals. No host-E performance arm exists at commit.
