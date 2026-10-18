@@ -1,0 +1,133 @@
+{
+  "date": "2026-10-18",
+  "status": "GPU_CORRECTNESS_PASS",
+  "production_streamed_tests": 8,
+  "kernel_regressions": 8,
+  "oracle_precisions": [
+    "bf16",
+    "fp16"
+  ],
+  "training_tensor_comparisons": 1832,
+  "oracle_tensor_comparisons": 116,
+  "all_stored_pairs_exact_in_finite_fixtures": true,
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "cc": [
+      8,
+      6
+    ],
+    "torch": "2.11.0+cu126",
+    "cuda": "12.6",
+    "packages": {
+      "transformers": "5.17.0",
+      "peft": "0.20.0",
+      "trl": "0.29.1",
+      "bitsandbytes": "0.50.1",
+      "accelerate": "1.14.0",
+      "datasets": "4.7.0"
+    },
+    "source_files_verified": 1536,
+    "source_verified": true
+  },
+  "jobs": [
+    {
+      "name": "production-streaming",
+      "exit_code": 0,
+      "seconds": 51.20747900009155,
+      "command": [
+        "/root/d2/main/bin/python",
+        "-m",
+        "pytest",
+        "tests/test_fast_lora_streaming.py",
+        "-m",
+        "gpu",
+        "--no-cov",
+        "-q",
+        "--tb=short",
+        "--basetemp=/root/d2/test-temp",
+        "--junitxml=/root/d2/results/production-streaming.xml"
+      ]
+    },
+    {
+      "name": "fast-lora-gpu-regressions",
+      "exit_code": 0,
+      "seconds": 5.424302101135254,
+      "command": [
+        "/root/d2/main/bin/python",
+        "-m",
+        "pytest",
+        "tests/test_issue839_fast_lora_single_projection.py",
+        "tests/test_issue838_fast_lora_qkv.py",
+        "tests/test_issue837_fast_lora_mlp.py",
+        "-m",
+        "gpu",
+        "--no-cov",
+        "-q",
+        "--tb=short",
+        "--junitxml=/root/d2/results/fast-lora-gpu-regressions.xml"
+      ]
+    },
+    {
+      "name": "stream-oracle-bf16",
+      "exit_code": 0,
+      "seconds": 4.622554063796997,
+      "command": [
+        "/root/d2/main/bin/python",
+        "benchmarks/harness/d2_stream_probe.py",
+        "--device",
+        "cuda:0",
+        "--dtype",
+        "bf16",
+        "--output-dir",
+        "/root/d2/results/stream-oracle-bf16"
+      ]
+    },
+    {
+      "name": "stream-oracle-fp16",
+      "exit_code": 0,
+      "seconds": 4.7231340408325195,
+      "command": [
+        "/root/d2/main/bin/python",
+        "benchmarks/harness/d2_stream_probe.py",
+        "--device",
+        "cuda:0",
+        "--dtype",
+        "fp16",
+        "--output-dir",
+        "/root/d2/results/stream-oracle-fp16"
+      ]
+    }
+  ],
+  "source_audit": {
+    "status": "PASS",
+    "executed_source_files_matching_current_tree": 1536,
+    "payload_files_verified": 64,
+    "source_zip_sha256": "b5856643cb8090404ef9f21d5cc5d8fd7132aa5f6414333a62963975f721b900",
+    "evidence_zip_crc": "PASS",
+    "line_ending_normalization": "UTF-8 text CRLF to LF only"
+  },
+  "observed_usd": 0.07300000000000001,
+  "all_instances_deleted": true,
+  "no_performance_or_quality_claim": true,
+  "cpu_final": {
+    "groups": [
+      {
+        "file": "cpu-final-in-process.xml",
+        "tests": 650,
+        "skipped": 30,
+        "failures": 0,
+        "seconds": 236.075
+      },
+      {
+        "file": "cpu-validity-final.xml",
+        "tests": 12,
+        "skipped": 0,
+        "failures": 0,
+        "seconds": 168.777
+      }
+    ],
+    "passed": 632,
+    "skipped": 30,
+    "disjoint_invocations": true
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-18",
+  "scope": "Local integration of Fast-LoRA into Soup streamed Llama SFT",
+  "paid_runs": 0,
+  "gpu_available": false,
+  "new_streaming_tests": {
+    "command": ".venv\\Scripts\\python.exe -m pytest tests/test_fast_lora_streaming.py --no-cov -q --tb=short --junitxml=benchmarks/evidence/d2-fast-lora-streaming-20261018/streaming-tests.xml",
+    "passed": 11,
+    "skipped": 4,
+    "failed": 0,
+    "seconds": 38.55,
+    "skip_reason": "CUDA variants require a physical CUDA device"
+  },
+  "regressions": [
+    {
+      "file_selection_powershell": "$d2Tests = rg --files tests | Where-Object { $_ -match 'fast_lora|streamed|streaming|stream_dtype|stream_pin|stream_multi_gpu|test_config.py$|test_issue691_sft_packing.py$' }",
+      "command": ".venv\\Scripts\\python.exe -m pytest @d2Tests --no-cov -q --tb=short",
+      "passed": 620,
+      "skipped": 26,
+      "failed": 0,
+      "seconds": 304.79,
+      "includes_new_streaming_tests": true
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m pytest tests/test_issue621_recipe_snapshot.py tests/test_issue748_config_fields_reach_a_consumer.py tests/test_issue808_staged_config_fields.py tests/test_issue353_seed_every_task.py tests/test_no_foreign_license_headers.py --no-cov -q --tb=short",
+      "passed": 419,
+      "skipped": 0,
+      "failed": 0,
+      "seconds": 102.25
+    }
+  ],
+  "lint": {
+    "command": ".venv\\Scripts\\python.exe -m ruff check src/soup_cli/ scripts/ tests/ benchmarks/",
+    "exit_code": 0
+  },
+  "not_established": [
+    "CUDA correctness of this production trainer integration",
+    "GPU throughput benefit",
+    "GPU peak memory reduction",
+    "SQuAD task quality",
+    "Streaming support for architectures other than Llama"
+  ],
+  "phase": "historical_cpu_only_before_gpu_diagnosis",
+  "superseded_by": "gpu-validation.json"
+}

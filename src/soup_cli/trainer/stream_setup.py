@@ -643,6 +643,8 @@ class StreamingSetupMixin:
         model_config = AutoConfig.from_pretrained(
             cfg.base, trust_remote_code=self._trust_remote_code
         )
+        if getattr(tcfg, "fast_lora", False) and model_config.model_type != "llama":
+            raise ValueError("training.fast_lora initially supports Llama models only")
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)
@@ -1087,6 +1089,17 @@ class StreamingSetupMixin:
         )
         self.model = model
         self._stream_runtime = runtime
+        if getattr(tcfg, "fast_lora", False):
+            from soup_cli.utils.fast_lora_training import apply_fast_lora_training
+
+            # Patch after the streamed wrappers exist, before the VRAM probe:
+            # the probe must execute the same graph as training. Each forward
+            # reads the temporary functional_call weights, never the meta base.
+            try:
+                apply_fast_lora_training(model, streaming=True)
+            except BaseException:
+                self._close_stream_runtime()
+                raise
         if probe_plan is not None:
             self._run_stream_vram_probe(model, probe_plan)
         stats = runtime.stats()

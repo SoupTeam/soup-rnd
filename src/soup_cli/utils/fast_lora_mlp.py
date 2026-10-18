@@ -9,6 +9,9 @@ can select separate reference arithmetic for low-precision X/fp32 adapters.
 fusion. Only the parent's read-only output observers are supported in this scope;
 inner hooks, replaced forwards/activations and autocast opt out. The separate
 GEMMs are a correctness trade-off, not universal bit-exactness or a speedup claim.
+
+Dense and supported NF4 autocast have a cast-preserving manual backward. Adapter GEMMs
+remain separate so their BF16/FP16 rounding matches the actual forward graph.
 """
 
 from __future__ import annotations
@@ -19,11 +22,16 @@ from typing import Any
 
 from soup_cli.utils.fast_lora import (
     _FORWARD_OWNER_MARKER,
+    _amp_adapter_backward,
+    _amp_base_backward,
+    _amp_input_accumulation_dtype,
     _as_dtype,
     _base_linear,
     _dense_weight,
     _flatten,
     _is_supported_lora_projection,
+    _nf4_autocast_requires_fallback,
+    _projection_autocast_dtype,
     _projection_forward_matches,
     _projection_state,
     _reference_hooks,
@@ -62,6 +70,11 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
         ):
             ctx.reference_order = reference_order
             metas = (qg_meta, qu_meta, qd_meta)
+            ctx.amp_dtype = _projection_autocast_dtype(x)
+            ctx.amp_input_dtype = (
+                x.dtype if any(meta is not None for meta in metas)
+                else _amp_input_accumulation_dtype(x, (ag, au), ctx.amp_dtype)
+            )
             # NF4 uses separate adapter projections and input-gradient edges;
             # its rounding contract is independent of the canonical dense guard.
             ctx.nf4_projection_order = all(meta is not None for meta in metas)
@@ -83,7 +96,7 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
             if gu_parts:
                 # #837's advertised fusion: gate/up LoRA A projections share X,
                 # so concatenate A and perform one GEMM, then split by rank.
-                if reference_order or ctx.nf4_projection_order:
+                if reference_order or ctx.nf4_projection_order or ctx.amp_dtype is not None:
                     h_gu = torch.cat([
                         functional.linear(_as_dtype(x, a.dtype), a) for a in gu_parts
                     ], dim=-1)
@@ -142,6 +155,54 @@ def _mlp_function(*, reference_order: bool = False) -> Any:
             qd = qparts[cg + cu : cg + cu + cd]
             has_g, has_u, has_d = ctx.has_adapters
             sg, su, sd = ctx.scalings
+
+            if ctx.amp_dtype is not None:
+                silu_g = torch.nn.functional.silu(g)
+                m = silu_g * u
+                grad_ad = grad_bdl = None
+                grad_m = _amp_base_backward(m, wd, grad_y, ctx.amp_dtype, qd_meta, qd)
+                if has_d:
+                    with torch.autocast(x.device.type, enabled=False):
+                        hd = torch.matmul(m.to(ctx.amp_dtype), ad.to(ctx.amp_dtype).t())
+                    grad_ad, grad_bdl, adapter_dm = _amp_adapter_backward(
+                        m, ad, bdl, hd, grad_y, sd, ctx.amp_dtype, True
+                    )
+                    grad_m = adapter_dm + grad_m
+                grad_u = grad_m * silu_g
+                grad_g = torch.ops.aten.silu_backward.default(grad_m * u, g)
+                grad_as, grad_bs, adapter_dx = [None] * 2, [None] * 2, [None] * 2
+                cursor = 0
+                for i, (has, a, b, grad, scale, rank) in enumerate((
+                    (has_g, ag, bgl, grad_g, sg, ctx.gu_ranks[0]),
+                    (has_u, au, bul, grad_u, su, ctx.gu_ranks[1]),
+                )):
+                    if has:
+                        hi = h_gu[..., cursor : cursor + rank].contiguous()
+                        cursor += rank
+                        grad_as[i], grad_bs[i], adapter_dx[i] = _amp_adapter_backward(
+                            x, a, b, hi, grad, scale, ctx.amp_dtype, ctx.needs_input_grad[0]
+                        )
+                grad_x = None
+                if ctx.needs_input_grad[0]:
+                    for i, grad, weight, meta, parts in (
+                        (1, grad_u, wu, qu_meta, qu), (0, grad_g, wg, qg_meta, qg),
+                    ):
+                        terms = []
+                        if adapter_dx[i] is not None:
+                            terms.append(adapter_dx[i])
+                        terms.append(
+                            _amp_base_backward(x, weight, grad, ctx.amp_dtype, meta, parts)
+                        )
+                        for term in terms:
+                            term = term.to(ctx.amp_input_dtype)
+                            grad_x = term if grad_x is None else grad_x + term
+                    grad_x = grad_x.to(x.dtype)
+                return (
+                    grad_x, None, None, None, None, None, None,
+                    grad_as[0], grad_bs[0], grad_as[1], grad_bs[1], grad_ad, grad_bdl,
+                    None, None, None, None, None, None,
+                    *([None] * ctx.qparts_len),
+                )
 
             silu_g = torch.nn.functional.silu(g)
             m = silu_g * u
@@ -296,6 +357,8 @@ def _make_mlp_forward(original_forward: Any) -> Any:
             for name in ("gate_proj", "up_proj", "down_proj")
         ]
         if any(state is None for state in states):
+            return original_forward(x)
+        if _nf4_autocast_requires_fallback(x, states):
             return original_forward(x)
         # Concatenating A matrices promotes their dtype. Separate PEFT
         # projections cast each input independently; preserve that behavior

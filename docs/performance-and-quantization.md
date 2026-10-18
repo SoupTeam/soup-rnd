@@ -6,6 +6,7 @@
 
 **Contents:**
 
+- [Experimental Fast-LoRA in SFT](#experimental-fast-lora-in-sft)
 - [Experimental CUDA graph decoding](#experimental-cuda-graph-decoding)
 - [Quantization-Aware Training (QAT)](#quantization-aware-training-qat)
 - [Experimental QuEST mixed W4/A4+A16 route](#experimental-quest-mixed-w4a4a16-route)
@@ -32,6 +33,48 @@
 - [Quant Menu II + Export Pipeline (v0.53.1)](#quant-menu-ii--export-pipeline-v0531)
 
 ---
+
+## Experimental Fast-LoRA in SFT
+
+`training.fast_lora: true` installs Soup's Fast-LoRA MLP, QKV and single-projection
+operations in the regular SFT trainer after PEFT attaches the adapter. It keeps the
+same trainable parameters, optimizer and saved PEFT adapter format. It is off by default.
+
+```yaml
+base: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+task: sft
+backend: transformers
+data:
+  train: train.jsonl
+training:
+  quantization: none
+  fast_lora: true
+  lora:
+    r: 16
+    alpha: 16
+    dropout: 0.0
+```
+
+The scope is Llama text SFT with one ordinary LoRA adapter and frozen base weights:
+resident unquantized weights, or layer streaming with dense or 4-bit NF4 weights.
+To stream, set `stream_layers: true`, a concrete `batch_size`, and
+`quantization: none` or `4bit` alongside `fast_lora: true`. The operations are
+installed before the optional measured streaming VRAM pre-flight. Streaming
+keeps its layer checkpointing and reusable weight buffers; decoder weights stay
+off the device outside the pool. Both RAM and disk sources have local CPU tests.
+Boolean gradient checkpointing is supported on the resident path.
+Resident quantized weights, other backends/tasks, nonzero adapter dropout,
+LoRA variants, and combinations with Liger/Cut-CE or the other explicitly rejected
+training transformations fail with an error. Other model architectures are refused
+at model setup. Distributed training has not been validated for this option.
+
+Local CPU checks cover real Soup/TRL training, gradients, checkpointing and loading
+the saved adapter with ordinary PEFT. They do not establish a GPU speed or memory
+benefit. The streaming implementation, example configuration and CPU/GPU verification
+boundaries are in [the streaming report](../benchmarks/d2-fast-lora-streaming-20261018.md).
+The synthetic four-layer/two-buffer RTX 3090 checks pass for FP16/BF16 and
+dense/NF4 weights on RAM and disk. Real-data speed, peak VRAM and task quality
+are still unmeasured for this integration.
 
 ## Experimental CUDA graph decoding
 

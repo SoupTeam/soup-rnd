@@ -84,6 +84,94 @@ def _flatten(tensor: Any) -> Any:
     return tensor.reshape(-1, tensor.shape[-1])
 
 
+def _projection_autocast_dtype(x: Any) -> Any:
+    """Record adapter GEMM dtype, including NF4 bases with FP32 master adapters."""
+    import torch
+
+    if (
+        x.device.type != "meta"
+        and x.dtype != torch.float64
+        and torch.is_autocast_enabled(x.device.type)
+    ):
+        return torch.get_autocast_dtype(x.device.type)
+    return None
+
+
+def _amp_input_accumulation_dtype(x: Any, adapters: Any, dtype: Any) -> Any:
+    """Autocast reuses the cast of an eligible FP32 leaf across its GEMMs.
+
+    Those branches meet before the single cast backward. Non-leaves, views,
+    disabled caching and explicit low-precision adapter input casts instead
+    have separate cast backwards before accumulation in the original dtype.
+    """
+    import torch
+
+    if (
+        dtype is not None and x.dtype == torch.float32 and x.requires_grad
+        and x.is_leaf and not x._is_view() and torch.is_autocast_cache_enabled()
+        and all(a.dtype == torch.float32 for a in adapters if a.numel())
+    ):
+        return dtype
+    return x.dtype
+
+
+def _nf4_autocast_requires_fallback(x: Any, states: Any) -> bool:
+    """Keep FP32/shared-cast or mixed-compute NF4 graphs on PEFT's own graph.
+
+    Streamed Llama uses the same half dtype for activations and base compute.
+    A different input dtype introduces extra cast/accumulation boundaries that
+    the manual NF4 AMP backward does not model.
+    """
+    if x.device.type == "meta" or not any(state.qmeta is not None for state in states):
+        return False
+    import torch
+
+    if not torch.is_autocast_enabled(x.device.type):
+        return False
+    return any(
+        state.qmeta is not None and (
+            x.dtype != torch.get_autocast_dtype(x.device.type)
+            or state.compute_dtype not in (None, x.dtype)
+        )
+        for state in states
+    )
+
+
+def _amp_adapter_backward(
+    x: Any, a: Any, b: Any, hidden: Any, grad: Any, scaling: float,
+    dtype: Any, needs_input_grad: bool,
+) -> tuple[Any, Any, Any]:
+    """Differentiate the actual autocast GEMMs, including their cast edges.
+
+    PEFT's FP32 master parameters are narrowed for the forward GEMMs. Their
+    backward GEMMs also run in that narrow dtype, then cast gradients back to
+    the master/input dtype. Computing dH/dA in FP32 changes the optimizer update.
+    """
+    import torch
+
+    with torch.autocast(x.device.type, enabled=False):
+        scaled = _as_dtype(grad, dtype) * scaling
+        grad_b = _flatten(scaled).t() @ _flatten(_as_dtype(hidden, dtype))
+        grad_h = torch.matmul(scaled, _as_dtype(b, dtype))
+        grad_a = _flatten(grad_h).t() @ _as_dtype(_flatten(x), dtype)
+        grad_x = torch.matmul(grad_h, _as_dtype(a, dtype)) if needs_input_grad else None
+    return (
+        grad_a.to(a.dtype), grad_b.to(b.dtype),
+        None if grad_x is None else grad_x.to(x.dtype),
+    )
+
+
+def _amp_base_backward(
+    x: Any, weight: Any, grad: Any, dtype: Any,
+    qmeta: dict[str, Any] | None = None, qparts: Any = (),
+) -> Any:
+    import torch
+
+    with torch.autocast(x.device.type, enabled=False):
+        dense = _dense_weight(weight, qmeta, qparts, dtype)
+        return torch.matmul(_as_dtype(grad, dtype), dense).to(x.dtype)
+
+
 def _quant_state_parts(quant_state: Any) -> tuple[list[Any], dict[str, Any]]:
     """Split a ``QuantState`` into ``save_for_backward`` tensors and metadata.
 
@@ -542,6 +630,11 @@ def _single_projection_function() -> Any:
         ):
             import torch.nn.functional as functional
 
+            ctx.amp_dtype = _projection_autocast_dtype(x)
+            ctx.amp_input_dtype = (
+                x.dtype if quant_state is not None
+                else _amp_input_accumulation_dtype(x, (lora_a,), ctx.amp_dtype)
+            )
             h = functional.linear(_as_dtype(x, lora_a.dtype), lora_a)  # [N, r]
             if quant_state is None:
                 out = functional.linear(x, weight, bias)
@@ -570,6 +663,21 @@ def _single_projection_function() -> Any:
             # unpacked once. Reuse this tuple for the NF4 state as well.
             saved = ctx.saved_tensors
             x, weight, lora_a, lora_b, h = saved[:5]
+
+            if ctx.amp_dtype is not None:
+                grad_a, grad_b, grad_x = _amp_adapter_backward(
+                    x, lora_a, lora_b, h, grad_out, scaling,
+                    ctx.amp_dtype, ctx.needs_input_grad[0],
+                )
+                if ctx.needs_input_grad[0]:
+                    base_dx = _amp_base_backward(
+                        x, weight, grad_out, ctx.amp_dtype, ctx.qmeta, list(saved[5:])
+                    )
+                    grad_x = (
+                        grad_x.to(ctx.amp_input_dtype) + base_dx.to(ctx.amp_input_dtype)
+                    ).to(x.dtype)
+                gradients = (grad_x, None, None, grad_a, grad_b, None, None)
+                return gradients + (None,) if len(ctx.needs_input_grad) == 8 else gradients
 
             # dB sums over every leading dimension, so flatten it; dB and dA
             # are weight-shaped regardless of the input's rank.
@@ -616,6 +724,8 @@ def _make_patched_forward(original_forward: Any) -> Any:
             return original_forward(x, *args, **kwargs)
         state = _projection_state(self, x)
         if state is None:
+            return original_forward(x)
+        if _nf4_autocast_requires_fallback(x, (state,)):
             return original_forward(x)
 
         input_dtype = x.dtype

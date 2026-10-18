@@ -1,0 +1,76 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+_ test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-float16-single] _
+tests\test_fast_lora_amp.py:122: in test_nf4_autocast_master_gradients_and_fp32_input_fallback
+    assert custom and all(node.amp_dtype == dtype for node in custom)
+E   assert ([<torch.autograd.function._FastLoraSingleProjectionBackward object at 0x000001C0C522A640>] and False)
+E    +  where False = all(<generator object test_nf4_autocast_master_gradients_and_fp32_input_fallback.<locals>.<genexpr> at 0x000001C0C524B4C0>)
+_ test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-float16-qkv] _
+tests\test_fast_lora_amp.py:105: in test_nf4_autocast_master_gradients_and_fp32_input_fallback
+    torch.autograd.backward(output, upstream)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\__init__.py:395: in backward
+    _engine_run_backward(
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\graph.py:979: in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:325: in apply
+    return user_fn(self, *args)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:652: in wrapper
+    outputs = fn(ctx, *args, **kwargs)
+benchmarks\results\d2-fast-lora\streaming-prep-20261018\mutation-src\soup_cli\utils\fast_lora_qkv.py:234: in backward
+    grad_bs[i] = _flatten(scaled).t() @ _flatten(hi)
+E   RuntimeError: expected m1 and m2 to have the same dtype, but got: float != struct c10::Half
+_ test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-float16-mlp] _
+tests\test_fast_lora_amp.py:105: in test_nf4_autocast_master_gradients_and_fp32_input_fallback
+    torch.autograd.backward(output, upstream)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\__init__.py:395: in backward
+    _engine_run_backward(
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\graph.py:979: in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:325: in apply
+    return user_fn(self, *args)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:652: in wrapper
+    outputs = fn(ctx, *args, **kwargs)
+benchmarks\results\d2-fast-lora\streaming-prep-20261018\mutation-src\soup_cli\utils\fast_lora_mlp.py:248: in backward
+    gb = _flatten(scaled).t() @ _flatten(hi)
+E   RuntimeError: expected m1 and m2 to have the same dtype, but got: float != struct c10::Half
+_ test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-bfloat16-single] _
+tests\test_fast_lora_amp.py:122: in test_nf4_autocast_master_gradients_and_fp32_input_fallback
+    assert custom and all(node.amp_dtype == dtype for node in custom)
+E   assert ([<torch.autograd.function._FastLoraSingleProjectionBackward object at 0x000001C0C4EE3740>] and False)
+E    +  where False = all(<generator object test_nf4_autocast_master_gradients_and_fp32_input_fallback.<locals>.<genexpr> at 0x000001C0C54185F0>)
+_ test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-bfloat16-qkv] _
+tests\test_fast_lora_amp.py:105: in test_nf4_autocast_master_gradients_and_fp32_input_fallback
+    torch.autograd.backward(output, upstream)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\__init__.py:395: in backward
+    _engine_run_backward(
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\graph.py:979: in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:325: in apply
+    return user_fn(self, *args)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:652: in wrapper
+    outputs = fn(ctx, *args, **kwargs)
+benchmarks\results\d2-fast-lora\streaming-prep-20261018\mutation-src\soup_cli\utils\fast_lora_qkv.py:234: in backward
+    grad_bs[i] = _flatten(scaled).t() @ _flatten(hi)
+E   RuntimeError: expected m1 and m2 to have the same dtype, but got: float != struct c10::BFloat16
+_ test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-bfloat16-mlp] _
+tests\test_fast_lora_amp.py:105: in test_nf4_autocast_master_gradients_and_fp32_input_fallback
+    torch.autograd.backward(output, upstream)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\__init__.py:395: in backward
+    _engine_run_backward(
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\graph.py:979: in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:325: in apply
+    return user_fn(self, *args)
+..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\autograd\function.py:652: in wrapper
+    outputs = fn(ctx, *args, **kwargs)
+benchmarks\results\d2-fast-lora\streaming-prep-20261018\mutation-src\soup_cli\utils\fast_lora_mlp.py:248: in backward
+    gb = _flatten(scaled).t() @ _flatten(hi)
+E   RuntimeError: expected m1 and m2 to have the same dtype, but got: float != struct c10::BFloat16
+=========================== short test summary info ===========================
+FAILED tests/test_fast_lora_amp.py::test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-float16-single]
+FAILED tests/test_fast_lora_amp.py::test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-float16-qkv]
+FAILED tests/test_fast_lora_amp.py::test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-float16-mlp]
+FAILED tests/test_fast_lora_amp.py::test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-bfloat16-single]
+FAILED tests/test_fast_lora_amp.py::test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-bfloat16-qkv]
+FAILED tests/test_fast_lora_amp.py::test_nf4_autocast_master_gradients_and_fp32_input_fallback[half-bfloat16-mlp]
+6 failed, 46 deselected in 10.83s

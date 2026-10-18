@@ -16,6 +16,10 @@ mutating hooks and rewritten inner projections are not in this reference scope.
 This relinquishes grouped GEMM fusion in that path, not a performance promise or
 a guarantee of bit-exactness on other graphs, schedulers or devices.
 
+Dense and supported NF4 autocast use separate adapter GEMMs. The manual backward preserves
+the forward GEMM dtype and each cast/gradient-accumulation boundary; this mode
+is distinct from the guarded non-autocast reference scope above.
+
 A lone q_proj call intentionally retains one {x, k, v} graph until backward,
 the next q call or unpatch. That is bounded to one attention module rather than a leak,
 but callers doing projection-only probes should unpatch or issue the normal
@@ -32,11 +36,16 @@ from typing import Any
 from soup_cli.utils.fast_lora import (
     _FORWARD_OWNER_MARKER,
     _GROUP_PATCH_OWNER_MARKER,
+    _amp_adapter_backward,
+    _amp_base_backward,
+    _amp_input_accumulation_dtype,
     _as_dtype,
     _base_linear,
     _dense_weight,
     _flatten,
     _is_supported_lora_projection,
+    _nf4_autocast_requires_fallback,
+    _projection_autocast_dtype,
     _projection_state,
     _reference_parent,
     _reference_projections,
@@ -95,6 +104,11 @@ def _qkv_function(*, reference_order: bool = False) -> Any:
             ctx.set_materialize_grads(False)
             ctx.reference_order = reference_order
             metas = (qq_meta, qk_meta, qv_meta)
+            ctx.amp_dtype = _projection_autocast_dtype(x)
+            ctx.amp_input_dtype = (
+                x.dtype if any(meta is not None for meta in metas)
+                else _amp_input_accumulation_dtype(x, (aq, ak, av), ctx.amp_dtype)
+            )
             # Packed NF4 bases keep PEFT's individually rounded projection edges.
             # Grouped adapter GEMMs can shift a low-precision update across a
             # rounding boundary even with identical packed weights. This math
@@ -115,7 +129,7 @@ def _qkv_function(*, reference_order: bool = False) -> Any:
             ranks = [a.shape[0] if a.numel() else 0 for a, _b, _s in adapters]
             present = [i for i, rank in enumerate(ranks) if rank]
             if present:
-                if reference_order or ctx.nf4_projection_order:
+                if reference_order or ctx.nf4_projection_order or ctx.amp_dtype is not None:
                     h = torch.cat([
                         functional.linear(_as_dtype(x, adapters[i][0].dtype), adapters[i][0])
                         for i in present
@@ -166,6 +180,41 @@ def _qkv_function(*, reference_order: bool = False) -> Any:
                 qparts[cq : cq + ck],
                 qparts[cq + ck : cq + ck + cv],
             )
+
+            if ctx.amp_dtype is not None:
+                grad_x = None
+                grad_as, grad_bs = [None] * 3, [None] * 3
+                adapter_dx = [None] * 3
+                cursor = 0
+                for i in ctx.present:
+                    rank = ctx.ranks[i]
+                    hi = h[..., cursor : cursor + rank].contiguous()
+                    cursor += rank
+                    if grads_out[i] is not None:
+                        grad_as[i], grad_bs[i], adapter_dx[i] = _amp_adapter_backward(
+                            x, *adapters[i], hi, grads_out[i], scalings[i],
+                            ctx.amp_dtype, ctx.needs_input_grad[0],
+                        )
+                if ctx.needs_input_grad[0]:
+                    for i in reversed(range(3)):
+                        if grads_out[i] is None:
+                            continue
+                        terms = []
+                        if adapter_dx[i] is not None:
+                            terms.append(adapter_dx[i])
+                        terms.append(_amp_base_backward(
+                            x, weights[i], grads_out[i], ctx.amp_dtype, ctx.qmetas[i], qlists[i]
+                        ))
+                        for term in terms:
+                            term = term.to(ctx.amp_input_dtype)
+                            grad_x = term if grad_x is None else grad_x + term
+                    grad_x = None if grad_x is None else grad_x.to(x.dtype)
+                return (
+                    grad_x, None, None, None, None, None, None,
+                    grad_as[0], grad_bs[0], grad_as[1], grad_bs[1], grad_as[2], grad_bs[2],
+                    None, None, None, None, None, None,
+                    *([None] * ctx.qparts_len),
+                )
 
             if ctx.reference_order or ctx.nf4_projection_order:
                 grad_x = None
@@ -410,6 +459,8 @@ def _install_attention_patch(attn: Any) -> None:
             for name in ("q_proj", "k_proj", "v_proj")
         ]
         if any(state is None for state in states):
+            return originals["q_proj"](x)
+        if _nf4_autocast_requires_fallback(x, states):
             return originals["q_proj"](x)
         input_key = _tensor_cache_key(x)
         state_keys = tuple(

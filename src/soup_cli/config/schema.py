@@ -3013,6 +3013,14 @@ class TrainingConfig(BaseModel):
         ge=0,
         description="Auxiliary load-balancing loss coefficient for MoE models",
     )
+    fast_lora: bool = Field(
+        default=False,
+        description=(
+            "Experimental Fast-LoRA autograd for Llama text SFT: resident dense weights "
+            "or layer streaming (dense/NF4). "
+            "Requires ordinary LoRA with dropout=0; no performance guarantee."
+        ),
+    )
     # Performance — Liger Kernel (fused operations)
     use_liger: bool = Field(
         default=False,
@@ -5879,6 +5887,41 @@ class SoupConfig(BaseModel):
                 f"training.train_on_eot=true requires task in "
                 f"{sorted(sft_family_tasks)}; got task={self.task!r}"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_fast_lora_training(self) -> "SoupConfig":
+        tcfg = self.training
+        if not tcfg.fast_lora:
+            return self
+        if self.task != "sft" or self.backend != "transformers" or self.modality != "text":
+            raise ValueError(
+                "training.fast_lora requires task=sft, backend=transformers, modality=text"
+            )
+        if tcfg.quantization != "none" and not (
+            tcfg.stream_layers and tcfg.quantization == "4bit"
+        ):
+            raise ValueError(
+                "training.fast_lora requires quantization=none, or streamed 4bit NF4"
+            )
+        lora = tcfg.lora
+        if lora.r <= 0 or lora.dropout != 0:
+            raise ValueError("training.fast_lora requires lora.r>0 and lora.dropout=0")
+        if (
+            lora.use_dora or lora.use_vera or lora.use_rslora or lora.use_olora
+            or lora.init_strategy != "random" or lora.target_parameters
+        ):
+            raise ValueError("training.fast_lora initially supports ordinary LoRA only")
+        incompatible = (
+            "use_liger", "use_cut_ce", "fp8_attention", "nvfp4", "quantization_aware",
+            "activation_offloading", "lisa_enabled", "unfrozen_parameters", "moe_lora",
+            "use_lorafa", "relora_steps",
+        )
+        for flag in incompatible:
+            if getattr(tcfg, flag, False):
+                raise ValueError(f"training.fast_lora cannot yet be combined with training.{flag}")
+        if type(tcfg.gradient_checkpointing) is not bool:
+            raise ValueError("training.fast_lora supports boolean gradient_checkpointing only")
         return self
 
     @model_validator(mode="after")
