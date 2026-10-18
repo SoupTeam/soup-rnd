@@ -71,13 +71,15 @@ def main() -> int:
     async_disk_source.AsyncDiskSource = source_type
     original_sink = stream_probe.Sink
     sinks = []
+    idle = None
+    idle_checked_unix = None
 
     class C2Sink(original_sink):
         def __init__(self, path: str, meta: dict) -> None:
             self.samples = []
             self.sample_errors = []
             self.stop_event = threading.Event()
-            self.idle = quiet(args.c2_diagnostic_writes)
+            self.idle = idle
             self.box_before = snapshot()
             self.samples.append((time.time(), counters()[args.c2_device]))
             self.thread = threading.Thread(target=self.observe, daemon=True)
@@ -96,6 +98,8 @@ def main() -> int:
                 raise RuntimeError("less than 4 GB MemAvailable")
             meta.update({
                 "c2_depth": args.c2_depth, "c2_benchmark_only": True,
+                "c2_idle_checked_unix": idle_checked_unix,
+                "c2_idle_phase": "before model construction and source prefetch",
                 "c2_diagnostic_writes": args.c2_diagnostic_writes,
                 "c2_diagnostic_protocol_sha256": (
                     hashlib.sha256(DIAGNOSTIC_PROTOCOL.read_bytes()).hexdigest()
@@ -165,6 +169,10 @@ def main() -> int:
     stream_probe.Sink = C2Sink
     result = 1
     try:
+        # Construction starts this process's own asynchronous prefetch. Check the
+        # host before starting it, rather than misclassifying it as foreign I/O.
+        idle = quiet(args.c2_diagnostic_writes)
+        idle_checked_unix = time.time()
         result = stream_probe.main()
     except BaseException as error:
         out.parent.mkdir(parents=True, exist_ok=True)

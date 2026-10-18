@@ -39,3 +39,15 @@ observed effect remains conditional on this host and its background activity;
 no claim of isolated SSD capacity, training quality or general acceleration.
 Even an effect passing every threshold is labeled DIAGNOSTIC ONLY by the driver.
 The original $1 total rental cap and host-E 55-minute limit remain in force.
+
+## Prospective step wrapper correction (after step-e1, before step-e2)
+
+The first step-e1 child stopped before warmup/timing: its idle check ran after
+model construction had started the benchmark's own asynchronous prefetch
+(41.8 MB/s reads). The entire failed sequence is retained and excluded. For the
+new separately named step-e2 sequence only, check the same five-second idle gate
+once before model construction/prefetch; record its timestamp and phase. No
+threshold, model, timed interval, F1 order or effect rule changes. The physical
+counter sampler still encloses every timed step and F1 watches the entire child.
+The primitive series already completed on the earlier source revision and is
+not rerun or pooled with replacement data.
