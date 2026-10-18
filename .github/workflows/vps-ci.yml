@@ -1,0 +1,95 @@
+name: VPS core CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  core:
+    name: VPS Windows core tests
+    if: vars.SOUP_VPS_CI_ENABLED == 'true' && github.repository == 'SoupTeam/soup-rnd' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, Windows, X64, soup-vps]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      HF_HUB_OFFLINE: '1'
+      HF_DATASETS_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify existing host and selected source
+        run: |
+          if (-not $env:SOUPZERO_CI_ROOT) { throw 'The owned CI host is not configured.' }
+          $preflight = Join-Path $env:SOUPZERO_CI_ROOT 'tools\Test-CiPrerequisites.ps1'
+          powershell -NoProfile -ExecutionPolicy Bypass -File $preflight -CiRoot $env:SOUPZERO_CI_ROOT
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $actual = & git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $env:GITHUB_SHA) { throw 'Checkout differs from selected main source.' }
+          $dirty = & git status --porcelain
+          if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Refusing a dirty initial checkout.' }
+          $output = Join-Path $env:RUNNER_TEMP "rnd-vps-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          if (Test-Path -LiteralPath $output) { throw 'Refusing an existing evidence directory.' }
+          New-Item -ItemType Directory -Path $output | Out-Null
+          @{ source_sha = $actual; tree_sha = (& git rev-parse 'HEAD^{tree}'); runner = $env:RUNNER_NAME; scope = 'core-only, not full unit or ML acceptance' } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'source.json') -Encoding utf8
+          "VPS_OUTPUT=$output" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "UV_CACHE_DIR=$(Join-Path $env:SOUPZERO_CI_ROOT 'cache\uv')" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.6'
+          enable-cache: false
+          cache-local-path: ${{ env.UV_CACHE_DIR }}
+      - name: Install core into a fresh isolated environment
+        run: |
+          $venv = Join-Path $env:VPS_OUTPUT 'venv'
+          uv venv --managed-python --python 3.12 $venv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = Join-Path $venv 'Scripts\python.exe'
+          uv pip install --python $python -e $env:GITHUB_WORKSPACE pytest==9.1.1 ruff==0.16.6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "VPS_PYTHON=$python" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Refuse an unexpectedly installed training stack
+        run: |
+          & $env:VPS_PYTHON -c "import importlib.util; names=('torch','transformers','peft','trl','mlx'); raise SystemExit(1 if any(importlib.util.find_spec(n) is not None for n in names) else 0)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Full-source lint
+        run: |
+          & $env:VPS_PYTHON -m ruff check src/soup_cli/ scripts/ tests/ benchmarks/ 2>&1 | Tee-Object -FilePath (Join-Path $env:VPS_OUTPUT 'ruff.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Existing core regression subset
+        run: |
+          & $env:VPS_PYTHON -m pytest -o addopts= -q tests/test_config.py tests/test_formats.py tests/test_registry.py tests/test_requires_python_bound.py tests/test_issue1414_ci_fork_badge.py --junitxml (Join-Path $env:VPS_OUTPUT 'pytest.xml') 2>&1 | Tee-Object -FilePath (Join-Path $env:VPS_OUTPUT 'pytest.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Require executed passing tests
+        run: |
+          [xml]$report = Get-Content -LiteralPath (Join-Path $env:VPS_OUTPUT 'pytest.xml') -Raw
+          $cases = @($report.SelectNodes('//testcase'))
+          $failures = @($report.SelectNodes('//testcase/failure | //testcase/error'))
+          $skips = @($report.SelectNodes('//testcase/skipped'))
+          $passed = $cases.Count - $failures.Count - $skips.Count
+          if ($passed -le 0 -or $failures.Count -gt 0) { throw 'No executed passing tests, or failures present.' }
+          @{ passed = $passed; failed = $failures.Count; skipped = $skips.Count } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $env:VPS_OUTPUT 'test-counts.json') -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        if: always() && env.VPS_OUTPUT != ''
+        with:
+          name: rnd-vps-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.VPS_OUTPUT }}/source.json
+            ${{ env.VPS_OUTPUT }}/pytest.xml
+            ${{ env.VPS_OUTPUT }}/test-counts.json
+            ${{ env.VPS_OUTPUT }}/*.log
+          if-no-files-found: warn
+          retention-days: 14
