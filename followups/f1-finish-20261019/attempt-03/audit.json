@@ -1,0 +1,190 @@
+{
+  "source_sha": "e274b7e2905574c0864b91a02dd8b390ba1bad6b",
+  "source_files_verified": 609,
+  "archive_sha256": "f970650f5fb3b05a90b446c67c4cd2a40b6c747f3ece2eb5e733704c26dddc7f",
+  "scope": "current BF16 descriptors, single GPU cohort",
+  "large_alias": {
+    "forward_exact": true,
+    "dx_exact": true,
+    "all_finite": true,
+    "negative_control_detected": true,
+    "recompute_calls": 2
+  },
+  "streaming_updates": [
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    }
+  ],
+  "resident_updates": [
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    }
+  ],
+  "dispatch_counts": {
+    "candidate": 40,
+    "native_custom": 0
+  },
+  "controller_stop": {
+    "reason": "clock spread >5%; external stop on discovering invalid later block",
+    "harness_limitation": "built-in early stop checks only block zero",
+    "stopped_pids": [
+      1777,
+      574
+    ],
+    "time_unix": 1792355823.0208948,
+    "formal_status": "NO_VERDICT",
+    "later_rows_are_not_accepted": true
+  },
+  "formal_status": "NO_VERDICT",
+  "comparisons": [
+    {
+      "case": "soup-h4096-bf16-native-wmma64",
+      "accepted_blocks": 0,
+      "accepted_block_ids": [],
+      "rejected_blocks": [
+        {
+          "block": 0,
+          "reasons": [
+            "missing clock or >5% clock spread"
+          ]
+        },
+        {
+          "block": 1,
+          "reasons": [
+            "missing clock or >5% clock spread",
+            "dense GEMM reference: primary/reference: missing clock or >5% combined clock spread"
+          ]
+        },
+        {
+          "block": 2,
+          "reasons": [
+            "missing clock or >5% clock spread"
+          ]
+        },
+        {
+          "block": 3,
+          "reasons": [
+            "missing clock or >5% clock spread",
+            "dense GEMM reference: primary/reference: missing clock or >5% combined clock spread",
+            "dense GEMM reference: primary/reference: missing clock or >5% combined clock spread"
+          ]
+        },
+        {
+          "block": 4,
+          "reasons": [
+            "incomplete or reordered ABBA",
+            "missing clock or >5% clock spread"
+          ]
+        }
+      ],
+      "status": "NO_VERDICT",
+      "ratio_a_over_b": null,
+      "speedup_claim": false
+    }
+  ],
+  "arms_verified": 17,
+  "timed_steps_verified": 3400,
+  "sm_clock_range_mhz": [
+    1800,
+    1935
+  ],
+  "dense_reference_validations": [
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": false,
+      "reasons": [
+        "primary/reference: missing clock or >5% combined clock spread"
+      ]
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": false,
+      "reasons": [
+        "primary/reference: missing clock or >5% combined clock spread"
+      ]
+    },
+    {
+      "passed": false,
+      "reasons": [
+        "primary/reference: missing clock or >5% combined clock spread"
+      ]
+    },
+    {
+      "passed": true,
+      "reasons": []
+    }
+  ],
+  "telemetry_power_limit_mw": [
+    350000
+  ],
+  "gpu_uuid": "GPU-7075996d-ff48-d335-dfa7-83523d23d435",
+  "sizing_extra": null
+}

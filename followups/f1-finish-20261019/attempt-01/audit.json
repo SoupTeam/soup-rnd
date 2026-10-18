@@ -1,0 +1,96 @@
+{
+  "source_sha": "e274b7e2905574c0864b91a02dd8b390ba1bad6b",
+  "source_files_verified": 609,
+  "archive_sha256": "23c9b5de191906ec255338e0867c64a5abd843d5ea16c90d7c5b1c4cc74a610d",
+  "scope": "current BF16 descriptors, single GPU cohort",
+  "large_alias": {
+    "forward_exact": true,
+    "dx_exact": true,
+    "all_finite": true,
+    "negative_control_detected": true,
+    "recompute_calls": 2
+  },
+  "streaming_updates": [
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    }
+  ],
+  "resident_updates": [
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    }
+  ],
+  "dispatch_counts": {
+    "candidate": 40,
+    "native_custom": 0
+  },
+  "formal_status": "NO_VERDICT",
+  "comparisons": [
+    {
+      "case": "soup-h4096-bf16-native-wmma64",
+      "accepted_blocks": 0,
+      "accepted_block_ids": [],
+      "rejected_blocks": [
+        {
+          "block": 0,
+          "reasons": [
+            "missing clock or >5% clock spread",
+            "dense GEMM reference: primary/reference: missing clock or >5% combined clock spread"
+          ]
+        }
+      ],
+      "status": "NO_VERDICT",
+      "ratio_a_over_b": null,
+      "speedup_claim": false
+    }
+  ],
+  "arms_verified": 4,
+  "timed_steps_verified": 800,
+  "sm_clock_range_mhz": [
+    1800,
+    1950
+  ],
+  "dense_reference_validations": [
+    {
+      "passed": false,
+      "reasons": [
+        "primary/reference: missing clock or >5% combined clock spread"
+      ]
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    }
+  ],
+  "telemetry_power_limit_mw": [
+    420000
+  ],
+  "gpu_uuid": "GPU-810a1562-9ca2-644f-52a6-725bcef37824",
+  "sizing_extra": null
+}
