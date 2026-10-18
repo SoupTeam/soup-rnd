@@ -1,7 +1,9 @@
 """F1 count, validity and per-pair gates cannot be bypassed by a good aggregate."""
 import importlib.util
+import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -80,3 +82,53 @@ def test_median_cannot_rescue_a_failed_original_mean_rule(f1):
     assert result["median_ratio"] == 1.2
     assert result["original_mean_rule_ok"] is False
     assert result["verdict"] == "FAIL step benefit"
+
+
+@pytest.mark.parametrize("bad_arm", [None, 2])
+def test_driver_uses_fresh_abba_children_and_stops_the_whole_invalid_sequence(
+    f1, tmp_path, monkeypatch, bad_arm
+):
+    admission = tmp_path / "admission.json"
+    admission.write_text(json.dumps({"physical_device": "nvme0n1", "correctness_ok": True,
+                                     "direct_io_verified": True}))
+    args = SimpleNamespace(out=str(tmp_path / "sequence"), admission=str(admission),
+                           device="nvme0n1", kind="primitive", fixture="fixed-fixture",
+                           max_blocks=20, shards="")
+    calls = []
+
+    class Watch:
+        def __init__(self, **kwargs):
+            assert kwargs["required"] == ["suspend", "power", "foreign_reads"]
+            assert kwargs["disk_device"]("overlay") == "nvme0n1"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            self.record = {"outcome": "unknown" if len(calls) == bad_arm else "ok"}
+
+    def child(command, **kwargs):
+        assert kwargs["env"]["OMP_NUM_THREADS"] == "8"
+        depth = int(command[command.index("--single-depth") + 1])
+        calls.append(depth)
+        Path(command[command.index("--out") + 1]).write_text(json.dumps({
+            "complete": True, "invalid_reasons": [],
+            "rounds": [{"arms": {str(depth): {"gb_s": 1 if depth == 1 else 1.2}}}],
+        }))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(f1, "ArmWatch", Watch)
+    monkeypatch.setattr(f1.subprocess, "run", child)
+    monkeypatch.setattr(f1.subprocess, "check_output", lambda *a, **k: "fixed-sha")
+    result = f1.campaign(args)
+    record = json.loads((Path(args.out) / "campaign.json").read_text())
+    if bad_arm:
+        assert result == 1
+        assert calls == [1, 2]
+        assert not record["complete"]
+        assert record["decision"]["verdict"] == "NO VERDICT"
+    else:
+        assert result == 0
+        assert calls == [1, 2, 2, 1] * 5
+        assert record["complete"]
+        assert record["decision"]["verdict"] == "PASS primitive"
