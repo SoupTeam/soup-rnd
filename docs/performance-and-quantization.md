@@ -925,6 +925,56 @@ repo folder and link that: the snapshot path is resolved first. A junction insid
 directory is refused like a directory symlink.
 
 
+### Experimental Liger inside streamed SFT
+
+On the **Llama text SFT / transformers** path, streaming can install instance-local
+Liger RMSNorm and/or SwiGLU forwards after the streaming wrappers exist and before
+the measured VRAM probe. This does not use the resident model's global Liger patch.
+
+```yaml
+training:
+  stream_layers: true
+  stream_source: ram           # or disk (NVMe)
+  batch_size: 1
+  quantization: none          # or 4bit (NF4)
+  use_liger: true
+  liger_components: [rms_norm] # default when unset; or [swiglu], [rms_norm, swiglu]
+  fast_lora: false
+```
+
+Requires CUDA, working Triton/Liger imports and `liger-kernel>=0.8.1`. A missing
+dependency, CPU/MPS device or non-Llama architecture stops setup before resolving
+base weights or sharding. `liger_components` is valid only with streamed Liger;
+empty, duplicate or unknown selections are refused. The ordinary resident
+`use_liger` behavior is unchanged; this new selector is streaming-only.
+
+| Streamed operation | Implementation and boundary |
+| --- | --- |
+| RMSNorm | Decoder norms and resident final norm; Llama casting, backward out of place |
+| SwiGLU | Activation fusion only; existing PEFT and dense/NF4 projections remain intact |
+| RoPE | HF implementation retained; selecting Liger RoPE is refused |
+| Cross entropy / fused linear cross entropy | HF/TRL loss and streamed head retained; neither Liger loss is enabled |
+| Fast-LoRA + Liger | Still refused at config load |
+
+The streamed base stays frozen. Each decoder always uses Soup's non-reentrant
+checkpoint, including when the public `gradient_checkpointing` flag is false;
+HF full-model checkpointing stays off. Patching forwards preserves parameter
+identity, canonical PEFT names, periodic checkpoints and adapter reloads. No pool
+buffer is captured in a closure: each forward reads the current substituted weight.
+RMSNorm backward does not overwrite residual gradients. SwiGLU requires a SiLU
+MLP; `pretraining_tp=1`, and prior global Liger patches are refused.
+The first integration accepts boolean checkpoint settings only and refuses
+`use_cut_ce`. Existing streaming restrictions still apply.
+
+**Verification scope:** local CPU tests exercise the actual Soup trainer,
+RAM/disk, dense/NF4, gradients, slot reuse and PEFT save/load using explicitly
+substituted autograd operations. They do **not** execute Liger/Triton. All four
+storage/quantization cells are wired experimentally; their CUDA numerical
+qualification, speed and peak VRAM remain unmeasured. The GPU-marked tests cover
+each component separately and together in FP16/BF16; a skip is not a pass.
+There is no streaming performance claim from the historical resident Liger results.
+See the [GPU qualification and measurement plan](../benchmarks/liger-streaming-plan-20261019.md).
+
 ## Correctness First (v0.36.0)
 
 Four silent-failure modes Soup had → loud failures.

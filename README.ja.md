@@ -1,4 +1,4 @@
-<!-- synced-from: README.md sha256:4dfed787f12e9d2a94ba6cf97d76b25aa4151095125c9eae65628bfe63e86d0f -->
+<!-- synced-from: README.md sha256:1d9971136a41db4632eb22c2232ed80b42ea3a4f67abe4a468e3bbf0624895ea -->
 <p align="center">🌍 <a href="README.md">English</a> | <a href="README.tr.md">Türkçe</a> | <a href="README.ar.md">العربية</a> | <strong>日本語</strong></p>
 
 <p align="center">
@@ -334,6 +334,10 @@ docker compose up   # またはローカルでビルド
 すべての学習タスクは、テスト用に CPU 上でも動作します（量子化は自動的に無効になります）。オプションの
 エクストラ（`train`、`all`、`fast`、`vision`、`qat`、`serve`、`serve-fast`、`ui`、`eval`、`deepspeed`、
 `liger`、`mlx`、`onnx`、`tensorrt`、…）は、[`docs/models.md`](docs/models.md#optional-extras) に一覧があります。
+
+実験的な Liger RMSNorm と SwiGLU は、Llama のレイヤーストリーミング SFT でも利用できます。
+[設定と検証範囲](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft)を参照してください。
+この経路には CUDA と Liger 0.8.1 以降が必要です。ストリーミングでの性能はまだ測定されていません。
 
 ## トラブルシューティング
 

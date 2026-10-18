@@ -3024,7 +3024,18 @@ class TrainingConfig(BaseModel):
     # Performance — Liger Kernel (fused operations)
     use_liger: bool = Field(
         default=False,
-        description="Enable Liger Kernel fused operations (20-60% memory savings, 20-40% speedup)",
+        description=(
+            "Enable Liger fused operations. Streaming: experimental Llama SFT RMSNorm "
+            "by default, optional SwiGLU via liger_components; no performance guarantee."
+        ),
+    )
+    liger_components: Optional[list[Literal["rms_norm", "swiglu"]]] = Field(
+        default=None,
+        min_length=1,
+        description=(
+            "Streaming Liger components; requires use_liger=true and stream_layers=true. "
+            "Unset selects rms_norm only. RoPE and fused losses are not supported here."
+        ),
     )
     # Performance — FlashAttention
     use_flash_attn: bool = Field(
@@ -5887,6 +5898,24 @@ class SoupConfig(BaseModel):
                 f"training.train_on_eot=true requires task in "
                 f"{sorted(sft_family_tasks)}; got task={self.task!r}"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_streaming_liger(self) -> "SoupConfig":
+        tcfg = self.training
+        if tcfg.liger_components is not None:
+            if not (tcfg.use_liger and tcfg.stream_layers):
+                raise ValueError("training.liger_components requires use_liger and stream_layers")
+            if len(set(tcfg.liger_components)) != len(tcfg.liger_components):
+                raise ValueError("training.liger_components must not contain duplicate entries")
+        if not (tcfg.use_liger and tcfg.stream_layers):
+            return self
+        if self.task != "sft" or self.backend != "transformers" or self.modality != "text":
+            raise ValueError("streamed training.use_liger requires text SFT on transformers")
+        if tcfg.use_cut_ce:
+            raise ValueError("streamed training.use_liger cannot be combined with use_cut_ce")
+        if not isinstance(tcfg.gradient_checkpointing, bool):
+            raise ValueError("streamed training.use_liger supports boolean checkpointing only")
         return self
 
     @model_validator(mode="after")

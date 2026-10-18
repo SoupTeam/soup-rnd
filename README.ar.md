@@ -1,4 +1,4 @@
-<!-- synced-from: README.md sha256:4dfed787f12e9d2a94ba6cf97d76b25aa4151095125c9eae65628bfe63e86d0f -->
+<!-- synced-from: README.md sha256:1d9971136a41db4632eb22c2232ed80b42ea3a4f67abe4a468e3bbf0624895ea -->
 <p align="center">🌍 <a href="README.md">English</a> | <a href="README.tr.md">Türkçe</a> | <strong>العربية</strong> | <a href="README.ja.md">日本語</a></p>
 
 <p align="center">
@@ -339,6 +339,10 @@ docker compose up   # أو ابنِ الصورة محليًا
 تعمل جميع مهام التدريب على CPU لأغراض الاختبار (ويُعطَّل التكميم تلقائيًا). والحزم الإضافية الاختيارية
 (`train` و`all` و`fast` و`vision` و`qat` و`serve` و`serve-fast` و`ui` و`eval` و`deepspeed` و`liger` و`mlx`
 و`onnx` و`tensorrt` و…) مذكورة في [`docs/models.md`](docs/models.md#optional-extras).
+
+يمكن أيضًا استخدام Liger RMSNorm وSwiGLU التجريبيين ضمن تدريب SFT مع بث طبقات Llama.
+راجع [إعداد البث وحدود التحقق](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft).
+يتطلب هذا المسار CUDA وLiger 0.8.1 أو أحدث؛ ولم يُقَس أداء البث بعد.
 
 ## استكشاف الأخطاء وإصلاحها
 

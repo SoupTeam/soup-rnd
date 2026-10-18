@@ -633,6 +633,18 @@ class StreamingSetupMixin:
         from soup_cli.utils.stripe_roots import resolve_stripe_roots
         from soup_cli.utils.terminal import for_terminal
 
+        model_config = None
+        if getattr(tcfg, "use_liger", False):
+            from soup_cli.utils.liger_streaming import (
+                validate_streaming_liger_environment,
+                validate_streaming_liger_model_config,
+            )
+
+            model_config = AutoConfig.from_pretrained(
+                cfg.base, trust_remote_code=self._trust_remote_code
+            )
+            validate_streaming_liger_model_config(model_config, tcfg.liger_components)
+            validate_streaming_liger_environment(str(self.device))
         console.print(f"[dim]Loading tokenizer: {cfg.base}[/]")
         self.tokenizer = AutoTokenizer.from_pretrained(
             cfg.base, trust_remote_code=self._trust_remote_code
@@ -640,9 +652,10 @@ class StreamingSetupMixin:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        model_config = AutoConfig.from_pretrained(
-            cfg.base, trust_remote_code=self._trust_remote_code
-        )
+        if model_config is None:
+            model_config = AutoConfig.from_pretrained(
+                cfg.base, trust_remote_code=self._trust_remote_code
+            )
         if getattr(tcfg, "fast_lora", False) and model_config.model_type != "llama":
             raise ValueError("training.fast_lora initially supports Llama models only")
         # Allowlist, not a heuristic — a half-supported architecture streams
@@ -1089,6 +1102,25 @@ class StreamingSetupMixin:
         )
         self.model = model
         self._stream_runtime = runtime
+        self._streaming_liger_patches = {}
+        if getattr(tcfg, "use_liger", False):
+            from soup_cli.utils.liger_streaming import apply_streaming_liger
+
+            try:
+                self._streaming_liger_patches = apply_streaming_liger(
+                    model, tcfg.liger_components
+                )
+            except BaseException:
+                self._close_stream_runtime()
+                raise
+            # Do not set _liger_applied/use_liger_kernel: HF/TRL would apply
+            # global patches and fused loss on top of this instance-local graph.
+            console.print(
+                "[green]Streaming Liger installed (experimental):[/] "
+                + ", ".join(
+                    f"{name}={count}" for name, count in self._streaming_liger_patches.items()
+                )
+            )
         if getattr(tcfg, "fast_lora", False):
             from soup_cli.utils.fast_lora_training import apply_fast_lora_training
 
