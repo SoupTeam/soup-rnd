@@ -208,3 +208,12 @@ also covers physical SATA disks if present. Only the uniquely admitted target
 name and its read counter need injecting for overlay. Host B exposed only one
 physical NVMe, so its NVMe-only sum gave the same other-disk counter (zero).
 Its void outcomes remain untouched; no host-D data exist before this change.
+
+## Explicit user pause — 2026-10-18
+
+The user requested stopping work before shutting down the laptop. Host D's pip
+installation was terminated, its partial log and native inventory downloaded,
+and instance 56573182 destroyed. API confirmation at 15:22:09 UTC showed no C2
+instances remaining (`pause-cleanup.json`). No host-D fixture, model or timing
+was produced. No task PR was opened. Work stays paused until an explicit resume;
+the durable checkpoint and remaining steps are in `c2-resume-20261018.md`.
