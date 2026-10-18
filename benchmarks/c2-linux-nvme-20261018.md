@@ -201,3 +201,10 @@ checkpoint, cache shape and per-arm settings, rebuilt locally on this host.
 Do not pool any results across hosts. Maximum host-D rental: 80 minutes from
 its provider start 1792336527.509 UTC Unix seconds, including setup and download,
 within the overall $1 attempt cap. No host-D performance arm exists at commit.
+
+Prospective sensor clarification for D: use F1's unchanged default
+`other_disk_reads`, which already excludes partition/RAID/LVM duplication and
+also covers physical SATA disks if present. Only the uniquely admitted target
+name and its read counter need injecting for overlay. Host B exposed only one
+physical NVMe, so its NVMe-only sum gave the same other-disk counter (zero).
+Its void outcomes remain untouched; no host-D data exist before this change.

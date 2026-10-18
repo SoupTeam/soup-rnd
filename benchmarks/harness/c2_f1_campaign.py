@@ -104,15 +104,12 @@ def campaign(args: argparse.Namespace) -> int:
                 block.append(arm)
                 save(root / "campaign.json", record)
                 # Admission independently established the overlay's unique physical leaf.
-                # Other physical NVMe reads are read directly, avoiding LVM double counting.
+                # F1's default other_disk_reads covers all physical leaves, excluding stacks.
                 with ArmWatch(arm=name, round=len(record["blocks"]), run=position,
                               label=f"C2 {args.kind} synthetic", required=record["required"],
                               model_path=args.fixture if args.kind == "primitive" else args.shards,
                               disk_device=lambda _: args.device,
-                              disk_reads=lambda device: counters()[device]["read"],
-                              other_disk_reads=lambda device: sum(
-                                  row["read"] for key, row in counters().items() if key != device
-                              )) as watch:
+                              disk_reads=lambda device: counters()[device]["read"]) as watch:
                     with (root / f"{stem}.log").open("w") as log:
                         done = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
                                               env=dict(os.environ, OMP_NUM_THREADS="8",

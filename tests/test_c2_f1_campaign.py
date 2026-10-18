@@ -100,6 +100,7 @@ def test_driver_uses_fresh_abba_children_and_stops_the_whole_invalid_sequence(
         def __init__(self, **kwargs):
             assert kwargs["required"] == ["suspend", "power", "foreign_reads"]
             assert kwargs["disk_device"]("overlay") == "nvme0n1"
+            assert "other_disk_reads" not in kwargs  # use the unchanged F1 physical-leaf sensor
 
         def __enter__(self):
             return self
