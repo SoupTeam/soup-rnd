@@ -166,3 +166,40 @@ The available cloud instance is assigned to another campaign; it was not used
 for C2. A Linux follow-up would require a separately frozen protocol and the
 shipped Linux direct-I/O primitive, physical-device visibility, a >RAM fixture
 and an agreed quiet window. No paid resource was rented or started for C2.
+
+### Full-suite attempt history
+
+The first `pytest tests/ -v --tb=short` process ended before a final summary or
+exit status could be captured. Its raw journal is preserved as
+`full-suite-interrupted.log.gz`; `interrupted-attempt.json` retains the last
+line, 1,071 passed lines and four failed test IDs in the `.can` tests. Failure
+tracebacks were not emitted before interruption, so their cause is unknown.
+All four passed in the second full-suite attempt without code changes. Neither
+the incomplete attempt nor a later passing rerun erases those failed lines.
+
+During the second attempt six failures reproduced in isolation, without loading
+the new C2 tests: **6 failed, 82 passed** across `test_issue1265_ab_nig.py` and
+`test_issue1267_auth_status_classification.py` (`full-suite-failure-recheck.log`).
+Four fail because this environment's NumPy 1.26.4 has no `np.trapezoid`; two
+reach `KeyError: 'file'` in Python 3.10.0's `tempfile` while the existing error
+formatter probes `urllib.error.HTTPError.response`. The affected tests and
+`src/soup_cli/utils/errors.py` have identical Git blob hashes at the base and
+C2 HEAD (`base-file-hashes.txt`). No dependency upgrade or unrelated repair
+was made in the shared D2 environment. The full suite is therefore **not green**.
+
+The second full-suite attempt then exited natively with **-1073740791
+(0xC0000409)**, near 27%, before a pytest summary or coverage result. The log
+contains **9,515 passed, 154 skipped and six failed test lines**; these are
+partial counts, not a completed-suite summary. See `full-suite.log.gz`,
+`full-suite-exit.txt` and `full-suite-summary.json`. The last test belonged to
+`test_issue1344_sequence_distill_dropped_row_numbering.py`; that entire file
+passed separately (**10 passed**, `native-exit-recheck.log`, exit 0) with
+faulthandler enabled. The native-exit cause remains unknown: the last printed
+test name does not establish which component crashed. The file and its distill
+trainer also match the base by Git blob hash. No full-suite pass or coverage
+acceptance is claimed, and another unbounded rerun is not substituted for this
+failed attempt.
+
+Final C2 decision: **NO HARDWARE VERDICT; keep runtime depth 1**. The prepared
+primitive harness and portable CPU checks are reviewable, but Windows hardware,
+CUDA staging lifetime and any end-to-end training benefit remain unmeasured.

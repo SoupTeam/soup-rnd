@@ -1,0 +1,170 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\esenb\Desktop\soup-rnd-d2\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\esenb\.codex\worktrees\c2-per-drive-depth\soup-rnd-d2
+configfile: pyproject.toml
+plugins: xdist-3.8.0, anyio-4.14.2, Faker-37.1.0, cov-7.1.0
+collecting ... collected 88 items
+
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control0-treatment0-1.0] FAILED [  1%]
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control1-treatment1-0.5] FAILED [  2%]
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control2-treatment2-4.0] FAILED [  3%]
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control3-treatment3-0.05] FAILED [  4%]
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_no_difference_gives_the_occam_penalty PASSED [  5%]
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_statistic_is_scale_and_location_invariant PASSED [  6%]
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_statistic_is_symmetric_in_the_sign_of_the_difference PASSED [  7%]
+tests/test_issue1265_ab_nig.py::TestBayesFactor::test_huge_evidence_stays_finite PASSED [  9%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_the_first_five_rows_per_arm_are_held_out PASSED [ 10%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_the_docs_give_the_same_row_counts PASSED [ 11%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_statistic_runs_on_the_rows_after_them[0.01] PASSED [ 12%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_statistic_runs_on_the_rows_after_them[0.1] PASSED [ 13%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_statistic_runs_on_the_rows_after_them[2.0] PASSED [ 14%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_held_out_values_enter_only_through_their_spread PASSED [ 15%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_whole_arm_means_are_reported PASSED [ 17%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_each_arm_needs_two_rows_after_the_held_out_ones[6-12] PASSED [ 18%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_each_arm_needs_two_rows_after_the_held_out_ones[12-6] PASSED [ 19%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_each_arm_needs_two_rows_after_the_held_out_ones[6-6] PASSED [ 20%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_seven_rows_per_arm_can_already_decide PASSED [ 21%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_constant_held_out_rows_extend_until_one_arm_varies PASSED [ 22%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_never_varying_arms_give_no_verdict PASSED [ 23%]
+tests/test_issue1265_ab_nig.py::TestPriorScale::test_constant_tested_rows_give_no_verdict PASSED [ 25%]
+tests/test_issue1265_ab_nig.py::TestBoundaries::test_reject_boundary_is_one_over_alpha PASSED [ 26%]
+tests/test_issue1265_ab_nig.py::TestBoundaries::test_a_near_constant_held_out_column_is_refused_not_accepted PASSED [ 27%]
+tests/test_issue1265_ab_nig.py::TestBoundaries::test_an_overflowing_effect_is_refused_before_the_prior_scale_is_complete PASSED [ 28%]
+tests/test_issue1265_ab_nig.py::TestBoundaries::test_too_few_rows_for_any_scale_still_continue PASSED [ 29%]
+tests/test_issue1265_ab_nig.py::TestBoundaries::test_direction_comes_from_the_tested_rows[-0.1-worse] PASSED [ 30%]
+tests/test_issue1265_ab_nig.py::TestBoundaries::test_direction_comes_from_the_tested_rows[0.1-better] PASSED [ 31%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_huge_means_are_refused_not_a_bare_overflow PASSED [ 32%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_near_constant_tested_rows_are_refused_not_a_nan_continue PASSED [ 34%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_a_prior_scale_just_under_the_bound_is_never_minus_inf PASSED [ 35%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_held_out_rows_whose_variance_underflows_to_zero_are_refused PASSED [ 36%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_one_arm_differing_is_enough_for_that_refusal PASSED [ 37%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_the_treatment_arm_differing_is_enough_too PASSED [ 38%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_the_round_one_f3_input_never_accepts_h0_at_any_peek PASSED [ 39%]
+tests/test_issue1265_ab_nig.py::TestNonFiniteStatistic::test_an_oversized_flag_on_ordinary_rows_names_the_flag_not_the_spread PASSED [ 40%]
+tests/test_issue1265_ab_nig.py::test_the_prior_bound_sits_at_the_largest_n_eff_the_tool_accepts[0.99-False] PASSED [ 42%]
+tests/test_issue1265_ab_nig.py::test_the_prior_bound_sits_at_the_largest_n_eff_the_tool_accepts[1.01-True] PASSED [ 43%]
+tests/test_issue1265_ab_nig.py::TestAcceptHold::test_a_saturated_start_never_accepts_h0[no-difference] PASSED [ 44%]
+tests/test_issue1265_ab_nig.py::TestAcceptHold::test_a_saturated_start_never_accepts_h0[worse] PASSED [ 45%]
+tests/test_issue1265_ab_nig.py::TestAcceptHold::test_the_same_tested_rows_with_ordinary_held_out_rows_still_accept PASSED [ 46%]
+tests/test_issue1265_ab_nig.py::TestAcceptHold::test_a_reject_is_never_held_back PASSED [ 47%]
+tests/test_issue1265_ab_nig.py::TestAcceptHold::test_the_ratio_is_three PASSED [ 48%]
+tests/test_issue1265_ab_nig.py::TestAcceptHold::test_gaussian_rows_rarely_change_and_rejects_never_do PASSED [ 50%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_type_one_error_stays_within_alpha_from_the_first_rows[0.35-0.05-3101] PASSED [ 51%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_type_one_error_stays_within_alpha_from_the_first_rows[1.0-0.05-3102] PASSED [ 52%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_type_one_error_stays_within_alpha_from_the_first_rows[0.4-0.01-3103] PASSED [ 53%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_type_one_error_stays_within_alpha_from_the_first_rows[1.0-0.005-3104] PASSED [ 54%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_false_rejections_fall_on_both_sides PASSED [ 55%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_verdicts_come_well_before_the_old_burn_in PASSED [ 56%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_power_against_the_asked_for_effect[0.5-0.75] PASSED [ 57%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_power_against_the_asked_for_effect[1.0-0.95] PASSED [ 59%]
+tests/test_issue1265_ab_nig.py::TestUnderPeeking::test_msprt_step_replays_the_simulated_runs PASSED [ 60%]
+tests/test_issue1265_ab_nig.py::TestCli::test_no_calibration_warning_at_any_alpha_or_length[40-extra0] PASSED [ 61%]
+tests/test_issue1265_ab_nig.py::TestCli::test_no_calibration_warning_at_any_alpha_or_length[1001-extra1] PASSED [ 62%]
+tests/test_issue1265_ab_nig.py::TestCli::test_no_calibration_warning_at_any_alpha_or_length[12-extra2] PASSED [ 63%]
+tests/test_issue1265_ab_nig.py::TestCli::test_alpha_help_no_longer_describes_a_burn_in PASSED [ 64%]
+tests/test_issue1267_auth_status_classification.py::test_row_number_401_is_not_an_auth_failure PASSED [ 65%]
+tests/test_issue1267_auth_status_classification.py::test_row_number_403_is_not_an_access_denial PASSED [ 67%]
+tests/test_issue1267_auth_status_classification.py::test_config_digits_in_message_are_not_an_access_denial PASSED [ 68%]
+tests/test_issue1267_auth_status_classification.py::test_tensor_size_with_401_digits_keeps_the_real_message PASSED [ 69%]
+tests/test_issue1267_auth_status_classification.py::test_matmul_shapes_with_403_digits_keep_the_real_message PASSED [ 70%]
+tests/test_issue1267_auth_status_classification.py::test_index_digits_keep_the_real_message PASSED [ 71%]
+tests/test_issue1267_auth_status_classification.py::test_adapter_path_digits_keep_the_real_message PASSED [ 72%]
+tests/test_issue1267_auth_status_classification.py::test_permission_error_with_date_path_keeps_the_real_message PASSED [ 73%]
+tests/test_issue1267_auth_status_classification.py::test_revision_sha_containing_401_keeps_the_real_message PASSED [ 75%]
+tests/test_issue1267_auth_status_classification.py::test_request_id_containing_403_keeps_the_real_message PASSED [ 76%]
+tests/test_issue1267_auth_status_classification.py::test_httpx_style_401_gets_the_authentication_hint PASSED [ 77%]
+tests/test_issue1267_auth_status_classification.py::test_status_403_with_401_digits_in_url_maps_to_access_denied PASSED [ 78%]
+tests/test_issue1267_auth_status_classification.py::test_wrapped_exception_status_is_used PASSED [ 79%]
+tests/test_issue1267_auth_status_classification.py::test_urllib_http_error_401_gets_the_authentication_hint FAILED [ 80%]
+tests/test_issue1267_auth_status_classification.py::test_http_phrasing_without_a_response_object_is_accepted PASSED [ 81%]
+tests/test_issue1267_auth_status_classification.py::test_gated_repo_error_keeps_its_own_hint PASSED [ 82%]
+tests/test_issue1267_auth_status_classification.py::test_wrapped_repository_not_found_keeps_the_real_message PASSED [ 84%]
+tests/test_issue1267_auth_status_classification.py::test_wrapped_gated_repo_error_keeps_the_gated_hint PASSED [ 85%]
+tests/test_issue1267_auth_status_classification.py::test_implicitly_chained_status_is_used PASSED [ 86%]
+tests/test_issue1267_auth_status_classification.py::test_wrapped_urllib_error_uses_its_code FAILED [ 87%]
+tests/test_issue1267_auth_status_classification.py::test_direct_status_code_attribute_is_used PASSED [ 88%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[Client error '401 Unauthorized' for url 'https://x'-Authentication failed.] PASSED [ 89%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[401 Client Error: Unauthorized for url: https://x-Authentication failed.] PASSED [ 90%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[HTTP Error 401: Unauthorized-Authentication failed.] PASSED [ 92%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[request failed: HTTP 401-Authentication failed.] PASSED [ 93%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[Error code: 401 - {'error': 'invalid_api_key'}-Authentication failed.] PASSED [ 94%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[Client error '403 Forbidden' for url 'https://x'-Access denied.] PASSED [ 95%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[403 Client Error: Forbidden for url: https://x-Access denied.] PASSED [ 96%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[HTTP Error 403: Forbidden-Access denied.] PASSED [ 97%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[request failed: HTTP 403-Access denied.] PASSED [ 98%]
+tests/test_issue1267_auth_status_classification.py::test_each_http_phrasing_reaches_its_hint[Error code: 403 - {'error': 'forbidden'}-Access denied.] PASSED [100%]
+
+================================== FAILURES ===================================
+_ TestBayesFactor.test_closed_form_matches_the_integrated_likelihoods[control0-treatment0-1.0] _
+tests\test_issue1265_ab_nig.py:106: in test_closed_form_matches_the_integrated_likelihoods
+    expected = _log_bf_by_integration(np, control, treatment, g)
+tests\test_issue1265_ab_nig.py:88: in _log_bf_by_integration
+    h0_mass = np.trapezoid(np.exp(h0 - shift), log_sigma[:, 0])
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\numpy\__init__.py:347: in __getattr__
+    raise AttributeError("module {!r} has no attribute "
+E   AttributeError: module 'numpy' has no attribute 'trapezoid'
+_ TestBayesFactor.test_closed_form_matches_the_integrated_likelihoods[control1-treatment1-0.5] _
+tests\test_issue1265_ab_nig.py:106: in test_closed_form_matches_the_integrated_likelihoods
+    expected = _log_bf_by_integration(np, control, treatment, g)
+tests\test_issue1265_ab_nig.py:88: in _log_bf_by_integration
+    h0_mass = np.trapezoid(np.exp(h0 - shift), log_sigma[:, 0])
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\numpy\__init__.py:347: in __getattr__
+    raise AttributeError("module {!r} has no attribute "
+E   AttributeError: module 'numpy' has no attribute 'trapezoid'
+_ TestBayesFactor.test_closed_form_matches_the_integrated_likelihoods[control2-treatment2-4.0] _
+tests\test_issue1265_ab_nig.py:106: in test_closed_form_matches_the_integrated_likelihoods
+    expected = _log_bf_by_integration(np, control, treatment, g)
+tests\test_issue1265_ab_nig.py:88: in _log_bf_by_integration
+    h0_mass = np.trapezoid(np.exp(h0 - shift), log_sigma[:, 0])
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\numpy\__init__.py:347: in __getattr__
+    raise AttributeError("module {!r} has no attribute "
+E   AttributeError: module 'numpy' has no attribute 'trapezoid'
+_ TestBayesFactor.test_closed_form_matches_the_integrated_likelihoods[control3-treatment3-0.05] _
+tests\test_issue1265_ab_nig.py:106: in test_closed_form_matches_the_integrated_likelihoods
+    expected = _log_bf_by_integration(np, control, treatment, g)
+tests\test_issue1265_ab_nig.py:88: in _log_bf_by_integration
+    h0_mass = np.trapezoid(np.exp(h0 - shift), log_sigma[:, 0])
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\numpy\__init__.py:347: in __getattr__
+    raise AttributeError("module {!r} has no attribute "
+E   AttributeError: module 'numpy' has no attribute 'trapezoid'
+___________ test_urllib_http_error_401_gets_the_authentication_hint ___________
+tests\test_issue1267_auth_status_classification.py:155: in test_urllib_http_error_401_gets_the_authentication_hint
+    out = _render(exc)
+tests\test_issue1267_auth_status_classification.py:17: in _render
+    format_friendly_error(exc, verbose=False)
+src\soup_cli\utils\errors.py:337: in format_friendly_error
+    status = _auth_status(exc)
+src\soup_cli\utils\errors.py:313: in _auth_status
+    status = getattr(getattr(e, "response", None), "status_code", None)
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\tempfile.py:473: in __getattr__
+    file = self.__dict__['file']
+E   KeyError: 'file'
+___________________ test_wrapped_urllib_error_uses_its_code ___________________
+urllib.error.HTTPError: HTTP Error 403: Forbidden
+
+The above exception was the direct cause of the following exception:
+tests\test_issue1267_auth_status_classification.py:226: in test_wrapped_urllib_error_uses_its_code
+    raise RuntimeError("download failed") from cause
+E   RuntimeError: download failed
+
+During handling of the above exception, another exception occurred:
+tests\test_issue1267_auth_status_classification.py:228: in test_wrapped_urllib_error_uses_its_code
+    out = _render(exc)
+tests\test_issue1267_auth_status_classification.py:17: in _render
+    format_friendly_error(exc, verbose=False)
+src\soup_cli\utils\errors.py:337: in format_friendly_error
+    status = _auth_status(exc)
+src\soup_cli\utils\errors.py:313: in _auth_status
+    status = getattr(getattr(e, "response", None), "status_code", None)
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\tempfile.py:473: in __getattr__
+    file = self.__dict__['file']
+E   KeyError: 'file'
+=========================== short test summary info ===========================
+FAILED tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control0-treatment0-1.0]
+FAILED tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control1-treatment1-0.5]
+FAILED tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control2-treatment2-4.0]
+FAILED tests/test_issue1265_ab_nig.py::TestBayesFactor::test_closed_form_matches_the_integrated_likelihoods[control3-treatment3-0.05]
+FAILED tests/test_issue1267_auth_status_classification.py::test_urllib_http_error_401_gets_the_authentication_hint
+FAILED tests/test_issue1267_auth_status_classification.py::test_wrapped_urllib_error_uses_its_code
+======================== 6 failed, 82 passed in 10.77s ========================
