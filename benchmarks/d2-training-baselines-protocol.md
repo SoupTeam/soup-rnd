@@ -127,18 +127,15 @@ per-step rows, snapshots, telemetry, environment and fixture SHA-256 manifests.
 
 Use an isolated **Linux/Python 3.12** environment. Do not modify the working
 Windows environment or install optional packages into an existing research run.
-The candidate stack is pinned in `d2-training-baselines.in`; the generated lock
+The candidate stack is pinned in `d2-training-baselines.in`; the archived generated lock
 contains exact transitive versions and distribution hashes. Its metadata was
 resolved locally for Linux x86_64 / Python 3.12. The original TRL 1.9.2 /
 Datasets 4.3.0 conflict was resolved to Datasets 4.7.0 before any GPU run.
 
 ```bash
-# Re-resolve only deliberately, before observing GPU outcomes.
-uv pip compile benchmarks/d2-training-baselines.in \
-  --python-version 3.12 --python-platform x86_64-unknown-linux-gnu \
-  --extra-index-url https://download.pytorch.org/whl/cu126 \
-  --index-strategy unsafe-best-match --generate-hashes \
-  --output-file benchmarks/d2-training-baselines.lock
+# Restore the exact recorded Linux lock from the evidence snapshot.
+git show b2923981b7cb938852999459b19c968e5fbeb37f:benchmarks/d2-training-baselines.lock \
+  > benchmarks/d2-training-baselines.lock
 
 python3.12 -m venv /tmp/d2-baselines
 source /tmp/d2-baselines/bin/activate

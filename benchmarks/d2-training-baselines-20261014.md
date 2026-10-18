@@ -1,5 +1,9 @@
 # D2 complete LoRA step: PEFT, Soup, Liger, Unsloth — 2026-10-14
 
+Raw measurements, historical files and replay commands are preserved in the
+[D2 evidence archive](d2-evidence-archive.md). Evidence links below pin the
+pre-cleanup snapshot; use that checkout for the original replay paths.
+
 Historical strict experiment. A later, separately declared
 [stack-v3 comparison](d2-stack-comparison-20261014.md) collected full-step timings
 under observed GPU Boost with numerical drift disclosed. Its results do not
@@ -99,7 +103,7 @@ executed and matched its expected output. Metadata resolution alone is not the
 basis for claiming those kernels executed: per-arm hooks/profiler records are
 retained for the actual Soup, Liger and Unsloth paths.
 
-[Evidence index and replay instructions](evidence/d2-baselines-20261014/README.md)
+[Evidence index and replay instructions](https://github.com/SoupTeam/soup-rnd/blob/b2923981b7cb938852999459b19c968e5fbeb37f/benchmarks/evidence/d2-baselines-20261014/README.md)
 include every 50-step loss curve, original strict50 outputs, GPU lifecycle
 records, frozen source archives, environment and fixture manifests, CPU audit
 summaries, and raw first-step tensor counterexamples. The compact public replay
@@ -145,7 +149,7 @@ criteria. Frozen GPU worker/source archives remain the authority for the GPU
 results above; the compatibility edit has not been rerun on a paid GPU.
 All 59 selected cases also pass on an actual Windows/Python 3.10 environment
 with torch 2.14.1+cpu; the
-[test environment record](evidence/d2-baselines-20261014/ci-profiler-fix.json)
+[test environment record](https://github.com/SoupTeam/soup-rnd/blob/b2923981b7cb938852999459b19c968e5fbeb37f/benchmarks/evidence/d2-baselines-20261014/ci-profiler-fix.json)
 and its JUnit retain that check. This local environment inherits other system
 packages and does not stand in for a completed full CI matrix.
 
@@ -163,6 +167,6 @@ Observed instance-specific provider charges after deletion were **$0.449**,
 including compute, disk and traffic; this is an observed charge record and may
 settle later, not an aggregate team-balance difference. Compute/storage estimate
 from the accepted rate and local wall time is $0.420. The sanitized
-[rental receipt](evidence/d2-baselines-20261014/rental-summary.json) records the
+[rental receipt](https://github.com/SoupTeam/soup-rnd/blob/b2923981b7cb938852999459b19c968e5fbeb37f/benchmarks/evidence/d2-baselines-20261014/rental-summary.json) records the
 accounting boundary. Both full ZIPs passed local SHA-256/CRC verification and
 334 materialized payloads passed their manifests before publication.

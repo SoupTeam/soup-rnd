@@ -72,6 +72,7 @@ Local CPU checks cover real Soup/TRL training, gradients, checkpointing and load
 the saved adapter with ordinary PEFT. They do not establish a GPU speed or memory
 benefit. The streaming implementation, example configuration and CPU/GPU verification
 boundaries are in [the streaming report](../benchmarks/d2-fast-lora-streaming-20261018.md).
+Raw results and replay instructions are indexed in [the evidence archive](../benchmarks/d2-evidence-archive.md).
 The synthetic four-layer/two-buffer RTX 3090 checks pass for FP16/BF16 and
 dense/NF4 weights on RAM and disk. Real-data speed, peak VRAM and task quality
 are still unmeasured for this integration.

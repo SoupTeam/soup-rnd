@@ -1,5 +1,9 @@
 # D2: Fast-LoRA in Soup layer-streamed SFT
 
+Raw measurements, historical files and replay commands are preserved in the
+[D2 evidence archive](d2-evidence-archive.md). Evidence links below pin the
+pre-cleanup snapshot; use that checkout for the original replay paths.
+
 Date: 2026-10-18. Soup trainer integration with CPU and RTX 3090 correctness evidence.
 
 **Current result:** the final GPU source passed 8 production streamed-training
@@ -86,7 +90,7 @@ variants); these 11 are already included in the 620, not additional tests.
 Environment: Windows, Python 3.10, torch 2.13.0+cpu, transformers 5.17.0,
 peft 0.20.0, trl 0.29.1, bitsandbytes 0.50.1. The schema recipe snapshot adds
 only `training.fast_lora: false`; existing recipe settings are unchanged.
-Raw new-test results: [JUnit XML](evidence/d2-fast-lora-streaming-20261018/streaming-tests.xml).
+Raw new-test results: [JUnit XML](https://github.com/SoupTeam/soup-rnd/blob/b2923981b7cb938852999459b19c968e5fbeb37f/benchmarks/evidence/d2-fast-lora-streaming-20261018/streaming-tests.xml).
 
 After the AMP correction, the streamed CPU file passes **11 tests**, with the
 expanded **8 CUDA cases** skipped locally. The AMP regression file plus the
@@ -162,7 +166,7 @@ Preserved non-final runs:
 - One offer disappeared before creation; the rejected request created no instance.
 
 The final execution completed all four planned jobs with exit code zero.
-See [the evidence index and replay commands](evidence/d2-fast-lora-streaming-20261018/README.md).
+See [the evidence index and replay commands](https://github.com/SoupTeam/soup-rnd/blob/b2923981b7cb938852999459b19c968e5fbeb37f/benchmarks/evidence/d2-fast-lora-streaming-20261018/README.md).
 
 The tiny local fixture is a wiring and numerical regression test. No SQuAD task
 quality, end-to-end acceleration or memory saving is claimed by this change.

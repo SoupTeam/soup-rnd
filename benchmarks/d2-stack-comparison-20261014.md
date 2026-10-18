@@ -1,5 +1,9 @@
 # D2 complete-step stack comparison — A100, 2026-10-14
 
+Raw measurements, historical files and replay commands are preserved in the
+[D2 evidence archive](d2-evidence-archive.md). Evidence links below pin the
+pre-cleanup snapshot; use that checkout for the original replay paths.
+
 **Collected: 48 timing workers / 12 ABBA cycles, FP16 and BF16.**
 All timed trajectories pass independent CPU replay against their own backend gates.
 Linux and isolated Windows CPU replay agree across 68,992 tensor comparisons.
@@ -36,7 +40,7 @@ cycle is retained; median/range describes three repetitions, not a confidence in
 All observed cycles favor the external stacks in this configuration.
 No Soup whole-model acceleration is established. No ratio is attributed solely
 to LoRA fusion or treated as evidence of equal training quality. Full-precision
-wall/CUDA-event means, target tokens/sec and memory are in the [CSV](evidence/d2-stack-v3-20261014/summary.csv).
+wall/CUDA-event means, target tokens/sec and memory are in the [CSV](https://github.com/SoupTeam/soup-rnd/blob/b2923981b7cb938852999459b19c968e5fbeb37f/benchmarks/evidence/d2-stack-v3-20261014/summary.csv).
 
 ## Numerical results and admission
 
@@ -111,7 +115,7 @@ and allowed. These ratios do not establish fixed-frequency kernel efficiency.
 
 ## Reproducibility and cost
 
-[Public evidence and CPU replay](evidence/d2-stack-v3-20261014/README.md) includes
+[Public evidence and CPU replay](https://github.com/SoupTeam/soup-rnd/blob/b2923981b7cb938852999459b19c968e5fbeb37f/benchmarks/evidence/d2-stack-v3-20261014/README.md) includes
 all timing/loss/telemetry records, exact source and fixtures, native operator
 pairs, selected model tensor witnesses and both independent audit outputs.
 The complete model snapshots remain in the separately identified local full
