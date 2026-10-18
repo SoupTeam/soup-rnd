@@ -29,6 +29,7 @@ def evaluate(blocks: list, kind: str) -> dict:
                          for block in blocks for arm in block):
         return result
     ratios = []
+    mean_ratios = []
     memory_ok = True
     for block in blocks:
         for left, right in (block[:2], block[2:]):
@@ -36,6 +37,7 @@ def evaluate(blocks: list, kind: str) -> dict:
             ratios.append(b["value"] / a["value"] if kind == "primitive"
                           else a["value"] / b["value"])
             if kind == "step":
+                mean_ratios.append(a["mean_step_s"] / b["mean_step_s"])
                 memory_ok &= (a["staging"] == b["staging"] and b["vram"] <= a["vram"]
                               + max(a["vram"] * 0.02, 64 * 2**20 / 1e9))
     result.update(ratios=ratios, median_ratio=statistics.median(ratios), memory_ok=memory_ok)
@@ -49,8 +51,12 @@ def evaluate(blocks: list, kind: str) -> dict:
         else:
             result["verdict"] = "NO VERDICT / ambiguous"
     else:
+        mean_ok = (all(ratio >= 1.05 for ratio in mean_ratios)
+                   and statistics.median(mean_ratios) >= 1.10)
+        result.update(mean_ratios=mean_ratios, original_mean_rule_ok=mean_ok)
         result["verdict"] = ("PASS step" if memory_ok and all(ratio >= 1.05 for ratio in ratios)
-                             and statistics.median(ratios) >= 1.10 else "FAIL step benefit")
+                             and statistics.median(ratios) >= 1.10 and mean_ok
+                             else "FAIL step benefit")
     return result
 
 

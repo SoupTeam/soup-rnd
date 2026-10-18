@@ -23,6 +23,7 @@ def f1():
 def blocks(count, kind="primitive"):
     return [[{"depth": depth, "value": (1 if depth == 1 else 1.2) if kind == "primitive"
               else (12 if depth == 1 else 10), "watch": {"outcome": "ok"},
+              "mean_step_s": 12 if depth == 1 else 10,
               "staging": 100, "vram": 4.0} for depth in (1, 2, 2, 1)]
             for _ in range(count)]
 
@@ -69,4 +70,13 @@ def test_extra_staging_withholds_step_pass(f1):
     data[2][1]["staging"] += 1
     result = f1.evaluate(data, "step")
     assert result["memory_ok"] is False
+    assert result["verdict"] == "FAIL step benefit"
+
+
+def test_median_cannot_rescue_a_failed_original_mean_rule(f1):
+    data = blocks(5, "step")
+    data[-1][2]["mean_step_s"] = 12
+    result = f1.evaluate(data, "step")
+    assert result["median_ratio"] == 1.2
+    assert result["original_mean_rule_ok"] is False
     assert result["verdict"] == "FAIL step benefit"
