@@ -15,7 +15,7 @@ from pathlib import Path
 from arm_validity import ArmWatch, Run, block_order, blocks_to_add, repeats
 from c2_depth_probe import save
 from c2_linux_campaign import cache_identity, flags
-from c2_linux_depth_probe import counters
+from c2_linux_depth_probe import DIAGNOSTIC_PROTOCOL, counters
 
 
 def evaluate(blocks: list, kind: str) -> dict:
@@ -69,16 +69,24 @@ def campaign(args: argparse.Namespace) -> int:
             or not admission.get("direct_io_verified")):
         raise ValueError("a prior direct-I/O mapping and full-byte admission is required")
     record = {"kind": args.kind, "blocks": [], "complete": False, "errors": [],
+              "diagnostic_writes": getattr(args, "diagnostic_writes", False),
               "admission_sha256": hashlib.sha256(admission_path.read_bytes()).hexdigest(),
               "git_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
               "device": args.device, "max_blocks": args.max_blocks,
               "required": ["suspend", "power", "foreign_reads"],
               "cache_before": cache_identity(args.shards) if args.kind == "step" else None}
+    record["diagnostic_protocol_sha256"] = (
+        hashlib.sha256(DIAGNOSTIC_PROTOCOL.read_bytes()).hexdigest()
+        if record["diagnostic_writes"] else None
+    )
     save(root / "campaign.json", record)
     try:
         while True:
             decision = evaluate(record["blocks"], args.kind)
             record["decision"] = decision
+            if record["diagnostic_writes"]:
+                record["effect_decision"] = decision
+                record["decision"] = {"verdict": "DIAGNOSTIC ONLY / original quiet gate not met"}
             save(root / "campaign.json", record)
             if decision["additional_blocks"] == 0:
                 record["complete"] = True
@@ -100,6 +108,9 @@ def campaign(args: argparse.Namespace) -> int:
                     command = [sys.executable, str(folder / "c2_step_probe.py"),
                                "--c2-depth", str(depth), "--c2-device", args.device,
                                *flags(args.weights, args.shards), "--out", str(path)]
+                if record["diagnostic_writes"]:
+                    command.append("--diagnostic-writes" if args.kind == "primitive"
+                                   else "--c2-diagnostic-writes")
                 arm = {"depth": depth, "command": command, "file": path.name, "status": "started"}
                 block.append(arm)
                 save(root / "campaign.json", record)
@@ -154,6 +165,7 @@ def main() -> int:
     parser.add_argument("--admission", required=True)
     parser.add_argument("--device", default="nvme0n1")
     parser.add_argument("--max-blocks", type=int, default=20)
+    parser.add_argument("--diagnostic-writes", action="store_true")
     parser.add_argument("--out", required=True)
     return campaign(parser.parse_args())
 

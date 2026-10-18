@@ -16,6 +16,7 @@ from typing import Any
 from c2_depth_probe import ByteMismatchError, pipeline, save, verdict
 
 PROTOCOL = Path(__file__).parents[1] / "c2-linux-nvme-20261018.md"
+DIAGNOSTIC_PROTOCOL = Path(__file__).parents[1] / "c2-linux-nvme-diagnostic-20261018.md"
 SPAN = 400 * 2**20
 
 
@@ -39,7 +40,8 @@ def identify_device(before: dict, after: dict, expected: int) -> str:
     return matches[0]
 
 
-def arm_reasons(delta: dict, seconds: float, expected: int) -> list[str]:
+def arm_reasons(delta: dict, seconds: float, expected: int,
+                diagnostic_writes: bool = False) -> list[str]:
     if (seconds <= 0 or expected <= 0 or any(
         key not in delta or not math.isfinite(delta[key]) or delta[key] < 0
         for key in ("read", "write")
@@ -48,7 +50,10 @@ def arm_reasons(delta: dict, seconds: float, expected: int) -> list[str]:
     reasons = []
     if not 0.8 <= delta["read"] / expected <= 1.2:
         reasons.append("physical read bytes outside 80-120%")
-    if delta["write"] / seconds > 2**20:
+    if diagnostic_writes:
+        if delta["write"] > expected * 0.002 or delta["write"] / seconds > 8 * 2**20:
+            reasons.append("diagnostic writes exceed 0.2% of reads or 8 MiB/s")
+    elif delta["write"] / seconds > 2**20:
         reasons.append("foreign writes >1 MiB/s")
     return reasons
 
@@ -95,7 +100,7 @@ def snapshot() -> dict:
             "temperatures": temperature_readings()}
 
 
-def quiet() -> dict:
+def quiet(diagnostic_writes: bool = False) -> dict:
     first = counters()
     start = time.monotonic()
     time.sleep(5)
@@ -103,7 +108,9 @@ def quiet() -> dict:
     seconds = time.monotonic() - start
     delta = {name: {key: (last[name][key] - row[key]) / seconds for key in row}
              for name, row in first.items()}
-    if not first or any(value > 2**20 for row in delta.values() for value in row.values()):
+    if not first or any(row["read"] > 2**20 or (
+        not diagnostic_writes and row["write"] > 2**20
+    ) for row in delta.values()):
         raise RuntimeError(f"NVMe not idle: {delta}")
     return delta
 
@@ -152,6 +159,11 @@ def run(args: argparse.Namespace) -> int:
         "allocated_bytes": 2 * SPAN,
     }
     arenas = []
+    diagnostic = getattr(args, "diagnostic_writes", False)
+    record["diagnostic_writes"] = diagnostic
+    record["diagnostic_protocol_sha256"] = (
+        hashlib.sha256(DIAGNOSTIC_PROTOCOL.read_bytes()).hexdigest() if diagnostic else None
+    )
     try:
         record["box_start"] = snapshot()
         if record["box_start"]["gpu_clients"]:
@@ -195,7 +207,7 @@ def run(args: argparse.Namespace) -> int:
                         raise ByteMismatchError(f"{fixture}:{offset + position}")
 
         # 1 GiB mapping read, split into the same direct-I/O calls without a rate result.
-        record["mapping_idle"] = quiet()
+        record["mapping_idle"] = quiet(diagnostic)
         before = counters()
         with open_direct(str(fixture)) as handle:
             read_range_into(handle, 0, arenas[0], SPAN)
@@ -226,7 +238,7 @@ def run(args: argparse.Namespace) -> int:
             entry: dict = {"order": order, "arms": {}}
             record["rounds"].append(entry)
             for depth in entry["order"]:
-                arm: dict = {"idle_rates": quiet(), "box_before": snapshot()}
+                arm: dict = {"idle_rates": quiet(diagnostic), "box_before": snapshot()}
                 entry["arms"][str(depth)] = arm
                 if (arm["box_before"]["memory"]["MemAvailable"] < 4e9
                         or arm["box_before"]["gpu_clients"] != own_clients):
@@ -261,7 +273,9 @@ def run(args: argparse.Namespace) -> int:
                     arm["physical_delta"] = {key: after[key] - before[key] for key in before}
                 total = 24 * SPAN
                 arm["gb_s"] = total / arm["seconds"] / 1e9
-                record["invalid_reasons"].extend(arm_reasons(arm["physical_delta"], elapsed, total))
+                record["invalid_reasons"].extend(
+                    arm_reasons(arm["physical_delta"], elapsed, total, diagnostic)
+                )
                 stamps = [start, *(stamp for stamp, _ in samples), start + elapsed]
                 if len(samples) < 4 or any(b - a > 2 for a, b in zip(stamps, stamps[1:])):
                     record["invalid_reasons"].append("missing samples or suspend gap")
@@ -289,6 +303,9 @@ def run(args: argparse.Namespace) -> int:
                     or stat.st_mtime_ns != record["fixture"]["mtime_ns"]):
                 record["invalid_reasons"].append("fixture changed")
         record["decision"] = verdict(record, reviewed=True)
+        if diagnostic:
+            record["effect_decision"] = record["decision"]
+            record["decision"] = {"verdict": "DIAGNOSTIC ONLY / original quiet gate not met"}
         save(out, record)
     return 0 if record["complete"] and not record["invalid_reasons"] else 1
 
@@ -298,6 +315,7 @@ def main() -> int:
     parser.add_argument("--fixture", required=True)
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--admit-only", action="store_true")
+    parser.add_argument("--diagnostic-writes", action="store_true")
     parser.add_argument("--single-depth", type=int, choices=[1, 2],
                         help="one fresh-process F1 arm; no standalone six-pair verdict")
     parser.add_argument("--out", required=True)

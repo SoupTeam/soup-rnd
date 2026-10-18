@@ -62,3 +62,31 @@ def test_temperature_reads_hwmon_class_even_without_nvme_class_mount(tmp_path, p
     }
     (sensor / "temp1_input").write_text("unavailable")
     assert "error" in probe.temperature_readings(tmp_path)[str(sensor)]
+
+
+def test_diagnostic_write_allowance_is_bounded_and_default_remains_strict(probe):
+    amount = 10 * 2**30
+    burst = {"read": amount, "write": 13 * 2**20}
+    assert probe.arm_reasons(burst, 3, amount) == ["foreign writes >1 MiB/s"]
+    assert probe.arm_reasons(burst, 3, amount, True) == []
+    assert probe.arm_reasons(dict(burst, write=30 * 2**20), 3, amount, True)
+    assert probe.arm_reasons(burst, 1, amount, True)  # rate limit also applies
+
+
+@pytest.mark.parametrize("diagnostic,read_bytes,passes", [
+    (False, 0, False), (True, 0, True), (True, 13 * 2**20, False),
+])
+def test_diagnostic_idle_still_rejects_foreign_reads(
+    probe, monkeypatch, diagnostic, read_bytes, passes
+):
+    values = iter([{"nvme0n1": {"read": 0, "write": 0}},
+                   {"nvme0n1": {"read": read_bytes, "write": 13 * 2**20}}])
+    stamps = iter([0, 5])
+    monkeypatch.setattr(probe, "counters", lambda: next(values))
+    monkeypatch.setattr(probe.time, "sleep", lambda _: None)
+    monkeypatch.setattr(probe.time, "monotonic", lambda: next(stamps))
+    if passes:
+        assert probe.quiet(diagnostic)["nvme0n1"]["write"] > 2**20
+    else:
+        with pytest.raises(RuntimeError, match="not idle"):
+            probe.quiet(diagnostic)

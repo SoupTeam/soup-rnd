@@ -13,7 +13,15 @@ import time
 from pathlib import Path
 
 import stream_probe
-from c2_linux_depth_probe import PROTOCOL, arm_reasons, counters, memory, quiet, snapshot
+from c2_linux_depth_probe import (
+    DIAGNOSTIC_PROTOCOL,
+    PROTOCOL,
+    arm_reasons,
+    counters,
+    memory,
+    quiet,
+    snapshot,
+)
 from c2_source_depth import depth_source
 
 
@@ -35,6 +43,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, add_help=False)
     parser.add_argument("--c2-depth", type=int, choices=[1, 2], required=True)
     parser.add_argument("--c2-device", required=True)
+    parser.add_argument("--c2-diagnostic-writes", action="store_true")
     parser.add_argument("--out", required=True)
     args, remaining = parser.parse_known_args()
     out = Path(args.out)
@@ -68,7 +77,7 @@ def main() -> int:
             self.samples = []
             self.sample_errors = []
             self.stop_event = threading.Event()
-            self.idle = quiet()
+            self.idle = quiet(args.c2_diagnostic_writes)
             self.box_before = snapshot()
             self.samples.append((time.time(), counters()[args.c2_device]))
             self.thread = threading.Thread(target=self.observe, daemon=True)
@@ -87,6 +96,11 @@ def main() -> int:
                 raise RuntimeError("less than 4 GB MemAvailable")
             meta.update({
                 "c2_depth": args.c2_depth, "c2_benchmark_only": True,
+                "c2_diagnostic_writes": args.c2_diagnostic_writes,
+                "c2_diagnostic_protocol_sha256": (
+                    hashlib.sha256(DIAGNOSTIC_PROTOCOL.read_bytes()).hexdigest()
+                    if args.c2_diagnostic_writes else None
+                ),
                 "c2_protocol_sha256": hashlib.sha256(PROTOCOL.read_bytes()).hexdigest(),
                 "c2_adapter_sha256": hashlib.sha256(
                     Path(__file__).with_name("c2_source_depth.py").read_bytes()
@@ -131,7 +145,10 @@ def main() -> int:
                             self.samples, step["started_unix"],
                             step["started_unix"] + step["step_s"]
                         )
-                        reasons.extend(arm_reasons(delta, duration, point["bytes_moved_per_step"]))
+                        reasons.extend(arm_reasons(
+                            delta, duration, point["bytes_moved_per_step"],
+                            args.c2_diagnostic_writes,
+                        ))
                         checked.append({"physical_delta": delta, "seconds": duration})
                     except ValueError as error:
                         reasons.append(str(error))

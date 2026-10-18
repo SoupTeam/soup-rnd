@@ -229,3 +229,9 @@ versions, fixture, F1 repeat rule, sensor accounting and decision thresholds.
 Maximum E rental: 55 minutes from provider start 1792341456.849 UTC Unix
 seconds, including setup and evidence download. The overall attempt cap remains
 $1 including earlier rentals. No host-E performance arm exists at commit.
+
+Host E's later idle-only record showed ~13 MB writes at one-minute intervals.
+A separate, prospective diagnostic study is frozen in
+`c2-linux-nvme-diagnostic-20261018.md`. It retains canonical F1 and bounded write
+accounting but cannot authorize production changes or satisfy strict v1.
+No v1 observation is reclassified. See that protocol for exact validity rows.

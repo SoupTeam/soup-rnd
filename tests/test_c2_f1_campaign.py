@@ -85,15 +85,16 @@ def test_median_cannot_rescue_a_failed_original_mean_rule(f1):
 
 
 @pytest.mark.parametrize("bad_arm", [None, 2])
+@pytest.mark.parametrize("diagnostic", [False, True])
 def test_driver_uses_fresh_abba_children_and_stops_the_whole_invalid_sequence(
-    f1, tmp_path, monkeypatch, bad_arm
+    f1, tmp_path, monkeypatch, bad_arm, diagnostic
 ):
     admission = tmp_path / "admission.json"
     admission.write_text(json.dumps({"physical_device": "nvme0n1", "correctness_ok": True,
                                      "direct_io_verified": True}))
     args = SimpleNamespace(out=str(tmp_path / "sequence"), admission=str(admission),
                            device="nvme0n1", kind="primitive", fixture="fixed-fixture",
-                           max_blocks=20, shards="")
+                           max_blocks=20, shards="", diagnostic_writes=diagnostic)
     calls = []
 
     class Watch:
@@ -109,6 +110,7 @@ def test_driver_uses_fresh_abba_children_and_stops_the_whole_invalid_sequence(
             self.record = {"outcome": "unknown" if len(calls) == bad_arm else "ok"}
 
     def child(command, **kwargs):
+        assert ("--diagnostic-writes" in command) == diagnostic
         assert kwargs["env"]["OMP_NUM_THREADS"] == "8"
         depth = int(command[command.index("--single-depth") + 1])
         calls.append(depth)
@@ -132,4 +134,8 @@ def test_driver_uses_fresh_abba_children_and_stops_the_whole_invalid_sequence(
         assert result == 0
         assert calls == [1, 2, 2, 1] * 5
         assert record["complete"]
-        assert record["decision"]["verdict"] == "PASS primitive"
+        if diagnostic:
+            assert record["decision"]["verdict"].startswith("DIAGNOSTIC ONLY")
+            assert record["effect_decision"]["verdict"] == "PASS primitive"
+        else:
+            assert record["decision"]["verdict"] == "PASS primitive"
