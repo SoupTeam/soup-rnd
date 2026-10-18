@@ -480,13 +480,14 @@ checkpointed step. The fused arm reduces saved-weight VRAM but its backward stil
 dequantises because bitsandbytes exposes no transposed 4-bit GEMM; it is therefore a
 bounded memory/time trade, not a claim that #842's full kernel ceiling is complete.
 
-The [D1 operating-region study](../benchmarks/d1-soup-impact-20261016.md) gives
-one scoped RAM-tier training result: on A100 with TinyLlama-1.1B, the experimental
-forced Function took 368.821 ms/update versus 325.090 ms with native dispatch,
-with equal measured allocated and reserved VRAM peaks. Soup retains native
-dispatch; forcing the Function is a benchmark intervention, not a config option.
-This fixed-data result does not establish performance for larger models or the
-cold disk tier, and the study's complete measurement acceptance is still open.
+The [scoped D1 kernel study](../benchmarks/d1-final-result-20261016.md) demonstrates
+157 MiB lower peak allocated and 140 MiB lower peak reserved memory on a synthetic
+four-layer, hidden4096, seq128 decoder through Soup's RAM-backed streaming runtime.
+The BF16 candidate is an explicit research backend; production keeps native dispatch.
+Formal speed verdict is **NO_VERDICT** because the timing block failed the clock
+guard. These results do not establish performance for pretrained larger models or
+the cold disk tier. [Raw evidence and historical reports](../benchmarks/D1_EVIDENCE.md)
+are archived separately with per-file integrity checks; full D1 acceptance is open.
 
 **Qwen3.8-Flash-Next / Qwen4-Exp PLE.** The frozen PLE N-gram table is not a
 decoder-layer weight for storage purposes: putting it in the PLE layer's shard

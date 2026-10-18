@@ -116,9 +116,9 @@ python benchmarks/harness/d1_wmma_step_screen.py --output /tmp/d1-step-new
 Accelerate 1.14.0, pytest, Pydantic v2 и зависимости Soup. Kernel компилируется
 установленным NVRTC. Результаты пишутся только в новый путь.
 
-[Манифест](evidence/d1-wmma-20261016/manifest.json) содержит контрольные суммы
+[Манифест в архиве](D1_EVIDENCE.md) содержит контрольные суммы
 двух полных сырых архивов: журналы, tensor witnesses, исходники, PTX, команды,
-пакеты, CUDA-records, включая неудачи. [Аудит](evidence/d1-wmma-20261016/independent-audit.json)
+пакеты, CUDA-records, включая неудачи. [Аудит в том же архиве](D1_EVIDENCE.md)
 перепроверяет тензоры, source provenance, медианы и отсутствие учётных секретов.
 Windows Git archive применил CRLF к Python-файлам; проверено совпадение с
 Git blobs после нормализации только концов строк, исходные байты архивов сохранены.

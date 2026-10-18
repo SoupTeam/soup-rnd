@@ -87,7 +87,7 @@ backend автоматически и не закрывать исходный #
 Дальнейшие аренды, сетки и длительные тренинги не запущены. Принятие результата
 или отдельная доработка универсального backend — решение тимлида после review.
 
-[Manifest](evidence/d1-final-f1-20261016/manifest.json) содержит SHA-256 raw archive,
+[Архив исходных данных](D1_EVIDENCE.md) содержит оригинальные manifest,
 все JSON/log records и независимый аудит. В `raw-final-f1.tgz` находятся executed
 source archives, команды, packages, CUDA-снимки, ошибки запуска и отклонённый ABBA.
 Ошибки pytest plugin / повторного создания каталога исправлены до timing; записи

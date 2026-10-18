@@ -100,9 +100,9 @@ research review; автоматическое включение в Soup — NO 
 `d1_native_soup_screen.py` в `benchmarks/harness/`. Сначала корректность,
 затем timing; неподдержанные формы текущий API отвергает.
 
-[Manifest](evidence/d1-native-20261016/manifest.json) содержит порядок соединения
+[Manifest в архиве](D1_EVIDENCE.md) содержит порядок соединения
 частей `raw-native.tgz.part*`, SHA-256 полного архива и каждого файла.
-[Независимый аудит](evidence/d1-native-20261016/audit.json) содержит исходники,
+[Независимый аудит в том же архиве](D1_EVIDENCE.md) содержит исходники,
 tensor replay, частоты, utilization и полные сводки. Архив включает первоначальную
 ошибку упаковки тестового helper и исправленный запуск; неуспехи не удалены.
 `step*/candidate.ptx` — дополнительная компиляция прежней плитки16, а не PTX
