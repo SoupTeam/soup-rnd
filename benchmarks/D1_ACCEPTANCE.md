@@ -3,6 +3,8 @@
 Updated 2026-10-19 against the [reviewer's remaining-work list](https://github.com/SoupTeam/soup-rnd/pull/16#issuecomment-6253790872)
 and the [original #842 scope](https://github.com/MakazhanAlpamys/Soup/issues/842).
 This ledger describes evidence, not an owner decision to narrow or close the task.
+Latest [bounded GPU follow-up](d1-review-followup-20261019.md): A100 dX failed;
+the separate RTX lease did not start in its short window. Both rentals released.
 
 ## Current decision
 
@@ -15,7 +17,7 @@ An accepted performance comparison may show a speedup, a slowdown or no change.
 
 | Requirement | Evidence/status | Remaining action |
 |---|---|---|
-| Changelog | `changelog.d/0.75.1/16.added.md` describes the bounded research scope | Validate fragment and final-head CI |
+| Changelog | `changelog.d/0.75.1/16.added.md` describes the bounded research scope; fragment validator and 137 focused D1/changelog checks pass | Done; evaluate final-head CI separately |
 | Checkpoint-visible tensor state | All six frozen NF4 tensors use `save_for_backward`; no frozen tensor on plain `ctx` | Extend controls for any newly supported cohort |
 | Large recycled-buffer control | Nested BF16 `(128,32768,12288)`, 192 MiB packed buffer, two recomputations; forward and dX exact, finite differing plain-ctx control | Other accepted hardware/dtype cohorts need their own evidence |
 | Formal full-step performance | Historical first ABBA block rejected for primary/reference clock spread; **NO_VERDICT**, zero accepted blocks | Valid fresh-process interleaved blocks, same-session GEMM and all telemetry under the existing rule |
@@ -74,9 +76,14 @@ The older native/forced-Function measurement grid remains a separate experiment.
   a new descriptor, layout, checkpoint lifetime or target-model correctness.
 - **Non-nested scales / other block sizes:** earlier diagnostic samples exist;
   no complete default-math full-step + large-alias acceptance cohort is claimed.
-- **GPU/stack:** the candidate is demonstrated on RTX 3090 sm_86 only. The final
-  A100 sm_80 startup attempt never reached CUDA. Earlier A100 native/forced routes
-  do not establish this WMMA backend. Other sm_80/sm_89/sm_90/sm_120 devices,
+- **GPU/stack:** the candidate is demonstrated on RTX 3090 sm_86 only. The
+  2026-10-16 A100 sm_80 startup attempt never reached CUDA. A new 2026-10-19 A100
+  SXM4 gate reached CUDA: forward was exact, but dX had 746429 differing values,
+  max absolute error 0.0625; timing was not run. The recycled-buffer gate made two
+  recomputations and detected the finite differing plain-ctx control. CPU replay
+  independently reproduced these outcomes; A100 support is not accepted.
+  Earlier A100 native/forced routes do not establish this WMMA backend.
+  Other sm_80/sm_89/sm_90/sm_120 devices,
   drivers and Torch/bitsandbytes versions need separate parity and buffer controls.
   The #842/#776 resident-invariant caveat must be checked before using sm_120.
 - **Real target models:** no pretrained 7B/8B full-step acceptance for this kernel;
@@ -113,7 +120,13 @@ clock-spread block and its NO_VERDICT; new UUID/source/date is a new cohort.
 5. Export raw records and tensors with hashes, replay them independently and
    release only this D1 rental. Do not touch another team's/account's instance.
 
-Last verified D1 spend snapshot: **$8.354 of the $10 cap**, leaving **$1.646**;
-this is not the current team account balance and billing may lag. A new attempt
-needs an identified booked resource and a per-attempt cap within the remainder.
+Billing refreshed on 2026-10-19: **$8.371 of the $10 cap**, leaving **$1.629**
+before this follow-up (the earlier provider snapshot was $8.354). This is not the
+team account balance and billing may lag. Follow-up bookings: A100 SXM4 lease
+56604017, machine152356 (failed parity, exported and released); then RTX 3090 lease
+56606044, machine55636 (startup timeout, released), capped at $0.15 / 30 minutes.
+Combined new spending was capped at $0.30, within the existing $10 total. New
+provider charges are $0.059; latest cumulative snapshot **$8.430/$10**, remaining
+**$1.570**, billing may update. Source is `28b0b724`, unchanged rules, separate
+UUID/cohorts with independent local/container cleanup guards. No GPU work remains running.
 No owner acceptance of excluded coverage is inferred from API access or green CI.

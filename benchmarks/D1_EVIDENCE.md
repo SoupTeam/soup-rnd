@@ -59,3 +59,11 @@ python restore.py --output ../d1-evidence-restored
 `ec4074e873980c43a0269fa1841789cebf9f1b420bfffc5734c8aed103210675`.
 Прежние отчёты и preregistration amendments восстановятся рядом, в `benchmarks/`.
 Они фиксируют историю, а текущий вывод нужно читать в итоговом отчёте PR.
+
+## Продолжение после review, 2026-10-19
+
+[Отдельный пакет новых попыток](https://github.com/SoupTeam/soup-rnd/tree/556bd71363d7f2d11796d8b94bca5a366cc70508/followups/20261019)
+содержит A100 raw CUDA witnesses, executed source, audit и receipts, а также
+подтверждение RTX startup timeout. Эти cohorts не смешаны со старым ABBA-блоком.
+[Выводы и расходы](d1-review-followup-20261019.md): A100 dX FAIL, новый perf NOT_RUN,
+обе аренды удалены. Оригинальный ZIP и его контрольные суммы не изменились.
