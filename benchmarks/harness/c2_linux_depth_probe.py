@@ -208,8 +208,10 @@ def run(args: argparse.Namespace) -> int:
             record["decision"] = {"verdict": "NO VERDICT", "reason": "admission only"}
             return 0
 
-        for index in range(6):
-            entry: dict = {"order": [1, 2] if index % 2 == 0 else [2, 1], "arms": {}}
+        orders = ([[args.single_depth]] if getattr(args, "single_depth", None)
+                  else [[1, 2] if index % 2 == 0 else [2, 1] for index in range(6)])
+        for order in orders:
+            entry: dict = {"order": order, "arms": {}}
             record["rounds"].append(entry)
             for depth in entry["order"]:
                 arm: dict = {"idle_rates": quiet(), "box_before": snapshot()}
@@ -278,6 +280,8 @@ def main() -> int:
     parser.add_argument("--fixture", required=True)
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--admit-only", action="store_true")
+    parser.add_argument("--single-depth", type=int, choices=[1, 2],
+                        help="one fresh-process F1 arm; no standalone six-pair verdict")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     if sys.platform != "linux":

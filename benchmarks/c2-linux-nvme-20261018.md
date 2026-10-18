@@ -121,3 +121,44 @@ appended below, leaving this frozen section verbatim.
   mapping check remains required. Raw inventory: `admission-rental-b.json`.
   The same frozen decision/validity/fixture rules apply. No performance arm
   exists at the time this admission note is written.
+
+## Prospective F1 extension (before sequence 2 or any training-step arm)
+
+Sequence 1 is void: its third pair failed the pre-arm idle-writes threshold.
+Its two completed pairs are retained, excluded from all decisions, and are not
+a pilot. No training-step arm has run. The original section above is unchanged.
+The six-pair preparation alone did not implement METHOD.md's adaptive repeat
+count. The following additional requirement is frozen before new measurements;
+it can only withhold implementation, never rescue a failed original gate.
+
+Use `c2_f1_campaign.py` for **both** primitive and step comparisons. Each run
+is a fresh process, in `arm_validity.block_order` A-B-B-A blocks (A=depth 1,
+B=depth 2). First five valid blocks form the pilot. Use the unchanged
+`blocks_to_add` and `repeats` functions for the pilot estimate, initial target,
+and single top-up. For steps the F1 value is the median of three timed steps;
+retain the original means as well. For the primitive it is submitted GB/s.
+No result is accepted before this repeat rule returns zero. Cap at 20 blocks
+or this rental attempt's $1 budget; reaching either limit before completion is
+NO VERDICT. A void/unknown run stops the entire separately named sequence;
+retain it and restart a whole sequence in a new window, without selecting or
+replacing individual runs. This is stricter than F1's block replacement.
+
+Require all three unchanged F1 `ArmWatch` checks: suspend, power, foreign_reads.
+Watch the child from its parent and wait for its exit before ending the watch.
+Because the host mount is hidden by overlay, inject the **already admitted**
+unique physical NVMe name and its sysfs read counter into ArmWatch; other-disk
+reads sum only the other physical NVMe leaves (not duplicate LVM counters).
+The 1 GiB direct-read mapping and full-byte correctness must already have
+passed in a preserved admission record and are repeated in every primitive
+child. No fabricated successful sensor values or ignored unknown checks.
+Keep all existing per-arm quiet, byte, physical-I/O, memory and GPU checks.
+Record F1 sensor evidence, clocks, commands, exits and raw child results.
+
+Apply the original thresholds conservatively to **every** consecutive paired
+round in the completed F1 sequence, rather than choosing six favorable pairs.
+Primitive PASS requires all paired rate ratios >=1.10. Step PASS additionally
+requires every paired median-step speedup >=1.05, median speedup >=1.10 and the
+same staging/VRAM limits; retain/check the original mean-step rule too before
+any production integration. Both independent gates must pass to implement.
+OMP_NUM_THREADS=8 and TOKENIZERS_PARALLELISM=false remain fixed in all children.
+All weights and losses remain synthetic; no quality or convergence claim.

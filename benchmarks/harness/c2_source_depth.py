@@ -3,16 +3,24 @@
 Only pending-read admission/bookkeeping changes. Allocation, workers, direct I/O,
 consumer ownership, release/drain events, completion and teardown stay inherited.
 """
+import hashlib
 import time
+from pathlib import Path
 from typing import Any
 
+from soup_cli.utils import async_disk_source as shipped
 from soup_cli.utils.async_disk_source import AsyncDiskSource, _PendingRead
+
+SHIPPED_SHA256 = "17bca116e3f5935d4d916e3f3fde425a9544ca22890cda713b7892b56b1451df"
 
 
 def depth_source(depth: int) -> type:
     """Create an explicitly named benchmark-only source at depth 1 or 2 per root."""
     if type(depth) is not int or depth not in (1, 2):
         raise ValueError("experimental depth must be 1 or 2")
+    actual = hashlib.sha256(Path(shipped.__file__).read_text(encoding="utf-8").encode()).hexdigest()
+    if actual != SHIPPED_SHA256:
+        raise RuntimeError("shipped source drifted; review the C2 adapter before measuring")
 
     class C2DepthSource(AsyncDiskSource):
         experimental_read_depth = depth
@@ -29,6 +37,8 @@ def depth_source(depth: int) -> type:
             }
 
         def _claim_reads(self) -> list[tuple[_PendingRead, Any]]:
+            if depth == 1:
+                return super()._claim_reads()
             # Unlike the shipped map's root keys, experimental keys are layer IDs.
             # Every inherited consumer of this map uses values, except pool checks,
             # which are overridden below to recover the physical placement root.
@@ -60,6 +70,8 @@ def depth_source(depth: int) -> type:
             return started
 
         def _check_pools(self) -> None:
+            if depth == 1:
+                return super()._check_pools()
             for read in self._pending.values():
                 if read.outcomes is not None and not read.done():
                     self._pools[self._root_of[read.idx]]._check_workers()

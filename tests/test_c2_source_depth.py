@@ -17,6 +17,16 @@ def factory():
     return module.depth_source
 
 
+def test_adapter_refuses_an_unreviewed_shipped_source(tmp_path, monkeypatch, factory):
+    import soup_cli.utils.async_disk_source as shipped
+
+    changed = tmp_path / "different-source.py"
+    changed.write_text("# changed reader contract\n")
+    monkeypatch.setattr(shipped, "__file__", str(changed))
+    with pytest.raises(RuntimeError, match="shipped source drifted"):
+        factory(2)
+
+
 @pytest.mark.parametrize("depth", [1, 2])
 def test_idle_range_worker_crosses_layer_boundary_only_at_depth_two(
     tmp_path, monkeypatch, factory, depth
