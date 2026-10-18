@@ -51,3 +51,24 @@ threshold, model, timed interval, F1 order or effect rule changes. The physical
 counter sampler still encloses every timed step and F1 watches the entire child.
 The primitive series already completed on the earlier source revision and is
 not rerun or pooled with replacement data.
+
+## Prospective final retry and operational cap amendment (before step-e3)
+
+Step-e2 stopped after its twelfth child. Its own timed-step checks passed, but
+canonical F1 found at least 1,725,698,560 bytes of unaccounted physical reads
+(limit 1,000,000,000) during b2-p3-d1. The entire sequence is void, including
+its first eleven runs; no effect estimate or pilot from it is reused.
+
+The user authorized completing the paid hardware task and explicitly resumed
+it. The earlier $1/55-minute cap was the operator's self-imposed bound. This
+prospective final retry explicitly changes ONLY that operational cap to $1.30
+total and 75 minutes for E from its original provider start (deadline
+17:52:36 UTC). No effect/validity threshold is changed. Before a new step-e3
+sequence, require twelve consecutive five-second diagnostic idle windows
+(reads <=1 MiB/s, writes retained), record temperatures, and recheck cache
+size/mtime identities against the previous sequence. If admission fails or any
+step-e3 arm is void/unknown, stop this attempt without another replacement.
+Otherwise run the complete fresh five-block pilot and unchanged F1 adaptive
+rule, with no pooling from step-e1/e2. The sole accepted primitive sequence
+remains unchanged. Step-e3 is still DIAGNOSTIC ONLY and cannot authorize
+production integration or close the original exclusive-window gate.
