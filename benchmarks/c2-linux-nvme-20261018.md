@@ -106,3 +106,18 @@ before enabling a changed default for striped stores.
 
 No run exists at protocol creation. Results, amendments and commands are
 appended below, leaving this frozen section verbatim.
+
+## Admission history (before performance arms)
+
+- Rental A, 56566608: rejected before a throughput arm. Sysfs/lsblk reveal
+  two Samsung 990 PRO drives behind RAID1 (`md0`/`md1`), so its advertised
+  6.694 GB/s is not a one-physical-drive ceiling. Raw inventory:
+  `evidence/c2-linux-nvme-20261018/admission-rental-a.json`. Deleted via API;
+  no model install, fixture creation or read-rate result from this rental.
+- Rental B, 56567227 (offer 56206478): RTX 5070 12 GB, i7-14700K, advertised
+  32 GB RAM, 300 GB allocated disk, quoted $0.323333/hour including storage.
+  Sysfs identifies a single `nvme0n1`, Lexar SSD NQ780 1 TB; no md RAID.
+  Overlay storage is backed by XFS/LVM; the preregistered direct-read counter
+  mapping check remains required. Raw inventory: `admission-rental-b.json`.
+  The same frozen decision/validity/fixture rules apply. No performance arm
+  exists at the time this admission note is written.
