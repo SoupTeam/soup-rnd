@@ -20,6 +20,11 @@ configurations, trained again from scratch, reproduce their published records
 exactly. The RAM-tier parity pilot did not pass, so no RAM-tier verdict is counted and
 that regime stays open.
 
+**Scope decision, 2026-10-19 (§12):** Qwen3.5 in the RAM tier at the brief's 32 GB of
+host RAM is moved to a separate task. Current Soup cannot hold the model there (its
+routed experts stay bf16, 60 GiB), and making it fit is runtime work, not part of this
+placement study. The RAM tier is recorded as STOPPED with no verdict; nothing above changes.
+
 ## 1. Question
 
 At the same data, steps, rank and recipe, how much task quality and general
@@ -1433,3 +1438,45 @@ python benchmarks/harness/moe_adapter_confirm_rule.py "$r/followup" "$r" "$work/
 python -m pytest tests/test_moe_adapter_confirm.py tests/test_moe_adapter_confirm_rule.py \
   tests/test_moe_adapter_ramtier.py -q --no-cov
 ```
+
+## 12. Scope decision and RAM-tier status (2026-10-19)
+
+**Decision.** On 2026-10-19 the reviewer of PR #7, who is also the team lead, agreed that
+Qwen3.5 in the RAM tier at 32 GB of host RAM becomes a separate task. Making the model fit
+there needs runtime work, not more measurement, and this record asks where the adapters have
+to go. PR #7 closes on the resident study (§8, §9), its confirmation on C (§11.5) and the
+stopped status below. No record, threshold or verdict changes, and every RAM-tier record keeps
+NOT COUNTED.
+
+**RAM-tier status: STOPPED, no verdict.**
+
+- *Parity.* The pilot of 2026-10-13 failed (§11.4) and stays failed. Its cause is not
+  found: the post-hoc noise diagnostic (`69d9941e`) and RAM-tier seed 1 did not run, and the
+  seed-0 `A` / `AS` runs remain description.
+- *Arms.* `AT` and `AE` cannot be spelled in Soup's streamed trainer (§11.3), so only `A`
+  and `AS` could run in that regime at all.
+- *Fit.* The brief's figure of about 19 GB for Qwen3.5 in NF4 matches every weight at the
+  NF4 rate: 35.95 B parameters x 0.5625 byte = 18.8 GiB [computed]. Under streaming, Soup
+  quantizes linear layers only. Qwen3.5's routed experts are fused 3-D tensors
+  (`mlp.experts.gate_up_proj`, `mlp.experts.down_proj`) and stay bf16: 40 layers x 256
+  experts x 3 x 2048 x 512 = 32.2 B parameters, 60 GiB [computed from the pinned config].
+  Measured: a 62.6 GiB RAM store, 82.0 GiB pinned, peak RSS 86 GiB (§11.5). A smaller batch
+  or rank cannot change this, since the frozen weights take the memory. Packed routed
+  experts are not implemented; [`gate-b2-deepseek-v3.md`](gate-b2-deepseek-v3.md) tracks them
+  with B1.
+
+**The separate task**, in order, before any RAM-tier verdict:
+
+1. Find the cause of the parity miss with the reference unchanged, the noise diagnostic
+   first, at §11.3's thresholds.
+2. Hold Qwen3.5's frozen store within 32 GB of host RAM, for example with packed routed
+   experts for the fused layout, under its own parity gate. MakazhanAlpamys/Soup#2008
+   streams frozen routed experts one at a time for DeepSeek-V3 checkpoints with per-expert
+   source weights; it does not admit Qwen3.5's fused experts.
+3. Train `A` and `AS`, seeds 0 and 1, afresh in that regime and score them against the
+   resident `AE` and base as §11.3 states. `AT` and `AE` need streamed routed-expert
+   adapters first.
+
+Until that task reports, §9's lines hold for resident bf16 training at this recipe, and
+the pre-flight must not present them as evidence for the RAM tier or for an 8 GB GPU with
+32 GB of host RAM.
