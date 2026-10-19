@@ -1,0 +1,69 @@
+{
+  "status": "CPU_REPLAY_PASS",
+  "source_commit": "dc6fa5cc2ef17205320d3b3a2e6408d225751790",
+  "source_files_verified": 2,
+  "raw_sha256": "bd03c8e378304acad5c4dcaa89b5a51198de291ff56f21be86289b34396d566a",
+  "comparison": {
+    "status": "DESCRIPTIVE_PRETRAINED_QUANTIZATION_SCREEN",
+    "bf16_nll": 1.8874408620346017,
+    "nf4_nll": 1.9187500773875479,
+    "bf16_perplexity": 6.602450460607945,
+    "nf4_perplexity": 6.812438125056131,
+    "delta_nll": 0.031309215352946174,
+    "relative_perplexity_change_percent": 3.18045043580458,
+    "top1_agreement_percent": 93.04060665362034,
+    "scored_tokens": 16352,
+    "block_delta_nll": [
+      0.03451888709477941,
+      0.03109475216540712,
+      0.021541278864384162,
+      0.03416278152136683,
+      0.03818298038305968,
+      0.036156808858128615,
+      0.03858118652674412,
+      0.045262399709980215,
+      0.011129254930147034,
+      0.04440203650565682,
+      0.010054873548829512,
+      0.025100915865301457,
+      0.02241250690458187,
+      0.048107501912892446,
+      0.016912723751762872,
+      0.010470881311247345,
+      0.03394608973357121,
+      0.017909640800079136,
+      0.04041327472488112,
+      0.01608671906339326,
+      0.04892419891358577,
+      0.020485483385326794,
+      0.0515326403323033,
+      0.025717599342341992,
+      0.039901652685242976,
+      0.0218037225009101,
+      0.023049380275106855,
+      0.0445474558894615,
+      0.018895633408709266,
+      0.05182553416020291,
+      0.042985541896994654,
+      0.03577855432789885
+    ],
+    "limitations": [
+      "32 fixed English windows, context512; no quality equivalence gate",
+      "pretrained models only; no training or downstream QA benchmark",
+      "resident transformers/bitsandbytes; no D1 kernel or RAM streaming"
+    ]
+  },
+  "gpu": "GPU-c9f9c922-5bab-5b73-1635-a5c4f933a11e, NVIDIA GeForce RTX 3090, 565.57.01, 24576 MiB\n",
+  "packages": {
+    "torch": "2.11.0+cu126",
+    "transformers": "5.17.0",
+    "bitsandbytes": "0.50.2",
+    "accelerate": "1.13.0",
+    "numpy": "2.4.3"
+  },
+  "network": {
+    "bytes": 14706430341,
+    "limit": 24000000000,
+    "time": 1792387652.4178607
+  }
+}
