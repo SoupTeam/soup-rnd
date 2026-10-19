@@ -8,6 +8,10 @@ Removing raw files from the review diff does not remove the original Git history
 
 ## Current reports
 
+- [Liger streaming strict 7B follow-up](liger-streaming-7b-20261019.md):
+  24 native CUDA cases pass; deterministic pretrained 7B parity fails for all
+  three component choices. Comparative speed and memory gains remain blocked.
+
 - [Soup SFT and layer-streaming integration](d2-fast-lora-streaming-20261018.md):
   synthetic FP16/BF16 correctness passes; real-data speed, memory and quality remain unmeasured.
 - [RTX 3090 projection timing](d2-rtx3090-report-20261013.md): mixed results;

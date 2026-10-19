@@ -1,4 +1,4 @@
-<!-- synced-from: README.md sha256:1d9971136a41db4632eb22c2232ed80b42ea3a4f67abe4a468e3bbf0624895ea -->
+<!-- synced-from: README.md sha256:928828953d83e8363828c3953cf3aec4f85f7db1e109f1605418ab05cade2654 -->
 <p align="center">🌍 <a href="README.md">English</a> | <strong>Türkçe</strong> | <a href="README.ar.md">العربية</a> | <a href="README.ja.md">日本語</a></p>
 
 <p align="center">
@@ -345,7 +345,8 @@ listelenmiştir.
 
 Deneysel Liger RMSNorm ve SwiGLU, Llama'nın katman akışlı SFT eğitiminde de kullanılabilir.
 [Akış yapılandırmasına ve doğrulama sınırlarına](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft) bakın.
-Bu yol CUDA ve Liger 0.8.1 veya daha yeni bir sürüm gerektirir; akış performansı henüz ölçülmemiştir.
+Bu yol CUDA ve tam olarak Liger 0.8.1 gerektirir. Katı 7B eşdeğerlik denetimi
+geçmiyor; akışta hızlanma doğrulanmadı.
 
 ## Sorun Giderme
 

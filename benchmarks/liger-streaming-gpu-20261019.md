@@ -1,5 +1,9 @@
 # Streamed Liger: A40 correctness correction and minimal 7B run
 
+Historical minimal-run record. The later [strict 7B follow-up](liger-streaming-7b-20261019.md)
+retains these passes but fails real-7B parity after controlling SDPA nondeterminism.
+It also supersedes the early billing snapshot below.
+
 **2026-10-19 result:** the unchanged 24-case CUDA matrix passed, a separate
 zero-tolerance FP16 regression passed, and all four pretrained 7B pilots completed
 finite training and exact public PEFT adapter reload. Both rented instances were

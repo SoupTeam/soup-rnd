@@ -979,11 +979,15 @@ RAM/disk, dense/NF4, gradients, slot reuse and PEFT save/load using explicitly
 substituted autograd operations. They do **not** execute Liger/Triton. Separately,
 all 24 native CUDA cases passed on A40 with Liger 0.8.1: each component alone and
 together, FP16/BF16, RAM/disk and dense/NF4. A captured FP16 rounding boundary also
-passes a zero-tolerance forward/backward regression. Four short OpenLLaMA 7B v2
-RAM/dense pilots verify finite training and exact adapter reload; they do not
-qualify real-7B tensor parity, disk/NF4 operation or final task quality. See the
-[GPU report](../benchmarks/liger-streaming-gpu-20261019.md) for the frozen scope.
-Speed and memory improvements remain unestablished; a skip is not a pass.
+passes a zero-tolerance forward/backward regression. The subsequent OpenLLaMA 7B v2
+RAM/dense BF16 check remains **blocked**: all three component choices fail strict
+gradient, updated-adapter and logits parity, despite finite execution and exact
+public adapter reloads. The ordinary deterministic streaming control repeats all
+1,813 captured tensors bit-for-bit. See the
+[7B follow-up](../benchmarks/liger-streaming-7b-20261019.md) and the earlier
+[GPU report](../benchmarks/liger-streaming-gpu-20261019.md).
+Comparative Liger timing is blocked by correctness; speed and memory improvements,
+7B disk/NF4 operation and final task quality remain unestablished. A skip is not a pass.
 There is no streaming performance claim from the historical resident Liger results.
 See the [GPU qualification and measurement plan](../benchmarks/liger-streaming-plan-20261019.md).
 

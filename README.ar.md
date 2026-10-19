@@ -1,4 +1,4 @@
-<!-- synced-from: README.md sha256:1d9971136a41db4632eb22c2232ed80b42ea3a4f67abe4a468e3bbf0624895ea -->
+<!-- synced-from: README.md sha256:928828953d83e8363828c3953cf3aec4f85f7db1e109f1605418ab05cade2654 -->
 <p align="center">🌍 <a href="README.md">English</a> | <a href="README.tr.md">Türkçe</a> | <strong>العربية</strong> | <a href="README.ja.md">日本語</a></p>
 
 <p align="center">
@@ -342,7 +342,7 @@ docker compose up   # أو ابنِ الصورة محليًا
 
 يمكن أيضًا استخدام Liger RMSNorm وSwiGLU التجريبيين ضمن تدريب SFT مع بث طبقات Llama.
 راجع [إعداد البث وحدود التحقق](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft).
-يتطلب هذا المسار CUDA وLiger 0.8.1 أو أحدث؛ ولم يُقَس أداء البث بعد.
+يتطلب هذا المسار CUDA وLiger 0.8.1 تحديدًا. لم يجتز اختبار التكافؤ العددي الصارم على 7B؛ ولم يثبت تسريع البث.
 
 ## استكشاف الأخطاء وإصلاحها
 

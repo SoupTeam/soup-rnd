@@ -1,5 +1,10 @@
 # Liger inside Soup streaming: status and GPU plan (2026-10-19)
 
+The [strict 7B follow-up](liger-streaming-7b-20261019.md) supersedes the 7B and
+performance status below: all three Liger choices fail the unchanged tensor
+tolerances against a bitwise-repeatable ordinary streaming control. The historical
+plan and earlier local checks remain here for provenance.
+
 The original plan below is retained with its historical local-validation record.
 The 2026-10-19 A40 follow-up passed the unchanged 24-case CUDA matrix and four
 short pretrained 7B save/reload pilots after the precision corrections described

@@ -1,4 +1,4 @@
-<!-- synced-from: README.md sha256:1d9971136a41db4632eb22c2232ed80b42ea3a4f67abe4a468e3bbf0624895ea -->
+<!-- synced-from: README.md sha256:928828953d83e8363828c3953cf3aec4f85f7db1e109f1605418ab05cade2654 -->
 <p align="center">🌍 <a href="README.md">English</a> | <a href="README.tr.md">Türkçe</a> | <a href="README.ar.md">العربية</a> | <strong>日本語</strong></p>
 
 <p align="center">
@@ -337,7 +337,7 @@ docker compose up   # またはローカルでビルド
 
 実験的な Liger RMSNorm と SwiGLU は、Llama のレイヤーストリーミング SFT でも利用できます。
 [設定と検証範囲](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft)を参照してください。
-この経路には CUDA と Liger 0.8.1 以降が必要です。ストリーミングでの性能はまだ測定されていません。
+この経路には CUDA と Liger 0.8.1 が必要です。7B の厳密な数値一致テストは未達で、ストリーミングの高速化は確認されていません。
 
 ## トラブルシューティング
 
