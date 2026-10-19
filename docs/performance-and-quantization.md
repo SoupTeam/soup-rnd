@@ -942,7 +942,9 @@ training:
   fast_lora: false
 ```
 
-Requires CUDA, working Triton/Liger imports and `liger-kernel>=0.8.1`. A missing
+Requires CUDA, working Triton/Liger imports and `liger-kernel==0.8.1` (the
+`soup-cli[liger]` extra installs it). Streaming uses a private backward launch
+contract, so other versions are refused until requalified. A missing
 dependency, CPU/MPS device or non-Llama architecture stops setup before resolving
 base weights or sharding. `liger_components` is valid only with streamed Liger;
 empty, duplicate or unknown selections are refused. The ordinary resident

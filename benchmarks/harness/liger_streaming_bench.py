@@ -67,8 +67,9 @@ def _gpu_snapshot() -> str:
 
 def run(config: Any, *, arm: str, warmup: int, steps: int, output: Path) -> None:
     import torch
-    from transformers import TrainerCallback
+    from transformers import TrainerCallback, set_seed
 
+    from benchmarks.harness.liger_streaming_parity import initialize_adapters
     from soup_cli.data.loader import load_dataset
     from soup_cli.trainer.sft import SFTTrainerWrapper
 
@@ -91,10 +92,17 @@ def run(config: Any, *, arm: str, warmup: int, steps: int, output: Path) -> None
         "peak_allocated_bytes": [],
         "peak_reserved_bytes": [],
     }
+    set_seed(config.training.seed)
     wrapper = SFTTrainerWrapper(config, device="cuda", report_to="none")
     try:
         setup_start = time.perf_counter()
         wrapper.setup(load_dataset(config.data))
+        adapters = initialize_adapters(wrapper.model)
+        digest = hashlib.sha256()
+        for name, value in sorted(adapters.items()):
+            digest.update(name.encode())
+            digest.update(value.detach().cpu().float().numpy().tobytes())
+        report["initial_adapter_sha256"] = digest.hexdigest()
         report["setup_seconds"] = time.perf_counter() - setup_start
         report["patch_counts"] = wrapper._streaming_liger_patches
         trainer = wrapper.trainer
@@ -104,6 +112,12 @@ def run(config: Any, *, arm: str, warmup: int, steps: int, output: Path) -> None
         trainer.args.disable_tqdm = True
         trainer.args.logging_steps = 1
         trainer.args.logging_nan_inf_filter = False
+        report["input_shapes"] = []
+
+        def observe(_module, _args, kwargs):
+            report["input_shapes"].append(list(kwargs["input_ids"].shape))
+
+        handle = wrapper.model.register_forward_pre_hook(observe, with_kwargs=True)
 
         class Measure(TrainerCallback):
             def on_step_begin(self, _args, state, _control, **_kwargs):
@@ -123,6 +137,7 @@ def run(config: Any, *, arm: str, warmup: int, steps: int, output: Path) -> None
         torch.cuda.synchronize()
         train_start = time.perf_counter()
         wrapper.train()
+        handle.remove()
         torch.cuda.synchronize()
         report["training_wall_seconds_including_final_save"] = time.perf_counter() - train_start
         report["training_log_history"] = trainer.state.log_history

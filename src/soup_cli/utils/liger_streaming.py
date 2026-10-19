@@ -23,11 +23,14 @@ def validate_streaming_liger_environment(device: str) -> None:
         installed = version("liger-kernel")
     except PackageNotFoundError as exc:
         raise ValueError(
-            'streamed Liger requires liger-kernel>=0.8.1; pip install "soup-cli[liger]" '
-            '"liger-kernel>=0.8.1"'
+            'streamed Liger requires liger-kernel==0.8.1; '
+            'pip install "soup-cli[liger]"'
         ) from exc
-    if Version(installed) < Version("0.8.1"):
-        raise ValueError(f"streamed Liger requires liger-kernel>=0.8.1; found {installed}")
+    if Version(installed) != Version("0.8.1"):
+        raise ValueError(
+            "streamed Liger requires liger-kernel==0.8.1; "
+            f"found {installed}; install liger-kernel==0.8.1"
+        )
     _assert_no_global_liger()
     _load_liger_ops()
 

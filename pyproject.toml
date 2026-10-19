@@ -153,7 +153,9 @@ vision = ["Pillow>=9.0.0"]
 # The floor lives in TORCHAO_MIN_VERSION (src/soup_cli/utils/torchao_compat.py);
 # tests/test_issue826_torchao_class_names.py pins this line to it (#826).
 qat = ["torchao>=0.18.0"]
-liger = ["liger-kernel>=0.3.0"]
+# Streaming uses the private RMSNorm backward launch contract qualified on 0.8.1.
+# Requalify native CUDA parity before widening this pin.
+liger = ["liger-kernel==0.8.1"]
 ring-attn = ["ring-flash-attn>=0.1.0"]
 onnx = ["optimum[onnxruntime]>=1.16.0"]
 tensorrt = ["tensorrt_llm>=0.9.0"]

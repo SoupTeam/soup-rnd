@@ -488,7 +488,7 @@ def test_streaming_liger_refuses_before_resolving_weights(tmp_path, monkeypatch,
         wrapper.setup({"train": []})
 
 
-@pytest.mark.parametrize("installed", [None, "0.3.0"])
+@pytest.mark.parametrize("installed", [None, "0.3.0", "0.8.2", "0.9.0"])
 def test_streamed_liger_dependency_floor(monkeypatch, installed):
     import importlib.metadata
 
@@ -500,7 +500,7 @@ def test_streamed_liger_dependency_floor(monkeypatch, installed):
         return installed
 
     monkeypatch.setattr(importlib.metadata, "version", package_version)
-    with pytest.raises(ValueError, match="liger-kernel>=0.8.1"):
+    with pytest.raises(ValueError, match="liger-kernel==0.8.1"):
         validate_streaming_liger_environment("cuda")
 
 
