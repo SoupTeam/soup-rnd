@@ -38,6 +38,15 @@ SIDECAR_FILES = (
     "special_tokens_map.json",
 )
 EXPECTED_UNITS = 3136
+#: One metadata key only. The safetensors writer takes ``metadata`` as a hash map and writes the
+#: keys in an order that changes from process to process, so a header with two keys is not
+#: reproducible. The double-quant setting is in the directory name and in the manifest.
+SAFETENSORS_METADATA = {"format": "pt"}
+
+
+class OutputSetError(RuntimeError):
+    """The files under OUT are not exactly the expected outputs (stray, missing, or listed
+    wrongly in SHA256SUMS)."""
 
 
 @dataclass(frozen=True)
@@ -301,6 +310,32 @@ def _shard_name(group: str) -> str:
     return f"model-{group}.safetensors"
 
 
+def writeback_groups(weight_map: Dict[str, str]) -> Dict[str, List[str]]:
+    """Checkpoint keys by write-back shard group: ``layer-NN`` per layer, ``other`` for the rest."""
+    groups: Dict[str, List[str]] = {}
+    for key in weight_map:
+        match = re.match(r"^model\.layers\.(\d+)\.", key)
+        group = f"layer-{int(match.group(1)):02d}" if match else "other"
+        groups.setdefault(group, []).append(key)
+    return groups
+
+
+def expected_output_names(source: Path, units: List[Unit]) -> List[str]:
+    """Every file ``run`` writes under OUT (SHA256SUMS aside), as sorted relative paths."""
+    weight_map = json.loads((Path(source) / "model.safetensors.index.json").read_text())[
+        "weight_map"]
+    layers = sorted({u.layer for u in units})
+    names = []
+    for tag, _ in DQ_SETTINGS:
+        names += [f"codes-dq{tag}/layer-{layer:02d}.safetensors" for layer in layers]
+        names += [f"writeback-dq{tag}/{_shard_name(group)}" for group in writeback_groups(
+            weight_map)]
+        names.append(f"writeback-dq{tag}/model.safetensors.index.json")
+        names += [f"writeback-dq{tag}/{name}" for name in SIDECAR_FILES
+                  if (Path(source) / name).exists()]
+    return sorted(names)
+
+
 def quantize_pass(source: Path, out: Path, tag: str, double_quant: bool,
                   units: List[Unit], log) -> Dict[str, Any]:
     """Quantize every unit of one DQ setting; write codes, write-back shards; return rows."""
@@ -345,18 +380,14 @@ def quantize_pass(source: Path, out: Path, tag: str, double_quant: bool,
                 "writeback_sha256": common.sha256_tensor(back),
             }
         save_file(layer_tensors, str(codes_dir / f"layer-{layer:02d}.safetensors"),
-                  metadata={"format": "pt", "double_quant": tag})
+                  metadata=dict(SAFETENSORS_METADATA))
         log(f"  dq {tag}: layer {layer} quantized ({time.time() - started:.0f}s)")
         del layer_tensors
 
     # write-back shards from the modified model: views into model memory, one file per layer
     new_map: Dict[str, str] = {}
     total = 0
-    groups: Dict[str, List[str]] = {}
-    for key in weight_map:
-        match = re.match(r"^model\.layers\.(\d+)\.", key)
-        group = f"layer-{int(match.group(1)):02d}" if match else "other"
-        groups.setdefault(group, []).append(key)
+    groups = writeback_groups(weight_map)
     state_view = {u.key: fused_view(model, u, intermediate) for u in units}
     plain = dict(model.named_parameters())
     for name, buf in model.named_buffers():
@@ -370,7 +401,7 @@ def quantize_pass(source: Path, out: Path, tag: str, double_quant: bool,
                 tensor = plain[key].data if key in plain else source_tensor(key)
                 tensors[key] = tensor.contiguous()
         fname = _shard_name(group)
-        save_file(tensors, str(wb_dir / fname), metadata={"format": "pt"})
+        save_file(tensors, str(wb_dir / fname), metadata=dict(SAFETENSORS_METADATA))
         total += sum(t.numel() * t.element_size() for t in tensors.values())
         for key in keys:
             new_map[key] = fname
@@ -501,17 +532,44 @@ def verify(source: Path, out: Path, units: List[Unit], part1_rows: Optional[Dict
 # --------------------------------------------------------------------------
 
 
-def hash_outputs(out: Path, log) -> Dict[str, Dict[str, Any]]:
+def hash_outputs(out: Path, log, expected: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Hash exactly the expected output files. A stray or missing file raises
+    ``OutputSetError``; nothing outside ``expected`` is ever a manifest entry."""
+    on_disk = sorted(p.relative_to(out).as_posix() for p in out.rglob("*")
+                     if p.is_file() and p.name != "SHA256SUMS")
+    stray = sorted(set(on_disk) - set(expected))
+    missing = sorted(set(expected) - set(on_disk))
+    if stray or missing:
+        raise OutputSetError(
+            f"output set is not the expected one: {len(stray)} stray file(s) {stray[:10]}, "
+            f"{len(missing)} missing file(s) {missing[:10]}")
     files: Dict[str, Dict[str, Any]] = {}
-    for path in sorted(out.rglob("*")):
-        if path.is_file() and path.name != "SHA256SUMS":
-            rel = path.relative_to(out).as_posix()
-            files[rel] = {"sha256": common.sha256_file(path), "bytes": path.stat().st_size}
+    for rel in sorted(expected):
+        path = out / rel
+        files[rel] = {"sha256": common.sha256_file(path), "bytes": path.stat().st_size}
     (out / "SHA256SUMS").write_text(
         "".join(f"{v['sha256']}  {k}\n" for k, v in files.items())
     )
+    check_sums_file(out, files)
     log(f"hashed {len(files)} files")
     return files
+
+
+def check_sums_file(out: Path, files: Dict[str, Dict[str, Any]]) -> None:
+    """SHA256SUMS must list exactly the manifest's files with the manifest's hashes."""
+    listed = {}
+    for line in (out / "SHA256SUMS").read_text().splitlines():
+        digest, _, name = line.partition("  ")
+        if name in listed:
+            raise OutputSetError(f"SHA256SUMS lists {name} twice")
+        listed[name] = digest
+    want = {k: v["sha256"] for k, v in files.items()}
+    if listed != want:
+        extra = sorted(set(listed) - set(want))
+        absent = sorted(set(want) - set(listed))
+        wrong = sorted(k for k in set(listed) & set(want) if listed[k] != want[k])
+        raise OutputSetError(f"SHA256SUMS differs from the manifest: extra {extra[:10]}, "
+                             f"missing {absent[:10]}, wrong hash {wrong[:10]}")
 
 
 def read_part1_rows(path: Path) -> Dict[str, dict]:
@@ -547,7 +605,7 @@ def run(source: Path, out: Path, manifest: Path, part1_rows_path: Optional[Path]
     with BackendProbe() as probe:
         checks = verify(source, out, units, part1, log)
     backends["verify"] = probe.report()
-    files = hash_outputs(out, log)
+    files = hash_outputs(out, log, expected_output_names(source, units))
     unit_rows = {
         tag: {k: dict(v, **{m: checks[tag]["unit_metrics"][k][m] for m in ("frac_over", "worst")})
               for k, v in passes[tag]["rows"].items()}
@@ -602,7 +660,11 @@ def main(argv=None) -> int:
         plan = disk_plan(args.source, args.out, enumerate_units())
         print(json.dumps(plan, indent=1))
         return 0 if plan["fits"] else 1
-    return run(args.source, args.out, args.manifest, args.part1_rows)
+    try:
+        return run(args.source, args.out, args.manifest, args.part1_rows)
+    except OutputSetError as exc:
+        print(f"STOP: {exc}")
+        return 3
 
 
 if __name__ == "__main__":
