@@ -508,6 +508,14 @@ class PPOTrainerWrapper:
             self._dataset_in_constructor = True
             self.trainer = ppo_trainer_cls(**trainer_kwargs)
 
+        # TRL's eager PPO constructor bypasses Trainer.__init__. Transformers
+        # 5.20 reads this model-placement flag when saving a checkpoint; copy
+        # the same model capability as Trainer instead of disabling saves.
+        if not hasattr(self.trainer, "is_distributed_loading_by_transformers"):
+            self.trainer.is_distributed_loading_by_transformers = getattr(
+                self.model, "is_distributed_loading_by_transformers", False
+            )
+
         # #359 - the same exposure #336 fixed in sft.py: with LoRA the
         # no-decay optimizer group is empty, DeepSpeed drops it, and the LR
         # scheduler keeps two base_lrs until torch's strict zip raises at the

@@ -974,6 +974,9 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             "save_total_limit": 3,
             "bf16": bf16_flag,
             "fp16": fp16_flag,
+            # Respect an explicit CPU request even on CUDA/MPS hosts. Model
+            # placement and Trainer's accelerator must select the same device.
+            "use_cpu": self.device == "cpu",
             "report_to": self.report_to,
             "remove_unused_columns": False,
             "deepspeed": self.deepspeed_config,
