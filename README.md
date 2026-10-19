@@ -340,10 +340,10 @@ All training tasks run on CPU for testing (quantization auto-disabled). Optional
 `liger`, `mlx`, `onnx`, `tensorrt`, …) are listed in
 [`docs/models.md`](docs/models.md#optional-extras).
 
-Experimental Liger RMSNorm and SwiGLU can also run inside Llama layer-streamed
+Experimental Liger integration can also run RMSNorm and SwiGLU inside Llama layer-streamed
 SFT. See the [streaming configuration and verification limits](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft).
-This path requires CUDA and exactly Liger 0.8.1. Strict 7B parity is blocked;
-no streaming speedup is established.
+This path requires CUDA and exactly Liger 0.8.1. Numerical qualification and
+measurements are model-specific; enabling it does not guarantee a streaming speedup.
 
 ## Troubleshooting
 

@@ -1,4 +1,4 @@
-<!-- synced-from: README.md sha256:928828953d83e8363828c3953cf3aec4f85f7db1e109f1605418ab05cade2654 -->
+<!-- synced-from: README.md sha256:dfa1af8b2ae6347bd8e029130fccc76233fe08159cf915ca390d579ceb4d7566 -->
 <p align="center">🌍 <a href="README.md">English</a> | <a href="README.tr.md">Türkçe</a> | <strong>العربية</strong> | <a href="README.ja.md">日本語</a></p>
 
 <p align="center">
@@ -340,9 +340,9 @@ docker compose up   # أو ابنِ الصورة محليًا
 (`train` و`all` و`fast` و`vision` و`qat` و`serve` و`serve-fast` و`ui` و`eval` و`deepspeed` و`liger` و`mlx`
 و`onnx` و`tensorrt` و…) مذكورة في [`docs/models.md`](docs/models.md#optional-extras).
 
-يمكن أيضًا استخدام Liger RMSNorm وSwiGLU التجريبيين ضمن تدريب SFT مع بث طبقات Llama.
+يمكن أيضًا لتكامل Liger التجريبي تشغيل RMSNorm وSwiGLU ضمن تدريب SFT مع بث طبقات Llama.
 راجع [إعداد البث وحدود التحقق](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft).
-يتطلب هذا المسار CUDA وLiger 0.8.1 تحديدًا. لم يجتز اختبار التكافؤ العددي الصارم على 7B؛ ولم يثبت تسريع البث.
+يتطلب هذا المسار CUDA وLiger 0.8.1 تحديدًا. تعتمد نتائج التحقق العددي والقياسات على النموذج؛ وتفعيله لا يضمن تسريع البث.
 
 ## استكشاف الأخطاء وإصلاحها
 

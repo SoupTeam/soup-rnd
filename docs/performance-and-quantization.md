@@ -943,8 +943,8 @@ training:
 ```
 
 Requires CUDA, working Triton/Liger imports and `liger-kernel==0.8.1` (the
-`soup-cli[liger]` extra installs it). Streaming uses a private backward launch
-contract, so other versions are refused until requalified. A missing
+`soup-cli[liger]` extra installs it). Other kernel versions require requalification
+and are refused. A missing
 dependency, CPU/MPS device or non-Llama architecture stops setup before resolving
 base weights or sharding. `liger_components` is valid only with streamed Liger;
 empty, duplicate or unknown selections are refused. The ordinary resident
@@ -952,8 +952,8 @@ empty, duplicate or unknown selections are refused. The ordinary resident
 
 | Streamed operation | Implementation and boundary |
 | --- | --- |
-| RMSNorm | Decoder norms and resident final norm; Llama casting, backward out of place |
-| SwiGLU | Activation fusion only; existing PEFT and dense/NF4 projections remain intact |
+| RMSNorm | Decoder and final norms; Soup compatibility forward for width 4096, Liger forward for other widths, HF-ordered ATen backward |
+| SwiGLU | Liger fused BF16 forward and HF-ordered ATen backward; existing PEFT and dense/NF4 projections remain intact |
 | RoPE | HF implementation retained; selecting Liger RoPE is refused |
 | Cross entropy / fused linear cross entropy | HF/TRL loss and streamed head retained; neither Liger loss is enabled |
 | Fast-LoRA + Liger | Still refused at config load |
@@ -965,29 +965,32 @@ identity, canonical PEFT names, periodic checkpoints and adapter reloads. No poo
 buffer is captured in a closure: each forward reads the current substituted weight.
 RMSNorm backward does not overwrite residual gradients. SwiGLU requires a SiLU
 MLP; `pretraining_tp=1`, and prior global Liger patches are refused.
-The Liger core runs in FP32, with HF's cast and affine/product boundaries kept
-outside it. In particular the affine RMSNorm gradient and incoming SiLU gradient
-must round in the original activation dtype. This deliberately gives up full
-fusion and adds FP32 intermediates; no speed or memory improvement is implied.
-The RMSNorm backward still executes Liger's Triton kernel, with CUDA multiply/add
-fusion disabled to preserve HF's FP16 rounding at scaled-gradient boundaries.
+RMSNorm retains HF's FP32 normalization and low-precision affine boundary. For
+width 4096, Soup's Triton forward explicitly follows ATen's four vector accumulators
+and cross-warp addition order. Other widths use Liger's unweighted FP32 forward.
+Backward recomputes the HF inverse RMS and preserves the separate derivative
+operations in ATen. BF16 SwiGLU uses Liger's fused forward directly; its backward
+retains the rounded product gradient and ATen SiLU derivative. FP16 keeps the
+FP32 SiLU core and external cast/product boundary. This is a compatibility
+integration with explicit rounding boundaries; enabling it implies no speed or
+memory benefit. The width-4096 RMS forward is a Soup kernel, and the backwards
+use ATen rather than upstream Liger's fused backwards.
 The first integration accepts boolean checkpoint settings only and refuses
 `use_cut_ce`. Existing streaming restrictions still apply.
 
 **Verification scope:** local CPU tests exercise the actual Soup trainer,
 RAM/disk, dense/NF4, gradients, slot reuse and PEFT save/load using explicitly
 substituted autograd operations. They do **not** execute Liger/Triton. Separately,
-all 24 native CUDA cases passed on A40 with Liger 0.8.1: each component alone and
-together, FP16/BF16, RAM/disk and dense/NF4. A captured FP16 rounding boundary also
-passes a zero-tolerance forward/backward regression. The subsequent OpenLLaMA 7B v2
-RAM/dense BF16 check remains **blocked**: all three component choices fail strict
-gradient, updated-adapter and logits parity, despite finite execution and exact
-public adapter reloads. The ordinary deterministic streaming control repeats all
-1,813 captured tensors bit-for-bit. See the
-[7B follow-up](../benchmarks/liger-streaming-7b-20261019.md) and the earlier
-[GPU report](../benchmarks/liger-streaming-gpu-20261019.md).
-Comparative Liger timing is blocked by correctness; speed and memory improvements,
-7B disk/NF4 operation and final task quality remain unestablished. A skip is not a pass.
+the unchanged 24-case CUDA matrix covers components separately and together,
+FP16/BF16, RAM/disk and dense/NF4. Additional zero-tolerance regressions cover
+captured rounding failures, every finite BF16 SiLU gate value, and width-4096
+RMS reductions with different row counts. Current numerical qualification and
+streaming speed/allocator-memory measurements are in the
+[7B repair report](../benchmarks/liger-streaming-7b-repair-20261019.md).
+The [earlier 7B failure](../benchmarks/liger-streaming-7b-20261019.md) retains its
+original source and verdict. Its deterministic ordinary control repeated 1,813
+tensors bit-for-bit. 7B disk/NF4 operation and final task quality remain
+unestablished. A skip is not a pass.
 There is no streaming performance claim from the historical resident Liger results.
 See the [GPU qualification and measurement plan](../benchmarks/liger-streaming-plan-20261019.md).
 

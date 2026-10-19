@@ -1,5 +1,9 @@
 # Streamed Liger: strict pretrained 7B follow-up
 
+This is the historical source verdict. The later
+[arithmetic repair and streaming measurement](liger-streaming-7b-repair-20261019.md)
+records the compatibility implementation and its separate qualification.
+
 **Verdict: blocked by 7B numerical parity.** The unchanged 24-case native CUDA
 matrix passes, but RMSNorm, SwiGLU and their union fail the original elementwise
 tolerances on a pretrained 7B model. Finite training and exact adapter export are

@@ -8,9 +8,14 @@ Removing raw files from the review diff does not remove the original Git history
 
 ## Current reports
 
-- [Liger streaming strict 7B follow-up](liger-streaming-7b-20261019.md):
-  24 native CUDA cases pass; deterministic pretrained 7B parity fails for all
-  three component choices. Comparative speed and memory gains remain blocked.
+- [Liger streaming 7B arithmetic repair](liger-streaming-7b-repair-20261019.md):
+  the unchanged 24-case CUDA matrix and 12 exact GPU regressions pass; three
+  component selections match the deterministic pretrained 7B baseline. The
+  report measures streaming throughput and allocator memory separately. GPU
+  summaries and timing samples are retained, but the raw tensor export did not
+  finish before budget cleanup; independent local replay remains unavailable.
+- [Earlier Liger streaming strict 7B failure](liger-streaming-7b-20261019.md):
+  preserved historical source, failed tensor gates and original complete archive.
 
 - [Soup SFT and layer-streaming integration](d2-fast-lora-streaming-20261018.md):
   synthetic FP16/BF16 correctness passes; real-data speed, memory and quality remain unmeasured.

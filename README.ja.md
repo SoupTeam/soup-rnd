@@ -1,4 +1,4 @@
-<!-- synced-from: README.md sha256:928828953d83e8363828c3953cf3aec4f85f7db1e109f1605418ab05cade2654 -->
+<!-- synced-from: README.md sha256:dfa1af8b2ae6347bd8e029130fccc76233fe08159cf915ca390d579ceb4d7566 -->
 <p align="center">🌍 <a href="README.md">English</a> | <a href="README.tr.md">Türkçe</a> | <a href="README.ar.md">العربية</a> | <strong>日本語</strong></p>
 
 <p align="center">
@@ -335,9 +335,9 @@ docker compose up   # またはローカルでビルド
 エクストラ（`train`、`all`、`fast`、`vision`、`qat`、`serve`、`serve-fast`、`ui`、`eval`、`deepspeed`、
 `liger`、`mlx`、`onnx`、`tensorrt`、…）は、[`docs/models.md`](docs/models.md#optional-extras) に一覧があります。
 
-実験的な Liger RMSNorm と SwiGLU は、Llama のレイヤーストリーミング SFT でも利用できます。
+実験的な Liger 連携では、Llama のレイヤーストリーミング SFT で RMSNorm と SwiGLU を利用できます。
 [設定と検証範囲](docs/performance-and-quantization.md#experimental-liger-inside-streamed-sft)を参照してください。
-この経路には CUDA と Liger 0.8.1 が必要です。7B の厳密な数値一致テストは未達で、ストリーミングの高速化は確認されていません。
+この経路には CUDA と Liger 0.8.1 が必要です。数値検証と計測結果はモデルに依存し、この設定でストリーミングが必ず高速化するわけではありません。
 
 ## トラブルシューティング
 

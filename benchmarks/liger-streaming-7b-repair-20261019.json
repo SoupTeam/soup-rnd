@@ -1,0 +1,339 @@
+{
+  "source_commit": "94d1870dddd951d0f0ce78edd7026519303f3bc6",
+  "model": "openlm-research/open_llama_7b_v2",
+  "model_revision": "e5961def23172a2384543940e773ab676033c963",
+  "gpu": "RTX 3090",
+  "scope": "Soup SFT RAM streaming, two slots, dense BF16, ordinary PEFT LoRA; synthetic numerical fixture",
+  "implementation": "Liger BF16 SwiGLU forward; Soup width-4096 RMS forward; HF ordered ATen backwards",
+  "junit": {
+    "native-24.xml": {
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    "regressions.xml": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "rtol": 0.01,
+  "atol": 1e-05,
+  "loss_decimals": 3,
+  "gpu_comparisons": {
+    "swiglu": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "loss": {
+          "tensors": 1,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "final": {
+          "tensors": 448,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "initial": {
+          "tensors": 448,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "logits": {
+          "tensors": 4,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        }
+      },
+      "rtol": 0.01,
+      "atol": 1e-05
+    },
+    "rms_norm": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "loss": {
+          "tensors": 1,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "final": {
+          "tensors": 448,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "initial": {
+          "tensors": 448,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "logits": {
+          "tensors": 4,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        }
+      },
+      "rtol": 0.01,
+      "atol": 1e-05
+    },
+    "rms_norm+swiglu": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "loss": {
+          "tensors": 1,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "final": {
+          "tensors": 448,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "gradient": {
+          "tensors": 896,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "initial": {
+          "tensors": 448,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "logits": {
+          "tensors": 4,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        }
+      },
+      "rtol": 0.01,
+      "atol": 1e-05
+    }
+  },
+  "performance": {
+    "scope": "one ABBA cycle, two independent processes per arm, 3 warmup and 5 measured steps per process",
+    "arms": {
+      "baseline": {
+        "runs": 2,
+        "seconds_per_step": 4.06367677252274,
+        "tokens_per_second": 503.9770913493685,
+        "peak_allocated_gib": 1.8448262214660645,
+        "peak_reserved_gib": 2.150390625
+      },
+      "rms_norm+swiglu": {
+        "runs": 2,
+        "seconds_per_step": 4.083199697546661,
+        "tokens_per_second": 501.5674352715384,
+        "peak_allocated_gib": 1.8448262214660645,
+        "peak_reserved_gib": 2.150390625
+      }
+    },
+    "throughput_change_percent": -0.4781280973264912,
+    "allocated_reduction_percent": 0.0,
+    "reserved_reduction_percent": 0.0,
+    "runs": [
+      {
+        "position": 0,
+        "arm": "baseline",
+        "median_seconds": 4.012965243076906,
+        "seconds": [
+          4.012965243076906,
+          4.014432816999033,
+          4.012649461161345,
+          4.0154750109650195,
+          4.012134748976678
+        ],
+        "allocated_bytes": 1980867072,
+        "reserved_bytes": 2308964352,
+        "initial_adapter_sha256": "936d208cd0f9462584b9a9507ace3073dcb0ebd48954ad59e233ff016047e664",
+        "data_sha256": "313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9",
+        "gpu_before": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P8, 210 MHz, 25.33 W, 45, 4 MiB\n",
+        "gpu_after": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P2, 1950 MHz, 230.99 W, 59, 2630 MiB\n"
+      },
+      {
+        "position": 1,
+        "arm": "rms_norm+swiglu",
+        "median_seconds": 4.08047159598209,
+        "seconds": [
+          4.077285428065807,
+          4.080590873025358,
+          4.080277546076104,
+          4.08047159598209,
+          4.081222602864727
+        ],
+        "allocated_bytes": 1980867072,
+        "reserved_bytes": 2308964352,
+        "initial_adapter_sha256": "936d208cd0f9462584b9a9507ace3073dcb0ebd48954ad59e233ff016047e664",
+        "data_sha256": "313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9",
+        "gpu_before": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P8, 210 MHz, 24.43 W, 51, 4 MiB\n",
+        "gpu_after": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P2, 1935 MHz, 212.31 W, 60, 2630 MiB\n"
+      },
+      {
+        "position": 2,
+        "arm": "rms_norm+swiglu",
+        "median_seconds": 4.085927799111232,
+        "seconds": [
+          4.089148381026462,
+          4.087248475989327,
+          4.085927799111232,
+          4.083997413981706,
+          4.065230993088335
+        ],
+        "allocated_bytes": 1980867072,
+        "reserved_bytes": 2308964352,
+        "initial_adapter_sha256": "936d208cd0f9462584b9a9507ace3073dcb0ebd48954ad59e233ff016047e664",
+        "data_sha256": "313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9",
+        "gpu_before": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P5, 735 MHz, 32.85 W, 53, 4 MiB\n",
+        "gpu_after": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P2, 1935 MHz, 242.83 W, 62, 2630 MiB\n"
+      },
+      {
+        "position": 3,
+        "arm": "baseline",
+        "median_seconds": 4.1143883019685745,
+        "seconds": [
+          4.116462402977049,
+          4.112523444928229,
+          4.114752728957683,
+          4.1143883019685745,
+          4.112380266888067
+        ],
+        "allocated_bytes": 1980867072,
+        "reserved_bytes": 2308964352,
+        "initial_adapter_sha256": "936d208cd0f9462584b9a9507ace3073dcb0ebd48954ad59e233ff016047e664",
+        "data_sha256": "313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9",
+        "gpu_before": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P5, 660 MHz, 29.40 W, 54, 4 MiB\n",
+        "gpu_after": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3090, GPU-be7e9b80-1e07-3118-ab5c-f7531b9b1d50, 580.126.09, P2, 1935 MHz, 234.37 W, 63, 2630 MiB\n"
+      }
+    ]
+  },
+  "source_audit": {
+    "src/soup_cli/utils/liger_streaming.py": {
+      "sha256": "571be8ae9812f046a18b794a3371ee73dc4b059225d1b6eda0a475642f95f2dc",
+      "canonical_source_equal": true
+    },
+    "src/soup_cli/utils/_liger_streaming_kernels.py": {
+      "sha256": "ed9b91ea2a5ba1680732c87f8077b3c58edc5a49513687b42f6c46a812649077",
+      "canonical_source_equal": true
+    },
+    "benchmarks/harness/liger_streaming_parity.py": {
+      "sha256": "7b97ff6dde7650e06717ca7eec3c13df5f42b0698680acc3b523d96c30c259c8",
+      "canonical_source_equal": true
+    },
+    "benchmarks/harness/liger_streaming_bench.py": {
+      "sha256": "be467c1e2948d6eb5694ab036dff96f9c5e414f5db3ca4fc4644c7cd6882f9bc",
+      "canonical_source_equal": true
+    },
+    "tests/test_liger_streaming.py": {
+      "sha256": "128f8eb1cf7347a3b500ba257d10c13079c395cc08e33ff41556d33a14c08ba7",
+      "canonical_source_equal": true
+    },
+    "tests/test_liger_streaming_edges.py": {
+      "sha256": "d0a1055382922d06ef0d3c345e76fc8694d7acae1577aabf141982a9fc943e43",
+      "canonical_source_equal": true
+    },
+    "tests/fixtures/liger_7b_bf16_backward.safetensors": {
+      "sha256": "7770f411ee40332516ad3b01343947bf9fef37091726af0200fbe1ec13a528f9",
+      "canonical_source_equal": true
+    }
+  },
+  "protocol_audit": {
+    "test_soup_liger_streaming_training_and_adapter_round_trip": {
+      "AST_unchanged": true,
+      "original_commit": "f7649c72b993c639a3bb83c825e694bc827b70ad",
+      "ast_sha256": "610572815aa072812422bce9f56d7cd6da798da7d92a4d20bdcb764575b618b8"
+    },
+    "compare": {
+      "AST_unchanged": true,
+      "original_commit": "6241c6fabe6fa03b4fa8013c9306bf5ad8063f4c",
+      "ast_sha256": "8e783ba13d43b845274930f5354e48d90a110888a5eeab1680000339c6117d38"
+    },
+    "capture": {
+      "AST_unchanged": true,
+      "original_commit": "6241c6fabe6fa03b4fa8013c9306bf5ad8063f4c",
+      "ast_sha256": "783020c079423c16fae4ac5153d303467a7b0435bc9d060334310867d7360cd7"
+    },
+    "rtol": 0.01,
+    "atol": 1e-05,
+    "loss_decimals": 3,
+    "native_matrix_cells": 24,
+    "new_operator_regression_rtol": 0,
+    "new_operator_regression_atol": 0
+  },
+  "metadata_archive": {
+    "sha256": "657474a0fb716d7900a6011707976bde764d1f01d128b0769e0ed01ec42aac14",
+    "bytes": 8650907
+  },
+  "artifact_retention": {
+    "complete_raw_archive_retained": false,
+    "independent_local_tensor_replay": false,
+    "blocker": "Slow transfer did not complete before budget guard deleted instance; complete raw tensors and adapter weights lost; summaries, timing samples, JUnit, logs, source and manifests retained.",
+    "compact_partial_bytes": 36536320
+  },
+  "billing": {
+    "provider_observed_cumulative_usd": 1.919,
+    "maximum_usd": 2,
+    "conservative_guard_bound_usd": 1.9892592593,
+    "settlement_may_lag": true,
+    "all_verified_absent": true,
+    "instance_ids": [
+      56660857,
+      56662809,
+      56667949,
+      56678019,
+      56702630,
+      56703041,
+      56703604
+    ],
+    "unix": 1792404034.0008657
+  },
+  "deletion": {
+    "instance_id": 56703604,
+    "verified_absent": true,
+    "unix": 1792403810.844252,
+    "reason": "independent local two-hour guard"
+  }
+}
