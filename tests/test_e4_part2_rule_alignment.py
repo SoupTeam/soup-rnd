@@ -365,3 +365,168 @@ class TestAttentionImplementationPinned:
         report = cal.assemble_report(tmp_path)
         assert report["f"]["A_on"]["attention_implementation_resolved"] == "sdpa"
 
+
+
+# --- 7 review: the rest stage is bound to the final F card ------------------------------------
+
+
+def write_decision(out, decision):
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "decision.json").write_text(json.dumps(decision))
+
+
+def drive_args(out, f_prefix, stage="rest", device="cpu", gpu_index=0):
+    import types
+
+    return types.SimpleNamespace(
+        out=out, f_prefix=f_prefix, stage=stage, data_root=out / "data", split_dir=out / "split",
+        manifest=out / "manifest.json", device=device, gpu_index=gpu_index, instance_id=None)
+
+
+class TestFPrefixFollowsTheDecision:
+    @pytest.mark.parametrize("decision,prefix", [("FINAL_A100_40GB", "F"),
+                                                 ("FINAL_A100_80GB", "F80")])
+    def test_the_prefix_is_derived_from_decision_json(self, tmp_path, decision, prefix):
+        write_decision(tmp_path, {"decision": decision})
+        assert cal.resolve_f_prefix(tmp_path, None) == prefix
+        assert cal.resolve_f_prefix(tmp_path, prefix) == prefix
+
+    def test_an_explicit_prefix_that_disagrees_is_an_error(self, tmp_path):
+        write_decision(tmp_path, {"decision": "FINAL_A100_80GB"})
+        with pytest.raises(common.CalibrationStopped, match="F80"):
+            cal.resolve_f_prefix(tmp_path, "F")
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB"})
+        with pytest.raises(common.CalibrationStopped, match="F"):
+            cal.resolve_f_prefix(tmp_path, "F80")
+
+    @pytest.mark.parametrize("decision", ["REPEAT_F_ON_A100_80GB", "INCOMPLETE", "F_FAILS",
+                                          "STOP_RECIPE_TO_OWNER"])
+    def test_a_decision_that_is_not_a_final_card_refuses(self, tmp_path, decision):
+        write_decision(tmp_path, {"decision": decision})
+        with pytest.raises(common.CalibrationStopped, match=decision):
+            cal.resolve_f_prefix(tmp_path, None)
+
+    def test_no_decision_file_refuses(self, tmp_path):
+        with pytest.raises(common.CalibrationStopped, match="decision.json"):
+            cal.resolve_f_prefix(tmp_path, None)
+
+    def test_the_rest_stage_hands_the_derived_prefix_to_every_child(self, tmp_path, monkeypatch):
+        write_decision(tmp_path, {"decision": "FINAL_A100_80GB"})
+        argvs = []
+        monkeypatch.setattr(cal, "drive_run", lambda j, run_id, argv, **kw: argvs.append(argv))
+        monkeypatch.setattr(cal, "_cmd_report", lambda a: 0)
+        assert cal._cmd_drive(drive_args(tmp_path, None)) == 0
+        assert len(argvs) == 2 + cal.N_REPEATS + 1
+        for argv in argvs:
+            assert argv[argv.index("--f-prefix") + 1] == "F80"
+
+    def test_the_rest_stage_with_the_wrong_prefix_drives_nothing(self, tmp_path, monkeypatch):
+        write_decision(tmp_path, {"decision": "FINAL_A100_80GB"})
+
+        def must_not_drive(*a, **k):
+            raise AssertionError("drove a run with the wrong F prefix")
+
+        monkeypatch.setattr(cal, "drive_run", must_not_drive)
+        with pytest.raises(common.CalibrationStopped):
+            cal._cmd_drive(drive_args(tmp_path, "F"))
+
+    def test_the_cli_has_no_silent_default_for_the_rest_stage(self, tmp_path, monkeypatch):
+        def must_not_drive(*a, **k):
+            raise AssertionError("drove a run without a decision")
+
+        monkeypatch.setattr(cal, "drive_run", must_not_drive)
+        with pytest.raises(common.CalibrationStopped):
+            cal.main(["drive", "--stage", "rest", "--out", str(tmp_path), "--data-root", "d",
+                      "--split-dir", "s", "--manifest", "m"])
+
+    def test_the_f_stage_needs_an_explicit_prefix(self, tmp_path, monkeypatch):
+        def must_not_drive(*a, **k):
+            raise AssertionError("drove an F run without a prefix")
+
+        monkeypatch.setattr(cal, "drive_run", must_not_drive)
+        with pytest.raises(SystemExit):
+            cal.main(["drive", "--stage", "F", "--out", str(tmp_path), "--data-root", "d",
+                      "--split-dir", "s", "--manifest", "m"])
+
+    def test_a_single_run_of_n_or_p_with_the_wrong_prefix_is_refused(self, tmp_path):
+        write_decision(tmp_path, {"decision": "FINAL_A100_80GB"})
+        args = drive_args(tmp_path, "F", stage="N")
+        args.arm, args.repeat, args.run_id = None, 1, None
+        with pytest.raises(common.CalibrationStopped):
+            cal._cmd_run(args)
+
+    def test_the_report_uses_the_derived_prefix(self, tmp_path, monkeypatch):
+        write_decision(tmp_path, {"decision": "FINAL_A100_80GB"})
+        seen = []
+        monkeypatch.setattr(cal, "assemble_report",
+                            lambda out, prefix="F": seen.append(prefix) or {"voids": [],
+                                                                          "provenance_gaps": []})
+        monkeypatch.setattr(cal, "write_sha256sums", lambda out: 0)
+        cal._cmd_report(drive_args(tmp_path, None))
+        assert seen == ["F80"]
+
+
+# --- 8 review: the model runs on the requested GPU --------------------------------------------
+
+
+class TestDeviceFollowsGpuIndex:
+    @pytest.mark.parametrize("device,index,want", [
+        ("cuda", 0, "cuda:0"), ("cuda", 1, "cuda:1"), ("cuda:1", 1, "cuda:1"),
+        ("cpu", 0, "cpu")])
+    def test_a_bare_cuda_is_the_requested_index(self, device, index, want):
+        assert cal.resolve_device(device, index) == want
+
+    @pytest.mark.parametrize("device,index", [("cuda:0", 1), ("cuda:1", 0), ("cpu", 1),
+                                              ("mps", 0)])
+    def test_a_device_that_disagrees_with_the_index_is_rejected(self, device, index):
+        with pytest.raises(ValueError):
+            cal.resolve_device(device, index)
+
+    def test_run_gives_the_body_the_mapped_device_and_selects_it(self, tmp_path, monkeypatch):
+        import transformers
+
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB"})
+        (tmp_path / "manifest.json").write_text("{}")
+        seen = {}
+        selected = []
+        monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained",
+                            lambda *a, **k: object())
+        monkeypatch.setattr(torch.cuda, "set_device", lambda index: selected.append(index))
+
+        def fake_execute(journal, run_id, kind, out_dir, body, **kw):
+            seen["kwargs"] = kw
+            body()
+            return {"outcome": common.OUTCOME_OK, "void_reasons": []}
+
+        def fake_body(args, run_id, tokenizer, data_root, device, out, hint):
+            seen["device"] = device
+
+        monkeypatch.setattr(cal, "execute_attempt", fake_execute)
+        monkeypatch.setattr(cal, "_body", fake_body)
+        args = drive_args(tmp_path, None, stage="W", device="cuda", gpu_index=1)
+        args.arm, args.repeat, args.run_id = None, 1, None
+        assert cal._cmd_run(args) == 0
+        assert seen["device"] == "cuda:1"
+        assert seen["kwargs"]["gpu_index"] == 1 and seen["kwargs"]["require_gpu"] is True
+        assert selected == [1]
+
+    def test_a_model_on_the_wrong_device_is_refused(self):
+        model = tiny_model(seed=4, dtype=torch.bfloat16)
+        assert cal.assert_on_device(model, "cpu") == "cpu"
+        with pytest.raises(RuntimeError, match="cuda:1"):
+            cal.assert_on_device(model, "cuda:1")
+
+    def test_the_device_actually_used_is_recorded(self, tmp_path, tiny_world):
+        directory = write_legacy_checkpoint(tiny_model(seed=4, dtype=torch.bfloat16),
+                                            tmp_path / "m")
+        res = cal.run_f(directory, "A_bf16", synthetic_examples(12), synthetic_examples(4, 9),
+                        SMALL, "cpu", 1, None, tmp_path / "adapter",
+                        experts_implementation="eager")
+        assert res["device_used"] == "cpu"
+        assert run_w_on_tiny(tiny_world)["device_used"] == ["cpu"]
+        rows = [r["input_ids"] for r in synthetic_examples(40, seed=3)]
+        bf16 = cal.load_base(tiny_world["source"], "cpu", "eager")
+        common.set_fp32_reference_mode()
+        out = cal.run_t(quant.enumerate_units(2, E), cal.UnitFiles(tiny_world["data"]), bf16,
+                        rows, SMALL, "cpu", None, per_kind=1, calls_per_unit=1, min_units=1)
+        assert out["device_used"] == "cpu"

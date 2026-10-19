@@ -142,6 +142,39 @@ def resolve_arm_dir(data_root: Path, arm: str) -> Path:
             "A_bf16": data_root / "source"}[arm]
 
 
+def resolve_device(device: str, gpu_index: int) -> str:
+    """The device string every stage uses. A bare ``cuda`` means GPU 0 to torch, so it is
+    mapped to ``cuda:{gpu_index}``: the model, NVML sampling, the box stamp and the peer probe
+    then all look at the same GPU. A device that names another index is an error."""
+    if device == "cuda":
+        return f"cuda:{gpu_index}"
+    if device.startswith("cuda:"):
+        if device != f"cuda:{gpu_index}":
+            raise ValueError(f"--device {device} disagrees with --gpu-index {gpu_index}")
+        return device
+    if device == "cpu" and gpu_index == 0:
+        return "cpu"
+    raise ValueError(f"--device {device} with --gpu-index {gpu_index} is not supported")
+
+
+def parameters_device(model) -> str:
+    devices = sorted({str(p.device) for p in model.parameters()})
+    if len(devices) != 1:
+        raise RuntimeError(f"model parameters are on several devices: {devices}")
+    return devices[0]
+
+
+def assert_on_device(model, device: str) -> str:
+    """Every parameter must be on ``device``; returns the device actually used."""
+    import torch
+
+    wanted = torch.device(device)
+    wrong = sorted({str(p.device) for p in model.parameters() if p.device != wanted})
+    if wrong:
+        raise RuntimeError(f"model parameters are on {wrong}, not on the requested {device}")
+    return str(wanted)
+
+
 def load_base(model_dir: Path, device: str, experts_implementation: Optional[str]):
     import torch
     from transformers import AutoModelForCausalLM
@@ -152,7 +185,9 @@ def load_base(model_dir: Path, device: str, experts_implementation: Optional[str
         model_dir, dtype=torch.bfloat16, attn_implementation=common.ATTENTION_IMPLEMENTATION,
         **kwargs)
     model.config.use_cache = False
-    return model.to(device)
+    model = model.to(device)
+    assert_on_device(model, device)
+    return model
 
 
 def build_lora_model(model, recipe: Recipe = RECIPE, gradient_checkpointing: bool = True):
@@ -366,27 +401,28 @@ def run_f(model_dir: Path, arm: str, examples: Sequence[Dict[str, Any]],
     import torch
 
     cuda = device.startswith("cuda")
-    sync = torch.cuda.synchronize if cuda else (lambda: None)
+    sync = (lambda: torch.cuda.synchronize(device)) if cuda else (lambda: None)
     result: Dict[str, Any] = {"arm": arm, "updates_requested": recipe.f_updates, "oom": False}
     try:
         model = load_base(model_dir, device, experts_implementation)
         result["experts_implementation_resolved"] = model.config._experts_implementation
         result["attention_implementation_resolved"] = model.config._attn_implementation
+        result["device_used"] = parameters_device(model)
         peft_model = build_lora_model(model, recipe)
         result["trainable"] = trainable_report(peft_model, model.config, recipe.r)
         result["placement"] = placement_report(peft_model, model.config)
         result["recipe_mismatch"] = recipe_mismatches(result["trainable"], result["placement"])
         base_before = frozen_base_hash(peft_model)
         if cuda:
-            torch.cuda.reset_peak_memory_stats()
+            torch.cuda.reset_peak_memory_stats(device)
         sampler_cm = DeviceMemorySampler(memory_reader) if memory_reader else _NoSampler()
         with sampler_cm as sampler:
             trained = train_updates(peft_model, examples, recipe, recipe.f_updates, recipe.seed,
                                     device, pad_id, sync)
         result.update(trained)
         if cuda:
-            result["max_memory_allocated_bytes"] = int(torch.cuda.max_memory_allocated())
-            result["max_memory_reserved_bytes"] = int(torch.cuda.max_memory_reserved())
+            result["max_memory_allocated_bytes"] = int(torch.cuda.max_memory_allocated(device))
+            result["max_memory_reserved_bytes"] = int(torch.cuda.max_memory_reserved(device))
         result["device_memory"] = sampler.summary()
         result["seconds_per_update"] = [u["seconds"] for u in trained["updates"]]
         result["median_seconds_per_update"] = sorted(result["seconds_per_update"])[
@@ -879,6 +915,7 @@ def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe,
     reasons = t_nonfinite_reasons(records)
     tau = {} if reasons else compute_tau(records, contribution["kinds_without_tau"])
     return {"void_reasons": reasons, **contribution, "tau": tau,
+            "device_used": parameters_device(bf16_model),
             "selected_units": {k: [u.key for u in v] for k, v in chosen.items()},
             "calls_per_unit": calls_per_unit, "units_with_fewer_calls": fewer,
             "records": records, "e0": e0,
@@ -907,12 +944,14 @@ def run_w(arm_dirs: Dict[str, Path], smoke_token_rows, recipe: Recipe, device: s
     frozen_failures: List[str] = []
     impls = set()
     attention = set()
+    devices = set()
     fp32_void: List[str] = []
     for arm, directory in arm_dirs.items():
         if fp32_void:
             break
         model = load_base(directory, device, experts_implementation)
         attention.add(model.config._attn_implementation)
+        devices.add(parameters_device(model))
         captured = wref.capture_routed(
             model, tuple(layers),
             [torch.tensor(list(ids), device=device) for ids in smoke_token_rows[:rows]])
@@ -961,7 +1000,7 @@ def run_w(arm_dirs: Dict[str, Path], smoke_token_rows, recipe: Recipe, device: s
             "void_reasons": reasons, "failed": failed, "frozen_base_changed": frozen_failures,
             "fp32_flags": flags, "experts_implementations_bf16_fp32": sorted(impls),
             "attention_implementation_resolved": sorted(attention),
-            "layers": list(layers), "rows": rows}
+            "device_used": sorted(devices), "layers": list(layers), "rows": rows}
 
 
 def nonfinite_reasons(stage: str, values: Dict[str, float]) -> List[str]:
@@ -1017,7 +1056,8 @@ def run_n(base_dir: Path, adapter_dir: Path, tokenizer, device: str,
 
     base = load_base(base_dir, device, experts_implementation)
     resolved = {"experts_implementation_resolved": base.config._experts_implementation,
-                "attention_implementation_resolved": base.config._attn_implementation}
+                "attention_implementation_resolved": base.config._attn_implementation,
+                "device_used": parameters_device(base)}
     model = PeftModel.from_pretrained(base, adapter_dir)
     gen = make_gate_generator(model, tokenizer, device)
     scores = {name: float(gs.score_bundled_suite(name, gen))
@@ -1349,6 +1389,31 @@ def cal_decision(out: Path) -> Dict[str, Any]:
     return json.loads((out / "decision.json").read_text())
 
 
+FINAL_CARD_PREFIX = {"FINAL_A100_40GB": "F", "FINAL_A100_80GB": "F80"}
+
+
+def resolve_f_prefix(out: Path, explicit: Optional[str]) -> str:
+    """The F record prefix of the final card, from ``decision.json`` (rule section 3).
+
+    T, W, N and P run on the final card's instance and N and P load its seed-42 adapter, so
+    they must read ``F`` after a 40 GB decision and ``F80`` after the 80 GB repeat. No decision,
+    a decision that is not a final card, or an explicit prefix that disagrees is an error.
+    """
+    path = Path(out) / "decision.json"
+    if not path.exists():
+        raise common.CalibrationStopped(
+            f"{path} is missing: run `drive --stage F` (and `decide`) before the other stages")
+    decision = json.loads(path.read_text()).get("decision")
+    if decision not in FINAL_CARD_PREFIX:
+        raise common.CalibrationStopped(
+            f"decision.json says {decision}, which is not a final card; no stage after F runs")
+    derived = FINAL_CARD_PREFIX[decision]
+    if explicit is not None and explicit != derived:
+        raise common.CalibrationStopped(
+            f"--f-prefix {explicit} disagrees with decision.json ({decision} means {derived})")
+    return derived
+
+
 # --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
@@ -1418,13 +1483,19 @@ def _cmd_run(args) -> int:
     from transformers import AutoTokenizer
 
     out = args.out
+    if args.stage != "F":
+        args.f_prefix = resolve_f_prefix(out, args.f_prefix)
+    device = resolve_device(args.device, args.gpu_index)
+    if device.startswith("cuda"):
+        import torch
+
+        torch.cuda.set_device(args.gpu_index)  # default-device calls agree with the model
     journal = common.AttemptsJournal(out / "attempts.jsonl")
     suffix = {"F": f"{args.f_prefix}_{args.arm}", "N": f"N_{args.repeat}"}.get(args.stage,
                                                                           args.stage)
     run_id = args.run_id or suffix
     manifest = json.loads(args.manifest.read_text())
     tokenizer = AutoTokenizer.from_pretrained(args.data_root / "source")
-    device = args.device
 
     def input_check() -> List[str]:
         return run_input_check(args.data_root, manifest, args.stage, args.arm)
@@ -1456,6 +1527,8 @@ def _child_argv(args, stage: str, arm: Optional[str] = None, repeat: Optional[in
 
 def _cmd_drive(args) -> int:
     journal = common.AttemptsJournal(args.out / "attempts.jsonl")
+    if args.stage != "F":
+        args.f_prefix = resolve_f_prefix(args.out, args.f_prefix)
     if args.stage == "F":
         for arm in ARMS:  # A_off, A_on, A_bf16, in that order, a fresh process each
             drive_run(journal, f"{args.f_prefix}_{arm}", _child_argv(args, "F", arm))
@@ -1478,6 +1551,7 @@ def _cmd_decide(args) -> int:
 
 
 def _cmd_report(args) -> int:
+    args.f_prefix = resolve_f_prefix(args.out, args.f_prefix)
     report = assemble_report(args.out, args.f_prefix)
     (args.out / "report.json").write_text(json.dumps(report, indent=1, sort_keys=True,
                                                      default=str) + "\n")
@@ -1509,7 +1583,10 @@ def main(argv=None) -> int:
     for name in ("run", "drive", "decide", "report"):
         p = sub.add_parser(name)
         p.add_argument("--out", type=Path, required=True)
-        p.add_argument("--f-prefix", default="F", help="F, or F80 for the repeat on the A100 80 GB")
+        p.add_argument("--f-prefix", default=None, choices=["F", "F80"],
+                       help="F stage: F, or F80 for the repeat on the A100 80 GB (required). "
+                            "Other stages derive it from decision.json; a value that "
+                            "disagrees is an error")
         if name in ("run", "drive"):
             p.add_argument("--data-root", type=Path, required=True)
             p.add_argument("--split-dir", type=Path, required=True)
@@ -1526,6 +1603,8 @@ def main(argv=None) -> int:
         if name == "drive":
             p.add_argument("--stage", choices=["F", "rest"], required=True)
     args = parser.parse_args(argv)
+    if args.cmd in ("run", "drive") and args.stage == "F" and args.f_prefix is None:
+        parser.error("--f-prefix F or F80 is required for the F stage")
     if args.cmd == "peers-selftest":
         return _cmd_peers_selftest(args)
     return {"split": _cmd_split, "run": _cmd_run, "drive": _cmd_drive, "decide": _cmd_decide,
