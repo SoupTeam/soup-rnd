@@ -480,13 +480,15 @@ checkpointed step. The fused arm reduces saved-weight VRAM but its backward stil
 dequantises because bitsandbytes exposes no transposed 4-bit GEMM; it is therefore a
 bounded memory/time trade, not a claim that #842's full kernel ceiling is complete.
 
-The [scoped D1 kernel study](../benchmarks/d1-final-result-20261016.md) demonstrates
+The [scoped D1 kernel study](../benchmarks/d1-vm-f1-result-20261019.md) demonstrates
 157 MiB lower peak allocated and 140 MiB lower peak reserved memory on a synthetic
 four-layer, hidden4096, seq128 decoder through Soup's RAM-backed streaming runtime.
 The BF16 candidate is an explicit research backend; production keeps native dispatch.
-Formal speed verdict is **NO_VERDICT** because the timing block failed the clock
-guard. These results do not establish performance for pretrained larger models or
-the cold disk tier. [Raw evidence and historical reports](../benchmarks/D1_EVIDENCE.md)
+A separate fixed1200 MHz RTX 3090 VM cohort passed all five preregistered ABBA
+blocks, same-session GEMM and telemetry gates: native51.568 ms vs candidate83.512 ms
+per full step, with no additional blocks required. The candidate is slower here;
+earlier clock-spread cohorts retain NO_VERDICT. These results do not establish
+performance at stock clocks, for pretrained larger models or the cold disk tier. [Raw evidence and historical reports](../benchmarks/D1_EVIDENCE.md)
 are archived separately with per-file integrity checks; full D1 acceptance is open.
 
 **Qwen3.8-Flash-Next / Qwen4-Exp PLE.** The frozen PLE N-gram table is not a

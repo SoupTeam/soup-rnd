@@ -1,10 +1,12 @@
 # D1: исходные измерения и архив
 
 Исходные данные вынесены из diff PR #16 в отдельную архивную ветку.
-Текущий результат: [итоговый отчёт](d1-final-result-20261016.md) и
-[последнее продолжение F1](d1-review-followup-20261019.md).
+Текущий результат: [валидный VM F1](d1-vm-f1-result-20261019.md),
+[исторический отчёт](d1-final-result-20261016.md) и
+[предыдущие попытки](d1-review-followup-20261019.md).
 Код и тесты исследования остаются в PR; архивирование не меняет результаты
-и не закрывает открытый критерий скорости (**NO_VERDICT**).
+и не меняет исторические **NO_VERDICT**. Новая отдельная VM cohort имеет пять
+принятых блоков, без ускорения; полная D1 остаётся открытой по покрытию.
 
 ## Сохранность
 
@@ -70,3 +72,15 @@ python restore.py --output ../d1-evidence-restored
 подтверждение RTX startup timeout. Эти cohorts не смешаны со старым ABBA-блоком.
 [Выводы и расходы](d1-review-followup-20261019.md): A100 dX FAIL, новый perf NOT_RUN,
 обе аренды удалены. Оригинальный ZIP и его контрольные суммы не изменились.
+
+## Валидный VM F1, 2026-10-19
+
+[Пакет VM cohort](https://github.com/SoupTeam/soup-rnd/tree/8f3953ef363d4813b28d3d63fcbf00a282f17980/followups/vm-f1-20261019)
+содержит raw.tgz (45952365 B), executed source, 20 arms / 4000 timed steps,
+CUDA tensors, все same-session GEMM references и телеметрию, manifest, независимый
+CPU audit/replay, clock/persistence и resource cleanup receipts.
+SHA-256 raw: `aef80331b0a1e68461a98a0297fefc02a0a0267a6d152302b0448c1e75b6b8c6`.
+Все публичные Git blobs проверены побайтно; все предыдущие blobs неизменны.
+[Вывод](d1-vm-f1-result-20261019.md): пять принятых блоков, sizing_extra=0,
+51.568/83.512 ms native/candidate при1200 MHz, экономия157/140 MiB.
+Это отдельная cohort; исторические clock-spread NO_VERDICT не пересчитаны.

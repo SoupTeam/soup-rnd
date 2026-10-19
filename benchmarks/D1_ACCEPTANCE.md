@@ -3,27 +3,29 @@
 Updated 2026-10-19 against the [reviewer's remaining-work list](https://github.com/SoupTeam/soup-rnd/pull/16#issuecomment-6253790872)
 and the [original #842 scope](https://github.com/MakazhanAlpamys/Soup/issues/842).
 This ledger describes evidence, not an owner decision to narrow or close the task.
-Latest [bounded GPU follow-up](d1-review-followup-20261019.md): two additional RTX
-3090 cohorts passed correctness but failed the unchanged clock guard. Both are
-exported and released. VM allocation was refused before any lease/CUDA execution.
+Latest [RTX 3090 VM F1](d1-vm-f1-result-20261019.md): five accepted ABBA blocks,
+no rejected blocks, sizing_extra=0. Correctness, same-session GEMM and telemetry
+pass; candidate is slower while saving VRAM. The VM and temporary access are released.
+Earlier [rejected follow-ups](d1-review-followup-20261019.md) remain unchanged.
 
 ## Current decision
 
 The scoped research result is ready for review. **Full D1 and #842 remain open.**
-The [final synthetic decoder result](d1-final-result-20261016.md) is credited:
+The [latest synthetic decoder result](d1-vm-f1-result-20261019.md) is credited:
 157 MiB allocated and 140 MiB reserved saved, with exact full updates against
 native streaming and separately against unpatched resident NF4. Production does
 not select this backend. CUDA WMMA is acceptable; a Triton rewrite is not needed.
-An accepted performance comparison may show a speedup, a slowdown or no change.
+Formal scoped F1 is now measured: 51.568 ms native vs 83.512 ms candidate at fixed
+1200 MHz. This is a negative speed result, not a portable performance guarantee.
 
 | Requirement | Evidence/status | Remaining action |
 |---|---|---|
 | Changelog | `changelog.d/0.75.1/16.added.md` describes the bounded research scope; fragment validator and 141 focused D1/changelog checks pass | Done; evaluate final-head CI separately |
 | Checkpoint-visible tensor state | All six frozen NF4 tensors use `save_for_backward`; no frozen tensor on plain `ctx` | Extend controls for any newly supported cohort |
 | Large recycled-buffer control | Nested BF16 `(128,32768,12288)`, 192 MiB packed buffer, two recomputations; forward and dX exact, finite differing plain-ctx control | Other accepted hardware/dtype cohorts need their own evidence |
-| Formal full-step performance | Historical and both new RTX cohorts: **NO_VERDICT**, zero accepted blocks due to >5% primary/reference clock spread | Valid fresh-process interleaved blocks on a suitable clock-stable host; controller now stops after any invalid block |
+| Formal full-step performance | VM cohort: **MEASURED_SUBSET**, comparison **MEASURED**, five accepted ABBA blocks, 4000 timed steps, 20 valid same-session GEMM references, fixed1200 MHz, sizing_extra=0 | Done for stated synthetic BF16/RTX 3090 scope; earlier rejected cohorts keep NO_VERDICT |
 | Broader coverage | Limited matrix below; historical native/forced-Function results are not new-kernel coverage | Complete applicable gates or obtain an explicit owner decision narrowing this deliverable and leaving exclusions open |
-| Full-task acceptance | No owner sign-off narrowing coverage; performance not resolved | Keep D1/#842 open; record reviewer/owner decision explicitly |
+| Full-task acceptance | Scoped performance resolved; no owner sign-off narrowing coverage | Keep D1/#842 open; record reviewer/owner decision explicitly |
 
 All original failed/rejected runs and manifests remain unchanged in the
 [verified evidence archive](D1_EVIDENCE.md). CPU replay proves properties of saved
@@ -137,3 +139,13 @@ update. RTX leases56610875 and56613719 are exported/deleted; failed VM request
 created no lease. No GPU work remains running. Executed source was `e274b7e2`;
 the later controller-only early-stop fix has CPU regression/mutation checks and
 does not count as a new CUDA run or validate the rejected timing records.
+
+Latest VM cohort, executed source `a7ee402c`: independent replay verified 609
+source files, 204 exact finite full-update quantities, large recycled-buffer
+forward/dX and same-process negative control, all 20 timing arms and references.
+Guest driver580.95.05; accepted GPU scope remains RTX 3090 sm_86 only. Numerical
+F1 rule unchanged; the time/cost allowance was amended before CUDA under the
+user's raised $15 cap. VM56660413 deleted, clocks reset, persistence disabled,
+temporary SSH registration revoked. Billing snapshot **$8.653/$15**, remaining
+**$6.347**, new VM **$0.137**, may update. See the
+[current report](d1-vm-f1-result-20261019.md) for immutable evidence and exact scope.
