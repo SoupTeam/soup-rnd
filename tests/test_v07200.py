@@ -11,6 +11,7 @@ import os
 
 import pytest
 
+from tests._tiny_hf_models import write_tiny_llama_config
 from tests.conftest import accelerator_device, mps_is_the_accelerator
 
 
@@ -604,6 +605,7 @@ def _fake_weights_dir(tmp_path, n_layers=3, split=False, untied=False):
         )
     else:
         _write_safetensors(str(src / "model.safetensors"), {**layer, **extras})
+    write_tiny_llama_config(str(src), n_layers)
     return str(src), layer, extras
 
 
@@ -767,6 +769,7 @@ class TestShardGuards:
         _write_safetensors(
             str(src / "model.safetensors"), {"model.embed_tokens.weight": torch.randn(4, 4)}
         )
+        write_tiny_llama_config(str(src), 1)
         with pytest.raises(ValueError, match="decoder layer"):
             shard_checkpoint(str(src), str(tmp_path / "out"), dtype="float32")
 
@@ -910,6 +913,7 @@ class TestShardUniformity:
                 "model.embed_tokens.weight": torch.randn(4, 4),
             },
         )
+        write_tiny_llama_config(str(src), 2)
         index = shard_checkpoint(str(src), str(tmp_path / "out"), dtype="float32")
         assert index.n_layers == 2
         assert "mlp.extra.weight" not in load_file(layer_shard_path(str(tmp_path / "out"), 0))
@@ -930,6 +934,7 @@ class TestShardUniformity:
                 "model.embed_tokens.weight": torch.randn(4, 4),
             },
         )
+        write_tiny_llama_config(str(src), 2)
         with pytest.raises(ValueError, match="stored shapes or dtypes"):
             shard_checkpoint(str(src), str(tmp_path / "out"), dtype="float32")
 
@@ -948,6 +953,7 @@ class TestShardUniformity:
                 "model.embed_tokens.weight": torch.randn(4, 4),
             },
         )
+        write_tiny_llama_config(str(src), 3)
         with pytest.raises(ValueError, match="contiguous"):
             shard_checkpoint(str(src), str(tmp_path / "out"), dtype="float32")
 
