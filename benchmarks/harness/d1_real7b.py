@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import statistics
 import subprocess
 import sys
@@ -42,7 +43,7 @@ def prepare(data: Path) -> dict:
     from soup_cli.utils.layer_stream_runtime import build_meta_skeleton, quantised_layer_suffixes
 
     data.mkdir()
-    weights = Path(
+    snapshot = Path(
         snapshot_download(
             MODEL,
             revision=REVISION,
@@ -50,6 +51,10 @@ def prepare(data: Path) -> dict:
             max_workers=4,
         )
     )
+    # Soup intentionally ignores symlinked shards; HF snapshots use symlinks.
+    # Copy already cached bytes locally without changing the frozen checkpoint.
+    weights = data / "model"
+    shutil.copytree(snapshot, weights, symlinks=False)
     tokenizer = AutoTokenizer.from_pretrained(str(weights), trust_remote_code=False)
     tokens = tokenizer(TEXT, return_tensors="pt")["input_ids"]
     if tokens.shape[1] < 128:
