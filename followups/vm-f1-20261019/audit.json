@@ -1,0 +1,187 @@
+{
+  "source_sha": "a7ee402c910a4b011578ca1d1771aa9f2528e775",
+  "source_files_verified": 609,
+  "archive_sha256": "aef80331b0a1e68461a98a0297fefc02a0a0267a6d152302b0448c1e75b6b8c6",
+  "scope": "current BF16 descriptors, single GPU cohort",
+  "large_alias": {
+    "forward_exact": true,
+    "dx_exact": true,
+    "all_finite": true,
+    "negative_control_detected": true,
+    "recompute_calls": 2
+  },
+  "streaming_updates": [
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    }
+  ],
+  "resident_updates": [
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    },
+    {
+      "finite_exact_quantities": 34,
+      "nonzero_gradients": 16
+    }
+  ],
+  "dispatch_counts": {
+    "candidate": 40,
+    "native_custom": 0
+  },
+  "formal_status": "MEASURED_SUBSET",
+  "comparisons": [
+    {
+      "case": "soup-h4096-bf16-native-wmma64",
+      "accepted_blocks": 5,
+      "accepted_block_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "rejected_blocks": [],
+      "status": "MEASURED",
+      "ratio_a_over_b": 0.6174916672272536,
+      "speedup_claim": false,
+      "blocks_to_add_for_10_percent_effect": 0,
+      "paths": {
+        "A": [
+          "native"
+        ],
+        "B": [
+          "candidate"
+        ]
+      },
+      "median_ms": {
+        "A": 51.567947749958876,
+        "B": 83.51197350000916
+      },
+      "ranges_ms": {
+        "A": [
+          51.12302249995082,
+          52.11994849997836
+        ],
+        "B": [
+          83.25105699998403,
+          83.91875449990494
+        ]
+      },
+      "peak_allocated_bytes": {
+        "A": 371988992,
+        "B": 207362048
+      },
+      "peak_reserved_bytes": {
+        "A": 381681664,
+        "B": 234881024
+      }
+    }
+  ],
+  "arms_verified": 20,
+  "timed_steps_verified": 4000,
+  "sm_clock_range_mhz": [
+    1200,
+    1200
+  ],
+  "dense_reference_validations": [
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "passed": true,
+      "reasons": []
+    }
+  ],
+  "telemetry_power_limit_mw": [
+    420000
+  ],
+  "gpu_uuid": "GPU-890a9ed4-8bde-24df-fa98-1d298aa96e45",
+  "sizing_extra": 0
+}
