@@ -1,7 +1,8 @@
 # D1: исходные измерения и архив
 
 Исходные данные вынесены из diff PR #16 в отдельную архивную ветку.
-Текущий результат: [валидный VM F1](d1-vm-f1-result-20261019.md),
+Текущий результат: [короткая проверка реальной7B](d1-real7b-result-20261019.md),
+[валидный синтетический VM F1](d1-vm-f1-result-20261019.md),
 [исторический отчёт](d1-final-result-20261016.md) и
 [предыдущие попытки](d1-review-followup-20261019.md).
 Код и тесты исследования остаются в PR; архивирование не меняет результаты
@@ -84,3 +85,14 @@ SHA-256 raw: `aef80331b0a1e68461a98a0297fefc02a0a0267a6d152302b0448c1e75b6b8c6`.
 [Вывод](d1-vm-f1-result-20261019.md): пять принятых блоков, sizing_extra=0,
 51.568/83.512 ms native/candidate при1200 MHz, экономия157/140 MiB.
 Это отдельная cohort; исторические clock-spread NO_VERDICT не пересчитаны.
+
+## Pretrained Mistral7B screen, 2026-10-19
+
+[Пакет реальной7B](https://github.com/SoupTeam/soup-rnd/tree/d08f224aa245ebad5d565019cf3fbba4743074a4/followups/real7b-20261019)
+содержит raw132706782 B в трёх частях,774 exact quantities/80 timed steps,
+694-file source audit, реальные upstream checkpoint SHAs, CUDA witnesses,
+telemetry/GEMM, исходную ошибку symlink-подготовки, её I/O-only исправление,
+manifest, CPU replay и cleanup receipts. Raw SHA-256:
+`2e86f769e21719165021befc9ff38f2b3103d2f43403d9696a535bf746809799`.
+Все опубликованные blobs побайтно проверены; прежние archive blobs неизменны.
+Это отдельный short screen, не расширение или подмена синтетического F1.

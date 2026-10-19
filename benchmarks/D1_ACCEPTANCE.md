@@ -3,7 +3,12 @@
 Updated 2026-10-19 against the [reviewer's remaining-work list](https://github.com/SoupTeam/soup-rnd/pull/16#issuecomment-6253790872)
 and the [original #842 scope](https://github.com/MakazhanAlpamys/Soup/issues/842).
 This ledger describes evidence, not an owner decision to narrow or close the task.
-Latest [RTX 3090 VM F1](d1-vm-f1-result-20261019.md): five accepted ABBA blocks,
+Latest [pretrained Mistral7B screen](d1-real7b-result-20261019.md): three exact
+full updates (774 quantities),63.5/32 MiB allocated/reserved saved. One clean
+ABBA block measured1.726/1.730 s native/candidate; it is descriptive, not formal F1
+or long-run quality evidence. The real-model result does not reproduce synthetic40%.
+
+Formal [synthetic RTX 3090 VM F1](d1-vm-f1-result-20261019.md): five accepted ABBA blocks,
 no rejected blocks, sizing_extra=0. Correctness, same-session GEMM and telemetry
 pass; candidate is slower while saving VRAM. The VM and temporary access are released.
 Earlier [rejected follow-ups](d1-review-followup-20261019.md) remain unchanged.
@@ -89,8 +94,13 @@ The older native/forced-Function measurement grid remains a separate experiment.
   Other sm_80/sm_89/sm_90/sm_120 devices,
   drivers and Torch/bitsandbytes versions need separate parity and buffer controls.
   The #842/#776 resident-invariant caveat must be checked before using sm_120.
-- **Real target models:** no pretrained 7B/8B full-step acceptance for this kernel;
-  the measured memory delta belongs only to the stated synthetic fixture.
+- **Real target models:** a bounded pretrained Mistral-7B-v0.3 RAM screen at
+  batch1/seq128, q/v LoRA rank4 and the existing descriptors now passes three
+  native/candidate full updates, with63.5 MiB allocated/32 MiB reserved saved.
+  One clean ABBA (80 timed steps) is descriptive, not a real-model formal F1.
+  No real-model unpatched-resident comparison, long-run/task quality, other
+  sequence lengths/ranks or other7B/8B model acceptance is claimed. The earlier
+  157/140 MiB delta remains specific to its synthetic fixture.
 
 For each newly accepted dtype/GPU cohort, report forward and dX separately against
 unpatched resident NF4, plus private vs recycled buffers and a same-process
@@ -149,3 +159,10 @@ user's raised $15 cap. VM56660413 deleted, clocks reset, persistence disabled,
 temporary SSH registration revoked. Billing snapshot **$8.653/$15**, remaining
 **$6.347**, new VM **$0.137**, may update. See the
 [current report](d1-vm-f1-result-20261019.md) for immutable evidence and exact scope.
+
+Real7B follow-up: executed source `e04424ac`,694 files independently verified;
+unchanged rule/kernel with a preserved I/O-only HF-cache materialization repair.
+All three checkpoint shard SHAs match upstream LFS. VM56671053 deleted, clocks
+reset, persistence disabled, temporary SSH registration revoked. Visible total
+**$8.854/$15**, new visible charge **$0.187**; bandwidth billing may update, with
+$1 reserved for it inside this screen's$1.50 ceiling. No further GPU work is running.
