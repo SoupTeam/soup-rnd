@@ -86,17 +86,17 @@ def _install_cpu_substitutes(monkeypatch) -> None:
     class ReferenceRMS(torch.autograd.Function):
         @staticmethod
         def forward(ctx, hidden, weight, eps, offset, casting_mode, in_place):
-            assert not weight.is_meta and offset == 0 and casting_mode == "llama"
+            assert weight is None and offset == 0 and casting_mode == "llama"
             assert in_place is False
             rstd = (hidden.float().square().mean(-1, keepdim=True) + eps).rsqrt()
-            ctx.save_for_backward(hidden, weight, rstd)
-            return (hidden.float() * rstd).to(hidden.dtype) * weight
+            ctx.save_for_backward(hidden, rstd)
+            return (hidden.float() * rstd).to(hidden.dtype)
 
         @staticmethod
         def backward(ctx, gradient):
-            hidden, weight, rstd = ctx.saved_tensors
+            hidden, rstd = ctx.saved_tensors
             normalized = hidden * rstd
-            scaled = gradient * weight
+            scaled = gradient
             dx = (scaled - normalized * (scaled * normalized).mean(-1, keepdim=True)) * rstd
             return dx, None, None, None, None, None
 

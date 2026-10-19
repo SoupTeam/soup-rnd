@@ -50,11 +50,54 @@ def _assert_no_global_liger() -> None:
 
 def _load_liger_ops() -> tuple[Any, Any]:
     try:
-        from liger_kernel.ops.rms_norm import LigerRMSNormFunction
+        import math
+
+        import torch
+        from liger_kernel.ops.rms_norm import LigerRMSNormFunction, _rms_norm_backward_kernel
         from liger_kernel.ops.swiglu import LigerSiLUMulFunction
+        from liger_kernel.ops.utils import torch_to_triton_dtype
     except ImportError as exc:
         raise ValueError("streamed Liger requires working Liger/Triton CUDA imports") from exc
-    return LigerRMSNormFunction, LigerSiLUMulFunction
+    class LigerRMSNormExactFunction(LigerRMSNormFunction):
+        @staticmethod
+        def backward(ctx: Any, gradient: Any) -> tuple[Any, ...]:
+            # The FP32 core is unweighted; Torch owns the low-precision affine
+            # boundary. Preserve HF's separate multiply/add rounding in the
+            # actual upstream Triton backward, rather than allowing CUDA FMA.
+            if ctx.elementwise_affine or ctx.in_place:
+                raise ValueError("streamed RMSNorm requires an unweighted out-of-place core")
+            hidden, rstd = ctx.saved_tensors
+            shape = gradient.shape
+            columns = shape[-1]
+            incoming = gradient.contiguous().view(-1, columns)
+            outgoing = torch.empty_like(incoming)
+            rows = incoming.shape[0]
+            processors = torch.cuda.get_device_properties(hidden.device).multi_processor_count
+            _rms_norm_backward_kernel[(processors,)](
+                incoming, incoming.stride(0), outgoing, outgoing.stride(0),
+                hidden, hidden.stride(0), torch_to_triton_dtype[hidden.dtype],
+                None, 0, rstd, rstd.stride(0), None, 0, rows, columns,
+                ctx.offset, math.ceil(rows / processors), ctx.casting_mode,
+                elementwise_affine=False, BLOCK_SIZE=ctx.BLOCK_SIZE,
+                num_warps=ctx.num_warps, enable_fp_fusion=False,
+            )
+            return outgoing.view(shape), None, None, None, None, None, None
+
+    return LigerRMSNormExactFunction, LigerSiLUMulFunction
+
+
+def _rms_norm(hidden: Any, weight: Any, eps: float, operation: Any) -> Any:
+    """Keep HF's low-precision affine boundary outside the FP32 normalization."""
+    normalized = operation.apply(hidden.float(), None, eps, 0.0, "llama", False)
+    return weight * normalized.to(hidden.dtype)
+
+
+def _silu_mul(gate: Any, up: Any, operation: Any) -> Any:
+    """Preserve the rounded SiLU value and its low-precision incoming gradient."""
+    import torch
+
+    activated = operation.apply(gate.float(), torch.ones_like(gate, dtype=torch.float32))
+    return activated.to(gate.dtype) * up
 
 
 def validate_streaming_liger_model_config(
@@ -81,7 +124,7 @@ def apply_streaming_liger(model: Any, components: list[str] | None = None) -> di
     """Patch supported forwards after wrapping, before the measured VRAM probe.
 
     RMSNorm reads ``self.weight`` during functional_call, never a captured meta
-    parameter or a recycled slot view. Liger saves it with save_for_backward, so
+    parameter or a recycled slot view. The affine multiply saves it for autograd, so
     the decoder's non-reentrant checkpoint restores it before backward consumes
     it. Out-of-place RMSNorm backward preserves shared residual gradients.
     SwiGLU retains the existing PEFT/bitsandbytes projection modules unchanged.
@@ -119,10 +162,10 @@ def apply_streaming_liger(model: Any, components: list[str] | None = None) -> di
     rms_op, swiglu_op = _load_liger_ops()
 
     def rms_forward(self: Any, hidden_states: Any) -> Any:
-        return rms_op.apply(hidden_states, self.weight, self.variance_epsilon, 0.0, "llama", False)
+        return _rms_norm(hidden_states, self.weight, self.variance_epsilon, rms_op)
 
     def mlp_forward(self: Any, hidden_states: Any) -> Any:
-        activated = swiglu_op.apply(self.gate_proj(hidden_states), self.up_proj(hidden_states))
+        activated = _silu_mul(self.gate_proj(hidden_states), self.up_proj(hidden_states), swiglu_op)
         return self.down_proj(activated)
 
     counts = {}

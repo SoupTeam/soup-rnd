@@ -1,10 +1,83 @@
 """Compatibility must fail before downloads, and loaded adapters must execute."""
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from tests.test_liger_streaming import _config, _install_cpu_substitutes, _nonuniform_norm_base
+
+
+@pytest.mark.gpu
+def test_fp16_rmsnorm_backward_rounding_boundary():
+    """CUDA FMA rounded one scaled input gradient to -3092 instead of -3094."""
+    import torch
+    from safetensors import safe_open
+    from safetensors.torch import load_file
+    from transformers.models.llama.modeling_llama import LlamaRMSNorm
+
+    from soup_cli.utils.liger_streaming import _load_liger_ops, _rms_norm
+
+    fixture = Path(__file__).parent / "fixtures" / "liger_fp16_rms_rounding.safetensors"
+    data = {name: value.cuda() for name, value in load_file(str(fixture)).items()}
+    with safe_open(str(fixture), framework="pt") as archive:
+        epsilon = float(archive.metadata()["epsilon"])
+    actual_input = data["input"].detach().requires_grad_()
+    expected_input = actual_input.detach().clone().requires_grad_()
+    norm = LlamaRMSNorm(actual_input.shape[-1], eps=epsilon).cuda().half()
+    norm.weight.requires_grad_(False)
+    norm.weight.copy_(data["weight"])
+    actual = _rms_norm(actual_input, norm.weight, epsilon, _load_liger_ops()[0])
+    expected = norm(expected_input)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    actual_gradient = torch.autograd.grad(actual, actual_input, data["gradient"])[0]
+    expected_gradient = torch.autograd.grad(expected, expected_input, data["gradient"])[0]
+    torch.testing.assert_close(actual_gradient, expected_gradient, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("dtype_name", ["float16", "bfloat16"])
+@pytest.mark.parametrize("component", ["rms_norm", "swiglu"])
+def test_low_precision_cast_boundaries_match_hf(monkeypatch, dtype_name, component):
+    """CPU substitutes isolate the cast graph; native CUDA gates remain unchanged."""
+    import torch
+
+    from soup_cli.utils import liger_streaming
+
+    _install_cpu_substitutes(monkeypatch)
+    rms_op, swiglu_op = liger_streaming._load_liger_ops()
+    generator = torch.Generator().manual_seed(273)
+    dtype = getattr(torch, dtype_name)
+    value = torch.randn(8, 32, generator=generator).to(dtype).requires_grad_()
+    control = value.detach().clone().requires_grad_()
+    weight = torch.linspace(0.7, 1.3, 32).to(dtype)
+    gradient = torch.randn(8, 32, generator=generator).to(dtype)
+    calls = []
+
+    class Observe:
+        @staticmethod
+        def apply(first, second, *args):
+            calls.append((first.dtype, second))
+            assert first.dtype == torch.float32
+            return (rms_op if component == "rms_norm" else swiglu_op).apply(
+                first, second, *args
+            )
+
+    if component == "rms_norm":
+        actual = liger_streaming._rms_norm(value, weight, 1e-6, Observe)
+        full_precision = control.float()
+        variance = full_precision.square().mean(-1, keepdim=True)
+        normalized = full_precision * (variance + 1e-6).rsqrt()
+        expected = weight * normalized.to(dtype)
+        assert calls[0][1] is None
+    else:
+        actual = liger_streaming._silu_mul(value, weight, Observe)
+        expected = torch.nn.functional.silu(control) * weight
+        assert calls[0][1].dtype == torch.float32
+        assert torch.equal(calls[0][1], torch.ones_like(calls[0][1]))
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    actual_gradient = torch.autograd.grad(actual, value, gradient)[0]
+    expected_gradient = torch.autograd.grad(expected, control, gradient)[0]
+    torch.testing.assert_close(actual_gradient, expected_gradient, rtol=1e-2, atol=1e-5)
 
 
 @pytest.mark.parametrize(

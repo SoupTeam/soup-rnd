@@ -1,9 +1,14 @@
 # Liger inside Soup streaming: status and GPU plan (2026-10-19)
 
-This is a local implementation and a proposed experiment, not a GPU result.
+The original plan below is retained with its historical local-validation record.
+The 2026-10-19 A40 follow-up passed the unchanged 24-case CUDA matrix and four
+short pretrained 7B save/reload pilots after the precision corrections described
+in [the GPU report](liger-streaming-gpu-20261019.md). It establishes no speed or
+quality improvement.
 Base: published PR #5 head `859b2df33453e33b8546dabb97e4a878fbed1237`, checked live
-before creating the isolated `koko/d2-liger-streaming` worktree. No rental, paid
-run, upload, push, merge or changes to the NoRA worktrees are part of this work.
+before creating the isolated `koko/d2-liger-streaming` worktree. The subsequent
+user-authorized Vast.ai run had a USD 2 cumulative ceiling and verified instance
+deletion. No push, merge or changes to the NoRA worktrees were made.
 
 ## What is connected
 
@@ -15,11 +20,12 @@ SwiGLU is independently selectable. Neither choice implies numerical qualificati
 
 | Model / source / weights | CPU integration with substitute ops | Actual CUDA Liger | Performance |
 | --- | --- | --- | --- |
-| Tiny local Llama / RAM / dense | Pass | Pending FP16/BF16 | Unmeasured |
-| Tiny local Llama / disk / dense | Pass | Pending FP16/BF16 | Unmeasured |
-| Tiny local Llama / RAM / NF4 | Pass | Pending FP16/BF16 | Unmeasured |
-| Tiny local Llama / disk / NF4 | Pass | Pending FP16/BF16 | Unmeasured |
-| Real Llama 7B / any of these cells | Not run | Pending | Unmeasured |
+| Tiny local Llama / RAM / dense | Pass | FP16/BF16 pass on A40 | Unmeasured |
+| Tiny local Llama / disk / dense | Pass | FP16/BF16 pass on A40 | Unmeasured |
+| Tiny local Llama / RAM / NF4 | Pass | FP16/BF16 pass on A40 | Unmeasured |
+| Tiny local Llama / disk / NF4 | Pass | FP16/BF16 pass on A40 | Unmeasured |
+| OpenLLaMA 7B v2 / RAM / dense | Not run | Four BF16 finite/save/reload pilots | Unmeasured |
+| Real 7B / disk or NF4 | Not run | Not qualified by these pilots | Unmeasured |
 | Other architectures, non-SFT, CPU/MPS Liger | Refused | Unsupported | No claim |
 | Fast-LoRA + Liger | Refused | Unsupported | No claim |
 | Liger RoPE, CE, fused-linear-CE in streaming | Not enabled / selector refused | Unsupported | No claim |

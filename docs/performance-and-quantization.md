@@ -963,15 +963,25 @@ identity, canonical PEFT names, periodic checkpoints and adapter reloads. No poo
 buffer is captured in a closure: each forward reads the current substituted weight.
 RMSNorm backward does not overwrite residual gradients. SwiGLU requires a SiLU
 MLP; `pretraining_tp=1`, and prior global Liger patches are refused.
+The Liger core runs in FP32, with HF's cast and affine/product boundaries kept
+outside it. In particular the affine RMSNorm gradient and incoming SiLU gradient
+must round in the original activation dtype. This deliberately gives up full
+fusion and adds FP32 intermediates; no speed or memory improvement is implied.
+The RMSNorm backward still executes Liger's Triton kernel, with CUDA multiply/add
+fusion disabled to preserve HF's FP16 rounding at scaled-gradient boundaries.
 The first integration accepts boolean checkpoint settings only and refuses
 `use_cut_ce`. Existing streaming restrictions still apply.
 
 **Verification scope:** local CPU tests exercise the actual Soup trainer,
 RAM/disk, dense/NF4, gradients, slot reuse and PEFT save/load using explicitly
-substituted autograd operations. They do **not** execute Liger/Triton. All four
-storage/quantization cells are wired experimentally; their CUDA numerical
-qualification, speed and peak VRAM remain unmeasured. The GPU-marked tests cover
-each component separately and together in FP16/BF16; a skip is not a pass.
+substituted autograd operations. They do **not** execute Liger/Triton. Separately,
+all 24 native CUDA cases passed on A40 with Liger 0.8.1: each component alone and
+together, FP16/BF16, RAM/disk and dense/NF4. A captured FP16 rounding boundary also
+passes a zero-tolerance forward/backward regression. Four short OpenLLaMA 7B v2
+RAM/dense pilots verify finite training and exact adapter reload; they do not
+qualify real-7B tensor parity, disk/NF4 operation or final task quality. See the
+[GPU report](../benchmarks/liger-streaming-gpu-20261019.md) for the frozen scope.
+Speed and memory improvements remain unestablished; a skip is not a pass.
 There is no streaming performance claim from the historical resident Liger results.
 See the [GPU qualification and measurement plan](../benchmarks/liger-streaming-plan-20261019.md).
 
