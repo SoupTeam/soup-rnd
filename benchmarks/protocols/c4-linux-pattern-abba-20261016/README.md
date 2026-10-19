@@ -19,3 +19,18 @@ The earlier stage-one results were already known and are not prospective replica
 
 Commit and publish these exact bytes before launch. The Git receipt verifies object
 linkage, not independently trusted publication time. No new timed results are included.
+
+## Post-run lint maintenance
+
+After the timed series completed, the repository copy of launch_wrapper.py had
+its standard-library imports reordered for Ruff I001. No orchestration statements
+or measurement parameters changed. The original frozen bytes remain available in
+the freeze commit and in the published results archive
+[raw-results.zip](../../results/c4-linux-pattern-abba-20261016/raw-results.zip),
+entry evidence/launch_wrapper.py.
+
+- Executed wrapper SHA256: 62a24b877b5114252c04c56a12244fa21068941d78397e709da08ee857458937.
+- Lint-corrected repository wrapper SHA256: 9765bff43647835de408980afa11e19aae31014dfe88335f5068d85a8eb4727b.
+
+SHA256SUMS.json describes the current repository files. This maintenance does
+not alter the frozen protocol, Git receipt, runner bundle, or measured results.
