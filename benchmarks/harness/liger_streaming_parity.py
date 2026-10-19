@@ -10,7 +10,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
+
+
+def configure_determinism() -> None:
+    """Seed alone does not make CUDA SDPA backward repeatable on A40."""
+    import torch
+
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    torch.use_deterministic_algorithms(True)
 
 
 def initialize_adapters(model: object) -> dict:
@@ -36,10 +45,12 @@ def capture(config_path: str, arm: str, output: Path) -> None:
     from soup_cli.config.loader import load_config
     from soup_cli.data.loader import load_dataset
     from soup_cli.trainer.sft import SFTTrainerWrapper
+    from soup_cli.utils.seeding import resolve_training_seed
 
+    configure_determinism()
     output.mkdir(parents=True, exist_ok=False)
     config = build_config(load_config(config_path), arm=arm, output=str(output / "adapter"))
-    set_seed(config.training.seed)
+    set_seed(resolve_training_seed(config.training))
     wrapper = SFTTrainerWrapper(config, device="cuda", report_to="none")
     tensors, batches, nodes, losses = {}, [], set(), []
     report = {"arm": arm, "status": "STARTED", "rtol": 1e-2, "atol": 1e-5}
@@ -106,6 +117,7 @@ def capture(config_path: str, arm: str, output: Path) -> None:
                       batches=batches, backward_nodes=sorted(nodes), losses=losses,
                       runtime=wrapper._stream_runtime.stats(), adapter_tensors=len(adapters),
                       amp={"bf16": trainer.args.bf16, "fp16": trainer.args.fp16},
+                      deterministic_algorithms=torch.are_deterministic_algorithms_enabled(),
                       log_history=trainer.state.log_history)
     except BaseException as exc:
         report.update(status="FAILED", error=f"{type(exc).__name__}: {exc}")

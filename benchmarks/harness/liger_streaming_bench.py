@@ -69,10 +69,12 @@ def run(config: Any, *, arm: str, warmup: int, steps: int, output: Path) -> None
     import torch
     from transformers import TrainerCallback, set_seed
 
-    from benchmarks.harness.liger_streaming_parity import initialize_adapters
+    from benchmarks.harness.liger_streaming_parity import configure_determinism, initialize_adapters
     from soup_cli.data.loader import load_dataset
     from soup_cli.trainer.sft import SFTTrainerWrapper
+    from soup_cli.utils.seeding import resolve_training_seed
 
+    configure_determinism()
     if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
         raise ValueError("expose exactly one CUDA GPU with CUDA_VISIBLE_DEVICES")
     if warmup < 1 or steps < 2:
@@ -92,7 +94,7 @@ def run(config: Any, *, arm: str, warmup: int, steps: int, output: Path) -> None
         "peak_allocated_bytes": [],
         "peak_reserved_bytes": [],
     }
-    set_seed(config.training.seed)
+    set_seed(resolve_training_seed(config.training))
     wrapper = SFTTrainerWrapper(config, device="cuda", report_to="none")
     try:
         setup_start = time.perf_counter()
@@ -141,6 +143,7 @@ def run(config: Any, *, arm: str, warmup: int, steps: int, output: Path) -> None
         torch.cuda.synchronize()
         report["training_wall_seconds_including_final_save"] = time.perf_counter() - train_start
         report["training_log_history"] = trainer.state.log_history
+        report["deterministic_algorithms"] = torch.are_deterministic_algorithms_enabled()
         for entry in trainer.state.log_history:
             for key in ("loss", "grad_norm"):
                 if key in entry and not math.isfinite(float(entry[key])):
