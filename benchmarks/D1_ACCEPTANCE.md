@@ -166,3 +166,14 @@ All three checkpoint shard SHAs match upstream LFS. VM56671053 deleted, clocks
 reset, persistence disabled, temporary SSH registration revoked. Visible total
 **$8.854/$15**, new visible charge **$0.187**; bandwidth billing may update, with
 $1 reserved for it inside this screen's$1.50 ceiling. No further GPU work is running.
+
+
+Separate quantization quality screen: pinned pretrained Mistral7B resident BF16
+versus standard nested NF4 on32 fixed WikiText-2 test windows,16352 scored targets:
+PPL6.60245 versus6.81244 (+3.18045%), delta NLL+0.0313092. This is a descriptive
+base-model screen without training, RAM streaming or the candidate kernel; it
+does not close streaming-versus-resident correctness or long-run/task quality.
+See [quality result](d1-quant-quality-result-20261019.md). CPU replay passes;
+both Docker attempts56674839/56675853 are released, including the preserved first
+pre-GPU environment failure. Visible D1 total$9.014/$15, both attempts$0.127;
+billing may lag. The owner coverage decision remains open.

@@ -96,3 +96,17 @@ manifest, CPU replay и cleanup receipts. Raw SHA-256:
 `2e86f769e21719165021befc9ff38f2b3103d2f43403d9696a535bf746809799`.
 Все опубликованные blobs побайтно проверены; прежние archive blobs неизменны.
 Это отдельный short screen, не расширение или подмена синтетического F1.
+
+
+## Original BF16 versus NF4 quality, 2026-10-19
+
+[Separate immutable package](https://github.com/SoupTeam/soup-rnd/tree/33a68aac8c6fec6274866aee836850a4ebb473d4/followups/quant-quality-20261019)
+contains source/rule, fixed offsets/input IDs, per-token NLL/predictions for16352
+targets per precision, hashes, environment/logs, CPU replay and cleanup/budget
+receipts. Raw221647 B, SHA256
+`bd03c8e378304acad5c4dcaa89b5a51198de291ff56f21be86289b34396d566a`.
+First pre-GPU environment failure is preserved separately. Previous archive blobs
+are unchanged; original model weights and dataset plaintext are not published.
+[Result](d1-quant-quality-result-20261019.md): PPL6.60245 BF16 versus6.81244 NF4,
++3.18045%. This resident pretrained quality screen is separate from D1 kernel
+parity, RAM streaming, synthetic F1 and long-run training quality.
