@@ -1,0 +1,62 @@
+{
+  "source_sha": "e04424acb273132e40e4774de7cee2e47f871a43",
+  "source_files_verified": 694,
+  "archive_sha256": "2e86f769e21719165021befc9ff38f2b3103d2f43403d9696a535bf746809799",
+  "io_repair": {
+    "original_source_sha": "2a34687ff561c9e958bf5b08cd217af17af624b7",
+    "corrected_source_sha": "e04424acb273132e40e4774de7cee2e47f871a43",
+    "prior_source_tar_sha256": "956ffc2a2b5e43dcc9cbb2b97528ffb1be18d32c2f16bd6593aea5047a93db15",
+    "only_changed_file": "benchmarks/harness/d1_real7b.py",
+    "native_gate_numeric_source_unchanged": true
+  },
+  "large_alias": {
+    "forward_exact": true,
+    "dx_exact": true,
+    "all_finite": true,
+    "negative_control_detected": true,
+    "recompute_calls": 2
+  },
+  "pretrained_checkpoint_verified": {
+    "model": "mistralai/Mistral-7B-v0.3",
+    "revision": "caa1feb0e54d415e2df31207e5f4e273e33509b1",
+    "all_three_weight_shas_match_upstream_lfs": true,
+    "layers": 32,
+    "inputs_sha256": "ddb2cde49715b483a54c23525d0c3fe9ef000bf64f0dac557616257a9351cdd8"
+  },
+  "correctness_passed": true,
+  "quantities_verified": 774,
+  "native_losses": [
+    3.439863920211792,
+    3.437932252883911,
+    3.431774139404297
+  ],
+  "nonzero_gradients": [
+    64,
+    128,
+    128
+  ],
+  "differing_quantities": [
+    [],
+    [],
+    []
+  ],
+  "status": "CLEAN_DESCRIPTIVE_SCREEN",
+  "arms_verified": 4,
+  "timed_steps_verified": 80,
+  "median_ms": {
+    "A": 1726.373499000033,
+    "B": 1730.408540250039
+  },
+  "peak_allocated_bytes": {
+    "A": 843303424,
+    "B": 776718848
+  },
+  "peak_reserved_bytes": {
+    "A": 866123776,
+    "B": 832569344
+  },
+  "clock_range_mhz": [
+    1200,
+    1200
+  ]
+}
