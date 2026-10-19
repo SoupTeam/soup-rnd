@@ -531,6 +531,7 @@ def run_one(
         destination / "command.json",
         {
             "argv": command,
+            "native_cli_argv": ["soup", "--verbose", *cli],
             "cwd": str(ROOT),
             "environment_overrides": {
                 key: env[key]

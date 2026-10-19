@@ -30,9 +30,6 @@ def observe(output: Path, arguments: list[str]) -> None:
     complete = False
     error = None
     record = {"soup_cli_file": soup_cli.__file__, "physical_vram_bytes": None}
-    if torch.cuda.is_available():
-        props = torch.cuda.get_device_properties(0)
-        record.update(physical_vram_bytes=props.total_memory, gpu=props.name)
 
     class ObservedCollector(original_collector):
         def __init__(self, *args, **kwargs):
@@ -58,14 +55,17 @@ def observe(output: Path, arguments: list[str]) -> None:
 
     def setup(wrapper, *args, **kwargs):
         result = original_setup(wrapper, *args, **kwargs)
-        if torch.cuda.is_available():
+        if torch.cuda.is_initialized():
+            props = torch.cuda.get_device_properties(0)
             record.update(
+                physical_vram_bytes=props.total_memory,
+                gpu=props.name,
                 setup_peak_allocated_bytes=torch.cuda.max_memory_allocated(),
                 setup_peak_reserved_bytes=torch.cuda.max_memory_reserved(),
             )
         if is_train:
             collector = ObservedCollector(warmup_steps=4)
-            if torch.cuda.is_available():
+            if torch.cuda.is_initialized():
                 collector._sync = torch.cuda.synchronize
                 torch.cuda.reset_peak_memory_stats()
             trainer = wrapper.trainer
@@ -82,7 +82,7 @@ def observe(output: Path, arguments: list[str]) -> None:
     SFTTrainerWrapper.setup = setup
     original_argv = sys.argv
     try:
-        sys.argv = ["soup", *arguments]
+        sys.argv = ["soup", "--verbose", *arguments]
         runpy.run_module("soup_cli.cli", run_name="__main__")
         complete = True
     except SystemExit as exc:
@@ -106,8 +106,11 @@ def observe(output: Path, arguments: list[str]) -> None:
                 counted_window_started=collector.counted_window_started,
                 counted_window_ended=collector.counted_window_ended,
             )
-        if torch.cuda.is_available():
+        if torch.cuda.is_initialized():
+            props = torch.cuda.get_device_properties(0)
             record.update(
+                physical_vram_bytes=props.total_memory,
+                gpu=props.name,
                 peak_allocated_bytes=torch.cuda.max_memory_allocated(),
                 peak_reserved_bytes=torch.cuda.max_memory_reserved(),
             )
