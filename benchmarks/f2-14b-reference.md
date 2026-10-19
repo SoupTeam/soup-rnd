@@ -1,7 +1,9 @@
 # F2: 14B on a physical 8 GB GPU
 
-Status on 2026-10-19: preparation and recipe diagnostics. **No completed F2
-matrix or throughput claim.** The user delegated the matrix choice after receiving the proposal on 2026-10-19.
+Status on 2026-10-19: the actual NF4 cache is mapped, and the process-tree
+telemetry collector is repaired after a second user-requested pause.
+**No completed F2 matrix or throughput claim yet.** The user
+delegated the matrix choice after receiving the proposal on 2026-10-19.
 The operational matrix below is selected with the stated limitations.
 
 ## Requirements and dependency
@@ -39,9 +41,9 @@ collector must record the actual supervised and total token counts.
 
 Forced disk uses the shipped disk tier but **does not demonstrate automatic
 RAM overflow**. The HDD override tests a named policy refusal, **not an actual
-HDD or a physical capacity boundary**. If the user requires natural overflow
-and an actual media/capacity boundary, amend and approve the protocol before
-running the campaign. Do not allocate a RAM-filling process or change host
+HDD or a physical capacity boundary**. A real capacity check needs a separate,
+preregistered recipe whose model store naturally exceeds the available RAM;
+its results cannot enter this NF4 matrix. Do not allocate a RAM-filling process or change host
 memory, pagefile, power, clocks or cache settings to manufacture that condition.
 
 ## Recipe and immutable inputs
@@ -154,15 +156,85 @@ arm has no finalised parent validity/result and cannot support a verdict.
 
 ### Commands and hardware
 
+The user paused the first repaired campaign before closing the laptop. It kept
+32 completed records (26 PASS, 6 EXPECTED_REFUSAL) and an interrupted arm. On
+resume, Vast could not reacquire that GPU. Those records and the incomplete
+arm remain separate; none is pooled with the replacement machine.
+
+Replacement rental 56748309 has a physical RTX 3060 Ti 8192 MiB, driver
+610.57.04, GPU UUID `GPU-b1248e58-f621-afa5-d5f4-b27c16d75b40`, host RAM
+33,364,897,792 bytes and a **22,648,193,024-byte container memory limit**.
+The allocation therefore has less usable host memory than the original rental.
+Its 100 GiB writable volume is backed by SK hynix `HFS256GD9TNG-62A0A` NVMe.
+Two NVMe devices are visible. The first replacement phase incorrectly used an
+O_DIRECT **checkpoint** probe (`nvme1n1`) as evidence for the NF4 **cache**.
+F1 later showed the workload's reads on the other device. That whole phase is
+`INVALID_MAPPING`: keep all its records, including originally recorded PASS
+statuses, and exclude all of them from the final matrix.
+
+With training stopped, a full O_DIRECT read of all 51 actual cache safetensors
+files (9,931,800,632 bytes) increased `nvme0n1` by 9,931,870,208 bytes and
+`nvme1n1` by zero. Every individual file was on `nvme0n1`. The corrected clean
+calibration returned ok, and a separate SSH read of 1.2 GB from the cache's
+`large_embed_tokens.safetensors` made `foreign_reads` void. The unmapped overlay
+result remains unknown. Identical overlay path prefixes are not evidence that
+two datasets use the same physical disk.
+
+Measured Soup source is `a03be3b3229ff25f640c6f6d9c37145111857de5`.
+All 67 checkpoint/cache content hashes matched the prior frozen manifest;
+the fresh download has its own provenance timestamp. Only after verifying
+checkpoint bytes, eight source mtimes were restored from the verified cache
+manifest, as an ordinary backup would preserve them. Neither the cache content
+nor its fingerprint was rewritten. The largest RAM shape (1024) completed a
+separate 12-step ordinary-train recipe check with counted updates and a saved
+adapter. Its former storage mapping is not accepted as a final F2 verdict.
+
+The corrected campaign starts all five blocks afresh (150 CLI processes). Its
+controller requires the mapping to cover the exact set of all 51 cache files;
+the plan pins that proof, the correction reason and the controller hash. The
+frozen plan's "Normal OS caching" means shipped I/O defaults, with no manual
+flush or artificial memory pressure. On Linux the shipped disk reader uses
+O_DIRECT where supported; it is not a buffered page-cache benchmark. A forced
+disk tier on verified NVMe does not establish natural RAM overflow or isolated
+device bandwidth. Physical read counters are reported rather than assuming
+every logical read reaches the device.
+
 Use Python 3.10–3.12 with a CUDA training install. The rental selected for
-preparation is RTX 3060 Ti 8192 MiB, driver 580.173.02, 33,537,638,400 host RAM
+the original preparation is RTX 3060 Ti 8192 MiB, driver 580.173.02, 33,537,638,400 host RAM
 bytes, cgroup memory limit 32,194,428,928 bytes, WD `WDS500G3X0C-00SJG0` NVMe,
 Linux/container. Rental id 56717237; only this task's instance may be stopped.
-The $5 authorisation includes storage/transfers. A separate local watchdog
-destroys this instance at 12 hours or an estimated $4.25 including a $0.75
-transfer reserve; this is a conservative guard, not final settled billing.
-Copy all artifacts locally before destroying it. The other running Liger
+The $5 authorisation is shared by both F2 rentals and includes storage/transfers.
+On resume the watchdog conservatively prices all pre-resume wall time at the
+old active rate, then adds the new active rate, retained old storage and a $0.75
+transfer reserve. It stops the task's running rentals at a $4.50 bound. A second
+guard on the new rental now stops it twelve hours after creation even if SSH closes;
+the measurement window ends ten minutes earlier. These guards preserve disks.
+They are conservative estimates, not final settled billing. The original
+destroying watchdog was cancelled when the user paused. Copy and verify all
+artifacts locally before deleting either rental. The other running Liger
 instance belongs to other work and must not be interrupted.
+
+### Telemetry repair before the fresh complete cohort
+
+The correctly mapped `a03be3b3` pilot on rental 56748309 retained 32 completed
+records (21 PASS, 5 NO_VERDICT, 6 EXPECTED_REFUSAL), plus an interrupted arm.
+It is separate from the earlier 32-record prefix on rental 56717237. The user
+paused again, then explicitly resumed. Both disks were preserved during that pause.
+
+The sampler previously discarded every process's RSS/I/O whenever one transient
+child exited between the process census and its sensor reads. Two regressions
+reproduce the loss at the memory and I/O reads. The repaired sampler captures
+both readings per process, omits only a child known to have exited, and records
+its PID. A missing root or an inaccessible live process still leaves the whole
+sample unknown. Those three negative controls stay green. The four-second gap,
+F1 thresholds and full counted-window evidence requirement are unchanged.
+
+The fixed observer starts a fresh five-block, 150-command cohort. Neither the
+pilot's accepted records nor its missing samples are reclassified into this
+cohort. Model, loss and optimizer arithmetic are unchanged. Tests run on the
+rental before timing, with no concurrent acceptance suite or bulk collection
+during the measurement campaign. The new commit, controller and twelve-hour
+resource expiry are frozen before that cohort; the older frozen plans remain intact.
 
 ```bash
 python benchmarks/harness/f2_stage_checkpoint.py --destination /workspace/qwen14b

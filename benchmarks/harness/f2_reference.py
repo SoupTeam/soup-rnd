@@ -464,14 +464,29 @@ class Trace:
                     "rss_bytes": None,
                     "read_bytes": None,
                     "write_bytes": None,
+                    "vanished_child_pids": [],
                 }
                 try:
                     process = psutil.Process(self.process.pid)
                     tree = [process, *process.children(recursive=True)]
+                    sampled = []
+                    for member in tree:
+                        try:
+                            rss = member.memory_info().rss
+                            io = member.io_counters()
+                        except psutil.NoSuchProcess:
+                            if member.pid == process.pid:
+                                raise
+                            # A child may finish between census and sensor reads.
+                            # Keep the live tree; an inaccessible live process or
+                            # a missing root still makes the entire sample unknown.
+                            row["vanished_child_pids"].append(member.pid)
+                            continue
+                        sampled.append((rss, io.read_bytes, io.write_bytes))
                     row.update(
-                        rss_bytes=sum(p.memory_info().rss for p in tree),
-                        read_bytes=sum(p.io_counters().read_bytes for p in tree),
-                        write_bytes=sum(p.io_counters().write_bytes for p in tree),
+                        rss_bytes=sum(value[0] for value in sampled),
+                        read_bytes=sum(value[1] for value in sampled),
+                        write_bytes=sum(value[2] for value in sampled),
                     )
                 except (psutil.Error, AttributeError):
                     pass  # Missing sensors are incomplete, not zero.
