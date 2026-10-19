@@ -53,40 +53,71 @@ def _assert_no_global_liger() -> None:
 
 def _load_liger_ops() -> tuple[Any, Any]:
     try:
-        import math
-
         import torch
-        from liger_kernel.ops.rms_norm import LigerRMSNormFunction, _rms_norm_backward_kernel
+        from liger_kernel.ops.rms_norm import LigerRMSNormFunction
         from liger_kernel.ops.swiglu import LigerSiLUMulFunction
-        from liger_kernel.ops.utils import torch_to_triton_dtype
     except ImportError as exc:
         raise ValueError("streamed Liger requires working Liger/Triton CUDA imports") from exc
     class LigerRMSNormExactFunction(LigerRMSNormFunction):
         @staticmethod
+        def forward(
+            ctx: Any, hidden: Any, weight: Any, eps: float, offset: float,
+            casting_mode: str, in_place: bool,
+        ) -> Any:
+            ctx.epsilon = eps
+            if hidden.shape[-1] == 4096:
+                from soup_cli.utils._liger_streaming_kernels import normalized_forward
+
+                if weight is not None or offset != 0 or casting_mode != "llama" or in_place:
+                    raise ValueError("streamed RMS compatibility core must be unweighted")
+                # This is Soup's compatibility kernel, not upstream Liger RMS:
+                # width-4096 ATen reduction order is required at BF16 boundaries.
+                result, flat, inverse = normalized_forward(hidden, eps)
+                ctx.elementwise_affine = False
+                ctx.in_place = False
+                ctx.save_for_backward(flat, inverse)
+                return result
+            return LigerRMSNormFunction.forward(
+                ctx, hidden, weight, eps, offset, casting_mode, in_place
+            )
+
+        @staticmethod
         def backward(ctx: Any, gradient: Any) -> tuple[Any, ...]:
-            # The FP32 core is unweighted; Torch owns the low-precision affine
-            # boundary. Preserve HF's separate multiply/add rounding in the
-            # actual upstream Triton backward, rather than allowing CUDA FMA.
+            # HF differentiates mean, rsqrt and multiply separately. Algebraic
+            # reassociation in the fused derivative changes BF16 rounding after
+            # many decoder layers. Retain Liger's forward, and reproduce the
+            # original backward operation order explicitly.
             if ctx.elementwise_affine or ctx.in_place:
                 raise ValueError("streamed RMSNorm requires an unweighted out-of-place core")
-            hidden, rstd = ctx.saved_tensors
+            hidden, _rstd = ctx.saved_tensors
             shape = gradient.shape
             columns = shape[-1]
-            incoming = gradient.contiguous().view(-1, columns)
-            outgoing = torch.empty_like(incoming)
-            rows = incoming.shape[0]
-            processors = torch.cuda.get_device_properties(hidden.device).multi_processor_count
-            _rms_norm_backward_kernel[(processors,)](
-                incoming, incoming.stride(0), outgoing, outgoing.stride(0),
-                hidden, hidden.stride(0), torch_to_triton_dtype[hidden.dtype],
-                None, 0, rstd, rstd.stride(0), None, 0, rows, columns,
-                ctx.offset, math.ceil(rows / processors), ctx.casting_mode,
-                elementwise_affine=False, BLOCK_SIZE=ctx.BLOCK_SIZE,
-                num_warps=ctx.num_warps, enable_fp_fusion=False,
-            )
-            return outgoing.view(shape), None, None, None, None, None, None
+            incoming = gradient.reshape(-1, columns)
+            # Triton's reduction tree can change the cached FP32 inverse by an
+            # ULP even when the rounded BF16 forward is identical. Backward must
+            # use the same reduction as HF as well as the same derivative order.
+            inverse = (hidden.square().mean(-1, keepdim=True) + ctx.epsilon).rsqrt()
+            inverse_gradient = (incoming * hidden).sum(-1, keepdim=True)
+            variance_gradient = inverse_gradient * -0.5 * inverse.pow(3)
+            square_gradient = variance_gradient.expand_as(hidden) / columns
+            outgoing = square_gradient * (2 * hidden) + incoming * inverse
+            return outgoing.reshape(shape), None, None, None, None, None, None
 
-    return LigerRMSNormExactFunction, LigerSiLUMulFunction
+    class LigerSiLUMulExactFunction(LigerSiLUMulFunction):
+        @staticmethod
+        def backward(ctx: Any, gradient: Any) -> tuple[Any, ...]:
+            if ctx.dtensor_metadata is not None:
+                raise ValueError("streamed SwiGLU requires local tensors")
+            gate, up = ctx.saved_tensors
+            if ctx.gate_multiplier != 1 or ctx.down_multiplier != 1:
+                raise ValueError("streamed SwiGLU requires unit multipliers")
+            shape = gradient.shape
+            incoming = gradient.reshape_as(gate)
+            gate_gradient = torch.ops.aten.silu_backward(incoming * up, gate)
+            up_gradient = incoming * torch.nn.functional.silu(gate)
+            return gate_gradient.reshape(shape), up_gradient.reshape(shape), None, None
+
+    return LigerRMSNormExactFunction, LigerSiLUMulExactFunction
 
 
 def _rms_norm(hidden: Any, weight: Any, eps: float, operation: Any) -> Any:
@@ -96,9 +127,11 @@ def _rms_norm(hidden: Any, weight: Any, eps: float, operation: Any) -> Any:
 
 
 def _silu_mul(gate: Any, up: Any, operation: Any) -> Any:
-    """Preserve the rounded SiLU value and its low-precision incoming gradient."""
+    """Fuse BF16 forward, preserving HF's separate rounded backward operations."""
     import torch
 
+    if gate.dtype == torch.bfloat16:
+        return operation.apply(gate, up)
     activated = operation.apply(gate.float(), torch.ones_like(gate, dtype=torch.float32))
     return activated.to(gate.dtype) * up
 

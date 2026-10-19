@@ -109,8 +109,10 @@ def _install_cpu_substitutes(monkeypatch) -> None:
         @staticmethod
         def backward(ctx, gradient):
             gate, up = ctx.saved_tensors
-            sigmoid = gate.sigmoid()
-            return gradient * up * sigmoid * (1 + gate * (1 - sigmoid)), gradient * gate * sigmoid
+            return (
+                torch.ops.aten.silu_backward(gradient * up, gate),
+                gradient * torch.nn.functional.silu(gate),
+            )
 
     monkeypatch.setattr(
         liger_streaming, "validate_streaming_liger_environment", lambda _device: None

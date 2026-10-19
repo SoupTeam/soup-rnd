@@ -76,7 +76,10 @@ def test_low_precision_cast_boundaries_match_hf(monkeypatch, dtype_name, compone
         @staticmethod
         def apply(first, second, *args):
             calls.append((first.dtype, second))
-            assert first.dtype == torch.float32
+            expected_dtype = dtype if component == "swiglu" and dtype == torch.bfloat16 else (
+                torch.float32
+            )
+            assert first.dtype == expected_dtype
             return (rms_op if component == "rms_norm" else swiglu_op).apply(
                 first, second, *args
             )
@@ -91,12 +94,101 @@ def test_low_precision_cast_boundaries_match_hf(monkeypatch, dtype_name, compone
     else:
         actual = liger_streaming._silu_mul(value, weight, Observe)
         expected = torch.nn.functional.silu(control) * weight
-        assert calls[0][1].dtype == torch.float32
-        assert torch.equal(calls[0][1], torch.ones_like(calls[0][1]))
+        if dtype == torch.bfloat16:
+            assert calls[0][1] is weight
+        else:
+            assert calls[0][1].dtype == torch.float32
+            assert torch.equal(calls[0][1], torch.ones_like(calls[0][1]))
     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
     actual_gradient = torch.autograd.grad(actual, value, gradient)[0]
     expected_gradient = torch.autograd.grad(expected, control, gradient)[0]
     torch.testing.assert_close(actual_gradient, expected_gradient, rtol=1e-2, atol=1e-5)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("component", ["rms", "silu"])
+def test_pretrained_7b_backward_rounding_boundary(component):
+    """Real BF16 rows expose reassociation hidden by the tiny-model matrix."""
+    import torch
+    from safetensors.torch import load_file
+    from transformers.models.llama.modeling_llama import LlamaRMSNorm
+
+    from soup_cli.utils.liger_streaming import _load_liger_ops, _rms_norm, _silu_mul
+
+    fixture = Path(__file__).parent / "fixtures" / "liger_7b_bf16_backward.safetensors"
+    data = {name: value.cuda() for name, value in load_file(str(fixture)).items()}
+    value = data[component + "/input"].detach().requires_grad_()
+    reference = value.detach().clone().requires_grad_()
+    rms_op, silu_op = _load_liger_ops()
+    if component == "rms":
+        norm = LlamaRMSNorm(value.shape[-1], eps=1e-6).cuda().bfloat16()
+        norm.weight.requires_grad_(False)
+        norm.weight.copy_(data["rms/weight"])
+        expected = norm(reference)
+        actual = _rms_norm(value, norm.weight, 1e-6, rms_op)
+    else:
+        expected = torch.nn.functional.silu(reference)
+        actual = _silu_mul(value, torch.ones_like(value), silu_op)
+    gradient = data[component + "/dy"]
+    expected_gradient = torch.autograd.grad(expected, reference, gradient)[0]
+    actual_gradient = torch.autograd.grad(actual, value, gradient)[0]
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    torch.testing.assert_close(actual_gradient, expected_gradient, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+def test_bf16_swiglu_all_finite_gate_values_match_torch():
+    """Cover every BF16 gate value, with nonunit up values and both gradients."""
+    import torch
+
+    from soup_cli.utils.liger_streaming import _load_liger_ops, _silu_mul
+
+    bits = torch.arange(65536, dtype=torch.int32).to(torch.int16)
+    gates = bits.view(torch.bfloat16).cuda()
+    gates = gates[torch.isfinite(gates)].reshape(-1, 1).requires_grad_()
+    generator = torch.Generator(device="cuda").manual_seed(449)
+    up = torch.randn(gates.shape, generator=generator, device="cuda", dtype=gates.dtype)
+    up.requires_grad_()
+    gradient = torch.randn(gates.shape, generator=generator, device="cuda", dtype=gates.dtype)
+    reference_gate = gates.detach().clone().requires_grad_()
+    reference_up = up.detach().clone().requires_grad_()
+    expected = torch.nn.functional.silu(reference_gate) * reference_up
+    actual = _silu_mul(gates, up, _load_liger_ops()[1])
+    actual_gradients = torch.autograd.grad(actual, (gates, up), gradient)
+    expected_gradients = torch.autograd.grad(
+        expected, (reference_gate, reference_up), gradient
+    )
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    for candidate, reference in zip(actual_gradients, expected_gradients, strict=True):
+        torch.testing.assert_close(candidate, reference, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("rows", [1, 4, 8, 16])
+@pytest.mark.parametrize("dtype_name", ["float16", "bfloat16"])
+def test_width_4096_rms_forward_and_backward_match_torch(rows, dtype_name):
+    """Small row counts exercise different ATen cross-warp accumulation trees."""
+    import torch
+    from transformers.models.llama.modeling_llama import LlamaRMSNorm
+
+    from soup_cli.utils.liger_streaming import _load_liger_ops, _rms_norm
+
+    generator = torch.Generator(device="cuda").manual_seed(449)
+    dtype = getattr(torch, dtype_name)
+    value = torch.randn((rows, 4096), device="cuda", generator=generator, dtype=dtype)
+    value.requires_grad_()
+    reference = value.detach().clone().requires_grad_()
+    norm = LlamaRMSNorm(4096, eps=1e-6).cuda().to(dtype)
+    norm.weight.requires_grad_(False)
+    norm.weight.copy_(torch.linspace(0.7, 1.3, 4096, device="cuda", dtype=dtype))
+    gradient = torch.randn(value.shape, device="cuda", generator=generator, dtype=dtype)
+    actual = _rms_norm(value, norm.weight, 1e-6, _load_liger_ops()[0])
+    expected = norm(reference)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    torch.testing.assert_close(
+        torch.autograd.grad(actual, value, gradient)[0],
+        torch.autograd.grad(expected, reference, gradient)[0], rtol=0, atol=0,
+    )
 
 
 @pytest.mark.parametrize(
