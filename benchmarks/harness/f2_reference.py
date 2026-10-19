@@ -139,6 +139,10 @@ def prepare(directory: Path, checkpoint: Path, cache: Path) -> None:
             }
             if mode == "refusal":
                 config["training"]["stream_disk_kind"] = "hdd"
+            elif mode == "nvme":
+                # On the recorded overlayfs rental, physical NVMe is verified
+                # by O_DIRECT + diskstats; namespace-based auto detection is not.
+                config["training"]["stream_disk_kind"] = "nvme"
             write_json(directory / "configs" / f"{cell}.json", config)
             cells.append({"cell": cell, "status": "NOT_RUN", "reason": "not measured"})
     write_json(

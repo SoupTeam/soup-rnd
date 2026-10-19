@@ -22,14 +22,15 @@ The operational matrix below is selected with the stated limitations.
   F1 explicitly lists containers among its untested regimes.
 
 Work is isolated from the dirty D2 checkout on `koko/f2-14b-reference`.
-No D2/C2 source changes are included. Ordinary Soup runtime code is unchanged.
+No D2/C2 source changes are included. Model/loss/optimizer arithmetic is unchanged;
+the evidence work exposed repairs needed in BF16 fingerprints and forced-disk validation.
 
 ## Selected matrix, not requirements inferred from the PDF
 
 | Disk condition | 128 tokens | 384 tokens | 1024 tokens |
 |---|---|---|---|
 | `stream_source: ram`, pinned store must be confirmed | NOT_RUN | NOT_RUN | NOT_RUN |
-| `stream_source: disk`, real NVMe, detected media type | NOT_RUN | NOT_RUN | NOT_RUN |
+| `stream_source: disk`, verified real NVMe, explicit `stream_disk_kind: nvme` | NOT_RUN | NOT_RUN | NOT_RUN |
 | `stream_source: disk`, explicit `stream_disk_kind: hdd` policy control | NOT_RUN | NOT_RUN | NOT_RUN |
 
 128 is a short-shape control, 384 reproduces the #901 report's cap, and 1024
@@ -137,6 +138,21 @@ needed before the mapping can support a performance verdict. Do not call
 "no visible peer processes" proof of exclusive host disk use.
 
 ## Reproduction
+
+### Amendment before the replacement campaign
+
+The first campaign at `1203a9f7` demonstrated that a forced disk tier skipped
+media validation whenever the planner first selected RAM. The HDD override
+therefore trained instead of refusing. Four setup-path regressions reproduce
+the bypass (HDD, SSD, unknown, and explicit HDD override); the RAM control passes.
+The replacement source validates the forced tier before any shard writes.
+The verified overlay-backed NVMe arm explicitly sets `stream_disk_kind: nvme`.
+Lengths, data, seed, 12/4 steps, order and validity thresholds are unchanged.
+The old campaign is retained separately and is never pooled with replacement
+measurements. Its last child completed before the controller was stopped; that
+arm has no finalised parent validity/result and cannot support a verdict.
+
+### Commands and hardware
 
 Use Python 3.10–3.12 with a CUDA training install. The rental selected for
 preparation is RTX 3060 Ti 8192 MiB, driver 580.173.02, 33,537,638,400 host RAM

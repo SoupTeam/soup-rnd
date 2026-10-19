@@ -699,6 +699,22 @@ class StreamingSetupMixin:
         lora_config = adapter_plan.lora_config
 
         shard_dir = resolve_shard_dir(cfg.base)
+        # The planner can choose RAM and therefore skip its lazy disk probe.
+        # Forcing disk afterwards must not bypass the NVMe requirement or an
+        # explicit hdd/ssd override. Refuse before any shard writes.
+        if tcfg.stream_source == "disk":
+            forced_disk = resolve_disk_kind(
+                _existing_disk_anchor(shard_dir), tcfg.stream_disk_kind, notify=console.print
+            )
+            if forced_disk.kind != "nvme":
+                raise ValueError(
+                    "layer streaming needs NVMe or more RAM: "
+                    "training.stream_source='disk' was forced but the cache disk "
+                    f"is {forced_disk.kind!r} (not NVMe). Use stream_source='ram' "
+                    "when the base fits, or place the cache on NVMe. "
+                    "Set stream_disk_kind='nvme' only for a verified NVMe volume "
+                    "whose automatic detection is wrong."
+                )
         # R4: extra NVMe roots, validated once here (the ~9 s disk probe runs per volume only
         # when the variable is set). A bad entry refuses the run by name.
         stripe_roots = resolve_stripe_roots(
@@ -948,8 +964,8 @@ class StreamingSetupMixin:
         # v0.72.3 — the disk overflow tier is live, so a base that does not fit
         # in RAM is no longer fatal. `stream_source` decides: 'ram' insists,
         # 'disk' forces, 'auto' (the default) takes RAM when it fits and falls
-        # back to disk when it does not. build_stream_plan already refused a
-        # non-NVMe disk, so reaching here with tier='disk' means NVMe.
+        # back to disk when it does not. The forced path was checked before
+        # sharding; build_stream_plan validates automatic disk overflow.
         tier = TIER_DISK if tcfg.stream_source == "disk" else plan.tier
         if tier != plan.tier:
             # The panel is rendered from `plan`, so a forced tier has to be
