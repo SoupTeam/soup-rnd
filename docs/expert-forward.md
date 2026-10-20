@@ -171,11 +171,26 @@ JUnit passes, negative controls, load order/count and arena allocation bounds.
 Source identity is recorded by manifest and base `9510096a`; it is not presented
 as a precommitted trained-checkpoint protocol.
 
+## Trained-checkpoint gate, 2026-10-20
+
+The prospective gate passed all 12 cells at committed source `99664b09` on the
+RTX 3060: trained OLMoE layers 0/7/15, each in CPU fp32, CUDA BF16, CUDA NF4 and
+CUDA nested NF4. Recorded output hashes match exactly, max absolute difference
+is zero, and every different-weight negative control differs. All 64 experts
+were routed and loaded once in ascending order in every cell. No replacement,
+failed or unknown cell is present in this series.
+
+CUDA arena allocation was 12 MiB for BF16 and 16 MiB for either NF4 variant,
+below the frozen 64 MiB budget. Streamed peak allocated memory was approximately
+28.11-32.34 MiB for this layer primitive; this is not a whole-model VRAM bound.
+The [report, raw archive and replay analyzer](../benchmarks/results/b1.2-olmoe-forward-20261020/report.md)
+retain all cell logs, routing, traces, memory, hashes, protocol and source.
+
 ## Acceptance status
 
-Implementation and synthetic CPU checks are preparation for CUDA/trained-weight
-acceptance. Synthetic CUDA preflight passed; no formal trained-checkpoint cell
-has been run in this change. B1.2 is not ready to mark Done. The B1.1 interrupted-layout review
-correction has been inherited by the dependent B1.2 branch. A new
+CPU regression, synthetic CUDA preflight and the 12-cell prospective trained-layer
+forward/arena gate passed. The B1.1 interrupted-layout review correction is
+inherited by this branch. B1.1 dependency review, publication, required CI and
+B1.2 reviewer acceptance remain; the task board is not marked Done. A new
 changelog fragment must use the eventual B1.2 PR number; B1.1's #24 fragment is
 not the B1.2 entry.
