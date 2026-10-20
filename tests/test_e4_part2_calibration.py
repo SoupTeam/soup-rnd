@@ -887,7 +887,8 @@ class TestInputHashes:
 class TestReport:
     def _run(self, tmp_path, run_id, result, stamp_extra=None, fail_first=False):
         journal = common.AttemptsJournal(tmp_path / "attempts.jsonl")
-        stamp = dict(GOOD_STAMP, gpu_name="NVIDIA A100-SXM4-40GB", **(stamp_extra or {}))
+        stamp = dict(GOOD_STAMP, gpu_name="NVIDIA A100-SXM4-40GB", gpu_memory_total_mib="40960",
+                     gpu_compute_cap="8.0", **(stamp_extra or {}))
         if fail_first:
             cal.execute_attempt(journal, run_id, run_id[0], tmp_path / "runs", lambda: {},
                                 stamp=stamp_factory(stamp, stamp),

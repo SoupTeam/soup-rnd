@@ -710,9 +710,10 @@ class TestInputsBoundToThePinnedManifest:
 # --- 11 review: rest stages are bound to the instance of the chosen F -------------------------
 
 
-def f_stamp(uuid="GPU-chosen", instance="777"):
+def f_stamp(uuid="GPU-chosen", instance="777", mib="40960"):
     return {"unix_s": 1.0, "gpu_uuid": uuid, "instance_id": instance, "gpu_processes": [],
-            "unknown": {}}
+            "unknown": {}, "gpu_name": "NVIDIA A100-SXM4-40GB", "gpu_memory_total_mib": mib,
+            "gpu_compute_cap": "8.0"}
 
 
 class TestRestStagesStayOnTheChosenInstance:
@@ -734,7 +735,7 @@ class TestRestStagesStayOnTheChosenInstance:
 
     def test_the_80gb_decision_records_the_f80_instance(self, tmp_path):
         self.write_f(tmp_path, "F", [f_stamp("GPU-40", "1")] * 3, reserved=39e9)
-        self.write_f(tmp_path, "F80", [f_stamp("GPU-80", "2")] * 3, reserved=39e9)
+        self.write_f(tmp_path, "F80", [f_stamp("GPU-80", "2", "81920")] * 3, reserved=39e9)
         (tmp_path / "x").mkdir()
         assert cal.main(["decide", "--out", str(tmp_path)]) == 0
         decision = json.loads((tmp_path / "decision.json").read_text())

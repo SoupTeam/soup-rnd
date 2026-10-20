@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -395,6 +396,10 @@ def box_stamp(gpu_index: int = 0, explicit_instance: Optional[str] = None,
     stamp["gpu_uuid"] = _nvidia_query("uuid", gpu_id) if gpu_id is not None else None
     stamp["driver_version"] = (_nvidia_query("driver_version", gpu_id)
                                if gpu_id is not None else None)
+    stamp["gpu_memory_total_mib"] = (_nvidia_query("memory.total", gpu_id)
+                                     if gpu_id is not None else None)
+    stamp["gpu_compute_cap"] = (_nvidia_query("compute_cap", gpu_id)
+                                if gpu_id is not None else None)
     try:
         import torch
 
@@ -405,6 +410,38 @@ def box_stamp(gpu_index: int = 0, explicit_instance: Optional[str] = None,
         unknown["torch"] = f"{type(exc).__name__}: {exc}"
     stamp["unknown"] = unknown
     return stamp
+
+
+# These bounds define the rule's card names ("A100 40 GB" and "A100 80 GB", calibration rule
+# sections 1 and 3) as values `nvidia-smi` reports for the workload GPU. They change no
+# threshold: the 36,000,000,000-byte limit and every other number stay as the rule has them.
+CARD_NAME_MARKER = "A100"  # SXM4 and PCIe variants both qualify
+CARD_COMPUTE_CAP = 8.0
+CARD_MEMORY_MIB = {"F": (40_000, 42_000), "F80": (80_000, 82_000)}  # inclusive, per F prefix
+
+
+def card_class_problems(stamp: Dict[str, Any], prefix: str) -> List[str]:
+    """``field=value ...`` for each field of a box stamp outside the card class of ``prefix``."""
+    problems = []
+    name = stamp.get("gpu_name")
+    if not isinstance(name, str) or CARD_NAME_MARKER not in name:
+        problems.append(f"gpu_name={name} does not name an {CARD_NAME_MARKER}")
+    cap = stamp.get("gpu_compute_cap")
+    try:
+        cap_ok = float(cap) == CARD_COMPUTE_CAP
+    except (TypeError, ValueError):
+        cap_ok = False
+    if not cap_ok:
+        problems.append(f"gpu_compute_cap={cap} is not {CARD_COMPUTE_CAP}")
+    low, high = CARD_MEMORY_MIB[prefix]
+    mem = stamp.get("gpu_memory_total_mib")
+    try:
+        mem_ok = low <= float(mem) <= high
+    except (TypeError, ValueError):
+        mem_ok = False
+    if not mem_ok:
+        problems.append(f"gpu_memory_total_mib={mem} is outside {low}-{high} MiB")
+    return problems
 
 
 def foreign_gpu_processes(stamp: Dict[str, Any], own_pids: List[int]) -> List[dict]:
@@ -532,3 +569,20 @@ def library_versions() -> Dict[str, Any]:
     if not found["python"].startswith(PYTHON_SERIES):
         mismatches.append("python")
     return {"versions": found, "mismatches": mismatches}
+
+
+def finite_max(values) -> float:
+    """``max`` that refuses NaN and infinity instead of letting argument order decide."""
+    values = list(values)
+    bad = [v for v in values if not math.isfinite(v)]
+    if bad:
+        raise ValueError(f"{len(bad)} value(s) are not finite: {bad[:3]}")
+    return max(values)
+
+
+def max_or_nan(values) -> float:
+    """``max`` that is NaN when any value is not finite, whatever the order (a void marker)."""
+    values = list(values)
+    if not all(math.isfinite(v) for v in values):
+        return float("nan")
+    return max(values)

@@ -703,8 +703,8 @@ def run_t_lora(unit: quant.Unit, dq: str, w_dq, make_r, x, recipe: Recipe, probe
         cell = cell_name(unit.kind, bool(grad_input), kernel)
         e = {q: {w: max_abs(measured[w][key], ref[key]) for w in ("F", "R")}
              for q, key in (("A_grad", "A_grad"), ("B_grad", "B_grad"))}
-        e["update"] = {w: max(max_abs(measured[w]["A_after"], ref["A_after"]),
-                              max_abs(measured[w]["B_after"], ref["B_after"]))
+        e["update"] = {w: common.max_or_nan([max_abs(measured[w]["A_after"], ref["A_after"]),
+                                             max_abs(measured[w]["B_after"], ref["B_after"])])
                        for w in ("F", "R")}
         for quantity, errs in e.items():
             records.append({"unit": unit.key, "kind": unit.kind, "dq": dq, "mode": "lora",
@@ -715,13 +715,7 @@ def run_t_lora(unit: quant.Unit, dq: str, w_dq, make_r, x, recipe: Recipe, probe
     return records
 
 
-def finite_max(values: Sequence[float]) -> float:
-    """``max`` that refuses NaN and infinity instead of letting argument order decide."""
-    values = list(values)
-    bad = [v for v in values if not math.isfinite(v)]
-    if bad:
-        raise ValueError(f"{len(bad)} value(s) are not finite: {bad[:3]}")
-    return max(values)
+finite_max = common.finite_max
 
 
 def t_nonfinite_reasons(records: Sequence[Dict[str, Any]]) -> List[str]:
@@ -952,6 +946,7 @@ def run_w(arm_dirs: Dict[str, Path], smoke_token_rows, recipe: Recipe, device: s
     attention = set()
     devices = set()
     fp32_void: List[str] = []
+    nonfinite_ref: List[str] = []
     for arm, directory in arm_dirs.items():
         if fp32_void:
             break
@@ -989,6 +984,8 @@ def run_w(arm_dirs: Dict[str, Path], smoke_token_rows, recipe: Recipe, device: s
                     frozen_failures.append(f"{arm} layer {layer} call {call}")
                 impls.add((bf["experts_implementation"], f32["experts_implementation"]))
                 diffs = wref.compare_references(bf, f32)
+                for term in wref.nonfinite_terms(bf, f32):
+                    nonfinite_ref.append(f"{arm} L{layer} call {call} {term}")
                 per_call.append({"arm": arm, "layer": layer, "call": call, "tokens":
                                  int(routed["hidden"].shape[0]),
                                  **diffs})
@@ -997,7 +994,8 @@ def run_w(arm_dirs: Dict[str, Path], smoke_token_rows, recipe: Recipe, device: s
         del model
         if device.startswith("cuda"):
             torch.cuda.empty_cache()
-    reasons = fp32_void + nonfinite_reasons(
+    reasons = fp32_void + [f"finiteness: W reference {t} is not finite" for t in nonfinite_ref]
+    reasons += nonfinite_reasons(
         "W", {f"{c['arm']} L{c['layer']} call {c['call']} {q}": c[q]
               for c in per_call for q in wref.W_QUANTITIES})
     # A changed frozen base fails W (rule sections 5 and 8): the result is reported, not rerun.
@@ -1082,7 +1080,7 @@ def aggregate_n(runs: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     for suite in sorted(runs[0]["scores"]):
         scores = [r["scores"][suite] for r in runs]
         n_items = runs[0]["n_items"][suite]
-        floor = max(scores) - min(scores)
+        floor = finite_max(scores) - min(scores)
         out[suite] = {"scores": scores, "floor": floor, "n_items": n_items,
                       "epsilon": max(2 * floor, 1.0 / n_items), "comparison": "strict >"}
     return out
@@ -1614,7 +1612,32 @@ def _cmd_drive(args) -> int:
     return _cmd_report(args)
 
 
+def verify_f_cards(out: Path) -> None:
+    """Every F record names the card of its prefix in both box stamps (rule sections 1 and 3):
+    an A100 of 40 GB under F, of 80 GB under F80, compute capability 8.0."""
+    for prefix in ("F", "F80"):
+        for arm in ARMS:
+            record = find_record(out, f"{prefix}_{arm}")
+            if record is None:
+                continue
+            for which in ("box_stamp_before", "box_stamp_after"):
+                stamp = record.get(which)
+                if stamp is None:
+                    continue
+                problems = common.card_class_problems(stamp, prefix)
+                if problems:
+                    raise common.CalibrationStopped(
+                        f"{prefix}_{arm} {which}: not the rule's "
+                        f"{'A100 40 GB' if prefix == 'F' else 'A100 80 GB'} card: "
+                        + "; ".join(problems))
+
+
 def _cmd_decide(args) -> int:
+    try:
+        verify_f_cards(args.out)
+    except common.CalibrationStopped as exc:
+        print(f"calibration stopped: {exc}", file=sys.stderr)
+        return 6
     f40 = f_results(args.out, "F")
     f80 = f_results(args.out, "F80") or None
     decision = decide_final_card(f40, f80)

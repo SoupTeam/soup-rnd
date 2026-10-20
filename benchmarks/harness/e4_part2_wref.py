@@ -138,20 +138,48 @@ def run_reference(experts_module, base: Dict[str, Any], routed: Dict[str, Any],
 W_QUANTITIES = ("output", "input_grad", "A_grad", "B_grad", "update")
 
 
+def reference_terms(kind: str) -> Tuple[str, ...]:
+    """The raw reference tensors that feed one tol_W quantity."""
+    if kind in ("output", "input_grad"):
+        return (kind,)
+    if kind == "update":
+        return tuple(f"{n}.{k}_after" for n in ("gate_up_proj", "down_proj") for k in "AB")
+    return tuple(f"{n}.{kind}" for n in ("gate_up_proj", "down_proj"))
+
+
+def nonfinite_terms(bf16: Dict[str, Any], fp32: Dict[str, Any]) -> list:
+    """Names of every reference tensor (either arm of the pair) holding a non-finite value."""
+    import torch
+
+    bad = []
+    for q in W_QUANTITIES:
+        for term in reference_terms(q):
+            for side, ref in (("bf16", bf16), ("fp32", fp32)):
+                if not bool(torch.isfinite(ref[term].float()).all()):
+                    bad.append(f"{side} {term}")
+    return bad
+
+
 def compare_references(bf16: Dict[str, Any], fp32: Dict[str, Any]) -> Dict[str, float]:
-    """max |bf16 reference - fp32 reference| per quantity (the arms of tol_W)."""
+    """max |bf16 reference - fp32 reference| per quantity (the arms of tol_W).
+
+    Every raw reference tensor and every per-tensor difference is checked for finiteness before
+    any maximum is taken: a quantity with a non-finite term is NaN, never the maximum of the
+    finite ones (Python's ``max`` lets argument order decide what happens to a NaN).
+    """
+    import e4_part2_common as common
+    import torch
+
     def diff(a, b) -> float:
         return float((a.float() - b.float()).abs().max())
 
-    out = {
-        "output": diff(bf16["output"], fp32["output"]),
-        "input_grad": diff(bf16["input_grad"], fp32["input_grad"]),
-    }
-    for kind in ("A_grad", "B_grad"):
-        out[kind] = max(diff(bf16[f"{n}.{kind}"], fp32[f"{n}.{kind}"])
-                        for n in ("gate_up_proj", "down_proj"))
-    out["update"] = max(diff(bf16[f"{n}.{k}_after"], fp32[f"{n}.{k}_after"])
-                        for n in ("gate_up_proj", "down_proj") for k in "AB")
+    out = {}
+    for q in W_QUANTITIES:
+        terms = reference_terms(q)
+        raw_ok = all(bool(torch.isfinite(r[t].float()).all()) for t in terms
+                     for r in (bf16, fp32))
+        out[q] = common.max_or_nan([diff(bf16[t], fp32[t]) for t in terms]) if raw_ok \
+            else float("nan")
     return out
 
 

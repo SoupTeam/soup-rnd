@@ -34,6 +34,8 @@ pytestmark = pytest.mark.skipif(
 E = 4
 GOOD_STAMP = {"unix_s": 1.0, "gpu_uuid": "GPU-1", "instance_id": "123", "gpu_processes": [],
               "unknown": {}}
+A100_40GB_STAMP = dict(GOOD_STAMP, gpu_name="NVIDIA A100-SXM4-40GB", gpu_memory_total_mib="40960",
+                       gpu_compute_cap="8.0")
 GOOD_PROV = {"soup_commit": "a" * 40, "harness_commit": "b" * 40, "harness_tree": "c" * 40,
              "harness_dirty": False}
 
@@ -84,10 +86,11 @@ class TestFinalCardNeedsAllArms:
         for arm in ("A_off", "A_on"):
             cal.execute_attempt(journal, f"F_{arm}", "F", tmp_path / "runs",
                                 lambda: {"oom": False, "max_memory_reserved_bytes": 1},
-                                stamp=stamps(GOOD_STAMP, GOOD_STAMP), prov=lambda: GOOD_PROV,
+                                stamp=stamps(A100_40GB_STAMP, A100_40GB_STAMP),
+                                prov=lambda: GOOD_PROV,
                                 identify_own=own_stub())
         cal.execute_attempt(journal, "F_A_bf16", "F", tmp_path / "runs", lambda: {},
-                            stamp=stamps(GOOD_STAMP, GOOD_STAMP),
+                            stamp=stamps(A100_40GB_STAMP, A100_40GB_STAMP),
                             prov=lambda: dict(GOOD_PROV, harness_dirty=True),
                             identify_own=own_stub())  # void
         assert cal.main(["decide", "--out", str(tmp_path)]) == 4
@@ -178,6 +181,73 @@ class TestNonFinite:
                         rows=3, experts_implementation="eager")
         assert out["void_reasons"] and out["tol_W"] == {}
 
+
+class TestNonFiniteInLaterTerms:
+    """A NaN that is not the first operand of a Python ``max`` must still void the run."""
+
+    LATER_TERMS = ["down_proj.A_grad", "down_proj.B_grad", "down_proj.A_after",
+                   "down_proj.B_after", "gate_up_proj.B_after"]
+
+    @pytest.mark.parametrize("term", LATER_TERMS)
+    @pytest.mark.parametrize("side", ["bf16", "fp32"])
+    def test_run_w_is_void_with_no_tolerances_when_a_later_term_is_nan(self, world, monkeypatch,
+                                                                       term, side):
+        real = wref.run_reference
+
+        def poisoned(experts, base, routed, state, g, precision, kwargs):
+            out = real(experts, base, routed, state, g, precision, kwargs)
+            if precision == side:
+                out[term] = out[term] * float("nan")
+            return out
+
+        monkeypatch.setattr(wref, "run_reference", poisoned)
+        out = cal.run_w({"A_off": world["data"] / "writeback-dqoff"},
+                        [list(range(3, 12)) * 2] * 3, cal.Recipe(), "cpu", layers=(0,),
+                        rows=3, experts_implementation="eager")
+        assert out["void_reasons"] and any(term in r for r in out["void_reasons"])
+        assert out["tol_W"] == {}
+
+    def test_compare_references_marks_a_quantity_with_a_later_nan_term(self):
+        ref = {"output": torch.zeros(2), "input_grad": torch.zeros(2)}
+        for n in ("gate_up_proj", "down_proj"):
+            for k in ("A_grad", "B_grad", "A_after", "B_after"):
+                ref[f"{n}.{k}"] = torch.zeros(2)
+        bad = dict(ref, **{"down_proj.B_after": torch.tensor([0.0, float("nan")])})
+        out = wref.compare_references(ref, bad)
+        assert math.isnan(out["update"]) and out["output"] == 0.0
+
+    def test_run_t_is_void_when_a_later_update_term_is_nan(self, world, monkeypatch):
+        import inspect
+        import sys
+
+        source = inspect.getsource(cal).splitlines()
+        first = next(i for i, line in enumerate(source, 1)
+                     if 'max_abs(measured[w]["B_after"], ref["B_after"])' in line)
+        # the B_after call sits on a line after the A_after one, whichever way it is written
+        lines = [i for i in range(first - 1, first + 1) if "B_after" in source[i - 1]]
+        real = cal.max_abs
+        state = {"seen": [], "poison": None}
+
+        def counting(a, b):
+            state["seen"].append(sys._getframe(1).f_lineno in lines)
+            if len(state["seen"]) == state["poison"]:
+                return float("nan")
+            return real(a, b)
+
+        monkeypatch.setattr(cal, "max_abs", counting)
+        TestNonFinite()._run_t(world, min_units=1)
+        state["poison"] = max(i for i, hit in enumerate(state["seen"], 1) if hit)
+        state["seen"].clear()
+        out = TestNonFinite()._run_t(world, min_units=1)
+        assert out["void_reasons"] and out["tau"] == {}
+
+    def test_aggregate_n_refuses_a_nan_score_in_any_position(self):
+        def run(score):
+            return {"scores": {"s": score}, "n_items": {"s": 10}}
+
+        for scores in ([0.5, 0.6, 0.5, 0.6, float("nan")], [float("nan"), 0.5, 0.6, 0.5, 0.6]):
+            with pytest.raises(ValueError, match="not finite"):
+                cal.aggregate_n([run(x) for x in scores])
 
 # --- 3 ------------------------------------------------------------------------------------
 
