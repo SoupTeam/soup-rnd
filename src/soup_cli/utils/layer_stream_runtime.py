@@ -3651,7 +3651,6 @@ def build_streamed_model(
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice.
     """
-    _refuse_expert_storage_cache(index)
     model = build_meta_skeleton(
         model_id,
         dtype=dtype,
@@ -3659,6 +3658,10 @@ def build_streamed_model(
         double_quant=double_quant,
         trust_remote_code=trust_remote_code,
     )
+    # Architecture / Hub-code refusals must run before ANY access to the cache
+    # index (B2). The skeleton is meta-only; reject storage-only layouts before
+    # materializing extras, decoder buffers or adapters.
+    _refuse_expert_storage_cache(index)
     external_tensors = dict(getattr(index, "external_tensors", None) or {})
     external_sources: Tuple[Any, ...] = ()
     if external_tensors:

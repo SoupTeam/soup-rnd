@@ -321,15 +321,23 @@ def test_training_explicitly_refuses_storage_only_cache():
         )
 
 
-def test_model_builder_refuses_before_loading_a_skeleton(monkeypatch):
+def test_model_builder_refuses_before_materializing_weights(monkeypatch):
     from types import SimpleNamespace
 
     from soup_cli.utils import layer_stream_runtime
 
     def unexpected(*args, **kwargs):
-        pytest.fail("a B1.1 storage-only cache must be refused before model construction")
+        pytest.fail("a B1.1 storage-only cache must be refused before weight materialization")
 
-    monkeypatch.setattr(layer_stream_runtime, "build_meta_skeleton", unexpected)
+    built = []
+
+    def meta_skeleton(*args, **kwargs):
+        built.append(True)
+        return object()
+
+    monkeypatch.setattr(layer_stream_runtime, "build_meta_skeleton", meta_skeleton)
+    monkeypatch.setattr(layer_stream_runtime, "materialize_extras", unexpected)
+    monkeypatch.setattr(layer_stream_runtime, "materialize_layer_buffers", unexpected)
     with pytest.raises(ValueError, match="B1.2/B1.3"):
         layer_stream_runtime.build_streamed_model(
             model_id="unused",
@@ -338,6 +346,7 @@ def test_model_builder_refuses_before_loading_a_skeleton(monkeypatch):
             index=SimpleNamespace(expert_layout="per_expert"),
             device="cpu",
         )
+    assert built == [True]
 
 
 @pytest.mark.parametrize(

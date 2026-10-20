@@ -60,9 +60,11 @@ part of the cache key. Expert files follow their layer's stripe-root placement.
 Switching back to fused can leave unused expert files; no active index references
 them. This change does not delete unrelated files or old stripe roots.
 
-Training entry points reject a per-expert cache before model construction or
-installation, naming B1.2/B1.3 and the option to re-shard as fused. There is no
-new YAML or CLI training option. Older RND releases do not understand this
+The model builder validates the architecture and Hub-code policy through its
+meta-only skeleton before reading any index field (the B2 refusal order).
+It then rejects a per-expert cache before materializing weights or adapters;
+direct installation also rejects it, naming B1.2/B1.3 and the option to re-shard
+as fused. There is no new YAML or CLI training option. Older RND releases do not understand this
 extension: use a separate cache directory and re-shard as fused before downgrading.
 
 ## Independent reader
@@ -121,7 +123,7 @@ this storage PR does not approve A0 or close the complete B1 track.
 The scoped storage extension is recorded in `changelog.d/0.75.1/24.added.md`.
 It does not enable public expert-streamed training.
 
-## Local verification, 2026-10-20
+## Initial local verification, 2026-10-20
 
 Working-tree implementation based on RND `ca9be3cc`, not a new committed
 revision. Python 3.11.15, torch 2.14.1+cpu, transformers 5.19.0, peft 0.21.2,
@@ -140,3 +142,21 @@ The borrowed local CPU environment did not have pytest-cov installed, so the
 local command used `python -m pytest -o addopts='' <test files> -q --tb=short`,
 with `PYTHONPATH` pointing at this worktree's `src`. It did not change the
 repository's default coverage configuration or the borrowed environment.
+
+### Refusal-order correction after CI
+
+The initial CPU environment lacked TRL, so B2 tests marked as requiring the
+training floor were skipped. CI subsequently found that the new storage-cache
+check accessed `index.expert_layout` before B2's Hub-code refusal. The model
+builder now performs its original meta-skeleton policy checks first, then
+rejects the storage-only layout before any real weights are materialized.
+The original B2 test is unchanged; the B1.1 test checks the corrected boundary.
+
+With TRL 0.29.1 installed in a separate local dependency directory, the exact
+previously failing B2 test plus B1.1 pass: 34 passed, 2 CUDA cases skipped.
+The combined B1.1/B2/Kimi, trust-remote-code and base-provenance check passes:
+150 passed, 43 CUDA cases skipped. Full Ruff and `git diff --check` also pass.
+An additional data-download trust module could not complete six cases because
+the borrowed environment lacks `datasets`; that failed local log is retained
+separately. No data-download code was changed. These are targeted local checks,
+not a claim that full repository CI has passed.
