@@ -46,14 +46,14 @@ console = Console()
 
 
 def granite_fixture(
-    seed: int = 0, layers: int = 2, intermediate_size: int = 128
+    seed: int = 0, layers: int = 2, intermediate_size: int = 128, vocab_size: int = 256
 ) -> torch.nn.Module:
     """A tiny random-init granitemoe in bf16. SYNTHETIC: its weights mean nothing."""
     import torch
     from transformers import GraniteMoeConfig, GraniteMoeForCausalLM
 
     config = GraniteMoeConfig(
-        vocab_size=256,
+        vocab_size=vocab_size,
         hidden_size=128,
         intermediate_size=intermediate_size,
         num_hidden_layers=layers,
