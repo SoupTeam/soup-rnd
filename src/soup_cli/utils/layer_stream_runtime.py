@@ -3015,6 +3015,14 @@ def _layer_name_map(layer: Any) -> Dict[str, str]:
     }
 
 
+def _refuse_expert_storage_cache(index: Any) -> None:
+    if getattr(index, "expert_layout", ""):
+        raise ValueError(
+            "per_expert cache is a B1.1 storage artifact; expert training runtime "
+            "requires B1.2/B1.3. Re-shard with the default fused layout to train."
+        )
+
+
 def install_streaming(
     model: Any,
     *,
@@ -3069,6 +3077,8 @@ def install_streaming(
                 logger.warning(message)
         pin = False
         require_pin = False
+
+    _refuse_expert_storage_cache(index)
 
     # Validate the index BEFORE touching the model: an index whose `quant` and
     # `quant_specs` disagree passes the cache key (which reads `quant`) and
@@ -3641,6 +3651,7 @@ def build_streamed_model(
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice.
     """
+    _refuse_expert_storage_cache(index)
     model = build_meta_skeleton(
         model_id,
         dtype=dtype,
