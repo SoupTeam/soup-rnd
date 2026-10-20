@@ -1,0 +1,147 @@
+"""One predeclared ordinary-batch follow-up; no timing retries or Git operations."""
+import glob
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import psutil
+
+
+def emit(value):
+    sys.stdout.write(json.dumps(value) + '\n')
+    sys.stdout.flush()
+
+
+def main():
+    base = Path('/workspace/soup-a0')
+    plan_bytes = Path('/workspace/a0-control-03-precision-protocol.json').read_bytes()
+    plan = json.loads(plan_bytes)
+    os.environ.update(plan['environment'])
+    sys.path.insert(0, str(base / 'benchmarks/harness'))
+    import l2l_box
+    import l2l_session
+
+    original = base / '.soup/results/a0-attempt-01'
+    protocol = json.loads((original / 'protocol.json').read_text())
+    assert hashlib.sha256((original / 'protocol.json').read_bytes()).hexdigest() == plan['parent_protocol_sha256']
+    source = l2l_session.source_hashes()
+    assert source == protocol['source_sha256'], 'Source differs from original measured bundle'
+    assert l2l_session.versions() == protocol['versions'], 'Package versions changed'
+    out = Path(plan['out'])
+    out.mkdir(exist_ok=False)
+    (out / 'logs').mkdir()
+    (out / 'protocol.json').write_bytes(plan_bytes)
+    deadline = time.monotonic() + plan['max_seconds']
+    completed = []
+    status = {'state': 'running', 'started_utc': datetime.now(timezone.utc).isoformat(),
+              'completed': completed, 'stage': 'preflight'}
+    stop = threading.Event()
+    io_thread = None
+
+    def save():
+        l2l_session.write_json(out / 'session.json', status)
+
+    def disk_delta(before, after, seconds):
+        return {name: {'read_MB_s': (after[name].read_bytes - before[name].read_bytes) / seconds / 1e6,
+                       'write_MB_s': (after[name].write_bytes - before[name].write_bytes) / seconds / 1e6,
+                       'busy_pct': (after[name].busy_time - before[name].busy_time) / seconds / 10,
+                       'read_iops': (after[name].read_count - before[name].read_count) / seconds,
+                       'read_service_mean_ms': (after[name].read_time - before[name].read_time) / max(1, after[name].read_count - before[name].read_count)}
+                for name in plan['quiet']['devices']}
+
+    def record_io():
+        temperature_paths = [Path(p) for p in glob.glob('/sys/class/hwmon/*/temp*_input')]
+        psutil.cpu_percent(interval=None)
+        previous = psutil.disk_io_counters(perdisk=True)
+        started = time.monotonic()
+        with (out / 'host-disk.jsonl').open('x') as log:
+            while not stop.wait(2):
+                current = psutil.disk_io_counters(perdisk=True)
+                now = time.monotonic()
+                log.write(json.dumps({'unix': time.time(), 'stage': status['stage'],
+                                      'disks': disk_delta(previous, current, now - started),
+                                      'cpu_percent': psutil.cpu_percent(interval=None),
+                                      'temperatures_millidegree_C': {str(p): int(p.read_text()) for p in temperature_paths if p.is_file()}}) + '\n')
+                log.flush()
+                previous, started = current, now
+
+    def wait_quiet(first=False):
+        required = 6 if first else 3
+        consecutive = 0
+        limit = min(deadline, time.monotonic() + plan['quiet']['max_wait_seconds'])
+        samples = []
+        while consecutive < required:
+            if time.monotonic() + 10 > limit:
+                raise RuntimeError('Quiet-window conditions not met; no benchmark retry')
+            before = psutil.disk_io_counters(perdisk=True)
+            started = time.monotonic()
+            time.sleep(10)
+            current = psutil.disk_io_counters(perdisk=True)
+            disks = disk_delta(before, current, time.monotonic() - started)
+            box = l2l_box.box_stamp()
+            quiet = (box['gpu_pids'] == [] and box['gpu_mem_used_mib'] is not None
+                     and box['gpu_mem_used_mib'] <= 500 and box['ac'] is True
+                     and box['avail_phys_gb'] >= 17 and all(
+                         row['read_MB_s'] + row['write_MB_s'] <= plan['quiet']['max_MB_s']
+                         and row['busy_pct'] <= plan['quiet']['max_busy_pct']
+                         for row in disks.values()))
+            sample = {'unix': time.time(), 'quiet': quiet, 'disks': disks, 'box': box}
+            samples.append(sample)
+            consecutive = consecutive + 1 if quiet else 0
+        return samples
+
+    try:
+        hardware = subprocess.check_output(['nvidia-smi', '--query-gpu=uuid,name,driver_version,memory.total,power.limit,pci.bus_id',
+                                            '--format=csv,noheader'], text=True)
+        assert 'RTX 3070' in hardware and '580.159.04' in hardware
+        l2l_session.write_json(out / 'preflight.json', {'hardware': hardware,
+                              'source_sha256': source, 'versions': l2l_session.versions(),
+                              'parent_protocol_sha256': plan['parent_protocol_sha256']})
+        io_thread = threading.Thread(target=record_io, daemon=True)
+        io_thread.start()
+        save()
+        for index, entry in enumerate(plan['runs']):
+            status['stage'] = entry['name'] + '/quiet'
+            save()
+            quiet = wait_quiet(first=index == 0)
+            l2l_session.write_json(out / (entry['name'] + '-quiet.json'), quiet)
+            status['stage'] = entry['name']
+            save()
+            emit({'stage': entry['name'], 'state': 'started', 'quiet_samples': len(quiet)})
+            observation = l2l_session.run_child(entry, out, dict(os.environ),
+                min(deadline, time.monotonic() + plan['max_child_seconds']))
+            completed.append(observation)
+            save()
+            row = l2l_session.read_result(Path(entry['output']))['records'][0]
+            emit({'stage': entry['name'], 'state': 'finished', 'kind': row['kind'],
+                  'tok_s': row.get('tok_per_s'), 'peak_gb': row.get('peak_alloc_gb'),
+                  'allocator_ooms': (row.get('memory') or {}).get('num_ooms')})
+        assert l2l_session.source_hashes() == source, 'Source changed during run'
+        status['state'] = 'finished'
+    except Exception as exc:
+        status.update(state='stopped', reason=f'{type(exc).__name__}: {exc}')
+    finally:
+        stop.set()
+        if io_thread is not None:
+            io_thread.join(timeout=5)
+        status['finished_utc'] = datetime.now(timezone.utc).isoformat()
+        save()
+        summary = l2l_session.batch_summary(out, completed)
+        complete = (status['state'] == 'finished' and summary['maximum_established']
+                    and all(summary['arms'].get(str(b), {}).get('valid') for b in (1, 2, 3, 4)))
+        result = {'state': status['state'], 'batch_control': summary, 'control_complete': complete,
+                  'parent_gates': json.loads((original / 'verdict.json').read_text())['gates'],
+                  'verdict': 'BATCH CONTROL PASS' if complete else 'BATCH CONTROL INCOMPLETE'}
+        l2l_session.write_json(out / 'verdict.json', result)
+        emit(result)
+    return 0 if status['state'] == 'finished' else 3
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
