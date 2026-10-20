@@ -103,8 +103,12 @@ def get_moe_target_modules(model) -> Optional[list[str]]:
                 if part in ("gate_proj", "up_proj", "down_proj", "w1", "w2", "w3"):
                     expert_modules.add(part)
 
-    # Combine attention targets with discovered expert targets
-    targets = list(STANDARD_TARGET_MODULES)
+    # Combine attention targets with discovered expert targets. The attention
+    # names come from the architecture's own entry where Soup has one: MLA
+    # attention (DeepSeek-V3) has no q_proj / k_proj / v_proj.
+    from soup_cli.utils.peft_wiring import moe_attention_targets
+
+    targets = moe_attention_targets(model) or list(STANDARD_TARGET_MODULES)
     if expert_modules:
         targets.extend(sorted(expert_modules))
     else:
@@ -194,6 +198,21 @@ def _refuse_dropout_on_fused_experts(model, tcfg, target_modules) -> None:
     )
 
 
+def _refuse_explicit_shared_expert_targets(tcfg) -> None:
+    """``moe_lora`` replaces ``target_modules``, so shared-expert targets named there vanish."""
+    explicit = getattr(getattr(tcfg, "lora", None), "target_modules", None)
+    if not explicit or explicit == "auto" or explicit == ["auto"]:
+        return
+    entries = [explicit] if isinstance(explicit, str) else list(explicit)
+    if any("shared_expert" in entry for entry in entries):
+        raise ValueError(
+            "training.moe_lora: true replaces training.lora.target_modules, so the "
+            f"shared-expert targets {entries!r} would be dropped without an error. Set "
+            "moe_lora: false to adapt the shared experts, or remove the shared_experts "
+            "entries and keep moe_lora for the routed experts."
+        )
+
+
 def resolve_moe_lora_targets(model, tcfg, target_modules, console=None):
     """Return MoE-aware LoRA targets when ``training.moe_lora`` asks for them.
 
@@ -222,6 +241,7 @@ def resolve_moe_lora_targets(model, tcfg, target_modules, console=None):
     moe_targets = get_moe_target_modules(model)
     if not moe_targets:
         return target_modules
+    _refuse_explicit_shared_expert_targets(tcfg)
     _refuse_dropout_on_fused_experts(model, tcfg, moe_targets)
     if console is not None:
         console.print(

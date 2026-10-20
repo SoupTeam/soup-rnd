@@ -41,6 +41,7 @@ skip_on_mps = pytest.mark.skipif(
 # #382 — THE guard now lives in tests/_windows_ci.py because a second test
 # file needed it (test_v05311.py's real GRPOTrainer step, which crashed the
 # windows 3.11 cell on 2026-08-31). Imported, never re-declared.
+from tests._tiny_hf_models import write_tiny_llama_config  # noqa: E402
 from tests._windows_ci import _windows_ci, skip_on_windows_ci  # noqa: E402
 
 
@@ -76,6 +77,7 @@ def _fake_weights_dir(tmp_path, n_layers=3):
     src = tmp_path / "weights"
     src.mkdir()
     _write_safetensors(str(src / "model.safetensors"), blob)
+    write_tiny_llama_config(str(src), n_layers)
     return str(src)
 
 
@@ -508,6 +510,7 @@ class TestShardQuantGuards:
         src = tmp_path / "ragged"
         src.mkdir()
         _write_safetensors(str(src / "model.safetensors"), blob)
+        write_tiny_llama_config(str(src), 2)
         src = str(src)
 
         with pytest.raises(ValueError, match="inconsistent NF4 metadata"):

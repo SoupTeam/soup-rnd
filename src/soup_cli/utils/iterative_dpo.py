@@ -301,6 +301,19 @@ def _write_pairs_jsonl(pairs: list[tuple[str, str, str]], path: str) -> int:
     return len(pairs)
 
 
+def _load_sampling_model(base_model: str, adapter_path: Optional[str], dev: str) -> Any:
+    """Load the base model, with the previous round's adapter on top when there is one."""
+    from transformers import AutoModelForCausalLM
+
+    model = AutoModelForCausalLM.from_pretrained(base_model).to(dev)
+    if adapter_path is not None:
+        from soup_cli.utils.peft_wiring import load_adapter
+
+        model = load_adapter(model, adapter_path).to(dev)
+    model.eval()
+    return model
+
+
 def _default_sample_fn(
     *,
     base_model: str,
@@ -317,18 +330,13 @@ def _default_sample_fn(
     NOT a standalone model — code-review HIGH fix).
     """
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoTokenizer
 
     tok = AutoTokenizer.from_pretrained(base_model)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    model = AutoModelForCausalLM.from_pretrained(base_model).to(dev)
-    if adapter_path is not None:
-        from peft import PeftModel
-
-        model = PeftModel.from_pretrained(model, adapter_path).to(dev)
-    model.eval()
+    model = _load_sampling_model(base_model, adapter_path, dev)
     out: list[list[str]] = []
     for prompt in prompts:
         enc = tok(prompt, return_tensors="pt").to(dev)

@@ -1,0 +1,47 @@
+RUN: L2L step-0 probe, mode timing
+gpu             NVIDIA GeForce RTX 3070
+torch           2.14.1+cu130
+vram_total_gb   8.221
+soup_cli_file   /workspace/soup-a0/src/soup_cli/__init__.py
+driver          580.159.04
+pcie_gen        3
+pcie_width      16
+[transformers] Model config: bos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128000. This may result in unexpected behavior.
+[transformers] Model config: eos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128001. This may result in unexpected behavior.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+shard_dir       /workspace/soup-a0/.soup/f2-nf4
+direct_io       True
+v3              {'free_gb': 23.02574592, 'commit_avail_gb': None, 'need_gb': 10.73741824, 'margin_gb': 4.0, 'gpu_used_before_build_mib': 4, 'gpu_pids': [105394], 'foreign_gpu_pids': [], 'ram_ok': True, 'gpu_ok': True, 'ok': True}
+plain_A_k1_r0             21.7 tok/s  step 23.627 s  peak 4.459 GB  void False
+plain_B_k1_r0             82.2 tok/s  step 6.225 s  peak 4.459 GB  void False
+l2l_A_k1_r0               21.6 tok/s  step 23.669 s  peak 3.968 GB  void False
+l2l_B_k1_r0               75.6 tok/s  step 6.776 s  peak 3.968 GB  void False
+l2l_A_k2_r0               43.1 tok/s  step 23.779 s  peak 3.978 GB  void False
+l2l_B_k2_r0               75.4 tok/s  step 13.572 s  peak 3.978 GB  void False
+l2l_A_k3_r0               60.9 tok/s  step 25.210 s  peak 3.986 GB  void False
+l2l_B_k3_r0               75.4 tok/s  step 20.371 s  peak 3.986 GB  void False
+l2l_A_k4_r0               68.9 tok/s  step 29.717 s  peak 3.994 GB  void False
+l2l_B_k4_r0               75.1 tok/s  step 27.286 s  peak 3.994 GB  void False
+l2l_A_k8_r0               75.0 tok/s  step 54.634 s  peak 4.028 GB  void False
+l2l_B_k8_r0               75.1 tok/s  step 54.543 s  peak 4.028 GB  void False
+l2l_A_k16_r0              75.0 tok/s  step 109.204 s  peak 4.095 GB  void False
+l2l_B_k16_r0              75.0 tok/s  step 109.157 s  peak 4.095 GB  void False
+l2l_C_k4_r0               72.4 tok/s  step 28.269 s  peak 3.393 GB  void False
+l2l_D_k4_r0               88.2 tok/s  step 23.216 s  peak 3.393 GB  void False
+plain_B_k1_r1             81.3 tok/s  step 6.301 s  peak 4.459 GB  void False
+plain_A_k1_r1             20.7 tok/s  step 24.693 s  peak 4.459 GB  void False
+l2l_B_k16_r1              75.0 tok/s  step 109.277 s  peak 4.095 GB  void False
+l2l_A_k16_r1              74.7 tok/s  step 109.719 s  peak 4.095 GB  void False
+l2l_B_k8_r1               74.7 tok/s  step 54.821 s  peak 4.028 GB  void False
+l2l_A_k8_r1               74.6 tok/s  step 54.909 s  peak 4.028 GB  void False
+l2l_B_k4_r1               74.9 tok/s  step 27.339 s  peak 3.994 GB  void False
+l2l_A_k4_r1               68.7 tok/s  step 29.816 s  peak 3.994 GB  void False
+l2l_B_k3_r1               74.4 tok/s  step 20.643 s  peak 3.986 GB  void False
+l2l_A_k3_r1               60.8 tok/s  step 25.270 s  peak 3.986 GB  void False
+l2l_B_k2_r1               74.5 tok/s  step 13.736 s  peak 3.978 GB  void False
+l2l_A_k2_r1               43.0 tok/s  step 23.788 s  peak 3.978 GB  void False
+l2l_B_k1_r1               75.1 tok/s  step 6.821 s  peak 3.968 GB  void False
+l2l_A_k1_r1               21.7 tok/s  step 23.638 s  peak 3.968 GB  void False
+l2l_D_k4_r1               88.2 tok/s  step 23.215 s  peak 3.393 GB  void False
+l2l_C_k4_r1               74.0 tok/s  step 27.673 s  peak 3.393 GB  void False
+wrote         /workspace/soup-a0/.soup/results/a0-attempt-01/timing.json

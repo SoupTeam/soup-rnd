@@ -14,7 +14,8 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any
+from contextlib import contextmanager
+from typing import Any, Callable, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,13 @@ _DEEPSEEK_V3_ATTENTION = (
     "kv_b_proj",
     "o_proj",
 )
+
+#: ``model_type`` values with V3's attention that can be built with
+#: ``q_lora_rank=None``, which leaves one ``q_proj`` where the table names
+#: ``q_a_proj`` and ``q_b_proj``; see :func:`_moe_targets`. ``glm_moe_dsa`` shares
+#: the table entry but is not here: its modeling code always builds
+#: ``q_a_proj`` / ``q_b_proj`` and its config defaults ``q_lora_rank`` to 2048.
+_DEEPSEEK_V3_OPTIONAL_Q_LORA = frozenset({"deepseek_v3", "kimi_k25", "kimi_k2"})
 
 MOE_TEXT_LORA_TARGETS: dict[str, Any] = {
     "qwen3_moe": ("q_proj", "k_proj", "v_proj", "o_proj"),
@@ -249,6 +257,26 @@ def _note_partial_coverage(model_type: Any, model: Any, console: Any) -> None:
         logger.debug("partial-coverage notice not printed", exc_info=True)
 
 
+def _has_no_q_lora(model: Any) -> bool:
+    """Is ``q_lora_rank`` declared and ``None``, on the config or its text tower?
+
+    A config that does not declare the field (a test double, a non-V3 type) is
+    not "no q_lora": it keeps the table's names.
+    """
+    config = getattr(model, "config", model)
+    for holder in (getattr(config, "text_config", None), config):
+        if holder is not None and hasattr(holder, "q_lora_rank"):
+            return holder.q_lora_rank is None
+    return False
+
+
+def _with_single_q_proj(targets: Any) -> list[str]:
+    """V3 attention names with ``q_a_proj`` / ``q_b_proj`` swapped for ``q_proj``."""
+    resolved = ["q_proj"]
+    resolved.extend(name for name in targets if name not in ("q_a_proj", "q_b_proj"))
+    return resolved
+
+
 def _model_types(model: Any) -> set[Any]:
     """Return outer/text model types without importing Transformers."""
     config = getattr(model, "config", model)
@@ -311,6 +339,52 @@ class UnmappedTargets:
         return f"UnmappedTargets({self.model_types!r})"
 
 
+def _moe_targets(model_type: str, model: Any) -> Any:
+    """The table entry for ``model_type``, with ``q_proj`` for a V3 without q_lora.
+
+    Conditional rather than a ``q_proj`` added to the shared list, so a wrapper's
+    vision tower (which has its own ``q_proj``) is not reached on the checkpoints
+    that do set ``q_lora_rank``, i.e. every real V3, R1 and Kimi K2.
+    """
+    targets = _as_targets(MOE_TEXT_LORA_TARGETS[model_type])
+    if model_type in _DEEPSEEK_V3_OPTIONAL_Q_LORA and _has_no_q_lora(model):
+        return _with_single_q_proj(targets)
+    return targets
+
+
+def _moe_table_type(model: Any, model_types: set[Any] | None = None) -> str | None:
+    """The ``model_type`` whose :data:`MOE_TEXT_LORA_TARGETS` entry applies, if any.
+
+    The wrapper ``model_type`` is preferred over the text one where both are
+    present, because a vision-language wrapper names its language tower in the
+    module path and the text-only entry does not.
+    """
+    if model_types is None:
+        model_types = _model_types(model)
+    outer = getattr(getattr(model, "config", model), "model_type", None)
+    if outer in MOE_TEXT_LORA_TARGETS:
+        return str(outer)
+    for value in sorted(str(v) for v in model_types if v is not None):
+        if value in MOE_TEXT_LORA_TARGETS:
+            return value
+    return None
+
+
+def moe_attention_targets(model: Any) -> list[str] | None:
+    """The attention projection names of ``model``'s MoE table entry, or ``None``.
+
+    ``moe_lora`` builds its own target list and used to hard-code
+    ``q_proj`` / ``k_proj`` / ``v_proj`` / ``o_proj``, which DeepSeek-V3's MLA
+    attention does not have. ``None`` for an architecture the table lacks and for
+    a regex entry, which cannot be merged into a suffix list; the caller then
+    keeps its standard names.
+    """
+    table_type = _moe_table_type(model)
+    if table_type is None or isinstance(MOE_TEXT_LORA_TARGETS[table_type], str):
+        return None
+    return list(_moe_targets(table_type, model))
+
+
 def resolve_lora_target_modules(model: Any, configured: Any, console: Any = None) -> Any:
     """Resolve ``target_modules: auto`` for models PEFT does not know yet.
 
@@ -342,17 +416,11 @@ def resolve_lora_target_modules(model: Any, configured: Any, console: Any = None
         return list(QWEN35_TEXT_LORA_TARGETS)
     if "qwen4_exp_text" in model_types:
         return QWEN4_EXP_TEXT_LORA_TARGETS
-    # The MoE table. The wrapper ``model_type`` is preferred over the text one
-    # where both are present, because a vision-language wrapper names its
-    # language tower in the module path and the text-only entry does not.
-    for value in (getattr(getattr(model, "config", model), "model_type", None),):
-        if value in MOE_TEXT_LORA_TARGETS:
-            _note_partial_coverage(value, model, console)
-            return _as_targets(MOE_TEXT_LORA_TARGETS[value])
-    for value in sorted(str(v) for v in model_types if v is not None):
-        if value in MOE_TEXT_LORA_TARGETS:
-            _note_partial_coverage(value, model, console)
-            return _as_targets(MOE_TEXT_LORA_TARGETS[value])
+    # The MoE table.
+    table_type = _moe_table_type(model, model_types)
+    if table_type is not None:
+        _note_partial_coverage(table_type, model, console)
+        return _moe_targets(table_type, model)
 
     named = sorted(value for value in model_types if isinstance(value, str))
     if not named or _peft_has_a_default_for(model_types):
@@ -516,6 +584,180 @@ def build_lora_config(
     )
     config_cls = getattr(peft, spec["peft_cls"])
     return config_cls(**spec["init_kwargs"])
+
+
+_SHARED_EXPERT_PROJECTION = re.compile(r"\.shared_experts?\.(?:gate|up|down)_proj$")
+_FUSED_MOE_PROJECTIONS = ("gate_proj", "up_proj", "down_proj")
+
+
+@contextmanager
+def _without_peft_moe_conversion(skip: Callable[[Any], bool]) -> Iterator[None]:
+    """Skip peft's transformers-v4 to v5 target rewrite for the configs ``skip`` accepts.
+
+    ``BaseTuner.inject_adapter`` imports ``convert_peft_config_for_transformers`` at
+    call time. On a model type with a fused-expert conversion mapping it moves every
+    ``gate_proj`` / ``up_proj`` / ``down_proj`` target, whatever its path, into
+    ``target_parameters`` on the routed experts. The wrapper below hands every config
+    ``skip`` rejects to the original function, and the original is restored on exit.
+    """
+    from peft.utils import transformers_weight_conversion as conversion
+
+    original = conversion.convert_peft_config_for_transformers
+
+    def convert(config: Any, *args: Any, **kwargs: Any) -> Any:
+        if skip(config):
+            return None
+        return original(config, *args, **kwargs)
+
+    conversion.convert_peft_config_for_transformers = convert  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        conversion.convert_peft_config_for_transformers = original
+
+
+def _names_a_shared_expert(target: str) -> bool:
+    return "shared_expert" in target
+
+
+def _split_shared_expert_targets(model: Any, target_modules: Any) -> tuple[list[str], list[str]]:
+    """Full module names of the shared-expert projections requested, and the other targets.
+
+    A string target is a regex and is matched against the module path in full. A
+    list entry that names ``shared_expert(s)`` matches by path suffix. Other list
+    entries are returned untouched.
+    """
+    shared_modules = [
+        name for name, _ in model.named_modules() if _SHARED_EXPERT_PROJECTION.search(name)
+    ]
+    if isinstance(target_modules, str):
+        return [n for n in shared_modules if re.fullmatch(target_modules, n)], []
+    shared: list[str] = []
+    rest: list[str] = []
+    for entry in target_modules:
+        if not _names_a_shared_expert(entry):
+            rest.append(entry)
+            continue
+        shared.extend(n for n in shared_modules if n == entry or n.endswith(f".{entry}"))
+    return sorted(set(shared)), rest
+
+
+def _refuse_bare_projections_beside_shared_experts(others: Any) -> None:
+    bare = [e for e in others if e.rsplit(".", 1)[-1] in _FUSED_MOE_PROJECTIONS]
+    if bare:
+        raise ValueError(
+            f"LoRA target_modules {bare!r} sit beside shared-expert targets. peft would "
+            "move them onto the routed experts, which this config did not ask for. Name "
+            "them by full path, or set training.moe_lora: true for the routed experts."
+        )
+
+
+def attach_adapter(model: Any, peft_config: Any) -> Any:
+    """``get_peft_model`` that keeps shared-expert LoRA targets on the shared experts.
+
+    A config naming ``shared_expert(s)`` is resolved here to full module paths and
+    attached with peft's v4-to-v5 target rewrite switched off for this config
+    alone. Other configs go straight to ``get_peft_model``. A bare ``gate_proj``,
+    ``up_proj`` or ``down_proj`` beside a shared-expert target is refused, because
+    the rewrite would turn it into routed-expert LoRA the config did not ask for.
+    After the attach, every resolved module must be a LoRA layer.
+    """
+    from peft import get_peft_model
+
+    target_modules = getattr(peft_config, "target_modules", None)
+    if not target_modules or not (
+        _names_a_shared_expert(target_modules)
+        if isinstance(target_modules, str)
+        else any(_names_a_shared_expert(entry) for entry in target_modules)
+    ):
+        return get_peft_model(model, peft_config)
+
+    shared, rest = _split_shared_expert_targets(model, target_modules)
+    if not shared:
+        raise ValueError(
+            f"LoRA target_modules {target_modules!r} name shared experts, but the model "
+            "has no shared_expert(s) gate_proj / up_proj / down_proj module that matches."
+        )
+    _refuse_bare_projections_beside_shared_experts(rest)
+    asked_for_parameters = bool(peft_config.target_parameters)
+    if not isinstance(target_modules, str):
+        # A regex stays a regex: peft matches it against every module, so the attention
+        # half of "attention + shared expert" keeps its adapters.
+        peft_config.target_modules = set(shared) | set(rest)
+    with _without_peft_moe_conversion(lambda config: config is peft_config):
+        peft_model = get_peft_model(model, peft_config)
+
+    routed = sorted(
+        name.rsplit(".lora_", 1)[0]
+        for name, _ in peft_model.named_parameters()
+        if "lora_" in name and ".mlp.experts." in name
+    )
+    if routed and not asked_for_parameters:
+        raise ValueError(
+            "peft put LoRA on the routed experts, which this config did not ask for "
+            f"({routed[0]!r}). Its rewrite of gate/up/down_proj targets ran despite the "
+            "bypass; a peft release may have changed it."
+        )
+    not_adapted = sorted(
+        name
+        for name in shared
+        if not hasattr(peft_model.get_submodule(f"base_model.model.{name}"), "lora_A")
+    )
+    if not_adapted:
+        raise ValueError(f"shared-expert LoRA did not attach to {not_adapted[:3]!r}")
+    return peft_model
+
+
+def _config_names_shared_experts(config: Any) -> bool:
+    targets = getattr(config, "target_modules", None)
+    if not targets:
+        return False
+    if isinstance(targets, str):
+        return _names_a_shared_expert(targets)
+    return any(_names_a_shared_expert(entry) for entry in targets)
+
+
+def _skip_conversion_for_saved_shared_experts(config: Any) -> bool:
+    """True for a saved adapter whose targets name shared experts; refuses a mixed one."""
+    if not _config_names_shared_experts(config):
+        return False
+    targets = config.target_modules
+    if not isinstance(targets, str):
+        _refuse_bare_projections_beside_shared_experts(
+            [t for t in targets if not _names_a_shared_expert(t)]
+        )
+    return True
+
+
+def load_adapter(model: Any, adapter_path: str, **kwargs: Any) -> Any:
+    """``PeftModel.from_pretrained`` that reloads a shared-expert adapter onto the shared experts.
+
+    :func:`attach_adapter` saves full module paths. peft's v4-to-v5 rewrite runs again
+    on load and would move them onto the routed experts, so it is skipped for an
+    adapter whose saved targets name ``shared_expert(s)``. Every other adapter,
+    including one trained on transformers v4, loads through peft unchanged.
+    """
+    from peft import PeftModel
+
+    with _without_peft_moe_conversion(_skip_conversion_for_saved_shared_experts):
+        return PeftModel.from_pretrained(model, adapter_path, **kwargs)
+
+
+def add_adapter(peft_model: Any, adapter_path: str, adapter_name: str) -> None:
+    """``PeftModel.load_adapter`` with the same rule as :func:`load_adapter`."""
+    with _without_peft_moe_conversion(_skip_conversion_for_saved_shared_experts):
+        peft_model.load_adapter(adapter_path, adapter_name=adapter_name)
+
+
+def add_weighted_adapter(peft_model: Any, adapters: list[str], **kwargs: Any) -> None:
+    """``PeftModel.add_weighted_adapter`` with the same rule as :func:`load_adapter`.
+
+    The combined adapter is injected with a config that names the shared experts, and
+    peft's v4-to-v5 rewrite would move it onto the routed experts, where the loaded
+    adapters are absent.
+    """
+    with _without_peft_moe_conversion(_skip_conversion_for_saved_shared_experts):
+        peft_model.add_weighted_adapter(adapters, **kwargs)
 
 
 def apply_pre_lora_patches(model: Any, base: str) -> None:

@@ -1,0 +1,206 @@
+{
+  "created_utc": "2026-10-19T14:12:31.209654+00:00",
+  "remote_sha256_files_verified": 42,
+  "independent_strict_evaluator_matches": true,
+  "source_sha256_files_verified": 608,
+  "arm_records_audited": 44,
+  "gpu_snapshots_audited": 88,
+  "input_fingerprints_match": true,
+  "timing_arms": {
+    "plain/A/k1": {
+      "valid": true,
+      "why": [],
+      "value": 24.160191176333377,
+      "spread": 0.04414770946478011,
+      "tok_s": 21.191885290276193,
+      "peak": 4.45916928
+    },
+    "plain/B/k1": {
+      "valid": true,
+      "why": [],
+      "value": 6.263179044333508,
+      "spread": 0.012190755545530322,
+      "tok_s": 81.74762311213541,
+      "peak": 4.45916928
+    },
+    "l2l/A/k1": {
+      "valid": true,
+      "why": [],
+      "value": 23.653196054666296,
+      "spread": 0.001302855814031313,
+      "tok_s": 21.646123374477032,
+      "peak": 3.967579648
+    },
+    "l2l/B/k1": {
+      "valid": true,
+      "why": [],
+      "value": 6.798041295500298,
+      "spread": 0.0066145811288482875,
+      "tok_s": 75.31581197350165,
+      "peak": 3.967579648
+    },
+    "l2l/A/k2": {
+      "valid": true,
+      "why": [],
+      "value": 23.783148115000586,
+      "spread": 0.00036674214132733274,
+      "tok_s": 43.05569620340292,
+      "peak": 3.97760768
+    },
+    "l2l/B/k2": {
+      "valid": true,
+      "why": [],
+      "value": 13.653995856833415,
+      "spread": 0.012013949668665118,
+      "tok_s": 74.99636082630849,
+      "peak": 3.97760768
+    },
+    "l2l/A/k3": {
+      "valid": true,
+      "why": [],
+      "value": 25.240079075166555,
+      "spread": 0.0024057314354942972,
+      "tok_s": 60.85559381274895,
+      "peak": 3.985997312
+    },
+    "l2l/B/k3": {
+      "valid": true,
+      "why": [],
+      "value": 20.50681472283304,
+      "spread": 0.013263962509205508,
+      "tok_s": 74.90192995647253,
+      "peak": 3.985997312
+    },
+    "l2l/A/k4": {
+      "valid": true,
+      "why": [],
+      "value": 29.766468865833605,
+      "spread": 0.003342759043690172,
+      "tok_s": 68.80224890735107,
+      "peak": 3.994386944
+    },
+    "l2l/B/k4": {
+      "valid": true,
+      "why": [],
+      "value": 27.312742474833613,
+      "spread": 0.001934092522902243,
+      "tok_s": 74.98331600669758,
+      "peak": 3.994386944
+    },
+    "l2l/A/k8": {
+      "valid": true,
+      "why": [],
+      "value": 54.771145169333366,
+      "spread": 0.005021020000272523,
+      "tok_s": 74.78390286229346,
+      "peak": 4.027945472
+    },
+    "l2l/B/k8": {
+      "valid": true,
+      "why": [],
+      "value": 54.68231946883316,
+      "spread": 0.005078893489374048,
+      "tok_s": 74.90538147955783,
+      "peak": 4.027945472
+    },
+    "l2l/A/k16": {
+      "valid": true,
+      "why": [],
+      "value": 109.46130062883336,
+      "spread": 0.004700909509055065,
+      "tok_s": 74.83923498933954,
+      "peak": 4.095062528
+    },
+    "l2l/B/k16": {
+      "valid": true,
+      "why": [],
+      "value": 109.21687738883338,
+      "spread": 0.0011041875323370574,
+      "tok_s": 75.00672236613104,
+      "peak": 4.095062528
+    },
+    "l2l/C/k4": {
+      "valid": true,
+      "why": [],
+      "value": 27.97121115616725,
+      "spread": 0.021310339012687078,
+      "tok_s": 73.2181380550783,
+      "peak": 3.39250432
+    },
+    "l2l/D/k4": {
+      "valid": true,
+      "why": [],
+      "value": 23.21526448083356,
+      "spread": 2.253909280101091e-05,
+      "tok_s": 88.21781899968538,
+      "peak": 3.39250432
+    }
+  },
+  "spill_arms": {
+    "pinned": {
+      "valid": true,
+      "why": [],
+      "value": 109.68755063816661,
+      "spread": 0.011391198372680671,
+      "tok_s": 74.68486580599723,
+      "peak": 4.095062528
+    },
+    "spill": {
+      "valid": true,
+      "why": [],
+      "value": 109.75023039616585,
+      "spread": 0.00824946275800256,
+      "tok_s": 74.64221232547125,
+      "peak": 4.095062528
+    }
+  },
+  "gates": {
+    "G1": {
+      "status": "pass",
+      "detail": "F1: 256 tensors + losses equal (deterministic); F2: 640 tensors + losses equal (deterministic)"
+    },
+    "G2": {
+      "status": "pass",
+      "detail": "T_A(16) 74.8 vs 0.8 x T_B(16) 60.0 tok/s"
+    },
+    "G3": {
+      "status": "pass",
+      "detail": "T_A(16) 74.8 vs 1.3 x T_A(1) 28.1 tok/s"
+    },
+    "G4": {
+      "status": "pass",
+      "detail": "peak A16 4.095 vs A1 3.968 + 0.5 GB"
+    }
+  },
+  "original_verdict": "BATCH CONTROL INCOMPLETE: BUILD STEP 1",
+  "ordinary_batch_max_measured_configuration": 4,
+  "batch5_cuda_oom_rounds": [
+    {
+      "round": 0,
+      "num_ooms": 1,
+      "peak_alloc_gb": 7.496760832,
+      "error_type": "OutOfMemoryError"
+    },
+    {
+      "round": 1,
+      "num_ooms": 1,
+      "peak_alloc_gb": 7.496760832,
+      "error_type": "OutOfMemoryError"
+    }
+  ],
+  "ratios": {
+    "a16_over_a1": 3.4573966753595506,
+    "a16_over_plain_batch4": 0.9508516986618908,
+    "peak_reduction_vs_batch4": 0.44359181650632995,
+    "peak_growth_a16_vs_a1_gb": 0.12748287999999963,
+    "spill_over_pinned": 0.9994288872308242
+  },
+  "control_complete": false,
+  "limitations": [
+    "ordinary batch 1/2/3 invalid under V4",
+    "server power is operator declared",
+    "foreign-reader visibility limited to container",
+    "private owner handoff unavailable",
+    "synthetic F2 does not establish training quality or MoE throughput"
+  ]
+}

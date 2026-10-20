@@ -210,7 +210,8 @@ def verify(
     for name, cfg in configs:
         report.checks.append(
             check_attach(
-                name, cfg, load_hf_config=load_hf_config, build_model=build_on_meta,
+                name, cfg, load_hf_config=_config_loader_for(cfg, load_hf_config),
+                build_model=build_on_meta,
                 # stderr: the resolver's partial-coverage advisory must not land
                 # in --json's stdout (#1117 review, after #1164).
                 console=err_console,
@@ -347,3 +348,16 @@ def _suggest_recipes(query: str, n: int = 3) -> list[str]:
     except Exception:  # noqa: BLE001
         return []
     return get_close_matches(query, names, n=n, cutoff=0.6)
+
+
+def _config_loader_for(cfg, plain_loader):
+    """The plain loader, except a layer-streaming recipe reads ``kimi_k2`` natively."""
+    if not getattr(cfg.training, "stream_layers", False):
+        return plain_loader
+
+    def load_streaming(base: str):
+        from soup_cli.utils.kimi_k2 import load_stream_config
+
+        return load_stream_config(base, False)
+
+    return load_streaming

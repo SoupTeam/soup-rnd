@@ -79,21 +79,18 @@ def measure_interference_losses(
         if not isinstance(path, str) or not path:
             raise ValueError(f"adapter path for {name!r} must be a non-empty string")
 
-    from peft import PeftModel
-
     from soup_cli.utils import live_eval
+    from soup_cli.utils.peft_wiring import add_adapter, add_weighted_adapter, load_adapter
 
     model, tokenizer, dev = live_eval.load_model_and_tokenizer(
         base, device=device, trust_remote_code=trust_remote_code
     )
 
     first = names[0]
-    peft_model = PeftModel.from_pretrained(
-        model, adapters[first], adapter_name=first
-    )
+    peft_model = load_adapter(model, adapters[first], adapter_name=first)
     try:
         for name in names[1:]:
-            peft_model.load_adapter(adapters[name], adapter_name=name)
+            add_adapter(peft_model, adapters[name], name)
 
         pairs = live_eval._build_pairs(
             eval_rows, input_extractor=_row_input, output_extractor=_row_output
@@ -131,8 +128,8 @@ def measure_interference_losses(
                 if target == co_loaded:
                     continue
                 combo = f"__combo__{target}__{co_loaded}"
-                peft_model.add_weighted_adapter(
-                    [target, co_loaded], weights=[1.0, 1.0],
+                add_weighted_adapter(
+                    peft_model, [target, co_loaded], weights=[1.0, 1.0],
                     adapter_name=combo, combination_type="cat",
                 )
                 try:

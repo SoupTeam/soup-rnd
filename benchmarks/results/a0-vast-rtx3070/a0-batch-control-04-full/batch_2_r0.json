@@ -1,0 +1,458 @@
+{
+ "meta": {
+  "gpu": "NVIDIA GeForce RTX 3070",
+  "torch": "2.14.1+cu130",
+  "vram_total_gb": 8.221,
+  "soup_cli_file": "/workspace/soup-a0/src/soup_cli/__init__.py",
+  "driver": "580.159.04",
+  "pcie_gen": "3",
+  "pcie_width": "16",
+  "mode": "batch",
+  "weights": "/workspace/soup-a0/.soup/models/synth-70b-v32k",
+  "shards": "/workspace/soup-a0/.soup/f2-nf4",
+  "quant": "nf4",
+  "tier": "disk",
+  "buffers": 2,
+  "read_ahead": 2,
+  "seq": 512,
+  "lora_r": 8,
+  "lora_targets": "q_proj,k_proj,v_proj,o_proj",
+  "seed": 3,
+  "input_seed": 17,
+  "k": 2,
+  "batch": 2,
+  "round_index": 0,
+  "ks": "1,2,3,4,8,16",
+  "cd_k": 4,
+  "steps": 24,
+  "warmup": 2,
+  "rounds": 2,
+  "spill_k": 16,
+  "spill_budget_k": 8,
+  "spill_dir": "D:/soup-l2l-spill",
+  "deterministic": false,
+  "dry_run": false,
+  "allow_invalid": false,
+  "out": "/workspace/soup-a0/.soup/results/a0-batch-control-04-full/batch_2_r0.json",
+  "label": "A0_full04_b2_r0",
+  "lazy_shard_handles": false,
+  "control_sync_source": false,
+  "no_pin": false,
+  "weights_dir": "/workspace/soup-a0/.soup/models/synth-70b-v32k",
+  "shard_dir": "/workspace/soup-a0/.soup/f2-nf4",
+  "dtype": "bfloat16",
+  "arch": "llama",
+  "n_layers": 80,
+  "hidden": 8192,
+  "pinned": true,
+  "source_class": "AsyncDiskSource",
+  "direct_io": true,
+  "store_gb": 1.956601912,
+  "shard_seconds": 0.005269027999020182,
+  "build_seconds": 1.6629713340007584,
+  "chunk_bytes": 8388608,
+  "v3": {
+   "free_gb": 28.288745472,
+   "commit_avail_gb": null,
+   "need_gb": 0.67108864,
+   "margin_gb": 4.0,
+   "gpu_used_before_build_mib": 4,
+   "gpu_pids": [
+    248212
+   ],
+   "foreign_gpu_pids": [],
+   "ram_ok": true,
+   "gpu_ok": true,
+   "ok": true
+  },
+  "box": {
+   "pid": 8100,
+   "own_pids": [
+    8100
+   ],
+   "gpu_own_pids": [
+    8100,
+    248212
+   ],
+   "gpu_pid_attribution": {
+    "before": [],
+    "after": [
+     248212
+    ],
+    "context_active": true,
+    "single_device": true,
+    "method": "exclusive-local-CUDA-initialization"
+   },
+   "unix": 1792427042.026873,
+   "total_phys_gb": 32.10739712,
+   "avail_phys_gb": 28.28886016,
+   "commit_limit_gb": null,
+   "commit_avail_gb": null,
+   "ac": true,
+   "gpu_pids": [
+    248212
+   ],
+   "gpu_mem_used_mib": 1669,
+   "python_processes": null,
+   "power_source": "operator-declared-server"
+  },
+  "started": "2026-10-19T16:24:02"
+ },
+ "records": [
+  {
+   "kind": "arm",
+   "mode": "batch",
+   "arm": "A",
+   "k": 2,
+   "round": 0,
+   "variant": null,
+   "skipped": null,
+   "ids": {
+    "shape": [
+     2,
+     512
+    ],
+    "dtype": "int64",
+    "row_sha256": [
+     "01a8953cd89bfb3fe6e003606e1e10d7643bbc1c319458eb59ac53c5e0212b9b",
+     "72e9fc47c2509b3d9b031f3c1c16bade512145fe330c9a67e68c57620e1a9156"
+    ]
+   },
+   "label": "batch_control",
+   "tokens_per_step": 1024,
+   "steps": 24,
+   "warmup": 2,
+   "events_on": false,
+   "nocopy": false,
+   "nodequant": false,
+   "step_s_mean": 25.37419660262488,
+   "step_s_min": 23.69043435599815,
+   "step_s_max": 36.30571608799801,
+   "tok_per_s": 40.355957512131454,
+   "layer_loads_per_step": 156.0,
+   "large_loads_per_step": 2.0,
+   "bytes_moved_per_step": 69936828688.0,
+   "implied_h2d_gb_per_s": 2.756218444400531,
+   "copy_s_per_step": 0.0,
+   "copy_stream_gb_per_s": null,
+   "stall_s_per_step": 0.0,
+   "stall_share": 0.0,
+   "peak_alloc_gb": 5.425833472,
+   "peak_reserved_gb": 5.584715776,
+   "sm_clock_mhz_start": 1815,
+   "sm_clock_mhz_end": 1950,
+   "records": [
+    {
+     "step_s": 23.759281478000048,
+     "started_unix": 1792427090.6161444,
+     "loss": 11.972105979919434,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.720523065003363,
+     "started_unix": 1792427114.3754911,
+     "loss": 11.8287935256958,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.74111427599928,
+     "started_unix": 1792427138.0960743,
+     "loss": 11.609625816345215,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.726237538998248,
+     "started_unix": 1792427161.8372438,
+     "loss": 11.316781044006348,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 32.54635289900034,
+     "started_unix": 1792427185.5635357,
+     "loss": 10.940234184265137,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 28.257486657999834,
+     "started_unix": 1792427218.1099315,
+     "loss": 10.529597282409668,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 36.30571608799801,
+     "started_unix": 1792427246.367462,
+     "loss": 10.0595121383667,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 26.49695460499788,
+     "started_unix": 1792427282.6732175,
+     "loss": 9.593902587890625,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 28.75294079199739,
+     "started_unix": 1792427309.1702132,
+     "loss": 9.10928726196289,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 26.186319303000346,
+     "started_unix": 1792427337.9231975,
+     "loss": 8.612350463867188,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.69043435599815,
+     "started_unix": 1792427364.1095622,
+     "loss": 8.147028923034668,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.707805729001848,
+     "started_unix": 1792427387.8000395,
+     "loss": 7.676392555236816,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.72990019899953,
+     "started_unix": 1792427411.5078874,
+     "loss": 7.190135478973389,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.744905930998357,
+     "started_unix": 1792427435.2378297,
+     "loss": 6.732977390289307,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 24.34691063900027,
+     "started_unix": 1792427458.982789,
+     "loss": 6.246201038360596,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 24.636906564002857,
+     "started_unix": 1792427483.3297431,
+     "loss": 5.799144268035889,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.773017977000563,
+     "started_unix": 1792427507.966691,
+     "loss": 5.3270769119262695,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.797871629001747,
+     "started_unix": 1792427531.7397523,
+     "loss": 4.886195659637451,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.854266570997424,
+     "started_unix": 1792427555.5376654,
+     "loss": 4.443080425262451,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.725084756002616,
+     "started_unix": 1792427579.3919792,
+     "loss": 4.017158508300781,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.72197036700163,
+     "started_unix": 1792427603.1171074,
+     "loss": 3.619633197784424,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 23.734951834998355,
+     "started_unix": 1792427626.839122,
+     "loss": 3.2298858165740967,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 24.561798364000424,
+     "started_unix": 1792427650.574119,
+     "loss": 2.854412078857422,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    },
+    {
+     "step_s": 24.461966842998663,
+     "started_unix": 1792427675.1359606,
+     "loss": 2.4928042888641357,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "copy_s": 0.0,
+     "stall_s": 0.0,
+     "copy_events": 0
+    }
+   ],
+   "suspend": {
+    "samples": 330,
+    "max_gap_s": 2.0010974407196045,
+    "battery_samples": 0,
+    "unknown_power_samples": 0,
+    "void": false
+   },
+   "box_before": {
+    "pid": 8100,
+    "own_pids": [
+     8100
+    ],
+    "gpu_own_pids": [
+     8100,
+     248212
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      248212
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792427042.102038,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 28.279488512,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     248212
+    ],
+    "gpu_mem_used_mib": 1797,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "box_after": {
+    "pid": 8100,
+    "own_pids": [
+     8100
+    ],
+    "gpu_own_pids": [
+     8100,
+     248212
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      248212
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792427699.620774,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 27.80289024,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     248212
+    ],
+    "gpu_mem_used_mib": 5563,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "foreign_readers": []
+  }
+ ]
+}
