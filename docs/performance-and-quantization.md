@@ -433,6 +433,20 @@ soup train --config soup.yaml
 
 **How it works.** LoRA adapters + their gradients + optimizer state stay resident in VRAM (they are small). The frozen base lives in CPU RAM, page-locked when the machine allows it, and is streamed: each decoder layer is copied into one of two pre-allocated VRAM buffers on a dedicated CUDA stream while the previous layer is still computing, so the load overlaps the compute. Vocabulary-sized `embed_tokens` and an untied `lm_head` use one additional shared slot: the embedding is loaded for the model input, then the same allocation is reused for the output head, whose copy is issued right after the embedding lookup (`StreamPrefetcher.head_prefetch_layer`, default `0`) rather than at the last decoder layer, and the embedding is reloaded into it at the tail of that step's backward pass so the copy overlaps the remaining compute instead of blocking the next step's first lookup. Each decoder layer is read **twice** per step — once in the forward pass and once when the backward pass recomputes it — because `dL/dx = Wᵀ · dL/dy` needs the weights to reach the layers below. That is physics, not an implementation detail, and it is why streaming costs time.
 
+**Container RAM.** The RAM/disk preflight uses the smaller of host memory and
+visible cgroup allocation budgets on standard Linux cgroup v1/v2 mounts,
+including visible ancestor constraints. A positive protected reservation
+(`memory.low`/`memory.min`, or v1 `memory.soft_limit_in_bytes`) supplies the
+baseline budget, bounded by the hard limit. Memory above that reservation may
+be usable as a burst, but the planner conservatively avoids requiring it;
+the reservation itself is not a kernel hard limit.
+Available container memory includes reclaimable inactive file
+cache; a known limit with unreadable usage supplies no free headroom. This lets
+`stream_source: auto` choose NVMe when the real container allocation cannot
+safely hold the store. It does not change container limits or the planner's
+safety fractions. Systems without a finite visible cgroup limit retain the
+host measurement when no positive reservation is present either.
+
 **Early adapter memory check.** Before resolving checkpoint weights or preparing
 layer shards, Soup builds a meta model and applies its normal target resolution
 and PEFT conversion. The resulting adapter shapes account for rectangular
