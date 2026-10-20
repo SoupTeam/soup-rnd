@@ -12,7 +12,7 @@ import json
 import pytest
 
 from tests.e4_part2_support import tiny_model, write_legacy_checkpoint
-from tests.test_e4_part2_calibration import E, SMALL, synthetic_examples
+from tests.test_e4_part2_calibration import E, GOOD_PROV, SMALL, synthetic_examples
 
 torch = pytest.importorskip("torch")
 pytest.importorskip("bitsandbytes")
@@ -375,6 +375,9 @@ def write_decision(out, decision):
     (out / "decision.json").write_text(json.dumps(decision))
 
 
+INSTANCE = {"gpu_uuid": "GPU-chosen", "instance_id": "777"}
+
+
 def drive_args(out, f_prefix, stage="rest", device="cpu", gpu_index=0):
     import types
 
@@ -411,7 +414,7 @@ class TestFPrefixFollowsTheDecision:
             cal.resolve_f_prefix(tmp_path, None)
 
     def test_the_rest_stage_hands_the_derived_prefix_to_every_child(self, tmp_path, monkeypatch):
-        write_decision(tmp_path, {"decision": "FINAL_A100_80GB"})
+        write_decision(tmp_path, {"decision": "FINAL_A100_80GB", "final_instance": INSTANCE})
         argvs = []
         monkeypatch.setattr(cal, "drive_run", lambda j, run_id, argv, **kw: argvs.append(argv))
         monkeypatch.setattr(cal, "_cmd_report", lambda a: 0)
@@ -485,7 +488,7 @@ class TestDeviceFollowsGpuIndex:
     def test_run_gives_the_body_the_mapped_device_and_selects_it(self, tmp_path, monkeypatch):
         import transformers
 
-        write_decision(tmp_path, {"decision": "FINAL_A100_40GB"})
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB", "final_instance": INSTANCE})
         (tmp_path / "manifest.json").write_text("{}")
         seen = {}
         selected = []
@@ -503,12 +506,13 @@ class TestDeviceFollowsGpuIndex:
 
         monkeypatch.setattr(cal, "execute_attempt", fake_execute)
         monkeypatch.setattr(cal, "_body", fake_body)
-        args = drive_args(tmp_path, None, stage="W", device="cuda", gpu_index=1)
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "3")
+        args = drive_args(tmp_path, None, stage="W", device="cuda", gpu_index=0)
         args.arm, args.repeat, args.run_id = None, 1, None
         assert cal._cmd_run(args) == 0
-        assert seen["device"] == "cuda:1"
-        assert seen["kwargs"]["gpu_index"] == 1 and seen["kwargs"]["require_gpu"] is True
-        assert selected == [1]
+        assert seen["device"] == "cuda:0"
+        assert seen["kwargs"]["gpu_index"] == 0 and seen["kwargs"]["require_gpu"] is True
+        assert selected == [0]
 
     def test_a_model_on_the_wrong_device_is_refused(self):
         model = tiny_model(seed=4, dtype=torch.bfloat16)
@@ -530,3 +534,284 @@ class TestDeviceFollowsGpuIndex:
         out = cal.run_t(quant.enumerate_units(2, E), cal.UnitFiles(tiny_world["data"]), bf16,
                         rows, SMALL, "cpu", None, per_kind=1, calls_per_unit=1, min_units=1)
         assert out["device_used"] == "cpu"
+
+
+# --- 9 review: one GPU per run ----------------------------------------------------------------
+
+
+class TestOneGpuPerRun:
+    """arm_validity names the workload GPU from CUDA_VISIBLE_DEVICES and takes no index, so the
+    harness runs on exactly one visible GPU, addressed as index 0."""
+
+    def pick(self, index=0, visible="unset", count=None):
+        environ = {} if visible == "unset" else {"CUDA_VISIBLE_DEVICES": visible}
+        return common.require_single_gpu(index, environ=environ, count_gpus=lambda: count)
+
+    @pytest.mark.parametrize("visible,want", [("2", "2"), ("GPU-0a1b", "GPU-0a1b")])
+    def test_one_visible_gpu_is_the_physical_gpu(self, visible, want):
+        assert self.pick(visible=visible) == want
+
+    def test_an_unset_variable_is_fine_on_a_one_gpu_machine_only(self):
+        assert self.pick(count=1) == "0"
+        for count in (2, 8, None):
+            with pytest.raises(common.GpuSelectionError, match="exactly one"):
+                self.pick(count=count)
+
+    @pytest.mark.parametrize("visible", ["0,1", "GPU-a,GPU-b", "", "NoDevFiles", "-1"])
+    def test_a_variable_that_exposes_none_or_several_gpus_is_an_error(self, visible):
+        with pytest.raises(common.GpuSelectionError, match="exactly one"):
+            self.pick(visible=visible)
+
+    @pytest.mark.parametrize("index", [1, 2])
+    def test_a_gpu_index_other_than_zero_is_an_error(self, index):
+        with pytest.raises(common.GpuSelectionError, match="--gpu-index 0"):
+            self.pick(index=index, visible="1")
+
+    def test_run_refuses_before_starting_an_attempt(self, tmp_path, monkeypatch):
+        import transformers
+
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB", "final_instance": INSTANCE})
+        (tmp_path / "manifest.json").write_text("{}")
+        monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained",
+                            lambda *a, **k: object())
+
+        def must_not_run(*a, **k):
+            raise AssertionError("an attempt started on an unusable GPU selection")
+
+        monkeypatch.setattr(cal, "execute_attempt", must_not_run)
+        for index, visible in ((1, "1"), (0, "0,1")):
+            monkeypatch.setenv("CUDA_VISIBLE_DEVICES", visible)
+            args = drive_args(tmp_path, None, stage="W", device="cuda", gpu_index=index)
+            args.arm, args.repeat, args.run_id = None, 1, None
+            with pytest.raises(common.GpuSelectionError):
+                cal._cmd_run(args)
+
+    def test_drive_refuses_before_any_child_starts(self, tmp_path, monkeypatch):
+        def must_not_drive(*a, **k):
+            raise AssertionError("drove a child on an unusable GPU selection")
+
+        monkeypatch.setattr(cal, "drive_run", must_not_drive)
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0,1")
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB", "final_instance": INSTANCE})
+        with pytest.raises(common.GpuSelectionError):
+            cal._cmd_drive(drive_args(tmp_path, None, stage="rest", device="cuda"))
+        with pytest.raises(common.GpuSelectionError):
+            cal._cmd_drive(drive_args(tmp_path, "F", stage="F", device="cuda"))
+
+    def test_the_peers_selftest_checks_the_selection_too(self, monkeypatch):
+        import types
+
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0,1")
+        with pytest.raises(common.GpuSelectionError):
+            cal._cmd_peers_selftest(types.SimpleNamespace(gpu_index=0))
+
+    def test_the_box_stamp_queries_the_workload_gpu_not_the_index(self, monkeypatch):
+        import types
+
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "2")
+        seen = []
+
+        def fake_run(argv, **kw):
+            seen.append(argv)
+            return types.SimpleNamespace(returncode=0, stdout="x\n", stderr="")
+
+        monkeypatch.setattr(common.subprocess, "run", fake_run)
+        sensors = {name: (lambda: None) for name in (
+            "ram_available_bytes", "commit_charge", "gpu_processes", "gpu_clock",
+            "gpu_memory_used_mib")}
+        common.box_stamp(0, "42", readers=sensors)
+        assert seen and all("--id=2" in argv for argv in seen), seen
+
+    @pytest.mark.parametrize("gpu,method,arg", [("2", "ByIndex", 2),
+                                                 ("GPU-0a1b", "ByUUID", "GPU-0a1b")])
+    def test_nvml_sampling_reads_the_workload_gpu(self, monkeypatch, gpu, method, arg):
+        import sys
+        import types
+
+        calls = []
+        fake = types.SimpleNamespace(
+            nvmlInit=lambda: None,
+            nvmlDeviceGetHandleByIndex=lambda i: calls.append(("ByIndex", i)) or "h",
+            nvmlDeviceGetHandleByUUID=lambda u: calls.append(("ByUUID", u)) or "h",
+            nvmlDeviceGetMemoryInfo=lambda h: types.SimpleNamespace(used=1, free=2))
+        monkeypatch.setitem(sys.modules, "pynvml", fake)
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", gpu)
+        assert cal.nvml_reader()() == {"used": 1, "free": 2}
+        assert calls == [(method, arg)]
+
+
+# --- 10 review: the input check is bound to the pinned manifest -------------------------------
+
+
+class TestInputsBoundToThePinnedManifest:
+    def instance(self, tmp_path, monkeypatch):
+        from tests.test_e4_part2_review_fixes import fake_download, synthetic_instance
+        import types
+        import e4_part2_transfer as tr
+
+        root, manifest = synthetic_instance(tmp_path)
+        fake_download(monkeypatch)
+        tr.pull(root, "r", types.SimpleNamespace(whoami=lambda: {"name": "me"}),
+                log=lambda *_: None)
+        return root, manifest, common.sha256_file(root / tr.MANIFEST_NAME)
+
+    def test_the_pin_is_the_manifest_of_the_rule(self):
+        assert common.QUANT_MANIFEST_SHA256 == (
+            "1f3b550d707aa18c098851a1718f1712cdb1162adc28552c5fbbcce8611f0ccb")
+        committed = (common.REPO_ROOT / "benchmarks" / "results" / "e4-part2-quant"
+                     / "quant-manifest.json")
+        assert common.sha256_file(committed) == common.QUANT_MANIFEST_SHA256
+
+    def test_a_supplied_manifest_that_matches_record_and_pin_passes(self, tmp_path, monkeypatch):
+        root, manifest, sha = self.instance(tmp_path, monkeypatch)
+        assert cal.run_input_check(root, manifest, "F", "A_off", sha, pinned_sha256=sha) == []
+
+    def test_a_supplied_manifest_other_than_the_pin_voids_the_run(self, tmp_path, monkeypatch):
+        root, manifest, sha = self.instance(tmp_path, monkeypatch)
+        reasons = cal.run_input_check(root, manifest, "F", "A_off", sha, pinned_sha256="0" * 64)
+        assert any("pinned" in r for r in reasons)
+
+    def test_a_supplied_manifest_other_than_the_record_voids_the_run(self, tmp_path,
+                                                                     monkeypatch):
+        root, manifest, sha = self.instance(tmp_path, monkeypatch)
+        other = "e" * 64
+        reasons = cal.run_input_check(root, manifest, "F", "A_off", other, pinned_sha256=other)
+        assert any("verification record" in r for r in reasons)
+
+    def test_a_manifest_outside_the_data_root_cannot_pick_the_files_to_hash(self, tmp_path,
+                                                                            monkeypatch):
+        root, manifest, sha = self.instance(tmp_path, monkeypatch)
+        (root / "writeback-dqoff" / "config.json").write_bytes(b"tampered")
+        thin = dict(manifest, files={}, source_files={})  # a manifest that names nothing
+        thin_sha = common.sha256_bytes(json.dumps(thin).encode())
+        reasons = cal.run_input_check(root, thin, "F", "A_off", thin_sha, pinned_sha256=sha)
+        assert reasons  # not the pinned manifest: void, whatever files it names
+
+    def test_run_hashes_the_bytes_it_parsed(self, tmp_path, monkeypatch):
+        import transformers
+
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB", "final_instance": INSTANCE})
+        (tmp_path / "manifest.json").write_text('{"files": {}, "source_files": {}}')
+        monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained",
+                            lambda *a, **k: object())
+        seen = {}
+
+        def fake_execute(journal, run_id, kind, out_dir, body, input_check=None, **kw):
+            seen["reasons"] = input_check()
+            return {"outcome": common.OUTCOME_VOID, "void_reasons": seen["reasons"]}
+
+        monkeypatch.setattr(cal, "execute_attempt", fake_execute)
+        args = drive_args(tmp_path, None, stage="W", device="cpu")
+        args.arm, args.repeat, args.run_id = None, 1, None
+        cal._cmd_run(args)
+        assert any("pinned" in r for r in seen["reasons"])
+
+
+# --- 11 review: rest stages are bound to the instance of the chosen F -------------------------
+
+
+def f_stamp(uuid="GPU-chosen", instance="777"):
+    return {"unix_s": 1.0, "gpu_uuid": uuid, "instance_id": instance, "gpu_processes": [],
+            "unknown": {}}
+
+
+class TestRestStagesStayOnTheChosenInstance:
+    def write_f(self, out, prefix, stamps, reserved=1):
+        journal = common.AttemptsJournal(out / "attempts.jsonl")
+        for arm, stamp in zip(cal.ARMS, stamps):
+            cal.execute_attempt(
+                journal, f"{prefix}_{arm}", "F", out / "runs",
+                lambda: {"oom": False, "failed": False, "max_memory_reserved_bytes": reserved},
+                stamp=lambda *_a, s=stamp: dict(s), prov=lambda: GOOD_PROV,
+                identify_own=lambda: {"own_pids": [], "method": "stub"})
+
+    def test_decision_records_the_gpu_and_instance_of_the_chosen_f(self, tmp_path):
+        self.write_f(tmp_path, "F", [f_stamp()] * 3)
+        assert cal.main(["decide", "--out", str(tmp_path)]) == 0
+        decision = json.loads((tmp_path / "decision.json").read_text())
+        assert decision["decision"] == "FINAL_A100_40GB"
+        assert decision["final_instance"] == INSTANCE
+
+    def test_the_80gb_decision_records_the_f80_instance(self, tmp_path):
+        self.write_f(tmp_path, "F", [f_stamp("GPU-40", "1")] * 3, reserved=39e9)
+        self.write_f(tmp_path, "F80", [f_stamp("GPU-80", "2")] * 3, reserved=39e9)
+        (tmp_path / "x").mkdir()
+        assert cal.main(["decide", "--out", str(tmp_path)]) == 0
+        decision = json.loads((tmp_path / "decision.json").read_text())
+        assert decision["decision"] == "FINAL_A100_80GB"
+        assert decision["final_instance"] == {"gpu_uuid": "GPU-80", "instance_id": "2"}
+
+    def test_f_arms_on_different_instances_stop_calibration(self, tmp_path):
+        self.write_f(tmp_path, "F", [f_stamp(), f_stamp(instance="778"), f_stamp()])
+        with pytest.raises(common.CalibrationStopped, match="different"):
+            cal.final_instance(tmp_path, "F")
+
+    def test_a_decision_without_an_instance_stops_the_rest_stages(self, tmp_path):
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB"})
+        with pytest.raises(common.CalibrationStopped, match="final_instance"):
+            cal.resolve_final_instance(tmp_path)
+
+    def test_the_rest_stage_reads_the_instance_from_the_decision(self, tmp_path):
+        write_decision(tmp_path, {"decision": "FINAL_A100_80GB", "final_instance": INSTANCE})
+        assert cal.resolve_final_instance(tmp_path) == INSTANCE
+
+    def run(self, tmp_path, before, after, expected=INSTANCE):
+        journal = common.AttemptsJournal(tmp_path / "attempts.jsonl")
+        stamps = iter([before, after])
+        return cal.execute_attempt(
+            journal, "T", "T", tmp_path / "runs", lambda: {"x": 1},
+            stamp=lambda *_a: next(stamps), prov=lambda: GOOD_PROV,
+            identify_own=lambda: {"own_pids": [], "method": "stub"}, expected_instance=expected)
+
+    def test_the_same_instance_is_ok(self, tmp_path):
+        assert self.run(tmp_path, f_stamp(), f_stamp())["outcome"] == "ok"
+
+    @pytest.mark.parametrize("before,after,word", [
+        (f_stamp(instance="778"), f_stamp(), "instance_id"),
+        (f_stamp(uuid="GPU-other"), f_stamp(), "gpu_uuid"),
+        (f_stamp(), f_stamp(instance="778"), "instance_id")])
+    def test_a_run_on_another_instance_or_gpu_is_void_and_keeps_its_record(
+            self, tmp_path, before, after, word):
+        record = self.run(tmp_path, before, after)
+        assert record["outcome"] == "void"
+        assert any("chosen F" in r and word in r for r in record["void_reasons"])
+        assert (tmp_path / "runs" / f"{record['attempt_id']}.json").exists()
+
+    def test_run_passes_the_decided_instance_to_the_attempt(self, tmp_path, monkeypatch):
+        import transformers
+
+        write_decision(tmp_path, {"decision": "FINAL_A100_40GB", "final_instance": INSTANCE})
+        (tmp_path / "manifest.json").write_text("{}")
+        monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained",
+                            lambda *a, **k: object())
+        seen = {}
+
+        def fake_execute(journal, run_id, kind, out_dir, body, **kw):
+            seen.update(kw)
+            return {"outcome": common.OUTCOME_OK, "void_reasons": []}
+
+        monkeypatch.setattr(cal, "execute_attempt", fake_execute)
+        args = drive_args(tmp_path, None, stage="T", device="cpu")
+        args.arm, args.repeat, args.run_id = None, 1, None
+        cal._cmd_run(args)
+        assert seen["expected_instance"] == INSTANCE
+
+    def test_the_f_stage_has_no_instance_to_match(self, tmp_path, monkeypatch):
+        import transformers
+
+        (tmp_path / "manifest.json").write_text("{}")
+        monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained",
+                            lambda *a, **k: object())
+        seen = {}
+
+        def fake_execute(journal, run_id, kind, out_dir, body, **kw):
+            seen.update(kw)
+            return {"outcome": common.OUTCOME_OK, "void_reasons": []}
+
+        monkeypatch.setattr(cal, "execute_attempt", fake_execute)
+        args = drive_args(tmp_path, "F", stage="F", device="cpu")
+        args.arm, args.repeat, args.run_id = "A_off", 1, None
+        cal._cmd_run(args)
+        assert seen["expected_instance"] is None
+
+

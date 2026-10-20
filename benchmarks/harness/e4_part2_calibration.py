@@ -305,11 +305,17 @@ class DeviceMemorySampler:
                 "min_free_bytes": min(s["free"] for s in self.samples)}
 
 
-def nvml_reader(index: int = 0) -> Callable[[], Dict[str, int]]:
+def nvml_reader(gpu: Optional[str] = None) -> Callable[[], Dict[str, int]]:
+    """Whole-device memory of ``gpu`` (an index or UUID); default: the GPU the run sees as cuda:0.
+    NVML ignores CUDA_VISIBLE_DEVICES, so the physical id is looked up, not assumed to be 0."""
     import pynvml
 
+    gpu = common.workload_gpu_id() if gpu is None else str(gpu)
+    if gpu is None:
+        raise RuntimeError("no GPU is visible to this run")
     pynvml.nvmlInit()
-    handle = pynvml.nvmlDeviceGetHandleByIndex(index)
+    handle = (pynvml.nvmlDeviceGetHandleByIndex(int(gpu)) if gpu.isdigit()
+              else pynvml.nvmlDeviceGetHandleByUUID(gpu))
 
     def read() -> Dict[str, int]:
         info = pynvml.nvmlDeviceGetMemoryInfo(handle)
@@ -1164,19 +1170,29 @@ def loaded_files(stage: str, arm: Optional[str], manifest: Dict[str, Any]) -> Li
     return sorted(set(found), key=lambda t: t[1])
 
 
-def run_input_check(data_root: Path, manifest: Dict[str, Any], stage: str, arm: Optional[str]
+def run_input_check(data_root: Path, manifest: Dict[str, Any], stage: str, arm: Optional[str],
+                    manifest_sha256: str, pinned_sha256: str = common.QUANT_MANIFEST_SHA256
                     ) -> List[str]:
-    """Void reasons from the inputs: the instance-wide record must exist (the pull verified all
-    files once); then only the files this run loads are hashed again."""
+    """Void reasons from the inputs.
+
+    ``manifest`` is the parsed manifest the run was given and ``manifest_sha256`` the hash of
+    its bytes; that manifest decides which files are rehashed, so it must be the one pinned in
+    the rule and the one the pull verified. Then the instance-wide record must exist (the pull
+    verified all files once); only the files this run loads are hashed again.
+    """
+    if manifest_sha256 != pinned_sha256:
+        return [f"inputs: the supplied manifest (SHA-256 {manifest_sha256}) is not the pinned "
+                f"manifest {pinned_sha256}"]
     record_path = data_root / transfer.VERIFIED_NAME
     if not record_path.exists():
         return [f"inputs: {transfer.VERIFIED_NAME} is missing; the instance was not verified "
                 "by the transfer pull"]
     record = json.loads(record_path.read_text())
+    if record.get("manifest_sha256") != manifest_sha256:
+        return ["inputs: the verification record is for another manifest than the supplied one"]
     manifest_path = data_root / transfer.MANIFEST_NAME
-    if manifest_path.exists() and record.get("manifest_sha256") != common.sha256_file(
-            manifest_path):
-        return ["inputs: the verification record is for another manifest"]
+    if manifest_path.exists() and common.sha256_file(manifest_path) != manifest_sha256:
+        return ["inputs: the manifest in the data root differs from the supplied one"]
     reasons = []
     for section, rel in loaded_files(stage, arm, manifest):
         key = rel[len("source/"):] if section == "source_files" else rel
@@ -1198,9 +1214,13 @@ def execute_attempt(journal: common.AttemptsJournal, run_id: str, kind: str,
                     instance: Optional[str] = None,
                     stamp: Callable[..., Dict[str, Any]] = common.box_stamp,
                     prov: Callable[[], Dict[str, Any]] = common.provenance,
-                    identify_own: Optional[Callable[[], Dict[str, Any]]] = None
+                    identify_own: Optional[Callable[[], Dict[str, Any]]] = None,
+                    expected_instance: Optional[Dict[str, str]] = None
                     ) -> Dict[str, Any]:
     """Run ``body`` as one journaled attempt and write its record, void or not.
+
+    ``expected_instance`` ({"gpu_uuid", "instance_id"}, from decision.json) is the instance of
+    the chosen F records; a run whose box stamps name another one is a void (rule section 3).
 
     The record is written to ``out_dir/<attempt_id>.json`` before the journal is closed, so a
     void run always keeps its record. A crash is journaled as a void and re-raised.
@@ -1243,6 +1263,9 @@ def execute_attempt(journal: common.AttemptsJournal, run_id: str, kind: str,
     own = [os.getpid()] + list(peers["own_pids"])
     reasons += common.validate_run_stamps(record["box_stamp_before"], record["box_stamp_after"],
                                           own, require_gpu)
+    if expected_instance is not None:
+        reasons += instance_mismatches(record["box_stamp_before"], record["box_stamp_after"],
+                                       expected_instance)
     reasons += list(result.pop("void_reasons", []))
     outcome = (common.OUTCOME_VOID if reasons else
                common.OUTCOME_FAILED if result.get("failed") else common.OUTCOME_OK)
@@ -1251,6 +1274,19 @@ def execute_attempt(journal: common.AttemptsJournal, run_id: str, kind: str,
                                                          default=str))
     journal.end(attempt, outcome, reasons)
     return record
+
+
+def instance_mismatches(before: Dict[str, Any], after: Optional[Dict[str, Any]],
+                        expected: Dict[str, str]) -> List[str]:
+    """Void reasons for a stamp that names another GPU or instance than the chosen F's."""
+    reasons = []
+    for label, stamp in (("before", before), ("after", after)):
+        for key in ("gpu_uuid", "instance_id"):
+            found = (stamp or {}).get(key)
+            if found != expected.get(key):
+                reasons.append(f"provenance: {key} {found!r} {label} the run is not the "
+                               f"chosen F's {expected.get(key)!r}")
+    return reasons
 
 
 def drive_child(journal: common.AttemptsJournal, run_id: str, argv: List[str]) -> int:
@@ -1392,6 +1428,35 @@ def cal_decision(out: Path) -> Dict[str, Any]:
 FINAL_CARD_PREFIX = {"FINAL_A100_40GB": "F", "FINAL_A100_80GB": "F80"}
 
 
+def final_instance(out: Path, prefix: str) -> Dict[str, str]:
+    """The GPU UUID and instance id of the F records of ``prefix`` (rule section 3: T, W, N and
+    P run on the final card's instance only). The three arms must agree."""
+    seen = set()
+    for arm in ARMS:
+        record = find_record(out, f"{prefix}_{arm}")
+        if record is None:
+            raise common.CalibrationStopped(f"{prefix}_{arm}: no F record to take the instance "
+                                            "from")
+        stamp = record["box_stamp_before"]
+        seen.add((stamp.get("gpu_uuid"), stamp.get("instance_id")))
+    if len(seen) != 1:
+        raise common.CalibrationStopped(
+            f"the {prefix} arms ran on different GPUs or instances: {sorted(seen, key=str)}")
+    gpu_uuid, instance_id = seen.pop()
+    if not gpu_uuid or not instance_id:
+        raise common.CalibrationStopped(f"the {prefix} records carry no GPU UUID or instance id")
+    return {"gpu_uuid": gpu_uuid, "instance_id": instance_id}
+
+
+def resolve_final_instance(out: Path) -> Dict[str, str]:
+    """The instance the rest stages must run on, from ``decision.json``."""
+    instance = json.loads((Path(out) / "decision.json").read_text()).get("final_instance")
+    if not instance or not instance.get("gpu_uuid") or not instance.get("instance_id"):
+        raise common.CalibrationStopped(
+            "decision.json has no final_instance; run decide again on the F records")
+    return instance
+
+
 def resolve_f_prefix(out: Path, explicit: Optional[str]) -> str:
     """The F record prefix of the final card, from ``decision.json`` (rule section 3).
 
@@ -1442,7 +1507,7 @@ def _body(args, run_id, tokenizer, data_root, device, out, attempt_hint):
     torch.manual_seed(args.recipe_seed)
     if args.stage in ("F", "P"):
         arm = "A_on" if args.stage == "P" else args.arm
-        memory = nvml_reader(args.gpu_index) if device.startswith("cuda") else None
+        memory = nvml_reader() if device.startswith("cuda") else None
         adapter_out = out / "adapters" / f"{run_id}-{attempt_hint}"
         result = run_f(resolve_arm_dir(data_root, arm), arm, rows["TRAIN"], rows["SMOKE"], RECIPE,
                        device, tokenizer.pad_token_id, memory, adapter_out)
@@ -1485,26 +1550,31 @@ def _cmd_run(args) -> int:
     out = args.out
     if args.stage != "F":
         args.f_prefix = resolve_f_prefix(out, args.f_prefix)
+    expected_instance = resolve_final_instance(out) if args.stage != "F" else None
     device = resolve_device(args.device, args.gpu_index)
     if device.startswith("cuda"):
         import torch
 
+        common.require_single_gpu(args.gpu_index)
         torch.cuda.set_device(args.gpu_index)  # default-device calls agree with the model
     journal = common.AttemptsJournal(out / "attempts.jsonl")
     suffix = {"F": f"{args.f_prefix}_{args.arm}", "N": f"N_{args.repeat}"}.get(args.stage,
                                                                           args.stage)
     run_id = args.run_id or suffix
-    manifest = json.loads(args.manifest.read_text())
+    manifest_bytes = args.manifest.read_bytes()
+    manifest_sha256 = common.sha256_bytes(manifest_bytes)
+    manifest = json.loads(manifest_bytes)
     tokenizer = AutoTokenizer.from_pretrained(args.data_root / "source")
 
     def input_check() -> List[str]:
-        return run_input_check(args.data_root, manifest, args.stage, args.arm)
+        return run_input_check(args.data_root, manifest, args.stage, args.arm, manifest_sha256)
 
     record = execute_attempt(
         journal, run_id, args.stage, out / "runs",
         lambda: _body(args, run_id, tokenizer, args.data_root, device, out, int(time.time())),
         input_check=input_check, require_gpu=device.startswith("cuda"),
-        gpu_index=args.gpu_index, instance=args.instance_id)
+        gpu_index=args.gpu_index, instance=args.instance_id,
+        expected_instance=expected_instance)
     print(json.dumps({"run_id": run_id, "outcome": record["outcome"],
                       "void_reasons": record["void_reasons"]}))
     return 3 if record["outcome"] == common.OUTCOME_VOID else 0
@@ -1529,6 +1599,9 @@ def _cmd_drive(args) -> int:
     journal = common.AttemptsJournal(args.out / "attempts.jsonl")
     if args.stage != "F":
         args.f_prefix = resolve_f_prefix(args.out, args.f_prefix)
+        resolve_final_instance(args.out)
+    if resolve_device(args.device, args.gpu_index).startswith("cuda"):
+        common.require_single_gpu(args.gpu_index)
     if args.stage == "F":
         for arm in ARMS:  # A_off, A_on, A_bf16, in that order, a fresh process each
             drive_run(journal, f"{args.f_prefix}_{arm}", _child_argv(args, "F", arm))
@@ -1545,6 +1618,9 @@ def _cmd_decide(args) -> int:
     f40 = f_results(args.out, "F")
     f80 = f_results(args.out, "F80") or None
     decision = decide_final_card(f40, f80)
+    if decision["decision"] in FINAL_CARD_PREFIX:
+        decision["final_instance"] = final_instance(args.out,
+                                                    FINAL_CARD_PREFIX[decision["decision"]])
     (args.out / "decision.json").write_text(json.dumps(decision, indent=1, sort_keys=True) + "\n")
     print(json.dumps(decision))
     return 0 if decision["decision"].startswith("FINAL") else 4
@@ -1562,6 +1638,7 @@ def _cmd_report(args) -> int:
 
 def _cmd_peers_selftest(args) -> int:
     """Run the own-context probe once on this machine and print what it found."""
+    common.require_single_gpu(args.gpu_index)
     try:
         found = common.identify_own_gpu_pids_cuda(args.gpu_index)
     except common.PeersUnidentifiableError as exc:

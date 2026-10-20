@@ -404,25 +404,31 @@ class TestHashOncePerInstance:
         w = {n for _, n in cal.loaded_files("W", None, manifest)}
         assert not any(n.startswith("codes-") for n in w)
 
+    @staticmethod
+    def check(root, manifest, stage="F", arm="A_off"):
+        """The input check with the manifest in the data root as the pinned one."""
+        sha = common.sha256_file(root / tr.MANIFEST_NAME)
+        return cal.run_input_check(root, manifest, stage, arm, sha, pinned_sha256=sha)
+
     def test_run_check_needs_the_instance_record_and_hashes_only_loaded_files(self, tmp_path,
                                                                               monkeypatch):
         root, manifest = synthetic_instance(tmp_path)
-        assert any("verified" in r for r in cal.run_input_check(root, manifest, "F", "A_off"))
+        assert any("verified" in r for r in self.check(root, manifest))
         fake_download(monkeypatch)
         api = types.SimpleNamespace(whoami=lambda: {"name": "me"})
         tr.pull(root, "r", api, log=lambda *_: None)
-        assert cal.run_input_check(root, manifest, "F", "A_off") == []
+        assert self.check(root, manifest) == []
         hashed = []
         real = common.sha256_file
         monkeypatch.setattr(common, "sha256_file", lambda p, *a: hashed.append(str(p)) or real(p))
-        cal.run_input_check(root, manifest, "F", "A_off")
+        self.check(root, manifest)
         assert hashed and not any("writeback-dqon" in h or "codes-" in h for h in hashed)
         # a file the run does not load changes: not noticed here (pull verified it once)
         (root / "codes-dqon" / "layer-00.safetensors").write_bytes(b"zz")
-        assert cal.run_input_check(root, manifest, "F", "A_off") == []
+        assert self.check(root, manifest) == []
         # a file it does load changes: void
         (root / "writeback-dqoff" / "config.json").write_bytes(b"zz")
-        reasons = cal.run_input_check(root, manifest, "F", "A_off")
+        reasons = self.check(root, manifest)
         assert any("writeback-dqoff/config.json" in r for r in reasons)
 
     def test_run_check_rejects_a_record_for_another_manifest(self, tmp_path, monkeypatch):
@@ -434,7 +440,7 @@ class TestHashOncePerInstance:
         rec["manifest_sha256"] = "0" * 64
         (root / tr.VERIFIED_NAME).write_text(json.dumps(rec))
         assert any("another manifest" in r
-                   for r in cal.run_input_check(root, manifest, "F", "A_off"))
+                   for r in self.check(root, manifest))
 
 
 # --- 6 ------------------------------------------------------------------------------------

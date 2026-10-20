@@ -31,6 +31,10 @@ LIBRARIES = {
 }
 PYTHON_SERIES = "3.12"
 
+#: SHA-256 of ``benchmarks/results/e4-part2-quant/quant-manifest.json``, as pinned in section 1
+#: of the calibration rule. Every run's input check is bound to it.
+QUANT_MANIFEST_SHA256 = "1f3b550d707aa18c098851a1718f1712cdb1162adc28552c5fbbcce8611f0ccb"
+
 #: One seed for everything the calibration rule draws (rule sections 4, 5).
 CAL_SEED = 20261015
 EXPERTS_IMPLEMENTATION = "grouped_mm"
@@ -292,13 +296,58 @@ class AttemptsJournal:
 VAST_ID_VARIABLES = ("VAST_CONTAINERLABEL", "CONTAINER_ID", "VAST_CONTAINER_ID")
 
 
-def _nvidia_query(fields: str, gpu_index: int = 0) -> Optional[str]:
+class GpuSelectionError(ValueError):
+    """The run cannot name exactly one GPU for every sensor and the model."""
+
+
+def _count_gpus() -> Optional[int]:
+    out = _nvidia_query("uuid", None)
+    return len(out.splitlines()) if out else None
+
+
+def require_single_gpu(gpu_index: int, environ: Optional[Dict[str, str]] = None,
+                       count_gpus: Callable[[], Optional[int]] = _count_gpus) -> str:
+    """The physical GPU id of a run that sees exactly one GPU, addressed as ``cuda:0``.
+
+    ``arm_validity`` names the workload GPU from the first entry of CUDA_VISIBLE_DEVICES and
+    takes no index, so the process list, clocks and memory sensors can only follow that
+    variable. A run is therefore one GPU: ``--gpu-index 0`` and a variable that exposes exactly
+    one GPU (an unset variable counts only on a machine with a single GPU). Returns the id the
+    sensors and ``nvidia-smi --id`` use, an index or a UUID.
+    """
+    env = os.environ if environ is None else environ
+    if gpu_index != 0:
+        raise GpuSelectionError(
+            f"--gpu-index {gpu_index}: a run is one GPU, so use --gpu-index 0 and select the "
+            "GPU with CUDA_VISIBLE_DEVICES")
+    visible = env.get("CUDA_VISIBLE_DEVICES")
+    if visible is None:
+        if count_gpus() != 1:
+            raise GpuSelectionError(
+                "CUDA_VISIBLE_DEVICES is unset and this machine does not have exactly one GPU; "
+                "set it to exactly one GPU")
+        return "0"
+    entries = [e.strip() for e in visible.split(",")]
+    if len(entries) != 1 or entries[0] in ("", "NoDevFiles") or entries[0].startswith("-"):
+        raise GpuSelectionError(
+            f"CUDA_VISIBLE_DEVICES={visible!r} must expose exactly one GPU")
+    return entries[0]
+
+
+def workload_gpu_id() -> Optional[str]:
+    """The physical GPU the sensors read (``nvidia-smi --id``), None if no GPU is visible."""
+    import arm_validity as av
+
+    return av.workload_gpu()["id"]
+
+
+def _nvidia_query(fields: str, gpu_id: Optional[str] = "0") -> Optional[str]:
+    """``nvidia-smi --query-gpu``; ``gpu_id`` None queries every GPU."""
+    command = ["nvidia-smi", f"--query-gpu={fields}", "--format=csv,noheader,nounits"]
+    if gpu_id is not None:
+        command.insert(1, f"--id={gpu_id}")
     try:
-        out = subprocess.run(
-            ["nvidia-smi", f"--id={gpu_index}", f"--query-gpu={fields}",
-             "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, check=False, timeout=30,
-        )
+        out = subprocess.run(command, capture_output=True, text=True, check=False, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return None
     return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
@@ -318,6 +367,8 @@ def box_stamp(gpu_index: int = 0, explicit_instance: Optional[str] = None,
     """Machine state at one moment. A reading that is unavailable is None with a reason.
 
     ``readers`` replaces the sensors in tests. AC or battery is recorded as N/A (hosted).
+    The GPU named in the stamp is the one the sensors read (CUDA_VISIBLE_DEVICES, see
+    ``require_single_gpu``); ``gpu_index`` is 0 in every run and does not choose it.
     """
     import arm_validity as av
 
@@ -339,9 +390,11 @@ def box_stamp(gpu_index: int = 0, explicit_instance: Optional[str] = None,
             unknown[name] = f"{type(exc).__name__}: {exc}"
     stamp["own_pid"] = os.getpid()
     stamp["instance_id"] = instance_id(explicit_instance)
-    stamp["gpu_name"] = _nvidia_query("name", gpu_index)
-    stamp["gpu_uuid"] = _nvidia_query("uuid", gpu_index)
-    stamp["driver_version"] = _nvidia_query("driver_version", gpu_index)
+    gpu_id = workload_gpu_id()
+    stamp["gpu_name"] = _nvidia_query("name", gpu_id) if gpu_id is not None else None
+    stamp["gpu_uuid"] = _nvidia_query("uuid", gpu_id) if gpu_id is not None else None
+    stamp["driver_version"] = (_nvidia_query("driver_version", gpu_id)
+                               if gpu_id is not None else None)
     try:
         import torch
 
