@@ -118,8 +118,8 @@ CUDA is unavailable. Existing Soup gate results are prior evidence, not newly
 executed RND results. A0 proceed acceptance remains an external task dependency;
 this storage PR does not approve A0 or close the complete B1 track.
 
-This is an internal RND storage extension with no public training behavior
-enabled; no user-visible changelog entry is claimed for B1.1 alone.
+The scoped storage extension is recorded in `changelog.d/0.75.1/24.added.md`.
+It does not enable public expert-streamed training.
 
 ## Local verification, 2026-10-20
 
