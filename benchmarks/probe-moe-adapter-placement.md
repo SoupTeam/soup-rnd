@@ -1270,12 +1270,16 @@ projections; `AT` has no Soup spelling. Both trained arms pass V4.
 mixes the NF4 base, Soup's warmup and data order, and initialisation, and is not
 attributed:
 
-| Arm | Set | NLL | Gap vs resident `AE` | Leg 2 | Accuracy vs `AE`, clustered | Verdict if counted | NLL / accuracy minus resident same arm |
-|---|---|---:|---:|---|---|---|---|
-| `A` | E | 0.1359 | -0.0026 | passes | +3.5 pp, p 0.093 | ACCEPTABLE | +0.0012 / +0.010 |
-| `AS` | E | 0.1365 | -0.0020 | passes | +3.1 pp, p 0.15 | ACCEPTABLE | +0.0011 / +0.008 |
-| `A` | C | 0.1280 | -0.0023 | passes | +0.4 pp, p 1.0 | ACCEPTABLE | +0.0006 / +0.000 |
-| `AS` | C | 0.1291 | -0.0013 | passes | +1.2 pp, p 0.69 | ACCEPTABLE | +0.0011 / +0.012 |
+These seed-0 values are descriptive only. Both task sets are NOT COUNTED because the
+real parity pilot failed; even with passing parity, the missing seed-1 pairs require
+NO VERDICT (§11.7).
+
+| Arm | Set | NLL | Gap vs resident `AE` | Leg 2 | Accuracy vs `AE`, clustered | NLL / accuracy minus resident same arm |
+|---|---|---:|---:|---|---|---|
+| `A` | E | 0.1359 | -0.0026 | passes | +3.5 pp, p 0.093 | +0.0012 / +0.010 |
+| `AS` | E | 0.1365 | -0.0020 | passes | +3.1 pp, p 0.15 | +0.0011 / +0.008 |
+| `A` | C | 0.1280 | -0.0023 | passes | +0.4 pp, p 1.0 | +0.0006 / +0.000 |
+| `AS` | C | 0.1291 | -0.0013 | passes | +1.2 pp, p 0.69 | +0.0011 / +0.012 |
 
 **Memory in the RAM tier** (a property of the regime, reported whether or not the pilot
 passed, §11.3; seed 0 only). Peak CUDA memory allocated during Soup's training: `A`
