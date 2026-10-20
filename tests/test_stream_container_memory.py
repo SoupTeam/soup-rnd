@@ -156,3 +156,32 @@ def test_v1_soft_allocation_is_a_conservative_budget(container):
     container[prefix + "/memory.usage_in_bytes"] = str(8 * GIB)
     assert streaming.total_ram_bytes() == 32 * GIB
     assert streaming.free_ram_bytes() == 24 * GIB
+
+
+def test_clean_active_checkpoint_cache_is_reclaimable(container):
+    container["/sys/fs/cgroup/memory.current"] = str(28 * GIB)
+    container["/sys/fs/cgroup/memory.stat"] = (
+        f"file {23 * GIB}\ninactive_file {4 * GIB}\nactive_file {19 * GIB}\n"
+        "shmem 0\nfile_dirty 0\nfile_writeback 0\n")
+    assert streaming.free_ram_bytes() == 27 * GIB
+
+
+def test_file_hashing_does_not_force_a_fitting_nf4_store_to_disk(container):
+    container["/sys/fs/cgroup/memory.current"] = str(28 * GIB)
+    container["/sys/fs/cgroup/memory.stat"] = (
+        f"file {23 * GIB}\ninactive_file {4 * GIB}\nactive_file {19 * GIB}\n")
+    plan = streaming.build_stream_plan(
+        arch="qwen2", n_layers=48, layer_bytes=150_000_000,
+        embed_bytes=0, store_bytes=9_931_805_043,
+        available_ram_bytes=streaming.free_ram_bytes(),
+        total_ram_bytes=streaming.total_ram_bytes(), pinned_limit_bytes=None,
+    )
+    assert plan.tier == streaming.TIER_RAM
+
+
+def test_dirty_shared_and_writeback_pages_are_not_free_cache(container):
+    container["/sys/fs/cgroup/memory.current"] = str(28 * GIB)
+    container["/sys/fs/cgroup/memory.stat"] = (
+        f"file {23 * GIB}\ninactive_file {4 * GIB}\nactive_file {19 * GIB}\n"
+        f"shmem {10 * GIB}\nfile_dirty {5 * GIB}\nfile_writeback {3 * GIB}\n")
+    assert streaming.free_ram_bytes() == 9 * GIB

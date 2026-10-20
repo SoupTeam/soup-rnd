@@ -220,6 +220,21 @@ def freeze(root: Path) -> None:
         raise ValueError("physical 8GB GPU required")
     idle(stamp_gpu["uuid"])
     manifest = {}
+    verified = {}
+
+    def checked_digest(path: Path) -> str:
+        key = str(path)
+        stamp = path.stat()
+        signature = (stamp.st_size, stamp.st_mtime_ns)
+        if key not in verified:
+            value = f2.digest(path)
+            after = path.stat()
+            if (after.st_size, after.st_mtime_ns) != signature:
+                raise ValueError("input changed while hashing: " + key)
+            verified[key] = value, signature
+        if verified[key][1] != signature:
+            raise ValueError("input changed during freeze: " + key)
+        return verified[key][0]
     for group in GROUPS:
         plan = f2.read_json(root / group / "plan.json")
         checkpoint = Path(plan["checkpoint"])
@@ -230,7 +245,7 @@ def freeze(root: Path) -> None:
         mapping = f2.read_json(root / ("mapping-nf4.json" if group == "ram"
                                       else "mapping-bf16.json"))
         files = sorted(cache.rglob("*.safetensors"))
-        if len(files) != 51 or mapping["cache_files"] != {str(p): f2.digest(p) for p in files}:
+        if len(files) != 51 or mapping["cache_files"] != {str(p): checked_digest(p) for p in files}:
             raise ValueError("mapping does not cover the actual complete cache")
         if not mapping_valid(mapping) or len(mapping["files"]) != len(files):
             raise ValueError("strict actual-cache physical mapping failed")
@@ -240,7 +255,7 @@ def freeze(root: Path) -> None:
         for base in (checkpoint, cache):
             for path in sorted(base.rglob("*")):
                 if path.is_file() and ".cache" not in path.parts:
-                    manifest[str(path)] = {"sha256": f2.digest(path),
+                    manifest[str(path)] = {"sha256": checked_digest(path),
                         "bytes": path.stat().st_size, "mtime_ns": path.stat().st_mtime_ns}
     inputs = [PROTOCOL, Path(__file__), root / "schedule.json", root / "supplement-schedule.json",
               root / "allocation-initial.json", root / "hardware-initial.json"]

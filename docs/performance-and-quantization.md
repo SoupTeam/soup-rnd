@@ -440,8 +440,10 @@ including visible ancestor constraints. A positive protected reservation
 baseline budget, bounded by the hard limit. Memory above that reservation may
 be usable as a burst, but the planner conservatively avoids requiring it;
 the reservation itself is not a kernel hard limit.
-Available container memory includes reclaimable inactive file
-cache; a known limit with unreadable usage supplies no free headroom. This lets
+Available container memory includes clean file-LRU cache, including recently
+active checkpoint pages, bounded by the host's own available-memory estimate.
+Shared, dirty/writeback and anonymous pages are not added back as free cache;
+a known limit with unreadable usage supplies no free headroom. This lets
 `stream_source: auto` choose NVMe when the real container allocation cannot
 safely hold the store. It does not change container limits or the planner's
 safety fractions. Systems without a finite visible cgroup limit retain the

@@ -57,8 +57,9 @@ def cgroup_memory_bounds() -> tuple[int | None, int | None]:
     A positive protected reservation is the shared container's baseline budget;
     using memory above it requires bursting. It is not a kernel hard limit.
     The planner conservatively uses that baseline and any smaller hard limit.
-    Inactive file pages are reclaimable; active pages and anonymous memory are
-    not added back. Missing usage under a known limit supplies zero headroom,
+    Clean file-LRU pages are reclaimable even after recent checkpoint hashing;
+    shared, dirty/writeback and anonymous memory are not added back. Missing
+    usage under a known limit supplies zero headroom,
     rather than treating the host's free memory as available to this container.
     An absent/unlimited controller leaves the host measurement unchanged.
     """
@@ -89,10 +90,20 @@ def cgroup_memory_bounds() -> tuple[int | None, int | None]:
         try:
             lines = (directory / "memory.stat").read_text().splitlines()
             stat = dict(line.split() for line in lines)
-            inactive = max(0, int(stat.get(
-                "inactive_file" if version == 2 else "total_inactive_file", "0")))
+            prefix = "" if version == 2 else "total_"
+            inactive = max(0, int(stat.get(prefix + "inactive_file", "0")))
+            active = max(0, int(stat.get(prefix + "active_file", "0")))
+            file_key = "file" if version == 2 else "total_cache"
+            if file_key in stat:
+                file_bytes = max(0, int(stat[file_key]))
+                unavailable = sum(max(0, int(stat.get(name, "0"))) for name in (
+                    ("shmem", "file_dirty", "file_writeback") if version == 2 else
+                    ("total_shmem", "total_dirty", "total_writeback")))
+                reclaimable = min(inactive + active, max(0, file_bytes - unavailable))
+            else:
+                reclaimable = inactive
         except (OSError, ValueError):
-            inactive = 0
-        charged = max(0, usage - min(usage, inactive))
+            reclaimable = 0
+        charged = max(0, usage - min(usage, reclaimable))
         available.append(max(0, limit - charged))
     return (min(limits), min(available)) if limits else (None, None)
