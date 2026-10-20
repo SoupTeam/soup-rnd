@@ -225,3 +225,20 @@ def test_comparison_stops_at_max_blocks_and_says_it_is_incomplete(harness):
 def test_restore_runs_require_suspend_and_power_only(harness, tmp_path):
     watch = harness.make_watch(label="test", cache_dir=str(tmp_path))(arm="A", round=1, run=1)
     assert sorted(watch.required) == ["power", "suspend"]
+
+
+def test_snapshot_links_become_real_files_the_sharder_accepts(harness, tmp_path):
+    """The Hugging Face cache holds every file as a symlink; the sharder skips symlinks."""
+    blobs, snapshot = tmp_path / "blobs", tmp_path / "snapshot"
+    blobs.mkdir()
+    snapshot.mkdir()
+    (blobs / "abc").write_bytes(b"weights")
+    (snapshot / "model-00001-of-00001.safetensors").symlink_to("../blobs/abc")
+    (snapshot / "config.json").write_text("{}")
+
+    plain = harness.plain_files(str(snapshot), str(tmp_path / "plain"))
+
+    names = sorted(path.name for path in Path(plain).iterdir())
+    assert names == ["config.json", "model-00001-of-00001.safetensors"]
+    assert not any(path.is_symlink() for path in Path(plain).iterdir())
+    assert (Path(plain) / "model-00001-of-00001.safetensors").read_bytes() == b"weights"

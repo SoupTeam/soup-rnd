@@ -516,6 +516,26 @@ def _provenance(device: str) -> dict[str, Any]:
     }
 
 
+def plain_files(snapshot: str, out_dir: str) -> str:
+    """Real files for the symlinks of a Hugging Face snapshot folder.
+
+    The shipped sharder skips symlinked shards, and the Hub cache stores every
+    file as a link into ``blobs/``. Each file is hard-linked (copied when the
+    folders sit on different file systems), so nothing is downloaded twice.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    for name in sorted(os.listdir(snapshot)):
+        source = os.path.realpath(os.path.join(snapshot, name))
+        target = os.path.join(out_dir, name)
+        if os.path.lexists(target):
+            os.remove(target)
+        try:
+            os.link(source, target)
+        except OSError:
+            shutil.copyfile(source, target)
+    return out_dir
+
+
 def _weights(args: argparse.Namespace) -> tuple[str, dict[str, Any]]:
     """The checkpoint folder to shard, and what the record says about it."""
     if args.fixture:
@@ -531,6 +551,7 @@ def _weights(args: argparse.Namespace) -> tuple[str, dict[str, Any]]:
     weights = snapshot_download(
         args.model, revision=args.revision, allow_patterns=["*.safetensors", "*.json"]
     )
+    weights = plain_files(weights, os.path.join(args.cache_root, "weights"))
     return weights, {"id": args.model, "revision": args.revision, "synthetic": False,
                      "note": ""}
 
