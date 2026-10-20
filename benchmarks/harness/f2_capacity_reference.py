@@ -84,6 +84,40 @@ def block_schedule(block: int, offset: int) -> list[dict]:
     return rows
 
 
+def stage(root: Path) -> None:
+    from transformers import AutoConfig
+
+    from soup_cli.config.schema import SoupConfig
+    from soup_cli.utils.fp8_source import stream_double_quant
+    from soup_cli.utils.layer_shard import resolve_shard_dir, shard_checkpoint
+    from soup_cli.utils.layer_stream import resolve_stream_dtype
+    from soup_cli.utils.stream_adapter_preflight import build_stream_adapter_plan
+
+    for label, group, quant in (("nf4", "ram", "nf4"), ("bf16", "overflow", "none")):
+        output = root / f"stage-{label}.json"
+        if output.exists():
+            continue
+        plan = f2.read_json(root / group / "plan.json")
+        cache, checkpoint = Path(plan["cache"]), plan["checkpoint"]
+        mode = GROUPS[group][0]
+        config = SoupConfig.model_validate(f2.read_json(
+            root / group / "configs" / f"{mode}-128.json"))
+        model_config = AutoConfig.from_pretrained(checkpoint, local_files_only=True)
+        dtype = resolve_stream_dtype("cuda:0")
+        double_quant = stream_double_quant(config.training, model_config, quant=quant)
+        adapter = build_stream_adapter_plan(checkpoint, model_config, config.training,
+            dtype=dtype, quant=quant, double_quant=double_quant,
+            trust_remote_code=False, on_cuda=True, console=console)
+        before, began = memory(), time.time()
+        shard_checkpoint(checkpoint, resolve_shard_dir(checkpoint, cache_dir=str(cache)),
+            dtype=dtype, arch="qwen2", quant=quant, quant_suffixes=adapter.quant_suffixes,
+            layout=adapter.layout, double_quant=double_quant, quant_device="cuda:0",
+            notify=console.print)
+        f2.write_json(output, {"cache": str(cache), "quant": quant,
+            "elapsed_seconds": time.time() - began, "before": before, "after": memory(),
+            "bytes": sum(path.stat().st_size for path in cache.rglob("*") if path.is_file())})
+
+
 def capacity_verdict(row: dict, log: str) -> tuple[str, str]:
     if row.get("validity", {}).get("outcome") != "ok":
         return "NO_VERDICT", "F1 invalid or unknown"
@@ -99,6 +133,65 @@ def capacity_verdict(row: dict, log: str) -> tuple[str, str]:
             and not row.get("audit", {}).get("steps")):
         return "EXPECTED_CAPACITY_REFUSAL", "native refusal against actual RAM allocation budget"
     return "FAIL", "real capacity refusal absent; unrelated errors never count"
+
+
+def mapping_valid(proof: dict) -> bool:
+    device = proof.get("device")
+    rows = proof.get("files", [])
+    if device != "nvme0n1" or not rows:
+        return False
+    for row in rows:
+        deltas = row.get("delta_bytes", {})
+        if (row.get("returncode") != 0 or not isinstance(deltas.get(device), int)
+                or deltas[device] < row["bytes"]
+                or any(value != 0 for name, value in deltas.items() if name != device)):
+            return False
+    return len({r["path"] for r in rows}) == len(rows)
+
+
+def mapping(root: Path) -> None:
+    from arm_validity import disk_reads
+
+    devices = sorted(p.name for p in Path("/sys/block").glob("nvme*n*"))
+    if devices != ["nvme0n1"]:
+        raise ValueError("selected prospective host must have the recorded sole NVMe")
+    for label, group in (("nf4", "ram"), ("bf16", "overflow")):
+        output = root / f"mapping-{label}.json"
+        if output.exists():
+            if not mapping_valid(f2.read_json(output)):
+                raise ValueError("existing mapping is invalid; never overwrite it")
+            continue
+        plan = f2.read_json(root / group / "plan.json")
+        files = sorted(Path(plan["cache"]).rglob("*.safetensors"))
+        if len(files) != 51:
+            raise ValueError("complete actual cache required before mapping")
+        for attempt in (1, 2):
+            retained = root / f"mapping-{label}-attempt-{attempt}.json"
+            if retained.exists():
+                continue
+            rows = []
+            for path in files:
+                before = {device: disk_reads(device) for device in devices}
+                argv = ["dd", f"if={path}", "of=/dev/null", "bs=4M",
+                        "iflag=direct", "status=none"]
+                began = time.time()
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+                after = {device: disk_reads(device) for device in devices}
+                rows.append({"path": str(path), "bytes": path.stat().st_size,
+                    "argv": argv, "unix_s": began, "returncode": result.returncode,
+                    "stderr": result.stderr, "before": before, "after": after,
+                    "delta_bytes": {d: after[d] - before[d] for d in devices}})
+                f2.write_json(retained, {"device": "nvme0n1", "attempt": attempt,
+                                        "files": rows, "complete": False})
+            proof = {"device": "nvme0n1", "attempt": attempt, "files": rows,
+                     "complete": True, "cache_files": {str(p): f2.digest(p) for p in files}}
+            proof["valid"] = mapping_valid(proof)
+            f2.write_json(retained, proof)
+            if proof["valid"]:
+                f2.write_json(output, proof)
+                break
+        if not output.exists():
+            raise ValueError("two retained mapping attempts failed; preparation blocked")
 
 
 def freeze(root: Path) -> None:
@@ -138,8 +231,11 @@ def freeze(root: Path) -> None:
         files = sorted(cache.rglob("*.safetensors"))
         if len(files) != 51 or mapping["cache_files"] != {str(p): f2.digest(p) for p in files}:
             raise ValueError("mapping does not cover the actual complete cache")
-        if not mapping["valid"] or mapping["device"] != "nvme0n1":
+        if not mapping_valid(mapping) or len(mapping["files"]) != len(files):
             raise ValueError("strict actual-cache physical mapping failed")
+        mapped = {row["path"]: row["bytes"] for row in mapping["files"]}
+        if mapped != {str(path): path.stat().st_size for path in files}:
+            raise ValueError("physical mapping file inventory differs from the actual cache")
         for base in (checkpoint, cache):
             for path in sorted(base.rglob("*")):
                 if path.is_file() and ".cache" not in path.parts:
@@ -248,7 +344,7 @@ def needs_supplement(outcomes: list[dict]) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=("prepare", "freeze", "run"))
+    parser.add_argument("phase", choices=("prepare", "stage", "mapping", "freeze", "run"))
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--deadline", type=float)

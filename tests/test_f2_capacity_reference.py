@@ -61,3 +61,57 @@ def test_supplement_only_responds_to_missing_acceptance_counts():
         if row["group"] == "overflow" and row["length"] == 128 and row["kind"] == "bench":
             row["status"] = "NO_VERDICT"
     assert capacity.needs_supplement(rows)
+
+
+@pytest.mark.parametrize("change", [
+    {"returncode": 1}, {"delta_bytes": {"nvme0n1": 99}},
+    {"delta_bytes": {"nvme0n1": None}},
+    {"delta_bytes": {"nvme0n1": 100, "nvme1n1": 4096}},
+])
+def test_mapping_rejects_failed_short_unknown_or_foreign_device_reads(change):
+    row = {"path": "actual-cache/layer.safetensors", "bytes": 100,
+           "returncode": 0, "delta_bytes": {"nvme0n1": 100}}
+    row.update(change)
+    assert not capacity.mapping_valid({"device": "nvme0n1", "files": [row]})
+
+
+def test_mapping_requires_nonempty_unique_actual_files():
+    row = {"path": "actual-cache/layer.safetensors", "bytes": 100,
+           "returncode": 0, "delta_bytes": {"nvme0n1": 100}}
+    assert capacity.mapping_valid({"device": "nvme0n1", "files": [row]})
+    assert not capacity.mapping_valid({"device": "nvme0n1", "files": [row, row]})
+    assert not capacity.mapping_valid({"device": "nvme0n1", "files": []})
+
+
+def test_preparation_uses_native_sharder_quant_names(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from transformers import AutoConfig
+
+    from soup_cli.utils import fp8_source, layer_shard, layer_stream, stream_adapter_preflight
+
+    seen = []
+    for group, label in (("ram", "nf4"), ("overflow", "bf16")):
+        directory = tmp_path / group
+        directory.mkdir()
+        capacity.f2.write_json(directory / "plan.json", {
+            "checkpoint": "local-real-checkpoint", "cache": str(tmp_path / label)})
+        (directory / "configs").mkdir()
+        mode = capacity.GROUPS[group][0]
+        capacity.f2.write_json(directory / "configs" / f"{mode}-128.json", {
+            "base": "local-real-checkpoint", "data": {"train": "rows.jsonl"}})
+
+    def shard(base, target, **kwargs):
+        layer_shard._validate_quant_request(kwargs["quant"], kwargs["quant_suffixes"])
+        seen.append(kwargs["quant"])
+
+    monkeypatch.setattr(layer_shard, "shard_checkpoint", shard)
+    monkeypatch.setattr(AutoConfig, "from_pretrained", lambda *a, **kw: SimpleNamespace())
+    monkeypatch.setattr(fp8_source, "stream_double_quant", lambda *a, **kw: True)
+    monkeypatch.setattr(layer_stream, "resolve_stream_dtype", lambda device: "bfloat16")
+    monkeypatch.setattr(stream_adapter_preflight, "build_stream_adapter_plan",
+        lambda *a, **kw: SimpleNamespace(layout=None, quant_suffixes=(
+            ("self_attn.q_proj.weight",) if kw["quant"] == "nf4" else ())))
+    monkeypatch.setattr(capacity, "memory", lambda: {})
+    capacity.stage(tmp_path)
+    assert seen == ["nf4", "none"]
