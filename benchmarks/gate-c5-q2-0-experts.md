@@ -1,6 +1,6 @@
 # C5: LoRA over OLMoE experts in Q2_0 versus NF4
 
-**The decision rule was committed before the first run. No runs yet. Data: a temporary set until the dataset protocol exists (временный набор до dataset протокола).**
+**The decision rule was committed before the first run. Ticket 04 ran all seven arms on 2026-10-20: the quality gate fails (mean ratio 1.105), and the rule's table says stop G5. Data: a temporary set until the dataset protocol exists (временный набор до dataset протокола).**
 
 Spec: `.scratch/c5-q2-0-experts/issues/03-rule-and-data.md`. Training under
 this rule is ticket 04, cache size and weight restore cost are ticket 05, and
@@ -251,3 +251,108 @@ They do not change the rule.
   the rule.
 - SHA-256 of the codec `benchmarks/harness/q2_0_codec.py`:
   `fbaefa2a5efdf988fbc9dbb509de339b6ea6a56de3b1c08a1b43d5305f7917ac`.
+
+## Runs under the rule (ticket 04)
+
+Verdict: **fail**. Recommendation by the rule's table: **stop G5** until there
+is a 2-bit codec better than Q2_0 with scale search (a learned scale as in
+GSQ, or a codebook format like IQ2_XS). The 1.10 threshold behind that row is a
+rough estimate, as the rule says. The final report and the G5 decision record
+are ticket 06.
+
+Spec: `.scratch/c5-q2-0-experts/issues/04-lora-nf4-vs-q2-0.md`. Raw records,
+logs and commands: `benchmarks/results/c5-train/`. Verdict:
+`benchmarks/results/c5-train/verdict.json`, computed by
+`benchmarks/harness/c5_verdict.py` with both ticket-02 JSONs as
+`--swap-record`.
+
+### Box and code
+
+- Vast.ai instance 56934950, NVIDIA GeForce RTX 3090
+  `GPU-2aee27a4-1132-cfe8-518f-b8623de1c4eb`, driver 580.95.05, CUDA 13.0,
+  max SM clock 2100 MHz, 24576 MiB. Rented 18:33 to 20:57 UTC.
+- Commit `ff6035cf`, clean working tree in every run. SHA-256 of
+  `c5_train.py` `c9ad559b…`, `c5_expert_swap.py` `e2ae3beb…`, codec
+  `q2_0_codec.py` `fbaefa2a…` (the value listed above, the same in every run).
+- Python 3.10.12, torch 2.14.1+cu130, transformers 5.20.2, peft 0.21.2,
+  bitsandbytes 0.50.2, datasets 5.1.0, tokenizers 0.23.3, soup-cli 0.75.0.
+  Full list: `pip-freeze.txt`.
+- Commit order: `c7f2bfcd` was committed at 17:52:20 UTC; the first arm
+  (`nf4-s42-a1`) started at 19:00:45 UTC.
+
+### Choices the rule leaves open
+
+Fixed in `c5_train.py` before the first arm and recorded in each run's config.
+
+- OLMoE-0924 ships no chat template. Data goes through Soup: the Dolly row
+  becomes an alpaca row (`context` as input), and `build_format_row` with
+  `chat_template: chatml` gives the input ids and the response-only labels.
+- Task loss counts the answer tokens only: tokens whose first character is in
+  the answer text. The `<|im_start|>assistant` header and the `<|im_end|>`
+  marker are 9 and 7 plain tokens on this tokenizer and are left out.
+- One epoch over 4000 rows is 250 steps of 16 examples (micro batch 4,
+  accumulation 4), sequence length 1024. AdamW, lr 2e-4, cosine, warmup 0.03,
+  weight decay 0.01, grad clip 1.0, LoRA r 16, alpha 32, dropout 0.05 on
+  `q_proj`, `k_proj`, `v_proj`, `o_proj`. Gradient checkpointing is on in
+  every arm (see the pilot). The batch order depends only on the seed.
+- Gate suites run through Soup's `score_bundled_suite` and `make_generator`
+  (greedy, 64 new tokens). OLMoE does not stop at `<|im_end|>`, which is not a
+  special token here, so an output repeats its answer until 64 tokens. Every
+  output is stored in its run record.
+
+### Pilot
+
+Not arms; they never enter the verdict. Records in `pilot/`.
+
+- `pilot/nf4-s42`: micro batch 4 without gradient checkpointing ran out of
+  CUDA memory in the first forward pass.
+- `pilot/nf4-s42-gc`: the same with gradient checkpointing completed in 14.6
+  minutes (training 495 s). A run is far under 2 hours, so the train split
+  stays at 4000 rows and the rule needs no amendment.
+
+### Results
+
+Every run completed all 250 steps with finite loss and grad norm. No run was
+spoiled or repeated. Panel: 512 examples, 38178 answer tokens, one example
+with none left after truncation. Train: 4000 rows, 55 truncated, 36 with no
+answer tokens left.
+
+| Run | Started (UTC) | Task loss | Step-1 grad norm | mmlu /26 | common_sense /24 | instruction /24 | arithmetic /40 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| NF4 seed 42 | 19:00:45 | 1.6393 | 1.129 | 12 | 10 | 23 | 27 |
+| Q2_0 seed 42 | 19:15:22 | 1.8123 | 0.624 | 5 | 3 | 22 | 24 |
+| NF4 seed 7 | 19:33:58 | 1.6393 | 0.728 | 11 | 9 | 22 | 28 |
+| Q2_0 seed 7 | 19:48:31 | 1.8126 | 0.548 | 4 | 4 | 22 | 24 |
+| NF4 seed 123 | 20:07:08 | 1.6408 | 0.434 | 15 | 7 | 23 | 27 |
+| Q2_0 seed 123 | 20:21:49 | 1.8108 | 0.396 | 2 | 4 | 22 | 24 |
+| bf16 seed 42 (reference) | 20:40:33 | 1.6288 | 1.298 | 10 | 11 | 24 | 27 |
+
+NF4 seeds 42 and 7 agree to 1.639324 and 1.639326. Their batch orders,
+training losses and per-example panel NLL differ; only the panel totals
+coincide.
+
+| Rule check | Limit | Measured | Result |
+|---|---|---|---|
+| Mean ratio over three seeds | ≤ 1.03 | 1.1049 (seeds 42, 7, 123: 1.1055, 1.1057, 1.1036) | fail |
+| Upper bound of the 95% interval, every seed | ≤ 1.05 | 1.1184, 1.1194, 1.1160 (lower 1.0946, 1.0945, 1.0932) | fail |
+| `mini_mmlu` mean drop | < 3 | 12.67 to 3.67, drop 9.00 | fail |
+| `mini_common_sense` mean drop | < 3 | 8.67 to 3.67, drop 5.00 | fail |
+| `mini_arithmetic` mean drop | < 3 | 27.33 to 24.00, drop 3.33 | fail |
+| `mini_instruction` mean drop | < 3 | 22.67 to 22.00, drop 0.67 | pass |
+
+All four suites gate: NF4 answers neither all nor none of any suite on
+average. All five validity rows hold: non-expert fingerprints match across the
+seven runs and both ticket-02 JSONs, split hashes match, configs differ only in
+`codec` and `seed`, and every run is finite with a positive first grad norm.
+Within each codec the expert weights were identical on every seed (expert
+digest `84ae9585…` for NF4, `090f4fbd…` for Q2_0).
+
+bf16 is reference only. NF4 task loss is 1.0064 times bf16's on seed 42.
+
+### Synthetic run
+
+`benchmarks/results/c5-train-synthetic/` holds the seven arms on the granite
+fixture on CPU (macOS, Python 3.11.0, commit `ff6035cf`), with 64 train and 32
+panel rows of the real splits and a byte-level tokenizer. It is labelled
+SYNTHETIC in every record and in its `verdict.json`. It shows that the
+harness and the verdict run end to end. Its numbers say nothing about OLMoE.
