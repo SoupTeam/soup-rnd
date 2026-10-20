@@ -1,10 +1,12 @@
 # F2: 14B on a physical 8 GB GPU
 
-Status on 2026-10-19: the actual NF4 cache is mapped, and the process-tree
-telemetry collector is repaired after a second user-requested pause.
-**No completed F2 matrix or throughput claim yet.** The user
-delegated the matrix choice after receiving the proposal on 2026-10-19.
-The operational matrix below is selected with the stated limitations.
+Status on 2026-10-20: the selected NF4 matrix completed on a physical RTX 3060 Ti
+8 GiB: **150 commands, 118 PASS, 2 NO_VERDICT, 30 EXPECTED_REFUSAL**. All 60
+working native bench reports are valid, ten per RAM/NVMe/length cell. See the
+[results, raw evidence and validation limits](results/f2-reference-20261019/README.md).
+Automatic RAM overflow remains unverified: the separate BF16 preparation failed
+its physical-mapping gate and no auxiliary CLI measurement was run. The user
+delegated the operational matrix choice on 2026-10-19; its limitations remain.
 
 ## Requirements and dependency
 
@@ -31,9 +33,9 @@ the evidence work exposed repairs needed in BF16 fingerprints and forced-disk va
 
 | Disk condition | 128 tokens | 384 tokens | 1024 tokens |
 |---|---|---|---|
-| `stream_source: ram`, pinned store must be confirmed | NOT_RUN | NOT_RUN | NOT_RUN |
-| `stream_source: disk`, verified real NVMe, explicit `stream_disk_kind: nvme` | NOT_RUN | NOT_RUN | NOT_RUN |
-| `stream_source: disk`, explicit `stream_disk_kind: hdd` policy control | NOT_RUN | NOT_RUN | NOT_RUN |
+| `stream_source: ram`, confirmed pinned store | 10 bench + 10 train PASS | 10 bench + 10 train PASS | 10 bench + 10 train PASS |
+| `stream_source: disk`, verified real NVMe, explicit `stream_disk_kind: nvme` | 10 bench + 9 train PASS; 1 train NO_VERDICT | 10 bench + 10 train PASS | 10 bench + 9 train PASS; 1 train NO_VERDICT |
+| `stream_source: disk`, explicit `stream_disk_kind: hdd` policy control | 5 bench + 5 train expected refusal | 5 bench + 5 train expected refusal | 5 bench + 5 train expected refusal |
 
 128 is a short-shape control, 384 reproduces the #901 report's cap, and 1024
 exercises a larger logits/activation footprint. These are selected caps; the
@@ -180,7 +182,7 @@ calibration returned ok, and a separate SSH read of 1.2 GB from the cache's
 result remains unknown. Identical overlay path prefixes are not evidence that
 two datasets use the same physical disk.
 
-Measured Soup source is `a03be3b3229ff25f640c6f6d9c37145111857de5`.
+This pre-telemetry pilot used Soup source `a03be3b3229ff25f640c6f6d9c37145111857de5`.
 All 67 checkpoint/cache content hashes matched the prior frozen manifest;
 the fresh download has its own provenance timestamp. Only after verifying
 checkpoint bytes, eight source mtimes were restored from the verified cache
@@ -211,8 +213,10 @@ guard on the new rental now stops it twelve hours after creation even if SSH clo
 the measurement window ends ten minutes earlier. These guards preserve disks.
 They are conservative estimates, not final settled billing. The original
 destroying watchdog was cancelled when the user paused. Copy and verify all
-artifacts locally before deleting either rental. The other running Liger
-instance belongs to other work and must not be interrupted.
+artifacts locally before deleting either rental. Unrelated instances belong to
+other work and must not be interrupted. After this completed campaign, both
+F2 rentals were deleted following local SHA verification; the API confirmed
+their absence. The guard records remain as provenance, not active rentals.
 
 ### Telemetry repair before the fresh complete cohort
 
@@ -229,12 +233,12 @@ its PID. A missing root or an inaccessible live process still leaves the whole
 sample unknown. Those three negative controls stay green. The four-second gap,
 F1 thresholds and full counted-window evidence requirement are unchanged.
 
-The fixed observer starts a fresh five-block, 150-command cohort. Neither the
+The fixed observer ran a fresh five-block, 150-command cohort. Neither the
 pilot's accepted records nor its missing samples are reclassified into this
-cohort. Model, loss and optimizer arithmetic are unchanged. Tests run on the
+cohort. Model, loss and optimizer arithmetic are unchanged. Tests ran on the
 rental before timing, with no concurrent acceptance suite or bulk collection
 during the measurement campaign. The new commit, controller and twelve-hour
-resource expiry are frozen before that cohort; the older frozen plans remain intact.
+resource expiry were frozen before that cohort; the older frozen plans remain intact.
 
 ```bash
 python benchmarks/harness/f2_stage_checkpoint.py --destination /workspace/qwen14b
