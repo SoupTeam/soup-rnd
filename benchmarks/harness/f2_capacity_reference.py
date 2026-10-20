@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import time
 from collections import Counter
@@ -318,6 +319,16 @@ def run(root: Path) -> None:
             config = f2.read_json(directory / "configs" / f"{cell}.json")
             if config["training"]["stream_source"] != "auto":
                 raise ValueError("natural overflow must never force disk")
+        if status == "PASS" and kind == "train":
+            retained = root / "valid-adapters" / f"{group}-{entry['length']}"
+            if not retained.exists():
+                config = f2.read_json(directory / "configs" / f"{cell}.json")
+                retained.mkdir(parents=True)
+                for name in ("adapter_model.safetensors", "adapter_config.json"):
+                    shutil.copy2(Path(config["output"]) / name, retained / name)
+                f2.write_json(retained / "origin.json", {
+                    "run": str(destination), "fingerprint_last": row["audit"]["fingerprint_last"],
+                    "files": {p.name: f2.digest(p) for p in retained.iterdir() if p.is_file()}})
         outcomes.append({**entry, "status": status, "reason": reason,
                          "raw_result": str(destination / "result.json")})
         f2.write_json(outcomes_path, {"outcomes": outcomes,
