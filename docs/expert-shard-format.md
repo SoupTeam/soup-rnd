@@ -60,6 +60,14 @@ part of the cache key. Expert files follow their layer's stripe-root placement.
 Switching back to fused can leave unused expert files; no active index references
 them. This change does not delete unrelated files or old stripe roots.
 
+Before converting fused storage to per-expert storage or back, the sharder
+invalidates the previous index before rewriting any cache file, including under
+`force=True`. If a write or final index commit fails, no reusable index describes
+the partial conversion; requesting either layout rebuilds it. Partial files are
+retained for that rebuild, not rolled back. If index invalidation itself fails,
+conversion stops before any shard write. Same-layout stripe relocation retains
+its existing index commit and deferred stale-file deletion behavior.
+
 The model builder validates the architecture and Hub-code policy through its
 meta-only skeleton before reading any index field (the B2 refusal order).
 It then rejects a per-expert cache before materializing weights or adapters;
@@ -160,3 +168,23 @@ An additional data-download trust module could not complete six cases because
 the borrowed environment lacks `datasets`; that failed local log is retained
 separately. No data-download code was changed. These are targeted local checks,
 not a claim that full repository CI has passed.
+
+### Interrupted layout conversion correction
+
+A second review found that a failed fused-to-per-expert conversion could rewrite
+the first layer without its experts while leaving the old fused index reusable.
+The public `shard_checkpoint` regression reproduced this before the correction.
+The index is now invalidated before conversion writes begin. Failure injection
+covers both directions, ordinary and forced conversion, a second-layer write,
+the final index commit, and denied index invalidation. After interruption the
+original-layout request must rebuild and restore every routed weight. No CUDA
+execution or new performance measurement is needed for this storage correction.
+
+Local verification of the correction: all 9 new failure/recovery cases failed
+before the fix and passed after it. The combined B1.1/B2/B3, FP8, stripe-cache,
+stripe-sharder and source-handle suite passes: 229 passed, 44 hardware cases
+skipped, 8 existing PEFT warnings. Full Ruff and `git diff --check` pass. This
+also covers refusal to write when the old index cannot be read. It does not
+claim a fresh full repository CI result. Caches already damaged by an older
+interrupted conversion need a forced rebuild once; this is not a rollback of
+files previously overwritten by that older code.

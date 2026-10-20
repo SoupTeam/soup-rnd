@@ -195,6 +195,136 @@ def test_layout_switch_and_missing_file_invalidate_cache(tmp_path):
     assert not fused.expert_layout and any("expert layout changed" in n for n in notices)
 
 
+@pytest.mark.parametrize("old_layout", ["", "per_expert"], ids=["fused", "per-expert"])
+@pytest.mark.parametrize("failure", ["second_layer", "index_commit"])
+@pytest.mark.parametrize("force", [False, True])
+def test_interrupted_layout_switch_cannot_reuse_old_index(
+    tmp_path, monkeypatch, old_layout, failure, force
+):
+    """Public sharder regression: interrupt, request the OLD layout, verify weights."""
+    import torch
+    from safetensors.torch import load_file
+
+    from soup_cli.utils import expert_shard, layer_shard
+
+    source, out = tmp_path / "source", tmp_path / "cache"
+    original = _checkpoint(source)
+    _shard(source, out, expert_layout=old_layout)
+    new_layout = "" if old_layout else "per_expert"
+
+    def fail_index(*args, **kwargs):
+        raise OSError("injected final index failure")
+
+    with monkeypatch.context() as patch:
+        if failure == "index_commit":
+            patch.setattr(layer_shard, "_atomic_write_index", fail_index)
+        elif new_layout:
+            real_write = expert_shard.write_expert_shard
+
+            def fail_expert(path, *args, **kwargs):
+                if Path(path).name == "experts_001.safetensors":
+                    raise OSError("injected second expert failure")
+                return real_write(path, *args, **kwargs)
+
+            patch.setattr(expert_shard, "write_expert_shard", fail_expert)
+        else:
+            real_save = layer_shard._atomic_save
+
+            def fail_layer(blob, path):
+                if Path(path).name == "layer_001.safetensors":
+                    raise OSError("injected second layer failure")
+                return real_save(blob, path)
+
+            patch.setattr(layer_shard, "_atomic_save", fail_layer)
+        with pytest.raises(OSError, match="injected"):
+            _shard(source, out, expert_layout=new_layout, force=force)
+
+    partial = load_file(str(out / "layer_000.safetensors"))
+    assert ("mlp.experts.gate_up_proj" in partial) == (not new_layout)
+    assert not (out / "index.json").exists(), "partial files must not have a reusable old index"
+    notices = []
+    restored = _shard(source, out, expert_layout=old_layout, notify=notices.append)
+    assert any("index is missing or unreadable" in message for message in notices)
+    assert layer_shard.read_shard_index(str(out)) == restored
+    for layer in range(2):
+        prefix = f"model.layers.{layer}.mlp.experts."
+        if old_layout:
+            reader = _reader(out, restored, layer)
+            owner, staging = expert_shard.aligned_staging(reader.max_span)
+            try:
+                for expert in range(12):
+                    host = reader.read_host(expert, staging)
+                    want = torch.cat((original[prefix + f"{expert}.gate_proj.weight"],
+                                      original[prefix + f"{expert}.up_proj.weight"]), 0)
+                    assert torch.equal(host[f"{expert}.gate_up"], want)
+                    assert torch.equal(
+                        host[f"{expert}.down"], original[prefix + f"{expert}.down_proj.weight"]
+                    )
+            finally:
+                reader.close()
+            assert owner.numel() > 0
+        else:
+            blob = load_file(str(out / f"layer_{layer:03d}.safetensors"))
+            wanted = torch.stack([
+                torch.cat((original[prefix + f"{expert}.gate_proj.weight"],
+                           original[prefix + f"{expert}.up_proj.weight"]), 0)
+                for expert in range(12)
+            ])
+            assert torch.equal(blob["mlp.experts.gate_up_proj"], wanted)
+            assert torch.equal(blob["mlp.experts.down_proj"], torch.stack([
+                original[prefix + f"{expert}.down_proj.weight"] for expert in range(12)
+            ]))
+
+
+def test_layout_switch_must_invalidate_index_before_any_write(tmp_path, monkeypatch):
+    from soup_cli.utils import expert_shard, layer_shard
+
+    source, out = tmp_path / "source", tmp_path / "cache"
+    _checkpoint(source)
+    old_index = _shard(source, out)
+    before = (out / "layer_000.safetensors").read_bytes()
+    real_unlink = layer_shard.os.unlink
+
+    def deny_index(path, *args, **kwargs):
+        if Path(path) == out / "index.json":
+            raise PermissionError("injected locked index")
+        return real_unlink(path, *args, **kwargs)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("no cache files may be written if index invalidation fails")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(layer_shard.os, "unlink", deny_index)
+        patch.setattr(layer_shard, "_atomic_save", forbidden)
+        patch.setattr(expert_shard, "write_expert_shard", forbidden)
+        with pytest.raises(PermissionError, match="locked index"):
+            _shard(source, out, expert_layout="per_expert")
+    assert (out / "layer_000.safetensors").read_bytes() == before
+    assert layer_shard.read_shard_index(str(out)) == old_index
+
+
+def test_unreadable_index_cannot_hide_a_layout_switch(tmp_path, monkeypatch):
+    from soup_cli.utils import expert_shard, layer_shard
+
+    source, out = tmp_path / "source", tmp_path / "cache"
+    _checkpoint(source)
+    old_index = _shard(source, out)
+
+    def denied(*args, **kwargs):
+        raise PermissionError("injected unreadable index")
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("an unreadable old index must not be left over rewritten cache files")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(layer_shard, "read_shard_index", denied)
+        patch.setattr(layer_shard, "_atomic_save", forbidden)
+        patch.setattr(expert_shard, "write_expert_shard", forbidden)
+        with pytest.raises(PermissionError, match="unreadable index"):
+            _shard(source, out, expert_layout="per_expert")
+    assert layer_shard.read_shard_index(str(out)) == old_index
+
+
 @pytest.mark.parametrize(
     "field,value,match",
     [

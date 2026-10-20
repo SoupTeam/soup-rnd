@@ -1675,6 +1675,25 @@ def shard_checkpoint(
     # Collected here, deleted only after the new index commits — see the comment beside the
     # deletion below for why.
     stale_root0_copies: List[str] = []
+    # Layout conversion rewrites the SAME layer paths with different tensor sets.
+    # An old fused index must not remain reusable after even one layer loses its
+    # experts (nor may a per-expert index survive the inverse partial rewrite).
+    # Retire it before any shard write, including when force bypassed inspection.
+    # Leave same-layout stripe relocation's existing commit/deferred-delete
+    # behavior intact. A failed conversion leaves files for a rebuild, no index.
+    try:
+        previous_index = read_shard_index(resolved_out)
+    except (FileNotFoundError, ValueError, KeyError, TypeError):
+        previous_index = None
+    layout_index_invalidated = (
+        previous_index is not None and previous_index.expert_layout != expert_layout
+    )
+    if layout_index_invalidated:
+        try:
+            os.unlink(os.path.join(resolved_out, _INDEX_NAME))
+        except FileNotFoundError:
+            pass
+        # Other unlink errors MUST stop before touching any cached shard.
     # At most _MAX_LIVE_SOURCE_HANDLES source files are mapped at once (#926);
     # a failed open, or a raise anywhere below, still releases the live ones.
     with _SourceHandles(shards, safe_open) as handles:
@@ -1832,19 +1851,23 @@ def shard_checkpoint(
             except OSError as exc:
                 if not root:
                     raise
-                # A full or vanished second drive: say which root and which variable. The
-                # index on disk is still the old one, so nothing it names was touched.
+                # A full or vanished second drive: name the root and variable.
+                # A layout switch retired its index before any file was rewritten.
+                index_status = (
+                    "The previous cache index was invalidated before the layout switch."
+                    if layout_index_invalidated else "The existing cache index is unchanged."
+                )
                 raise OSError(
                     exc.errno,
                     f"writing decoder layer {idx} to the stripe root {stripe[root - 1]} (from "
-                    f"{STRIPE_DIRS_ENV}) failed: {exc}. The existing cache index is unchanged. "
+                    f"{STRIPE_DIRS_ENV}) failed: {exc}. {index_status} "
                     f"Free space on that drive, or name another folder in {STRIPE_DIRS_ENV} "
                     f"(unset it to shard to one root).",
                 ) from exc
             if root:
                 # A copy of this layer from an earlier one-root layout is now stale. It is
                 # Soup's own file inside the contained primary root, so it WILL go — but not
-                # yet: the index on disk right now is still the OLD one, and until the new
+                # yet: absent a layout switch, the index is still the OLD one. Until the new
                 # index (which no longer names this path) is safely written, that old index
                 # is the cache's commit point and every file it names must exist at every
                 # instant. Deleting inline here would leave a window — crash before
