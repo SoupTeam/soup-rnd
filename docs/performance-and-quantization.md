@@ -1,5 +1,9 @@
 # Performance & Quantization
 
+RND developer note: [B1.1 expert-shard storage format](expert-shard-format.md)
+documents the independently readable MoE cache. It is storage-only and does not
+enable expert-streamed training.
+
 [← Back to the Soup README](../README.md)
 
 > Quantization-aware training (FP8 and the experimental QuEST route), the Quant Menu (I + II), KV-cache, NVFP4, save formats, Cut Cross-Entropy, gradient checkpointing, kernel auto-composition, activation offloading, and multi-GPU / DeepSpeed / FSDP.
