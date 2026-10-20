@@ -124,6 +124,23 @@ relaxed, and **zero auxiliary CLI measurements were run**. There is no claim of
 automatic NVMe overflow, planner capacity refusal, physical OOM, or physical HDD
 performance from that preparation. See [auxiliary.json](auxiliary.json).
 
+## Team-card acceptance and resource deviation
+
+The team card, "[F2] Verify training a 14B model on an 8 GB GPU", asks for nine
+disk/length outcomes or documented errors, parameter updates, GPU traces and
+clocks, raw logs and replay commands. The selected matrix supplies those items:
+six working cells and three expected-refusal cells. Both NO_VERDICT records
+and earlier discarded attempts remain available. Model weights are real;
+the deterministic training data is a throughput fixture.
+
+The resource requirement needs reviewer attention: the GPU is physically 8 GiB
+and the host has about 32 GB RAM with real NVMe, but the container exposes only
+21.1 GiB RAM. This is a documented allocation deviation, not a demonstrated
+32 GB usable-RAM run. The accepted cohort uses the RTX 3060 Ti identified above;
+it contains no RTX 3050 or RTX 5070 samples and does not claim RTX 5070 results.
+Earlier hardware cohorts are kept separate. Submission for team review does
+not imply acceptance of that deviation or full closure of upstream #375.
+
 ## Validation and provenance
 
 The full server CPU suite is **not green**: 35,045 passed, 384 skipped,
