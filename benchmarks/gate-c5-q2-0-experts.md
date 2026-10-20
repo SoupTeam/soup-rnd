@@ -3,8 +3,8 @@
 **The decision rule was committed before the first run. Ticket 04 ran all seven arms on 2026-10-20: the quality gate fails (mean ratio 1.105), and the rule's table says stop G5. Data: a temporary set until the dataset protocol exists (временный набор до dataset протокола).**
 
 Spec: `.scratch/c5-q2-0-experts/issues/03-rule-and-data.md`. Training under
-this rule is ticket 04, cache size and weight restore cost are ticket 05, and
-the final report and G5 recommendation are ticket 06.
+this rule is ticket 04, cache size and weight restore cost are ticket 05 (the
+last section), and the final report and G5 recommendation are ticket 06.
 
 ## Commit order
 
@@ -356,3 +356,138 @@ fixture on CPU (macOS, Python 3.11.0, commit `ff6035cf`), with 64 train and 32
 panel rows of the real splits and a byte-level tokenizer. It is labelled
 SYNTHETIC in every record and in its `verdict.json`. It shows that the
 harness and the verdict run end to end. Its numbers say nothing about OLMoE.
+
+## Cache size and restore cost (ticket 05)
+
+No verdict, as the rule says: this section is numbers only. The quality gate
+above failed, so a smaller cache does not count as a success. Spec:
+`.scratch/c5-q2-0-experts/issues/05-cache-size-and-restore-cost.md`. Raw
+records, logs and commands: `benchmarks/results/c5-cache/`. Code:
+`benchmarks/harness/c5_cache.py` (SHA-256 `e03ba21e…`), codec `fbaefa2a…`.
+
+### How the caches were made
+
+The shipped sharder (`soup_cli.utils.layer_shard.shard_checkpoint`) ran
+unchanged and wrote the bf16 cache. It stacks OLMoE's per-expert weights into
+`mlp.experts.gate_up_proj [64, 2048, 2048]` and `mlp.experts.down_proj
+[64, 2048, 1024]` and does not quantize them: its NF4 path covers unstacked
+decoder keys only. The harness copied that cache once per codec and replaced
+those two tensors in each of the 16 layer files with their packed form, one
+expert at a time as in ticket 04. Every other tensor and file is a byte copy.
+Two checks passed in the build record: the non-expert tensors are identical
+in all three caches, and each packed cache restores to exactly the experts of
+ticket 04 (`expert_digest` `84ae9585…` for NF4, `090f4fbd…` for Q2_0).
+
+Soup's runtime has no packed-expert path and cannot load these caches. They
+exist to be measured. The shipped package and schema are unchanged.
+
+### Box
+
+Vast.ai instance 56953759, NVIDIA GeForce RTX 3090
+`GPU-101261c3-8f7f-798b-267d-53e6d2b89f41`, driver 580.159.03, CUDA 13.0, max
+SM clock 2100 MHz, 24576 MiB. Measured on 2026-10-20 (build 21:47 UTC, timing
+21:54 to 22:01 UTC) at commit `0c0ad5f2`, clean tree. Python 3.10.12, torch
+2.14.1+cu130, transformers 5.20.2, bitsandbytes 0.50.2, safetensors 0.8.0 (full list in
+`pip-freeze.txt`). Model `allenai/OLMoE-1B-7B-0924` at
+`6d84c48581ece794365f2b8e9cfb043c68ade9c5`.
+
+### Size on disk
+
+Bytes of the files in each cache folder (`os.stat`), from `cache.json`. All
+three folders hold 16 layer files, `extras.safetensors`, `index.json` and the
+two vocabulary shards (`large_embed_tokens`, `large_lm_head`, 206.0 MB each,
+bf16 in every variant).
+
+| Cache | Total on disk | Expert tensors | Everything else | One layer file |
+|---|---:|---:|---:|---:|
+| bf16 (shipped sharder) | 13,838,342,541 | 12,884,901,888 | 953,440,653 | 839,140,408 |
+| NF4 experts | 4,276,925,021 | 3,323,469,824 | 953,455,197 | 241,551,736 |
+| Q2_0 experts | 2,765,385,229 | 1,811,939,328 | 953,445,901 | 147,080,576 |
+
+All 16 layers have the same size in each variant, so the per-layer figure is
+one number; the 16 values are in `cache.json`. Per weight, the expert tensors
+come to 16.00 bits (bf16), 4.127 bits (NF4, the ticket-01 figure) and 2.250
+bits (Q2_0).
+
+Q2_0 against NF4: the whole cache is 64.7% of NF4's (2,765,385,229 /
+4,276,925,021), the expert tensors alone 54.5%. Against bf16, NF4 is 30.9% and
+Q2_0 is 20.0% of the cache. The 953 MB that is not experts (attention, router,
+norms, embeddings, head) is the same in all three, which is why the whole-cache
+ratio is higher than the expert-only one.
+
+### RAM and SSD for this model
+
+SSD: the "Total on disk" column. RAM: a RAM tier that holds the whole store
+keeps the data bytes of every tensor, `ram_store_bytes` in the record, which
+is 18,829 to 32,285 bytes under the file size (the safetensors headers and
+`index.json` (1,261 bytes) are not tensor data): 13,838,323,712 (bf16), 4,276,892,736 (NF4),
+2,765,361,152 (Q2_0). Restoring a layer in VRAM also needs working space
+beyond these figures; the Q2_0 path here uses float32 intermediates (below).
+The box had 540 GB of RAM, so no RAM tier decision was tested.
+
+### Restore time
+
+One run is a fresh process that loads layer 0's packed experts into VRAM and
+times 30 restores (after 5 warm-up) of all 64 experts of both tensors to bf16,
+and of expert 0 alone, with a CUDA synchronize around each. A run's value is
+the median of its 30 timed steps. The repeats rule reads the layer value.
+
+- A-B-B-A, A = NF4 and B = Q2_0, 21 blocks of 4 runs, 84 runs, all 21 blocks
+  valid. The 5 pilot blocks gave N = 21, so `blocks_to_add` asked for
+  21 blocks. The recount over all 21 gives N = 20 (sigma 0.301 ms, mean of A
+  1.918 ms), so nothing more was due. No run was void.
+- Checks: `suspend` ok and `power` ok in all 84 runs (the box has no battery,
+  so `power` is ok with the reason "no battery"). `foreign_reads` is unknown in
+  all 84 and is not required by the rule.
+- Box stamp before and after each arm is in `restore.json`.
+
+| One layer (64 experts, gate/up and down) | NF4 | Q2_0 |
+|---|---:|---:|
+| mean of 42 runs | 1.918 ms | 17.351 ms |
+| median of 42 runs | 1.844 ms | 17.381 ms |
+| min to max | 1.424 to 2.521 ms | 17.111 to 17.540 ms |
+| expert 0 alone, median | 0.293 ms | 0.431 ms |
+
+Mean block difference (A minus B): -15.43 ms, standard deviation 0.27 ms over
+21 blocks. Measured on this box, Q2_0 takes 17.35 ms and NF4 1.92 ms to restore
+one layer, which is 9.0 times longer. That is the measured ratio of two
+implementations, not of the two formats:
+
+- NF4 restores through bitsandbytes' fused CUDA kernel (`dequantize_4bit`).
+- Q2_0 has no kernel in this harness. `_restore_q2_0` is plain PyTorch
+  (shift, mask, subtract, multiply on float32 tensors), so it writes and reads
+  float32 intermediates several times larger than the packed data.
+
+A fused Q2_0 kernel would move this number, and by how much is unmeasured.
+Whether restore cost matters in a product path is not answered here: ADR 0001
+keeps the product runtime out of C5.
+
+SM clock (from `gpu_clock` in each run's record, one sample every 2 s, so a run
+of about 4 s has 2 to 4 samples): median of the per-run medians 1695 MHz in
+both arms (A 1230 to 1838, B 1695 to 1980), maximum seen 1980 of 2100 MHz.
+Clock event reasons: `gpu_idle` in 46 runs (the process start and end fall in
+the window) and `sw_power_cap` in 10. The clock was not locked and ran below the
+maximum, so absolute times are for this box and will differ on another.
+Throttling is on record and does not void an arm.
+
+### Failed starts
+
+Two launches ended before any timing and are kept, as the rule keeps every
+record: `run-attempt1.log` and `run-attempt2.log` in `benchmarks/results/c5-cache/`.
+
+1. At commit `c5f4ae38` the model download dropped (`Server disconnected`) at
+   about 13 of 13.8 GB. `run.sh` did not stop, so the timing step ran against
+   caches that did not exist and failed. `run.sh` now uses `set -e`.
+2. The download then finished, but the shipped sharder skips symlinked weight
+   files and the Hugging Face cache stores every file as a symlink, so it found
+   no weights. The harness now hard-links the snapshot into a plain folder
+   first (`0c0ad5f2`). The tiny-model tests had used plain files and did not
+   show this.
+
+Neither produced a number. The run above is the third launch.
+
+### Synthetic run
+
+`c5_cache.py build --fixture olmoe` and `compare --synthetic` run end to end on
+a tiny random OLMoE on CPU (macOS). Its sizes and times say nothing about
+OLMoE and are not kept in `benchmarks/results/`.
