@@ -396,6 +396,7 @@ def ram_verdicts(ram: Sequence[Dict[str, Any]], resident: Sequence[Dict[str, Any
     """RAM-tier A and AS against the resident fullest arm AE at its frozen rate, on one set.
 
     ``resident``: the counted (frozen-rate) resident records of RAM_MODEL, the base included.
+    Every planned RAM-tier (arm, seed) needs an ok record at its frozen rate.
     """
     ram_v = [task_view(r, task_set) for r in ram]
     res_v = [task_view(r, task_set) for r in resident if r["model"] == RAM_MODEL and _ok(r)]
@@ -411,11 +412,12 @@ def ram_verdicts(ram: Sequence[Dict[str, Any]], resident: Sequence[Dict[str, Any
     ok_ram = [r for r in ram_v if _ok(r)]
     out["void"] = [{"arm": r["arm"], "seed": r.get("seed"), "status": r.get("status")}
                    for r in ram_v if not _ok(r)]
-    by_arm = {a: sorted((r for r in ok_ram if r["arm"] == a), key=lambda r: r["seed"])
-              for a in RAM_ARMS}
-    missing += [f"RAM-tier {a}" for a in RAM_ARMS if not by_arm[a]]
+    by_arm = {a: sorted((r for r in ok_ram if r["arm"] == a and r["seed"] in seeds
+                        and r.get("lr") == FROZEN_RATES[RAM_MODEL][a]),
+                       key=lambda r: r["seed"]) for a in RAM_ARMS}
     for a in RAM_ARMS:
-        _by_seed(by_arm[a], f"RAM-tier {a}")
+        by_seed = _by_seed(by_arm[a], f"RAM-tier {a}")
+        missing += [f"RAM-tier {a} seed {s}" for s in seeds if s not in by_seed]
     vs: Dict[str, Any] = {}
     for a in RAM_ARMS:
         res = _by_seed([r for r in res_v if r["arm"] == a

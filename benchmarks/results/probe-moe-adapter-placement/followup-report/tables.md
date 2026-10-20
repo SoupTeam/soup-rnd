@@ -127,14 +127,7 @@ Loss rule: relative <= 0.001.
 
 Step-0 gradient: global relative L2 0.010718 (rule <= 0.01), min cosine 0.999748 (rule >= 0.99), max abs 0.003021; bit exact {'losses': False, 'gradients_step0': False}.
 
-E: **NOT COUNTED** (parity pilot did not pass (status not_passed, passed False)); descriptive verdict if counted: MEASURED; validity: V1 pass, V2 pass, V4 pass
-
-Arms (descriptive, not a verdict):
-
-| Arm | Seeds | NLL mean | Gap vs resident AE | Leg 2 failed | Clustered accuracy vs AE | Verdict |
-|---|---|---:|---|---|---|---|
-| `A` | [0] | 0.1359 | -0.0026 (not material) | - | +3.5 pp, p=0.0931 | **ACCEPTABLE** |
-| `AS` | [0] | 0.1365 | -0.0020 (not material) | - | +3.1 pp, p=0.152 | **ACCEPTABLE** |
+E: **NOT COUNTED** (parity pilot did not pass (status not_passed, passed False)); descriptive verdict if counted: NO VERDICT; missing: `RAM-tier A seed 1`, `RAM-tier AS seed 1`
 
 vs resident (not attributable to streaming or NF4: it mixes the NF4 base, warmup, data order and initialisation):
 
@@ -143,14 +136,7 @@ vs resident (not attributable to streaming or NF4: it mixes the NF4 base, warmup
 | `A` | +0.0012 | +0.010 |
 | `AS` | +0.0011 | +0.008 |
 
-C: **NOT COUNTED** (parity pilot did not pass (status not_passed, passed False)); descriptive verdict if counted: MEASURED; validity: V1 pass, V2 pass, V4 pass
-
-Arms (descriptive, not a verdict):
-
-| Arm | Seeds | NLL mean | Gap vs resident AE | Leg 2 failed | Clustered accuracy vs AE | Verdict |
-|---|---|---:|---|---|---|---|
-| `A` | [0] | 0.1280 | -0.0023 (not material) | - | +0.4 pp, p=1 | **ACCEPTABLE** |
-| `AS` | [0] | 0.1291 | -0.0013 (not material) | - | +1.2 pp, p=0.69 | **ACCEPTABLE** |
+C: **NOT COUNTED** (parity pilot did not pass (status not_passed, passed False)); descriptive verdict if counted: NO VERDICT; missing: `RAM-tier A seed 1`, `RAM-tier AS seed 1`
 
 vs resident (not attributable to streaming or NF4: it mixes the NF4 base, warmup, data order and initialisation):
 

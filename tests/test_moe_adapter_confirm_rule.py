@@ -273,7 +273,12 @@ PARITY_FAILED = {"status": "not_passed", "passed": False, "_path": "parity-qwen3
                  "steps": [{"step": s, "streamed": 1.0, "resident": 1.1, "relative": 0.09}
                            for s in range(4)],
                  "gradient_step0": {"global_relative_l2": 0.5, "min_cosine": 0.2, "max_abs": 1.0}}
-PARITY_PASSED = {**PARITY_FAILED, "status": "ok", "passed": True}
+PARITY_PASSED = {
+    **PARITY_FAILED, "status": "ok", "passed": True, "_path": "synthetic-passing-parity.json",
+    "bit_exact": {"losses": True},
+    "steps": [{"step": s, "streamed": 1.0, "resident": 1.0, "relative": 0.0} for s in range(4)],
+    "gradient_step0": {"global_relative_l2": 0.0, "min_cosine": 1.0, "max_abs": 0.0},
+}
 
 
 def _ram_analysis(cr, parity):
@@ -299,6 +304,50 @@ def test_passing_parity_counts_ram_verdicts(cr):
     assert ram["E"]["verdict"] == ram["C"]["verdict"] == "MEASURED"
     assert "verdict_if_counted" not in ram["E"]
     assert ram["memory"]["parity_counted"] is True
+
+
+@pytest.mark.parametrize("missing_pairs", [
+    [("A", 0)], [("A", 1)], [("AS", 0)], [("AS", 1)], [("A", 1), ("AS", 1)],
+])
+def test_passing_parity_requires_every_ram_arm_seed(cr, missing_pairs):
+    ram = [_ram(a, s, 1, 1) for a in ("A", "AS") for s in (0, 1)
+           if (a, s) not in missing_pairs]
+    result = cr.analyse(_resident(), [], ram, expect=EXPECT, parity=PARITY_PASSED, draws=10)
+    assert result["ram_tier"]["parity"]["counted"] is True
+    for task_set in ("E", "C"):
+        verdict = result["ram_tier"][task_set]
+        assert verdict["verdict"] == "NO VERDICT"
+        assert verdict["missing"] == [f"RAM-tier {a} seed {s}" for a, s in missing_pairs]
+        assert "arms" not in verdict
+
+
+@pytest.mark.parametrize(("arm", "replacement"), [
+    ("A", {"lr": 1e-4}), ("AS", {"lr": 1e-4}),
+    ("A", {"seed": 2}), ("AS", {"status": "void_oom"}),
+])
+def test_unplanned_or_void_record_cannot_fill_ram_seed(cr, arm, replacement):
+    ram = [_ram(a, s, 1, 1) for a in ("A", "AS") for s in (0, 1)]
+    next(r for r in ram if r["arm"] == arm and r["seed"] == 1).update(replacement)
+    result = cr.analyse(_resident(), [], ram, expect=EXPECT, parity=PARITY_PASSED, draws=10)
+    assert result["ram_tier"]["parity"]["counted"] is True
+    for task_set in ("E", "C"):
+        verdict = result["ram_tier"][task_set]
+        assert verdict["verdict"] == "NO VERDICT"
+        assert verdict["missing"] == [f"RAM-tier {arm} seed 1"]
+        assert "arms" not in verdict
+
+
+def test_ram_verdicts_exclude_unplanned_rates_and_seeds(cr):
+    ram = [_ram(a, s, 1, 1) for a in ("A", "AS") for s in (0, 1)]
+    ram += [{**_ram("A", 0, 1, 1, e_nll=5.0, c_nll=5.0), "lr": 1e-4},
+            _ram("AS", 2, 1, 1, e_nll=5.0, c_nll=5.0)]
+    for task_set in ("E", "C"):
+        verdict = cr.ram_verdicts(ram, _resident(), task_set)
+        assert verdict["verdict"] == "MEASURED"
+        for arm in ("A", "AS"):
+            assert verdict["arms"][arm]["verdict"] == "ACCEPTABLE"
+            assert verdict["arms"][arm]["seeds"] == [0, 1]
+            assert verdict["arms"][arm]["nll"] == [0.8, 0.8]
 
 
 def test_smoke_parity_is_not_counted(cr):

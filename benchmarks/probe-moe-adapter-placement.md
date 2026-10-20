@@ -1149,11 +1149,11 @@ brief's hardware, and its absolute peaks are a 96 GB card's, not an 8 GB card's.
 
 ### 11.5 Results (2026-10-14)
 
-Written after every §11 record was read. The verdicts come from
-`moe_adapter_confirm_rule.py` (commit `ed90feef`, unchanged since) over the published
-records (§11.6 gives the command). The generated report is published in
+Written after every §11 record was read. The original report used
+`moe_adapter_confirm_rule.py` at commit `ed90feef`; §11.7 records the later CPU-only
+RAM-tier completeness correction. The regenerated report is published in
 `results/probe-moe-adapter-placement/followup-report/` (`tables.md` and
-`summary.json`); its resident tables are copied below. Every run §11.2 plans
+`summary.json`); its resident tables are unchanged and copied below. Every run §11.2 plans
 has an `ok` record (OLMoE's 10 counted runs and the 8 other runs of its seed-0 sweep;
 Qwen3.5's 9 counted runs), and so has every box check that ran: the base on
 `e1-c-olmoe2`, `e1-c3-olmoe` and `e1-c3-qwen`. Each carries harness `dd55825c…`, split
@@ -1438,6 +1438,28 @@ python benchmarks/harness/moe_adapter_confirm_rule.py "$r/followup" "$r" "$work/
 python -m pytest tests/test_moe_adapter_confirm.py tests/test_moe_adapter_confirm_rule.py \
   tests/test_moe_adapter_ramtier.py -q --no-cov
 ```
+
+### 11.7 Report completeness correction (2026-10-20)
+
+The review found that `ram_verdicts` required only one successful record per RAM-tier
+arm, rather than every `(arm, seed)` in §11.3. It now requires `A` and `AS`, each with
+seeds 0 and 1 at the frozen rate 2e-4. Other rates or seeds and non-`ok` records cannot
+fill a planned pair. An incomplete plan returns NO VERDICT and lists the missing pairs
+before assigning any arm verdict, even when the parity pilot passes.
+
+The §11.6 CPU command regenerated both report files from the retained records. On E
+and C, the real failed pilot still gives NOT COUNTED; `verdict_if_counted` is now
+NO VERDICT, with `RAM-tier A seed 1` and `RAM-tier AS seed 1` missing. The incomplete
+plan no longer produces hypothetical arm verdicts. The resident report, descriptive
+RAM-tier comparisons and memory results are unchanged. All 228 published manifest
+hashes match; no raw record, numerical gate or §12 scope decision changed.
+
+Verification: 140 focused E1 tests pass, including regressions for missing planned
+pairs under a separately labelled synthetic passing pilot, wrong rates, unplanned
+seeds and void records. A CPU replay with the retained seed-0 records and an in-memory
+synthetic passing pilot also returns NO VERDICT on E and C. That diagnostic is not a
+new measurement; no GPU run or replacement pilot was made.
+
 
 ## 12. Scope decision and RAM-tier status (2026-10-19)
 
