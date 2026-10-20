@@ -422,12 +422,17 @@ keeps the data bytes of every tensor, `ram_store_bytes` in the record, which
 is 18,829 to 32,285 bytes under the file size (the safetensors headers and
 `index.json` (1,261 bytes) are not tensor data): 13,838,323,712 (bf16), 4,276,892,736 (NF4),
 2,765,361,152 (Q2_0). Restoring a layer in VRAM also needs working space
-beyond these figures; the Q2_0 path here uses float32 intermediates (below).
+beyond these figures. Peak CUDA memory allocated by a restore run (packed layer
+plus bf16 output plus intermediates, every run the same): 1,021,413,888 bytes
+for NF4 and 2,545,942,528 bytes for Q2_0, whose path uses float32
+intermediates (below).
 The box had 540 GB of RAM, so no RAM tier decision was tested.
 
 ### Restore time
 
-One run is a fresh process that loads layer 0's packed experts into VRAM and
+Only layer 0 was timed; the 16 layers have the same shapes and the same
+packed size, and equal restore time is assumed, not measured. One run is a
+fresh process that loads layer 0's packed experts into VRAM and
 times 30 restores (after 5 warm-up) of all 64 experts of both tensors to bf16,
 and of expert 0 alone, with a CUDA synchronize around each. A run's value is
 the median of its 30 timed steps. The repeats rule reads the layer value.
@@ -437,7 +442,8 @@ the median of its 30 timed steps. The repeats rule reads the layer value.
   21 blocks. The recount over all 21 gives N = 20 (sigma 0.301 ms, mean of A
   1.918 ms), so nothing more was due. No run was void.
 - Checks: `suspend` ok and `power` ok in all 84 runs (the box has no battery,
-  so `power` is ok with the reason "no battery"). `foreign_reads` is unknown in
+  so `power` is ok with the reason "no battery", which is the rule's reading for
+  a machine without one and a weaker signal than a mains reading). `foreign_reads` is unknown in
   all 84 and is not required by the rule.
 - Box stamp before and after each arm is in `restore.json`.
 
@@ -447,6 +453,10 @@ the median of its 30 timed steps. The repeats rule reads the layer value.
 | median of 42 runs | 1.844 ms | 17.381 ms |
 | min to max | 1.424 to 2.521 ms | 17.111 to 17.540 ms |
 | expert 0 alone, median | 0.293 ms | 0.431 ms |
+
+The one-expert row is a separate call for expert 0, not the layer time divided
+by 64. For NF4 it is about ten times the layer time per expert (1.918 / 64 =
+0.030 ms), because a single call is dominated by launch overhead.
 
 Mean block difference (A minus B): -15.43 ms, standard deviation 0.27 ms over
 21 blocks. Measured on this box, Q2_0 takes 17.35 ms and NF4 1.92 ms to restore
@@ -463,7 +473,7 @@ Whether restore cost matters in a product path is not answered here: ADR 0001
 keeps the product runtime out of C5.
 
 SM clock (from `gpu_clock` in each run's record, one sample every 2 s, so a run
-of about 4 s has 2 to 4 samples): median of the per-run medians 1695 MHz in
+of about 4 s has 3 to 5 samples): median of the per-run medians 1695 MHz in
 both arms (A 1230 to 1838, B 1695 to 1980), maximum seen 1980 of 2100 MHz.
 Clock event reasons: `gpu_idle` in 46 runs (the process start and end fall in
 the window) and `sw_power_cap` in 10. The clock was not locked and ran below the
