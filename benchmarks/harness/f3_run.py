@@ -2,11 +2,12 @@
 """Run lifecycle for the F3 rental: survive a crash, stay inside the budget, destroy the instance.
 
 ``run_lifecycle`` runs arms one by one. A crashing arm is recorded as failed and the
-others still run. After every arm the record is uploaded to a private HuggingFace repo.
-A restart skips arms whose upload succeeded. Before each arm the script projects the
-spend at the hourly rate and stops if the projection passes the ceiling or the time
-limit. The last action is the destroy command, and only when no upload is pending, so
-a failed upload never costs the data. The laptop timer and a manual check of the
+others still run. After every arm the record is saved, its outcome goes into the state
+file, and then the record is uploaded to a private HuggingFace repo. A restart never runs a
+finished arm again: it retries the upload of the saved record instead. Before each arm the
+script projects the spend at the hourly rate and stops if the projection passes the ceiling
+or the time limit. The last action is the destroy command, and only when no upload is
+pending, so a failed upload never costs the data. The laptop timer and a manual check of the
 instance list stay as the backstop.
 
 The vast.ai account key is never put on the instance. Each instance carries its own
@@ -163,8 +164,13 @@ def run_lifecycle(
     result = Lifecycle()
     stop_reason = ""
     for plan in arms:
-        if plan.name in state["uploaded"]:
+        # A state file from before outcomes were saved first lists finished arms only as uploaded.
+        if plan.name in state["outcomes"] or plan.name in state["uploaded"]:
             result.outcomes[plan.name] = state["outcomes"].get(plan.name, "done")
+            if plan.name not in state["uploaded"] and not attempt_upload(
+                plan.name, workdir / f"{plan.name}.json"
+            ):
+                result.pending_uploads.append(plan.name)
             continue
         if stop_reason:
             result.outcomes[plan.name] = stop_reason
@@ -192,6 +198,7 @@ def run_lifecycle(
         path = workdir / f"{plan.name}.json"
         _write(path, record)
         state["outcomes"][plan.name] = result.outcomes[plan.name]
+        _write(state_path, state)
         if not attempt_upload(plan.name, path):
             result.pending_uploads.append(plan.name)
         spent = cost(clock() - state["started"])

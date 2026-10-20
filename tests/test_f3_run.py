@@ -103,13 +103,30 @@ def test_failed_arm_does_not_stop_the_others(run_mod, tmp_path):
     assert record["status"] == "failed"
 
 
-def test_restart_skips_uploaded_arms(run_mod, tmp_path):
+def test_restart_reruns_no_finished_arm_and_retries_its_upload(run_mod, tmp_path):
     clock = Clock()
     first = Env(clock, upload_fail={"b"})
     go(run_mod, tmp_path, first, clock, plans(run_mod, "a", "b"))
+    original = (tmp_path / "b.json").read_bytes()
     second = Env(clock)
-    go(run_mod, tmp_path, second, clock, plans(run_mod, "a", "b"))
-    assert [e for e in second.events if e[0] == "run"] == [("run", "b")]
+    result = go(run_mod, tmp_path, second, clock, plans(run_mod, "a", "b"))
+    assert [e for e in second.events if e[0] == "run"] == []
+    assert ("upload", "b") in second.events
+    assert (tmp_path / "b.json").read_bytes() == original
+    assert result.outcomes == {"a": "done", "b": "done"}
+    assert result.destroyed is True
+
+
+def test_restart_after_every_upload_failed_trains_nothing_again(run_mod, tmp_path):
+    clock = Clock()
+    first = Env(clock, upload_fail={"a", "b", "summary"})
+    go(run_mod, tmp_path, first, clock, plans(run_mod, "a", "b"))
+    assert [e for e in first.events if e[0] == "run"] == [("run", "a"), ("run", "b")]
+    second = Env(clock)
+    result = go(run_mod, tmp_path, second, clock, plans(run_mod, "a", "b"))
+    assert [e for e in second.events if e[0] == "run"] == []
+    assert result.pending_uploads == []
+    assert second.events[-1] == ("destroy", None)
 
 
 def test_upload_after_every_arm_and_destroy_last(run_mod, tmp_path):

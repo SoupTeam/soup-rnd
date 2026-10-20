@@ -117,6 +117,7 @@ class World:
         self.events = []
         self.uploaded = {}
         self.upload_fail = set(upload_fail)
+        self.network_down = False
         self.workdir = tmp_path / "f3-results"
         self.workdir.mkdir()
         for path in ("native", "unsloth"):
@@ -126,7 +127,8 @@ class World:
         def run_arm(path, out, steps=20):
             world.events.append(("train", out.name))
             out.parent.mkdir(parents=True, exist_ok=True)
-            report = training_report(out)
+            # The call count makes every report's bytes differ, so a replaced report shows.
+            report = dict(training_report(out), marker=len(world.trained()))
             out.write_text(json.dumps(report))
             return report
 
@@ -144,7 +146,7 @@ class World:
 
         def upload_factory(repo):
             def upload(name, path):
-                if name in world.upload_fail:
+                if world.network_down or name in world.upload_fail:
                     raise OSError("network down")
                 world.events.append(("upload", name))
                 world.uploaded[name] = path.read_text(encoding="utf-8")
@@ -191,7 +193,7 @@ def test_the_lease_start_before_the_arm_lets_a_cheap_lease_train(rental, monkeyp
 
     world = World(rental, monkeypatch, tmp_path, ceiling=2.5)
     assert rental.cmd_c1(1.0, lease_start=time.time() - 3600) == 0
-    assert world.trained() == ["A-unsloth-p1.json", "A-unsloth-p2.json"]
+    assert world.trained() == ["A-unsloth-a1-p1.json", "A-unsloth-a1-p2.json"]
 
 
 def test_a_broken_control_file_still_ends_in_upload_and_destroy(rental, monkeypatch, tmp_path):
@@ -211,8 +213,8 @@ def test_the_raw_evidence_is_uploaded_before_destroy(rental, monkeypatch, tmp_pa
     log.write_text("training log")
     assert rental.cmd_c1(1.0, logs=(log,)) == 0
     for name in (
-        "c1/A-unsloth-p1.json",
-        "c1/A-unsloth-p2.json",
+        "c1/A-unsloth-a1-p1.json",
+        "c1/A-unsloth-a1-p2.json",
         "audit-c1.json",
         "refusals.jsonl",
         "control-native.json",
@@ -232,6 +234,88 @@ def test_the_raw_evidence_is_uploaded_before_destroy(rental, monkeypatch, tmp_pa
 
 
 def test_a_failed_evidence_upload_keeps_the_instance(rental, monkeypatch, tmp_path):
-    world = World(rental, monkeypatch, tmp_path, upload_fail={"c1/A-unsloth-p2.json"})
+    world = World(rental, monkeypatch, tmp_path, upload_fail={"c1/A-unsloth-a1-p2.json"})
     rental.cmd_c1(1.0)
     assert ("destroy", None) not in world.events
+
+
+def test_a_resume_after_an_upload_outage_keeps_the_original_reports(
+    rental, monkeypatch, tmp_path
+):
+    world = World(rental, monkeypatch, tmp_path)
+    world.network_down = True
+    rental.cmd_c1(1.0)
+    assert ("destroy", None) not in world.events
+    raw = sorted((world.workdir / "c1").glob("A-unsloth-*.json"))
+    originals = {f"c1/{path.name}": path.read_bytes() for path in raw}
+    assert sorted(originals) == [
+        "c1/A-unsloth-a1-p1.json", "c1/A-unsloth-a1-p2.json", "c1/A-unsloth-a1.json"
+    ]
+    world.network_down = False
+    rental.cmd_c1(1.0)
+    assert len(world.trained()) == 2
+    for name, data in originals.items():
+        assert (world.workdir / name).read_bytes() == data
+        assert world.uploaded[name] == data.decode("utf-8")
+    assert world.events[-1] == ("destroy", None)
+
+
+def test_an_explicit_rerun_writes_a_new_attempt_and_keeps_the_old_one(
+    rental, monkeypatch, tmp_path
+):
+    world = World(rental, monkeypatch, tmp_path)
+    rental.cmd_c1(1.0)
+    raw = world.workdir / "c1"
+    names = ("A-unsloth-a1-p1.json", "A-unsloth-a1.json")
+    first = {name: (raw / name).read_bytes() for name in names}
+    (world.workdir / "lifecycle" / "state.json").unlink()
+    rental.cmd_c1(1.0)
+    assert world.trained() == [
+        "A-unsloth-a1-p1.json",
+        "A-unsloth-a1-p2.json",
+        "A-unsloth-a2-p1.json",
+        "A-unsloth-a2-p2.json",
+    ]
+    for name, data in first.items():
+        assert (raw / name).read_bytes() == data
+    import json
+
+    record = json.loads(first["A-unsloth-a1.json"])
+    assert record["attempt"] == 1
+    assert [r["watch"]["outcome"] for r in record["records"]] == ["ok", "ok"]
+    assert json.loads(world.uploaded["c1/A-unsloth-a2.json"])["attempt"] == 2
+
+
+def test_a_crash_inside_an_arm_reruns_it_as_a_new_attempt(rental, monkeypatch, tmp_path):
+    world = World(rental, monkeypatch, tmp_path)
+    train = rental.run_arm
+
+    def killed_after_the_first_process(path, out, steps=20):
+        report = train(path, out, steps)
+        if len(world.trained()) == 1:
+            raise KeyboardInterrupt  # the process dies, nothing reaches the state file
+        return report
+
+    monkeypatch.setattr(rental, "run_arm", killed_after_the_first_process)
+    with pytest.raises(KeyboardInterrupt):
+        rental.cmd_c1(1.0)
+    partial = (world.workdir / "c1" / "A-unsloth-a1-p1.json").read_bytes()
+    rental.cmd_c1(1.0)
+    assert world.trained() == [
+        "A-unsloth-a1-p1.json", "A-unsloth-a2-p1.json", "A-unsloth-a2-p2.json"
+    ]
+    assert (world.workdir / "c1" / "A-unsloth-a1-p1.json").read_bytes() == partial
+    assert "c1/A-unsloth-a1-p1.json" in world.uploaded
+    assert world.events[-1] == ("destroy", None)
+
+
+def test_run_arm_never_overwrites_a_report(rental, monkeypatch, tmp_path):
+    out = tmp_path / "c1" / "A-unsloth-a1-p1.json"
+    out.parent.mkdir()
+    out.write_text("original")
+    calls = []
+    monkeypatch.setattr(rental.subprocess, "run", lambda *a, **kw: calls.append(a))
+    with pytest.raises(FileExistsError):
+        rental.run_arm("unsloth", out)
+    assert calls == []
+    assert out.read_text() == "original"

@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -65,6 +66,9 @@ def arm_command(path: str, out: Path, steps: int = STEPS, control: bool = False)
 
 
 def run_arm(path: str, out: Path, steps: int = STEPS) -> Dict[str, Any]:
+    """Train one fresh process into ``out``. An existing report is evidence, never replaced."""
+    if out.exists():
+        raise FileExistsError(f"{out} exists; a rerun needs a new attempt number")
     out.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(arm_command(path, out, steps), check=True, cwd=out.parent)  # noqa: S603
     return json.loads(out.read_text(encoding="utf-8"))
@@ -123,6 +127,24 @@ def _load_controls() -> List[f3_audit.ControlRun]:
     return control
 
 
+def _raw_path(arm: str, attempt: int, process: Optional[int] = None) -> Path:
+    """``c1/<arm>-a<attempt>-p<process>.json`` for a report, ``c1/<arm>-a<attempt>.json`` for
+    the attempt's verdicts, watch records and refusals."""
+    suffix = "" if process is None else f"-p{process}"
+    return WORKDIR / "c1" / f"{arm}-a{attempt}{suffix}.json"
+
+
+def _next_attempt(arm: str) -> int:
+    """The first unused attempt number for ``arm``, so a rerun never writes over raw evidence."""
+    pattern = re.compile(rf"{re.escape(arm)}-a(\d+)(?:-p\d+)?\.json")
+    used = [0]
+    for file in (WORKDIR / "c1").glob("*.json"):
+        match = pattern.fullmatch(file.name)
+        if match:
+            used.append(int(match.group(1)))
+    return max(used) + 1
+
+
 def _lease_start() -> Optional[float]:
     """Unix time the bootstrap wrote when the paid lease began, if it ran."""
     if LEASE_FILE.exists():
@@ -167,21 +189,35 @@ def cmd_c1(
     rate: float, lease_start: Optional[float] = None, logs: Sequence[Path] = ()
 ) -> int:
     """Run C1 inside the lifecycle: the clock, the budget check and the resume state come first,
-    each arm trains under them, and the raw evidence uploads before the instance is destroyed."""
+    each arm trains under them, and the raw evidence uploads before the instance is destroyed.
+
+    Raw evidence is ``c1/<arm>-a<attempt>-p<process>.json`` (reports) and
+    ``c1/<arm>-a<attempt>.json`` (verdicts, watch records, refusals). A resume retries uploads
+    and does not train an arm whose outcome is in the state file, failed arms included. A crash
+    inside an arm leaves no outcome, so the resume trains it as a new attempt; so does an
+    explicit rerun (state file removed)."""
     WORKDIR.mkdir(parents=True, exist_ok=True)
     specs = c1_specs()
     by_name = {spec.arm: spec for spec in specs}
 
-    def runner(spec: f3_audit.ArmSpec, process: int) -> Dict[str, Any]:
-        return run_arm("unsloth", WORKDIR / "c1" / f"{spec.arm}-p{process}.json")
-
     def audit_arm(name: str) -> Dict[str, Any]:
+        attempt = _next_attempt(name)
+
+        def runner(spec: f3_audit.ArmSpec, process: int) -> Dict[str, Any]:
+            return run_arm("unsloth", _raw_path(spec.arm, attempt, process))
+
         audit = f3_audit.audit([by_name[name]], runner, _watch, _load_controls())
         record = {
-            "arm": name, "label": LABEL, "verdicts": [vars(v) for v in audit.verdicts],
+            "arm": name, "label": LABEL, "attempt": attempt,
+            "verdicts": [vars(v) for v in audit.verdicts],
             "records": audit.records, "refusals": audit.refusals,
         }  # fmt: skip
-        return json.loads(json.dumps(record, default=str))
+        text = json.dumps(record, indent=2, default=str)
+        out = _raw_path(name, attempt)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("x", encoding="utf-8") as file:  # "x": never replace an attempt
+            file.write(text)
+        return json.loads(text)
 
     lifecycle = f3_run.run_lifecycle(
         [f3_run.ArmPlan(spec.arm, ARM_SECONDS.get(spec.arm, 0.0)) for spec in specs],
