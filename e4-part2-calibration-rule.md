@@ -157,3 +157,13 @@ A void run keeps its record and is rerun once; a second void of the same run sto
 ## 9. Record
 
 `benchmarks/results/e4-part2-calibration-<date>/`: this rule's commit hash, split manifests, F/T/W/N/P raw JSON and logs, per-call `needs_grad` and `kernel`, attempts journal, per-run box stamps, SHA256SUMS, and a report with the values the main rule copies: final card and UUID, tau table by cell and quantity, tol_W table, floor and epsilon per suite.
+
+## Clarification 2026-10-20 (card classes)
+
+The rule's card names, "A100 40 GB" and "A100 80 GB" (sections 1 and 3), are checked from the box stamps of each F and F80 record, before and after the run:
+
+- the GPU name contains `A100` (SXM4 or PCIe);
+- `nvidia-smi` `compute_cap` is exactly 8.0;
+- `nvidia-smi` `memory.total` is within 40,000 to 42,000 MiB inclusive under F, and within 80,000 to 82,000 MiB inclusive under F80.
+
+A missing or mismatching field stops calibration (`CalibrationStopped`), and `decide` writes no `decision.json`. The 36,000,000,000-byte reserved-memory threshold and all other text of this rule are unchanged. Implemented in `e16b90df` (constants in `e4_part2_common.py`). Requested by the reviewer on PR #21.
