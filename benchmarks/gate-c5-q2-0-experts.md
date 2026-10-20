@@ -3,8 +3,8 @@
 **The decision rule was committed before the first run. Ticket 04 ran all seven arms on 2026-10-20: the quality gate fails (mean ratio 1.105), and the rule's table says stop G5. Data: a temporary set until the dataset protocol exists (временный набор до dataset протокола).**
 
 Spec: `.scratch/c5-q2-0-experts/issues/03-rule-and-data.md`. Training under
-this rule is ticket 04, cache size and weight restore cost are ticket 05 (the
-last section), and the final report and G5 recommendation are ticket 06.
+this rule is ticket 04, cache size and weight restore cost are ticket 05, and
+the final report and G5 recommendation are ticket 06 (the last section).
 
 ## Commit order
 
@@ -258,7 +258,7 @@ Verdict: **fail**. Recommendation by the rule's table: **stop G5** until there
 is a 2-bit codec better than Q2_0 with scale search (a learned scale as in
 GSQ, or a codebook format like IQ2_XS). The 1.10 threshold behind that row is a
 rough estimate, as the rule says. The final report and the G5 decision record
-are ticket 06.
+are the last section (ticket 06).
 
 Spec: `.scratch/c5-q2-0-experts/issues/04-lora-nf4-vs-q2-0.md`. Raw records,
 logs and commands: `benchmarks/results/c5-train/`. Verdict:
@@ -501,3 +501,113 @@ Neither produced a number. The run above is the third launch.
 `c5_cache.py build --fixture olmoe` and `compare --synthetic` run end to end on
 a tiny random OLMoE on CPU (macOS). Its sizes and times say nothing about
 OLMoE and are not kept in `benchmarks/results/`.
+
+## Report and G5 decision (ticket 06)
+
+Spec: `.scratch/c5-q2-0-experts/issues/06-report-and-g5-decision.md`. This
+section adds no measurement. It restates tickets 04 and 05 under the rule.
+
+### Recommendation
+
+**Stop G5 until there is a 2-bit codec better than Q2_0 with scale search,
+because the quality gate failed with a mean task-loss ratio of 1.105, above
+the 1.10 line.** The 1.10 line is a rough estimate, as the rule says, and the
+mean sits 0.005 above it, so this row of the table is close to the neighbouring
+one ("continue G5 only in mixed form"). The rule fixed the thresholds before
+the first run and they were not moved.
+
+### The rule, verbatim
+
+The binding text is the Russian rule at the top of this file, copied from the
+spec unchanged in commit `c7f2bfcd` (17:52:20 UTC, 2026-10-20), before the
+first arm (19:00:45 UTC). The English translation above it is not binding.
+Verdict clause, in the binding wording:
+
+> **Fail**, если выполнено хотя бы одно: среднее отношение по трём сидам больше 1.03; верхняя граница интервала больше 1.05 хотя бы в одном сиде; в gating suite Q2_0 в среднем отвечает верно на 3 вопроса меньше, чем NF4, или ещё хуже.
+
+> Fail, среднее отношение > 1.10 → остановить G5, пока нет 2-битного кодека лучше Q2_0 с поиском scale: обучаемый scale как в GSQ или формат с кодбуком вроде IQ2_XS
+
+### Quality (ticket 04, real runs on OLMoE-1B-7B, RTX 3090)
+
+Verdict **fail**, computed by `benchmarks/harness/c5_verdict.py` under the
+rule, no threshold changed. Equality with NF4 is not claimed: Q2_0 is worse on
+task loss in every seed and on three of four gate suites.
+
+| Check | Limit | Measured | Result |
+|---|---|---|---|
+| Mean ratio, 3 seeds | ≤ 1.03 | 1.1049 | fail |
+| Upper bound of 95% interval, worst seed | ≤ 1.05 | 1.1194 | fail |
+| `mini_mmlu` drop | < 3 | 9.00 | fail |
+| `mini_common_sense` drop | < 3 | 5.00 | fail |
+| `mini_arithmetic` drop | < 3 | 3.33 | fail |
+| `mini_instruction` drop | < 3 | 0.67 | pass |
+
+Task loss, NF4 against Q2_0 (seeds 42, 7, 123): 1.6393 / 1.6393 / 1.6408
+against 1.8123 / 1.8126 / 1.8108. The interval describes the spread of the
+512-example panel within one seed, not training variance. Three seeds is a small
+sample, so the seed-to-seed spread of the ratio (1.1036 to 1.1057) is only a
+rough guide. bf16 (seed 42, 1.6288) is reference only and not in the gate.
+
+All five validity rows hold. No run was spoiled or repeated, so the
+spoiled-run list is empty. The only discarded runs are the two pilot runs
+(`pilot/nf4-s42`, out of CUDA memory without gradient checkpointing, and
+`pilot/nf4-s42-gc`), which are not arms.
+
+### Size and restore (ticket 05, real measurement, no verdict)
+
+The smaller cache is not presented as a success, because the quality gate
+failed. Numbers only, measured on 2026-10-20 on an RTX 3090
+(`GPU-101261c3-8f7f-798b-267d-53e6d2b89f41`, driver 580.159.03, SM clock not
+locked, median 1695 MHz of 2100 MHz maximum):
+
+| Cache | Total on disk | Expert tensors | One layer file |
+|---|---:|---:|---:|
+| bf16 | 13,838,342,541 B | 12,884,901,888 B | 839,140,408 B |
+| NF4 experts | 4,276,925,021 B | 3,323,469,824 B | 241,551,736 B |
+| Q2_0 experts | 2,765,385,229 B | 1,811,939,328 B | 147,080,576 B |
+
+Q2_0 cache bytes are 64.7% of the NF4 cache bytes (experts alone: 54.5%).
+Restoring one layer (64 experts, both tensors) to bf16, 21 A-B-B-A blocks,
+84 runs, none void, `suspend` and `power` ok in all: NF4 1.918 ms, Q2_0
+17.351 ms. That is a comparison of two implementations (NF4 fused
+bitsandbytes kernel against plain PyTorch for Q2_0 with float32 intermediates),
+not of two formats; a fused Q2_0 kernel would change it and by how much is not
+measured. Only layer 0 was timed.
+
+### Synthetic against real
+
+| Kind | Where | Enters the verdict |
+|---|---|---|
+| Real, OLMoE on RTX 3090, 7 arms | `benchmarks/results/c5-train/` | yes |
+| Real, cache size and restore on RTX 3090 | `benchmarks/results/c5-cache/` | no verdict, numbers only |
+| Real, expert-swap check on OLMoE (ticket 02) | `benchmarks/results/c5-olmoe-swap/` | validity row 1 only |
+| Synthetic, granite on CPU | `benchmarks/results/c5-train-synthetic/` | no |
+| Synthetic, tiny OLMoE on CPU (ticket 05 smoke) | not kept | no |
+| Pilot, spoiled by memory or for timing | `benchmarks/results/c5-train/pilot/` | no |
+| Failed cache launches (`run-attempt1.log`, `run-attempt2.log`) | `benchmarks/results/c5-cache/` | no, no numbers |
+
+### What this does not show
+
+- Fake-quant training (ADR 0001) measures what the Q2_0 weights do to a
+  bf16-trained LoRA. It says nothing about speed or memory of a Q2_0 runtime,
+  which does not exist.
+- One model (OLMoE-1B-7B), one temporary data set, one epoch, 4000 rows.
+  Other MoE models and longer training are untested.
+- The gate suites have 24 to 40 questions each. The drops of 9.00 and 5.00 are
+  large against that size; the 3.33 drop in arithmetic is near the line.
+- The mixed-precision route (Q2_0 only for low-traffic experts) was not run.
+  The rule's table sends a ratio above 1.10 to "stop", so it is not
+  recommended here either.
+
+### Commands, versions and logs
+
+- Training and verdict: `benchmarks/results/c5-train/arms.sh`, `setup.sh`,
+  `pilot.sh`; verdict `python benchmarks/harness/c5_verdict.py` with the two
+  ticket-02 JSONs as `--swap-record`, output in `verdict.json`.
+- Cache and restore: `benchmarks/results/c5-cache/setup.sh`, `run.sh`.
+- Versions: `pip-freeze.txt` in both result folders (torch 2.14.1+cu130,
+  transformers 5.20.2, peft 0.21.2, bitsandbytes 0.50.2, datasets 5.1.0).
+- Source logs: `arms.log`, `session.log`, per-run `runs/*/run.json` and
+  `runs/*.log`; `run.log`, `restore.json`, `cache.json` for the cache.
+- Commits: training on `ff6035cf`, cache on `0c0ad5f2`, records on `8fb0a6b0`
+  and `a6f6facc`.
