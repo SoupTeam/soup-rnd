@@ -8,6 +8,11 @@ enable expert-streamed training.
 primitive and a prospective correctness/memory gate. Backward and public
 expert-streamed training remain gated.
 
+[D3 grouped-expert preparation](grouped-expert-design.md) records the proposed
+bounded grouping design, reused B1.2 controls and disabled draft protocol.
+It documents the restricted internal grouped candidate and prospective layer protocol;
+it does not enable a public training path or claim D3 acceptance.
+
 [← Back to the Soup README](../README.md)
 
 > Quantization-aware training (FP8 and the experimental QuEST route), the Quant Menu (I + II), KV-cache, NVFP4, save formats, Cut Cross-Entropy, gradient checkpointing, kernel auto-composition, activation offloading, and multi-GPU / DeepSpeed / FSDP.
