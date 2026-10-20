@@ -188,3 +188,18 @@ also covers refusal to write when the old index cannot be read. It does not
 claim a fresh full repository CI result. Caches already damaged by an older
 interrupted conversion need a forced rebuild once; this is not a rollback of
 files previously overwritten by that older code.
+
+### CUDA codec verification, 2026-10-20
+
+The two B1.1 CUDA codec cases passed on an RTX 3060 (12 GB): NF4 expert bytes
+matched independent CUDA quantization with nested statistics both off and on.
+There were no failures, errors or skips. The environment used Python 3.12.13,
+torch 2.14.1+cu130, transformers 5.19.0, bitsandbytes 0.50.2 and safetensors 0.8.0.
+
+The [report and evidence](../benchmarks/results/b1.1-cuda-preflight-20261020/report.md)
+preserve the original combined B1.1/B1.2 run logs and an explicitly derived
+two-case JUnit extract. The run used an uncommitted B1.2 working tree based on
+`9510096a`; all 598 archived B1.1 source/test/config files match that commit's Git
+blobs. The five B1.2 test results are outside this two-case B1.1 verdict. This
+publication does not represent a new run, a full repository/CUDA matrix or a
+trained-model measurement. No storage or runtime implementation changed.
