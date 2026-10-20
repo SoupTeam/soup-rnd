@@ -1,0 +1,199 @@
+{
+  "gates": {
+    "G1": {
+      "status": "pass",
+      "detail": "F1: 256 tensors + losses equal (deterministic); F2: 640 tensors + losses equal (deterministic)"
+    },
+    "G2": {
+      "status": "pass",
+      "detail": "T_A(16) 74.8 vs 0.8 x T_B(16) 60.0 tok/s"
+    },
+    "G3": {
+      "status": "pass",
+      "detail": "T_A(16) 74.8 vs 1.3 x T_A(1) 28.1 tok/s"
+    },
+    "G4": {
+      "status": "pass",
+      "detail": "peak A16 4.095 vs A1 3.968 + 0.5 GB"
+    }
+  },
+  "validity": {
+    "V1": {
+      "ok": true,
+      "detail": "direct_io=True"
+    },
+    "V2": {
+      "ok": true,
+      "detail": "A: loads 158.0 vs 158.0, bytes 69.937 vs 69.937 GB; B: loads 158.0 vs 158.0, bytes 69.937 vs 69.937 GB"
+    },
+    "V3": {
+      "ok": true,
+      "detail": "{'free_gb': 23.02574592, 'commit_avail_gb': None, 'need_gb': 10.73741824, 'margin_gb': 4.0, 'gpu_used_before_build_mib': 4, 'gpu_pids': [105394], 'foreign_gpu_pids': [], 'ram_ok': True, 'gpu_ok': True, 'ok': True}"
+    }
+  },
+  "info": {
+    "I6": {
+      "a": 0.9790152686306671,
+      "b": 1.0853978861822091
+    },
+    "I2": {
+      "dequant_share": 0.1500207457297828,
+      "c4_over_a4": 0.939688589944675
+    },
+    "I3": {
+      "overhead": 1.0898706213704412
+    },
+    "I4": {
+      "ratio": 0.9994288872308242,
+      "free": true,
+      "direct": true
+    },
+    "arms": {
+      "plain/A/k1": {
+        "valid": true,
+        "why": [],
+        "value": 24.160191176333377,
+        "spread": 0.04414770946478011,
+        "tok_s": 21.191885290276193,
+        "peak": 4.45916928
+      },
+      "plain/B/k1": {
+        "valid": true,
+        "why": [],
+        "value": 6.263179044333508,
+        "spread": 0.012190755545530322,
+        "tok_s": 81.74762311213541,
+        "peak": 4.45916928
+      },
+      "l2l/A/k1": {
+        "valid": true,
+        "why": [],
+        "value": 23.653196054666296,
+        "spread": 0.001302855814031313,
+        "tok_s": 21.646123374477032,
+        "peak": 3.967579648
+      },
+      "l2l/B/k1": {
+        "valid": true,
+        "why": [],
+        "value": 6.798041295500298,
+        "spread": 0.0066145811288482875,
+        "tok_s": 75.31581197350165,
+        "peak": 3.967579648
+      },
+      "l2l/A/k16": {
+        "valid": true,
+        "why": [],
+        "value": 109.46130062883336,
+        "spread": 0.004700909509055065,
+        "tok_s": 74.83923498933954,
+        "peak": 4.095062528
+      },
+      "l2l/B/k16": {
+        "valid": true,
+        "why": [],
+        "value": 109.21687738883338,
+        "spread": 0.0011041875323370574,
+        "tok_s": 75.00672236613104,
+        "peak": 4.095062528
+      },
+      "l2l/A/k4": {
+        "valid": true,
+        "why": [],
+        "value": 29.766468865833605,
+        "spread": 0.003342759043690172,
+        "tok_s": 68.80224890735107,
+        "peak": 3.994386944
+      },
+      "l2l/B/k4": {
+        "valid": true,
+        "why": [],
+        "value": 27.312742474833613,
+        "spread": 0.001934092522902243,
+        "tok_s": 74.98331600669758,
+        "peak": 3.994386944
+      },
+      "l2l/C/k4": {
+        "valid": true,
+        "why": [],
+        "value": 27.97121115616725,
+        "spread": 0.021310339012687078,
+        "tok_s": 73.2181380550783,
+        "peak": 3.39250432
+      },
+      "l2l/D/k4": {
+        "valid": true,
+        "why": [],
+        "value": 23.21526448083356,
+        "spread": 2.253909280101091e-05,
+        "tok_s": 88.21781899968538,
+        "peak": 3.39250432
+      },
+      "l2l/A/k2": {
+        "valid": true,
+        "why": [],
+        "value": 23.783148115000586,
+        "spread": 0.00036674214132733274,
+        "tok_s": 43.05569620340292,
+        "peak": 3.97760768
+      },
+      "l2l/A/k3": {
+        "valid": true,
+        "why": [],
+        "value": 25.240079075166555,
+        "spread": 0.0024057314354942972,
+        "tok_s": 60.85559381274895,
+        "peak": 3.985997312
+      }
+    }
+  },
+  "verdict": "BATCH CONTROL INCOMPLETE: BUILD STEP 1",
+  "batch_control": {
+    "arms": {
+      "1": {
+        "valid": false,
+        "why": [
+          "V4: round spread 45.2% > 5%"
+        ],
+        "value": 36.44233702149965,
+        "spread": 0.4516867772765444,
+        "tok_s": 14.049592914360534,
+        "peak": 4.4588416
+      },
+      "2": {
+        "valid": false,
+        "why": [
+          "V4: round spread 6.0% > 5%"
+        ],
+        "value": 24.780635499666765,
+        "spread": 0.05996477287087295,
+        "tok_s": 41.32258835790431,
+        "peak": 5.425833472
+      },
+      "3": {
+        "valid": false,
+        "why": [
+          "V4: round spread 5.6% > 5%"
+        ],
+        "value": 24.43287487983313,
+        "spread": 0.05586041993468781,
+        "tok_s": 62.866118193394136,
+        "peak": 6.392825344
+      },
+      "4": {
+        "valid": true,
+        "why": [],
+        "value": 26.02036591016652,
+        "spread": 0.0009231474972155167,
+        "tok_s": 78.70757878926743,
+        "peak": 7.359817216
+      }
+    },
+    "oom_batches": [],
+    "largest_valid_tested": 4,
+    "maximum_established": false
+  },
+  "session": "finished",
+  "mechanism_verdict": "BUILD STEP 1",
+  "control_complete": false
+}
