@@ -61,7 +61,7 @@ def prepare(root: Path, checkpoint: Path, deadline: float) -> None:
         plan = f2.read_json(directory / "plan.json")
         plan.update(matrix_approved=True, matrix_approval_reference=
             "User explicitly requested completion on allocated 32GB with natural overflow",
-            window_ends_unix=deadline, resource_window="six-hour bounded F2 allocation study")
+            window_ends_unix=deadline, resource_window="bounded F2 allocation study")
         f2.write_json(directory / "plan.json", plan)
     schedule = []
     for block in range(5):
