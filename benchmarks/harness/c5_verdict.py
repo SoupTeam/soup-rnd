@@ -284,6 +284,9 @@ def verdict(
         "used": [
             {"arm": run["arm"], "seed": run["seed"], "attempt": run["attempt"]} for run in chosen
         ],
+        # The rule fixes the codec from the first arm on; more than one value here
+        # means it changed. Reported, not a validity row.
+        "codec_sha256": sorted({run["harness"]["codec_sha256"] for run in chosen}),
         **(quality or {"fail_reasons": [], "mean_ratio": None}),
     }
 
@@ -307,6 +310,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--synthetic", action="store_true", help="the runs are synthetic")
     parser.add_argument("--out", required=True, help="where verdict.json is written")
     args = parser.parse_args(argv)
+    if not args.synthetic and not args.swap_record:
+        parser.error("a real verdict checks row 1 against the ticket-02 JSON: pass --swap-record")
 
     files = []
     for path in map(pathlib.Path, args.paths):
@@ -318,6 +323,8 @@ def main(argv: list[str] | None = None) -> int:
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(_json_ready(result), indent=1), encoding="utf-8")
+    if len(result["codec_sha256"]) > 1:
+        console.print(f"[red]the codec changed between runs[/]: {result['codec_sha256']}")
     label = "SYNTHETIC " if args.synthetic else ""
     console.print(
         f"{label}verdict: {result['outcome']} (G5: {result['g5']}), "

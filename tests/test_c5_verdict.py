@@ -66,6 +66,7 @@ def _run(
         "non_expert_fingerprints": {"model.embed_tokens.weight": "aa", "lm_head.weight": "bb"},
         "data": {"heldout_sha256": "panel", "train_sha256": "train"},
         "config": {"codec": None if arm == "bf16" else arm, "seed": seed, "lr": 2e-4},
+        "harness": {"codec_sha256": "codec", "sha256": "train", "swap_sha256": "swap"},
         "total_steps": 3,
         "train_log": [
             {"step": step, "loss": 2.0 - step / 10, "grad_norm": 0.5} for step in (1, 2, 3)
@@ -320,7 +321,26 @@ class TestCommandLine:
             run_dir.mkdir(parents=True)
             (run_dir / "run.json").write_text(json.dumps(run), encoding="utf-8")
         out = tmp_path / "verdict.json"
-        assert harness.main([str(tmp_path / "runs"), "--out", str(out)]) == 0
+        swap = tmp_path / "nf4.json"
+        swap.write_text(json.dumps({"non_expert_fingerprints": _run("nf4", 42)[
+            "non_expert_fingerprints"]}), encoding="utf-8")
+        assert harness.main([str(tmp_path / "runs"), "--swap-record", str(swap),
+                             "--out", str(out)]) == 0
         written = json.loads(out.read_text(encoding="utf-8"))
         assert written["outcome"] == "pass"
         assert len(written["used"]) == 7
+
+
+class TestConsistency:
+    def test_one_codec_file_in_every_run_is_reported(self, harness):
+        result = harness.verdict(_all_runs())
+        assert result["codec_sha256"] == ["codec"]
+
+    def test_a_codec_changed_between_arms_is_reported(self, harness):
+        runs = _all_runs()
+        _find(runs, "q2_0", 123)["harness"]["codec_sha256"] = "edited"
+        assert harness.verdict(runs)["codec_sha256"] == ["codec", "edited"]
+
+    def test_a_real_verdict_needs_the_ticket_02_record(self, harness, tmp_path):
+        with pytest.raises(SystemExit):
+            harness.main([str(tmp_path), "--out", str(tmp_path / "verdict.json")])

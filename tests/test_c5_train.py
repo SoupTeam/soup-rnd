@@ -10,10 +10,12 @@ downloaded.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -61,18 +63,20 @@ class TestBatchOrder:
 
 
 @pytest.fixture(scope="module")
-def tokenizer(harness):
+def tokenizer(harness: ModuleType) -> Any:
     pytest.importorskip("transformers")
     pytest.importorskip("tokenizers")
     return harness.byte_tokenizer()
 
 
-def _row(instruction="Name a colour.", context="", response="Blue.", row=7):
+def _row(
+    instruction: str = "Name a colour.", context: str = "", response: str = "Blue.", row: int = 7,
+) -> dict:
     return {"row": row, "instruction": instruction, "context": context,
             "response": response, "category": "open_qa"}
 
 
-def _decode(tokenizer, ids, mask=None) -> str:
+def _decode(tokenizer: Any, ids: list[int], mask: list[bool] | None = None) -> str:
     kept = ids if mask is None else [i for i, keep in zip(ids, mask) if keep]
     return tokenizer.decode(kept)
 
@@ -92,11 +96,11 @@ class TestEncodeExample:
             "<|im_start|>assistant\nBlue.<|im_end|>\n"
         )
 
-    def test_task_loss_tokens_are_the_answer_and_its_end_marker(self, harness, tokenizer):
+    def test_task_loss_tokens_are_the_answer_only(self, harness, tokenizer):
+        # Neither the assistant header nor the <|im_end|> marker after the answer:
+        # on OLMoE-0924 the marker is 7 plain tokens of near-zero loss.
         example = harness.encode_example(_row(), tokenizer, 1024)
-        assert _decode(tokenizer, example["input_ids"], example["response_mask"]) == (
-            "Blue.<|im_end|>\n"
-        )
+        assert _decode(tokenizer, example["input_ids"], example["response_mask"]) == "Blue."
 
     def test_truncation_cuts_the_answer_and_its_tokens(self, harness, tokenizer):
         full = harness.encode_example(_row(response="x" * 50), tokenizer, 1024)
@@ -117,8 +121,6 @@ SUITE_SIZES = {
 
 
 def _write_split(path: Path, rows: list[dict]) -> None:
-    import json
-
     path.write_text(
         "".join(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
         encoding="utf-8",
@@ -126,7 +128,7 @@ def _write_split(path: Path, rows: list[dict]) -> None:
 
 
 @pytest.fixture(scope="module")
-def data_dir(tmp_path_factory) -> Path:
+def data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     directory = tmp_path_factory.mktemp("c5data")
     rows = [
         _row(instruction=f"Question {i}?", context="Some context." if i % 3 else "",
@@ -138,7 +140,7 @@ def data_dir(tmp_path_factory) -> Path:
     return directory
 
 
-def _train(harness, data_dir: Path, out_dir: Path, arm: str, *extra: str) -> int:
+def _train(harness: ModuleType, data_dir: Path, out_dir: Path, arm: str, *extra: str) -> int:
     return harness.main([
         "--arm", arm, "--seed", "42", "--fixture", "granite", "--data-dir", str(data_dir),
         "--out-dir", str(out_dir), "--micro-batch", "2", "--gate-max-new-tokens", "4", *extra,
@@ -146,9 +148,9 @@ def _train(harness, data_dir: Path, out_dir: Path, arm: str, *extra: str) -> int
 
 
 @pytest.fixture(scope="module")
-def records(harness, data_dir, tmp_path_factory) -> dict[str, dict]:
-    import json
-
+def records(
+    harness: ModuleType, data_dir: Path, tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, dict]:
     pytest.importorskip("torch")
     pytest.importorskip("peft")
     pytest.importorskip("bitsandbytes")
@@ -253,8 +255,6 @@ class TestCommandLine:
                           "--train-limit", "8"])
 
     def test_a_run_that_crashes_keeps_its_record(self, harness, data_dir, tmp_path, monkeypatch):
-        import json
-
         pytest.importorskip("peft")
 
         def broken(*args, **kwargs):

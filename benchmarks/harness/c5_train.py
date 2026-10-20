@@ -22,9 +22,12 @@ Choices the rule leaves open, fixed before the first arm:
   row becomes an alpaca row (``context`` is the input), ``format_to_messages``
   makes the messages and ``build_format_row`` with ``chat_template: chatml``
   makes the input ids and labels. Training loss is on Soup's assistant mask.
-- Task loss counts the answer tokens and the ``<|im_end|>`` marker after them,
-  but not the ``<|im_start|>assistant`` header: the header is fixed text with
-  near-zero loss after training and would pull every ratio towards 1.
+- Task loss counts the answer tokens only: the tokens whose first character is
+  inside the answer text. The ``<|im_start|>assistant`` header and the
+  ``<|im_end|>`` marker are fixed text with near-zero loss after training, and
+  OLMoE-0924 splits each into 7 to 9 plain tokens (the median panel answer is
+  44 tokens), so counting them would pull every ratio towards 1. A token that
+  merges the answer's last character with the marker (``.<``) counts.
 - The training loop is written here, with Soup's defaults (AdamW, warmup 0.03,
   weight decay 0.01, grad clip 1.0, cosine). Each step's loss is the summed NLL
   of its 16 examples over their label tokens, as transformers' Trainer does
@@ -62,8 +65,6 @@ if TYPE_CHECKING:
 
 console = Console()
 
-MODEL_ID = "allenai/OLMoE-1B-7B-0924"
-MODEL_REVISION = "6d84c48581ece794365f2b8e9cfb043c68ade9c5"
 # Split hashes from benchmarks/gate-c5-q2-0-experts.md; a real run refuses others.
 PANEL_SHA256 = "b4b2ab938ca72a52c660d810045e3f31f842e3107e00738f827abb3f932d2a37"
 TRAIN_SHA256 = {
@@ -124,8 +125,8 @@ def encode_example(row: dict[str, Any], tokenizer: Any, max_length: int) -> dict
     """Input ids and training labels by Soup, and the task-loss mask.
 
     ``labels`` is Soup's response-only mask with ``chat_template: chatml``.
-    ``response_mask`` keeps the labelled tokens after the rendered generation
-    prompt, so the ``<|im_start|>assistant`` header is out of the task loss.
+    ``response_mask`` keeps the labelled tokens whose first character lies in
+    the answer text of the rendered conversation, by the tokenizer's offsets.
     """
     from soup_cli.config.schema import DataConfig
     from soup_cli.data.sft_format import build_format_row
@@ -141,8 +142,17 @@ def encode_example(row: dict[str, Any], tokenizer: Any, max_length: int) -> dict
     shared = min(len(prompt_ids), len(input_ids))
     if input_ids[:shared] != prompt_ids[:shared]:
         raise ValueError(f"row {row['row']}: the prompt does not tokenize as a prefix")
+    answer = messages[1]["content"]
+    rendered = tokenizer.apply_chat_template(messages, tokenize=False)
+    if rendered[len(prompt):len(prompt) + len(answer)] != answer:
+        raise ValueError(f"row {row['row']}: the answer does not follow the prompt")
+    tokens = tokenizer(rendered, add_special_tokens=False, return_offsets_mapping=True)
+    if tokens["input_ids"][:len(input_ids)] != input_ids:
+        raise ValueError(f"row {row['row']}: Soup's ids differ from the rendered text's")
+    answer_span = range(len(prompt), len(prompt) + len(answer))
     response_mask = [
-        i >= len(prompt_ids) and label != IGNORE_INDEX for i, label in enumerate(labels)
+        label != IGNORE_INDEX and start in answer_span
+        for label, (start, _end) in zip(labels, tokens["offset_mapping"])
     ]
     return {"row": row["row"], "input_ids": input_ids, "labels": labels,
             "response_mask": response_mask}
@@ -167,7 +177,7 @@ def run_config(args: argparse.Namespace) -> dict[str, Any]:
             "chat_template": CHAT_TEMPLATE,
             "max_length": MAX_LENGTH,
             "train_on_responses_only": True,
-            "task_loss_tokens": "answer and <|im_end|> marker, not the assistant header",
+            "task_loss_tokens": "tokens starting inside the answer text; no header, no marker",
             "train_limit": args.train_limit,
             "panel_limit": args.panel_limit,
         },
@@ -254,7 +264,7 @@ def load_model(args: argparse.Namespace, tokenizer: Any) -> tuple[torch.nn.Modul
     return model.to(args.device), info
 
 
-def swap_experts(model: torch.nn.Module, arm: str) -> dict[str, Any]:
+def prepare_experts(model: torch.nn.Module, arm: str) -> dict[str, Any]:
     """Fake-quant the experts (none for bf16); fingerprints and errors for the record."""
     codec_name = ARM_CODECS[arm]
     experts = swap.expert_tensor_names(model)
@@ -364,6 +374,11 @@ def train(
     from transformers import get_cosine_schedule_with_warmup
 
     training = config["training"]
+    if (training["optimizer"], training["scheduler"]) != ("adamw_torch", "cosine"):
+        raise ValueError(
+            "this loop runs AdamW with a cosine schedule; Soup's defaults are now "
+            f"{training['optimizer']} and {training['scheduler']}"
+        )
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(
         params, lr=training["lr"], betas=tuple(training["adam_betas"]),
@@ -614,7 +629,7 @@ def _run(
         console.print(f"  {record['model']['note']}")
 
     start = time.perf_counter()
-    swapped = swap_experts(model, args.arm)
+    swapped = prepare_experts(model, args.arm)
     record["non_expert_fingerprints"] = swapped.pop("non_expert_fingerprints")
     record["expert_digest"] = swapped.pop("expert_digest")
     record["swap"] = swapped
