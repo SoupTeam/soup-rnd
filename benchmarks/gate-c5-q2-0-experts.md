@@ -531,7 +531,8 @@ Verdict clause, in the binding wording:
 
 Verdict **fail**, computed by `benchmarks/harness/c5_verdict.py` under the
 rule, no threshold changed. Equality with NF4 is not claimed: Q2_0 is worse on
-task loss in every seed and on three of four gate suites.
+task loss in every seed and scores lower on average in all four gate suites
+(the drop passes the limit only in `mini_instruction`).
 
 | Check | Limit | Measured | Result |
 |---|---|---|---|
