@@ -1,0 +1,52 @@
+{
+  "archive": "raw-results.zip",
+  "archive_sha256": "8c93ded0a54173c5b5ec3b40cb164249e8506cf6a72aeb8b9c8a834f94457b45",
+  "crc": "passed",
+  "source_hashes_verified": 606,
+  "matches_sent_payload": true,
+  "tests_passed": 7,
+  "skipped": 0,
+  "metrics": [
+    {
+      "case": "test_cuda_forward_and_weight_arena_peak[False-False]",
+      "pool_bytes": 3072,
+      "peak": {
+        "baseline_allocated": 8550912,
+        "baseline_reserved": 23068672,
+        "max_allocated": 8562688,
+        "max_reserved": 23068672
+      }
+    },
+    {
+      "case": "test_cuda_forward_and_weight_arena_peak[True-False]",
+      "pool_bytes": 4608,
+      "peak": {
+        "baseline_allocated": 8552448,
+        "baseline_reserved": 23068672,
+        "max_allocated": 8564224,
+        "max_reserved": 23068672
+      }
+    },
+    {
+      "case": "test_cuda_forward_and_weight_arena_peak[True-True]",
+      "pool_bytes": 7168,
+      "peak": {
+        "baseline_allocated": 8555008,
+        "baseline_reserved": 23068672,
+        "max_allocated": 8566784,
+        "max_reserved": 23068672
+      }
+    }
+  ],
+  "scope": "synthetic CUDA instrument tests only; not trained-checkpoint acceptance",
+  "source_base": "9510096a657b41585a509a35b2a710301f934bef",
+  "packages": {
+    "torch": "2.14.1+cu130",
+    "transformers": "5.19.0",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0",
+    "peft": "0.21.2",
+    "trl": "0.29.1",
+    "pytest": "9.1.1"
+  }
+}
