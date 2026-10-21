@@ -136,12 +136,45 @@ def _l2l_step_for(state: L2LState, model: Any, shape: Tuple[int, int], ids: Any)
     return step
 
 
+def check_activation_budget(
+    nbytes: int, *, free_ram: Optional[int], n_layers: int, k: int, chunk_bytes: int
+) -> None:
+    """Refuse an activation store that would not fit the free host RAM, before allocating it.
+
+    The weight store and staging are already resident when this runs, so ``free_ram``
+    is what they left over. Without psutil (``free_ram`` is None) nothing is checked.
+    """
+    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
+
+    if free_ram is None or nbytes < free_ram * RAM_TIER_HEADROOM:
+        return
+    raise ValueError(
+        f"training.l2l keeps {n_layers} layers x {k} micro-batches of activations in host "
+        f"RAM: {nbytes / 1e9:.2f} GB ({chunk_bytes / 1e6:.1f} MB each), but only "
+        f"{free_ram / 1e9:.1f} GB is free and {RAM_TIER_HEADROOM:.0%} of that is usable. "
+        f"Lower gradient_accumulation_steps, data.max_length or batch_size, or free RAM."
+    )
+
+
 def _store_for(state: L2LState, step: Any, shape: Tuple[int, int], k: int, device: Any) -> Any:
+    import torch
+
     from soup_cli.utils.l2l_activations import ActivationStore
+    from soup_cli.utils.layer_stream import free_ram_bytes
 
     hidden = int(step.causal.config.hidden_size)
     if state.store is None or state.store.shape[:2] != shape or state.store.k < k:
         state.close()
+        n_layers = len(step.layers)
+        itemsize = torch.empty((), dtype=state.dtype).element_size()
+        chunk_bytes = shape[0] * shape[1] * hidden * itemsize
+        check_activation_budget(
+            n_layers * k * chunk_bytes,
+            free_ram=free_ram_bytes(),
+            n_layers=n_layers,
+            k=k,
+            chunk_bytes=chunk_bytes,
+        )
         state.store = ActivationStore(
             n_layers=len(step.layers),
             k=k,
@@ -196,11 +229,14 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             device = state.runtime.device
             ids_list, label_list = _window_tensors(window, device)
             shape = tuple(int(dim) for dim in ids_list[0].shape)
-            step = _l2l_step_for(state, model, shape, ids_list[0])
-            store = _store_for(state, step, shape, len(window), device)
-            losses = step.run(
-                ids_list, store, n_items=int(num_items_in_batch), labels=label_list
-            )
+            # The step bypasses the wrapped forward, where the Trainer applies its mixed
+            # precision; forward, head and the recompute in backward all run inside it.
+            with self.accelerator.autocast():
+                step = _l2l_step_for(state, model, shape, ids_list[0])
+                store = _store_for(state, step, shape, len(window), device)
+                losses = step.run(
+                    ids_list, store, n_items=int(num_items_in_batch), labels=label_list
+                )
             state.steps += 1
             state.totals.add(step.counters)
             return torch.stack(losses).sum().to(self.args.device)

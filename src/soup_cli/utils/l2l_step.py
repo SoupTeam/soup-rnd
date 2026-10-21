@@ -104,7 +104,10 @@ def label_tokens(micro_batches: Sequence[Any]) -> int:
 
 
 def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
-    """Run one forward without grad and record what layer 0 receives."""
+    """Run one forward without grad and record what layer 0 receives.
+
+    The random state is restored afterwards, so the capture draws nothing from it.
+    """
     import torch
 
     _causal, owner = model_parts(model)
@@ -115,8 +118,10 @@ def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
             seen["call"] = (tuple(args[1:]), dict(kwargs))
 
     handle = owner.layers[0].register_forward_pre_hook(hook, with_kwargs=True)
+    # The capture forward runs in training mode, so NEFTune would draw noise from it.
+    cuda = [input_ids.device] if input_ids.device.type == "cuda" else []
     try:
-        with torch.no_grad():
+        with torch.no_grad(), torch.random.fork_rng(devices=cuda):
             model(input_ids=input_ids)
     finally:
         handle.remove()

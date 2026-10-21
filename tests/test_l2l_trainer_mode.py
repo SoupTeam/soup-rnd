@@ -136,7 +136,7 @@ class _Rows:
         return self.rows[i]
 
 
-def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None):
+def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, **targs):
     import torch
     from transformers import TrainerCallback, TrainingArguments
 
@@ -165,6 +165,7 @@ def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None):
         data_seed=1,
         max_grad_norm=0.0,
         disable_tqdm=True,
+        **targs,
     )
     cls = make_l2l_trainer_class(base_cls) if l2l else base_cls
     data = _Rows(rows, lengths=lengths)
@@ -209,6 +210,56 @@ def test_one_optimizer_step_per_window_and_same_adapters_as_accumulation(
     for name in ga:
         assert torch.allclose(ga[name], l2l[name], atol=1e-6, rtol=1e-5), name
     assert any(not torch.equal(l2l[n], before[n]) for n in l2l)
+
+
+def _same_adapters_as_accumulation(streamed, tmp_path, **targs):  # noqa: F811
+    import torch
+    from transformers import Trainer
+
+    harness = _load("l2l_schedule")
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    start = harness.snapshot_adapters(model)
+    _train(Trainer, model, runtime, tmp_path, l2l=False, k=2, **targs)
+    ga = _adapters(model)
+    harness.restore_adapters(model, start)
+    _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, **targs)
+    l2l = _adapters(model)
+    for name in ga:
+        assert torch.allclose(ga[name], l2l[name], atol=1e-6, rtol=1e-5), name
+
+
+def test_bf16_autocast_of_the_trainer_reaches_the_l2l_step(streamed, tmp_path):  # noqa: F811
+    _same_adapters_as_accumulation(streamed, tmp_path, bf16=True)
+
+
+def test_neftune_noise_sequence_is_the_one_accumulation_draws(streamed, tmp_path):  # noqa: F811
+    _same_adapters_as_accumulation(streamed, tmp_path, neftune_noise_alpha=5.0)
+
+
+def test_activation_store_is_refused_before_it_is_allocated(streamed, tmp_path, monkeypatch):  # noqa: F811
+    from transformers import Trainer
+
+    from soup_cli.utils import l2l_activations
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("the store was allocated")
+
+    monkeypatch.setattr(l2l_activations, "ActivationStore", forbidden)
+    monkeypatch.setattr("soup_cli.utils.layer_stream.free_ram_bytes", lambda: 1000)
+    model, runtime = streamed
+    _load("l2l_schedule").make_non_vacuous(model)
+    with pytest.raises(ValueError, match=r"activation.*gradient_accumulation_steps"):
+        _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)
+
+
+def test_activation_budget_accepts_what_fits_and_skips_without_psutil():
+    from soup_cli.trainer.l2l_trainer import check_activation_budget
+
+    check_activation_budget(600, free_ram=1000, n_layers=2, k=3, chunk_bytes=100)
+    check_activation_budget(10**15, free_ram=None, n_layers=2, k=3, chunk_bytes=100)
+    with pytest.raises(ValueError, match="activation"):
+        check_activation_budget(800, free_ram=1000, n_layers=2, k=4, chunk_bytes=100)
 
 
 def test_counters_reach_the_training_log(streamed, tmp_path):  # noqa: F811
