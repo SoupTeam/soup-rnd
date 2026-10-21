@@ -27,8 +27,9 @@ No optimizer step. torch is imported inside functions.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 SUPPORTED_ARCHS = ("llama", "mistral")
 
@@ -39,6 +40,39 @@ class LayerCall:
 
     args: Tuple[Any, ...]
     kwargs: Dict[str, Any]
+
+
+@dataclass
+class LoadCounters:
+    """Layer loads and weight restores over a span, read from the runtime's own counters.
+
+    ``layer_loads`` and ``large_loads`` are the pools' ``loads``; ``restores`` is the
+    NF4 rebuilds of ``Params4bit`` views (always 0 without quantization). Nothing is
+    patched: the runtime already counts, this reads the difference.
+    """
+
+    layer_loads: int = 0
+    large_loads: int = 0
+    restores: int = 0
+
+
+def _counter_values(runtime: Any) -> Tuple[int, int, int]:
+    stats = runtime.stats()
+    return stats["layer_loads"], stats["large_loads"], stats["layer_restores"]
+
+
+@contextmanager
+def count_loads(runtime: Any) -> Iterator[LoadCounters]:
+    """Yield a ``LoadCounters`` that holds the span's deltas once the block exits."""
+    counters = LoadCounters()
+    before = _counter_values(runtime)
+    try:
+        yield counters
+    finally:
+        after = _counter_values(runtime)
+        counters.layer_loads, counters.large_loads, counters.restores = (
+            b - a for a, b in zip(before, after)
+        )
 
 
 def model_parts(model: Any) -> Tuple[Any, Any]:
@@ -103,6 +137,9 @@ class L2LStep:
                 "the L2L step cannot load the embedding and prime the prefetcher"
             )
         self._prime = prime
+        self.runtime = runtime
+        #: Loads and restores of the last ``run``; ``None`` before the first.
+        self.counters: Optional[LoadCounters] = None
 
     def _layer(self, layer: Any, hidden: Any) -> Any:
         out = layer(hidden, *self.call.args, **self.call.kwargs)
@@ -110,6 +147,14 @@ class L2LStep:
 
     def run(
         self, micro_batches: Sequence[Any], store: Any, *, n_items: Optional[int] = None
+    ) -> List[Any]:
+        with count_loads(self.runtime) as counters:
+            losses = self._run(micro_batches, store, n_items)
+        self.counters = counters
+        return losses
+
+    def _run(
+        self, micro_batches: Sequence[Any], store: Any, n_items: Optional[int]
     ) -> List[Any]:
         import torch
 

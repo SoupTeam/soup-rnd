@@ -1069,6 +1069,8 @@ class LayerBufferPool:
         else:
             self.active_keys_by_layer = [tuple(keys) for keys in active_keys_by_layer]
         self.loads = 0
+        # Quantised weights rebuilt from this pool's buffers (``rebuild_params4bit``).
+        self.restores = 0
         self.nbytes = (
             sum(buf.numel() * buf.element_size() for buf in self.buffers[0].values()) * self.n
         )
@@ -1612,6 +1614,7 @@ def _build_streamed_layer_class():
                     weights[meta] = buffers[ckpt]
                 else:
                     weight = rebuild_params4bit(ckpt, buffers, spec, self.codes)
+                    self.pool.restores += 1
                     weight._soup_stream_owner_check = self._assert_nf4_slot_owner
                     weights[meta] = weight
             self._cached_substitution_buffers = buffers
@@ -2971,6 +2974,7 @@ class StreamRuntime:
             "read_ahead": getattr(self.source, "read_ahead", None),
             "disk_bytes": getattr(self.source, "disk_bytes", 0),
             "layer_loads": self.pool.loads,
+            "layer_restores": self.pool.restores,
             "large_loads": getattr(self.large_pool, "loads", 0),
             "device": self.device,
             "total_params": self.total_params,

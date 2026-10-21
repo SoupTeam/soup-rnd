@@ -61,3 +61,140 @@ def test_harness_reexports_the_shipped_core(harness):
 
     assert harness.L2LStep is l2l_step.L2LStep
     assert harness.LayerCall is l2l_step.LayerCall
+
+
+# --------------------------------------------------------------------------
+# ticket 02: layer loads and weight restores, read from the shipped counters
+# --------------------------------------------------------------------------
+def _warm_walk(model, ids):
+    """Loads depend on what the previous walk left in the slots; start every
+    measurement after the same forward-only walk."""
+    from soup_cli.utils.l2l_step import capture_layer_call
+
+    capture_layer_call(model, ids)
+
+
+def _l2l_counters(harness, model, runtime, k, cold=None):
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+
+    mbs = _micro_batches(k)
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    harness.zero_grads(model)
+    _warm_walk(model, mbs[0])
+    if cold:
+        cold(model)
+    step.run(mbs, _store(k))
+    return step.counters
+
+
+def _ga_counters(harness, model, runtime, k, cold=None):
+    from soup_cli.utils.l2l_step import count_loads
+
+    mbs = _micro_batches(k)
+    harness.zero_grads(model)
+    _warm_walk(model, mbs[0])
+    if cold:
+        cold(model)
+    with count_loads(runtime) as counters:
+        harness.ga_step(model, mbs)
+    return counters
+
+
+def test_stats_exposes_the_restore_counter(streamed):  # noqa: F811
+    _model, runtime = streamed
+    assert runtime.stats()["layer_restores"] == 0
+
+
+def test_count_loads_reads_the_runtime_counters_without_patching(streamed):  # noqa: F811
+    from soup_cli.utils.l2l_step import count_loads
+
+    model, runtime = streamed
+    load_async = runtime.pool.load_async
+    with count_loads(runtime) as counters:
+        _warm_walk(model, _micro_batches(1)[0])
+    assert runtime.pool.load_async == load_async
+    assert counters.layer_loads > 0
+
+
+def test_l2l_counters_exist_after_a_step_and_are_zero_before(harness, streamed):  # noqa: F811
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+
+    model, runtime = streamed
+    mbs = _micro_batches(1)
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    assert step.counters is None
+    step.run(mbs, _store(1))
+    assert step.counters.layer_loads > 0
+
+
+def test_k1_l2l_loads_what_gradient_accumulation_loads(harness, streamed):  # noqa: F811
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    ga = _ga_counters(harness, model, runtime, 1)
+    l2l = _l2l_counters(harness, model, runtime, 1)
+    assert l2l.layer_loads == ga.layer_loads
+    assert l2l.layer_loads > 0
+
+
+def test_k4_does_not_load_four_times_what_k1_loads(harness, streamed):  # noqa: F811
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    k1 = _l2l_counters(harness, model, runtime, 1)
+    k4 = _l2l_counters(harness, model, runtime, 4)
+    assert k4.layer_loads == k1.layer_loads
+    ga4 = _ga_counters(harness, model, runtime, 4)
+    assert ga4.layer_loads > k4.layer_loads  # accumulation reloads per micro-batch
+
+
+def test_restores_are_zero_without_quantization(harness, streamed):  # noqa: F811
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    for k in (1, 2, 4):
+        assert _l2l_counters(harness, model, runtime, k).restores == 0
+        assert _ga_counters(harness, model, runtime, k).restores == 0
+
+
+def _cold_views(model):
+    """The wrapper caches the rebuilt NF4 views per pool mapping (#841), so a warm
+    runtime restores nothing. Drop the cache to measure one step's restores."""
+    from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+    for layer in decoder_owner(model).layers:
+        layer._cached_substitution_buffers = None
+        layer._cached_substitution_weights = None
+
+
+@pytest.fixture()
+def nf4(tmp_path):
+    pytest.importorskip("peft")
+    pytest.importorskip("bitsandbytes")
+    from tests.test_v07202 import _nf4_stream
+
+    model, runtime, *_ = _nf4_stream(tmp_path, n_layers=3, tie=False)
+    yield model, runtime
+    runtime.close()
+
+
+@pytest.mark.parametrize("k", [1, 2, 4])
+def test_nf4_restores_are_counted_and_do_not_grow_with_k(harness, nf4, k):
+    model, runtime = nf4
+    harness.make_non_vacuous(model)
+    l2l = _l2l_counters(harness, model, runtime, k, cold=_cold_views)
+    assert l2l.restores > 0
+    # at most once per quantised linear per layer, never once per micro-batch
+    assert l2l.restores <= 3 * 7
+    assert l2l.layer_loads > 0
+    assert runtime.stats()["layer_restores"] >= l2l.restores
+
+
+def test_nf4_restores_agree_between_l2l_and_accumulation(harness, nf4):
+    model, runtime = nf4
+    harness.make_non_vacuous(model)
+    counts = {}
+    for k in (1, 2, 4):
+        counts[k] = (
+            _l2l_counters(harness, model, runtime, k, cold=_cold_views).restores,
+            _ga_counters(harness, model, runtime, k, cold=_cold_views).restores,
+        )
+    assert len({l2l for l2l, _ga in counts.values()}) == 1, counts
+    assert all(l2l == ga for l2l, ga in counts.values()), counts
