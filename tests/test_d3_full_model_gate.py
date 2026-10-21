@@ -60,7 +60,7 @@ def test_omitting_executable_source_is_rejected(rule):
 
 @pytest.mark.parametrize("field,value", [
     ("batch", 2), ("tokens", 17), ("modes", ["grouped"]),
-    ("weight_budget_bytes", 2**30), ("negative_control_delta", 0),
+    ("weight_budget_bytes", 2**30), ("negative_control", "single_scalar"),
     ("native_olmoe_rows_max", 16),
 ])
 def test_unimplemented_recipe_or_budget_change_is_rejected(rule, field, value):

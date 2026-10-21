@@ -361,6 +361,10 @@ The subsequent RTX 3090 preparation passed the three tiny CUDA smoke cases and
 The original cutoff-16 large-shape probe failed on this host and is preserved;
 the prospective full-model recipe uses an explicit OLMoE cutoff of 128, without
 altering the archived RTX3060 study or claiming its speed for the new policy.
-All twelve trained full-model cells remain unexecuted. No public training path
-or backward is enabled. The actual trained gate still needs native BF16 and a
-16 GB+ GPU for the resident oracle; a second SSD is unnecessary.
+The first trained series at `c4900bc9` passed five cells, then stopped when
+NF4 sequential's one-byte negative control was ineffective. The failed session
+is [retained](../benchmarks/results/d3-full-forward-c4900bc9/report.md).
+The revised complete-matrix zero control passed CPU and tiny CUDA development
+checks; its twelve-cell series awaits a new prospective source/protocol commit.
+No public training path or backward is enabled. The RTX3090 has already executed
+both full resident formats attempted so far; a second SSD is unnecessary.

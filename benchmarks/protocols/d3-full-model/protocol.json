@@ -2,7 +2,7 @@
   "task": "D3 full trained-model forward correctness; review and B1 coordination remain separate",
   "schema_version": 1,
   "execution_enabled": true,
-  "state": "New-host CUDA controls and immutable inputs/instruments verified. Operator must commit this exact enabled recipe and sources before any trained full-model cell.",
+  "state": "Revision 2 controls verified after retained c4900bc9 failure. Operator must commit exact revised sources/protocol before one new twelve-cell series; zero replacements and no reuse of old passes.",
   "model_id": "allenai/OLMoE-1B-7B-0924",
   "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
   "tokens": 512,
@@ -28,7 +28,6 @@
   "weight_budget_bytes": 67108864,
   "workspace_bytes": 4194304,
   "activation_budget_bytes": 268435456,
-  "negative_control_delta": 0.125,
   "native_olmoe_rows_max": 128,
   "row_policy": "Explicit prospective hybrid: OLMoE 1024/2048 inner dimensions use native mm through 128 rows, grouped above. Tiny 16/32 inner dimensions retain cutoff 16. No output-dependent fallback. The old RTX3060 layer study used cutoff16 and is not a performance result for this new policy.",
   "pass": "All twelve fresh-process cells: finite full logits, exact native A/A and comparison, effective active-expert-weight negative and restored positive in the same process, sixteen-layer dispatch/load checks, required F1 OK, matching source/data/software/GPU identities. Resident grouping uses the exact same GroupedComputeExperts/backend as streamed grouping. Both grouped modes must exercise actual grouped GEMM during their first positive full forward and retain dispatch counts.",
@@ -51,7 +50,7 @@
   },
   "mapping_sha256": "73c09610efb67483944798f25391a3e8899ccf068e95c619360815ba9ea8f4bb",
   "controls_sha256": "d51742eca0202a3818d25458d532f0218733f95ca0e78b98f989629eccdf47bf",
-  "setup_archive_sha256": "c63d0a75c24c9953a759912f6192f7b9141de0c8f123afa0ecb94de49be49370",
+  "setup_archive_sha256": "2d06048e1762bd1ba3b6e462675daa08764a9e8dec32e462a77bbe9e389d356d",
   "sources": [
     "benchmarks/harness/d3_full_model.py",
     "benchmarks/harness/d3_full_model_gate.py",
@@ -79,8 +78,25 @@
     "Exposed storage counters and GPU-peer telemetry do not prove physical-host isolation.",
     "Synthetic token IDs exercise the complete model but are not validation on real text.",
     "D3 remains subject to interface coordination and implementation/evidence review.",
-    "RTX3090 preparation originally failed large-shape arithmetic at cutoff16. Retained development evidence motivated the explicit prospective cutoff128 policy. No trained full-model cell has run.",
+    "RTX3090 preparation originally failed large-shape arithmetic at cutoff16. Retained development evidence motivated the explicit prospective cutoff128 policy. The original c4900bc9 session subsequently failed its negative control and is retained.",
     "The earlier RTX3060 layer performance used cutoff16 and cannot be assigned to this new cutoff128 recipe.",
-    "Tiny and large-shape CUDA controls passed on this host; they do not replace the twelve trained cells."
-  ]
+    "Tiny and large-shape CUDA controls passed on this host; they do not replace the twelve trained cells.",
+    "Control revision 2 follows an observed failed negative. Nine CPU cases and three tiny CUDA models validate the revised control; no revision-2 trained full-model cell has run. Previous passed cells cannot be reused."
+  ],
+  "negative_control": "zero_entire_active_expert_down_projection",
+  "control_revision": 2,
+  "prior_formal_session": {
+    "source_commit": "c4900bc9d82e2d908aaf36bd72c4bcfc05de4ca7",
+    "status": "incomplete",
+    "passed_cells": 5,
+    "failed_cell": "nf4-sequential",
+    "failure": "ineffective one-byte active-weight negative",
+    "unrun_cells": 6,
+    "retained": true,
+    "new_recipe_must_not_reuse_prior_passed_cells": true,
+    "records_archive_sha256": "bbbd3a45027f6aa2079fd4a5b64ee2b7c81536fecd334b3ccdc9e9d4ce231316",
+    "records_archive": "benchmarks/results/d3-full-forward-c4900bc9/raw-records.zip",
+    "complete_archive_sha256": "dd3a7a13ff02d523e5c40d69a87cc150a80df1c9a818ed44453a61e6f044e0bf"
+  },
+  "negative_control_storage": "Resident: save the selected down matrix on CPU, zero it in-place, then restore exact bytes. Streamed dense: zero only the selected staged down matrix. NF4/nested: fill all packed nibbles with the unique exact-zero code. Immutable files and gate/up matrices remain unchanged."
 }

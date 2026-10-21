@@ -193,6 +193,7 @@ def test_tiny_cuda_full_model_uses_actual_grouped_backend(prepared, tmp_path, co
     if not library:
         pytest.skip("provide the explicit D3_CUBLAS_LIBRARY for the CUDA development smoke")
     from d3_cublas_grouped_probe import reference_policy
+    from d3_full_model_gate import zero_active_down
 
     source, _ = prepared
     source.to(dtype=torch.bfloat16)
@@ -207,25 +208,71 @@ def test_tiny_cuda_full_model_uses_actual_grouped_backend(prepared, tmp_path, co
     FULL.prepare_bundle(source.config, state, layers(), folder, codec=codec, quant_device="cuda",
                         provenance={"scope": "tiny synthetic CUDA integration smoke"})
     ids = torch.arange(64, device="cuda").remainder(source.config.vocab_size).reshape(1, -1)
+    bundle = FULL.validate_bundle(folder)
+
+    def controls(run, expected):
+        target = run.traces()[0][0]["expert"]
+        with zero_active_down(run, target, bundle):
+            assert not torch.equal(run.forward(ids).cpu(), expected)
+        assert torch.equal(run.forward(ids).cpu(), expected)
+
     tf32 = torch.backends.cuda.matmul.allow_tf32
     torch.backends.cuda.matmul.allow_tf32 = False
     try:
         with reference_policy("cublaslt-no-splitk"), torch.no_grad():
             with FULL.open_resident_model(folder, device="cuda") as native:
                 expected = native.forward(ids).cpu()
+                controls(native, expected)
             with FULL.open_streamed_model(folder, device="cuda", backend="sequential") as run:
                 assert torch.equal(run.forward(ids).cpu(), expected)
+                controls(run, expected)
             with FULL.open_resident_model(folder, device="cuda", backend="grouped-compute",
                                            library=Path(library),
                                            native_olmoe_rows_max=128) as run:
                 assert torch.equal(run.forward(ids).cpu(), expected)
+                controls(run, expected)
             with FULL.open_streamed_model(folder, device="cuda", backend="grouped-compute",
                                            library=Path(library),
                                            native_olmoe_rows_max=128) as run:
                 assert torch.equal(run.forward(ids).cpu(), expected)
                 assert run.gemm.stats()["grouped_matrices"] > 0
+                controls(run, expected)
     finally:
         torch.backends.cuda.matmul.allow_tf32 = tf32
+
+
+@pytest.mark.parametrize("codec", ["dense", "nf4", "nf4-dq"])
+@pytest.mark.parametrize("backend", ["resident", "sequential", "grouped-restore-control"])
+def test_whole_projection_negative_is_effective_and_restores_exact_files(
+    prepared, tmp_path, codec, backend,
+):
+    import torch
+    from d3_full_model_gate import zero_active_down
+
+    source, dense = prepared
+    folder = dense
+    if codec != "dense":
+        state = {key: value for key, value in source.state_dict().items()
+                 if ".mlp.experts." not in key}
+
+        def layers():
+            for index, layer in enumerate(source.model.layers):
+                yield index, zip(layer.mlp.experts.gate_up_proj, layer.mlp.experts.down_proj)
+
+        folder = tmp_path / ("zero-control-" + codec)
+        FULL.prepare_bundle(source.config, state, layers(), folder, codec=codec,
+                            quant_device="cpu", provenance={"scope": "synthetic control"})
+    bundle = FULL.validate_bundle(folder)
+    run = (FULL.open_resident_model(folder, device="cpu") if backend == "resident"
+           else FULL.open_streamed_model(folder, device="cpu", backend=backend))
+    ids = torch.arange(64).remainder(source.config.vocab_size).reshape(1, -1)
+    with run, torch.no_grad():
+        expected = run.forward(ids)
+        target = run.traces()[0][0]["expert"]
+        with zero_active_down(run, target, bundle):
+            assert not torch.equal(run.forward(ids), expected)
+        assert torch.equal(run.forward(ids), expected)
+    assert FULL.validate_bundle(folder) == bundle
 
 
 @pytest.mark.parametrize("name", ["nonexpert.safetensors", "experts_001.safetensors"])

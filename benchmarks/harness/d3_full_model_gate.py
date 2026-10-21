@@ -15,6 +15,7 @@ import os
 import subprocess
 import sys
 import traceback
+from contextlib import contextmanager
 from pathlib import Path
 
 from d3_full_model import (
@@ -83,7 +84,7 @@ def frozen(rule: dict) -> dict:
             or rule.get("weight_budget_bytes") != 64 * 2**20
             or rule.get("workspace_bytes") != 4 * 2**20
             or rule.get("activation_budget_bytes") != 256 * 2**20
-            or rule.get("negative_control_delta") != 0.125
+            or rule.get("negative_control") != "zero_entire_active_expert_down_projection"
             or rule.get("native_olmoe_rows_max") != 128
             or rule.get("minimum_reported_vram_bytes", 0) < 15 * 2**30):
         raise ValueError("whole-model execution policy is incomplete")
@@ -149,6 +150,56 @@ def check_compute_coverage(mode: str, stats: dict | None) -> None:
         or stats.get("native_olmoe_rows_max") != 128
     ):
         raise ValueError("positive full forward must exercise grouped GEMM under the frozen policy")
+
+
+@contextmanager
+def zero_active_down(run, target: int, bundle: dict):
+    """Temporarily zero one actually routed down projection, then restore ownership.
+
+    NF4 uses its exact zero code in both nibbles, including nested NF4. This
+    changes the same whole matrix as the resident/dense control, without changing
+    immutable files or allocating an additional CUDA weight tensor.
+    """
+    if run.pool is None:
+        down = run.resident_experts[0].down_proj[target]
+        saved = down.detach().cpu().clone()
+        try:
+            down.zero_()
+            yield
+        finally:
+            down.copy_(saved)
+        return
+
+    from soup_cli.utils.expert_shard import expert_key
+    from soup_cli.utils.layer_shard import NF4_CODE_KEY
+    from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
+
+    reader = run.readers[0]
+    key = expert_key(target, "down")
+    packed_zero = None
+    if reader.quant_specs:
+        codes = bundle["layers"][0]["codes"][NF4_CODE_KEY]
+        zero_indices = [i for i, value in enumerate(codes) if value == 0.0]
+        if len(codes) != 16 or len(zero_indices) != 1:
+            raise ValueError("negative control requires a unique exact NF4 zero code")
+        packed_zero = zero_indices[0] * 17
+        key = quant_sidecar_keys(key, reader.quant_specs["down"])[0]
+    original = reader.read_host
+
+    def corrupt(expert, staging):
+        data = original(expert, staging)
+        if expert == target:
+            if packed_zero is None:
+                data[key].zero_()
+            else:
+                data[key].fill_(packed_zero)
+        return data
+
+    reader.read_host = corrupt
+    try:
+        yield
+    finally:
+        reader.read_host = original
 
 
 def prepare(args, rule: dict) -> None:
@@ -303,37 +354,10 @@ def child(args, rule: dict) -> int:
                 ):
                     raise NumericalGateFailureError("full-model exact equality / A-A gate failed")
                 target = traces[0][0]["expert"]
-                if run.pool is None:
-                    down = run.resident_experts[0].down_proj[target]
-                    saved = down.view(-1)[0].clone()
-                    try:
-                        down.view(-1)[0].add_(rule["negative_control_delta"])
-                        negative = run.forward(ids).cpu()
-                    finally:
-                        down.view(-1)[0].copy_(saved)
-                else:
-                    from soup_cli.utils.expert_shard import expert_key
-                    from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
-
-                    reader = run.readers[0]
-                    original = reader.read_host
-
-                    def corrupt(expert, staging):
-                        data = original(expert, staging)
-                        if expert == target:
-                            key = expert_key(expert, "down")
-                            if reader.quant_specs:
-                                key = quant_sidecar_keys(key, reader.quant_specs["down"])[0]
-                                data[key].view(-1)[:1].bitwise_xor_(16)
-                            else:
-                                data[key].view(-1)[:1].add_(rule["negative_control_delta"])
-                        return data
-
-                    reader.read_host = corrupt
-                    try:
-                        negative = run.forward(ids).cpu()
-                    finally:
-                        reader.read_host = original
+                result["negative_control"] = rule["negative_control"]
+                result["control_target"] = {"layer": 0, "expert": target}
+                with zero_active_down(run, target, bundle):
+                    negative = run.forward(ids).cpu()
                 if torch.equal(negative, expected):
                     raise NumericalGateFailureError("full-model active-weight negative ineffective")
                 if not torch.equal(run.forward(ids).cpu(), expected):

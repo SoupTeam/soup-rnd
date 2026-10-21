@@ -1,10 +1,12 @@
 # D3 complete-model forward gate: preparation
 
-Status on 2026-10-21: new-host CUDA smoke, large-shape integration controls,
-immutable inputs and real instrument controls are verified and pinned.
-**No trained full-model CUDA cell has run.** The enabled recipe still requires
-the operator's source/protocol commit and a clean checkout before execution.
-This is not completed preregistration or D3 acceptance.
+Status on 2026-10-21: the first trained series at `c4900bc9` stopped after five
+passing cells when the NF4 sequential cell's single-byte negative control was
+ineffective. All attempted cells, logs and native oracle identities are
+[retained](../../results/d3-full-forward-c4900bc9/report.md).
+The revised whole-projection control passed development tests; its new full
+series requires a new operator source/protocol commit and clean checkout.
+There is no completed twelve-cell gate or D3 acceptance.
 
 ## Dependencies checked
 
@@ -82,6 +84,33 @@ Attention, embeddings, LM head, activations and CUDA libraries are additional.
 Therefore the existing 12 GB RTX 3060 cannot hold the full resident oracle.
 This calculation is not a measured peak or a guarantee that any offered host fits.
 
+## Retained first session and prospective control revision 2
+
+The first formal session used real clean commit `c4900bc9`, after that commit
+was published. BF16 native / sequential / grouped-resident / grouped-streamed
+and NF4 native passed, with required F1 OK. NF4 sequential reached its positive
+equality/A-A checks but failed its active-weight negative control: changing one
+packed byte did not change complete-model logits. The recorded cell remains
+FAIL, its F1 is OK, and six later cells were never launched. The session was not
+retried or relabelled complete.
+
+Revision 2 prospectively zeros the **entire down projection of one actually
+routed expert in layer 0**. Resident owners restore their saved matrix; streamed
+owners restore their original read hook and reload immutable bytes. NF4 and
+nested NF4 fill both packed nibbles with the code table's unique exact-zero
+index, producing the same zero matrix as the dense/resident control. Original
+weight files, positive equality, budgets, tokens and formats stay fixed.
+Reported peaks cover setup and validation controls; the resident control's saved
+matrix is host memory. They are not isolated steady-state forward footprints.
+
+Nine additional CPU controls cover three formats and three owner paths.
+Three tiny CUDA tests cover all four backends per format, including effective
+negative and exact restored-positive checks. These are development controls
+following an observed failed control. They are not new trained full-model cells
+or retrospective preregistration. A new source/protocol commit is required before
+one new twelve-cell series, with zero replacements; the five old passes cannot
+be substituted into that series.
+
 ## Before any trained full-model forward
 
 1. Select the new host and verify native BF16, usable VRAM, free disk, software,
@@ -111,7 +140,7 @@ This calculation is not a measured peak or a guarantee that any offered host fit
    receipts cannot be reused. Preserve unsuccessful preparation and controls.
 5. GPU/software/library, bundle and instrument hashes are filled and retained in
    `setup-evidence.zip`. The rule is enabled. Have the operator commit/push the
-   exact source and protocol **before the first trained full-model cell**.
+   exact revised source and protocol **before any revision-2 trained cell**.
 6. Run from the actual clean committed checkout:
 
    ```bash
@@ -131,18 +160,18 @@ only the streamed paths claim a bounded shared expert-weight arena.
 Original preparation CPU/regression suite: **145 passed, 72 skipped**, including new tiny
 whole-model dense/NF4/nested-NF4 comparisons and execution/provenance controls.
 Those three CUDA smoke cases subsequently passed on the RTX 3090, as described
-above. The latest CPU regression suite reports 152 passed / 74 hardware skips;
+above. The latest CPU regression suite reports 161 passed / 74 hardware skips;
 the separate on-host CUDA tests supply the actual GPU evidence. No instance was
 restarted, stopped, destroyed or rented by the agent.
 
-Full repository Ruff is clean. No full repository pytest or new trained CUDA
-result is claimed. The selected log and exact preparation source are retained in
+Full repository Ruff is clean. No full repository pytest or complete trained
+CUDA gate is claimed. The selected log and exact preparation source are retained in
 `preparation-evidence.zip` (the original CPU-only preparation snapshot).
 `setup-evidence.zip` retains the subsequent real GPU preparation, first failed
 arithmetic probe, diagnostics, corrected-shape regression, immutable bundle
 identities, all 48 mapped files, and baseline/own/independent-foreign controls.
-Its 24 outer entries and the 61 entries in the retained host archive were
-verified, including all archive CRCs and manifest hashes. The local
-`setup-verification.json` states that zero trained full-model cells have run.
-The operator commit, twelve trained cells and implementation/interface review
-remain outstanding.
+The archive also retains the failed first session and the revised synthetic
+negative-control tests. CRCs and manifest hashes were verified. The local
+`setup-verification.json` distinguishes the six attempted original cells from
+the zero revision-2 trained cells. A new operator commit, a complete revised
+series and implementation/interface review remain outstanding.
