@@ -1,0 +1,43 @@
+{
+  "label": "RTX 3050 Laptop, rehearsal",
+  "control": {
+    "label": "RTX 3050 Laptop, control",
+    "rejected_in_every_path": true,
+    "problems": [],
+    "paths": {
+      "native": {
+        "valid": false,
+        "refused": [
+          "grad_norm",
+          "parameters_changed"
+        ],
+        "weight_decay": 0.0
+      },
+      "unsloth": {
+        "valid": false,
+        "refused": [
+          "grad_norm",
+          "parameters_changed"
+        ],
+        "weight_decay": 0.0
+      }
+    }
+  },
+  "verdicts": [
+    {
+      "config": "C1",
+      "arm": "A-unsloth",
+      "verdict": "pass",
+      "reason": "",
+      "step": 1
+    },
+    {
+      "config": "C1",
+      "arm": "B-chronicals",
+      "verdict": "out of scope",
+      "reason": "ChronicalsTrainer is a custom loop, not an HF Trainer",
+      "step": null
+    }
+  ],
+  "note": "rehearsal numbers do not enter a verdict"
+}

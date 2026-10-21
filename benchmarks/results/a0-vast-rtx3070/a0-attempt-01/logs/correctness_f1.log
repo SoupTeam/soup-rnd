@@ -1,0 +1,14 @@
+RUN: L2L step-0 probe, mode correctness
+gpu             NVIDIA GeForce RTX 3070
+torch           2.14.1+cu130
+vram_total_gb   8.221
+soup_cli_file   /workspace/soup-a0/src/soup_cli/__init__.py
+driver          580.159.04
+pcie_gen        3
+pcie_width      16
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+shard_dir       /workspace/soup-a0/.soup/f1-nf4
+direct_io       None
+v3              {'free_gb': 21.190713344, 'commit_avail_gb': None, 'need_gb': 0.536870912, 'margin_gb': 4.0, 'gpu_used_before_build_mib': 4, 'gpu_pids': [102110], 'foreign_gpu_pids': [], 'ram_ok': True, 'gpu_ok': True, 'ok': True}
+correctness F1 k=4: A-vs-A False, L2L False (max |d| 1.346e-01), losses True
+wrote         /workspace/soup-a0/.soup/results/a0-attempt-01/correctness_f1.json
