@@ -1,0 +1,157 @@
+{
+  "kind": "Linux physical-NVMe primitive / synthetic random fixture",
+  "protocol_sha256": "2c9348dcd558d88a3d5cb44d7253dbb4c2c3b78ed2537edf7d60014ae510a3e7",
+  "harness_sha256": "f699300ba269532101e14b674d4931eb4d3c05a2d8d3ed30cdccf9bd131debda",
+  "core_sha256": "1b425e1dcf19b2779b265d84c6d7416c3de2ec71c7a55e0bf72113bd98e0c32d",
+  "python": "3.12.12 | packaged by conda-forge | (main, Oct 22 2025, 23:25:55) [GCC 14.3.0]",
+  "torch": "2.14.1+cu130",
+  "soup_cli_file": "/workspace/c2-final/src/soup_cli/__init__.py",
+  "git_sha": "0a3ff8058e80c446711af17e1050624d814d427b",
+  "correctness_ok": true,
+  "complete": false,
+  "invalid_reasons": [
+    "RuntimeError(\"NVMe not idle: {'nvme0n1': {'read': 8190.928108963867, 'write': 1301333.7033116345}}\")"
+  ],
+  "rounds": [
+    {
+      "order": [
+        1
+      ],
+      "arms": {}
+    }
+  ],
+  "workers": 4,
+  "allocated_slots": 2,
+  "span_bytes": 419430400,
+  "allocated_bytes": 838860800,
+  "box_start": {
+    "time": 1792335922.3156934,
+    "memory": {
+      "MemTotal": 33337122816,
+      "MemAvailable": 30993502208
+    },
+    "loadavg": [
+      0.6796875,
+      2.482421875,
+      2.38427734375
+    ],
+    "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 43, 180 MHz, 10 MiB, 0 %, 3.39 W\n",
+    "gpu_clients": [],
+    "temperatures": {
+      "/sys/class/hwmon/hwmon2": {
+        "name": "coretemp",
+        "millidegrees_c": {
+          "temp42_input": 35000,
+          "temp26_input": 28000,
+          "temp36_input": 32000,
+          "temp6_input": 32000,
+          "temp43_input": 35000,
+          "temp10_input": 32000,
+          "temp37_input": 32000,
+          "temp30_input": 29000,
+          "temp14_input": 31000,
+          "temp40_input": 32000,
+          "temp34_input": 32000,
+          "temp18_input": 32000,
+          "temp44_input": 35000,
+          "temp38_input": 32000,
+          "temp1_input": 35000,
+          "temp41_input": 32000,
+          "temp35_input": 32000,
+          "temp45_input": 35000,
+          "temp39_input": 32000,
+          "temp22_input": 28000,
+          "temp2_input": 31000
+        }
+      },
+      "/sys/class/hwmon/hwmon1": {
+        "name": "nvme",
+        "millidegrees_c": {
+          "temp3_input": 10850,
+          "temp1_input": 46850,
+          "temp2_input": 47850
+        }
+      }
+    }
+  },
+  "fixture": {
+    "path": "/workspace/c2-fixture.bin",
+    "size": 41943040000,
+    "allocated": 41943040000,
+    "mtime_ns": 1792334331118924426
+  },
+  "mapping_idle": {
+    "nvme0n1": {
+      "read": 0.0,
+      "write": 45050.08377079351
+    }
+  },
+  "mapping": {
+    "before": {
+      "nvme0n1": {
+        "read": 819651838464,
+        "write": 661278022144
+      }
+    },
+    "after": {
+      "nvme0n1": {
+        "read": 820725580288,
+        "write": 661278022144
+      }
+    },
+    "bytes": 1073741824
+  },
+  "physical_device": "nvme0n1",
+  "physical_model": "Lexar SSD NQ780 1TB                     \n",
+  "offsets": [
+    0,
+    419430400,
+    838860800,
+    1258291200,
+    1677721600,
+    2097152000,
+    2516582400,
+    2936012800,
+    3355443200,
+    3774873600,
+    4194304000,
+    4613734400,
+    5033164800,
+    5452595200,
+    5872025600,
+    6291456000,
+    6710886400,
+    7130316800,
+    7549747200,
+    7969177600,
+    8388608000,
+    8808038400,
+    9227468800,
+    9646899200
+  ],
+  "correctness_passes": [
+    {
+      "depth": 1,
+      "completed": 24,
+      "max_pending_spans": 1,
+      "max_pending_ranges": 4,
+      "seconds": 4.056315013964195
+    },
+    {
+      "depth": 2,
+      "completed": 24,
+      "max_pending_spans": 2,
+      "max_pending_ranges": 8,
+      "seconds": 2.370409177034162
+    }
+  ],
+  "direct_io_verified": true,
+  "fixture_after": {
+    "size": 41943040000,
+    "mtime_ns": 1792334331118924426
+  },
+  "decision": {
+    "verdict": "NO VERDICT",
+    "reason": "invalid, incomplete or unreviewed evidence"
+  }
+}

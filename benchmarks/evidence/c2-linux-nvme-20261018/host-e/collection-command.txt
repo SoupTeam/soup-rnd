@@ -1,0 +1,29 @@
+import hashlib,json,pathlib,subprocess,tarfile,time
+p=pathlib.Path
+root=p('/workspace')
+record={'collected_unix':time.time(),'git_sha':subprocess.check_output(['git','-C','/workspace/c2','rev-parse','HEAD'],text=True).strip(),'git_status':subprocess.check_output(['git','-C','/workspace/c2','status','--porcelain'],text=True),'assets':{}}
+for folder in ['/workspace/c2-weights','/workspace/c2/c2-cache']:
+ rows={str(f):{'size':f.stat().st_size,'allocated':f.stat().st_blocks*512,'mtime_ns':f.stat().st_mtime_ns} for f in sorted(p(folder).iterdir()) if f.is_file()}
+ record['assets'][folder]={'files':rows,'total_bytes':sum(x['size'] for x in rows.values()),'allocated_bytes':sum(x['allocated'] for x in rows.values())}
+f=p('/workspace/c2-fixture.bin');record['fixture']={'size':f.stat().st_size,'mtime_ns':f.stat().st_mtime_ns,'allocated':f.stat().st_blocks*512}
+before=json.loads(p('/workspace/c2-sensor-manual-e2.json').read_text())
+record['all_assets_metadata_unchanged']=record['assets']==before['assets']
+record['gpu_after']=subprocess.check_output(['nvidia-smi','--query-compute-apps=pid,process_name','--format=csv,noheader'],text=True)
+p('/workspace/c2-final-metadata.json').write_text(json.dumps(record,indent=2)+'\n')
+files=[]
+for f in root.glob('c2-*'):
+ if f.is_file() and f.suffix not in {'.bin','.bundle'}: files.append(f)
+ elif f.is_dir() and f.name.startswith('c2-diag-'): files.extend(x for x in f.rglob('*') if x.is_file())
+files.extend(f for f in p('/root').glob('c2-*') if f.is_file() and f.suffix in {'.log','.exit','.json'})
+files.append(p('/root/constraints.txt'))
+for relative in ['config.json','model.safetensors.index.json']:
+ f=p('/workspace/c2-weights')/relative
+ if f.exists():files.append(f)
+for f in p('/workspace/c2/c2-cache').glob('*.json'):files.append(f)
+manifest={str(f):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in sorted(set(files))}
+p('/root/c2-evidence-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+archive=p('/root/c2-evidence-final.tar.gz')
+with tarfile.open(archive,'w:gz') as tar:
+ for f in sorted(set(files)):tar.add(f,arcname=str(f).lstrip('/'),recursive=False)
+ tar.add('/root/c2-evidence-manifest.json',arcname='manifest.json')
+p('/root/c2-evidence-final.sha256').write_text(hashlib.sha256(archive.read_bytes()).hexdigest()+'  c2-evidence-final.tar.gz\n')

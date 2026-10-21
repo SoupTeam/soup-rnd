@@ -3015,6 +3015,14 @@ def _layer_name_map(layer: Any) -> Dict[str, str]:
     }
 
 
+def _refuse_expert_storage_cache(index: Any) -> None:
+    if getattr(index, "expert_layout", ""):
+        raise ValueError(
+            "per_expert cache is a B1.1 storage artifact; expert training runtime "
+            "requires B1.2/B1.3. Re-shard with the default fused layout to train."
+        )
+
+
 def install_streaming(
     model: Any,
     *,
@@ -3069,6 +3077,8 @@ def install_streaming(
                 logger.warning(message)
         pin = False
         require_pin = False
+
+    _refuse_expert_storage_cache(index)
 
     # Validate the index BEFORE touching the model: an index whose `quant` and
     # `quant_specs` disagree passes the cache key (which reads `quant`) and
@@ -3648,6 +3658,10 @@ def build_streamed_model(
         double_quant=double_quant,
         trust_remote_code=trust_remote_code,
     )
+    # Architecture / Hub-code refusals must run before ANY access to the cache
+    # index (B2). The skeleton is meta-only; reject storage-only layouts before
+    # materializing extras, decoder buffers or adapters.
+    _refuse_expert_storage_cache(index)
     external_tensors = dict(getattr(index, "external_tensors", None) or {})
     external_sources: Tuple[Any, ...] = ()
     if external_tensors:

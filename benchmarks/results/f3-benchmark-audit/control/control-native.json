@@ -1,0 +1,61 @@
+{
+  "valid": false,
+  "failures": [
+    {
+      "check": "grad_norm",
+      "message": "step 0 logged grad_norm == 0.0: the model was not training while this was measured."
+    },
+    {
+      "check": "parameters_changed",
+      "message": "trainable parameters are bit-identical between the first and last measured step: nothing trained, whatever the logs said."
+    }
+  ],
+  "checks": {
+    "trainable_parameters": 272,
+    "grad_norm": "failed",
+    "parameters_changed": false
+  },
+  "timing": {
+    "median_seconds": 0.09215942450100556,
+    "p95_seconds": 0.3169672129988612,
+    "counted_steps": 12,
+    "warmup_steps_discarded": 0,
+    "total_seconds": 1.326297963001707,
+    "step_seconds": [
+      0.3169672129988612,
+      0.09370798300005845,
+      0.1076382850005757,
+      0.08060648600076092,
+      0.10335095700065722,
+      0.08152174099814147,
+      0.09061086600195267,
+      0.11499382400143077,
+      0.096776147998753,
+      0.07322457400005078,
+      0.08044559300105902,
+      0.08645429299940588
+    ]
+  },
+  "tokens": {
+    "useful": 0,
+    "total": 2217,
+    "utilisation": 0.0
+  },
+  "throughput": {
+    "useful_tokens_per_second": 0.0,
+    "total_tokens_per_second": 1671.5700859424048
+  },
+  "memory": {
+    "peak_allocated_bytes": 2457582592
+  },
+  "provenance": {
+    "path": "native",
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "control": true,
+    "weight_decay": 0.0
+  },
+  "config_hash": null,
+  "steps_requested": 12,
+  "steps_measured": 12,
+  "report_path": "/home/m1kadoo/Documents/soup-rnd/benchmarks/results/f3-benchmark-audit/control/control-native.json"
+}
