@@ -1,0 +1,1159 @@
+{
+ "synthetic": true,
+ "arm": "nf4",
+ "seed": 123,
+ "attempt": 1,
+ "status": "complete",
+ "started": "2026-10-21T00:14:19+0500",
+ "started_unix": 1792523659.1729631,
+ "command": [
+  "/Users/Asus/Documents/soup-rnd/.venv/bin/python",
+  "/Users/Asus/Documents/soup-rnd/benchmarks/harness/c5_train.py",
+  "--arm",
+  "nf4",
+  "--seed",
+  "123",
+  "--data-dir",
+  "/private/tmp/claude-501/-Users-Asus-Documents-soup-rnd/3b330194-0f6f-49c7-8603-b273ab017f9e/scratchpad/c5data",
+  "--out-dir",
+  "/private/tmp/claude-501/-Users-Asus-Documents-soup-rnd/3b330194-0f6f-49c7-8603-b273ab017f9e/scratchpad/demo2/nf4-s123-a1",
+  "--fixture",
+  "granite",
+  "--train-limit",
+  "64",
+  "--panel-limit",
+  "32"
+ ],
+ "commit": {
+  "sha": "ff6035cfea1e207e46d51300d80e673a7742661f",
+  "dirty": []
+ },
+ "versions": {
+  "python": "3.11.0",
+  "torch": "2.14.1",
+  "transformers": "5.20.2",
+  "peft": "0.21.2",
+  "bitsandbytes": "0.50.2",
+  "datasets": "5.1.0",
+  "tokenizers": "0.23.3",
+  "soup-cli": "0.75.0"
+ },
+ "device": "cpu",
+ "gpu": null,
+ "harness": {
+  "sha256": "c9ad559bc00428659b5971a1145bec9bb7dbb4aeb13e3061644cef6fceb316d4",
+  "swap_sha256": "e2ae3beb6995eaebbb0f4554f272eb067f6e2f392e36c1388f0aa4bda30b419b",
+  "codec_sha256": "fbaefa2a5efdf988fbc9dbb509de339b6ea6a56de3b1c08a1b43d5305f7917ac"
+ },
+ "config": {
+  "codec": "nf4",
+  "seed": 123,
+  "model": {
+   "id": "fixture:granite",
+   "revision": null
+  },
+  "data": {
+   "source": "Dolly row as alpaca: instruction, context as input, response as output",
+   "chat_template": "chatml",
+   "max_length": 1024,
+   "train_on_responses_only": true,
+   "task_loss_tokens": "tokens starting inside the answer text; no header, no marker",
+   "train_limit": 64,
+   "panel_limit": 32
+  },
+  "lora": {
+   "r": 16,
+   "alpha": 32,
+   "target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj"
+   ],
+   "dropout": 0.05,
+   "bias": "none"
+  },
+  "training": {
+   "epochs": 1,
+   "effective_batch": 16,
+   "micro_batch": 4,
+   "gradient_accumulation": 4,
+   "lr": 0.0002,
+   "scheduler": "cosine",
+   "warmup_ratio": 0.03,
+   "weight_decay": 0.01,
+   "max_grad_norm": 1.0,
+   "optimizer": "adamw_torch",
+   "adam_betas": [
+    0.9,
+    0.999
+   ],
+   "adam_eps": 1e-08,
+   "gradient_checkpointing": false,
+   "model_dtype": "bfloat16",
+   "batch_order": "random.Random(seed).shuffle, then steps, then micro batches",
+   "loss": "summed NLL of a step's label tokens over their count"
+  },
+  "eval": {
+   "panel_micro_batch": 4,
+   "gate_suites": [
+    "mini_mmlu",
+    "mini_common_sense",
+    "mini_instruction",
+    "mini_arithmetic"
+   ],
+   "gate_max_new_tokens": 64,
+   "gate_decode": "greedy, soup_cli.utils.live_eval.make_generator"
+  }
+ },
+ "box_stamp_before": {
+  "pid": 71523,
+  "own_pids": [
+   71523
+  ],
+  "gpu_own_pids": [
+   71523
+  ],
+  "gpu_pid_attribution": null,
+  "unix": 1792523659.237674,
+  "total_phys_gb": null,
+  "avail_phys_gb": null,
+  "commit_limit_gb": null,
+  "commit_avail_gb": null,
+  "ac": null,
+  "gpu_pids": null,
+  "gpu_mem_used_mib": null,
+  "python_processes": null,
+  "power_source": "sensor"
+ },
+ "train_log": [
+  {
+   "step": 1,
+   "loss": 5.568203969645894,
+   "grad_norm": 1.4897133111953735,
+   "lr": 0.0,
+   "tokens": 4116,
+   "elapsed_s": 5.163330999959726
+  },
+  {
+   "step": 2,
+   "loss": 5.565194030526062,
+   "grad_norm": 1.3947569131851196,
+   "lr": 0.0002,
+   "tokens": 2849,
+   "elapsed_s": 9.189389291976113
+  },
+  {
+   "step": 3,
+   "loss": 5.553680816843181,
+   "grad_norm": 1.5097622871398926,
+   "lr": 0.00015000000000000001,
+   "tokens": 5382,
+   "elapsed_s": 14.579867958964314
+  },
+  {
+   "step": 4,
+   "loss": 5.546932916993112,
+   "grad_norm": 1.5709104537963867,
+   "lr": 5.000000000000002e-05,
+   "tokens": 4228,
+   "elapsed_s": 19.43885016697459
+  }
+ ],
+ "phases_s": {
+  "data": 1.2190764579572715,
+  "load": 2.8788420000346377,
+  "swap": 0.6998240830143914,
+  "train": 19.44358545797877,
+  "panel": 2.024341916956473,
+  "gate": 11.477546707959846
+ },
+ "data": {
+  "heldout_sha256": "b4b2ab938ca72a52c660d810045e3f31f842e3107e00738f827abb3f932d2a37",
+  "train_sha256": "a915bbbf18ebd1fae1dd869bdc8e2a0efbd2ab522d3a0c733cc05b212befa0b7",
+  "panel_rows": 32,
+  "train_rows": 64,
+  "train_truncated": 17,
+  "train_without_labels": 8,
+  "train_label_tokens": 16575
+ },
+ "batch_order_sha256": "0f15c5851606002a2504307373a27028f8885589fb3689e2e0be261ddc651f26",
+ "total_steps": 4,
+ "model": {
+  "id": "fixture:granite",
+  "revision": null,
+  "synthetic": true,
+  "note": "SYNTHETIC: a tiny random-init granitemoe with a byte-level tokenizer. Its losses and scores say nothing about a real model and never enter the verdict.",
+  "model_type": "granitemoe",
+  "output_router_logits": false
+ },
+ "non_expert_fingerprints": {
+  "model.embed_tokens.weight": "18bd32fc6b573c8050e145dea3b72f0683f1ca8b84c5c9bf538237264e524b58",
+  "model.layers.0.self_attn.q_proj.weight": "fab52ecc1f5f8a39b6e3b43a14fb64fc8c99e585450567a1319c44f87d179337",
+  "model.layers.0.self_attn.k_proj.weight": "fa13f68390ca9b568e0f950be4524d066a35cd0ad09d9cfce23e829d5aea35a1",
+  "model.layers.0.self_attn.v_proj.weight": "ce27a1621dd589141a70b88e6c94710909477944f610358a9a9fe5a07f3a84bc",
+  "model.layers.0.self_attn.o_proj.weight": "8e38c210f46c7946ff41f6fc1b870468d2d5a9268042bb75ba3805f791c71627",
+  "model.layers.0.input_layernorm.weight": "960e20b7d08e19e9dd7bf8ccb5c7299ed279a44eeb35b5cf89576c51834222fd",
+  "model.layers.0.post_attention_layernorm.weight": "960e20b7d08e19e9dd7bf8ccb5c7299ed279a44eeb35b5cf89576c51834222fd",
+  "model.layers.0.block_sparse_moe.router.weight": "27a32a05291803d86adde3e6f26d6aedf8225e93b528c92750568f3985d10c85",
+  "model.layers.1.self_attn.q_proj.weight": "cb1d0eb5f4294cc2a32089573c93d52a6a0c11977e2aeba323afdc029d17012e",
+  "model.layers.1.self_attn.k_proj.weight": "2792f9fa1751249fab31330b215438e2d079c92ff3013d3e95702f1c0ef044e7",
+  "model.layers.1.self_attn.v_proj.weight": "220bb840803296ab4a0650ad71e75229344aed31feb4598ccb5f551f8b0088f1",
+  "model.layers.1.self_attn.o_proj.weight": "1aa60a7c5d9684d7c54f827a033b300df8d8f3a55c501b2fe883278b33f98e25",
+  "model.layers.1.input_layernorm.weight": "960e20b7d08e19e9dd7bf8ccb5c7299ed279a44eeb35b5cf89576c51834222fd",
+  "model.layers.1.post_attention_layernorm.weight": "960e20b7d08e19e9dd7bf8ccb5c7299ed279a44eeb35b5cf89576c51834222fd",
+  "model.layers.1.block_sparse_moe.router.weight": "2b8c8a776a9a9f8647c5487e113294a3c7d9a7164b12f229c41002caebe3fea5",
+  "model.norm.weight": "960e20b7d08e19e9dd7bf8ccb5c7299ed279a44eeb35b5cf89576c51834222fd",
+  "lm_head.weight": "15cf6498fdcd3dc64e6e4392263b9a1ca75d83434e4716be322a93b85eedb6fe",
+  "model.rotary_emb.inv_freq": "8d3f0c809b78932dc6a02a1a262807c31e8eadf553a3e513f6fdcce2424ff26f",
+  "model.rotary_emb.original_inv_freq": "8d3f0c809b78932dc6a02a1a262807c31e8eadf553a3e513f6fdcce2424ff26f"
+ },
+ "expert_digest": "1eeabe38703da96661fbcf923d18340111a59142bbf9be1cae30cc53fb01e5a7",
+ "swap": {
+  "checks": {
+   "expert_rules_agree": true,
+   "every_expert_changed": true,
+   "non_expert_untouched": true
+  },
+  "experts": [
+   "model.layers.0.block_sparse_moe.experts.gate_up_proj",
+   "model.layers.0.block_sparse_moe.experts.down_proj",
+   "model.layers.1.block_sparse_moe.experts.gate_up_proj",
+   "model.layers.1.block_sparse_moe.experts.down_proj"
+  ],
+  "rel_mse": {
+   "model.layers.0.block_sparse_moe.experts.gate_up_proj": {
+    "error": 0.008455073066773391,
+    "error_in_model": 0.008455073066773391
+   },
+   "model.layers.0.block_sparse_moe.experts.down_proj": {
+    "error": 0.008453587298395586,
+    "error_in_model": 0.008453587298395586
+   },
+   "model.layers.1.block_sparse_moe.experts.gate_up_proj": {
+    "error": 0.008462784075721404,
+    "error_in_model": 0.008462784075721404
+   },
+   "model.layers.1.block_sparse_moe.experts.down_proj": {
+    "error": 0.008478856024185836,
+    "error_in_model": 0.008478856024185836
+   }
+  }
+ },
+ "trainable_parameters": [
+  "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+  "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+  "base_model.model.model.layers.0.self_attn.k_proj.lora_A.default.weight",
+  "base_model.model.model.layers.0.self_attn.k_proj.lora_B.default.weight",
+  "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+  "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+  "base_model.model.model.layers.0.self_attn.o_proj.lora_A.default.weight",
+  "base_model.model.model.layers.0.self_attn.o_proj.lora_B.default.weight",
+  "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight",
+  "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight",
+  "base_model.model.model.layers.1.self_attn.k_proj.lora_A.default.weight",
+  "base_model.model.model.layers.1.self_attn.k_proj.lora_B.default.weight",
+  "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+  "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+  "base_model.model.model.layers.1.self_attn.o_proj.lora_A.default.weight",
+  "base_model.model.model.layers.1.self_attn.o_proj.lora_B.default.weight"
+ ],
+ "panel": {
+  "task_loss": 5.546663565804693,
+  "tokens": 6884,
+  "examples_without_tokens": 3,
+  "per_example": [
+   {
+    "row": 13039,
+    "tokens": 295,
+    "nll": 1632.815673828125
+   },
+   {
+    "row": 11370,
+    "tokens": 126,
+    "nll": 699.9485473632812
+   },
+   {
+    "row": 12737,
+    "tokens": 111,
+    "nll": 611.8042602539062
+   },
+   {
+    "row": 7899,
+    "tokens": 362,
+    "nll": 2010.73779296875
+   },
+   {
+    "row": 6210,
+    "tokens": 98,
+    "nll": 542.2981567382812
+   },
+   {
+    "row": 12606,
+    "tokens": 313,
+    "nll": 1731.24560546875
+   },
+   {
+    "row": 11374,
+    "tokens": 545,
+    "nll": 3030.857177734375
+   },
+   {
+    "row": 2799,
+    "tokens": 0,
+    "nll": 0.0
+   },
+   {
+    "row": 9855,
+    "tokens": 283,
+    "nll": 1575.983154296875
+   },
+   {
+    "row": 11564,
+    "tokens": 184,
+    "nll": 1022.8770141601562
+   },
+   {
+    "row": 11490,
+    "tokens": 249,
+    "nll": 1379.252685546875
+   },
+   {
+    "row": 10527,
+    "tokens": 0,
+    "nll": 0.0
+   },
+   {
+    "row": 7748,
+    "tokens": 77,
+    "nll": 424.72052001953125
+   },
+   {
+    "row": 3510,
+    "tokens": 947,
+    "nll": 5258.3056640625
+   },
+   {
+    "row": 4533,
+    "tokens": 8,
+    "nll": 45.42169189453125
+   },
+   {
+    "row": 1910,
+    "tokens": 37,
+    "nll": 205.20938110351562
+   },
+   {
+    "row": 10827,
+    "tokens": 164,
+    "nll": 911.7536010742188
+   },
+   {
+    "row": 6933,
+    "tokens": 0,
+    "nll": 0.0
+   },
+   {
+    "row": 7468,
+    "tokens": 187,
+    "nll": 1035.206787109375
+   },
+   {
+    "row": 7122,
+    "tokens": 876,
+    "nll": 4866.0224609375
+   },
+   {
+    "row": 6049,
+    "tokens": 6,
+    "nll": 33.159385681152344
+   },
+   {
+    "row": 4951,
+    "tokens": 37,
+    "nll": 205.48501586914062
+   },
+   {
+    "row": 8236,
+    "tokens": 185,
+    "nll": 1024.376953125
+   },
+   {
+    "row": 14654,
+    "tokens": 89,
+    "nll": 488.4353332519531
+   },
+   {
+    "row": 5256,
+    "tokens": 98,
+    "nll": 547.8262939453125
+   },
+   {
+    "row": 8071,
+    "tokens": 200,
+    "nll": 1112.87353515625
+   },
+   {
+    "row": 1086,
+    "tokens": 39,
+    "nll": 220.10122680664062
+   },
+   {
+    "row": 4960,
+    "tokens": 937,
+    "nll": 5169.9775390625
+   },
+   {
+    "row": 7524,
+    "tokens": 209,
+    "nll": 1155.4779052734375
+   },
+   {
+    "row": 14627,
+    "tokens": 45,
+    "nll": 253.1798095703125
+   },
+   {
+    "row": 3983,
+    "tokens": 41,
+    "nll": 230.29885864257812
+   },
+   {
+    "row": 1265,
+    "tokens": 136,
+    "nll": 757.5799560546875
+   }
+  ]
+ },
+ "gate_suites": {
+  "mini_mmlu": {
+   "n": 26,
+   "correct": 0,
+   "items": [
+    {
+     "question": "What is 2 + 2? (A) 3 (B) 4 (C) 5",
+     "answer": "B",
+     "output": "N\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The capital of France is: (A) London (B) Berlin (C) Paris",
+     "answer": "C",
+     "output": "\r\ufffd\r\u041f\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Water freezes at: (A) 0C (B) 50C (C) 100C",
+     "answer": "A",
+     "output": "NTNTNTNTNTNNNNNNNNNNNN\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Photosynthesis mainly uses: (A) oxygen (B) carbon dioxide (C) nitrogen",
+     "answer": "B",
+     "output": "\r\u015fQN\r\u015fQN\r\u015fQN\r\u015fQN\r\u015fQN\r\u015fQN\r\u015fQNT\ufffdQN\r\ufffdQNT\ufffdQNTNT\ufffdQN\r\ufffdQN",
+     "correct": false
+    },
+    {
+     "question": "Atomic number of hydrogen is: (A) 1 (B) 2 (C) 3",
+     "answer": "A",
+     "output": "NTNTNTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The largest planet in our solar system is: (A) Earth (B) Jupiter (C) Mars",
+     "answer": "B",
+     "output": "\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The chemical symbol for gold is: (A) Gd (B) Go (C) Au",
+     "answer": "C",
+     "output": "N\u015fQN\u015fQN\u015fQN\u015fQN\u015fQNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "How many continents are there on Earth? (A) 5 (B) 7 (C) 9",
+     "answer": "B",
+     "output": "NTNTNTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "The powerhouse of the cell is the: (A) nucleus (B) ribosome (C) mitochondrion",
+     "answer": "C",
+     "output": "N\r\u041fQRTN\r\u041fQ\ufffdQRTN\r\u041fQRTN\r\u041fQRTN\r\u041fQNTNTN\r\ufffd\r\u041fQNTNTN\r\ufffd\r\u041f",
+     "correct": false
+    },
+    {
+     "question": "Light travels faster than: (A) sound (B) nothing (C) radio waves",
+     "answer": "A",
+     "output": "N\r\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The square root of 81 is: (A) 8 (B) 9 (C) 18",
+     "answer": "B",
+     "output": "N\r\ufffd\\N\r\ufffd\\N\r\ufffdJ\r\ufffd\\N\r\ufffdJ\r\ufffdJ\\QN\r\ufffdJ\u0016\\N\r\ufffdJ\u0016\\N\r\ufffdJ\u0016\\NNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Which gas do plants release during photosynthesis? (A) oxygen (B) hydrogen (C) methane",
+     "answer": "A",
+     "output": "\r\ufffd\\QN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\\QN\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The author of 'Romeo and Juliet' is: (A) Dickens (B) Shakespeare (C) Austen",
+     "answer": "B",
+     "output": "N\r\u041f\ufffd\ufffd\ufffd\ufffd\ufffdN\r\u041f\ufffdNTNNTNTNTNTNTN\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The freezing point of water in Fahrenheit is: (A) 0 (B) 32 (C) 100",
+     "answer": "B",
+     "output": "NTNTNTNTNTNTNTN\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Which ocean is the largest? (A) Atlantic (B) Indian (C) Pacific",
+     "answer": "C",
+     "output": "NTNTNTNTNTN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffdTNTNTN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The human body has how many pairs of ribs? (A) 10 (B) 12 (C) 14",
+     "answer": "B",
+     "output": "N\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The currency of Japan is the: (A) yuan (B) won (C) yen",
+     "answer": "C",
+     "output": "N\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Which metal is liquid at room temperature? (A) mercury (B) iron (C) copper",
+     "answer": "A",
+     "output": "NTNTNTNTNTNTNTNTNTNTNTNTNTNTNTN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The speed of light is closest to: (A) 300 km/s (B) 300,000 km/s (C) 30 km/s",
+     "answer": "B",
+     "output": "\\Q\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffdQ",
+     "correct": false
+    },
+    {
+     "question": "A triangle has how many sides? (A) 3 (B) 4 (C) 5",
+     "answer": "A",
+     "output": "N\r\ufffd\\N\r\u041fQN\r\u041fQNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "The closest star to Earth is the: (A) Moon (B) Sun (C) Sirius",
+     "answer": "B",
+     "output": "\r\ufffdJ\r\ufffdJ\r\ufffdJ\r\ufffdJTN\r\ufffdJTN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffdJTN\r\ufffd\r\ufffd\r\ufffd\r\ufffdJTN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffdJ\u0016\\QN\r\ufffdJ\u0016\\Q",
+     "correct": false
+    },
+    {
+     "question": "DNA carries: (A) genetic information (B) oxygen (C) sugar",
+     "answer": "A",
+     "output": "N\r\ufffd\r\u041f\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The tallest mountain above sea level is: (A) K2 (B) Everest (C) Denali",
+     "answer": "B",
+     "output": "\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Which is a prime number? (A) 9 (B) 15 (C) 13",
+     "answer": "C",
+     "output": "NTNTNTNTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The primary gas in Earth's atmosphere is: (A) oxygen (B) nitrogen (C) argon",
+     "answer": "B",
+     "output": "\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Sound cannot travel through a: (A) solid (B) liquid (C) vacuum",
+     "answer": "C",
+     "output": "N\r\ufffd\r\ufffd\r\ufffdJ\ufffd\r\ufffd\r\ufffdJTN\r\ufffd\r\ufffdJTN\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    }
+   ]
+  },
+  "mini_common_sense": {
+   "n": 24,
+   "correct": 0,
+   "items": [
+    {
+     "question": "If it is raining, you should bring a: (A) hat (B) umbrella (C) fan",
+     "answer": "B",
+     "output": "\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "You eat breakfast in the: (A) morning (B) evening (C) night",
+     "answer": "A",
+     "output": "\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Fish live in: (A) trees (B) water (C) sand",
+     "answer": "B",
+     "output": "N\r\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The sun rises in the: (A) west (B) south (C) east",
+     "answer": "C",
+     "output": "\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Ice melts when: (A) heated (B) frozen (C) pressed",
+     "answer": "A",
+     "output": "NTNTNTNTNTNTNTNTNTNTNTN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "To unlock a door you usually need a: (A) spoon (B) key (C) pillow",
+     "answer": "B",
+     "output": "\r\ufffd\ufffd\ufffd\u001b\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Before crossing a busy street you should: (A) close your eyes (B) look both ways (C) run fast",
+     "answer": "B",
+     "output": "\r\ufffd\r\ufffd\\Q\ufffdQ\ufffdQ\ufffdQ\ufffdQN\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffdJ\\QN\r\ufffdJ",
+     "correct": false
+    },
+    {
+     "question": "If a glass falls on tile it will likely: (A) bounce (B) break (C) float",
+     "answer": "B",
+     "output": "N\ufffd\ufffd\ufffd_----------------------------------------------------------\r",
+     "correct": false
+    },
+    {
+     "question": "To write on paper you use a: (A) hammer (B) pen (C) plate",
+     "answer": "B",
+     "output": "NTNTNTNTN\r\u041f\ufffd\ufffdQN\r\ufffd",
+     "correct": false
+    },
+    {
+     "question": "A wet towel is best dried by: (A) folding it (B) hanging it in the sun (C) burying it",
+     "answer": "B",
+     "output": "N\ufffd",
+     "correct": false
+    },
+    {
+     "question": "You feel cold, so you put on a: (A) swimsuit (B) coat (C) sandal",
+     "answer": "B",
+     "output": "N\r\ufffd\ufffd\ufffd\u001b\\QN\r\ufffd\ufffd\ufffd\u001b\ufffdQN\r\ufffd\ufffd\ufffd\u001b\ufffdQN\r\ufffd\ufffd\ufffd\u001b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdQNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Plants need this to grow: (A) darkness (B) sunlight (C) television",
+     "answer": "B",
+     "output": "\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "To call a friend far away you use a: (A) phone (B) fork (C) broom",
+     "answer": "A",
+     "output": "N\r\u041f\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "After you finish eating, dirty dishes should be: (A) washed (B) painted (C) planted",
+     "answer": "A",
+     "output": "N\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "If the room is dark you should turn on the: (A) faucet (B) light (C) oven",
+     "answer": "B",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "A baby is younger than a: (A) grandparent (B) newborn (C) egg",
+     "answer": "A",
+     "output": "\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "To cut paper you use: (A) scissors (B) a magnet (C) glue",
+     "answer": "A",
+     "output": "\r\ufffdQ\ufffdQN\r\ufffdQN\r\ufffdQN\r\ufffdQN\r\ufffdQN\r\ufffdQN\r\ufffdQN\r\ufffd\ufffdQN\r\ufffdQNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Bread that is very old may become: (A) fresh (B) moldy (C) cold",
+     "answer": "B",
+     "output": "NTNTNTNTNTN\r\ufffdJTN\r\ufffdJTN\r\ufffd\r\u041fQN\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "If you are thirsty you should drink: (A) sand (B) water (C) paper",
+     "answer": "B",
+     "output": "N\ufffd\ufffd\ufffd_\ufffdN\ufffd\ufffd\ufffd_\ufffdN\r\u041fQN\r\u041fQN\r\ufffdJ\\QNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "A car needs this to run: (A) fuel (B) music (C) paint",
+     "answer": "A",
+     "output": "N\r\u041fQNTNTN\r\ufffd\r\ufffd\r\u041fQN\r\ufffd\r\u041fQN\r\u041fQN\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "You wear shoes on your: (A) hands (B) head (C) feet",
+     "answer": "C",
+     "output": "\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\r\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "To keep food cold you put it in the: (A) oven (B) refrigerator (C) closet",
+     "answer": "B",
+     "output": "N\r\u041fQR\\QRTN\r\u041fQR\\QR\\QR\\QR\\QR\\N\r\u041f",
+     "correct": false
+    },
+    {
+     "question": "If you are tired at night you should: (A) sleep (B) exercise hard (C) shout",
+     "answer": "A",
+     "output": "N\ufffd\ufffd\ufffd_\ufffdN\u015fQN\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Rain falls from the: (A) ground (B) clouds (C) ocean floor",
+     "answer": "B",
+     "output": "N\r\u041f\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_-\ufffd_-\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_-\ufffd_--------------------",
+     "correct": false
+    }
+   ]
+  },
+  "mini_instruction": {
+   "n": 24,
+   "correct": 0,
+   "items": [
+    {
+     "question": "Respond with just the word: ok",
+     "answer": "ok",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word \u2014 the color of grass:",
+     "answer": "green",
+     "output": "NTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffd\ufffd``````\u05d9N\ufffd\ufffd\ufffd\r\ufffd\ufffd\ufffd`````",
+     "correct": false
+    },
+    {
+     "question": "Answer yes or no: Is fire hot?",
+     "answer": "yes",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Reply with only the number three.",
+     "answer": "3",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Say only the word: done",
+     "answer": "done",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffdQ\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Reply with a single word: the opposite of 'up'.",
+     "answer": "down",
+     "output": "NTNTNTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: the color of a clear daytime sky.",
+     "answer": "blue",
+     "output": "NTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer yes or no: Is water wet?",
+     "answer": "yes",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Respond with only the word: apple",
+     "answer": "apple",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Reply with the number that comes after 9.",
+     "answer": "10",
+     "output": "NTNTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: what animal says 'meow'?",
+     "answer": "cat",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd`N\ufffd\ufffd\ufffd`N\ufffd\ufffd\ufffd`N\ufffd\ufffd\ufffd`N\ufffd\ufffd\ufffd`N\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Say only the word: banana",
+     "answer": "banana",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: the opposite of 'hot'.",
+     "answer": "cold",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Reply with the single word: yes if 2 is greater than 1.",
+     "answer": "yes",
+     "output": "N\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: the first month of the year.",
+     "answer": "January",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Respond with only: purple",
+     "answer": "purple",
+     "output": "NTN\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: what do bees make?",
+     "answer": "honey",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Reply with only the number of days in a week.",
+     "answer": "7",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: the opposite of 'left'.",
+     "answer": "right",
+     "output": "NTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN",
+     "correct": false
+    },
+    {
+     "question": "Say only the word: ocean",
+     "answer": "ocean",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: what color is a ripe tomato?",
+     "answer": "red",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdNNN",
+     "correct": false
+    },
+    {
+     "question": "Reply with a single word: the season after winter.",
+     "answer": "spring",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: what do you call frozen water?",
+     "answer": "ice",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Respond with only the number: how many wheels does a bicycle have?",
+     "answer": "2",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN",
+     "correct": false
+    }
+   ]
+  },
+  "mini_arithmetic": {
+   "n": 40,
+   "correct": 0,
+   "items": [
+    {
+     "question": "What is 6 + 7?",
+     "answer": "13",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 9 - 4?",
+     "answer": "5",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 8 times 3?",
+     "answer": "24",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 6 multiplied by 7?",
+     "answer": "42",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 12 divided by 4?",
+     "answer": "3",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 15 + 27?",
+     "answer": "42",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 100 - 37?",
+     "answer": "63",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 9 times 9?",
+     "answer": "81",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is half of 50?",
+     "answer": "25",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 7 + 8?",
+     "answer": "15",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 5 squared?",
+     "answer": "25",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 45 divided by 9?",
+     "answer": "5",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_NNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 11 times 11?",
+     "answer": "121",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 30 - 12?",
+     "answer": "18",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 4 + 4 + 4?",
+     "answer": "12",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 3 times 12?",
+     "answer": "36",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 200 - 99?",
+     "answer": "101",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 8 + 9?",
+     "answer": "17",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 72 divided by 8?",
+     "answer": "9",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 14 times 2?",
+     "answer": "28",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 6 + 6 + 6?",
+     "answer": "18",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 10 percent of 200?",
+     "answer": "20",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd\ufffdN\ufffd\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 16 + 25?",
+     "answer": "41",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 90 divided by 3?",
+     "answer": "30",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_NNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 47 times 38?",
+     "answer": "1786",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 1234 times 56?",
+     "answer": "69104",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 7 + 3 times 4 - 6 divided by 2?",
+     "answer": "16",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "A shirt costs 80 dollars. It is discounted by 25 percent, then the discounted price is raised by 25 percent. What is the final price in dollars?",
+     "answer": "75",
+     "output": "\r\u015fQ\ufffdQ\ufffdQ\ufffdQ\ufffdQ\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd`N\r\u0006\\N",
+     "correct": false
+    },
+    {
+     "question": "What is 2 to the power of 15?",
+     "answer": "32768",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is the remainder when 2024 is divided by 37?",
+     "answer": "26",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_NNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "How many seconds are in 3 days?",
+     "answer": "259200",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 999 times 999?",
+     "answer": "998001",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is the sum of all the whole numbers from 1 to 250?",
+     "answer": "31375",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 17 squared minus 13 squared?",
+     "answer": "120",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "A train leaves at 9:47 and arrives at 14:12 the same day. How many minutes long is the trip?",
+     "answer": "265",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_NNN",
+     "correct": false
+    },
+    {
+     "question": "What is 15 percent of 15 percent of 4000?",
+     "answer": "90",
+     "output": "NTNTNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 123456789 divided by 9?",
+     "answer": "13717421",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_NNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is the least common multiple of 18, 24 and 40?",
+     "answer": "360",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "What is 3/8 plus 5/12, as a fraction in lowest terms?",
+     "answer": "19/24",
+     "output": "N\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    },
+    {
+     "question": "How many times is the digit 7 written when you write out every whole number from 1 to 100?",
+     "answer": "20",
+     "output": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+     "correct": false
+    }
+   ]
+  }
+ },
+ "finished": "2026-10-21T00:14:57+0500",
+ "box_stamp_after": {
+  "pid": 71523,
+  "own_pids": [
+   71523
+  ],
+  "gpu_own_pids": [
+   71523
+  ],
+  "gpu_pid_attribution": null,
+  "unix": 1792523697.293952,
+  "total_phys_gb": null,
+  "avail_phys_gb": null,
+  "commit_limit_gb": null,
+  "commit_avail_gb": null,
+  "ac": null,
+  "gpu_pids": null,
+  "gpu_mem_used_mib": null,
+  "python_processes": null,
+  "power_source": "sensor"
+ }
+}

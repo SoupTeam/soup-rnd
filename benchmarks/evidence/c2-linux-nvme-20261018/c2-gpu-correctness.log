@@ -1,0 +1,15 @@
+........................................................................ [ 41%]
+........................................................................ [ 83%]
+..........................F..                                            [100%]
+=================================== FAILURES ===================================
+_ TestOnRealHardware.test_every_region_is_a_pinned_sector_aligned_view_of_a_power_of_two_arena _
+tests/test_issue974_direct_range_reads.py:738: in test_every_region_is_a_pinned_sector_aligned_view_of_a_power_of_two_arena
+    assert region.data_ptr() % SECTOR == 0
+E   assert (129719754301952 % 4096) == 0
+E    +  where 129719754301952 = <built-in method data_ptr of Tensor object at 0x75fd88745fe0>()
+E    +    where <built-in method data_ptr of Tensor object at 0x75fd88745fe0> = tensor([88,  1,  0,  ...,  0,  0,  0], dtype=torch.uint8).data_ptr
+------------------------------ Captured log call -------------------------------
+WARNING  soup_cli.utils.async_disk_source:async_disk_source.py:561 layer streaming's staging is not sector-aligned on this box; the disk tier reads through the page cache instead of direct I/O
+=========================== short test summary info ============================
+FAILED tests/test_issue974_direct_range_reads.py::TestOnRealHardware::test_every_region_is_a_pinned_sector_aligned_view_of_a_power_of_two_arena
+1 failed, 172 passed in 23.98s

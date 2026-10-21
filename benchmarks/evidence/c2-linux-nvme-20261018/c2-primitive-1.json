@@ -1,0 +1,555 @@
+{
+  "kind": "Linux physical-NVMe primitive / synthetic random fixture",
+  "protocol_sha256": "6ce4a56c3fc35a50da7455e2cb926fce3e6373c0b1b3b0ab90476745202e05d1",
+  "harness_sha256": "d02616492d7dcc8900215a1a79b18d5f267adfe9c33cc5611598957e7c342797",
+  "core_sha256": "1b425e1dcf19b2779b265d84c6d7416c3de2ec71c7a55e0bf72113bd98e0c32d",
+  "python": "3.12.12 | packaged by conda-forge | (main, Oct 22 2025, 23:25:55) [GCC 14.3.0]",
+  "torch": "2.14.1+cu130",
+  "soup_cli_file": "/workspace/c2/src/soup_cli/__init__.py",
+  "git_sha": "b3cac9cfd6841cc420f252be03ecb961da4980a3",
+  "correctness_ok": true,
+  "complete": false,
+  "invalid_reasons": [
+    "RuntimeError(\"NVMe not idle: {'nvme0n1': {'read': 385755.5677523493, 'write': 1680616.6136471778}}\")"
+  ],
+  "rounds": [
+    {
+      "order": [
+        1,
+        2
+      ],
+      "arms": {
+        "1": {
+          "idle_rates": {
+            "nvme0n1": {
+              "read": 0.0,
+              "write": 11467.23835022144
+            }
+          },
+          "box_before": {
+            "time": 1792334349.072051,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28731109376
+            },
+            "loadavg": [
+              0.8349609375,
+              0.595703125,
+              0.4111328125
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 495 MHz, 182 MiB, 0 %, 26.39 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          },
+          "started_unix": 1792334349.174682,
+          "completed": 24,
+          "max_pending_spans": 1,
+          "max_pending_ranges": 4,
+          "seconds": 1.8620550369960256,
+          "samples": [
+            [
+              284434.281417072,
+              {
+                "read": 606260314624,
+                "write": 484870212096
+              }
+            ],
+            [
+              284434.53190349,
+              {
+                "read": 607617155584,
+                "write": 484870212096
+              }
+            ],
+            [
+              284434.782878849,
+              {
+                "read": 608984625664,
+                "write": 484870212096
+              }
+            ],
+            [
+              284435.033612134,
+              {
+                "read": 610344038912,
+                "write": 484870212096
+              }
+            ],
+            [
+              284435.284434474,
+              {
+                "read": 611702178304,
+                "write": 484870212096
+              }
+            ],
+            [
+              284435.535479264,
+              {
+                "read": 613063102976,
+                "write": 484870212096
+              }
+            ],
+            [
+              284435.786414379,
+              {
+                "read": 614427546112,
+                "write": 484870212096
+              }
+            ]
+          ],
+          "physical_delta": {
+            "read": 10066329600,
+            "write": 0
+          },
+          "gb_s": 5.406032260055848,
+          "retained_bytes_ok": true,
+          "box_after": {
+            "time": 1792334351.1250253,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28690391040
+            },
+            "loadavg": [
+              0.8349609375,
+              0.595703125,
+              0.4111328125
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 195 MHz, 182 MiB, 0 %, 17.54 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          }
+        },
+        "2": {
+          "idle_rates": {
+            "nvme0n1": {
+              "read": 0.0,
+              "write": 9009.282696771405
+            }
+          },
+          "box_before": {
+            "time": 1792334356.179497,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28677713920
+            },
+            "loadavg": [
+              0.76806640625,
+              0.58544921875,
+              0.40869140625
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 180 MHz, 182 MiB, 0 %, 1.02 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          },
+          "started_unix": 1792334356.2823892,
+          "completed": 24,
+          "max_pending_spans": 2,
+          "max_pending_ranges": 8,
+          "seconds": 1.7920050710090436,
+          "samples": [
+            [
+              284441.389265125,
+              {
+                "read": 616820597248,
+                "write": 484870257152
+              }
+            ],
+            [
+              284441.640058416,
+              {
+                "read": 618246431232,
+                "write": 484870257152
+              }
+            ],
+            [
+              284441.890902502,
+              {
+                "read": 619634258432,
+                "write": 484870257152
+              }
+            ],
+            [
+              284442.141554198,
+              {
+                "read": 621057626624,
+                "write": 484870257152
+              }
+            ],
+            [
+              284442.392709305,
+              {
+                "read": 622466687488,
+                "write": 484870257152
+              }
+            ],
+            [
+              284442.64375311,
+              {
+                "read": 623879004672,
+                "write": 484870257152
+              }
+            ],
+            [
+              284442.894520506,
+              {
+                "read": 625297969664,
+                "write": 484870400512
+              }
+            ]
+          ],
+          "physical_delta": {
+            "read": 10066550784,
+            "write": 143360
+          },
+          "gb_s": 5.617355532555409,
+          "retained_bytes_ok": true,
+          "box_after": {
+            "time": 1792334358.2102633,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28643049472
+            },
+            "loadavg": [
+              1.02734375,
+              0.642578125,
+              0.42822265625
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 180 MHz, 182 MiB, 0 %, 1.17 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          }
+        }
+      }
+    },
+    {
+      "order": [
+        2,
+        1
+      ],
+      "arms": {
+        "2": {
+          "idle_rates": {
+            "nvme0n1": {
+              "read": 0.0,
+              "write": 18941.573182975317
+            }
+          },
+          "box_before": {
+            "time": 1792334363.2668462,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28620886016
+            },
+            "loadavg": [
+              0.94482421875,
+              0.6318359375,
+              0.42578125
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 180 MHz, 182 MiB, 0 %, 1.15 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          },
+          "started_unix": 1792334363.3641746,
+          "completed": 24,
+          "max_pending_spans": 2,
+          "max_pending_ranges": 8,
+          "seconds": 1.788148455962073,
+          "samples": [
+            [
+              284448.471060892,
+              {
+                "read": 627301753344,
+                "write": 484870495232
+              }
+            ],
+            [
+              284448.722255343,
+              {
+                "read": 628723204608,
+                "write": 484870495232
+              }
+            ],
+            [
+              284448.973260955,
+              {
+                "read": 630141657600,
+                "write": 484870532096
+              }
+            ],
+            [
+              284449.22377472,
+              {
+                "read": 631568392704,
+                "write": 484870532096
+              }
+            ],
+            [
+              284449.474351476,
+              {
+                "read": 632962073088,
+                "write": 484870536192
+              }
+            ],
+            [
+              284449.725379916,
+              {
+                "read": 634379895296,
+                "write": 484870536192
+              }
+            ],
+            [
+              284449.976339582,
+              {
+                "read": 635797713408,
+                "write": 484870552576
+              }
+            ]
+          ],
+          "physical_delta": {
+            "read": 10066329600,
+            "write": 57344
+          },
+          "gb_s": 5.629470845352175,
+          "retained_bytes_ok": true,
+          "box_after": {
+            "time": 1792334365.2951672,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28624506880
+            },
+            "loadavg": [
+              0.94482421875,
+              0.6318359375,
+              0.42578125
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 180 MHz, 182 MiB, 0 %, 1.10 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          }
+        },
+        "1": {
+          "idle_rates": {
+            "nvme0n1": {
+              "read": 0.0,
+              "write": 20477.372126691953
+            }
+          },
+          "box_before": {
+            "time": 1792334370.3554323,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28651868160
+            },
+            "loadavg": [
+              0.869140625,
+              0.62109375,
+              0.42333984375
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 180 MHz, 182 MiB, 0 %, 1.17 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          },
+          "started_unix": 1792334370.4651139,
+          "completed": 24,
+          "max_pending_spans": 1,
+          "max_pending_ranges": 4,
+          "seconds": 1.854875054967124,
+          "samples": [
+            [
+              284455.571843301,
+              {
+                "read": 637735391744,
+                "write": 484870654976
+              }
+            ],
+            [
+              284455.822380492,
+              {
+                "read": 639098016256,
+                "write": 484870654976
+              }
+            ],
+            [
+              284456.073611945,
+              {
+                "read": 640470139392,
+                "write": 484870654976
+              }
+            ],
+            [
+              284456.324719673,
+              {
+                "read": 641835176448,
+                "write": 484870654976
+              }
+            ],
+            [
+              284456.575371811,
+              {
+                "read": 643193356800,
+                "write": 484870683648
+              }
+            ],
+            [
+              284456.826162288,
+              {
+                "read": 644560945664,
+                "write": 484870683648
+              }
+            ],
+            [
+              284457.077161037,
+              {
+                "read": 645930938880,
+                "write": 484870683648
+              }
+            ]
+          ],
+          "physical_delta": {
+            "read": 10066329600,
+            "write": 28672
+          },
+          "gb_s": 5.426958313468945,
+          "retained_bytes_ok": true,
+          "box_after": {
+            "time": 1792334372.4140244,
+            "memory": {
+              "MemTotal": 33337122816,
+              "MemAvailable": 28624863232
+            },
+            "loadavg": [
+              1.1201171875,
+              0.67724609375,
+              0.44287109375
+            ],
+            "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 31, 180 MHz, 182 MiB, 0 %, 1.11 W\n",
+            "gpu_clients": [
+              "694, /venv/main/bin/python"
+            ],
+            "temperatures": {}
+          }
+        }
+      }
+    },
+    {
+      "order": [
+        1,
+        2
+      ],
+      "arms": {}
+    }
+  ],
+  "workers": 4,
+  "allocated_slots": 2,
+  "span_bytes": 419430400,
+  "allocated_bytes": 838860800,
+  "box_start": {
+    "time": 1792334271.066593,
+    "memory": {
+      "MemTotal": 33337122816,
+      "MemAvailable": 29398056960
+    },
+    "loadavg": [
+      0.6279296875,
+      0.474609375,
+      0.3564453125
+    ],
+    "gpu": "NVIDIA GeForce RTX 5070, 595.99.02, 34, 2910 MHz, 10 MiB, 100 %, 44.22 W\n",
+    "gpu_clients": [],
+    "temperatures": {}
+  },
+  "fixture": {
+    "path": "/workspace/c2-fixture.bin",
+    "size": 41943040000,
+    "allocated": 41943040000,
+    "mtime_ns": 1792334331118924426
+  },
+  "mapping_idle": {
+    "nvme0n1": {
+      "read": 35217.31326045302,
+      "write": 16380.145702536285
+    }
+  },
+  "mapping": {
+    "before": {
+      "nvme0n1": {
+        "read": 573250044416,
+        "write": 484869818880
+      }
+    },
+    "after": {
+      "nvme0n1": {
+        "read": 574325436928,
+        "write": 484869818880
+      }
+    },
+    "bytes": 1073741824
+  },
+  "physical_device": "nvme0n1",
+  "physical_model": "Lexar SSD NQ780 1TB                     \n",
+  "offsets": [
+    0,
+    419430400,
+    838860800,
+    1258291200,
+    1677721600,
+    2097152000,
+    2516582400,
+    2936012800,
+    3355443200,
+    3774873600,
+    4194304000,
+    4613734400,
+    5033164800,
+    5452595200,
+    5872025600,
+    6291456000,
+    6710886400,
+    7130316800,
+    7549747200,
+    7969177600,
+    8388608000,
+    8808038400,
+    9227468800,
+    9646899200
+  ],
+  "correctness_passes": [
+    {
+      "depth": 1,
+      "completed": 24,
+      "max_pending_spans": 1,
+      "max_pending_ranges": 4,
+      "seconds": 5.395035927998833
+    },
+    {
+      "depth": 2,
+      "completed": 24,
+      "max_pending_spans": 2,
+      "max_pending_ranges": 8,
+      "seconds": 1.8333669900312088
+    }
+  ],
+  "direct_io_verified": true,
+  "fixture_after": {
+    "size": 41943040000,
+    "mtime_ns": 1792334331118924426
+  },
+  "decision": {
+    "verdict": "NO VERDICT",
+    "reason": "invalid, incomplete or unreviewed evidence"
+  }
+}

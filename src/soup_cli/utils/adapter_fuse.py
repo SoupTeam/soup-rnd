@@ -85,13 +85,14 @@ def merge_adapter_to_dense(
 
     assert_safe_top_level_weights(adapter_dir)
 
-    from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    from soup_cli.utils.peft_wiring import load_adapter
 
     base = AutoModelForCausalLM.from_pretrained(
         base_model, trust_remote_code=trc, torch_dtype="auto"
     )
-    merged = PeftModel.from_pretrained(base, adapter_dir).merge_and_unload()
+    merged = load_adapter(base, adapter_dir).merge_and_unload()
 
     # The trainer saves the tokenizer alongside the adapter; fall back to the
     # base model's own tokenizer if it didn't.

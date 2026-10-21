@@ -11,7 +11,9 @@ Design:
   Google, etc.). Local paths and unknown orgs return False.
 - ``model_requires_trust_remote_code(model_or_path)``: best-effort probe of
   ``config.json``'s ``auto_map`` field. Returns True / False / None (unknown).
-  No network calls — local-only.
+  A config whose ``model_type`` has a built-in transformers class counts as
+  False, because transformers ignores ``auto_map`` for it when
+  ``trust_remote_code`` is off. No network calls — local-only.
 - ``resolve_trust_remote_code(model_name, requested, console, requires_remote_code)``:
   the gate. Returns ``True`` / ``False`` for the kwarg, or raises ``ValueError``
   with an actionable message when the model needs custom code but the user
@@ -56,33 +58,77 @@ def is_known_safe(model_name: Any) -> bool:
     return any(model_name.startswith(prefix) for prefix in KNOWN_SAFE_PREFIXES)
 
 
+def _read_json_dict(path: str) -> Optional[dict]:
+    """Return the JSON object in ``path``, or None if missing, unreadable or not an object."""
+    try:
+        if not os.path.isfile(path):
+            return None
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _is_builtin_model_type(model_type: Any) -> bool:
+    """Return True when transformers ships a config class for ``model_type``.
+
+    Lazy import: ``transformers`` loads only when a config has ``auto_map``.
+    Any failure (transformers missing, API moved) returns False so the gate
+    keeps demanding the flag.
+    """
+    if not isinstance(model_type, str) or not model_type:
+        return False
+    try:
+        from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
+    except Exception:  # noqa: BLE001 - any import problem means "not known built-in"
+        return False
+    return model_type in CONFIG_MAPPING_NAMES
+
+
 def model_requires_trust_remote_code(model_or_path: str) -> Optional[bool]:
     """Best-effort local probe of ``config.json`` for ``auto_map``.
 
     Returns:
-        True if config has ``auto_map`` (HF custom-code marker).
-        False if config exists but has no ``auto_map``.
+        True if config has ``auto_map`` (HF custom-code marker) and its
+            ``model_type`` has no built-in transformers class.
+        False if config exists but has no ``auto_map``, or has one but the
+            ``model_type`` is built in (transformers uses its own class).
         None if config is missing or unreadable (unknown).
 
     Never makes a network request — pure local inspection.
     """
     if not isinstance(model_or_path, str) or not model_or_path:
         return None
-    try:
-        if os.path.isdir(model_or_path):
-            config_path = os.path.join(model_or_path, "config.json")
-        else:
-            return None
-        if not os.path.isfile(config_path):
-            return None
-        with open(config_path, encoding="utf-8") as fh:
-            data = json.load(fh)
-    except (OSError, json.JSONDecodeError):
+    if not os.path.isdir(model_or_path):
         return None
-    if not isinstance(data, dict):
+    data = _read_json_dict(os.path.join(model_or_path, "config.json"))
+    if data is None:
         return None
-    auto_map = data.get("auto_map")
-    return bool(auto_map)
+    if not data.get("auto_map"):
+        return False
+    return not _is_builtin_model_type(data.get("model_type"))
+
+
+def tokenizer_requires_trust_remote_code(model_or_path: str) -> bool:
+    """Return True when a local folder's ``tokenizer_config.json`` has ``auto_map``.
+
+    ``model_requires_trust_remote_code`` reads ``config.json`` only. Callers
+    that load a tokenizer use this as well, so a built-in model type with a
+    Hub tokenizer still needs the flag. Missing or unreadable files give False.
+    """
+    if not isinstance(model_or_path, str) or not model_or_path:
+        return False
+    data = _read_json_dict(os.path.join(model_or_path, "tokenizer_config.json"))
+    return bool(data and data.get("auto_map"))
+
+
+def model_or_tokenizer_requires_trust_remote_code(model_or_path: str) -> bool:
+    """Return True when either ``config.json`` or ``tokenizer_config.json`` needs the flag."""
+    return bool(
+        model_requires_trust_remote_code(model_or_path)
+        or tokenizer_requires_trust_remote_code(model_or_path)
+    )
 
 
 def resolve_trust_remote_code(

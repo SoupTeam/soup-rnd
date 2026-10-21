@@ -165,6 +165,7 @@ def test_streamed_build_refuses_a_materializer_that_skips_a_meta_adapter(monkeyp
         "materialize_extras",
         lambda *_a, **_kw: SimpleNamespace(codes={}),
     )
+    monkeypatch.setattr(runtime, "materialize_layer_buffers", lambda *_a, **_kw: None)
     monkeypatch.setattr(runtime, "materialize_meta_adapters", lambda *_a, **_kw: 0)
 
     install_reached = False

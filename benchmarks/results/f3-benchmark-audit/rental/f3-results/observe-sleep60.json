@@ -1,0 +1,106 @@
+{
+  "label": "A100-PCIE-80GB vast.ai, real",
+  "outcome": "ok",
+  "answering": [
+    "suspend",
+    "power"
+  ],
+  "not_answering": [
+    "foreign_reads"
+  ],
+  "record": {
+    "arm": "observe",
+    "round": 1,
+    "run": 1,
+    "label": "A100-PCIE-80GB vast.ai, real",
+    "gpu": {
+      "id": "0",
+      "source": "default"
+    },
+    "required": [],
+    "outcome": "ok",
+    "box_stamp_before": {
+      "unix_s": 1792105850.0894685,
+      "ram_available_bytes": 501715619840,
+      "commit_charge": {
+        "used_bytes": 110464491520,
+        "limit_bytes": 277825953792
+      },
+      "power_source": "mains",
+      "gpu_processes": [],
+      "gpu_memory_used_mib": 0,
+      "unknown": {}
+    },
+    "box_stamp_after": {
+      "unix_s": 1792105910.2462418,
+      "ram_available_bytes": 501646524416,
+      "commit_charge": {
+        "used_bytes": 110516195328,
+        "limit_bytes": 277825953792
+      },
+      "power_source": "mains",
+      "gpu_processes": [],
+      "gpu_memory_used_mib": 0,
+      "unknown": {}
+    },
+    "gpu_clock": {
+      "outcome": "ok",
+      "reason": "SM clock 210 to 210 MHz over 31 samples; clock event reasons seen: gpu_idle",
+      "samples": 31,
+      "unknown_samples": 0,
+      "sm_clock_mhz": {
+        "min": 210,
+        "median": 210,
+        "max": 210
+      },
+      "reasons_seen": {
+        "gpu_idle": 31
+      }
+    },
+    "checks": {
+      "suspend": {
+        "outcome": "ok",
+        "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+        "evidence": {
+          "sleep_offset_start_s": -7.700000423938036e-07,
+          "sleep_offset_end_s": -4.199973773211241e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+        }
+      },
+      "power": {
+        "outcome": "ok",
+        "reason": "no battery in any of 32 power samples, so on mains",
+        "evidence": {
+          "samples": 32,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+            "battery": false,
+            "online": {}
+          }
+        }
+      },
+      "foreign_reads": {
+        "outcome": "unknown",
+        "reason": "disk device sensor raised FileNotFoundError: [Errno 2] No such file or directory: '/root/f3-data/qwen2.5-0.5b'",
+        "evidence": {
+          "model_path": "/root/f3-data/qwen2.5-0.5b",
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+        },
+        "readers": [],
+        "unattributed_bytes": null
+      }
+    }
+  }
+}

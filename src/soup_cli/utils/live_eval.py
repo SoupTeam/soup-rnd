@@ -209,9 +209,9 @@ def load_model_and_tokenizer(
     if adapter is not None:
         if not isinstance(adapter, str) or not adapter.strip():
             raise ValueError("adapter must be a non-empty string or None")
-        from peft import PeftModel
+        from soup_cli.utils.peft_wiring import load_adapter
 
-        model = PeftModel.from_pretrained(model, adapter)
+        model = load_adapter(model, adapter)
     if quant_config is None:
         model = model.to(dev)
     model.eval()

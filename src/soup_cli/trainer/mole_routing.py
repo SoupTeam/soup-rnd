@@ -276,12 +276,12 @@ class MoleRoutingTrainerWrapper:
     def setup(self, dataset: dict) -> None:
         """Load base + N task adapters (frozen) + the trainable gating kernel."""
         import torch
-        from peft import PeftModel
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         from soup_cli.utils.mole_routing import (
             MoleGatingConfig,
             build_gating_kernel,
+            load_task_adapters,
         )
 
         if not isinstance(dataset, dict) or "train" not in dataset:
@@ -315,14 +315,7 @@ class MoleRoutingTrainerWrapper:
         )
         hidden_size = base_model.config.hidden_size
 
-        # Load the first adapter via from_pretrained, then load_adapter for the
-        # rest — PEFT multi-adapter pattern (matches v0.71.8 interference_live).
-        adapter_names = [f"task_{i}" for i in range(len(adapters))]
-        model = PeftModel.from_pretrained(
-            base_model, adapters[0], adapter_name=adapter_names[0]
-        )
-        for name, path in zip(adapter_names[1:], adapters[1:]):
-            model.load_adapter(path, adapter_name=name)
+        model, adapter_names = load_task_adapters(base_model, adapters)
 
         # Freeze the base + every task LoRA — only the gate trains.
         for param in model.parameters():

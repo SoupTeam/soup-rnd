@@ -7,6 +7,8 @@ import os
 
 import pytest
 
+from tests._tiny_hf_models import write_tiny_llama_config
+
 GB = 1_000_000_000
 
 
@@ -218,6 +220,7 @@ def test_disk_preflight_checks_distinct_volumes_independently(
 
 def test_fingerprint_mismatch_names_the_changed_component(tmp_path) -> None:
     from soup_cli.utils.layer_shard import (
+        ShardLayout,
         fingerprint_source_files,
         inspect_shard_cache,
     )
@@ -245,6 +248,7 @@ def test_fingerprint_mismatch_names_the_changed_component(tmp_path) -> None:
         "none",
         True,
         "",
+        layout=ShardLayout(n_layers=1, stack_experts=False),
     )
     assert cached is None
     assert "mtime_ns changed" in reason
@@ -268,6 +272,7 @@ def test_real_reshard_notice_and_index_record_source_components(tmp_path) -> Non
         },
         str(source),
     )
+    write_tiny_llama_config(str(weights), 1)
     first_messages = []
     shard_checkpoint(
         str(weights),

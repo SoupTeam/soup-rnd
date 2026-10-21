@@ -1,0 +1,28 @@
++ export PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== start 2026-10-20T21:26:11Z'
+== start 2026-10-20T21:26:11Z
++ cd /root/soup-rnd
++ git log --oneline -1
+c5f4ae38 feat(c5): shard-cache size and restore timing harness for ticket 05
++ pip install -q -e '.[train]' torch==2.14.1 transformers==5.20.2 peft==0.21.2 bitsandbytes==0.50.2 datasets==5.1.0 tokenizers==0.23.3
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+torchvision 0.20.1+cu121 requires torch==2.5.1, but you have torch 2.14.1 which is incompatible.
+torchaudio 2.5.1+cu121 requires torch==2.5.1, but you have torch 2.14.1 which is incompatible.
++ pip uninstall -y torchvision torchaudio
+Found existing installation: torchvision 0.20.1+cu121
+Uninstalling torchvision-0.20.1+cu121:
+  Successfully uninstalled torchvision-0.20.1+cu121
+Found existing installation: torchaudio 2.5.1+cu121
+Uninstalling torchaudio-2.5.1+cu121:
+  Successfully uninstalled torchaudio-2.5.1+cu121
++ python -c 'import torch,transformers,bitsandbytes;print(torch.__version__,torch.version.cuda,torch.cuda.get_device_name(0),transformers.__version__,bitsandbytes.__version__)'
+2.14.1+cu130 13.0 NVIDIA GeForce RTX 3090 5.20.2 0.50.2
++ pip freeze
++ nvidia-smi --query-gpu=name,uuid,driver_version,memory.total,clocks.max.sm,pcie.link.gen.max --format=csv
++ free -b
++ df -B1 /root
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== setup done 2026-10-20T21:31:58Z'
+== setup done 2026-10-20T21:31:58Z

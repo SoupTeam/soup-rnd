@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "gpu": "NVIDIA GeForce RTX 3070",
+  "torch": "2.14.1+cu130",
+  "vram_total_gb": 8.221,
+  "soup_cli_file": "/workspace/soup-a0/src/soup_cli/__init__.py",
+  "driver": "580.159.04",
+  "pcie_gen": "3",
+  "pcie_width": "16",
+  "mode": "correctness",
+  "weights": "/workspace/soup-a0/.soup/models/mistral-7b",
+  "shards": "/workspace/soup-a0/.soup/f1-nf4",
+  "quant": "nf4",
+  "tier": "ram",
+  "buffers": 2,
+  "read_ahead": null,
+  "seq": 512,
+  "lora_r": 8,
+  "lora_targets": "q_proj,k_proj,v_proj,o_proj",
+  "seed": 3,
+  "input_seed": 17,
+  "k": 4,
+  "batch": 1,
+  "round_index": 0,
+  "ks": "1,2,3,4,8,16",
+  "cd_k": 4,
+  "steps": 3,
+  "warmup": 1,
+  "rounds": 2,
+  "spill_k": 16,
+  "spill_budget_k": 8,
+  "spill_dir": "D:/soup-l2l-spill",
+  "deterministic": false,
+  "dry_run": true,
+  "allow_invalid": false,
+  "out": "/workspace/soup-a0/.soup/preparation-01/f1.json",
+  "label": "",
+  "lazy_shard_handles": false,
+  "control_sync_source": false,
+  "no_pin": false,
+  "weights_dir": "/workspace/soup-a0/.soup/models/mistral-7b",
+  "shard_dir": "/workspace/soup-a0/.soup/f1-nf4",
+  "dtype": "bfloat16",
+  "arch": "mistral",
+  "n_layers": 32,
+  "hidden": 4096,
+  "pinned": true,
+  "source_class": "RamSource",
+  "direct_io": null,
+  "store_gb": 4.137812864,
+  "shard_seconds": 13.489710232999641,
+  "build_seconds": 2.118354943999293,
+  "chunk_bytes": 4194304,
+  "v3": {
+   "free_gb": 4.418490368,
+   "commit_avail_gb": null,
+   "need_gb": 0.536870912,
+   "margin_gb": 4.0,
+   "gpu_used_before_build_mib": 4,
+   "gpu_pids": [
+    96332
+   ],
+   "foreign_gpu_pids": [
+    96332
+   ],
+   "ram_ok": false,
+   "gpu_ok": false,
+   "ok": false
+  },
+  "box": {
+   "pid": 2269,
+   "own_pids": [
+    2269
+   ],
+   "unix": 1792410464.94323,
+   "total_phys_gb": 32.10739712,
+   "avail_phys_gb": 4.41688064,
+   "commit_limit_gb": null,
+   "commit_avail_gb": null,
+   "ac": true,
+   "gpu_pids": [
+    96332
+   ],
+   "gpu_mem_used_mib": 723,
+   "python_processes": null,
+   "power_source": "operator-declared-server"
+  },
+  "started": "2026-10-19T11:47:44",
+  "dry_run_store_allocated": false
+ },
+ "records": []
+}

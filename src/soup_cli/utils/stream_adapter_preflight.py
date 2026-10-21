@@ -15,6 +15,8 @@ class StreamAdapterPlan:
     budget: AdapterBudget
     lora_config: Any
     quant_suffixes: tuple[str, ...]
+    #: What the meta skeleton says about writing a checkpoint to shards (ADR 0004).
+    layout: Any
 
 
 def _optimizer_profile(tcfg: Any) -> str:
@@ -63,12 +65,18 @@ def build_stream_adapter_plan(
 ) -> StreamAdapterPlan:
     """Use the same resolvers/patches as the real build, without materializing weights."""
     from accelerate import init_empty_weights
-    from peft import TaskType, get_peft_model
+    from peft import TaskType
 
-    from soup_cli.utils.layer_stream_runtime import build_meta_skeleton, quantised_layer_suffixes
+    from soup_cli.utils.layer_stream_runtime import (
+        build_meta_skeleton,
+        quantised_layer_suffixes,
+        refuse_unservable_target_parameters,
+        shard_layout_of,
+    )
     from soup_cli.utils.moe import resolve_moe_lora_targets
     from soup_cli.utils.peft_wiring import (
         apply_pre_lora_patches,
+        attach_adapter,
         build_lora_config,
         resolve_lora_target_modules,
     )
@@ -84,12 +92,16 @@ def build_stream_adapter_plan(
         if moe_targets:
             targets = moe_targets
         config = build_lora_config(tcfg.lora, target_modules=targets, task_type=TaskType.CAUSAL_LM)
+        layout = shard_layout_of(model)
+        # Before the budget check and any shard write: the config peft converts, not the
+        # moe_lora flag, decides whether fused experts get adapters the shards cannot serve.
+        refuse_unservable_target_parameters(config, model, layout)
         for param in model.parameters():
             param.requires_grad = False
         apply_pre_lora_patches(model, base)
         # PEFT mutates config during fused-MoE conversion. Keep the real build pristine.
         probe_config = deepcopy(config)
-        model = get_peft_model(model, probe_config)
+        model = attach_adapter(model, probe_config)
         if any(not param.is_meta for param in model.parameters()):
             raise ValueError("stream adapter preflight unexpectedly materialized model parameters")
         tensors = []
@@ -107,7 +119,7 @@ def build_stream_adapter_plan(
     if getattr(tcfg, "use_lorafa", False) and probe_config.target_parameters:
         profile = "unsupported: LoRA-FA on fused expert parameters"
     budget = estimate_adapter_budget(tensors, profile=profile, device="cuda" if on_cuda else "cpu")
-    return StreamAdapterPlan(tuple(tensors), budget, config, suffixes)
+    return StreamAdapterPlan(tuple(tensors), budget, config, suffixes, layout)
 
 
 def check_stream_adapter_budget(
