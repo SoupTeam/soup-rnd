@@ -198,6 +198,7 @@ def _validity(
     return {
         "non_expert_fingerprints": all(f == fingerprints[0] for f in fingerprints),
         "data_hashes": len(set(data)) <= 1,
+        "codec_unchanged": len({run["harness"]["codec_sha256"] for run in chosen}) <= 1,
         "configs_differ_only_in_codec": not diffs,
         "runs_finished_finite": not {"not_finished", "non_finite"} & set(unrepaired),
         "first_grad_norm_positive": "first_grad_norm" not in unrepaired,
@@ -284,8 +285,8 @@ def verdict(
         "used": [
             {"arm": run["arm"], "seed": run["seed"], "attempt": run["attempt"]} for run in chosen
         ],
-        # The rule fixes the codec from the first arm on; more than one value here
-        # means it changed. Reported, not a validity row.
+        # The rule fixes the codec from the first arm on; the codec_unchanged
+        # validity row turns a second value into no_verdict.
         "codec_sha256": sorted({run["harness"]["codec_sha256"] for run in chosen}),
         **(quality or {"fail_reasons": [], "mean_ratio": None}),
     }

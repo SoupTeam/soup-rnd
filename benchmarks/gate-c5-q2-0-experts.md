@@ -344,6 +344,9 @@ All four suites gate: NF4 answers neither all nor none of any suite on
 average. All five validity rows hold: non-expert fingerprints match across the
 seven runs and both ticket-02 JSONs, split hashes match, configs differ only in
 `codec` and `seed`, and every run is finite with a positive first grad norm.
+The analyzer also checks the codec file hash: the registered rule freezes the
+codec after the first arm, so differing `codec_sha256` values give no verdict.
+All seven runs share one hash (`codec_unchanged` is true in `verdict.json`).
 Within each codec the expert weights were identical on every seed (expert
 digest `84ae9585…` for NF4, `090f4fbd…` for Q2_0).
 
@@ -549,7 +552,7 @@ against 1.8123 / 1.8126 / 1.8108. The interval describes the spread of the
 sample, so the seed-to-seed spread of the ratio (1.1036 to 1.1057) is only a
 rough guide. bf16 (seed 42, 1.6288) is reference only and not in the gate.
 
-All five validity rows hold. No run was spoiled or repeated, so the
+All five validity rows hold, and so does the codec hash check. No run was spoiled or repeated, so the
 spoiled-run list is empty. The only discarded runs are the two pilot runs
 (`pilot/nf4-s42`, out of CUDA memory without gradient checkpointing, and
 `pilot/nf4-s42-gc`), which are not arms.

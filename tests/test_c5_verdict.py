@@ -336,10 +336,17 @@ class TestConsistency:
         result = harness.verdict(_all_runs())
         assert result["codec_sha256"] == ["codec"]
 
-    def test_a_codec_changed_between_arms_is_reported(self, harness):
+    def test_a_codec_changed_between_arms_gives_no_verdict(self, harness):
         runs = _all_runs()
         _find(runs, "q2_0", 123)["harness"]["codec_sha256"] = "edited"
-        assert harness.verdict(runs)["codec_sha256"] == ["codec", "edited"]
+        result = harness.verdict(runs)
+        assert result["validity"]["codec_unchanged"] is False
+        assert result["outcome"] == "no_verdict"
+        assert result["g5"] == "repeat"
+        assert result["codec_sha256"] == ["codec", "edited"]
+
+    def test_one_codec_file_in_every_run_keeps_the_row_true(self, harness):
+        assert harness.verdict(_all_runs())["validity"]["codec_unchanged"] is True
 
     def test_a_real_verdict_needs_the_ticket_02_record(self, harness, tmp_path):
         with pytest.raises(SystemExit):
