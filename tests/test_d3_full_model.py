@@ -180,13 +180,12 @@ def test_closed_whole_model_owner_is_not_reusable(prepared):
         run.forward(torch.tensor([[2, 3]]))
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("codec", ["dense", "nf4", "nf4-dq"])
 def test_tiny_cuda_full_model_uses_actual_grouped_backend(prepared, tmp_path, codec):
     """Development smoke only; this does not satisfy the trained 16 GB+ gate."""
     import torch
 
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA development smoke requires a GPU")
     if not torch.cuda.is_bf16_supported(including_emulation=False):
         pytest.skip("native BF16 required")
     library = os.environ.get("D3_CUBLAS_LIBRARY")

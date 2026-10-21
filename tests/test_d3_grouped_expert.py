@@ -382,6 +382,7 @@ def test_busy_pool_refusal_does_not_attribute_another_lease_reads(tmp_path):
         reader.close()
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("width", [1, 2, 4])
 @pytest.mark.parametrize("format_name", ["bf16", "nf4", "nested-nf4"])
 @pytest.mark.parametrize("routing", ["empty", "one-partial", "all-experts"])
@@ -392,8 +393,6 @@ def test_cuda_grouped_reader_decode_forward_exact(tmp_path, width, format_name, 
     from soup_cli.utils.expert_group import grouped_experts_class
     from tests.test_b1_expert_forward import _dequantized_reference, _inputs, _streamed
 
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA integration requires an existing native BF16 GPU")
     if not torch.cuda.is_bf16_supported(including_emulation=False):
         pytest.skip("native BF16 required")
     if format_name != "bf16":

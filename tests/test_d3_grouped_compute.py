@@ -21,7 +21,7 @@ def _policy():
 def _library():
     import torch
 
-    if sys.platform != "linux" or not torch.cuda.is_available():
+    if sys.platform != "linux":
         pytest.skip("Linux native BF16 CUDA required")
     if not torch.cuda.is_bf16_supported(including_emulation=False):
         pytest.skip("native BF16 required")
@@ -58,6 +58,7 @@ def test_explicit_olmoe_policy_keeps_tiny_controls_grouped_and_accounts_boundary
         plan_grouped_linear(shapes, native_olmoe_rows_max=512)
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("inner", [1024, 2048])
 def test_cuda_prospective_olmoe_policy_exact_across_complete_512_token_row_range(inner):
     """Large-shape regression: small fixtures do not expose RTX3090 dispatch choices."""
@@ -118,6 +119,7 @@ def test_compute_imports_do_not_load_heavy_libraries():
     subprocess.run([sys.executable, "-c", code], check=True)
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("codec", ["dense", "nf4", "nf4-dq"])
 @pytest.mark.parametrize("width", [1, 2, 4])
 @pytest.mark.parametrize("case", ["empty", "one", "skew", "all"])
@@ -172,6 +174,7 @@ def test_cuda_grouped_compute_preserves_native_and_b12(tmp_path, codec, width, c
             reader.close()
 
 
+@pytest.mark.gpu
 def test_cuda_activation_budget_refusal_precedes_reads(tmp_path):
     from soup_cli.utils.expert_group_compute import grouped_compute_experts_class
     from soup_cli.utils.expert_group_gemm import GroupedGemm

@@ -383,3 +383,11 @@ report total allocator/RSS peaks separately from the 64 MiB streamed weight aren
 The first failed session and all its exclusions remain preserved; none of its
 five passes were reused. No full-model speed measurement, public training path,
 backward or final D3 sign-off is claimed. A second SSD is unnecessary.
+
+The subsequent CI marker fix replaces private CUDA availability probes in three
+test modules with the shared `gpu` marker. All **69 selected CUDA cases passed**
+on the existing RTX 3090, with zero skips, failures or errors; 78 CPU cases were
+deselected. The [regression report and raw evidence](../benchmarks/results/d3-cuda-regression-20261021/report.md)
+retain JUnit, the exact selected node IDs, source hashes and the uncommitted test
+patch used for execution. This is separate synthetic regression evidence and
+does not alter the frozen trained-model or performance studies above.
