@@ -1,0 +1,108 @@
+{
+  "study": "stream8-compile-20261022",
+  "status": "BLOCKED_BEFORE_MODEL_WORK",
+  "upstream": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b",
+  "pr_head_before_study": "a3b5c71310703ff3b05195c5add9422d51f5414f",
+  "instance_id": 57114362,
+  "label": "stream8-compile-20261022-a",
+  "accuracy_verdict": null,
+  "performance_verdict": null,
+  "memory_verdict": null,
+  "largest_model_tested": null,
+  "gpu_tests_run": 0,
+  "model_weights_downloaded": false,
+  "training_updates": 0,
+  "timing_processes": 0,
+  "compilation_executed": false,
+  "arms": {
+    "ordinary_streaming": {
+      "status": "NOT_EXECUTED_TRANSPORT_BLOCKER"
+    },
+    "persistent_residency": {
+      "status": "NOT_EXECUTED_TRANSPORT_BLOCKER"
+    },
+    "resident_inductor_default": {
+      "status": "NOT_EXECUTED_TRANSPORT_BLOCKER"
+    },
+    "resident_inductor_precise": {
+      "status": "NOT_EXECUTED_TRANSPORT_BLOCKER"
+    }
+  },
+  "models": {
+    "8B": {
+      "status": "NOT_TESTED"
+    },
+    "14B": {
+      "status": "NOT_TESTED"
+    },
+    "24B": {
+      "status": "NOT_TESTED"
+    },
+    "32B": {
+      "status": "NOT_TESTED"
+    }
+  },
+  "initial_offer_unavailable": {
+    "offer_id": 56602875,
+    "error": "no_such_ask",
+    "instance_created": false,
+    "label_reconciled_empty": true
+  },
+  "blocker": "Authenticated binary SSH retention below unchanged 2MiB/s preflight threshold",
+  "transport": {
+    "route": "SSH Paramiko 64MiB receive window, 1MiB packet",
+    "bytes": 16777216,
+    "seconds": 42.227370799999335,
+    "aggregate_mib_per_second": 0.3789011652129725,
+    "minimum_mib_per_second": 2,
+    "sha256_verified": true,
+    "passed": false,
+    "unix": 1792618708.213209,
+    "prospective_first_model_raw_bound_gib": 12,
+    "prospective_transfer_seconds": 32430.62077439949
+  },
+  "physical_preflight": {
+    "gpu": "NVIDIA GeForce RTX 3050, 8192, GPU-1799680b-bbdf-1bb2-f8c8-5414c9bf97a7",
+    "available_ram_lower_bound_bytes": 64547737600,
+    "passed": true
+  },
+  "budget": {
+    "cap_usd": 5,
+    "prior_usd": 0,
+    "conservative_spend_usd": 0.144429,
+    "provider_observed_usd": 0.007,
+    "settlement_can_lag": true,
+    "includes_gpu_disk_network_and_cleanup_reserve": true,
+    "elapsed_seconds_to_verified_absence": 300.82520294189453,
+    "hourly_including_disk_upper_usd": 0.2083851851851852,
+    "no_historical_allowance_added": true
+  },
+  "cleanup": {
+    "unix": 1792618755.5943108,
+    "checked_task_instance_ids": [
+      57114362
+    ],
+    "active_task_instance_ids": [],
+    "independent_provider_list_check": true,
+    "unrelated_instances_untouched": true
+  },
+  "cpu_tests": {
+    "passed": 14,
+    "cuda_skipped": 2,
+    "torch": "2.13.0+cpu",
+    "python": "3.10",
+    "inductor_gpu_validated": false
+  },
+  "source": {
+    "baseline": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b",
+    "production_files_unchanged": 602,
+    "comparator_ast_sha256": "6b2a66ff1c5187677f132aa26de5c0c161d2c6573331567acba8d76b04c3d070",
+    "source_sha256": "2b3ce103921a5713849d120b6bd3d74fc5c895124b65bbea93f06a2658bc3f6a",
+    "source_archive_bytes": 16795678,
+    "cpu_tests": {
+      "passed": 14,
+      "skipped_cuda": 2
+    }
+  },
+  "time_recorded_unix": 1792618840.0213804
+}
