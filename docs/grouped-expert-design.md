@@ -1,9 +1,13 @@
-# D3: bounded grouped expert compute — layer evidence and whole-model preparation
+# D3: bounded grouped expert compute — layer evidence and whole-model forward gate
 
 Status: an internal bounded grouped NF4 restore and restricted hybrid GEMM
 candidate is implemented and development-tested. The [prospective layer series](../benchmarks/results/d3-grouped-layer-20261021/report.md)
 is complete: 60 valid arms / 1,200 samples and six CUDA profiles. **D3 end-to-end
 acceptance and coordination/review remain open.** Public flags and training defaults do not change.
+The separately frozen [whole-model forward gate](../benchmarks/results/d3-full-forward-c94214d3/report.md)
+now passes all twelve BF16/NF4/nested NF4 cells on RTX 3090. This closes the
+measured forward correctness/capacity gate; implementation/evidence review and
+B1 interface coordination remain open. No backward or training claim follows.
 The [Trello card](https://trello.com/c/G6t5xoIj) is the task; source context is
 `rndTASK.pdf`, pages 6/10, with the team's decomposed acceptance checklist.
 
@@ -346,12 +350,14 @@ gate still needs the task's 16 GB+ setup and its own prospectively fixed recipe.
   samples, six actual CUDA profiles and local byte-identical analysis replay.
   All raw/development evidence and GPU/RAM peaks are [published together](../benchmarks/results/d3-grouped-layer-20261021/report.md).
   Observed wall reductions are 4.63% / 2.12% / 5.90%; grouped GPU memory is higher.
-- Open: design coordination before B1.4, 16 GB+ end-to-end gate and review/sign-off.
+- Completed for its pinned recipe: the 16 GB+ whole-model forward gate, twelve
+  fresh processes on RTX 3090, exact outputs and effective restored controls.
+- Open: design coordination before B1.4 and implementation/evidence review/sign-off.
 - Backward/derivative validation remains separate; no training claim follows from forward.
 
-## Whole-model follow-up preparation, 2026-10-21
+## Whole-model follow-up, 2026-10-21
 
-The [new preparation and disabled protocol](../benchmarks/protocols/d3-full-model/README.md)
+The [separate preparation and frozen protocol](../benchmarks/protocols/d3-full-model/README.md)
 assemble every native OLMoE block and share one streaming weight pool across
 layers. There is a separate independent full resident oracle. Selected CPU tests
 exercise whole-model logits, NF4/nested references, pool ownership, negative
@@ -365,6 +371,15 @@ The first trained series at `c4900bc9` passed five cells, then stopped when
 NF4 sequential's one-byte negative control was ineffective. The failed session
 is [retained](../benchmarks/results/d3-full-forward-c4900bc9/report.md).
 The revised complete-matrix zero control passed CPU and tiny CUDA development
-checks; its twelve-cell series awaits a new prospective source/protocol commit.
-No public training path or backward is enabled. The RTX3090 has already executed
-both full resident formats attempted so far; a second SSD is unnecessary.
+checks, then the operator committed the exact revised recipe and source at
+`c94214d397ffbe609916221e43fb2efd8c43ad4d` before a new twelve-cell series.
+All twelve cells passed: native, sequential streamed, grouped resident and
+grouped streamed for each of BF16, NF4 and nested NF4. Each uses all sixteen
+trained decoder layers with 512 synthetic token IDs, exact corresponding-native
+logits, same-process changed-weight/restored controls and F1 OK. Every grouped
+cell executes actual grouped GEMM under the declared cutoff-128 policy.
+The [retained results and offline replay](../benchmarks/results/d3-full-forward-c94214d3/report.md)
+report total allocator/RSS peaks separately from the 64 MiB streamed weight arena.
+The first failed session and all its exclusions remain preserved; none of its
+five passes were reused. No full-model speed measurement, public training path,
+backward or final D3 sign-off is claimed. A second SSD is unnecessary.

@@ -1,12 +1,17 @@
-# D3 complete-model forward gate: preparation
+# D3 complete-model forward gate
 
 Status on 2026-10-21: the first trained series at `c4900bc9` stopped after five
 passing cells when the NF4 sequential cell's single-byte negative control was
 ineffective. All attempted cells, logs and native oracle identities are
 [retained](../../results/d3-full-forward-c4900bc9/report.md).
-The revised whole-projection control passed development tests; its new full
-series requires a new operator source/protocol commit and clean checkout.
-There is no completed twelve-cell gate or D3 acceptance.
+The revised whole-projection control passed development tests, then the operator
+committed the exact revised source/protocol at
+`c94214d397ffbe609916221e43fb2efd8c43ad4d`. Its entirely new series from a clean
+actual checkout passed **12/12 cells**, with F1 OK, exact native logits,
+effective same-process negatives and restored positives. The
+[full result and offline replay](../../results/d3-full-forward-c94214d3/report.md)
+complete this pinned forward correctness/capacity gate. Implementation/evidence
+review, B1 interface coordination and final D3 acceptance remain separate.
 
 ## Dependencies checked
 
@@ -34,7 +39,7 @@ the exact NF4 bytes through the audited B1.2 bitsandbytes reference. The grouped
 resident control uses the same `GroupedComputeExperts` and grouped GEMM backend
 as the streamed candidate. Native attention and routers remain unmodified.
 
-The proposed trained recipe runs all sixteen OLMoE layers at 512 synthetic token
+The frozen trained recipe runs all sixteen OLMoE layers at 512 synthetic token
 IDs, batch one, with full logits. It is a complete forward through trained
 weights, **not real-text validation, a quality/convergence study or training**.
 BF16, NF4 and nested NF4 each have four fresh-process cells: native resident,
@@ -164,14 +169,18 @@ above. The latest CPU regression suite reports 161 passed / 74 hardware skips;
 the separate on-host CUDA tests supply the actual GPU evidence. No instance was
 restarted, stopped, destroyed or rented by the agent.
 
-Full repository Ruff is clean. No full repository pytest or complete trained
-CUDA gate is claimed. The selected log and exact preparation source are retained in
+Full repository Ruff is clean. No full repository pytest is claimed. The complete
+trained forward CUDA series is recorded in the linked result. The selected
+preparation log and exact source are retained in
 `preparation-evidence.zip` (the original CPU-only preparation snapshot).
 `setup-evidence.zip` retains the subsequent real GPU preparation, first failed
 arithmetic probe, diagnostics, corrected-shape regression, immutable bundle
 identities, all 48 mapped files, and baseline/own/independent-foreign controls.
 The archive also retains the failed first session and the revised synthetic
 negative-control tests. CRCs and manifest hashes were verified. The local
-`setup-verification.json` distinguishes the six attempted original cells from
-the zero revision-2 trained cells. A new operator commit, a complete revised
-series and implementation/interface review remain outstanding.
+`setup-verification.json` is the immutable pre-run snapshot: it distinguishes
+the six attempted original cells from the zero revision-2 trained cells at
+freeze time. It was not rewritten after execution. The separate result records
+all twelve subsequent revision-2 cells and their exact source commit.
+Implementation/interface review remains outstanding; no backward, training or
+whole-model throughput claim follows.
