@@ -1056,14 +1056,18 @@ def run_n(base_dir: Path, adapter_dir: Path, tokenizer, device: str,
     """One scoring of DEFAULT_GENERAL_SUITE for A_on + the seed-42 adapter."""
     from peft import PeftModel
 
-    from soup_cli.eval import gate_suites as gs
-
     base = load_base(base_dir, device, experts_implementation)
     resolved = {"experts_implementation_resolved": base.config._experts_implementation,
                 "attention_implementation_resolved": base.config._attn_implementation,
                 "device_used": parameters_device(base)}
     model = PeftModel.from_pretrained(base, adapter_dir)
-    gen = make_gate_generator(model, tokenizer, device)
+    return score_n(make_gate_generator(model, tokenizer, device), resolved)
+
+
+def score_n(gen: Callable[[str], str], resolved: Dict[str, Any]) -> Dict[str, Any]:
+    """The N result for a generator: scores of ``DEFAULT_GENERAL_SUITE`` and what was scored."""
+    from soup_cli.eval import gate_suites as gs
+
     scores = {name: float(gs.score_bundled_suite(name, gen))
               for name in sorted(gs.DEFAULT_GENERAL_SUITE)}
     return {"void_reasons": nonfinite_reasons("N", scores), "scores": scores, **resolved,
@@ -1213,15 +1217,27 @@ def execute_attempt(journal: common.AttemptsJournal, run_id: str, kind: str,
                     stamp: Callable[..., Dict[str, Any]] = common.box_stamp,
                     prov: Callable[[], Dict[str, Any]] = common.provenance,
                     identify_own: Optional[Callable[[], Dict[str, Any]]] = None,
-                    expected_instance: Optional[Dict[str, str]] = None
+                    expected_instance: Optional[Dict[str, str]] = None,
+                    dataset_revision: Optional[str] = None,
+                    card_prefix: Optional[str] = None,
+                    require_identity: bool = False,
+                    dry_run: Optional[Dict[str, Any]] = None
                     ) -> Dict[str, Any]:
     """Run ``body`` as one journaled attempt and write its record, void or not.
 
     ``expected_instance`` ({"gpu_uuid", "instance_id"}, from decision.json) is the instance of
     the chosen F records; a run whose box stamps name another one is a void (rule section 3).
+    ``card_prefix`` ("F" or "F80") makes a box stamp outside that card class a void whose
+    reason starts with ``card:``; ``drive_run`` turns that into ``CalibrationStopped``.
+    ``require_identity`` makes a missing field of ``record["identity"]`` (GPU name, compute
+    capability, memory.total, driver, CUDA, torch, bnb, transformers, commit, dataset revision,
+    instance id) a void. The record always carries the identity; the CLI paths set the flag.
 
     The record is written to ``out_dir/<attempt_id>.json`` before the journal is closed, so a
     void run always keeps its record. A crash is journaled as a void and re-raised.
+
+    ``dry_run`` ({"fake_card", ...}) marks the record as a dry run. A dry run does not void on
+    a dirty tree or on library versions that differ from the rule, and lists both as skipped.
     """
     attempt = journal.start(run_id, kind)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1235,16 +1251,32 @@ def execute_attempt(journal: common.AttemptsJournal, run_id: str, kind: str,
             peers = {"own_pids": [], "method": "allocation probe failed", "error": peers_error}
     provenance = prov()
     versions = common.library_versions()
+    stamp_before = stamp(gpu_index, instance)
     record: Dict[str, Any] = {
-        "run_id": run_id, "kind": kind, "attempt_id": attempt, "provenance": provenance,
-        "stack": versions, "peers": peers, "box_stamp_before": stamp(gpu_index, instance),
+        "run_id": run_id, "kind": kind, "attempt_id": attempt,
+        "attempt_number": len(journal.attempts(run_id)),
+        "record_source": "run", "provenance": provenance, "stack": versions, "peers": peers,
+        "box_stamp_before": stamp_before,
+        "identity": common.run_identity(stamp_before, versions, provenance, dataset_revision),
     }
+    if dry_run is not None:
+        record["dry_run"] = dry_run
     reasons = common.validate_provenance(provenance)
     if peers_error:
         reasons.append(f"peers: cannot identify this process's GPU context: {peers_error}")
     if versions["mismatches"]:
         reasons.append(f"provenance: library versions differ from the rule: "
                        f"{versions['mismatches']}")
+    if dry_run is not None:
+        skipped = [r for r in reasons if r.startswith((
+            "provenance: the repository tree", "provenance: library versions"))]
+        reasons = [r for r in reasons if r not in skipped]
+        dry_run["skipped_checks"] = skipped or ["none triggered"]
+    if require_gpu and require_identity:
+        reasons += common.identity_problems(record["identity"])
+    if card_prefix is not None:
+        reasons += [f"card: {problem} (before the run)"
+                    for problem in common.card_class_problems(stamp_before, card_prefix)]
     reasons += input_check()
     result: Dict[str, Any] = {}
     try:
@@ -1254,13 +1286,19 @@ def execute_attempt(journal: common.AttemptsJournal, run_id: str, kind: str,
     except BaseException as exc:
         record["box_stamp_after"] = None
         record["crash"] = f"{type(exc).__name__}: {str(exc)[:2000]}"
+        record["failure_kind"] = "oom" if type(exc).__name__ == "OutOfMemoryError" else "crash"
+        crash_reasons = [f"crash: {type(exc).__name__}: {exc}"[:500]]
+        record.update({"outcome": common.OUTCOME_VOID, "void_reasons": crash_reasons})
         (out_dir / f"{attempt}.json").write_text(json.dumps(record, indent=1, sort_keys=True,
                                                              default=str))
-        journal.end(attempt, common.OUTCOME_VOID, [f"crash: {type(exc).__name__}: {exc}"[:500]])
+        journal.end(attempt, common.OUTCOME_VOID, crash_reasons)
         raise
     own = [os.getpid()] + list(peers["own_pids"])
     reasons += common.validate_run_stamps(record["box_stamp_before"], record["box_stamp_after"],
                                           own, require_gpu)
+    if card_prefix is not None and record["box_stamp_after"] is not None:
+        reasons += [f"card: {problem} (after the run)" for problem in
+                    common.card_class_problems(record["box_stamp_after"], card_prefix)]
     if expected_instance is not None:
         reasons += instance_mismatches(record["box_stamp_before"], record["box_stamp_after"],
                                        expected_instance)
@@ -1287,38 +1325,104 @@ def instance_mismatches(before: Dict[str, Any], after: Optional[Dict[str, Any]],
     return reasons
 
 
-def drive_child(journal: common.AttemptsJournal, run_id: str, argv: List[str]) -> int:
+def _signal_name(returncode: int) -> Optional[str]:
+    import signal
+
+    if returncode >= 0:
+        return None
+    try:
+        return signal.Signals(-returncode).name
+    except ValueError:
+        return f"signal {-returncode}"
+
+
+def write_driver_record(journal: common.AttemptsJournal, attempt_id: str, run_id: str,
+                        runs_dir: Path, returncode: int,
+                        stamp: Callable[[], Dict[str, Any]],
+                        identity: Callable[[Dict[str, Any]], Dict[str, Any]],
+                        dry_run: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """The record of an attempt whose process died before it wrote its own (SIGKILL, the host's
+    OOM killer, a preemption, an exit during start-up). Written by the driver, from the
+    driver's own box stamp, so no attempt lacks a record. ``record_source`` says who wrote it."""
+    kind = next((e["kind"] for e in journal.events()
+                 if e["event"] == "start" and e["attempt_id"] == attempt_id), None)
+    now = stamp()
+    signal_name = _signal_name(returncode)
+    reasons = next((e["reasons"] for e in reversed(journal.events())
+                    if e["event"] == "end" and e["attempt_id"] == attempt_id), [])
+    record: Dict[str, Any] = {
+        "run_id": run_id, "kind": kind, "attempt_id": attempt_id,
+        "attempt_number": len(journal.attempts(run_id)),
+        "record_source": "driver", "outcome": common.OUTCOME_VOID, "void_reasons": reasons,
+        "killed": {"returncode": returncode, "signal": signal_name,
+                   "note": "the child process ended without closing its attempt"},
+        "failure_kind": "killed", "box_stamp_before": None, "box_stamp_after": now,
+        "identity": identity(now),
+    }
+    if dry_run is not None:
+        record["dry_run"] = dry_run
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    (runs_dir / f"{attempt_id}.json").write_text(json.dumps(record, indent=1, sort_keys=True,
+                                                            default=str))
+    return record
+
+
+def drive_child(journal: common.AttemptsJournal, run_id: str, argv: List[str],
+                runs_dir: Optional[Path] = None,
+                stamp: Callable[[], Dict[str, Any]] = lambda: common.box_stamp(),
+                identity: Callable[[Dict[str, Any]], Dict[str, Any]] = lambda s: {},
+                dry_run: Optional[Dict[str, Any]] = None) -> int:
     """Run one child process for ``run_id``; a child that dies without closing its attempt is
-    a void (the journal closes it)."""
+    a void (the journal closes it) and, with ``runs_dir``, gets a record from the driver."""
     journal.close_interrupted(run_id)
     journal.assert_may_start(run_id)
     code = subprocess.run([sys.executable, *argv], check=False).returncode
-    journal.close_interrupted(run_id)
+    for attempt_id in journal.close_interrupted(run_id):
+        print(f"{run_id}: attempt {attempt_id} ended without a record (exit code {code}); "
+              "journaled as a void", file=sys.stderr)
+        if runs_dir is not None and not (runs_dir / f"{attempt_id}.json").exists():
+            write_driver_record(journal, attempt_id, run_id, runs_dir, code, stamp, identity,
+                                dry_run)
     return code
 
 
+def completed(journal: common.AttemptsJournal, run_id: str) -> bool:
+    """True when ``run_id`` already has an attempt that finished ok or failed."""
+    return any(a["outcome"] in (common.OUTCOME_OK, common.OUTCOME_FAILED)
+               for a in journal.attempts(run_id))
+
+
 def drive_run(journal: common.AttemptsJournal, run_id: str, argv: List[str],
-              stop_on_failed: bool = False) -> Dict[str, Any]:
+              stop_on_failed: bool = False, **child) -> Dict[str, Any]:
     """Run ``run_id`` in fresh processes: a void is rerun once, a second void stops calibration.
 
     A failed run is never rerun. With ``stop_on_failed`` (T, W, N, P) it also stops
     calibration, which has failed (rule section 8); F reports its failures through the
-    final-card decision instead.
+    final-card decision instead. A void whose reason is a card mismatch (``card:``) is never
+    rerun: it stops calibration at once (calibration rule, clarification 2026-10-20). The one
+    rerun of a void is announced on stderr; it is the rule's, not a silent retry.
     """
     while True:
-        drive_child(journal, run_id, argv)
+        drive_child(journal, run_id, argv, **child)
         attempts = journal.attempts(run_id)
         if not attempts:
             raise RuntimeError(f"{run_id}: the child wrote no journal entry")
-        if attempts[-1]["outcome"] == common.OUTCOME_FAILED and stop_on_failed:
+        last = attempts[-1]
+        if last["outcome"] == common.OUTCOME_VOID and any(
+                r.startswith("card:") for r in last["reasons"]):
             raise common.CalibrationStopped(
-                f"{run_id}: failed ({attempts[-1].get('reasons') or 'see its record'}); "
+                f"{run_id}: the card is not the rule's ({last['reasons']}); calibration stops")
+        if last["outcome"] == common.OUTCOME_FAILED and stop_on_failed:
+            raise common.CalibrationStopped(
+                f"{run_id}: failed ({last.get('reasons') or 'see its record'}); "
                 "calibration fails and is reported")
-        if attempts[-1]["outcome"] in (common.OUTCOME_OK, common.OUTCOME_FAILED):
-            return attempts[-1]
+        if last["outcome"] in (common.OUTCOME_OK, common.OUTCOME_FAILED):
+            return last
         if journal.void_count(run_id) >= 2:
             raise common.CalibrationStopped(
-                f"{run_id}: second void ({attempts[-1]['reasons']}); calibration stops")
+                f"{run_id}: second void ({last['reasons']}); calibration stops")
+        print(f"{run_id}: void ({last['reasons']}); the rule allows one rerun, "
+              "starting it now", file=sys.stderr)
 
 
 def write_sha256sums(directory: Path) -> int:
@@ -1542,10 +1646,35 @@ def _body(args, run_id, tokenizer, data_root, device, out, attempt_hint):
     raise SystemExit(f"stage {args.stage} is not runnable")
 
 
+def is_dry(args) -> bool:
+    return bool(getattr(args, "dry_run", False))
+
+
+def guard_out(out: Path, dry_run: bool) -> None:
+    """Dry-run and real records never share an ``--out``."""
+    problem = common.dry_run_mix_problem(out, dry_run)
+    if problem:
+        raise common.CalibrationStopped(problem)
+
+
+def out_is_dry(out: Path) -> bool:
+    return common.dry_run_mix_problem(out, False) is not None
+
+
+def dataset_revision_of(split_dir: Path) -> Optional[str]:
+    path = Path(split_dir) / "split-record.json"
+    return json.loads(path.read_text()).get("dataset_revision") if path.exists() else None
+
+
 def _cmd_run(args) -> int:
+    if is_dry(args):
+        import e4_part2_dryrun as dryrun
+
+        return dryrun.cmd_run(sys.modules[__name__], args)
     from transformers import AutoTokenizer
 
     out = args.out
+    guard_out(out, dry_run=False)
     if args.stage != "F":
         args.f_prefix = resolve_f_prefix(out, args.f_prefix)
     expected_instance = resolve_final_instance(out) if args.stage != "F" else None
@@ -1567,12 +1696,15 @@ def _cmd_run(args) -> int:
     def input_check() -> List[str]:
         return run_input_check(args.data_root, manifest, args.stage, args.arm, manifest_sha256)
 
+    cuda = device.startswith("cuda")
     record = execute_attempt(
         journal, run_id, args.stage, out / "runs",
         lambda: _body(args, run_id, tokenizer, args.data_root, device, out, int(time.time())),
-        input_check=input_check, require_gpu=device.startswith("cuda"),
+        input_check=input_check, require_gpu=cuda,
         gpu_index=args.gpu_index, instance=args.instance_id,
-        expected_instance=expected_instance)
+        expected_instance=expected_instance,
+        dataset_revision=dataset_revision_of(args.split_dir),
+        card_prefix=args.f_prefix if cuda else None, require_identity=True)
     print(json.dumps({"run_id": run_id, "outcome": record["outcome"],
                       "void_reasons": record["void_reasons"]}))
     return 3 if record["outcome"] == common.OUTCOME_VOID else 0
@@ -1580,10 +1712,16 @@ def _cmd_run(args) -> int:
 
 def _child_argv(args, stage: str, arm: Optional[str] = None, repeat: Optional[int] = None
                 ) -> List[str]:
-    argv = [str(Path(__file__).resolve()), "run", "--stage", stage,
-            "--data-root", str(args.data_root), "--split-dir", str(args.split_dir),
-            "--manifest", str(args.manifest), "--out", str(args.out), "--device", args.device,
+    argv = [str(Path(__file__).resolve()), "run", "--stage", stage, "--out", str(args.out),
             "--gpu-index", str(args.gpu_index), "--f-prefix", args.f_prefix]
+    if is_dry(args):
+        argv += ["--dry-run", "--fake-card", args.fake_card,
+                 "--fake-reserved-bytes", str(args.fake_reserved_bytes)]
+        if args.inject:
+            argv += ["--inject", args.inject]
+    else:
+        argv += ["--data-root", str(args.data_root), "--split-dir", str(args.split_dir),
+                 "--manifest", str(args.manifest), "--device", args.device]
     if arm:
         argv += ["--arm", arm]
     if repeat:
@@ -1593,23 +1731,129 @@ def _child_argv(args, stage: str, arm: Optional[str] = None, repeat: Optional[in
     return argv
 
 
+def _drive_kwargs(args) -> Dict[str, Any]:
+    """What ``drive_run`` needs to write a record for an attempt whose process was killed."""
+    if is_dry(args):
+        import e4_part2_dryrun as dryrun
+
+        stamp = lambda: dryrun.fake_stamp(args.fake_card, args.instance_id)  # noqa: E731
+        revision = dryrun.DRY_DATASET_REVISION
+        marker = dryrun.dry_marker(args.fake_card, args.inject)
+    else:
+        stamp = lambda: common.box_stamp(args.gpu_index, args.instance_id)  # noqa: E731
+        revision = dataset_revision_of(args.split_dir)
+        marker = None
+
+    def identity(now: Dict[str, Any]) -> Dict[str, Any]:
+        return common.run_identity(now, common.library_versions(), common.provenance(),
+                                   revision)
+
+    return {"runs_dir": args.out / "runs", "stamp": stamp, "identity": identity,
+            "dry_run": marker}
+
+
+def _drive_stage(args, journal: common.AttemptsJournal, stage: str, run_id: str,
+                 arm: Optional[str] = None, repeat: Optional[int] = None,
+                 skip_completed: bool = False) -> None:
+    if skip_completed and completed(journal, run_id):
+        print(f"{run_id}: already has a completed attempt; not rerun")
+        return
+    drive_run(journal, run_id, _child_argv(args, stage, arm, repeat),
+              stop_on_failed=stage != "F", **_drive_kwargs(args))
+
+
+def _rest_plan() -> List[tuple]:
+    plan: List[tuple] = [("T", None, None), ("W", None, None)]
+    plan += [("N", None, i) for i in range(1, N_REPEATS + 1)] + [("P", None, None)]
+    return plan
+
+
 def _cmd_drive(args) -> int:
+    guard_out(args.out, is_dry(args))
     journal = common.AttemptsJournal(args.out / "attempts.jsonl")
     if args.stage != "F":
         args.f_prefix = resolve_f_prefix(args.out, args.f_prefix)
         resolve_final_instance(args.out)
-    if resolve_device(args.device, args.gpu_index).startswith("cuda"):
+    if not is_dry(args) and resolve_device(args.device, args.gpu_index).startswith("cuda"):
         common.require_single_gpu(args.gpu_index)
     if args.stage == "F":
         for arm in ARMS:  # A_off, A_on, A_bf16, in that order, a fresh process each
-            drive_run(journal, f"{args.f_prefix}_{arm}", _child_argv(args, "F", arm))
+            _drive_stage(args, journal, "F", f"{args.f_prefix}_{arm}", arm)
         return _cmd_decide(args)
-    plan = [("T", None, None), ("W", None, None)]
-    plan += [("N", None, i) for i in range(1, N_REPEATS + 1)] + [("P", None, None)]
-    for stage, arm, repeat in plan:
-        run_id = f"N_{repeat}" if stage == "N" else stage
-        drive_run(journal, run_id, _child_argv(args, stage, arm, repeat), stop_on_failed=True)
+    for stage, arm, repeat in _rest_plan():
+        _drive_stage(args, journal, stage, f"N_{repeat}" if stage == "N" else stage, arm, repeat)
     return _cmd_report(args)
+
+
+# Exit codes of `calibrate`: 0 complete, 4 no final card (REPEAT_F_ON_A100_80GB, F_FAILS,
+# STOP_RECIPE_TO_OWNER or INCOMPLETE; decision.json says which), 6 refused or stopped
+# (CalibrationStopped: wrong card, no instance id, a second void, a failed T/W/N/P).
+def preflight(args, out: Path) -> str:
+    """Read the card before any attempt and refuse unless it is in the F or F80 class.
+
+    Writes ``preflight-<unix>.json`` (the stamp and the verdict, refusals included) and
+    returns the F record prefix the card runs: ``F`` for the 40 GB class, ``F80`` for 80 GB.
+    """
+    instance = common.instance_id(args.instance_id)
+    if not instance:
+        raise common.CalibrationStopped(
+            "no instance id: pass --instance-id (every record carries it)")
+    args.instance_id = instance
+    if is_dry(args):
+        import e4_part2_dryrun as dryrun
+
+        stamp = dryrun.fake_stamp(args.fake_card, instance, args.gpu_index)
+    else:
+        common.require_single_gpu(args.gpu_index)
+        stamp = common.box_stamp(args.gpu_index, instance)
+    problems = {prefix: common.card_class_problems(stamp, prefix) for prefix in ("F", "F80")}
+    matching = [prefix for prefix, found in problems.items() if not found]
+    out.mkdir(parents=True, exist_ok=True)
+    verdict = {"stamp": stamp, "problems": problems, "card_class": matching[0] if matching
+               else None, "dry_run": is_dry(args)}
+    (out / f"preflight-{int(time.time() * 1000)}.json").write_text(
+        json.dumps(verdict, indent=1, sort_keys=True, default=str) + "\n")
+    if not matching:
+        raise common.CalibrationStopped(
+            "the card is neither the rule's A100 40 GB nor A100 80 GB; refusing to run. "
+            + "; ".join(f"{p}: {', '.join(found)}" for p, found in problems.items()))
+    return matching[0]
+
+
+def _cmd_calibrate(args) -> int:
+    """One command per instance: preflight, F (or the F80 repeat), decide, T, W, N x5, P, report.
+
+    Every attempt is journaled and has a record, void, OOM, killed and failed ones included.
+    Nothing is retried except the rule's one rerun of a void, announced on stderr.
+    """
+    out = args.out
+    args.f_prefix = None
+    try:
+        guard_out(out, is_dry(args))
+        prefix = preflight(args, out)
+        args.f_prefix = prefix
+        journal = common.AttemptsJournal(out / "attempts.jsonl")
+        if prefix == "F80" and decide_final_card(f_results(out, "F"))["decision"] != (
+                "REPEAT_F_ON_A100_80GB"):
+            raise common.CalibrationStopped(
+                "this is an A100 80 GB card, which the rule uses only after the 40 GB F "
+                "records say to repeat F there; copy those records into --out first")
+        for arm in ARMS:
+            _drive_stage(args, journal, "F", f"{prefix}_{arm}", arm, skip_completed=True)
+        code = _cmd_decide(args)
+        if code != 0:
+            return code
+        decided = json.loads((out / "decision.json").read_text())["decision"]
+        if FINAL_CARD_PREFIX[decided] != prefix:
+            raise common.CalibrationStopped(
+                f"the final card is {decided}; the rest runs on that instance, not this one")
+        for stage, arm, repeat in _rest_plan():
+            _drive_stage(args, journal, stage, f"N_{repeat}" if stage == "N" else stage, arm,
+                         repeat, skip_completed=True)
+        return _cmd_report(args)
+    except common.CalibrationStopped as exc:
+        print(f"calibration stopped: {exc}", file=sys.stderr)
+        return 6
 
 
 def verify_f_cards(out: Path) -> None:
@@ -1641,6 +1885,8 @@ def _cmd_decide(args) -> int:
     f40 = f_results(args.out, "F")
     f80 = f_results(args.out, "F80") or None
     decision = decide_final_card(f40, f80)
+    if out_is_dry(args.out):
+        decision["dry_run"] = True
     if decision["decision"] in FINAL_CARD_PREFIX:
         decision["final_instance"] = final_instance(args.out,
                                                     FINAL_CARD_PREFIX[decision["decision"]])
@@ -1652,6 +1898,8 @@ def _cmd_decide(args) -> int:
 def _cmd_report(args) -> int:
     args.f_prefix = resolve_f_prefix(args.out, args.f_prefix)
     report = assemble_report(args.out, args.f_prefix)
+    if out_is_dry(args.out):
+        report["dry_run"] = True
     (args.out / "report.json").write_text(json.dumps(report, indent=1, sort_keys=True,
                                                      default=str) + "\n")
     write_sha256sums(args.out)
@@ -1671,6 +1919,22 @@ def _cmd_peers_selftest(args) -> int:
     return 0
 
 
+def _add_dry_run_options(p) -> None:
+    p.add_argument("--dry-run", action="store_true",
+                   help="CPU, tiny random model, fake box stamp; records have the real schema "
+                        "(see e4_part2_dryrun.py)")
+    p.add_argument("--fake-card", default="a100-40", choices=sorted(FAKE_CARD_NAMES),
+                   help="dry run: the card the fake box stamp names")
+    p.add_argument("--fake-reserved-bytes", type=int, default=20_000_000_000,
+                   help="dry run: peak reserved memory the F results report (fake)")
+    p.add_argument("--inject", help="dry run: RUN_ID=KIND[@all],... with KIND oom, kill, void "
+                                    "or fail")
+
+
+#: The names of ``e4_part2_dryrun.FAKE_CARDS``, kept here so `--help` needs no import.
+FAKE_CARD_NAMES = ("a100-40", "a100-80", "t4", "a100-odd")
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -1688,12 +1952,13 @@ def main(argv=None) -> int:
                             "Other stages derive it from decision.json; a value that "
                             "disagrees is an error")
         if name in ("run", "drive"):
-            p.add_argument("--data-root", type=Path, required=True)
-            p.add_argument("--split-dir", type=Path, required=True)
-            p.add_argument("--manifest", type=Path, required=True)
+            p.add_argument("--data-root", type=Path)
+            p.add_argument("--split-dir", type=Path)
+            p.add_argument("--manifest", type=Path)
             p.add_argument("--device", default="cuda")
             p.add_argument("--gpu-index", type=int, default=0)
             p.add_argument("--instance-id")
+            _add_dry_run_options(p)
         if name == "run":
             p.add_argument("--stage", choices=["F", "T", "W", "N", "P"], required=True)
             p.add_argument("--arm", choices=list(ARMS))
@@ -1702,14 +1967,32 @@ def main(argv=None) -> int:
             p.add_argument("--recipe-seed", type=int, default=RECIPE.seed)
         if name == "drive":
             p.add_argument("--stage", choices=["F", "rest"], required=True)
+    p = sub.add_parser(
+        "calibrate", help="the whole calibration on this instance: F, decide, T, W, N x5, P, "
+                          "report; refuses a card outside the F or F80 class")
+    p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--data-root", type=Path)
+    p.add_argument("--split-dir", type=Path)
+    p.add_argument("--manifest", type=Path)
+    p.add_argument("--device", default="cuda")
+    p.add_argument("--gpu-index", type=int, default=0)
+    p.add_argument("--instance-id", help="the vast.ai instance id (or set VAST_CONTAINERLABEL)")
+    _add_dry_run_options(p)
     args = parser.parse_args(argv)
+    if args.cmd in ("run", "drive", "calibrate") and not args.dry_run:
+        missing = [flag for flag in ("data_root", "split_dir", "manifest")
+                   if getattr(args, flag) is None]
+        if missing:
+            parser.error("--" + ", --".join(m.replace("_", "-") for m in missing)
+                         + " required without --dry-run")
     if args.cmd in ("run", "drive") and args.stage == "F" and args.f_prefix is None:
         parser.error("--f-prefix F or F80 is required for the F stage")
     if args.cmd == "peers-selftest":
         return _cmd_peers_selftest(args)
     return {"split": _cmd_split, "run": _cmd_run, "drive": _cmd_drive, "decide": _cmd_decide,
-            "report": _cmd_report}[args.cmd](args)
+            "report": _cmd_report, "calibrate": _cmd_calibrate}[args.cmd](args)
 
 
 if __name__ == "__main__":
+    sys.modules.setdefault("e4_part2_calibration", sys.modules["__main__"])
     raise SystemExit(main())

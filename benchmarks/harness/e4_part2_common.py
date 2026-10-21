@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -363,6 +364,19 @@ def instance_id(explicit: Optional[str] = None) -> Optional[str]:
     return None
 
 
+def driver_cuda_version(gpu_id: Optional[str] = "0") -> Optional[str]:
+    """The highest CUDA version the driver supports, from the ``nvidia-smi`` header (the
+    ``--query-gpu`` fields do not offer it). Asked of the workload GPU like every other field.
+    None when it cannot be read."""
+    command = ["nvidia-smi"] + ([f"--id={gpu_id}"] if gpu_id is not None else [])
+    try:
+        out = subprocess.run(command, capture_output=True, text=True, check=False, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = re.search(r"CUDA Version:\s*([0-9.]+)", out.stdout) if out.returncode == 0 else None
+    return match.group(1) if match else None
+
+
 def box_stamp(gpu_index: int = 0, explicit_instance: Optional[str] = None,
               readers: Optional[Dict[str, Callable[[], Any]]] = None) -> Dict[str, Any]:
     """Machine state at one moment. A reading that is unavailable is None with a reason.
@@ -400,6 +414,7 @@ def box_stamp(gpu_index: int = 0, explicit_instance: Optional[str] = None,
                                      if gpu_id is not None else None)
     stamp["gpu_compute_cap"] = (_nvidia_query("compute_cap", gpu_id)
                                 if gpu_id is not None else None)
+    stamp["driver_cuda_version"] = driver_cuda_version(gpu_id) if gpu_id is not None else None
     try:
         import torch
 
@@ -569,6 +584,65 @@ def library_versions() -> Dict[str, Any]:
     if not found["python"].startswith(PYTHON_SERIES):
         mismatches.append("python")
     return {"versions": found, "mismatches": mismatches}
+
+
+#: Fields every attempt record carries in ``identity`` (the task's list): GPU name, compute
+#: capability, memory.total, driver, CUDA, torch, bitsandbytes, transformers, commit, dataset
+#: revision and instance id. ``IDENTITY_OPTIONAL`` may be None without voiding the attempt.
+IDENTITY_REQUIRED = (
+    "gpu_name", "compute_capability", "memory_total_mib", "driver_version", "torch_cuda",
+    "torch", "bitsandbytes", "transformers", "soup_commit", "dataset_revision", "instance_id",
+)
+IDENTITY_OPTIONAL = ("gpu_uuid", "driver_cuda_version", "peft", "python", "harness_commit",
+                     "harness_tree")
+
+
+def run_identity(stamp: Dict[str, Any], stack: Dict[str, Any], prov: Dict[str, Any],
+                 dataset_revision: Optional[str]) -> Dict[str, Any]:
+    """The flat identity of one attempt, from its first box stamp, the library versions, the
+    provenance and the dataset revision. A value that is unknown is None."""
+    versions = stack.get("versions", {})
+    return {
+        "gpu_name": stamp.get("gpu_name"),
+        "compute_capability": stamp.get("gpu_compute_cap"),
+        "memory_total_mib": stamp.get("gpu_memory_total_mib"),
+        "driver_version": stamp.get("driver_version"),
+        "driver_cuda_version": stamp.get("driver_cuda_version"),
+        "torch_cuda": stamp.get("torch_cuda"),
+        "torch": versions.get("torch"),
+        "bitsandbytes": versions.get("bitsandbytes"),
+        "transformers": versions.get("transformers"),
+        "peft": versions.get("peft"),
+        "python": versions.get("python"),
+        "soup_commit": prov.get("soup_commit"),
+        "harness_commit": prov.get("harness_commit"),
+        "harness_tree": prov.get("harness_tree"),
+        "dataset_revision": dataset_revision,
+        "gpu_uuid": stamp.get("gpu_uuid"),
+        "instance_id": stamp.get("instance_id"),
+    }
+
+
+def identity_problems(identity: Dict[str, Any]) -> List[str]:
+    """Void reasons for an identity with a required field missing."""
+    return [f"provenance: identity.{key} missing" for key in IDENTITY_REQUIRED
+            if identity.get(key) in (None, "")]
+
+
+def dry_run_mix_problem(out: Path | str, dry_run: bool) -> Optional[str]:
+    """A directory holding both dry-run and real records is not a calibration record.
+
+    Returns a description when ``out`` holds records of the other kind than ``dry_run``.
+    """
+    runs = Path(out) / "runs"
+    if not runs.is_dir():
+        return None
+    for path in sorted(runs.glob("*.json")):
+        found = bool(json.loads(path.read_text()).get("dry_run"))
+        if found != dry_run:
+            return (f"{path.name} is a {'dry-run' if found else 'real'} record but this is "
+                    f"a {'dry run' if dry_run else 'real run'}; use another --out")
+    return None
 
 
 def finite_max(values) -> float:
