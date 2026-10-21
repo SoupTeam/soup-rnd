@@ -810,6 +810,61 @@ output: ./output
 - **The pre-flight reports the whole card on a capped or shared GPU** — `torch.cuda.mem_get_info()` is a device-level driver query and cannot see `set_per_process_memory_fraction`, a MIG slice, or another process on the same card. Set `training.stream_vram_override` to what your process may actually use; the check then refuses configurations that would exceed *that*, which is also how you rehearse a 4 GB card on a 16 GB one.
 - **Slower than you expected** — layer streaming trades time for memory. If the model already fits resident on your card, do not enable it.
 
+### L2L: load each layer once per optimizer step (`training.l2l`, BETA)
+
+With plain streaming plus `gradient_accumulation_steps: k`, every one of the k micro-batches
+walks the whole model, so each layer is loaded k times per optimizer step. `training.l2l: true`
+runs layer-major instead: each streamed decoder layer is loaded once and processes all k
+micro-batches, then the optimizer takes one step on the LoRA adapters. k is
+`gradient_accumulation_steps`; there is no separate field ([ADR 0002](adr/0002-l2l-is-a-bool-and-k-is-gradient-accumulation.md)).
+
+```yaml
+training:
+  stream_layers: true
+  gradient_accumulation_steps: 4   # k
+  l2l: true
+  lora:
+    dropout: 0
+```
+
+The result matches gradient accumulation. The LoRA gradients and the losses were bit-identical
+on SmolLM2-135M (RTX 3060, k = 1, 2, 4, `quantization: none` and `4bit`). Layer loads stay at 58
+for every k with L2L, against 58, 115 and 229 with accumulation. Learning rate, logging,
+checkpoints and resume stay with the Hugging Face loop. The default `false` changes nothing for
+existing configs. Report:
+[`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
+
+**Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
+
+Refused when the config is read:
+- `stream_layers: false`. A resident model has no layer loads to reuse.
+- `task` other than `sft`.
+- `lora.dropout` other than 0. A layer-major pass draws dropout masks in a different order, so the result would differ from accumulation.
+
+Refused at launch:
+- `model_type` other than `llama` or `mistral`.
+- `attention_dropout` other than 0 on the model.
+- More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
+- `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
+- Rows with padding before real tokens. L2L needs right-padded rows.
+
+With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
+different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
+each new shape costs one extra forward pass. Speed and memory were not measured, and the check
+used random tokens, not real text. Dropout above 0, MoE and multi-GPU are out of scope.
+
+**Counters.** Each logged training step carries four cumulative fields:
+
+| Log field | Meaning |
+|---|---|
+| `l2l_steps` | L2L optimizer steps taken so far |
+| `l2l_layer_loads` | decoder layers loaded into a streaming slot |
+| `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
+| `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
+
+Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
+flat as k grows. With plain accumulation it grows roughly in proportion to k.
+
 ### Preference losses over streaming (v0.72.4)
 
 `dpo`, `orpo`, `simpo` and `kto` stream exactly like `sft` — same config keys, same
