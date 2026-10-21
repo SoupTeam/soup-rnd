@@ -55,6 +55,11 @@ class LoadCounters:
     large_loads: int = 0
     restores: int = 0
 
+    def add(self, other: "LoadCounters") -> None:
+        self.layer_loads += other.layer_loads
+        self.large_loads += other.large_loads
+        self.restores += other.restores
+
 
 def _counter_values(runtime: Any) -> Tuple[int, int, int]:
     stats = runtime.stats()
@@ -146,15 +151,25 @@ class L2LStep:
         return out[0] if isinstance(out, tuple) else out
 
     def run(
-        self, micro_batches: Sequence[Any], store: Any, *, n_items: Optional[int] = None
+        self,
+        micro_batches: Sequence[Any],
+        store: Any,
+        *,
+        n_items: Optional[int] = None,
+        labels: Optional[Sequence[Any]] = None,
     ) -> List[Any]:
+        """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``."""
         with count_loads(self.runtime) as counters:
-            losses = self._run(micro_batches, store, n_items)
+            losses = self._run(micro_batches, store, n_items, labels)
         self.counters = counters
         return losses
 
     def _run(
-        self, micro_batches: Sequence[Any], store: Any, n_items: Optional[int]
+        self,
+        micro_batches: Sequence[Any],
+        store: Any,
+        n_items: Optional[int],
+        labels: Optional[Sequence[Any]],
     ) -> List[Any]:
         import torch
 
@@ -163,6 +178,10 @@ class L2LStep:
             raise ValueError("an L2L step needs at least one micro-batch")
         if k > store.k:
             raise ValueError(f"{k} micro-batches, but the activation store holds {store.k}")
+        if labels is None:
+            labels = micro_batches
+        elif len(labels) != k:
+            raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
         total = label_tokens(micro_batches) if n_items is None else int(n_items)
         vocab = int(self.causal.config.vocab_size)
 
@@ -176,14 +195,14 @@ class L2LStep:
 
         losses: List[Any] = []
         grads: List[Any] = []
-        for mb, ids in enumerate(micro_batches):
+        for mb in range(k):
             last = hidden[mb].detach().requires_grad_(True)
             hidden[mb] = None
             with torch.enable_grad():
                 normed = self.owner.norm(last)
                 logits = self.causal.lm_head(normed[:, slice(0, None), :])
                 loss = self.causal.loss_function(
-                    logits=logits, labels=ids, vocab_size=vocab, num_items_in_batch=total
+                    logits=logits, labels=labels[mb], vocab_size=vocab, num_items_in_batch=total
                 )
             loss.backward()
             losses.append(loss.detach())

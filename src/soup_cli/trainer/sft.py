@@ -116,6 +116,7 @@ def rewind_skip_reason(
     multipack: bool,
     vision: bool,
     audio: bool,
+    l2l: bool = False,
 ) -> str:
     """Why this run takes no rewind recorder, in words a user can act on.
 
@@ -134,6 +135,8 @@ def rewind_skip_reason(
         return "vision runs a custom collator"
     if audio:
         return "audio runs a custom collator"
+    if l2l:
+        return "L2L runs the layers outside the loss path the recorder wraps"
     if task != "sft":
         return f"the recorder is SFT-only and this is task {task!r}"
     return "this run does not take the recording trainer path"
@@ -712,6 +715,33 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             console.print(f"[green]Rewind log:[/] {log.path}")
         return trainer
 
+    def _build_l2l_trainer(self, base_cls: Any, trainer_kwargs: dict, training_args: Any) -> Any:
+        """Build the SFT trainer that runs each accumulation window as one L2L step."""
+        import torch
+
+        from soup_cli.trainer.l2l_trainer import (
+            attach_l2l_state,
+            make_l2l_trainer_class,
+            refuse_unsupported_l2l,
+        )
+        from soup_cli.utils.layer_stream import resolve_stream_dtype
+
+        base = self.model.get_base_model() if hasattr(self.model, "get_base_model") else self.model
+        refuse_unsupported_l2l(
+            base.config, n_gpu=int(training_args.n_gpu), fp16=bool(training_args.fp16)
+        )
+        trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
+        attach_l2l_state(
+            trainer,
+            self._stream_runtime,
+            dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
+        )
+        console.print(
+            "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
+            f"{int(training_args.gradient_accumulation_steps)} micro-batch(es)"
+        )
+        return trainer
+
     def _report_rewind(self) -> None:
         """One line after training when the flight recorder lost records."""
         state = getattr(self, "_rewind_state", None)
@@ -1203,6 +1233,8 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                 processor=self.processor,
                 max_length=cfg.data.max_length,
             )
+        elif tcfg.l2l:
+            self.trainer = self._build_l2l_trainer(SFTTrainer, trainer_kwargs, training_args)
         elif (
             tcfg.rewind_log
             and cfg.task == "sft"
@@ -1238,6 +1270,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                         multipack=use_multipack,
                         vision=use_vision,
                         audio=use_audio,
+                        l2l=tcfg.l2l,
                     )
                 )
 

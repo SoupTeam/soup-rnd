@@ -290,6 +290,7 @@ _TRANSFORMERS_SFT_MODULES = (
     "soup_cli/trainer/loss_summary.py",
     "soup_cli/trainer/stream_setup.py",
     "soup_cli/trainer/rewind_hf.py",
+    "soup_cli/trainer/l2l_trainer.py",
     "soup_cli/trainer/raft.py",
 )
 

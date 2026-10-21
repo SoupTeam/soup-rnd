@@ -198,3 +198,34 @@ def test_nf4_restores_agree_between_l2l_and_accumulation(harness, nf4):
         )
     assert len({l2l for l2l, _ga in counts.values()}) == 1, counts
     assert all(l2l == ga for l2l, ga in counts.values()), counts
+
+
+# --------------------------------------------------------------------------
+# ticket 03: SFT labels (-100 on padding / masked tokens) reach the loss
+# --------------------------------------------------------------------------
+def test_l2l_step_with_masked_labels_equals_gradient_accumulation(harness, streamed):  # noqa: F811
+    import torch
+
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    mbs = _micro_batches(2)
+    labels = [ids.clone() for ids in mbs]
+    labels[0][:, :3] = -100
+    labels[1][:, -2:] = -100
+    n_items = sum(int((lab[:, 1:] != -100).sum()) for lab in labels)
+
+    harness.zero_grads(model)
+    for ids, lab in zip(mbs, labels):
+        model(input_ids=ids, labels=lab, num_items_in_batch=n_items).loss.backward()
+    ga = harness.collect_grads(model)
+
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    harness.zero_grads(model)
+    step.run(mbs, _store(2), n_items=n_items, labels=labels)
+    l2l = harness.collect_grads(model)
+
+    assert harness.compare(ga, l2l)["equal"]
+    unmasked = harness.collect_grads(model)
+    assert any(torch.count_nonzero(g) for g in unmasked.values())
