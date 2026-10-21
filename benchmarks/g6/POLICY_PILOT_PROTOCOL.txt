@@ -1,0 +1,99 @@
+G6 prospective matched four-policy feasibility pilot
+
+Scope and interpretation
+This is a new series, separate from the preserved historical baseline and the
+paired generation probe. Historical overlay timing was not accepted; it cannot
+substitute for a matched arm on the current setup. Nothing rewrites, retries or
+rescales those results. The paired probe's boundary-stopping candidate is NOT
+adopted here. The frozen training engine, literal prompt rendering, original
+scoring and 128-token diagnostic generation remain unchanged.
+
+The pilot asks whether all four policies train, fit, preserve exposure accounting,
+reload exactly and yield usable resource measurements on one setup. It does NOT
+rank policy quality. Its first 65,536 useful targets contain different examples
+across policies. One seed and short prefixes do not establish a quality winner.
+Quality remains NO_VERDICT, with independent blinded safety review outstanding.
+
+Fixed inputs and execution order
+1. baseline
+2. coherence_filter
+3. length_curriculum
+4. reverse_length_curriculum
+
+The public JSON pins model/data revisions, model bytes, prepared manifest and
+eval hashes, sources, wheel lock, recipe, numerical tolerances and input plans.
+Each arm starts with identical frozen Mistral-7B-v0.3 and a fresh LoRA adapter
+and optimizer. The initial parameter-state SHA must match the committed pin.
+Each pilot consumes exactly 65,536 shifted nonignored targets in eight updates
+of 8,192. The LR schedule keeps the 5M-target reference horizon.
+
+The full prepared reference has exactly 5M useful targets per arm, 611 updates
+and 2,880 useful targets in its final update. Both length-order policies retain
+the baseline's exact full token multiset; coherence filtering changes composition.
+All use the same held-out 256 examples / 322,332 targets. Source identity and
+previously frozen lexical-overlap exclusions are checked; this is not a claim
+of semantic or pretraining decontamination. Useful, nonpadding, processed and
+padding tokens are reported separately in policy_pilot_inputs.json.
+
+Execution gates and limits
+No full-run mode exists in these entry points. Local plan mode needs no CUDA.
+Before paid work, the operator must verify the user's pushed commit and exact
+source bytes, preserve historical evidence, check fresh account Billing, verify
+the approved instance/GPU and native guest controls, and prepare private stage
+admission. A commit string is recorded provenance, not automatic Git verification.
+The operator must independently check that deployed files match that commit.
+
+Exact Python and all pinned packages are required. Run a separate bounded tiny
+CPU-vs-CUDA numerical training gate before the first arm. Its math and tolerances
+match the frozen original gate. It does not prove that the full 7B model fits.
+The gate receipt must match the same contract, private configuration and inventory.
+
+Numerical gate: at most 600 seconds. Each pilot arm: at most 4,800 seconds.
+An external process-group supervisor adds 30 seconds before TERM and 10 before
+KILL. Internal guards and F1 checks remain enabled. Foreign/ambiguous GPU process
+ownership, missing clocks, failed numerical checks, overflow/skipped updates,
+identity mismatch, failed reload or deadline failure block progression. Guest
+checks do not certify isolation from unobservable physical-host activity.
+Exclusive claims prohibit automatic retries, resume or replacement runs. A prior
+arm needs preserved checksummed evidence and successful external completion
+before the next arm. A failed series requires separate prospective review.
+
+Private execution authority
+Account, instance ID, GPU UUID, absolute runs root, balance floor, Stop authority,
+SSH material and receipts stay outside Git. There are no public host or money
+defaults. Admissions bind both science SHA and private configuration SHA to the
+specific stage/arm, with actual Billing no older than 300 seconds.
+
+Admission reserves all remaining arms (and gate when applicable), their timeout
+grace, 300 seconds for preservation, a 1.25 account-rate factor and USD 0.50 extra.
+This is a conservative admission calculation, not a hard spending guarantee.
+The operator continues to monitor actual account spending, transfer/setup costs
+and the approved floor. Preserve unique outputs then Stop only the approved
+instance on completion, blocking failure or budget risk. Storage remains paid.
+These scripts never Start, Stop, rent or destroy a provider instance themselves.
+
+Offline command shape (replace placeholders; no actual host settings in Git)
+python benchmarks/g6/policy_pilot.py plan \
+  --spec benchmarks/g6/spec/policy_pilot.json --spec-sha SCIENCE_SHA \
+  --artifact-root PRIVATE_FROZEN_ARTIFACT_ROOT --data PRIVATE_PREPARED_DATA \
+  --out NEW_PRIVATE_PLAN_OUTPUT
+
+Paid commands are operator-run only after fresh admission and commit verification.
+Set SOUP_G6_INSTANCE_ID and CUDA_VISIBLE_DEVICES from the private configuration.
+Use launch_policy_pilot.py cuda-gate with --spec, --spec-sha, --artifact-root,
+--out, --launch-config, --launch-config-sha, --admission and --protocol-commit.
+Then use launch_policy_pilot.py pilot with those arguments plus --data,
+--model-dir, --cuda-gate pointing to the completed numerical gate receipt, and
+--arm for the next registered policy. Every stage needs a new fresh admission.
+Use the external supervisor; direct child execution lacks its required marker.
+
+Review and further authorization
+review_policy_pilot.py takes --spec, --spec-sha, --artifact-root, four --runs
+paths and a fresh --out directory. It verifies matched inventory and initialization,
+exposure, AMP, reload, file integrity, F1 timing and external completion.
+Train-only linear projections by useful targets, processed slots and squared
+sequence lengths are heuristics, not bounds or end-to-end forecasts. They omit
+setup, eval, reload, traffic, nonlinear runtime and future host changes.
+Full 5M runs need a separate committed protocol with measured limits, fresh
+private budget admission and appropriate user authorization. No result from
+this pilot alone authorizes full training or a release speed/quality claim.
