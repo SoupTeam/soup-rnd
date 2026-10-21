@@ -1,0 +1,28 @@
++ export PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== start 2026-10-20T18:35:44Z'
+== start 2026-10-20T18:35:44Z
++ cd /root/soup-rnd
++ git log --oneline -1
+ff6035cf fix(c5): task loss on answer tokens only, and review fixes
++ pip install -q -e '.[train]' torch==2.14.1 transformers==5.20.2 peft==0.21.2 bitsandbytes==0.50.2 datasets==5.1.0 tokenizers==0.23.3
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+torchvision 0.20.1+cu121 requires torch==2.5.1, but you have torch 2.14.1 which is incompatible.
+torchaudio 2.5.1+cu121 requires torch==2.5.1, but you have torch 2.14.1 which is incompatible.
++ pip uninstall -y torchvision torchaudio
+Found existing installation: torchvision 0.20.1+cu121
+Uninstalling torchvision-0.20.1+cu121:
+  Successfully uninstalled torchvision-0.20.1+cu121
+Found existing installation: torchaudio 2.5.1+cu121
+Uninstalling torchaudio-2.5.1+cu121:
+  Successfully uninstalled torchaudio-2.5.1+cu121
++ python -c 'import torch,transformers,peft,bitsandbytes,datasets;print(torch.__version__,torch.version.cuda,torch.cuda.get_device_name(0),transformers.__version__,peft.__version__,bitsandbytes.__version__,datasets.__version__)'
+2.14.1+cu130 13.0 NVIDIA GeForce RTX 3090 5.20.2 0.21.2 0.50.2 5.1.0
++ python benchmarks/harness/c5_data.py --out-dir /root/c5/data
+source databricks-dolly-15k.jsonl @ bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a: 15011 rows, sha256 2df9083338b4abd6bceb5635764dab5d833b393b55759dffb0959b6fcbf794ec
+heldout: 512 rows, sha256 b4b2ab938ca72a52c660d810045e3f31f842e3107e00738f827abb3f932d2a37
+train: 4000 rows, sha256 a915bbbf18ebd1fae1dd869bdc8e2a0efbd2ab522d3a0c733cc05b212befa0b7
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== setup done 2026-10-20T18:39:58Z'
+== setup done 2026-10-20T18:39:58Z

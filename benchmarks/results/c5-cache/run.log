@@ -1,0 +1,108 @@
++ export PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ cd /root/soup-rnd
+++ date -u +%Y-%m-%dT%H:%M:%SZ
+++ git rev-parse HEAD
++ echo '== build start 2026-10-20T21:47:34Z commit 0c0ad5f21b25a371a553b4ccf70d7718fb98f106'
+== build start 2026-10-20T21:47:34Z commit 0c0ad5f21b25a371a553b4ccf70d7718fb98f106
++ python benchmarks/harness/c5_cache.py build --model allenai/OLMoE-1B-7B-0924 --revision 6d84c48581ece794365f2b8e9cfb043c68ade9c5 --device cuda --cache-root /root/c5/caches --out /root/c5/cache.json
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 378.19it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+bf16: 13,838,342,541 bytes on disk, 13,838,323,712 bytes of tensors
+nf4: 4,276,925,021 bytes on disk, 4,276,892,736 bytes of tensors
+q2_0: 2,765,385,229 bytes on disk, 2,765,361,152 bytes of tensors
+failed checks: none -> /root/c5/cache.json
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== compare start 2026-10-20T21:54:51Z'
+== compare start 2026-10-20T21:54:51Z
++ python benchmarks/harness/c5_cache.py compare --cache-root /root/c5/caches --label 'RTX 3090, real' --device cuda --out /root/c5/restore.json
+run 1 (arm A nf4, round 1)
+run 2 (arm B q2_0, round 1)
+run 3 (arm B q2_0, round 2)
+run 4 (arm A nf4, round 2)
+run 5 (arm A nf4, round 3)
+run 6 (arm B q2_0, round 3)
+run 7 (arm B q2_0, round 4)
+run 8 (arm A nf4, round 4)
+run 9 (arm A nf4, round 5)
+run 10 (arm B q2_0, round 5)
+run 11 (arm B q2_0, round 6)
+run 12 (arm A nf4, round 6)
+run 13 (arm A nf4, round 7)
+run 14 (arm B q2_0, round 7)
+run 15 (arm B q2_0, round 8)
+run 16 (arm A nf4, round 8)
+run 17 (arm A nf4, round 9)
+run 18 (arm B q2_0, round 9)
+run 19 (arm B q2_0, round 10)
+run 20 (arm A nf4, round 10)
+run 21 (arm A nf4, round 11)
+run 22 (arm B q2_0, round 11)
+run 23 (arm B q2_0, round 12)
+run 24 (arm A nf4, round 12)
+run 25 (arm A nf4, round 13)
+run 26 (arm B q2_0, round 13)
+run 27 (arm B q2_0, round 14)
+run 28 (arm A nf4, round 14)
+run 29 (arm A nf4, round 15)
+run 30 (arm B q2_0, round 15)
+run 31 (arm B q2_0, round 16)
+run 32 (arm A nf4, round 16)
+run 33 (arm A nf4, round 17)
+run 34 (arm B q2_0, round 17)
+run 35 (arm B q2_0, round 18)
+run 36 (arm A nf4, round 18)
+run 37 (arm A nf4, round 19)
+run 38 (arm B q2_0, round 19)
+run 39 (arm B q2_0, round 20)
+run 40 (arm A nf4, round 20)
+run 41 (arm A nf4, round 21)
+run 42 (arm B q2_0, round 21)
+run 43 (arm B q2_0, round 22)
+run 44 (arm A nf4, round 22)
+run 45 (arm A nf4, round 23)
+run 46 (arm B q2_0, round 23)
+run 47 (arm B q2_0, round 24)
+run 48 (arm A nf4, round 24)
+run 49 (arm A nf4, round 25)
+run 50 (arm B q2_0, round 25)
+run 51 (arm B q2_0, round 26)
+run 52 (arm A nf4, round 26)
+run 53 (arm A nf4, round 27)
+run 54 (arm B q2_0, round 27)
+run 55 (arm B q2_0, round 28)
+run 56 (arm A nf4, round 28)
+run 57 (arm A nf4, round 29)
+run 58 (arm B q2_0, round 29)
+run 59 (arm B q2_0, round 30)
+run 60 (arm A nf4, round 30)
+run 61 (arm A nf4, round 31)
+run 62 (arm B q2_0, round 31)
+run 63 (arm B q2_0, round 32)
+run 64 (arm A nf4, round 32)
+run 65 (arm A nf4, round 33)
+run 66 (arm B q2_0, round 33)
+run 67 (arm B q2_0, round 34)
+run 68 (arm A nf4, round 34)
+run 69 (arm A nf4, round 35)
+run 70 (arm B q2_0, round 35)
+run 71 (arm B q2_0, round 36)
+run 72 (arm A nf4, round 36)
+run 73 (arm A nf4, round 37)
+run 74 (arm B q2_0, round 37)
+run 75 (arm B q2_0, round 38)
+run 76 (arm A nf4, round 38)
+run 77 (arm A nf4, round 39)
+run 78 (arm B q2_0, round 39)
+run 79 (arm B q2_0, round 40)
+run 80 (arm A nf4, round 40)
+run 81 (arm A nf4, round 41)
+run 82 (arm B q2_0, round 41)
+run 83 (arm B q2_0, round 42)
+run 84 (arm A nf4, round 42)
+arm A (nf4): layer median of runs 1.844 ms, expert 0.2927 ms
+arm B (q2_0): layer median of runs 17.381 ms, expert 0.4306 ms
+blocks: 21, valid: 21, complete: True -> /root/c5/restore.json
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== end 2026-10-20T22:01:50Z'
+== end 2026-10-20T22:01:50Z
