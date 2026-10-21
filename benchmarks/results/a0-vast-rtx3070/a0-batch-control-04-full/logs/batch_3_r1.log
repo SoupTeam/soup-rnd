@@ -1,0 +1,15 @@
+RUN: L2L step-0 probe, mode batch
+gpu             NVIDIA GeForce RTX 3070
+torch           2.14.1+cu130
+vram_total_gb   8.221
+soup_cli_file   /workspace/soup-a0/src/soup_cli/__init__.py
+driver          580.159.04
+pcie_gen        3
+pcie_width      16
+[transformers] Model config: bos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128000. This may result in unexpected behavior.
+[transformers] Model config: eos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128001. This may result in unexpected behavior.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+shard_dir       /workspace/soup-a0/.soup/f2-nf4
+direct_io       True
+v3              {'free_gb': 28.286058496, 'commit_avail_gb': None, 'need_gb': 0.67108864, 'margin_gb': 4.0, 'gpu_used_before_build_mib': 4, 'gpu_pids': [275577], 'foreign_gpu_pids': [], 'ram_ok': True, 'gpu_ok': True, 'ok': True}
+wrote         /workspace/soup-a0/.soup/results/a0-batch-control-04-full/batch_3_r1.json

@@ -1,0 +1,68 @@
+{
+  "state": "finished",
+  "batch_control": {
+    "arms": {
+      "1": {
+        "valid": true,
+        "why": [],
+        "value": 24.487550738791846,
+        "spread": 0.03460364234486009,
+        "tok_s": 20.908583527258095,
+        "peak": 4.4588416
+      },
+      "2": {
+        "valid": false,
+        "why": [
+          "V4: round spread 7.6% > 5%"
+        ],
+        "value": 24.848125614500532,
+        "spread": 0.07606693377969105,
+        "tok_s": 41.2103518746874,
+        "peak": 5.425833472
+      },
+      "3": {
+        "valid": true,
+        "why": [],
+        "value": 25.377491230666543,
+        "spread": 0.00010435182075931626,
+        "tok_s": 60.52607746126908,
+        "peak": 6.392825344
+      },
+      "4": {
+        "valid": false,
+        "why": [
+          "V4: round spread 5.8% > 5%"
+        ],
+        "value": 26.687778774833834,
+        "spread": 0.05783973051318684,
+        "tok_s": 76.73924522827777,
+        "peak": 7.359817216
+      }
+    },
+    "oom_batches": [
+      5
+    ],
+    "largest_valid_tested": 3,
+    "maximum_established": false
+  },
+  "control_complete": false,
+  "parent_gates": {
+    "G1": {
+      "status": "pass",
+      "detail": "F1: 256 tensors + losses equal (deterministic); F2: 640 tensors + losses equal (deterministic)"
+    },
+    "G2": {
+      "status": "pass",
+      "detail": "T_A(16) 74.8 vs 0.8 x T_B(16) 60.0 tok/s"
+    },
+    "G3": {
+      "status": "pass",
+      "detail": "T_A(16) 74.8 vs 1.3 x T_A(1) 28.1 tok/s"
+    },
+    "G4": {
+      "status": "pass",
+      "detail": "peak A16 4.095 vs A1 3.968 + 0.5 GB"
+    }
+  },
+  "verdict": "BATCH CONTROL INCOMPLETE"
+}
