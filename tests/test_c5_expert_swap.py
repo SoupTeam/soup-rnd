@@ -6,6 +6,7 @@ is a tiny random-init MoE built from a config, so nothing is downloaded.
 
 from __future__ import annotations
 
+import importlib.metadata
 import importlib.util
 import json
 import sys
@@ -159,7 +160,7 @@ class TestMain:
             assert "SYNTHETIC" in record["model"]["note"]
             assert record["model"]["model_type"] == "granitemoe"
             assert "revision" in record["model"]
-            assert record["versions"]["torch"] == torch.__version__
+            assert record["versions"]["torch"] == importlib.metadata.version("torch")
             assert record["versions"]["transformers"]
             assert len(record["harness"]["sha256"]) == 64
             assert record["harness"]["codec_sha256"] == harness.codec.codec_sha256()

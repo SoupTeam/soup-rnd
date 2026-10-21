@@ -227,6 +227,7 @@ def test_restore_runs_require_suspend_and_power_only(harness, tmp_path):
     assert sorted(watch.required) == ["power", "suspend"]
 
 
+@pytest.mark.requires_symlink
 def test_snapshot_links_become_real_files_the_sharder_accepts(harness, tmp_path):
     """The Hugging Face cache holds every file as a symlink; the sharder skips symlinks."""
     blobs, snapshot = tmp_path / "blobs", tmp_path / "snapshot"
