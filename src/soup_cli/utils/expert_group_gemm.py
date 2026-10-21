@@ -16,8 +16,12 @@ from typing import Any
 SUPPORTED_SHAPES = {(32, 32), (16, 32), (2048, 2048), (1024, 2048)}
 
 
-def plan_grouped_linear(shapes: list[tuple[int, int, int]]) -> dict:
+def plan_grouped_linear(
+    shapes: list[tuple[int, int, int]], *, native_olmoe_rows_max: int = 16,
+) -> dict:
     """CUDA tensor-storage bound for this call, separate from persistent workspace."""
+    if type(native_olmoe_rows_max) is not int or native_olmoe_rows_max not in (16, 128):
+        raise ValueError("explicit OLMoE native row policy must be 16 or 128")
     if not 1 <= len(shapes) <= 4:
         raise ValueError("1 through 4 matrix triples required")
     output = 0
@@ -27,8 +31,9 @@ def plan_grouped_linear(shapes: list[tuple[int, int, int]]) -> dict:
                 or not 0 <= rows < 2**31 or (inner, columns) not in SUPPORTED_SHAPES):
             raise ValueError("unsupported grouped GEMM shape; only validated OLMoE/control shapes")
         output += (rows * columns * 2 + 511) // 512 * 512
-        grouped += rows > 16
-        native += 0 < rows <= 16
+        cutoff = native_olmoe_rows_max if inner >= 1024 else 16
+        grouped += rows > cutoff
+        native += 0 < rows <= cutoff
     metadata = 3 * 512 if grouped else 0
     return {"output_bytes": output, "pointer_bytes": metadata,
             "call_bytes": output + metadata, "grouped_matrices": grouped,
@@ -57,7 +62,9 @@ def column_major_problem(rows: int, inner: int, columns: int) -> dict:
 class GroupedGemm:
     """Internal BF16 grouped compute for validated OLMoE geometry; forward only."""
 
-    def __init__(self, library: Path, *, call_budget_bytes: int) -> None:
+    def __init__(
+        self, library: Path, *, call_budget_bytes: int, native_olmoe_rows_max: int = 16,
+    ) -> None:
         import torch
 
         if type(call_budget_bytes) is not int or call_budget_bytes < 1:
@@ -70,7 +77,8 @@ class GroupedGemm:
         if (not torch.cuda.is_bf16_supported(including_emulation=False)
                 or torch.cuda.get_device_capability(self.device)[0] < 8):
             raise ValueError("native BF16 sm_80+ required")
-        self.native_rows_max = 16
+        plan_grouped_linear([(0, 32, 32)], native_olmoe_rows_max=native_olmoe_rows_max)
+        self.native_olmoe_rows_max = native_olmoe_rows_max
         self.call_budget_bytes = call_budget_bytes
         self.calls = self.grouped_matrices = self.native_matrices = 0
         self._poisoned = False
@@ -117,7 +125,8 @@ class GroupedGemm:
         if any(hidden.ndim != 2 or weight.ndim != 2 for hidden, weight in zip(inputs, weights)):
             raise ValueError("matrices must be two-dimensional")
         plan = plan_grouped_linear([(hidden.shape[0], weight.shape[1], weight.shape[0])
-                                    for hidden, weight in zip(inputs, weights)])
+                                    for hidden, weight in zip(inputs, weights)],
+                                   native_olmoe_rows_max=self.native_olmoe_rows_max)
         if plan["call_bytes"] > self.call_budget_bytes:
             raise ValueError("grouped GEMM output/metadata exceeds call budget")
         selected = []
@@ -136,7 +145,8 @@ class GroupedGemm:
             output = torch.empty((hidden.shape[0], weight.shape[0]), device=self.device,
                                  dtype=torch.bfloat16)
             outputs.append(output)
-            if 0 < hidden.shape[0] <= self.native_rows_max:
+            cutoff = self.native_olmoe_rows_max if weight.shape[1] >= 1024 else 16
+            if 0 < hidden.shape[0] <= cutoff:
                 singles.append((hidden, weight, output))
             elif hidden.shape[0]:
                 problems.append(column_major_problem(hidden.shape[0], hidden.shape[1],
@@ -208,6 +218,7 @@ class GroupedGemm:
     def stats(self) -> dict:
         return {"cublas_version": self.version, "workspace_bytes": 4 * 2**20,
                 "call_budget_bytes": self.call_budget_bytes, "native_rows_max": 16,
+                "native_olmoe_rows_max": self.native_olmoe_rows_max,
                 "calls": self.calls, "grouped_matrices": self.grouped_matrices,
                 "native_matrices": self.native_matrices, "closed": not bool(self.handle),
                 "poisoned": self._poisoned,

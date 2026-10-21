@@ -16,6 +16,7 @@ They are the evidence behind the preprint:
 
 | File | What it gates | Headline |
 |---|---|---|
+| [`D3 grouped-layer comparison`](results/d3-grouped-layer-20261021/report.md) | Restricted hybrid grouped compute, trained OLMoE layer 7; RTX 3060 | 60 valid arms / 1,200 samples, exact outputs and six CUDA traces. Observed wall reductions 4.63% / 2.12% / 5.90% with higher GPU memory; end-to-end D3 acceptance remains open. |
 | [`B1.2 trained-layer forward gate`](results/b1.2-olmoe-forward-20261020/report.md) | Forward-only expert streaming on trained OLMoE layers; RTX 3060 | 12/12 prospective cells PASS: CPU fp32, CUDA BF16/NF4/nested NF4 at layers 0/7/15. Exact output hashes, effective negative controls and 12/16 MiB CUDA weight arenas within a 64 MiB budget. |
 | [`probe-c1-batch-vast.md`](probe-c1-batch-vast.md) | C1 synthetic 70B batch control on RTX 3090; guest virtual-disk scope | 60 accepted arms: batch 1/2/3 at 48.05/95.45/124.74 input tok/s; batch 3 wins among tested choices. One void block retained; no additional F1 repeats requested. |
 | [`probe-e3-lorafa-vast.md`](probe-e3-lorafa-vast.md) | E3 LoRA / LoRA-FA under RAM streaming at 512, 2048 and 4096 tokens | Exploratory RTX 3090 study: 60 accepted arms, 5.25 MiB lower peak allocated memory with FA and longer observed steps. Preserves invalid runs and the missing pre-run protocol commit as an acceptance limitation. |

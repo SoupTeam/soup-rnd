@@ -44,6 +44,48 @@ def test_linear_plan_counts_allocator_bins_and_native_empty_paths():
     assert empty["call_bytes"] == 0
 
 
+def test_explicit_olmoe_policy_keeps_tiny_controls_grouped_and_accounts_boundary():
+    from soup_cli.utils.expert_group_gemm import plan_grouped_linear
+
+    shapes = [(128, 1024, 2048), (129, 2048, 2048), (17, 16, 32)]
+    plan = plan_grouped_linear(shapes, native_olmoe_rows_max=128)
+    assert plan["native_matrices"] == 1
+    assert plan["grouped_matrices"] == 2
+    assert plan["pointer_bytes"] == 1536
+    assert plan_grouped_linear([(128, 2048, 2048)],
+                               native_olmoe_rows_max=128)["pointer_bytes"] == 0
+    with pytest.raises(ValueError, match="16 or 128"):
+        plan_grouped_linear(shapes, native_olmoe_rows_max=512)
+
+
+@pytest.mark.parametrize("inner", [1024, 2048])
+def test_cuda_prospective_olmoe_policy_exact_across_complete_512_token_row_range(inner):
+    """Large-shape regression: small fixtures do not expose RTX3090 dispatch choices."""
+    import torch
+
+    from soup_cli.utils.expert_group_gemm import GroupedGemm
+
+    library = _library()
+    with _policy(), torch.no_grad():
+        gemm = GroupedGemm(library, call_budget_bytes=64 * 2**20, native_olmoe_rows_max=128)
+        try:
+            for seed in (11, 29):
+                gen = torch.Generator().manual_seed(seed)
+                weights = [(torch.randn(2048, inner, generator=gen) * 0.2).cuda().bfloat16()
+                           for _ in range(4)]
+                for start in range(0, 513, 4):
+                    xs = [(torch.randn(n, inner, generator=gen) * 0.2).cuda().bfloat16()
+                          for n in range(start, min(513, start + 4))]
+                    selected = weights[:len(xs)]
+                    expected = [torch.nn.functional.linear(x, w) for x, w in zip(xs, selected)]
+                    got = gemm.linear(xs, selected)
+                    assert all(torch.equal(a, b) for a, b in zip(expected, got)), (seed, start)
+            assert gemm.grouped_matrices > 0 and gemm.native_matrices > 0
+            assert gemm.stats()["native_olmoe_rows_max"] == 128
+        finally:
+            gemm.close()
+
+
 @pytest.mark.parametrize("shapes", [[], [(1, 33, 47)], [(True, 32, 32)],
                                      [(2**31, 32, 32)], [(1, 32, 32)] * 5])
 def test_linear_plan_refuses_unvalidated_or_overflowing_shapes(shapes):

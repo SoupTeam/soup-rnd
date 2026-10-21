@@ -1,8 +1,9 @@
-# D3: bounded grouped expert compute — development and prospective layer protocol
+# D3: bounded grouped expert compute — layer evidence and whole-model preparation
 
 Status: an internal bounded grouped NF4 restore and restricted hybrid GEMM
-candidate is implemented and development-tested. **Formal performance and D3
-acceptance remain open.** Public flags and training defaults do not change.
+candidate is implemented and development-tested. The [prospective layer series](../benchmarks/results/d3-grouped-layer-20261021/report.md)
+is complete: 60 valid arms / 1,200 samples and six CUDA profiles. **D3 end-to-end
+acceptance and coordination/review remain open.** Public flags and training defaults do not change.
 The [Trello card](https://trello.com/c/G6t5xoIj) is the task; source context is
 `rndTASK.pdf`, pages 6/10, with the team's decomposed acceptance checklist.
 
@@ -10,9 +11,12 @@ The [Trello card](https://trello.com/c/G6t5xoIj) is the task; source context is
 
 The working base is B1.2 `3f03496397adf41479a4a8e8bd39c70ca052e6f7`, including
 B1.1. PRs [24](https://github.com/SoupTeam/soup-rnd/pull/24) and
-[25](https://github.com/SoupTeam/soup-rnd/pull/25) still awaited merge when this
-preparation was written. Reconcile their final merged code before freezing a
-D3 experiment. A1/A2/A3 are not prerequisites for the isolated D3 forward kernel.
+[25](https://github.com/SoupTeam/soup-rnd/pull/25) awaited merge when initial
+preparation was written; both are now merged. The 2026-10-21 dependency audit
+verified that all five reused B1 runtime files match current `main` at `fdf067fc`
+byte-for-byte. The isolated layer series still pins its original reviewed source;
+no full current-main/platform validation follows from that file comparison.
+A1/A2/A3 are not prerequisites for the isolated D3 forward kernel.
 Coordinate the interface with B1 before final B1.4 measurements. B1.3 remains the
 dependency for expert-streamed backward; B1.2 cannot be used as a complete SFT path.
 
@@ -32,7 +36,7 @@ backward. It is useful prior implementation, but no grouped NF4 expert kernel wa
 found there. RND's native Transformers `grouped_mm` B2 tests do not establish a
 bounded grouped NF4 implementation.
 
-F4 [PR 11](https://github.com/SoupTeam/soup-rnd/pull/11) publishes descriptive
+F4 [PR 11](https://github.com/SoupTeam/soup-rnd/pull/11) is merged and publishes descriptive
 curves, not a formal baseline validity verdict. Its historical A/B/C/C2/D arms
 change routing/weights/workloads, and the old loop discards router weights.
 Do not copy their causal subtraction, best-of samples or modeled dense reference
@@ -254,7 +258,7 @@ dispatch. Earlier pure-grouped/default-policy mismatches remain failures.
 | --- | --- |
 | Direct group-all cuBLAS, default policy | 6/32 native comparisons fail; 5-to-1 launch reduction alone does not pass exactness |
 | One-row native hybrid under cuBLASLt | Initial 32 pass, broader check fails 154/800; rejected |
-| Final OLMoE-shaped native-through-16 hybrid | 2304/2304 expanded native comparisons exact, covering eight seeds and 0–512 rows |
+| Final OLMoE-shaped native-through-16 hybrid | 2304/2304 expanded native comparisons exact, covering eight seeds, rows 0–139 and 255/256/257/512 |
 | Integrated restore/compute + previous restore controls | 110/110 tests pass on RTX 3060, no skips |
 | Trained layers 0/7/15, 512 synthetic tokens, all formats and widths 1/2/4 | 27/27 streamed comparisons exact, real grouped operations confirmed |
 | Resident oracle using the same new compute class/backend and identical stored weights | All 27 controls exact |
@@ -288,7 +292,9 @@ The local integrity receipt covers their CRCs and inner hashes.
 [performance-protocol.json](../benchmarks/protocols/d3-grouped-experts/performance-protocol.json)
 pins the current GPU UUID, software, cuBLAS binary, immutable inputs and
 instrument receipts. Its configuration is enabled for the next source commit;
-**no formal timed arm has run**. The runner refuses incomplete pins or any
+**no formal timed arm had run at that commit**. The resulting [2026-10-21 series](../benchmarks/results/d3-grouped-layer-20261021/report.md)
+completed from clean commit `0aef6904`, with all arms and memory peaks retained.
+The runner refuses incomplete pins or any
 dirty/uncommitted source, verifies committed bytes and permits one session per
 source commit. Only the operator performs the commit/push.
 
@@ -334,8 +340,27 @@ gate still needs the task's 16 GB+ setup and its own prospectively fixed recipe.
 - Implemented and development-tested: grouped NF4 restoration and bounded multi-slot pool.
 - Implemented and development-tested: restricted hybrid grouped GEMM, same-policy native
   exactness, same-kernel resident/streamed controls and actual full-forward launch traces.
-- Ready for operator commit: executable paired layer protocol, immutable setup, real F1
-  controls, functional smoke, attempt guard and deterministic replay.
-- Open: formal layer performance and publication of all arms, samples and memory peaks.
+- Completed: committed paired layer protocol, immutable setup, real F1 controls,
+  functional smoke, attempt guard and deterministic replay.
+- Completed for the pinned layer scope: 15 ABBA blocks, 60 valid timed arms / 1,200
+  samples, six actual CUDA profiles and local byte-identical analysis replay.
+  All raw/development evidence and GPU/RAM peaks are [published together](../benchmarks/results/d3-grouped-layer-20261021/report.md).
+  Observed wall reductions are 4.63% / 2.12% / 5.90%; grouped GPU memory is higher.
 - Open: design coordination before B1.4, 16 GB+ end-to-end gate and review/sign-off.
 - Backward/derivative validation remains separate; no training claim follows from forward.
+
+## Whole-model follow-up preparation, 2026-10-21
+
+The [new preparation and disabled protocol](../benchmarks/protocols/d3-full-model/README.md)
+assemble every native OLMoE block and share one streaming weight pool across
+layers. There is a separate independent full resident oracle. Selected CPU tests
+exercise whole-model logits, NF4/nested references, pool ownership, negative
+controls, source/oracle identity, and one-attempt/zero-replacement execution.
+The subsequent RTX 3090 preparation passed the three tiny CUDA smoke cases and
+48 grouped-compute tests, including the new large-shape dispatch regression.
+The original cutoff-16 large-shape probe failed on this host and is preserved;
+the prospective full-model recipe uses an explicit OLMoE cutoff of 128, without
+altering the archived RTX3060 study or claiming its speed for the new policy.
+All twelve trained full-model cells remain unexecuted. No public training path
+or backward is enabled. The actual trained gate still needs native BF16 and a
+16 GB+ GPU for the resident oracle; a second SSD is unnecessary.

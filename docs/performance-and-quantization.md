@@ -10,8 +10,9 @@ expert-streamed training remain gated.
 
 [D3 grouped-expert preparation](grouped-expert-design.md) records the proposed
 bounded grouping design, reused B1.2 controls and disabled draft protocol.
-It documents the restricted internal grouped candidate and prospective layer protocol;
-it does not enable a public training path or claim D3 acceptance.
+It documents the restricted internal grouped candidate and its [completed layer comparison](../benchmarks/results/d3-grouped-layer-20261021/report.md):
+60 valid arms and six CUDA profiles, with higher grouped GPU memory.
+It does not enable a public training path or claim end-to-end D3 acceptance.
 
 [← Back to the Soup README](../README.md)
 
