@@ -9,7 +9,7 @@ and walk the backward the same way in reverse.
   direction alone and finds the next layer already owned, so k calls on a loaded
   layer load nothing. The load sequence (forward 0..L-1, then L-1..0) is the
   streamed step's, and ``AsyncDiskSource`` infers its direction from that order.
-* The decoder container's forward pre-hook (``runtime.hook``, the ``_prime``)
+* The decoder container's forward pre-hook (``runtime.hook``, the shipped ``_prime``)
   is called directly, because the step bypasses ``LlamaModel.forward``.
 * All k embedding lookups run before layer 0's first ``advance`` queues the head
   into the shared large slot; ``LargeLayerBufferPool.load_async`` orders that
@@ -50,7 +50,7 @@ def model_parts(model: Any) -> Tuple[Any, Any]:
     arch = str(getattr(getattr(causal, "config", None), "model_type", ""))
     if arch not in SUPPORTED_ARCHS:
         raise ValueError(
-            f"the L2L probe re-implements the top-level forward of {SUPPORTED_ARCHS} only; "
+            f"the L2L step re-implements the top-level forward of {SUPPORTED_ARCHS} only; "
             f"got {arch!r}"
         )
     for name in ("lm_head", "loss_function"):
