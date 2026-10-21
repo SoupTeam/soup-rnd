@@ -1,0 +1,111 @@
+== start 2026-10-20T16:23:25Z
+commit 1fa05498936ae2d24e600157e582d535e57482f9
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+torchvision 0.26.0+cu128 requires torch==2.11.0, but you have torch 2.14.1 which is incompatible.
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+2.14.1+cu130 NVIDIA GeForce RTX 3090
+== harness 2026-10-20T16:24:57Z
+Traceback (most recent call last):
+  File "/venv/main/lib/python3.12/site-packages/transformers/utils/import_utils.py", line 2600, in __getattr__
+    module = self._get_module(self._class_to_module[name])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/utils/import_utils.py", line 2831, in _get_module
+    raise e
+  File "/venv/main/lib/python3.12/site-packages/transformers/utils/import_utils.py", line 2829, in _get_module
+    return importlib.import_module("." + module_name, self.__name__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/olmoe/modeling_olmoe.py", line 31, in <module>
+    from ...modeling_layers import GradientCheckpointingLayer
+  File "/venv/main/lib/python3.12/site-packages/transformers/modeling_layers.py", line 37, in <module>
+    from .modeling_utils import LoadStateDictConfig, PreTrainedModel, _get_resolved_checkpoint_files
+  File "/venv/main/lib/python3.12/site-packages/transformers/modeling_utils.py", line 84, in <module>
+    from .loss.loss_utils import LOSS_MAPPING
+  File "/venv/main/lib/python3.12/site-packages/transformers/loss/loss_utils.py", line 20, in <module>
+    from .loss_d_fine import DFineForObjectDetectionLoss
+  File "/venv/main/lib/python3.12/site-packages/transformers/loss/loss_d_fine.py", line 21, in <module>
+    from .loss_for_object_detection import box_iou
+  File "/venv/main/lib/python3.12/site-packages/transformers/loss/loss_for_object_detection.py", line 31, in <module>
+    from transformers.image_transforms import center_to_corners_format
+  File "/venv/main/lib/python3.12/site-packages/transformers/image_transforms.py", line 22, in <module>
+    from .image_utils import (
+  File "/venv/main/lib/python3.12/site-packages/transformers/image_utils.py", line 57, in <module>
+    from torchvision.transforms import InterpolationMode
+  File "/venv/main/lib/python3.12/site-packages/torchvision/__init__.py", line 8, in <module>
+    from torchvision import _meta_registrations, datasets, io, models, ops, transforms, utils  # usort:skip
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torchvision/_meta_registrations.py", line 163, in <module>
+    @torch.library.register_fake("torchvision::nms")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/library.py", line 1271, in register
+    use_lib._register_fake(
+  File "/venv/main/lib/python3.12/site-packages/torch/library.py", line 354, in _register_fake
+    handle = entry.fake_impl.register(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/_library/fake_impl.py", line 87, in register
+    lib.impl(self.qualname, meta_kernel, "Meta", allow_override=allow_override)
+  File "/venv/main/lib/python3.12/site-packages/torch/library.py", line 496, in impl
+    if torch._C._dispatch_has_kernel_for_dispatch_key(
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: operator torchvision::nms does not exist
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/soup-rnd/benchmarks/harness/c5_expert_swap.py", line 323, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/root/soup-rnd/benchmarks/harness/c5_expert_swap.py", line 293, in main
+    model, info = _load(args)
+                  ^^^^^^^^^^^
+  File "/root/soup-rnd/benchmarks/harness/c5_expert_swap.py", line 248, in _load
+    model = AutoModelForCausalLM.from_pretrained(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 365, in from_pretrained
+    explicit_local_code = has_local_code and not _get_model_class(
+                                                 ^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 183, in _get_model_class
+    supported_models = model_mapping[type(config)]
+                       ~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 611, in __getitem__
+    return self._load_attr_from_module(model_type, model_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 625, in _load_attr_from_module
+    return getattribute_from_module(self._modules[module_name], attr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 537, in getattribute_from_module
+    if hasattr(module, attr):
+       ^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/utils/import_utils.py", line 2688, in __getattr__
+    raise ModuleNotFoundError(import_error_message) from e
+ModuleNotFoundError: Could not import module 'OlmoeForCausalLM'. Are this object's requirements defined correctly? Set the logging verbosity to DEBUG for the original import error.
+
+real	0m9.019s
+user	0m7.671s
+sys	0m1.347s
+== HARNESS_EXIT 1 2026-10-20T16:25:06Z
+== rerun after removing torchvision 2026-10-20T16:25:35Z
+== harness 2026-10-20T16:25:35Z
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 3 files:   0%|          | 0/3 [00:00<?, ?it/s]Fetching 3 files:  33%|███▎      | 1/3 [00:42<01:25, 42.76s/it]Fetching 3 files:  67%|██████▋   | 2/3 [00:42<00:17, 17.70s/it]Fetching 3 files: 100%|██████████| 3/3 [00:43<00:00, 10.10s/it]Fetching 3 files: 100%|██████████| 3/3 [00:43<00:00, 14.66s/it]
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   2%|▏         | 4/179 [00:00<00:33,  5.16it/s]Loading weights:   3%|▎         | 5/179 [00:02<01:40,  1.73it/s]Loading weights:   9%|▉         | 16/179 [00:03<00:34,  4.69it/s]Loading weights:  15%|█▍        | 26/179 [00:04<00:22,  6.92it/s]Loading weights:  15%|█▌        | 27/179 [00:05<00:33,  4.54it/s]Loading weights:  21%|██        | 37/179 [00:06<00:21,  6.70it/s]Loading weights:  21%|██        | 38/179 [00:08<00:36,  3.88it/s]Loading weights:  27%|██▋       | 48/179 [00:09<00:21,  5.98it/s]Loading weights:  27%|██▋       | 49/179 [00:10<00:33,  3.84it/s]Loading weights:  33%|███▎      | 59/179 [00:11<00:20,  5.80it/s]Loading weights:  34%|███▎      | 60/179 [00:13<00:32,  3.70it/s]Loading weights:  39%|███▉      | 70/179 [00:13<00:19,  5.71it/s]Loading weights:  40%|███▉      | 71/179 [00:15<00:29,  3.68it/s]Loading weights:  45%|████▌     | 81/179 [00:16<00:17,  5.58it/s]Loading weights:  46%|████▌     | 82/179 [00:17<00:25,  3.76it/s]Loading weights:  51%|█████▏    | 92/179 [00:18<00:15,  5.63it/s]Loading weights:  52%|█████▏    | 93/179 [00:19<00:18,  4.71it/s]Loading weights:  58%|█████▊    | 103/179 [00:20<00:11,  6.77it/s]Loading weights:  58%|█████▊    | 104/179 [00:21<00:18,  4.03it/s]Loading weights:  64%|██████▎   | 114/179 [00:22<00:10,  5.98it/s]Loading weights:  64%|██████▍   | 115/179 [00:24<00:16,  3.79it/s]Loading weights:  70%|██████▉   | 125/179 [00:25<00:09,  5.71it/s]Loading weights:  70%|███████   | 126/179 [00:25<00:11,  4.72it/s]Loading weights:  76%|███████▌  | 136/179 [00:26<00:06,  6.76it/s]Loading weights:  77%|███████▋  | 137/179 [00:28<00:10,  4.01it/s]Loading weights:  82%|████████▏ | 147/179 [00:29<00:05,  6.21it/s]Loading weights:  83%|████████▎ | 148/179 [00:30<00:07,  4.13it/s]Loading weights:  88%|████████▊ | 158/179 [00:31<00:03,  6.30it/s]Loading weights:  89%|████████▉ | 159/179 [00:32<00:05,  3.87it/s]Loading weights:  94%|█████████▍| 169/179 [00:33<00:01,  5.87it/s]Loading weights:  95%|█████████▍| 170/179 [00:35<00:02,  3.75it/s]Loading weights: 100%|██████████| 179/179 [00:35<00:00,  5.07it/s]
+nf4: swapping experts of allenai/OLMoE-1B-7B-0924 on cuda
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   2%|▏         | 4/179 [00:00<00:30,  5.76it/s]Loading weights:   3%|▎         | 5/179 [00:01<01:05,  2.66it/s]Loading weights:   8%|▊         | 15/179 [00:02<00:23,  7.13it/s]Loading weights:   9%|▉         | 16/179 [00:04<00:48,  3.33it/s]Loading weights:  15%|█▍        | 26/179 [00:04<00:24,  6.35it/s]Loading weights:  15%|█▌        | 27/179 [00:05<00:36,  4.14it/s]Loading weights:  21%|██        | 37/179 [00:06<00:21,  6.46it/s]Loading weights:  21%|██        | 38/179 [00:08<00:36,  3.91it/s]Loading weights:  27%|██▋       | 48/179 [00:09<00:21,  6.18it/s]Loading weights:  27%|██▋       | 49/179 [00:10<00:31,  4.17it/s]Loading weights:  33%|███▎      | 59/179 [00:11<00:19,  6.25it/s]Loading weights:  34%|███▎      | 60/179 [00:12<00:31,  3.81it/s]Loading weights:  39%|███▉      | 70/179 [00:13<00:18,  5.94it/s]Loading weights:  40%|███▉      | 71/179 [00:14<00:25,  4.28it/s]Loading weights:  45%|████▌     | 81/179 [00:15<00:15,  6.22it/s]Loading weights:  46%|████▌     | 82/179 [00:17<00:23,  4.05it/s]Loading weights:  51%|█████▏    | 92/179 [00:17<00:14,  6.16it/s]Loading weights:  52%|█████▏    | 93/179 [00:19<00:22,  3.76it/s]Loading weights:  58%|█████▊    | 103/179 [00:19<00:11,  6.50it/s]Loading weights:  59%|█████▊    | 105/179 [00:21<00:16,  4.47it/s]Loading weights:  64%|██████▎   | 114/179 [00:22<00:10,  6.19it/s]Loading weights:  65%|██████▍   | 116/179 [00:23<00:15,  4.03it/s]Loading weights:  70%|██████▉   | 125/179 [00:24<00:09,  5.67it/s]Loading weights:  70%|███████   | 126/179 [00:25<00:12,  4.10it/s]Loading weights:  76%|███████▌  | 136/179 [00:26<00:07,  6.10it/s]Loading weights:  77%|███████▋  | 137/179 [00:28<00:10,  3.97it/s]Loading weights:  82%|████████▏ | 147/179 [00:28<00:05,  6.13it/s]Loading weights:  83%|████████▎ | 148/179 [00:29<00:06,  4.59it/s]Loading weights:  88%|████████▊ | 158/179 [00:30<00:03,  6.66it/s]Loading weights:  89%|████████▉ | 159/179 [00:31<00:04,  4.56it/s]Loading weights:  94%|█████████▍| 169/179 [00:32<00:01,  6.59it/s]Loading weights:  95%|█████████▍| 170/179 [00:34<00:02,  4.08it/s]Loading weights: 100%|██████████| 179/179 [00:34<00:00,  5.25it/s]
+q2_0: swapping experts of allenai/OLMoE-1B-7B-0924 on cuda
+  nf4: 32 expert tensors, worst rel_mse 0.0087, rows not a multiple of 64: 0, 
+failed checks: none -> /root/c5-olmoe-swap/nf4.json
+  q2_0: 32 expert tensors, worst rel_mse 0.1322, rows not a multiple of 64: 0, 
+failed checks: none -> /root/c5-olmoe-swap/q2_0.json
+
+real	7m41.291s
+user	14m37.625s
+sys	2m55.778s
+== HARNESS_EXIT 0 2026-10-20T16:33:17Z

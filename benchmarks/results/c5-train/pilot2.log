@@ -1,0 +1,20 @@
+== pilot 2 (gradient checkpointing) start 2026-10-20T18:45:20Z (not an arm; never enters the verdict)
+18:45:25 [transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+18:46:01 Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   2%|▏         | 4/179 [00:00<00:07, 24.01it/s]Loading weights:   4%|▍         | 7/179 [00:00<00:23,  7.43it/s]Loading weights:   8%|▊         | 15/179 [00:01<00:14, 11.14it/s]Loading weights:   9%|▉         | 17/179 [00:02<00:32,  4.94it/s]Loading weights:  15%|█▍        | 26/179 [00:03<00:17,  8.98it/s]Loading weights:  16%|█▌        | 28/179 [00:04<00:29,  5.10it/s]Loading weights:  21%|██        | 37/179 [00:04<00:16,  8.39it/s]Loading weights:  22%|██▏       | 39/179 [00:06<00:28,  5.00it/s]Loading weights:  27%|██▋       | 48/179 [00:06<00:17,  7.66it/s]Loading weights:  28%|██▊       | 50/179 [00:08<00:26,  4.83it/s]Loading weights:  33%|███▎      | 59/179 [00:08<00:15,  7.91it/s]Loading weights:  34%|███▍      | 61/179 [00:10<00:25,  4.69it/s]Loading weights:  39%|███▉      | 70/179 [00:10<00:14,  7.37it/s]Loading weights:  40%|████      | 72/179 [00:11<00:22,  4.79it/s]Loading weights:  45%|████▌     | 81/179 [00:12<00:12,  7.81it/s]Loading weights:  46%|████▋     | 83/179 [00:13<00:18,  5.27it/s]Loading weights:  51%|█████▏    | 92/179 [00:13<00:10,  8.16it/s]Loading weights:  53%|█████▎    | 94/179 [00:15<00:16,  5.24it/s]Loading weights:  58%|█████▊    | 104/179 [00:16<00:12,  5.97it/s]Loading weights:  64%|██████▎   | 114/179 [00:16<00:07,  8.78it/s]Loading weights:  65%|██████▍   | 116/179 [00:17<00:08,  7.07it/s]Loading weights:  70%|██████▉   | 125/179 [00:17<00:05,  9.57it/s]Loading weights:  71%|███████   | 127/179 [00:19<00:08,  6.13it/s]Loading weights:  76%|███████▌  | 136/179 [00:19<00:04,  9.39it/s]Loading weights:  77%|███████▋  | 138/179 [00:20<00:06,  6.69it/s]Loading weights:  82%|████████▏ | 147/179 [00:20<00:03, 10.24it/s]Loading weights:  83%|████████▎ | 149/179 [00:21<00:04,  7.03it/s]Loading weights:  89%|████████▉ | 159/179 [00:22<00:02,  9.98it/s]Loading weights:  95%|█████████▍| 170/179 [00:22<00:00, 12.44it/s]Loading weights: 100%|██████████| 179/179 [00:22<00:00,  7.88it/s]
+18:47:39   step 1/250 loss 1.8703 grad_norm 1.1285 lr 0.00e+00
+18:48:26   step 25/250 loss 1.4999 grad_norm 0.3803 lr 1.98e-04
+18:49:17   step 50/250 loss 0.8735 grad_norm 0.3536 lr 1.86e-04
+18:50:12   step 75/250 loss 1.2873 grad_norm 0.2822 lr 1.65e-04
+18:51:00   step 100/250 loss 1.3810 grad_norm 0.3007 lr 1.38e-04
+18:51:51   step 125/250 loss 1.7760 grad_norm 0.3004 lr 1.06e-04
+18:52:42   step 150/250 loss 1.4289 grad_norm 0.3216 lr 7.43e-05
+18:53:29   step 175/250 loss 1.1159 grad_norm 0.5031 lr 4.48e-05
+18:54:17   step 200/250 loss 1.5098 grad_norm 0.2964 lr 2.11e-05
+18:55:04   step 225/250 loss 1.2259 grad_norm 0.3734 lr 5.64e-06
+18:55:51   step 250/250 loss 1.2597 grad_norm 0.4827 lr 8.43e-09
+18:56:09   task loss 1.6394 over 38178 tokens
+18:56:11 [transformers] Ignoring clean_up_tokenization_spaces=True for BPE tokenizer GPTNeoXTokenizer. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.
+18:59:59   gate: mini_mmlu 11/26, mini_common_sense 8/24, mini_instruction 23/24, 
+18:59:59 mini_arithmetic 28/40
+18:59:59 nf4 seed 42: complete -> /root/c5/pilot/nf4-s42-gc
+== pilot end 2026-10-20T19:00:00Z

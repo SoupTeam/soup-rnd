@@ -1,0 +1,27 @@
++ export PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ cd /root/soup-rnd
+++ date -u +%Y-%m-%dT%H:%M:%SZ
+++ git rev-parse HEAD
++ echo '== build start 2026-10-20T21:46:15Z commit c5f4ae387ec981b361fb3cae3cd5171f7f8db01d'
+== build start 2026-10-20T21:46:15Z commit c5f4ae387ec981b361fb3cae3cd5171f7f8db01d
++ python benchmarks/harness/c5_cache.py build --model allenai/OLMoE-1B-7B-0924 --revision 6d84c48581ece794365f2b8e9cfb043c68ade9c5 --device cuda --cache-root /root/c5/caches --out /root/c5/cache.json
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 9 files:  67%|██████▋   | 6/9 [00:01<00:00,  5.53it/s]Fetching 9 files:  78%|███████▊  | 7/9 [00:01<00:00,  4.78it/s]Fetching 9 files:  89%|████████▉ | 8/9 [00:01<00:00,  5.01it/s]Fetching 9 files: 100%|██████████| 9/9 [00:01<00:00,  4.22it/s]Fetching 9 files: 100%|██████████| 9/9 [00:01<00:00,  4.64it/s]
+layer-stream sharder: skipping symlinked shard model-00001-of-00003.safetensors
+layer-stream sharder: skipping symlinked shard model-00002-of-00003.safetensors
+layer-stream sharder: skipping symlinked shard model-00003-of-00003.safetensors
+Traceback (most recent call last):
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 692, in <module>
+    sys.exit(main())
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 686, in main
+    return {"build": cmd_build, "restore": cmd_restore, "compare": cmd_compare}[args.command](
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 547, in cmd_build
+    record.update(build_caches(weights, args.cache_root, device=args.device))
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 414, in build_caches
+    shard_checkpoint(weights_dir, base, dtype="bfloat16")
+  File "/root/soup-rnd/src/soup_cli/utils/layer_shard.py", line 1284, in shard_checkpoint
+    shards = _discover_safetensors(weights_dir)
+  File "/root/soup-rnd/src/soup_cli/utils/layer_shard.py", line 768, in _discover_safetensors
+    raise FileNotFoundError(
+FileNotFoundError: no .safetensors weight files found in /root/.cache/huggingface/hub/models--allenai--OLMoE-1B-7B-0924/snapshots/6d84c48581ece794365f2b8e9cfb043c68ade9c5 — layer streaming needs a safetensors checkpoint
