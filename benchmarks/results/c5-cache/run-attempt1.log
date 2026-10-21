@@ -1,0 +1,129 @@
++ export PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ PATH=/venv/main/bin:/opt/instance-tools/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++ cd /root/soup-rnd
+++ date -u +%Y-%m-%dT%H:%M:%SZ
+++ git rev-parse HEAD
++ echo '== build start 2026-10-20T21:31:58Z commit c5f4ae387ec981b361fb3cae3cd5171f7f8db01d'
+== build start 2026-10-20T21:31:58Z commit c5f4ae387ec981b361fb3cae3cd5171f7f8db01d
++ python benchmarks/harness/c5_cache.py build --model allenai/OLMoE-1B-7B-0924 --revision 6d84c48581ece794365f2b8e9cfb043c68ade9c5 --device cuda --cache-root /root/c5/caches --out /root/c5/cache.json
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files:  11%|█         | 1/9 [00:00<00:04,  1.71it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+'[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1007)' thrown while requesting GET https://huggingface.co/api/models/allenai/OLMoE-1B-7B-0924/xet-read-token/6d84c48581ece794365f2b8e9cfb043c68ade9c5
+Retrying in 1s [Retry 1/5].
+Fetching 9 files:  11%|█         | 1/9 [13:11<1:45:31, 791.38s/it]
+Traceback (most recent call last):
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_transports/default.py", line 98, in map_httpcore_exceptions
+    yield
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_transports/default.py", line 245, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/venv/main/lib/python3.10/site-packages/httpcore2/_sync/connection_pool.py", line 242, in handle_request
+    raise exc from None
+  File "/venv/main/lib/python3.10/site-packages/httpcore2/_sync/connection_pool.py", line 224, in handle_request
+    response = connection.handle_request(pool_request.request)
+  File "/venv/main/lib/python3.10/site-packages/httpcore2/_sync/connection.py", line 96, in handle_request
+    return self._connection.handle_request(request)
+  File "/venv/main/lib/python3.10/site-packages/httpcore2/_sync/http11.py", line 125, in handle_request
+    raise exc
+  File "/venv/main/lib/python3.10/site-packages/httpcore2/_sync/http11.py", line 97, in handle_request
+    ) = self._receive_response_headers(**kwargs)
+  File "/venv/main/lib/python3.10/site-packages/httpcore2/_sync/http11.py", line 167, in _receive_response_headers
+    event = self._receive_event(timeout=timeout)
+  File "/venv/main/lib/python3.10/site-packages/httpcore2/_sync/http11.py", line 212, in _receive_event
+    raise RemoteProtocolError(msg)
+httpcore2.RemoteProtocolError: Server disconnected without sending a response.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 692, in <module>
+    sys.exit(main())
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 686, in main
+    return {"build": cmd_build, "restore": cmd_restore, "compare": cmd_compare}[args.command](
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 545, in cmd_build
+    weights, record["model"] = _weights(args)
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 531, in _weights
+    weights = snapshot_download(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 276, in _inner
+    return fn(*args, **kwargs)
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/_snapshot_download.py", line 541, in snapshot_download
+    hf_thread_map(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/tqdm.py", line 441, in hf_thread_map
+    results[future_to_index[future]] = future.result()
+  File "/usr/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/usr/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.10/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/_snapshot_download.py", line 521, in _inner_hf_hub_download
+    hf_hub_download(  # type: ignore
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 276, in _inner
+    return fn(*args, **kwargs)
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1047, in hf_hub_download
+    return _hf_hub_download_to_cache_dir(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1117, in _hf_hub_download_to_cache_dir
+    (url_to_download, etag, commit_hash, expected_size, xet_file_data, head_call_error) = _get_metadata_or_catch_error(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1762, in _get_metadata_or_catch_error
+    metadata = get_hf_file_metadata(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1669, in get_hf_file_metadata
+    response = _httpx2_follow_hub_redirects_with_backoff(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 764, in _httpx2_follow_hub_redirects_with_backoff
+    response = http_backoff(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 637, in http_backoff
+    return next(
+  File "/venv/main/lib/python3.10/site-packages/huggingface_hub/utils/_http.py", line 545, in _http_backoff_base
+    response = client.request(method=method, url=url, **kwargs)
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_client.py", line 797, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_client.py", line 980, in send
+    response = self._send_handling_auth(
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_client.py", line 1008, in _send_handling_auth
+    response = self._send_handling_redirects(
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_client.py", line 1043, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_client.py", line 1076, in _send_single_request
+    response = transport.handle_request(request)
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_transports/default.py", line 244, in handle_request
+    with map_httpcore_exceptions():
+  File "/usr/lib/python3.10/contextlib.py", line 153, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/venv/main/lib/python3.10/site-packages/httpx2/_transports/default.py", line 115, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx2.RemoteProtocolError: Server disconnected without sending a response.
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== compare start 2026-10-20T21:45:13Z'
+== compare start 2026-10-20T21:45:13Z
++ python benchmarks/harness/c5_cache.py compare --cache-root /root/c5/caches --label 'RTX 3090, real' --device cuda --out /root/c5/restore.json
+run 1 (arm A nf4, round 1)
+Traceback (most recent call last):
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 692, in <module>
+    sys.exit(main())
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 686, in main
+    return {"build": cmd_build, "restore": cmd_restore, "compare": cmd_compare}[args.command](
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 585, in cmd_restore
+    pack = load_layer(args.cache_dir, args.layer, device=args.device)
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 253, in load_layer
+    with safe_open(layer_shard_path(cache_dir, layer), framework="pt") as handle:
+FileNotFoundError: No such file or directory: /root/c5/caches/nf4/layer_000.safetensors
+Traceback (most recent call last):
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 692, in <module>
+    sys.exit(main())
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 686, in main
+    return {"build": cmd_build, "restore": cmd_restore, "compare": cmd_compare}[args.command](
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 639, in cmd_compare
+    record.update(run_comparison(RestoreRun(args, runs_dir),
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 478, in run_comparison
+    value = runner(arm, round, run)
+  File "/root/soup-rnd/benchmarks/harness/c5_cache.py", line 627, in __call__
+    subprocess.run(command, check=True)
+  File "/usr/lib/python3.10/subprocess.py", line 526, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/venv/main/bin/python', '/root/soup-rnd/benchmarks/harness/c5_cache.py', 'restore', '--cache-dir', '/root/c5/caches/nf4', '--layer', '0', '--expert', '0', '--device', 'cuda', '--warmup', '5', '--steps', '30', '--out', '/root/c5/runs/run001-A-nf4.json']' returned non-zero exit status 1.
+++ date -u +%Y-%m-%dT%H:%M:%SZ
++ echo '== end 2026-10-20T21:45:17Z'
+== end 2026-10-20T21:45:17Z

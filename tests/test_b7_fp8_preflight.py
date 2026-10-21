@@ -122,7 +122,7 @@ def _setup_before_sharding(
     monkeypatch.setattr(layer_shard, "resolve_shard_dir", lambda *_a: str(tmp_path / "cache"))
     monkeypatch.setattr(
         stream_adapter_preflight, "build_stream_adapter_plan",
-        lambda *_a, **_k: SimpleNamespace(quant_suffixes=(), lora_config=None),
+        lambda *_a, **_k: SimpleNamespace(quant_suffixes=(), lora_config=None, layout=None),
     )
     monkeypatch.setattr(
         stream_adapter_preflight, "check_stream_adapter_budget", lambda *_a, **_k: None,

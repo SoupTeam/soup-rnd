@@ -581,7 +581,7 @@ class StreamingSetupMixin:
         """
         from dataclasses import replace
 
-        from transformers import AutoConfig, AutoTokenizer
+        from soup_cli.utils.kimi_k2 import load_stream_config, load_stream_tokenizer
 
         # BEFORE the tokenizer load, the weight resolve and the shard write:
         # this configuration cannot work, and finding out minutes into disk I/O
@@ -637,15 +637,11 @@ class StreamingSetupMixin:
         from soup_cli.utils.terminal import for_terminal
 
         console.print(f"[dim]Loading tokenizer: {cfg.base}[/]")
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            cfg.base, trust_remote_code=self._trust_remote_code
-        )
+        self.tokenizer = load_stream_tokenizer(cfg.base, self._trust_remote_code)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        model_config = AutoConfig.from_pretrained(
-            cfg.base, trust_remote_code=self._trust_remote_code
-        )
+        model_config = load_stream_config(cfg.base, self._trust_remote_code)
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)
@@ -721,6 +717,10 @@ class StreamingSetupMixin:
             )
         quant_device_kind = str(self.device).split(":", 1)[0] if quant == QUANT_NF4 else ""
 
+        # The shard layout (ADR 0004) comes from the adapter plan's meta skeleton. The plan
+        # also refuses fused-expert LoRA targets the shards cannot serve, before this point.
+        layout = adapter_plan.layout
+
         def _disk_preflight(weights_plan) -> None:
             shard_estimate = estimate_stream_store_bytes(
                 weights_plan.source_bytes,
@@ -755,6 +755,7 @@ class StreamingSetupMixin:
                     quant_device_kind,
                     "qwen4_ple" if arch == "qwen4_exp" else "",
                     stripe_roots=stripe_roots,
+                    layout=layout,
                 )
             write_total = 0 if cached is not None else shard_estimate
             shares = _stripe_write_shares(write_total, 1 + len(stripe_roots))
@@ -817,6 +818,7 @@ class StreamingSetupMixin:
             arch=arch,
             quant=quant,
             quant_suffixes=quant_suffixes,
+            layout=layout,
             double_quant=double_quant,
             # Quantise on the device that will run the model: CPU and CUDA agree
             # on the packed nibbles but not on every float32 nested statistic.

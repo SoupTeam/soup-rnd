@@ -29,6 +29,7 @@ from safetensors.torch import save_file  # noqa: E402
 import soup_cli.utils.owner_only_dir as owner_only_dir  # noqa: E402
 from soup_cli.utils.layer_shard import (  # noqa: E402
     STRIPE_MARKER_NAME,
+    ShardLayout,
     inspect_shard_cache,
     layer_paths,
     layer_shard_path,
@@ -40,6 +41,7 @@ from soup_cli.utils.stripe_roots import (  # noqa: E402
     stripe_folder_name,
     stripe_folder_problem,
 )
+from tests._tiny_hf_models import write_tiny_llama_config  # noqa: E402
 
 WINDOWS = os.name == "nt"
 
@@ -57,6 +59,7 @@ def _weights(tmp_path, n_layers=3):
     src = tmp_path / "weights"
     src.mkdir()
     save_file(state, str(src / "model.safetensors"))
+    write_tiny_llama_config(str(src), n_layers)
     return str(src)
 
 
@@ -82,7 +85,7 @@ def _digests(folder):
 def _inspect(out, index, stripe):
     return inspect_shard_cache(
         out, index.dtype, index.source_fingerprint, (), "none", False, "", "",
-        stripe_roots=(stripe,),
+        stripe_roots=(stripe,), layout=ShardLayout(n_layers=3, stack_experts=False),
     )
 
 

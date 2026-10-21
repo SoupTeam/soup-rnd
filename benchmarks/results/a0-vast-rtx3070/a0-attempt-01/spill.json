@@ -1,0 +1,685 @@
+{
+ "meta": {
+  "gpu": "NVIDIA GeForce RTX 3070",
+  "torch": "2.14.1+cu130",
+  "vram_total_gb": 8.221,
+  "soup_cli_file": "/workspace/soup-a0/src/soup_cli/__init__.py",
+  "driver": "580.159.04",
+  "pcie_gen": "3",
+  "pcie_width": "16",
+  "mode": "spill",
+  "weights": "/workspace/soup-a0/.soup/models/synth-70b-v32k",
+  "shards": "/workspace/soup-a0/.soup/f2-nf4",
+  "quant": "nf4",
+  "tier": "disk",
+  "buffers": 2,
+  "read_ahead": 2,
+  "seq": 512,
+  "lora_r": 8,
+  "lora_targets": "q_proj,k_proj,v_proj,o_proj",
+  "seed": 3,
+  "input_seed": 17,
+  "k": 2,
+  "batch": 1,
+  "round_index": 0,
+  "ks": "1,2,3,4,8,16",
+  "cd_k": 4,
+  "steps": 3,
+  "warmup": 1,
+  "rounds": 2,
+  "spill_k": 16,
+  "spill_budget_k": 8,
+  "spill_dir": "/workspace/soup-a0/.soup/spill",
+  "deterministic": false,
+  "dry_run": false,
+  "allow_invalid": false,
+  "out": "/workspace/soup-a0/.soup/results/a0-attempt-01/spill.json",
+  "label": "F2",
+  "lazy_shard_handles": false,
+  "control_sync_source": false,
+  "no_pin": false,
+  "weights_dir": "/workspace/soup-a0/.soup/models/synth-70b-v32k",
+  "shard_dir": "/workspace/soup-a0/.soup/f2-nf4",
+  "dtype": "bfloat16",
+  "arch": "llama",
+  "n_layers": 80,
+  "hidden": 8192,
+  "pinned": true,
+  "source_class": "AsyncDiskSource",
+  "direct_io": true,
+  "store_gb": 1.956601912,
+  "shard_seconds": 0.005325856000126805,
+  "build_seconds": 1.6564943460016366,
+  "chunk_bytes": 8388608,
+  "v3": {
+   "free_gb": 23.020965888,
+   "commit_avail_gb": null,
+   "need_gb": 10.73741824,
+   "margin_gb": 4.0,
+   "gpu_used_before_build_mib": 4,
+   "gpu_pids": [
+    157244
+   ],
+   "foreign_gpu_pids": [],
+   "ram_ok": true,
+   "gpu_ok": true,
+   "ok": true
+  },
+  "box": {
+   "pid": 5187,
+   "own_pids": [
+    5187
+   ],
+   "gpu_own_pids": [
+    5187,
+    157244
+   ],
+   "gpu_pid_attribution": {
+    "before": [],
+    "after": [
+     157244
+    ],
+    "context_active": true,
+    "single_device": true,
+    "method": "exclusive-local-CUDA-initialization"
+   },
+   "unix": 1792417002.074009,
+   "total_phys_gb": 32.10739712,
+   "avail_phys_gb": 23.021142016,
+   "commit_limit_gb": null,
+   "commit_avail_gb": null,
+   "ac": true,
+   "gpu_pids": [
+    157244
+   ],
+   "gpu_mem_used_mib": 1669,
+   "python_processes": null,
+   "power_source": "operator-declared-server"
+  },
+  "started": "2026-10-19T13:36:42",
+  "spill_layers": 40,
+  "spill_direct": true
+ },
+ "records": [
+  {
+   "kind": "arm",
+   "mode": "l2l",
+   "arm": "A",
+   "k": 16,
+   "round": 0,
+   "variant": "pinned",
+   "skipped": null,
+   "store": {
+    "chunk_bytes": 8388608,
+    "resident_chunks": 1280,
+    "spilled_chunks": 0,
+    "spill_layers": 0,
+    "pinned": true,
+    "direct": null,
+    "bytes_written": 0,
+    "bytes_read": 0,
+    "put_wait_s": 0.0,
+    "get_wait_s": 0.0,
+    "spill_left_behind": null
+   },
+   "label": "spill_pinned_k16_r0",
+   "tokens_per_step": 8192,
+   "steps": 3,
+   "warmup": 1,
+   "nocopy": false,
+   "nodequant": false,
+   "step_s_mean": 109.0628143140002,
+   "step_s_min": 108.82214235700121,
+   "step_s_max": 109.20085202799964,
+   "tok_per_s": 75.11267751091223,
+   "layer_loads_per_step": 156.0,
+   "large_loads_per_step": 2.0,
+   "bytes_moved_per_step": 69936828688.0,
+   "implied_h2d_gb_per_s": 0.6412527416232494,
+   "peak_alloc_gb": 4.095062528,
+   "peak_reserved_gb": 4.590665728,
+   "sm_clock_mhz_start": 1815,
+   "sm_clock_mhz_end": 1920,
+   "records": [
+    {
+     "step_s": 108.82214235700121,
+     "started_unix": 1792417130.3671322,
+     "loss": 12.033759117126465,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 0,
+     "spill_read": 0,
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0
+    },
+    {
+     "step_s": 109.16544855699976,
+     "started_unix": 1792417239.1895864,
+     "loss": 12.00260329246521,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 0,
+     "spill_read": 0,
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0
+    },
+    {
+     "step_s": 109.20085202799964,
+     "started_unix": 1792417348.3551779,
+     "loss": 11.961933314800262,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 0,
+     "spill_read": 0,
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0
+    }
+   ],
+   "suspend": {
+    "samples": 220,
+    "max_gap_s": 2.0008654594421387,
+    "battery_samples": 0,
+    "unknown_power_samples": 0,
+    "void": false
+   },
+   "box_before": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792417020.7254505,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 16.920711168,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 2619,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "box_after": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792417457.5756931,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 17.069379584,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 4635,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "foreign_readers": []
+  },
+  {
+   "kind": "arm",
+   "mode": "l2l",
+   "arm": "A",
+   "k": 16,
+   "round": 0,
+   "variant": "spill",
+   "skipped": null,
+   "store": {
+    "chunk_bytes": 8388608,
+    "resident_chunks": 640,
+    "spilled_chunks": 640,
+    "spill_layers": 40,
+    "pinned": true,
+    "direct": true,
+    "bytes_written": 21474836480,
+    "bytes_read": 21474836480,
+    "put_wait_s": 68.16646888799005,
+    "get_wait_s": 0.004871229029959068,
+    "spill_left_behind": null
+   },
+   "label": "spill_spill_k16_r0",
+   "tokens_per_step": 8192,
+   "steps": 3,
+   "warmup": 1,
+   "nocopy": false,
+   "nodequant": false,
+   "step_s_mean": 109.29754017699815,
+   "step_s_min": 109.29088928299825,
+   "step_s_max": 109.30279720099861,
+   "tok_per_s": 74.9513665790991,
+   "layer_loads_per_step": 156.0,
+   "large_loads_per_step": 2.0,
+   "bytes_moved_per_step": 69936828688.0,
+   "implied_h2d_gb_per_s": 0.6398755962370535,
+   "peak_alloc_gb": 4.095062528,
+   "peak_reserved_gb": 4.590665728,
+   "sm_clock_mhz_start": 1815,
+   "sm_clock_mhz_end": 1920,
+   "records": [
+    {
+     "step_s": 109.30279720099861,
+     "started_unix": 1792417569.519952,
+     "loss": 12.035672068595886,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 5368709120,
+     "spill_read": 5368709120,
+     "put_wait_s": 17.05897864299186,
+     "get_wait_s": 0.001237015014339704
+    },
+    {
+     "step_s": 109.2989340469976,
+     "started_unix": 1792417678.8228912,
+     "loss": 12.003930449485779,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 5368709120,
+     "spill_read": 5368709120,
+     "put_wait_s": 17.03846606803927,
+     "get_wait_s": 0.0011581449980440084
+    },
+    {
+     "step_s": 109.29088928299825,
+     "started_unix": 1792417788.121989,
+     "loss": 11.963050365447998,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 5368709120,
+     "spill_read": 5368709120,
+     "put_wait_s": 17.056707793944952,
+     "get_wait_s": 0.0012039940265822224
+    }
+   ],
+   "suspend": {
+    "samples": 220,
+    "max_gap_s": 2.000251054763794,
+    "battery_samples": 0,
+    "unknown_power_samples": 0,
+    "void": false
+   },
+   "box_before": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792417460.1072137,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 16.743165952,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 4635,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "box_after": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792417897.4329364,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 16.695259136,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 4635,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "foreign_readers": []
+  },
+  {
+   "kind": "arm",
+   "mode": "l2l",
+   "arm": "A",
+   "k": 16,
+   "round": 1,
+   "variant": "spill",
+   "skipped": null,
+   "store": {
+    "chunk_bytes": 8388608,
+    "resident_chunks": 640,
+    "spilled_chunks": 640,
+    "spill_layers": 40,
+    "pinned": true,
+    "direct": true,
+    "bytes_written": 21474836480,
+    "bytes_read": 21474836480,
+    "put_wait_s": 68.40378951802268,
+    "get_wait_s": 0.004939594025927363,
+    "spill_left_behind": null
+   },
+   "label": "spill_spill_k16_r1",
+   "tokens_per_step": 8192,
+   "steps": 3,
+   "warmup": 1,
+   "nocopy": false,
+   "nodequant": false,
+   "step_s_mean": 110.20292061533353,
+   "step_s_min": 110.16408645800038,
+   "step_s_max": 110.2338675739993,
+   "tok_per_s": 74.33559795202173,
+   "layer_loads_per_step": 156.0,
+   "large_loads_per_step": 2.0,
+   "bytes_moved_per_step": 69936828688.0,
+   "implied_h2d_gb_per_s": 0.6346186498279525,
+   "peak_alloc_gb": 4.095062528,
+   "peak_reserved_gb": 4.590665728,
+   "sm_clock_mhz_start": 1815,
+   "sm_clock_mhz_end": 1920,
+   "records": [
+    {
+     "step_s": 110.2338675739993,
+     "started_unix": 1792418009.8888223,
+     "loss": 12.032687604427338,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 5368709120,
+     "spill_read": 5368709120,
+     "put_wait_s": 17.163101212991023,
+     "get_wait_s": 0.00121478401706554
+    },
+    {
+     "step_s": 110.16408645800038,
+     "started_unix": 1792418120.1228304,
+     "loss": 12.007294178009033,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 5368709120,
+     "spill_read": 5368709120,
+     "put_wait_s": 17.069717873044283,
+     "get_wait_s": 0.0012609560290002264
+    },
+    {
+     "step_s": 110.21080781400087,
+     "started_unix": 1792418230.2870603,
+     "loss": 11.96164482831955,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 5368709120,
+     "spill_read": 5368709120,
+     "put_wait_s": 16.995212633941264,
+     "get_wait_s": 0.0012968130067747552
+    }
+   ],
+   "suspend": {
+    "samples": 222,
+    "max_gap_s": 2.000279426574707,
+    "battery_samples": 0,
+    "unknown_power_samples": 0,
+    "void": false
+   },
+   "box_before": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792417899.6885357,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 16.655822848,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 4635,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "box_after": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792418340.517791,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 16.666775552,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 4635,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "foreign_readers": []
+  },
+  {
+   "kind": "arm",
+   "mode": "l2l",
+   "arm": "A",
+   "k": 16,
+   "round": 1,
+   "variant": "pinned",
+   "skipped": null,
+   "store": {
+    "chunk_bytes": 8388608,
+    "resident_chunks": 1280,
+    "spilled_chunks": 0,
+    "spill_layers": 0,
+    "pinned": true,
+    "direct": null,
+    "bytes_written": 0,
+    "bytes_read": 0,
+    "put_wait_s": 0.0,
+    "get_wait_s": 0.0,
+    "spill_left_behind": null
+   },
+   "label": "spill_pinned_k16_r1",
+   "tokens_per_step": 8192,
+   "steps": 3,
+   "warmup": 1,
+   "nocopy": false,
+   "nodequant": false,
+   "step_s_mean": 110.31228696233302,
+   "step_s_min": 110.1887423119988,
+   "step_s_max": 110.50401655599853,
+   "tok_per_s": 74.26189978997735,
+   "layer_loads_per_step": 156.0,
+   "large_loads_per_step": 2.0,
+   "bytes_moved_per_step": 69936828688.0,
+   "implied_h2d_gb_per_s": 0.6339894731026696,
+   "peak_alloc_gb": 4.095062528,
+   "peak_reserved_gb": 4.590665728,
+   "sm_clock_mhz_start": 1920,
+   "sm_clock_mhz_end": 1920,
+   "records": [
+    {
+     "step_s": 110.1887423119988,
+     "started_unix": 1792418450.8438323,
+     "loss": 12.03039288520813,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 0,
+     "spill_read": 0,
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0
+    },
+    {
+     "step_s": 110.24410201900173,
+     "started_unix": 1792418561.0327141,
+     "loss": 12.008696734905243,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 0,
+     "spill_read": 0,
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0
+    },
+    {
+     "step_s": 110.50401655599853,
+     "started_unix": 1792418671.2769551,
+     "loss": 11.962929785251617,
+     "layer_loads": 156,
+     "large_loads": 2,
+     "spill_written": 0,
+     "spill_read": 0,
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0
+    }
+   ],
+   "suspend": {
+    "samples": 222,
+    "max_gap_s": 2.0004546642303467,
+    "battery_samples": 0,
+    "unknown_power_samples": 0,
+    "void": false
+   },
+   "box_before": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792418340.5747187,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 16.626757632,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 4635,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "box_after": {
+    "pid": 5187,
+    "own_pids": [
+     5187
+    ],
+    "gpu_own_pids": [
+     5187,
+     157244
+    ],
+    "gpu_pid_attribution": {
+     "before": [],
+     "after": [
+      157244
+     ],
+     "context_active": true,
+     "single_device": true,
+     "method": "exclusive-local-CUDA-initialization"
+    },
+    "unix": 1792418781.8007798,
+    "total_phys_gb": 32.10739712,
+    "avail_phys_gb": 16.656760832,
+    "commit_limit_gb": null,
+    "commit_avail_gb": null,
+    "ac": true,
+    "gpu_pids": [
+     157244
+    ],
+    "gpu_mem_used_mib": 4635,
+    "python_processes": null,
+    "power_source": "operator-declared-server"
+   },
+   "foreign_readers": []
+  }
+ ]
+}

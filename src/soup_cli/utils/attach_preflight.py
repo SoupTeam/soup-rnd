@@ -459,6 +459,9 @@ def load_hf_config(base: str) -> Any:
     """``config.json`` alone, anonymously, with remote code refused."""
     from transformers import AutoConfig
 
+    from soup_cli.utils.kimi_k2 import refuse_kimi_k2_outside_streaming
+
+    refuse_kimi_k2_outside_streaming(base)
     return AutoConfig.from_pretrained(base, trust_remote_code=False)
 
 

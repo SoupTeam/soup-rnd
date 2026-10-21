@@ -23,6 +23,7 @@ import sys
 import time
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -40,6 +41,9 @@ from typing import (
 # default is safe to read at module scope. ``AsyncDiskSource`` itself is
 # imported inside ``_build_source``, where torch is already unavoidable.
 from soup_cli.utils.async_disk_source import DEFAULT_STREAM_READ_AHEAD
+
+if TYPE_CHECKING:
+    from soup_cli.utils.layer_shard import ShardLayout
 
 logger = logging.getLogger(__name__)
 
@@ -2345,6 +2349,26 @@ def _stamp_4bit_markers(model: Any, quant_config: Any) -> None:
         model.config.quantization_config = quant_config
 
 
+def _refuse_deepseek_v3_hub_code(config: Any, trust_remote_code: bool) -> None:
+    """A DeepSeek-V3 skeleton must be the transformers class, not the checkpoint's Hub code.
+
+    The Hub code a DeepSeek-V3 checkpoint names in ``auto_map`` keeps the routed
+    experts in a module list and asserts it is not training. On transformers 5 it
+    does not even import (it needs ``is_torch_fx_available``), so this refuses
+    from the config, before ``from_config`` loads the class.
+    """
+    if not trust_remote_code or getattr(config, "model_type", None) != "deepseek_v3":
+        return
+    hub_class = (getattr(config, "auto_map", None) or {}).get("AutoModelForCausalLM")
+    if hub_class is None:
+        return
+    raise ValueError(
+        "layer streaming needs the transformers DeepSeek-V3 class, but "
+        f"--trust-remote-code builds {hub_class} from the checkpoint's own modeling "
+        "code, which cannot train. Run again without --trust-remote-code."
+    )
+
+
 def build_meta_skeleton(
     model_id: str,
     *,
@@ -2359,9 +2383,11 @@ def build_meta_skeleton(
     ``bnb.nn.Linear4bit`` (still on ``meta``) so the streamed ``Params4bit``
     views land in modules that know how to consume them.
     """
+    import torch
     from accelerate import init_empty_weights
-    from transformers import AutoConfig, AutoModelForCausalLM
+    from transformers import AutoModelForCausalLM
 
+    from soup_cli.utils.kimi_k2 import load_stream_config
     from soup_cli.utils.layer_shard import QUANT_NF4, SUPPORTED_STREAM_QUANTS
 
     if quant not in SUPPORTED_STREAM_QUANTS:
@@ -2370,7 +2396,8 @@ def build_meta_skeleton(
             f"{', '.join(SUPPORTED_STREAM_QUANTS)}"
         )
     torch_dtype = _torch_dtype(dtype)
-    config = AutoConfig.from_pretrained(model_id, trust_remote_code=trust_remote_code)
+    config = load_stream_config(model_id, trust_remote_code)
+    _refuse_deepseek_v3_hub_code(config, trust_remote_code)
     config.use_cache = False
     quant_config = None
     if quant == QUANT_NF4:
@@ -2401,6 +2428,8 @@ def build_meta_skeleton(
     model.config.name_or_path = model_id
     if quant_config is not None:
         _stamp_4bit_markers(model, quant_config)
+    if torch_dtype in (torch.float16, torch.bfloat16):
+        _upcast_strict_fp32(model)
     return model
 
 
@@ -2427,6 +2456,144 @@ def quantised_layer_suffixes(model: Any) -> FrozenSet[str]:
             if isinstance(param, bnb.nn.Params4bit)
         )
     return frozenset(found)
+
+
+def shard_layout_of(model: Any) -> "ShardLayout":
+    """The shard layout a meta skeleton asks for (ADR 0004).
+
+    Experts are stacked when any decoder layer holds ``mlp.experts.gate_up_proj``
+    as a 3-D parameter, whatever the architecture is called; a model whose
+    experts are a module list keeps per-expert keys.
+    """
+    from soup_cli.utils.layer_shard import ShardLayout
+
+    layers = decoder_owner(model).layers
+    stack_experts = any(
+        name == "mlp.experts.gate_up_proj" and param.dim() == 3
+        for layer in layers
+        for name, param in layer.named_parameters()
+    )
+    return ShardLayout(
+        n_layers=len(layers),
+        stack_experts=stack_experts,
+        fp32_keys=frozenset(name for _idx, name, _tensor in _strict_fp32_layer_tensors(model)),
+    )
+
+
+def refuse_unservable_target_parameters(
+    lora_config: Any, model: Any, layout: Optional["ShardLayout"]
+) -> None:
+    """Refuse a LoRA config whose raw-parameter targets the shards cannot serve.
+
+    Reads the config peft will really attach, not the ``moe_lora`` flag. On a model
+    with a v4 to v5 conversion mapping, peft rewrites ``gate_proj``/``up_proj``/
+    ``down_proj`` in ``target_modules`` into ``target_parameters`` on the fused
+    routed experts, so explicit targets reach the experts without ``moe_lora``.
+
+    A target is served when it names a parameter of a decoder layer and, for a
+    fused 3-D one, the layout stacks experts, so the shards carry that tensor.
+    Anything else fails the build later with ``shard is missing decoder weights``.
+
+    ``model`` is the meta skeleton. Like ``peft_routes_lora_to_fused_params``, this
+    returns quietly when it cannot ask peft (no real model type, different peft) and
+    leaves the error to peft.
+    """
+    import copy
+
+    if not isinstance(getattr(getattr(model, "config", None), "model_type", None), str):
+        return
+    try:
+        from peft.utils.transformers_weight_conversion import (
+            convert_peft_config_for_transformers,
+        )
+
+        converted = copy.deepcopy(lora_config)
+        convert_peft_config_for_transformers(converted, model, None)
+        layers = decoder_owner(model).layers
+    except Exception as exc:  # noqa: BLE001 - a probe must never break the run
+        logger.warning(
+            "could not ask peft which parameters the LoRA config targets (%s); "
+            "unservable fused-expert targets are not checked",
+            exc,
+        )
+        return
+    targets = getattr(converted, "target_parameters", None) or []
+    if isinstance(targets, str):
+        targets = [targets]
+    decoder_params = {
+        name: param for layer in layers for name, param in layer.named_parameters()
+    }
+    stacked = getattr(layout, "stack_experts", True)
+    unserved = []
+    for target in targets:
+        hits = [
+            param
+            for name, param in decoder_params.items()
+            if name == target or name.endswith("." + target) or target.endswith("." + name)
+        ]
+        if not hits:
+            unserved.append((target, "it names no parameter of a decoder layer"))
+        elif not stacked and any(param.dim() == 3 for param in hits):
+            unserved.append((target, "the shards do not carry fused experts for this model"))
+    if not unserved:
+        return
+    detail = "; ".join(f"{target}: {why}" for target, why in unserved)
+    raise ValueError(
+        f"layer streaming cannot serve these LoRA parameter targets ({detail}). peft "
+        f"turns gate_proj, up_proj and down_proj targets, including the ones "
+        f"training.moe_lora adds, into parameter targets on fused experts. Remove "
+        f"those targets, or set training.stream_layers: false."
+    )
+
+
+def _persistent_buffers(module: Any) -> Iterator[Tuple[str, Any]]:
+    """``module``'s buffers that its state dict carries, by name inside ``module``."""
+    for prefix, owner in module.named_modules():
+        for leaf, buf in owner._buffers.items():
+            if buf is not None and leaf not in owner._non_persistent_buffers_set:
+                yield (f"{prefix}.{leaf}" if prefix else leaf), buf
+
+
+def _strict_fp32_layer_tensors(model: Any) -> Iterator[Tuple[int, str, Any]]:
+    """``(layer index, short key, tensor)`` for each decoder-layer parameter or
+    persistent buffer that ``from_pretrained`` keeps in fp32 at any dtype.
+
+    The names come from ``_keep_in_fp32_modules_strict``, matched the way
+    transformers 5.x matches its dtype plan: each entry is a regex searched in
+    the key (``*`` widened to ``.*``).
+    """
+    import re
+
+    patterns = sorted(getattr(model, "_keep_in_fp32_modules_strict", None) or ())
+    if not patterns:
+        return
+    pattern = re.compile("|".join(entry.replace("*", ".*") for entry in patterns))
+    for idx, layer in enumerate(decoder_owner(model).layers):
+        for name, tensor in (*layer.named_parameters(), *_persistent_buffers(layer)):
+            if pattern.search(name):
+                yield idx, name, tensor
+
+
+def _upcast_strict_fp32(model: Any) -> None:
+    """Hold the skeleton's strict-fp32 layer tensors in fp32, as ``from_pretrained`` does.
+
+    ``from_config`` builds every tensor at the requested dtype, so without this a
+    bf16 skeleton has DeepSeek-V3's router bias in bf16 while the resident model
+    has it in fp32.
+    """
+    import torch
+    import torch.nn as nn
+
+    layers = decoder_owner(model).layers
+    for idx, name, tensor in list(_strict_fp32_layer_tensors(model)):
+        prefix, _, leaf = name.rpartition(".")
+        owner = layers[idx].get_submodule(prefix)
+        if isinstance(tensor, nn.Parameter):
+            owner._parameters[leaf] = nn.Parameter(
+                tensor.to(torch.float32), requires_grad=tensor.requires_grad
+            )
+        else:
+            owner._buffers[leaf] = tensor.to(torch.float32)
 
 
 @dataclass(frozen=True)
@@ -2506,6 +2673,48 @@ def materialize_extras(
                 module = getattr(module, part)
             setattr(module, parts[-1], buf.to(device))
     return ExtrasLoad(placed=placed, codes=codes)
+
+
+def materialize_layer_buffers(model: Any, shard_dir: str, index: Any, *, device: str) -> None:
+    """Fill every persistent floating-point buffer of every decoder layer from
+    that layer's shard.
+
+    A buffer is resident, not streamed: it is loaded once, at the dtype the
+    skeleton holds it in, onto ``device``. Without this a streamed DeepSeek-V3
+    routes with the all-zero ``e_score_correction_bias`` its constructor leaves.
+    Non-persistent buffers are not in the shard and are left alone. Integer
+    buffers keep their constructor value: they are constants derived from the
+    config (Qwen4's PLE hash multipliers, which transformers rebuilds when a
+    checkpoint lacks them), and the sharder stores them at the run dtype, which
+    cannot hold int64 values exactly.
+    """
+    from safetensors import safe_open
+
+    from soup_cli.utils.layer_shard import layer_paths
+
+    layers = decoder_owner(model).layers
+    wanted = [
+        (idx, [(name, buf) for name, buf in _persistent_buffers(layer) if buf.is_floating_point()])
+        for idx, layer in enumerate(layers)
+    ]
+    if not any(buffers for _idx, buffers in wanted):
+        return
+    _require_stripe_folders(shard_dir, index)
+    paths = layer_paths(shard_dir, index)
+    for (idx, buffers), path in zip(wanted, paths):
+        if not buffers:
+            continue
+        with safe_open(path, framework="pt") as handle:
+            stored = set(handle.keys())
+            for name, buf in buffers:
+                if name not in stored:
+                    raise ValueError(
+                        f"the shard of decoder layer {idx} has no persistent buffer "
+                        f"{name!r} — reshard the checkpoint"
+                    )
+                prefix, _, leaf = name.rpartition(".")
+                owner = layers[idx].get_submodule(prefix)
+                owner._buffers[leaf] = handle.get_tensor(name).to(device=device, dtype=buf.dtype)
 
 
 def materialize_meta_adapters(model: Any, *, seed: int = 0, device: str = "cuda") -> int:
@@ -2788,13 +2997,30 @@ def _device_map_value(device: Any) -> Union[str, int]:
     return torch.cuda.current_device() if torch.cuda.is_available() else 0
 
 
+def strip_peft_wrappers(name: str) -> str:
+    """``name`` without the ``base_layer`` segments peft's wrappers add.
+
+    peft wraps a module once per targeted parameter, so fused experts with two
+    targets read ``experts.base_layer.base_layer.down_proj``.
+    """
+    return ".".join(part for part in name.split(".") if part != "base_layer")
+
+
 def _layer_name_map(layer: Any) -> Dict[str, str]:
     """meta parameter name inside one layer -> its shard key."""
     return {
-        pname: pname.replace(".base_layer.", ".")
+        pname: strip_peft_wrappers(pname)
         for pname, param in layer.named_parameters()
         if param.is_meta
     }
+
+
+def _refuse_expert_storage_cache(index: Any) -> None:
+    if getattr(index, "expert_layout", ""):
+        raise ValueError(
+            "per_expert cache is a B1.1 storage artifact; expert training runtime "
+            "requires B1.2/B1.3. Re-shard with the default fused layout to train."
+        )
 
 
 def install_streaming(
@@ -2851,6 +3077,8 @@ def install_streaming(
                 logger.warning(message)
         pin = False
         require_pin = False
+
+    _refuse_expert_storage_cache(index)
 
     # Validate the index BEFORE touching the model: an index whose `quant` and
     # `quant_specs` disagree passes the cache key (which reads `quant`) and
@@ -3423,8 +3651,6 @@ def build_streamed_model(
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice.
     """
-    from peft import get_peft_model
-
     model = build_meta_skeleton(
         model_id,
         dtype=dtype,
@@ -3432,6 +3658,10 @@ def build_streamed_model(
         double_quant=double_quant,
         trust_remote_code=trust_remote_code,
     )
+    # Architecture / Hub-code refusals must run before ANY access to the cache
+    # index (B2). The skeleton is meta-only; reject storage-only layouts before
+    # materializing extras, decoder buffers or adapters.
+    _refuse_expert_storage_cache(index)
     external_tensors = dict(getattr(index, "external_tensors", None) or {})
     external_sources: Tuple[Any, ...] = ()
     if external_tensors:
@@ -3447,12 +3677,13 @@ def build_streamed_model(
         )
     try:
         extras = materialize_extras(model, shard_dir, index, device=device, dtype=dtype)
+        materialize_layer_buffers(model, shard_dir, index, device=device)
         for param in model.parameters():
             param.requires_grad = False
-        from soup_cli.utils.peft_wiring import apply_pre_lora_patches
+        from soup_cli.utils.peft_wiring import apply_pre_lora_patches, attach_adapter
 
         apply_pre_lora_patches(model, model_id)
-        model = get_peft_model(model, lora_config)
+        model = attach_adapter(model, lora_config)
         materialize_meta_adapters(model, seed=seed, device=device)
         assert_trainable_adapters_materialized(model)
         runtime = install_streaming(

@@ -173,6 +173,15 @@ def export(
         )
         raise typer.Exit(1)
 
+    from soup_cli.utils.kimi_k2 import exit_if_kimi_k2_outside_streaming
+
+    adapter_config = model_path / "adapter_config.json"
+    exit_if_kimi_k2_outside_streaming(
+        console,
+        model_path,
+        base or (_detect_base_model(adapter_config) if adapter_config.exists() else None),
+    )
+
     # --- ONNX export path ---
     if fmt == "onnx":
         _export_onnx(model_path, output, base, onnx_task, trust_remote_code)
@@ -390,9 +399,9 @@ def _merge_adapter(
 ):
     """Merge LoRA adapter with base model."""
     import torch
-    from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
+    from soup_cli.utils.peft_wiring import load_adapter
     from soup_cli.utils.trust_remote import (
         model_requires_trust_remote_code,
         resolve_trust_remote_code,
@@ -406,6 +415,10 @@ def _merge_adapter(
         requires_remote_code=requires,
     )
 
+    from soup_cli.utils.kimi_k2 import refuse_kimi_k2_outside_streaming
+
+    refuse_kimi_k2_outside_streaming(base_model)
+
     console.print(f"[dim]Loading base model: {for_terminal(base_model)}...[/]")
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
@@ -415,7 +428,7 @@ def _merge_adapter(
     )
 
     console.print(f"[dim]Loading LoRA adapter: {adapter_path}...[/]")
-    model = PeftModel.from_pretrained(model, adapter_path)
+    model = load_adapter(model, adapter_path)
 
     console.print("[dim]Merging weights...[/]")
     model = model.merge_and_unload()
@@ -1016,11 +1029,11 @@ def _export_awq(
         console.print("[dim]Loading model for AWQ quantization...[/]")
         model = AutoAWQForCausalLM.from_pretrained(str(source_path))
         from soup_cli.utils.trust_remote import (
-            model_requires_trust_remote_code,
+            model_or_tokenizer_requires_trust_remote_code,
             resolve_trust_remote_code,
         )
 
-        requires_tok = model_requires_trust_remote_code(str(source_path)) or False
+        requires_tok = model_or_tokenizer_requires_trust_remote_code(str(source_path))
         trc_tok = resolve_trust_remote_code(
             str(source_path),
             requested=trust_remote_code,
@@ -1164,11 +1177,11 @@ def _export_gptq(
             str(source_path), quantize_config=quantize_config
         )
         from soup_cli.utils.trust_remote import (
-            model_requires_trust_remote_code,
+            model_or_tokenizer_requires_trust_remote_code,
             resolve_trust_remote_code,
         )
 
-        requires_tok = model_requires_trust_remote_code(str(source_path)) or False
+        requires_tok = model_or_tokenizer_requires_trust_remote_code(str(source_path))
         trc_tok = resolve_trust_remote_code(
             str(source_path),
             requested=trust_remote_code,

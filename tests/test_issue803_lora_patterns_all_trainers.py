@@ -361,6 +361,7 @@ def test_layer_streaming_builds_the_lora_config_with_its_patterns(monkeypatch, t
             # The early adapter gate now inspects real module shapes before I/O.
             lambda *_a, **_k: _model().to("meta")
         ),
+        "soup_cli.utils.layer_stream_runtime.shard_layout_of": lambda *_a, **_k: None,
         "soup_cli.utils.layer_stream_runtime.RamSource.layer_specs_from_paths": lambda *_a, **_k: [
             {"self_attn.q_proj.weight": ((4, 4), "float32")},
             {"self_attn.q_proj.weight": ((4, 4), "float32")},

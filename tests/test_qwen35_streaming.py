@@ -8,6 +8,7 @@ import pytest
 import torch
 from safetensors.torch import load_file, save_file
 
+from tests._tiny_hf_models import write_tiny_llama_config
 from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 
 
@@ -204,6 +205,7 @@ def _heterogeneous_weights_dir(tmp_path: Path, *, vlm_prefix: bool = False) -> s
         },
         str(weights / "model.safetensors"),
     )
+    write_tiny_llama_config(str(weights), 2)
     return str(weights)
 
 
@@ -421,6 +423,10 @@ class TestQwen35StreamingParity:
         assert "self_attn.q_proj.weight" not in layer1
         assert "linear_attn.in_proj_qkv.weight" in layer1
         assert "linear_attn.in_proj_qkv.weight" not in layer0
+        # B2: the toy's experts are a module list, so its per-expert keys stay.
+        for layer in (layer0, layer1):
+            assert {"mlp.experts.0.weight", "mlp.experts.1.weight"} <= set(layer)
+        assert "mlp.experts.gate_up_proj" not in index.layer_keys
 
         streamed, runtime = build_streamed_model(
             model_id=str(weights),
@@ -486,6 +492,7 @@ class TestQwen35StreamingSharder:
             },
             str(weights / "model.safetensors"),
         )
+        write_tiny_llama_config(str(weights), 1)
 
         with pytest.raises(ValueError, match="canonicalise"):
             shard_checkpoint(str(weights), str(tmp_path / "shards"), dtype="float32")
@@ -503,6 +510,7 @@ class TestQwen35StreamingSharder:
             },
             str(weights / "model.safetensors"),
         )
+        write_tiny_llama_config(str(weights), 2)
 
         with pytest.raises(ValueError, match="stored shapes or dtypes"):
             shard_checkpoint(str(weights), str(tmp_path / "shards"), dtype="float32")
@@ -914,6 +922,10 @@ class TestQwen35StreamingSetup:
         monkeypatch.setattr(
             "soup_cli.utils.layer_stream_runtime.build_meta_skeleton",
             fake_meta_skeleton,
+        )
+        monkeypatch.setattr(
+            "soup_cli.utils.layer_stream_runtime.shard_layout_of",
+            lambda *_a, **_k: None,
         )
         monkeypatch.setattr(
             "soup_cli.utils.layer_stream_runtime.RamSource.layer_specs_from_paths",

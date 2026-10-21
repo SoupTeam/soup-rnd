@@ -836,6 +836,13 @@ def train(
         )
         raise typer.Exit(1)
 
+    # Resident trainers load the base with plain transformers, which cannot read a
+    # kimi_k2 folder. Refuse before anything is downloaded.
+    if not getattr(cfg.training, "stream_layers", False):
+        from soup_cli.utils.kimi_k2 import exit_if_kimi_k2_outside_streaming
+
+        exit_if_kimi_k2_outside_streaming(console, cfg.base)
+
     # An unregistered data.chat_template name raises KeyError in the trainer,
     # after the model has loaded. Check it before anything is downloaded.
     from soup_cli.data.chat_templates import resolve_chat_template
