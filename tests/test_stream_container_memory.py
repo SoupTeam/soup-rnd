@@ -5,6 +5,7 @@ import psutil
 import pytest
 
 from soup_cli.utils import layer_stream as streaming
+from soup_cli.utils.container_memory import cgroup_memory_bounds
 
 GIB = 1024**3
 
@@ -128,18 +129,19 @@ def test_membership_cannot_escape_the_controller_root(container):
     assert streaming.total_ram_bytes() == 32 * GIB
 
 
-def test_protected_allocation_does_not_require_bursting_to_the_hard_limit(container):
+@pytest.mark.parametrize("protection", ["memory.low", "memory.min"])
+def test_protected_allocation_requires_explicit_provider_opt_in(container, protection):
     container["/sys/fs/cgroup/memory.max"] = str(56 * GIB)
-    container["/sys/fs/cgroup/memory.low"] = str(32 * GIB)
-    assert streaming.total_ram_bytes() == 32 * GIB
-    assert streaming.free_ram_bytes() == 27 * GIB
+    container[f"/sys/fs/cgroup/{protection}"] = str(32 * GIB)
+    assert streaming.total_ram_bytes() == 56 * GIB
+    assert streaming.free_ram_bytes() == 51 * GIB
+    assert cgroup_memory_bounds(use_protection_budget=True) == (32 * GIB, 27 * GIB)
 
 
 def test_reservation_is_still_bounded_by_a_smaller_hard_limit(container):
     container["/sys/fs/cgroup/memory.max"] = str(24 * GIB)
     container["/sys/fs/cgroup/memory.low"] = str(32 * GIB)
-    assert streaming.total_ram_bytes() == 24 * GIB
-    assert streaming.free_ram_bytes() == 19 * GIB
+    assert cgroup_memory_bounds(use_protection_budget=True) == (24 * GIB, 19 * GIB)
 
 
 def test_zero_reservation_adds_no_artificial_constraint(container):
@@ -154,8 +156,46 @@ def test_v1_soft_allocation_is_a_conservative_budget(container):
     container[prefix + "/memory.limit_in_bytes"] = str(56 * GIB)
     container[prefix + "/memory.soft_limit_in_bytes"] = str(32 * GIB)
     container[prefix + "/memory.usage_in_bytes"] = str(8 * GIB)
+    assert cgroup_memory_bounds(use_protection_budget=True) == (32 * GIB, 24 * GIB)
+
+
+@pytest.mark.parametrize("protection", ["memory.low", "memory.min"])
+@pytest.mark.parametrize("group", ["", "/worker"])
+def test_reclaim_protection_does_not_change_capacity_or_nf4_tier(container, protection, group):
+    container["/proc/self/cgroup"] = "0::/worker/job\n"
+    container["/sys/fs/cgroup/memory.current"] = str(GIB // 2)
+    container["/sys/fs/cgroup/memory.stat"] = ""
+
+    for protected_bytes in (0, GIB):
+        container[f"/sys/fs/cgroup{group}/{protection}"] = str(protected_bytes)
+        assert streaming.total_ram_bytes() == 32 * GIB
+        assert streaming.free_ram_bytes() == 32 * GIB - GIB // 2
+        plan = streaming.build_stream_plan(
+            arch="qwen2", n_layers=48, layer_bytes=150_000_000,
+            embed_bytes=0, store_bytes=9_931_805_043,
+            available_ram_bytes=streaming.free_ram_bytes(),
+            total_ram_bytes=streaming.total_ram_bytes(), pinned_limit_bytes=None,
+        )
+        assert plan.tier == streaming.TIER_RAM
+
+
+@pytest.mark.parametrize("hard", ["max", "malformed"])
+def test_protection_without_a_hard_limit_preserves_host_capacity(container, hard):
+    container["/sys/fs/cgroup/memory.max"] = hard
+    container["/sys/fs/cgroup/memory.low"] = str(GIB)
+    container["/sys/fs/cgroup/memory.min"] = str(2 * GIB)
+    assert streaming.total_ram_bytes() == 128 * GIB
+    assert streaming.free_ram_bytes() == 100 * GIB
+
+
+def test_v1_soft_limit_does_not_reduce_default_capacity(container):
+    container.clear()
+    prefix = "/sys/fs/cgroup/memory"
+    container[prefix + "/memory.limit_in_bytes"] = str(32 * GIB)
+    container[prefix + "/memory.soft_limit_in_bytes"] = str(GIB)
+    container[prefix + "/memory.usage_in_bytes"] = str(GIB // 2)
     assert streaming.total_ram_bytes() == 32 * GIB
-    assert streaming.free_ram_bytes() == 24 * GIB
+    assert streaming.free_ram_bytes() == 32 * GIB - GIB // 2
 
 
 def test_clean_active_checkpoint_cache_is_reclaimable(container):

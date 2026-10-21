@@ -51,12 +51,14 @@ def _directories() -> list[tuple[Path, int]]:
     return list(dict.fromkeys(result))
 
 
-def cgroup_memory_bounds() -> tuple[int | None, int | None]:
-    """Return the conservative allocation budget and reclaim-aware headroom.
+def cgroup_memory_bounds(*, use_protection_budget: bool = False) -> tuple[int | None, int | None]:
+    """Return visible hard capacity bounds and reclaim-aware headroom.
 
-    A positive protected reservation is the shared container's baseline budget;
-    using memory above it requires bursting. It is not a kernel hard limit.
-    The planner conservatively uses that baseline and any smaller hard limit.
+    Reclaim protection (v2 memory.low/min, v1 soft limits) is not capacity and
+    does not constrain the default probes. An integration whose provider
+    explicitly defines that protection as its baseline allocation may opt into
+    ``use_protection_budget`` before passing the budget to the planner. This
+    policy still honors smaller hard/ancestor limits; it is not a kernel cap.
     Clean file-LRU pages are reclaimable even after recent checkpoint hashing;
     shared, dirty/writeback and anonymous memory are not added back. Missing
     usage under a known limit supplies zero headroom,
@@ -69,15 +71,17 @@ def cgroup_memory_bounds() -> tuple[int | None, int | None]:
         if version == 1 and hard is not None and hard >= 1 << 60:
             # v1 represents an unlimited controller as LONG_MAX rounded to pages.
             hard = None
-        if version == 2:
-            protected = max(
-                _number(directory / "memory.low") or 0,
-                _number(directory / "memory.min") or 0,
-            )
-        else:
-            protected = _number(directory / "memory.soft_limit_in_bytes") or 0
-            if protected >= 1 << 60:
-                protected = 0
+        protected = 0
+        if use_protection_budget:
+            if version == 2:
+                protected = max(
+                    _number(directory / "memory.low") or 0,
+                    _number(directory / "memory.min") or 0,
+                )
+            else:
+                protected = _number(directory / "memory.soft_limit_in_bytes") or 0
+                if protected >= 1 << 60:
+                    protected = 0
         budgets = ([hard] if hard is not None else []) + ([protected] if protected else [])
         if not budgets:
             continue
