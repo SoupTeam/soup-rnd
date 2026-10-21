@@ -208,14 +208,16 @@ class TestFilters:
 
 
 class TestRuleFiles:
-    @pytest.mark.parametrize("name", ["e4-part2-calibration-rule.md", "e4-rule-part2-draft.md"])
+    @pytest.mark.parametrize("name", ["e4-part2-calibration-rule.md", "e4-rule-part2-draft.md",
+                                      "e4-rule-part2-decision-skeleton.md"])
     def test_gitattributes_pins_lf_for_both_rule_files(self, name):
         attrs = (REPO_ROOT / ".gitattributes").read_text().splitlines()
         assert f"{name} text eol=lf" in attrs
 
     def test_harness_and_rule_files_are_checked_with_git_if_present(self):
         out = subprocess.run(["git", "-C", str(REPO_ROOT), "check-attr", "eol", "--",
-                              "e4-part2-calibration-rule.md", "e4-rule-part2-draft.md"],
+                              "e4-part2-calibration-rule.md", "e4-rule-part2-draft.md",
+                              "e4-rule-part2-decision-skeleton.md"],
                              capture_output=True, text=True, check=False)
         if out.returncode == 0:
-            assert out.stdout.count("eol: lf") == 2
+            assert out.stdout.count("eol: lf") == 3
