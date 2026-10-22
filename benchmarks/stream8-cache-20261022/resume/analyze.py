@@ -87,6 +87,15 @@ def main(root, output, reference=None):
         return json.loads(paths[name].read_text())
 
     state = read("results/progress.json")
+    qualification = (read("results/qualification-reference.json")
+                     if "results/qualification-reference.json" in paths else None)
+    if qualification:
+        environment = read("results/environment.json")
+        gpu = environment["gpu"].split(", ")
+        assert gpu[0] == qualification["gpu_uuid"] and gpu[2] == qualification["driver_version"]
+        assert environment["source_sha256"] == qualification["source_sha256"]
+        assert environment["packages"] == qualification["packages"]
+        assert read("results/model-8-manifest.json") == qualification["model_manifest"]
     result = {"status": state["status"], "local_replay": True, "local_torch": torch.__version__,
               "source": "d500ae0dca7c4da905f8d59c9866af2f8aaa824b", "receipts": receipts,
               "captures": {}, "semantics": {}, "performance": {}, "remote": state}
@@ -127,13 +136,34 @@ def main(root, output, reference=None):
                 prefix = f"results/timing-{arm}-{pair}-{current}/"
                 metrics[current] = read(prefix + "metrics.json")
                 provenance[current] = read(prefix + "cache-provenance.json")
+                config = read(prefix + "resolved-config.json")
+                training, data = config["training"], config["data"]
+                assert training["quantization"] == "none" and training["seed"] == 792
+                assert training["batch_size"] == 1 and data["max_length"] == 1024
+                assert training["gradient_accumulation_steps"] == 2
+                assert not training["fast_lora"] and not training["use_liger"]
+                assert training["lora"]["r"] == training["lora"]["alpha"] == 4
+                assert training["lora"]["dropout"] == 0
+                assert set(training["lora"]["target_modules"]) == {
+                    "q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"}
                 tensors[current] = load_file(
                     str(paths[prefix + "adapter/adapter_model.safetensors"]))
                 item, info = metrics[current], provenance[current]
+                assert info["arm"] == current and info["layer_count"] == 36
+                expected_indices = ([] if current == "baseline"
+                                    else state["selection"]["indices"][arm])
+                assert info["indices"] == expected_indices
+                if qualification:
+                    assert item["data_sha256"] == qualification["data_sha256"]
+                    assert item["initial_adapter_sha256"] == qualification["initial_adapter_sha256"]
                 assert item["amp"] == {"bf16": True, "fp16": False}
+                assert item["decoder_dtype"] == "torch.bfloat16"
+                assert item["warmup"] == 6 and item["steps"] == 8
+                assert item["deterministic_algorithms"] and not item["diagnostic_instrumented"]
                 assert len(item["seconds"]) == 8
                 assert all(shape == [1, 1024] for shape in item["input_shapes"])
                 assert info["allocator_budget_bytes"] == 7 * 2**30
+                assert info["whole_run_peak_reserved_bytes"] <= info["allocator_budget_bytes"]
                 assert 7.5 * 2**30 <= info["physical_gpu_bytes"] <= 8.1 * 2**30
             a, b = metrics["baseline"], metrics[arm]
             assert a["data_sha256"] == b["data_sha256"]
@@ -146,6 +176,7 @@ def main(root, output, reference=None):
             losses = [[row["loss"] for row in item["training_log_history"] if "loss" in row]
                       for item in (a, b)]
             assert all(len(values) == 14 for values in losses)
+            assert all(math.isfinite(value) for values in losses for value in values)
             assert all(f"{x:.3f}" == f"{y:.3f}" for x, y in zip(*losses, strict=True))
             entry = {"pair": pair, "order": ("AB", "BA", "BA", "AB")[pair],
                      "time_reduction_percent": (1 - b["median_seconds_per_optimizer_step"]
@@ -172,9 +203,31 @@ def main(root, output, reference=None):
                     "retention": info.get("retention"), "per_update": info["per_update"],
                     "setup_seconds": item["setup_seconds"],
                     "saved_adapter_tensors_changed_from_exact_initial": updated,
-                    "whole_process_seconds": info["whole_process_seconds"],
+                    "benchmark_body_seconds_excluding_imports": info["whole_process_seconds"],
+                    "process_wall_seconds_including_imports": next(
+                        stage["seconds"] for stage in state["stages"]
+                        if stage["name"] == f"timing-{arm}-{pair}-{current}"),
                     "training_wall_seconds_including_final_save":
                         item["training_wall_seconds_including_final_save"],
+                }
+                telemetry_name = f"results/gpu-telemetry-timing-{arm}.jsonl"
+                samples = [json.loads(line)
+                           for line in paths[telemetry_name].read_text().splitlines()]
+                start = info["started_unix"]
+                samples = [row for row in samples
+                           if start <= row["unix"] <= start + info["whole_process_seconds"]]
+                assert samples, "missing sampled device telemetry for timing process"
+                fields = [row["gpu"].split(", ") for row in samples]
+                entry[current]["sampled_device"] = {
+                    "scope": "benchmark body; approximately five-second samples, not exact peaks",
+                    "samples": len(samples),
+                    "max_used_mib": max(int(row[6].split()[0]) for row in fields),
+                    "max_temperature_celsius": max(int(row[4]) for row in fields),
+                    "sm_clock_mhz_range": [min(int(row[2].split()[0]) for row in fields),
+                                           max(int(row[2].split()[0]) for row in fields)],
+                    "max_visible_compute_processes": max(
+                        len(row["processes"].strip().splitlines())
+                        if row["processes"].strip() else 0 for row in samples),
                 }
             pairs.append(entry)
         reductions = [row["time_reduction_percent"] for row in pairs]

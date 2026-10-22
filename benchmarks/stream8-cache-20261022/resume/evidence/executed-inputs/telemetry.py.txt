@@ -1,0 +1,10 @@
+import json,subprocess,time
+from pathlib import Path
+root=Path('/root/stream8-cache-resume')
+with (root/'results/gpu-telemetry.jsonl').open('a',buffering=1) as log:
+ while not (root/'worker.exited').exists():
+  row={'unix':time.time()}
+  for label,args in [('gpu',['--query-gpu=uuid,pstate,clocks.sm,power.draw,temperature.gpu,utilization.gpu,memory.used,pcie.link.gen.current,pcie.link.width.current']),('processes',['--query-compute-apps=pid,process_name,used_memory'])]:
+   result=subprocess.run(['nvidia-smi']+args+['--format=csv,noheader'],capture_output=True,text=True,timeout=10)
+   row[label]=result.stdout.strip() if result.returncode==0 else result.stderr.strip()
+  log.write(json.dumps(row)+'\n');time.sleep(5)
