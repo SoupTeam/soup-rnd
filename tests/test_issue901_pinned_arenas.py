@@ -347,6 +347,7 @@ class _Pool:
     n = 2
     nbytes = 10
     loads = 0
+    restores = 0
 
 
 def _runtime(source, *, pinned: bool, n_layers: int = 2):

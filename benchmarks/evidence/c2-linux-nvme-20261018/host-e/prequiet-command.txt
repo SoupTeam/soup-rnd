@@ -1,0 +1,29 @@
+import json,pathlib,sys,time
+sys.path.insert(0,'/workspace/c2/benchmarks/harness')
+from c2_linux_depth_probe import quiet
+from c2_depth_probe import save
+from arm_validity import process_reads
+record={'start_unix':time.time(),'required_consecutive_windows':12,'observations':[],'passed':False}
+streak=0
+try:
+ while time.time()-record['start_unix']<180:
+  before=process_reads()
+  row={'start_unix':time.time()}
+  try:
+   row['rates']=quiet()
+   streak+=1
+  except RuntimeError as error:
+   row['error']=repr(error)
+   streak=0
+  after=process_reads()
+  row['visible_readers']=[{'pid':pid,'name':data['name'],'bytes':data['read_bytes']-before['others'].get(pid,{'read_bytes':0})['read_bytes']} for pid,data in after['others'].items() if data['read_bytes']-before['others'].get(pid,{'read_bytes':0})['read_bytes']>2**20]
+  row['consecutive']=streak
+  record['observations'].append(row)
+  sys.stdout.write(json.dumps({'window':len(record['observations']),'clean_streak':streak,'error':row.get('error')})+'\n');sys.stdout.flush()
+  if streak>=12:
+   record['passed']=True
+   break
+finally:
+ record['end_unix']=time.time()
+ save(pathlib.Path('/workspace/c2-prequiet-e1.json'),record)
+sys.exit(0 if record['passed'] else 1)

@@ -1,0 +1,17 @@
+RUN: ticket 04 L2L vs gradient accumulation, HuggingFaceTB/SmolLM2-135M none
+gpu             NVIDIA GeForce RTX 3060
+torch           2.14.1+cu130
+vram_total_gb   12.49
+soup_cli_file   /root/soup/src/soup_cli/__init__.py
+driver          595.91.07
+pcie_gen        3
+pcie_width      16
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 7 files:  14%|█▍        | 1/7 [00:00<00:00,  6.19it/s]Fetching 7 files: 100%|██████████| 7/7 [00:03<00:00,  1.85it/s]Fetching 7 files: 100%|██████████| 7/7 [00:03<00:00,  1.90it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[yellow]Re-sharding layer cache:[/] cache index is missing or unreadable.
+k=1: grads_equal True losses_equal True (max |d| 0.000e+00) loads l2l {'layer_loads': 58, 'large_loads': 0, 'restores': 0} ga {'layer_loads': 58, 'large_loads': 0, 'restores': 0}
+k=2: grads_equal True losses_equal True (max |d| 0.000e+00) loads l2l {'layer_loads': 58, 'large_loads': 0, 'restores': 0} ga {'layer_loads': 115, 'large_loads': 0, 'restores': 0}
+k=4: grads_equal True losses_equal True (max |d| 0.000e+00) loads l2l {'layer_loads': 58, 'large_loads': 0, 'restores': 0} ga {'layer_loads': 229, 'large_loads': 0, 'restores': 0}
+verdict {'equal': True, 'loads_flat': True, 'has_k1_baseline': True, 'l2l_layer_loads': {1: 58, 2: 58, 4: 58}, 'ga_layer_loads': {1: 58, 2: 115, 4: 229}, 'pass': True}
+wrote /root/runs/none-01/records.json

@@ -1,0 +1,1071 @@
+{
+  "uid": 0,
+  "git_sha": "0a3ff8058e80c446711af17e1050624d814d427b",
+  "tests_finished_before_check": 1792335843.80104,
+  "records": [
+    {
+      "arm": "clean idle",
+      "round": 0,
+      "run": 0,
+      "label": "C2 manual sensor admission only",
+      "gpu": {
+        "id": "0",
+        "source": "default"
+      },
+      "required": [
+        "suspend",
+        "power",
+        "foreign_reads"
+      ],
+      "outcome": "ok",
+      "box_stamp_before": {
+        "unix_s": 1792335848.8030572,
+        "ram_available_bytes": 31294857216,
+        "commit_charge": {
+          "used_bytes": 1782558720,
+          "limit_bytes": 25258491904
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 10,
+        "unknown": {}
+      },
+      "box_stamp_after": {
+        "unix_s": 1792335850.931273,
+        "ram_available_bytes": 31249854464,
+        "commit_charge": {
+          "used_bytes": 1791066112,
+          "limit_bytes": 25258491904
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 10,
+        "unknown": {}
+      },
+      "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 180 to 180 MHz over 3 samples; clock event reasons seen: none",
+        "samples": 3,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 180,
+          "median": 180,
+          "max": 180
+        },
+        "reasons_seen": {}
+      },
+      "checks": {
+        "suspend": {
+          "outcome": "ok",
+          "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+          "evidence": {
+            "sleep_offset_start_s": -8.839997462928295e-07,
+            "sleep_offset_end_s": -2.600136213004589e-07,
+            "suspend_count_start": 0,
+            "suspend_count_end": 0
+          }
+        },
+        "power": {
+          "outcome": "ok",
+          "reason": "no battery in any of 3 power samples, so on mains",
+          "evidence": {
+            "samples": 3,
+            "off_mains_samples": [],
+            "battery_present": false,
+            "unknown_samples": 0,
+            "last_reading": {
+              "battery": false,
+              "online": {}
+            }
+          }
+        },
+        "foreign_reads": {
+          "outcome": "ok",
+          "reason": "at most 0 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+          "evidence": {
+            "model_path": "/workspace/c2-fixture.bin",
+            "device": "nvme0n1",
+            "disk_read_bytes_start": 788242526720,
+            "disk_read_bytes_end": 788242526720,
+            "other_disk_read_bytes_start": 0,
+            "other_disk_read_bytes_end": 0,
+            "own_read_bytes": 0,
+            "foreign_read_bytes": 0,
+            "foreign_read_bytes_min": 0,
+            "foreign_read_bytes_max": 0,
+            "uninspectable_processes": 0
+          },
+          "readers": [],
+          "unattributed_bytes": 0
+        }
+      }
+    },
+    {
+      "arm": "waited-for direct-I/O child",
+      "round": 0,
+      "run": 0,
+      "label": "C2 manual sensor admission only",
+      "gpu": {
+        "id": "0",
+        "source": "default"
+      },
+      "required": [
+        "suspend",
+        "power",
+        "foreign_reads"
+      ],
+      "outcome": "ok",
+      "box_stamp_before": {
+        "unix_s": 1792335850.9768627,
+        "ram_available_bytes": 31210717184,
+        "commit_charge": {
+          "used_bytes": 1791082496,
+          "limit_bytes": 25258491904
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 10,
+        "unknown": {}
+      },
+      "box_stamp_after": {
+        "unix_s": 1792335866.953447,
+        "ram_available_bytes": 31397953536,
+        "commit_charge": {
+          "used_bytes": 1791066112,
+          "limit_bytes": 25258491904
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 10,
+        "unknown": {}
+      },
+      "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 180 to 2535 MHz over 9 samples; clock event reasons seen: none",
+        "samples": 9,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 180,
+          "median": 2535,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      },
+      "checks": {
+        "suspend": {
+          "outcome": "ok",
+          "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+          "evidence": {
+            "sleep_offset_start_s": -3.9994483813643456e-07,
+            "sleep_offset_end_s": -7.359776645898819e-07,
+            "suspend_count_start": 0,
+            "suspend_count_end": 0
+          }
+        },
+        "power": {
+          "outcome": "ok",
+          "reason": "no battery in any of 9 power samples, so on mains",
+          "evidence": {
+            "samples": 9,
+            "off_mains_samples": [],
+            "battery_present": false,
+            "unknown_samples": 0,
+            "last_reading": {
+              "battery": false,
+              "online": {}
+            }
+          }
+        },
+        "foreign_reads": {
+          "outcome": "ok",
+          "reason": "at most 98304 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+          "evidence": {
+            "model_path": "/workspace/c2-fixture.bin",
+            "device": "nvme0n1",
+            "disk_read_bytes_start": 788242526720,
+            "disk_read_bytes_end": 819515707904,
+            "other_disk_read_bytes_start": 0,
+            "other_disk_read_bytes_end": 0,
+            "own_read_bytes": 31273082880,
+            "foreign_read_bytes": 98304,
+            "foreign_read_bytes_min": 98304,
+            "foreign_read_bytes_max": 98304,
+            "uninspectable_processes": 0
+          },
+          "readers": [],
+          "unattributed_bytes": 98304
+        }
+      }
+    }
+  ],
+  "quiet_before": {
+    "nvme0n1": {
+      "read": 3276.087085451585,
+      "write": 499091.3919242649
+    }
+  },
+  "child_command": [
+    "/venv/main/bin/python",
+    "benchmarks/harness/c2_linux_depth_probe.py",
+    "--fixture",
+    "/workspace/c2-fixture.bin",
+    "--admit-only",
+    "--out",
+    "/workspace/c2-admission-final.json"
+  ],
+  "child_exit": 0,
+  "ok": true,
+  "physical_memory": {
+    "MemTotal": 33337122816,
+    "MemAvailable": 31371173888
+  },
+  "assets": {
+    "/workspace/c2-weights": {
+      "files": {
+        "/workspace/c2-weights/config.json": {
+          "size": 611,
+          "allocated": 4096,
+          "mtime_ns": 1792335394552337165
+        },
+        "/workspace/c2-weights/model-extras.safetensors": {
+          "size": 1073758528,
+          "allocated": 1073762304,
+          "mtime_ns": 1792334686227634014
+        },
+        "/workspace/c2-weights/model-layers-000-000.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334686892646460
+        },
+        "/workspace/c2-weights/model-layers-001-001.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334687637660401
+        },
+        "/workspace/c2-weights/model-layers-002-002.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334688340673558
+        },
+        "/workspace/c2-weights/model-layers-003-003.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334689041686676
+        },
+        "/workspace/c2-weights/model-layers-004-004.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334689749699925
+        },
+        "/workspace/c2-weights/model-layers-005-005.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334690440712855
+        },
+        "/workspace/c2-weights/model-layers-006-006.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334691131725785
+        },
+        "/workspace/c2-weights/model-layers-007-007.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334691828738827
+        },
+        "/workspace/c2-weights/model-layers-008-008.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334692522751813
+        },
+        "/workspace/c2-weights/model-layers-009-009.safetensors": {
+          "size": 1711309864,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334693218764835
+        },
+        "/workspace/c2-weights/model-layers-010-010.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334693974778980
+        },
+        "/workspace/c2-weights/model-layers-011-011.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334694693792432
+        },
+        "/workspace/c2-weights/model-layers-012-012.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334695430806220
+        },
+        "/workspace/c2-weights/model-layers-013-013.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334696164819952
+        },
+        "/workspace/c2-weights/model-layers-014-014.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334696940834469
+        },
+        "/workspace/c2-weights/model-layers-015-015.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334697670848125
+        },
+        "/workspace/c2-weights/model-layers-016-016.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334698372861257
+        },
+        "/workspace/c2-weights/model-layers-017-017.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334699091874706
+        },
+        "/workspace/c2-weights/model-layers-018-018.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334699822888380
+        },
+        "/workspace/c2-weights/model-layers-019-019.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334700527901567
+        },
+        "/workspace/c2-weights/model-layers-020-020.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334701256915202
+        },
+        "/workspace/c2-weights/model-layers-021-021.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334701960928369
+        },
+        "/workspace/c2-weights/model-layers-022-022.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334702685941929
+        },
+        "/workspace/c2-weights/model-layers-023-023.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334703381954946
+        },
+        "/workspace/c2-weights/model-layers-024-024.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334704111968599
+        },
+        "/workspace/c2-weights/model-layers-025-025.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334704848982382
+        },
+        "/workspace/c2-weights/model-layers-026-026.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334705550995510
+        },
+        "/workspace/c2-weights/model-layers-027-027.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334706352010489
+        },
+        "/workspace/c2-weights/model-layers-028-028.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334707087024233
+        },
+        "/workspace/c2-weights/model-layers-029-029.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334707784037266
+        },
+        "/workspace/c2-weights/model-layers-030-030.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334708486050393
+        },
+        "/workspace/c2-weights/model-layers-031-031.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334709216064042
+        },
+        "/workspace/c2-weights/model-layers-032-032.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334709978078290
+        },
+        "/workspace/c2-weights/model-layers-033-033.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334710681091434
+        },
+        "/workspace/c2-weights/model-layers-034-034.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334711448105774
+        },
+        "/workspace/c2-weights/model-layers-035-035.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334712144118787
+        },
+        "/workspace/c2-weights/model-layers-036-036.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334712845131892
+        },
+        "/workspace/c2-weights/model-layers-037-037.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334714860169561
+        },
+        "/workspace/c2-weights/model-layers-038-038.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334719262251844
+        },
+        "/workspace/c2-weights/model-layers-039-039.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334723812336877
+        },
+        "/workspace/c2-weights/model-layers-040-040.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334737610594651
+        },
+        "/workspace/c2-weights/model-layers-041-041.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334754674913251
+        },
+        "/workspace/c2-weights/model-layers-042-042.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334768398169328
+        },
+        "/workspace/c2-weights/model-layers-043-043.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334782441431243
+        },
+        "/workspace/c2-weights/model-layers-044-044.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334795952683115
+        },
+        "/workspace/c2-weights/model-layers-045-045.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334809876942564
+        },
+        "/workspace/c2-weights/model-layers-046-046.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334824028206121
+        },
+        "/workspace/c2-weights/model-layers-047-047.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334838627477894
+        },
+        "/workspace/c2-weights/model-layers-048-048.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334852932744071
+        },
+        "/workspace/c2-weights/model-layers-049-049.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334867584016568
+        },
+        "/workspace/c2-weights/model-layers-050-050.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334882189288090
+        },
+        "/workspace/c2-weights/model-layers-051-051.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334897075564719
+        },
+        "/workspace/c2-weights/model-layers-052-052.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334912836857478
+        },
+        "/workspace/c2-weights/model-layers-053-053.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334928826154347
+        },
+        "/workspace/c2-weights/model-layers-054-054.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334945158457456
+        },
+        "/workspace/c2-weights/model-layers-055-055.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334962165772954
+        },
+        "/workspace/c2-weights/model-layers-056-056.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334980351110157
+        },
+        "/workspace/c2-weights/model-layers-057-057.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792334997654430871
+        },
+        "/workspace/c2-weights/model-layers-058-058.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335015242756737
+        },
+        "/workspace/c2-weights/model-layers-059-059.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335032117069248
+        },
+        "/workspace/c2-weights/model-layers-060-060.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335049881398119
+        },
+        "/workspace/c2-weights/model-layers-061-061.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335067992733293
+        },
+        "/workspace/c2-weights/model-layers-062-062.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335086255071138
+        },
+        "/workspace/c2-weights/model-layers-063-063.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335104518408878
+        },
+        "/workspace/c2-weights/model-layers-064-064.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335122502741347
+        },
+        "/workspace/c2-weights/model-layers-065-065.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335140320070621
+        },
+        "/workspace/c2-weights/model-layers-066-066.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335158058398333
+        },
+        "/workspace/c2-weights/model-layers-067-067.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335176168732817
+        },
+        "/workspace/c2-weights/model-layers-068-068.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335193853059334
+        },
+        "/workspace/c2-weights/model-layers-069-069.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335211754389764
+        },
+        "/workspace/c2-weights/model-layers-070-070.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335229681720589
+        },
+        "/workspace/c2-weights/model-layers-071-071.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335247433048077
+        },
+        "/workspace/c2-weights/model-layers-072-072.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335265415379742
+        },
+        "/workspace/c2-weights/model-layers-073-073.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335283626652404
+        },
+        "/workspace/c2-weights/model-layers-074-074.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335301506745052
+        },
+        "/workspace/c2-weights/model-layers-075-075.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335318806841500
+        },
+        "/workspace/c2-weights/model-layers-076-076.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335336568947254
+        },
+        "/workspace/c2-weights/model-layers-077-077.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335355167065043
+        },
+        "/workspace/c2-weights/model-layers-078-078.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335372940184116
+        },
+        "/workspace/c2-weights/model-layers-079-079.safetensors": {
+          "size": 1711309872,
+          "allocated": 1711312896,
+          "mtime_ns": 1792335390723309404
+        },
+        "/workspace/c2-weights/model.safetensors.index.json": {
+          "size": 58138,
+          "allocated": 61440,
+          "mtime_ns": 1792335394553337172
+        }
+      },
+      "total_bytes": 137978606957,
+      "allocated_bytes": 137978859520
+    },
+    "/workspace/c2-final/c2-cache": {
+      "files": {
+        "/workspace/c2-final/c2-cache/extras.safetensors": {
+          "size": 17704,
+          "allocated": 20480,
+          "mtime_ns": 1792335715643464290
+        },
+        "/workspace/c2-final/c2-cache/index.json": {
+          "size": 11395,
+          "allocated": 12288,
+          "mtime_ns": 1792335715677464689
+        },
+        "/workspace/c2-final/c2-cache/large_embed_tokens.safetensors": {
+          "size": 536871016,
+          "allocated": 536875008,
+          "mtime_ns": 1792335709162388472
+        },
+        "/workspace/c2-final/c2-cache/large_lm_head.safetensors": {
+          "size": 536871008,
+          "allocated": 536875008,
+          "mtime_ns": 1792335702635312545
+        },
+        "/workspace/c2-final/c2-cache/layer_000.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335458752841765
+        },
+        "/workspace/c2-final/c2-cache/layer_001.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335459464847758
+        },
+        "/workspace/c2-final/c2-cache/layer_002.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335460204853994
+        },
+        "/workspace/c2-final/c2-cache/layer_003.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335460983860568
+        },
+        "/workspace/c2-final/c2-cache/layer_004.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335461744867002
+        },
+        "/workspace/c2-final/c2-cache/layer_005.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335462483873259
+        },
+        "/workspace/c2-final/c2-cache/layer_006.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335463248879744
+        },
+        "/workspace/c2-final/c2-cache/layer_007.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335464008886195
+        },
+        "/workspace/c2-final/c2-cache/layer_008.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335464775892718
+        },
+        "/workspace/c2-final/c2-cache/layer_009.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335465579899565
+        },
+        "/workspace/c2-final/c2-cache/layer_010.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335466379906387
+        },
+        "/workspace/c2-final/c2-cache/layer_011.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335467126912766
+        },
+        "/workspace/c2-final/c2-cache/layer_012.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335467875919173
+        },
+        "/workspace/c2-final/c2-cache/layer_013.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335468762926772
+        },
+        "/workspace/c2-final/c2-cache/layer_014.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335469560933619
+        },
+        "/workspace/c2-final/c2-cache/layer_015.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335470319940140
+        },
+        "/workspace/c2-final/c2-cache/layer_016.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335471136947169
+        },
+        "/workspace/c2-final/c2-cache/layer_017.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335471982954460
+        },
+        "/workspace/c2-final/c2-cache/layer_018.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335472801961530
+        },
+        "/workspace/c2-final/c2-cache/layer_019.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335473544967954
+        },
+        "/workspace/c2-final/c2-cache/layer_020.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335474300974497
+        },
+        "/workspace/c2-final/c2-cache/layer_021.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335475048980980
+        },
+        "/workspace/c2-final/c2-cache/layer_022.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335475801987517
+        },
+        "/workspace/c2-final/c2-cache/layer_023.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335476610994550
+        },
+        "/workspace/c2-final/c2-cache/layer_024.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335477365001113
+        },
+        "/workspace/c2-final/c2-cache/layer_025.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335478155007999
+        },
+        "/workspace/c2-final/c2-cache/layer_026.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335478886014380
+        },
+        "/workspace/c2-final/c2-cache/layer_027.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335479627020858
+        },
+        "/workspace/c2-final/c2-cache/layer_028.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335480437027948
+        },
+        "/workspace/c2-final/c2-cache/layer_029.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335481191034557
+        },
+        "/workspace/c2-final/c2-cache/layer_030.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335482194043362
+        },
+        "/workspace/c2-final/c2-cache/layer_031.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335483296053055
+        },
+        "/workspace/c2-final/c2-cache/layer_032.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335485674074037
+        },
+        "/workspace/c2-final/c2-cache/layer_033.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335486720083294
+        },
+        "/workspace/c2-final/c2-cache/layer_034.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335487884093614
+        },
+        "/workspace/c2-final/c2-cache/layer_035.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335489073104178
+        },
+        "/workspace/c2-final/c2-cache/layer_036.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335494361151429
+        },
+        "/workspace/c2-final/c2-cache/layer_037.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335496221168150
+        },
+        "/workspace/c2-final/c2-cache/layer_038.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335499090194046
+        },
+        "/workspace/c2-final/c2-cache/layer_039.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335502161221905
+        },
+        "/workspace/c2-final/c2-cache/layer_040.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335505555252861
+        },
+        "/workspace/c2-final/c2-cache/layer_041.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335509781291643
+        },
+        "/workspace/c2-final/c2-cache/layer_042.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335513818328941
+        },
+        "/workspace/c2-final/c2-cache/layer_043.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335518077368550
+        },
+        "/workspace/c2-final/c2-cache/layer_044.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335522401409036
+        },
+        "/workspace/c2-final/c2-cache/layer_045.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335526671449283
+        },
+        "/workspace/c2-final/c2-cache/layer_046.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335531064490961
+        },
+        "/workspace/c2-final/c2-cache/layer_047.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335535210530551
+        },
+        "/workspace/c2-final/c2-cache/layer_048.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335539444571231
+        },
+        "/workspace/c2-final/c2-cache/layer_049.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335544004615323
+        },
+        "/workspace/c2-final/c2-cache/layer_050.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335552649699707
+        },
+        "/workspace/c2-final/c2-cache/layer_051.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335560146773714
+        },
+        "/workspace/c2-final/c2-cache/layer_052.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335564981821847
+        },
+        "/workspace/c2-final/c2-cache/layer_053.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335569071862806
+        },
+        "/workspace/c2-final/c2-cache/layer_054.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335572970902060
+        },
+        "/workspace/c2-final/c2-cache/layer_055.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335577463947542
+        },
+        "/workspace/c2-final/c2-cache/layer_056.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335581307986664
+        },
+        "/workspace/c2-final/c2-cache/layer_057.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335585195026416
+        },
+        "/workspace/c2-final/c2-cache/layer_058.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335589336068981
+        },
+        "/workspace/c2-final/c2-cache/layer_059.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335594556122947
+        },
+        "/workspace/c2-final/c2-cache/layer_060.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335599193171172
+        },
+        "/workspace/c2-final/c2-cache/layer_061.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335603436215537
+        },
+        "/workspace/c2-final/c2-cache/layer_062.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335608030263822
+        },
+        "/workspace/c2-final/c2-cache/layer_063.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335612367309646
+        },
+        "/workspace/c2-final/c2-cache/layer_064.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335617481363971
+        },
+        "/workspace/c2-final/c2-cache/layer_065.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335622493417519
+        },
+        "/workspace/c2-final/c2-cache/layer_066.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335628023476945
+        },
+        "/workspace/c2-final/c2-cache/layer_067.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335632601526417
+        },
+        "/workspace/c2-final/c2-cache/layer_068.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335637501579643
+        },
+        "/workspace/c2-final/c2-cache/layer_069.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335642498634206
+        },
+        "/workspace/c2-final/c2-cache/layer_070.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335647406688079
+        },
+        "/workspace/c2-final/c2-cache/layer_071.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335652642745850
+        },
+        "/workspace/c2-final/c2-cache/layer_072.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335657864803776
+        },
+        "/workspace/c2-final/c2-cache/layer_073.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335663800869989
+        },
+        "/workspace/c2-final/c2-cache/layer_074.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335670455944686
+        },
+        "/workspace/c2-final/c2-cache/layer_075.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335676713015355
+        },
+        "/workspace/c2-final/c2-cache/layer_076.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335682926085939
+        },
+        "/workspace/c2-final/c2-cache/layer_077.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335689164157220
+        },
+        "/workspace/c2-final/c2-cache/layer_078.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335695186226425
+        },
+        "/workspace/c2-final/c2-cache/layer_079.safetensors": {
+          "size": 441433020,
+          "allocated": 441434112,
+          "mtime_ns": 1792335702322308916
+        }
+      },
+      "total_bytes": 36388412723,
+      "allocated_bytes": 36388511744
+    }
+  }
+}

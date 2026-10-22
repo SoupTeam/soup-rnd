@@ -1,0 +1,15 @@
+usage: c2_depth_probe.py [-h] [--evaluate EVALUATE] [--cpu-check]
+                         [--host-reviewed] [--drive DRIVE] [--window WINDOW]
+                         [--out OUT]
+
+C2 depth 1/2 preparation and Windows physical-NVMe gate; see the frozen
+protocol.
+
+options:
+  -h, --help           show this help message and exit
+  --evaluate EVALUATE  evaluate saved JSON without hardware
+  --cpu-check          synthetic byte/lifetime check
+  --host-reviewed      host-state review completed
+  --drive DRIVE        immutable flat fixture directory on one physical NVMe
+  --window WINDOW      identifier of the user-agreed quiet resource window
+  --out OUT            new JSON path; existing sequences are never overwritten

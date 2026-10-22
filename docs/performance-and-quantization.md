@@ -610,6 +610,7 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
   - **Warm — the whole store in the page cache — was reported as a 1.03–1.20x REGRESSION** against the synchronous source (gate-971 §5). Position-matched in both run orders it is **0.91–0.97x**, i.e. not one: the bracket was the run-order effect that record had already named for the cold fixture (#974). After the change, in one session against the reader it replaces, the new reader is 0.76x of it warm (1.58 vs 2.09 s) and 2.25x faster right after a page-cache eviction (1.79 vs 4.02 s). **If the store fits RAM, use the RAM tier** — 1.1 s against 1.8–2.0 s for either disk arm in the same session; the disk tier exists for a store that does not.
   - **It is still bound by the read, less so since #974**: per-layer read brackets were 82.6–84.9% of the cold step in gate-971 and are 62–64% after the direct-I/O reader. There is no measured read-free floor at this sequence to compare that against — the ~14 s figure is at a shorter one — so no headroom ratio is quoted.
   - **`stream_read_ahead` did not change throughput** in that record. Depths 1, 2 and 4 were indistinguishable once run order was controlled for — the same configuration measured 48.09 s run first and 30.28 s run last, as the page cache warmed across blocks, which is larger than the whole spread across depths. Treat it as a **host-memory knob**: 1.5 GB of pinned staging at depth 1, 2.0 GB at 2, 2.8 GB at 4 on a 70B. The pre-flight prints that figure on the disk tier (`host staging read_ahead N -> X MB`) and **refuses the run** when it plus the resident extras will not fit the free-RAM headroom, naming `stream_read_ahead` as the knob to lower — the embedding and an untied `lm_head` take one slot each at any depth, because they are one layer each.
+  - **Per-drive read depth (C2) remains 1.** A [physical-NVMe diagnostic comparison](../benchmarks/c2-results-20261018.md) with fixed workers/staging and canonical F1 repeats found only +0.54–0.96% paired primitive throughput, inside the frozen no-benefit band. Synthetic 70B NF4 training steps showed median paired speedup 1.0252x, also below the frozen acceptance thresholds. Periodic background writes prevented the original strict quiet-window acceptance; the separately preregistered diagnostic cannot authorize production integration. No useful C2 read-speed or training-speed improvement is established, and Windows/striping validation remains open. The older R3' ratios 1.106 / 1.101 / 0.963 remain ambiguous.
   - **Disk-kind detection.** A paravirtual (virtio) disk reports `rotational=1` with no media hint, so a genuinely NVMe-backed cloud disk was misread as an HDD and refused (#365); detection now measures a bounded O_DIRECT sequential read when the rotational flag is unreliable and admits NVMe-class throughput (>= 1 GB/s), while a genuinely slow disk stays rejected. Set `training.stream_disk_kind: nvme` (or `ssd`/`hdd`) to override when detection is still wrong — the resolved value is printed beside what was detected.
 - **Apple APFS disk detection.** On macOS, an APFS volume may report `Apple Fabric`
   even when its physical store is Apple's internal NVMe. Soup resolves the target
@@ -836,6 +837,63 @@ output: ./output
 - **The prediction is not equally trustworthy at every sequence length.** Measured on a 4 GB RTX 3050 with SmolLM2-135M streamed in bf16 at batch 1, the formula over-predicts by 8% at seq 4352 (safe) and then **under-predicts — 0.934x the real peak at seq 5120 and 0.787x at 6144**. The grid it was fitted on only ever varied batch size, at seq 256 and 512, so long-context streaming is exactly where it has the least evidence behind it. If you are streaming at multi-thousand-token sequences, turn on `stream_vram_probe`. Record: [`benchmarks/gate-v0.73.1-measured-vram-fit.md`](../benchmarks/gate-v0.73.1-measured-vram-fit.md).
 - **The pre-flight reports the whole card on a capped or shared GPU** — `torch.cuda.mem_get_info()` is a device-level driver query and cannot see `set_per_process_memory_fraction`, a MIG slice, or another process on the same card. Set `training.stream_vram_override` to what your process may actually use; the check then refuses configurations that would exceed *that*, which is also how you rehearse a 4 GB card on a 16 GB one.
 - **Slower than you expected** — layer streaming trades time for memory. If the model already fits resident on your card, do not enable it.
+
+### L2L: load each layer once per optimizer step (`training.l2l`, BETA)
+
+With plain streaming plus `gradient_accumulation_steps: k`, every one of the k micro-batches
+walks the whole model, so each layer is loaded k times per optimizer step. `training.l2l: true`
+runs layer-major instead: each streamed decoder layer is loaded once and processes all k
+micro-batches, then the optimizer takes one step on the LoRA adapters. k is
+`gradient_accumulation_steps`; there is no separate field ([ADR 0002](adr/0002-l2l-is-a-bool-and-k-is-gradient-accumulation.md)).
+
+```yaml
+training:
+  stream_layers: true
+  gradient_accumulation_steps: 4   # k
+  l2l: true
+  lora:
+    dropout: 0
+```
+
+The result matches gradient accumulation. The LoRA gradients and the losses were bit-identical
+on SmolLM2-135M (RTX 3060, k = 1, 2, 4, `quantization: none` and `4bit`). Layer loads stay at 58
+for every k with L2L, against 58, 115 and 229 with accumulation. Learning rate, logging,
+checkpoints and resume stay with the Hugging Face loop. The default `false` changes nothing for
+existing configs. Report:
+[`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
+
+**Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
+
+Refused when the config is read:
+- `stream_layers: false`. A resident model has no layer loads to reuse.
+- `task` other than `sft`.
+- `lora.dropout` other than 0. A layer-major pass draws dropout masks in a different order, so the result would differ from accumulation.
+
+Refused at launch:
+- `model_type` other than `llama` or `mistral`.
+- `attention_dropout` other than 0 on the model.
+- More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
+- `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
+- Rows with padding before real tokens. L2L needs right-padded rows.
+- `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+
+With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
+different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
+each new shape costs one extra forward pass. Speed and memory were not measured, and the check
+used random tokens, not real text. Dropout above 0, MoE and multi-GPU are out of scope.
+
+**Counters.** Each logged training step carries four cumulative fields:
+
+| Log field | Meaning |
+|---|---|
+| `l2l_steps` | L2L optimizer steps taken so far |
+| `l2l_layer_loads` | decoder layers loaded into a streaming slot |
+| `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
+| `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
+
+Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
+flat as k grows. With plain accumulation it grows roughly in proportion to k.
 
 ### Preference losses over streaming (v0.72.4)
 
