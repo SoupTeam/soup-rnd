@@ -313,6 +313,7 @@ def _accumulation_with_state_function(k):
 
 
 def _dropout_run_matches_accumulation(model_and_runtime, tmp_path, *, lengths=None, k=2):
+    """(accumulation adapters, L2L adapters, equal) from one common starting point."""
     import torch
 
     harness = _load("l2l_schedule")
@@ -325,9 +326,8 @@ def _dropout_run_matches_accumulation(model_and_runtime, tmp_path, *, lengths=No
     harness.restore_adapters(model, start)
     _train(base, model, runtime, tmp_path, l2l=True, k=k, lengths=lengths)
     l2l = _adapters(model)
-    return ga, l2l, all(
-        torch.allclose(ga[n], l2l[n], atol=1e-6, rtol=1e-5) for n in ga
-    ), start
+    equal = all(torch.allclose(ga[n], l2l[n], atol=1e-6, rtol=1e-5) for n in ga)
+    return ga, l2l, equal, start
 
 
 def test_trainer_with_lora_dropout_matches_accumulation_at_k2(dropout_model, tmp_path):
@@ -355,17 +355,47 @@ def test_lora_dropout_is_not_a_no_op_in_the_trainer_comparison(dropout_model, tm
     assert any(not torch.allclose(plain[n], l2l[n], atol=1e-6, rtol=1e-5) for n in plain)
 
 
-def test_attention_dropout_matches_accumulation_at_k2(dropout_model, tmp_path):
+def test_attention_dropout_alone_matches_accumulation_at_k2(streamed, tmp_path):  # noqa: F811
     import torch
 
-    model = dropout_model[0]
+    harness = _load("l2l_schedule")
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    start = harness.snapshot_adapters(model)
+    base = _accumulation_with_state_function(2)
+
     _set_attention_dropout(model, 0.0)
-    ga_without, _l2l, _same, _start = _dropout_run_matches_accumulation(dropout_model, tmp_path)
+    _train(base, model, runtime, tmp_path, l2l=False, k=2)
+    ga_without = _adapters(model)
+
     _set_attention_dropout(model, 0.1)
-    ga, _l2l, same, _start = _dropout_run_matches_accumulation(dropout_model, tmp_path)
-    assert same
-    # control: attention dropout changed the masks, so the comparison is not vacuous
+    harness.restore_adapters(model, start)
+    _train(base, model, runtime, tmp_path, l2l=False, k=2)
+    ga = _adapters(model)
+    harness.restore_adapters(model, start)
+    _train(base, model, runtime, tmp_path, l2l=True, k=2)
+    l2l = _adapters(model)
+
+    assert all(torch.allclose(ga[n], l2l[n], atol=1e-6, rtol=1e-5) for n in ga)
+    # control: from the same start, attention dropout alone changed the result
     assert any(not torch.allclose(ga[n], ga_without[n], atol=1e-6, rtol=1e-5) for n in ga)
+
+
+def test_has_dropout_sees_lora_attention_and_config_dropout(dropout_model, streamed):  # noqa: F811
+    import types
+
+    from soup_cli.trainer.l2l_trainer import _has_dropout
+
+    assert _has_dropout(dropout_model[0])
+    plain = streamed[0]
+    assert not _has_dropout(plain)
+    _set_attention_dropout(plain, 0.1)
+    assert _has_dropout(plain)
+    _set_attention_dropout(plain, 0.0)
+    config_only = types.SimpleNamespace(
+        config=types.SimpleNamespace(attention_dropout=0.1), modules=lambda: []
+    )
+    assert _has_dropout(config_only)
 
 
 def test_mixed_length_windows_with_lora_dropout_are_refused(dropout_model, tmp_path):

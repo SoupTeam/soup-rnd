@@ -66,6 +66,7 @@ class L2LState:
     window: Optional[List[Any]] = None
     position: int = 0
     steps: int = 0
+    has_dropout: Optional[bool] = None
     totals: LoadCounters = field(default_factory=LoadCounters)
     store: Any = None
     steps_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
@@ -85,7 +86,7 @@ class L2LState:
 
 
 def _window_tensors(
-    window: List[Any], device: Any, *, neftune: bool = False, dropout: bool = False
+    window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
 ) -> Tuple[List[Any], List[Any]]:
     """Input ids and labels of each micro-batch, right-padded to one common shape.
 
@@ -121,7 +122,7 @@ def _window_tensors(
             f"to have one shape, but this window has {sorted(shapes)}: padding them would "
             "change the NEFTune noise. Use rows of one length, or turn neftune_alpha off."
         )
-    if dropout:
+    if has_dropout:
         raise ValueError(
             "training.l2l with dropout (training.lora.dropout or attention_dropout above 0) "
             f"needs every micro-batch of a window to have one shape, but this window has "
@@ -140,7 +141,8 @@ def _window_tensors(
 
 
 def _has_dropout(model: Any) -> bool:
-    """True when the model draws dropout masks in training: LoRA dropout or attention dropout."""
+    """True when a forward in training draws dropout masks: any ``nn.Dropout`` with p > 0
+    (LoRA dropout) or a non-zero ``attention_dropout`` on the config or a module."""
     import torch
 
     config = getattr(model, "config", None)
@@ -269,12 +271,14 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                     "the loss over the window; this trainer did not receive one."
                 )
             model.train()
+            if state.has_dropout is None:
+                state.has_dropout = _has_dropout(model)
             device = state.runtime.device
             ids_list, label_list = _window_tensors(
                 window,
                 device,
                 neftune=bool(self.args.neftune_noise_alpha),
-                dropout=_has_dropout(model),
+                has_dropout=state.has_dropout,
             )
             shape = tuple(int(dim) for dim in ids_list[0].shape)
             # The step bypasses the wrapped forward, where the Trainer applies its mixed
