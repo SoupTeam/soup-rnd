@@ -78,6 +78,35 @@ class TestTrainableSummary:
 
 
 class TestFingerprint:
+    @pytest.mark.parametrize("shape", [(), (2, 3)])
+    def test_bfloat16_updates_are_fingerprinted_without_numpy_dtype_support(self, shape):
+        model = torch.nn.Module()
+        model.register_parameter(
+            "adapter", torch.nn.Parameter(torch.ones(shape, dtype=torch.bfloat16))
+        )
+        before = fingerprint_trainable(model)
+        assert fingerprint_trainable(model) == before
+        with torch.no_grad():
+            model.adapter.add_(0.125)
+        assert fingerprint_trainable(model) != before
+
+    def test_bfloat16_fingerprint_preserves_raw_payload_bits(self):
+        import hashlib
+
+        model = torch.nn.Module()
+        bits = torch.tensor([0x3F80, 0x7FC1], dtype=torch.int16)
+        model.register_parameter("adapter", torch.nn.Parameter(bits.view(torch.bfloat16)))
+        expected = hashlib.sha256(b"adapter" + bits.numpy().tobytes()).hexdigest()
+        assert fingerprint_trainable(model) == expected
+
+    def test_noncontiguous_bfloat16_parameter_is_supported(self):
+        model = torch.nn.Module()
+        model.register_parameter(
+            "adapter", torch.nn.Parameter(torch.arange(6, dtype=torch.bfloat16).reshape(2, 3).T)
+        )
+        assert not model.adapter.is_contiguous()
+        assert fingerprint_trainable(model) == fingerprint_trainable(model)
+
     def test_the_same_weights_give_the_same_fingerprint(self):
         model = _model()
         assert fingerprint_trainable(model) == fingerprint_trainable(model)

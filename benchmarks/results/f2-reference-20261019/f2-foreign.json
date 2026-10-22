@@ -1,0 +1,144 @@
+{
+  "arm": "foreign",
+  "round": 0,
+  "run": 0,
+  "label": "F2 sensor calibration",
+  "gpu": {
+    "id": "GPU-17f1251c-9b07-8b54-cd93-c14344de0505",
+    "source": "CUDA_VISIBLE_DEVICES"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1792409951.3570619,
+    "ram_available_bytes": 28613246976,
+    "commit_charge": {
+      "used_bytes": 6431768576,
+      "limit_bytes": 24016572416
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 1596,
+        "type": "G",
+        "name": "",
+        "used_mib": 67
+      },
+      {
+        "pid": 1833,
+        "type": "G",
+        "name": "",
+        "used_mib": 8
+      },
+      {
+        "pid": 2359757,
+        "type": "C",
+        "name": "",
+        "used_mib": 1126
+      }
+    ],
+    "gpu_memory_used_mib": 1229,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1792409996.479551,
+    "ram_available_bytes": 28561367040,
+    "commit_charge": {
+      "used_bytes": 6442373120,
+      "limit_bytes": 24016572416
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 1596,
+        "type": "G",
+        "name": "",
+        "used_mib": 67
+      },
+      {
+        "pid": 1833,
+        "type": "G",
+        "name": "",
+        "used_mib": 8
+      },
+      {
+        "pid": 2359757,
+        "type": "C",
+        "name": "",
+        "used_mib": 1138
+      }
+    ],
+    "gpu_memory_used_mib": 1241,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 1785 to 1800 MHz over 24 samples; clock event reasons seen: sw_power_cap",
+    "samples": 24,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 1785,
+      "median": 1800.0,
+      "max": 1800
+    },
+    "reasons_seen": {
+      "sw_power_cap": 24
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+        "sleep_offset_start_s": -8.019997039809823e-07,
+        "sleep_offset_end_s": -7.519993232563138e-07,
+        "suspend_count_start": 0,
+        "suspend_count_end": 0
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 24 power samples, so on mains",
+      "evidence": {
+        "samples": 24,
+        "off_mains_samples": [],
+        "battery_present": false,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": false,
+          "online": {}
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "void",
+      "reason": "at least 1208348672 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/workspace/qwen14b",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 149352718848,
+        "disk_read_bytes_end": 150561276416,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 208896,
+        "foreign_read_bytes": 1208348672,
+        "foreign_read_bytes_min": 1208348672,
+        "foreign_read_bytes_max": 1208348672,
+        "uninspectable_processes": 0
+      },
+      "readers": [
+        {
+          "pid": 324,
+          "name": "sshd",
+          "read_bytes": 1207959552
+        }
+      ],
+      "unattributed_bytes": 389120
+    }
+  },
+  "physical_disk_mapping": "nvme0n1"
+}
