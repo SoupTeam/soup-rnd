@@ -502,7 +502,7 @@ def test_missing_prime_hook_is_refused(sched, streamed):
     model, runtime = streamed
     runtime.hook.remove()
     with pytest.raises(RuntimeError, match="prime hook"):
-        sched.L2LStep(model, runtime, sched.LayerCall(args=(), kwargs={}), seed=0)
+        sched.L2LStep(model, runtime, sched.LayerCall(args=(), kwargs={}))
 
 
 def test_snapshot_restore_round_trip(sched, streamed):
