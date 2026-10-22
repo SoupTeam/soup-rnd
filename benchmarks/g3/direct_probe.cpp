@@ -71,8 +71,9 @@ static void file_check(CUfileError_t status, const char* stage) {
     }
 }
 static std::string gpu_uuid() {
-    cudaUUID_t uuid{};
-    cuda_check(cudaDeviceGetUuid(&uuid, 0), "device_uuid");
+    cudaDeviceProp properties{};
+    cuda_check(cudaGetDeviceProperties(&properties, 0), "device_uuid");
+    const cudaUUID_t& uuid = properties.uuid;
     char result[41];
     char* cursor = result;
     cursor += std::snprintf(cursor, sizeof(result), "GPU-");

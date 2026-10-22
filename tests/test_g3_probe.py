@@ -221,7 +221,8 @@ def test_compiled_mock_control_and_direct_bytes(tmp_path, mock_binary, mode, ite
 
 @pytest.mark.parametrize('variable,stage', [('G3_MOCK_COMPAT', 'compatibility_mode'),
                                            ('G3_MOCK_CORRUPT', 'per_iteration_integrity'),
-                                           ('G3_MOCK_UNSUPPORTED', 'handle_register')])
+                                           ('G3_MOCK_UNSUPPORTED', 'handle_register'),
+                                           ('G3_MOCK_WRONG_GPU', 'gpu_uuid_mismatch')])
 def test_compiled_mock_negative_controls(tmp_path, mock_binary, variable, stage):
     probe.prepare(tmp_path / 'fixture', SIZE)
     env = dict(os.environ, **{variable: '1'})
@@ -323,3 +324,21 @@ def test_native_dependency_discovery_requires_both_runtime_libraries(tmp_path):
     record['stdout'] = f'libcudart.so.13 => {runtime} (0x0)'
     with pytest.raises(ValueError):
         probe.linked_library_hashes(record)
+
+
+@pytest.mark.parametrize('stats', [False, True])
+def test_installed_cuda_sdk_compiles_without_gpu_execution(stats):
+    """Check real SDK declarations, which the behavioral CPU substitute cannot validate."""
+    if sys.platform != 'linux':
+        pytest.skip('Real CUDA/cuFile SDK compilation requires Linux')
+    cuda = Path(os.environ.get('G3_CUDA_ROOT', '/usr/local/cuda'))
+    compiler = shutil.which('c++')
+    headers = ['cuda_runtime_api.h', 'cufile.h'] + (['cufile_stats.h'] if stats else [])
+    if not compiler or not all((cuda/'include'/name).is_file() for name in headers):
+        pytest.skip('Required real CUDA/cuFile development headers unavailable')
+    command = [compiler, '-std=c++17', '-Wall', '-Wextra', '-Werror', '-fsyntax-only',
+               '-I' + str(cuda/'include'), str(ROOT/'benchmarks/g3/direct_probe.cpp')]
+    if stats:
+        command.insert(1, '-DG3_WITH_STATS=1')
+    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr

@@ -1,9 +1,18 @@
 # G3: direct NVMe to CUDA device memory
 
-**Status: prospective draft, not committed and not measured.** The inventory, native primitive,
+**Status: prospective recovery revision, awaiting a new owner commit.** The inventory, native primitive,
 sensor controls, one-device comparison, raw-byte audit and safe exporter are
 implemented and CPU-tested. Native SDK/hardware execution is still pending.
 No model training is needed. No production streaming integration is included.
+
+The first preparation at source commit `c611499fa064310028e764b346497fa7e605f9d3`
+failed compilation on CUDA 12.8.1: `cudaDeviceGetUuid` is not a CUDA Runtime API.
+No transfer arm or sensor calibration ran. Its raw diagnostics and source snapshot
+are preserved; the outcome is ENVIRONMENT_BLOCKED / NO_VERDICT. This revision
+uses `cudaGetDeviceProperties(...).uuid` and adds an optional real-SDK syntax
+compilation test. CPU substitutes alone do not establish SDK compatibility.
+Any subsequent attempt must declare its new source commit, retain the prior
+failure and account for prior G3 spending within the original $3 authorization.
 
 ## Scope and references
 
@@ -21,6 +30,7 @@ Official references checked 2026-10-22:
 - [NVIDIA GDS configuration and benchmarking](https://docs.nvidia.com/gpudirect-storage/configuration-guide/index.html).
 - [cuFile API and compatibility mode](https://docs.nvidia.com/gpudirect-storage/api-reference-guide/index.html).
 - [GDS troubleshooting](https://docs.nvidia.com/gpudirect-storage/troubleshooting-guide/index.html).
+- [CUDA Runtime device properties](https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__DEVICE.html).
 
 cuFile calls can fall back to POSIX host staging. An installed API or a correct
 read therefore does not prove direct DMA. Newer supported configurations can
@@ -162,6 +172,7 @@ a positive single-device run cannot close those items. A reproducible native
 unsupported outcome on the tested stack is the negative-deliverable branch
 explicitly allowed by G3. No broad unsupported-GPU claim follows.
 
-No lease, native SDK compilation, GPU transfer, source commit, push or PR has
-been performed. A PR-numbered changelog fragment is prepared only once the PR
+One lease and a failed native SDK compilation have occurred at the original
+commit above; no GPU transfer or PR has been performed. The recovery source is
+not yet committed or hardware-validated. A PR-numbered changelog fragment is prepared only once the PR
 number exists. Old G6 evidence and the paused E2 work are unaffected.

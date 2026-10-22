@@ -11,9 +11,14 @@ using cudaError_t = int;
 constexpr int cudaSuccess = 0, cudaMemoryTypeDevice = 2, cudaHostRegisterDefault = 0;
 constexpr int cudaMemcpyHostToDevice = 1, cudaMemcpyDeviceToHost = 2;
 struct cudaUUID_t { char bytes[16]; };
+struct cudaDeviceProp { cudaUUID_t uuid; };
 struct cudaPointerAttributes { int type; };
 inline int cudaSetDevice(int) { return 0; }
-inline int cudaDeviceGetUuid(cudaUUID_t* uuid, int) { std::memset(uuid, 0, sizeof(*uuid)); return 0; }
+inline int cudaGetDeviceProperties(cudaDeviceProp* p, int) {
+    std::memset(p, 0, sizeof(*p));
+    if (std::getenv("G3_MOCK_WRONG_GPU")) p->uuid.bytes[0] = 1;
+    return 0;
+}
 inline int cudaRuntimeGetVersion(int* version) { *version = 13000; return 0; }
 inline int cudaDriverGetVersion(int* version) { *version = 13000; return 0; }
 inline int cudaMalloc(void** ptr, size_t bytes) { return posix_memalign(ptr, 65536, bytes); }

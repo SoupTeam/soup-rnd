@@ -23,6 +23,14 @@ is only a collector smoke, not a negative GDS result.
    not unsupported hardware. Do not install a kernel module or alter the host's
    driver/security configuration as an automatic repair. A previously approved
    official userspace SDK installation must be bounded and recorded separately.
+   On Linux with the real development headers installed, the regression test
+   below checks native declarations without executing the GPU:
+
+   ```sh
+   python3 -m pytest --no-cov -q tests/test_g3_probe.py -k installed_cuda_sdk
+   ```
+
+   Missing SDKs skip this test; a skipped check is not a compilation pass.
 6. Freeze a valid authority, same-boot source/runtime identities and sensor
    controls. Keep package writers and other GPU work out of the measurement
    window. Never stop or inspect unrelated instances to obtain a quiet window.
@@ -182,6 +190,9 @@ auditor on preserved evidence, then prepare an English report with exact scope,
 versions, commands and limitations. Stop only the authorized instance; permanent
 Destroy needs action-time confirmation. Verify cleanup through the provider.
 
-No result has run yet. CPU test substitutes are marked SYNTHETIC_CPU_MOCK and
+The original `c611499fa` preparation failed native compilation before any transfer.
+Preserve that failure; a corrected source needs a new owner commit and separately
+declared attempt, with prior G3 spending included. No accepted transfer result exists.
+CPU test substitutes are marked SYNTHETIC_CPU_MOCK and
 are rejected from hardware verdicts. No bare "unsupported on all GeForce" or
 speedup claim is justified by these preparations.
