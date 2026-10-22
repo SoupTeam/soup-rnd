@@ -30,6 +30,19 @@ def test_frozen_wrapper_metadata_compatibility_never_enables_liger():
         bench.initialize_patch_metadata(wrapper)
 
 
+def test_incomplete_capture_cannot_pass_without_loss(tmp_path):
+    import torch
+    from safetensors.torch import save_file
+
+    repo = Path(__file__).parents[1]
+    bounded = load_module(repo / "benchmarks/stream8-compile-20261022-resume/compare_streamed.py",
+                          "incomplete_bounded_gate")
+    for name in ("first.safetensors", "second.safetensors"):
+        save_file({"initial/weight": torch.ones(3)}, tmp_path / name)
+    with pytest.raises(KeyError, match="loss"):
+        bounded.compare(tmp_path / "first.safetensors", tmp_path / "second.safetensors")
+
+
 @pytest.mark.parametrize("mutation", ["none", "batch", "initial", "logits", "nan", "loss"])
 def test_chunked_gate_matches_original_comparator(tmp_path, mutation):
     import torch

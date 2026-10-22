@@ -17,6 +17,8 @@ def compare(reference: Path, candidate: Path) -> dict:
         names = first.keys()
         if set(names) != set(second.keys()):
             raise ValueError("trace keys differ")
+        if "loss" not in names:
+            raise KeyError("loss")
         for name in names:
             group = name.split("/")[0]
             stats = groups.setdefault(group, {"tensors": 0, "failed_tensors": 0,
