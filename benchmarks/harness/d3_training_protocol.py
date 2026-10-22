@@ -37,6 +37,11 @@ SUPERSEDED_ATTEMPT_FILES = (
     "benchmarks/results/d3-trained-step-attempt-01-20261022/attempt-01-no-verdict-a26f4948.zip",
     "benchmarks/results/d3-trained-step-attempt-01-20261022/protocol.json",
     "benchmarks/results/d3-trained-step-attempt-01-20261022/report.md",
+    "benchmarks/results/d3-trained-step-attempt-02-20261022/.gitattributes",
+    "benchmarks/results/d3-trained-step-attempt-02-20261022/SHA256SUMS.json",
+    "benchmarks/results/d3-trained-step-attempt-02-20261022/attempt-02-no-verdict-23bad807.zip",
+    "benchmarks/results/d3-trained-step-attempt-02-20261022/protocol.json",
+    "benchmarks/results/d3-trained-step-attempt-02-20261022/report.md",
 )
 
 
@@ -47,19 +52,41 @@ def read_rule(root: Path = ROOT) -> dict:
 
 
 def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
-    supersedes = {
+    prior_attempt_01 = {
         "commit": "a26f49484f88522ad7e34f6e3cb13b6893d45328",
         "protocol_sha256": "1aaf1cd0f8d37a058d322c95c299a18351f25472b3623c31b74cab0bde1e8e46",
         "session_id": "7ecbb5b9d3544bc0b9f7f68b041fc108",
-        "attempt_archive_sha256": "1e30d95875f51dfe2544a23c051be38e185eb01bb2d1140c5d87dbe3a86fb444",
+        "attempt_archive_sha256": (
+            "1e30d95875f51dfe2544a23c051be38e185eb01bb2d1140c5d87dbe3a86fb444"
+        ),
         "status": "incomplete",
         "completed_cells": 1,
         "no_verdict_cell": "correctness-dense-native",
-        "cause": "tensor_hash failed on the scalar loss after the full native optimizer step; F1 was ok",
-        "treatment": "Retain this attempt separately; the corrected source gets a new commit and a fresh frozen 84-cell series, not a replacement within the prior protocol.",
+        "cause": ("tensor_hash failed on the scalar loss after the full native optimizer step; "
+                  "F1 was ok"),
+        "treatment": ("Retain as a separate no-verdict attempt; do not count as a replacement "
+                      "or passing result."),
     }
-    if rule.get("schema_version") != 2 or rule.get("supersedes") != supersedes:
-        raise ValueError("new series must identify the retained first no-verdict attempt")
+    prior_attempt_02 = {
+        "commit": "23bad80765ae3a02c19887e0ba5c3bc8550d225e",
+        "protocol_sha256": "2e7a2709eeaaa564223914a88e8d34ebb97056ebd26567c9818bbb714f6738f0",
+        "session_id": "730ef9ec393745068b3c776dd198ddce",
+        "attempt_archive_sha256": (
+            "09fba45f4cb84dbb7880c40fb0d4982c4a0a65c8e186617d9a034dd48d2774a0"
+        ),
+        "status": "incomplete",
+        "completed_cells": 0,
+        "attempted_cell": "correctness-dense-native",
+        "cause": ("operator-created supervisor wrapper had CRLF line endings; the cuBLAS path "
+                  "received a trailing carriage return and failed identity validation before "
+                  "model construction"),
+        "treatment": ("Retain as a separate no-verdict attempt; no model step/F1/measurement "
+                      "ran. Create launch files with LF and require a fresh frozen commit/"
+                      "protocol."),
+    }
+    if (rule.get("schema_version") != 3
+            or rule.get("prior_attempts") != [prior_attempt_01, prior_attempt_02]):
+        raise ValueError("fresh series must identify both retained no-verdict attempts")
     expected = {"model_id": "allenai/OLMoE-1B-7B-0924",
                 "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
                 "batch": 1, "tokens": 512, "input_seed": 1234,
@@ -102,9 +129,14 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
     archive = contained(ROOT, "benchmarks/protocols/d3-trained-step/setup-evidence.zip")
     if file_hash(archive) != rule["setup_archive_sha256"]:
         raise ValueError("committed setup-evidence archive differs from its frozen identity")
-    prior = contained(ROOT, SUPERSEDED_ATTEMPT_FILES[2])
-    if file_hash(prior) != rule["supersedes"]["attempt_archive_sha256"]:
-        raise ValueError("superseded no-verdict attempt archive differs from its frozen identity")
+    archive_paths = (SUPERSEDED_ATTEMPT_FILES[2], SUPERSEDED_ATTEMPT_FILES[7])
+    for prior, archive_path in zip(
+        (prior_attempt_01, prior_attempt_02), archive_paths, strict=True,
+    ):
+        if file_hash(contained(ROOT, archive_path)) != prior["attempt_archive_sha256"]:
+            raise ValueError(
+                "a retained no-verdict attempt archive differs from its frozen identity"
+            )
 
 
 def source_paths(root: Path = ROOT) -> list[str]:
