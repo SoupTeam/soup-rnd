@@ -21,3 +21,14 @@ def test_logits_grow_with_k():
     one = check.estimate_bytes(SMOLLM2_135M, seq=128, k=1)["logits"]
     four = check.estimate_bytes(SMOLLM2_135M, seq=128, k=4)["logits"]
     assert four == 4 * one
+
+
+def test_measured_peak_fits_with_a_margin():
+    check = _load("l2l_fit_check")
+    assert check.measured_fit(peak_bytes=1_000, free_bytes=2_000, margin=1.5)["fits"]
+    assert not check.measured_fit(peak_bytes=1_500, free_bytes=2_000, margin=1.5)["fits"]
+
+
+def test_the_report_carries_a_timestamp(monkeypatch):
+    check = _load("l2l_fit_check")
+    assert check.measured_fit(peak_bytes=1, free_bytes=2, margin=1.0)["checked_at"]

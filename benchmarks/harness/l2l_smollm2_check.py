@@ -119,6 +119,10 @@ def measure_k(
     """
     from soup_cli.utils.l2l_step import capture_layer_call, count_loads
 
+    import torch
+
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
     mbs = list(micro_batches)
     k = len(mbs)
     case = Case(model, runtime, mbs, store_factory, RngPoint(seed, step))
@@ -170,9 +174,13 @@ def measure_k(
         "seed": int(seed),
         "step": int(step),
         "digest": _digest(losses, g3),
+        # Allocator peak over the whole k (accumulation, L2L and any controls), CUDA only.
+        "peak_gpu_bytes": None,
     }
     if dropout > 0:
         out.update(_controls(case, g3, losses))
+    if torch.cuda.is_available():
+        out["peak_gpu_bytes"] = int(torch.cuda.max_memory_allocated())
     return out
 
 

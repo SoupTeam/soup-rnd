@@ -164,3 +164,11 @@ def test_verdict_needs_the_wrong_order_controls_to_disagree(check):
     bad[1]["control_shared_stream_equal"] = True
     out = check.verdict(bad)
     assert not out["controls_differ"] and not out["pass"]
+
+
+def test_measure_k_records_the_gpu_peak_key(check, streamed):  # noqa: F811
+    model, runtime = streamed
+    check.l2l_schedule.make_non_vacuous(model)
+    record = check.measure_k(model, runtime, _micro_batches(1), _store_factory(1))
+    # CPU run: the key exists and holds None; on CUDA it is the allocator's peak in bytes
+    assert "peak_gpu_bytes" in record and record["peak_gpu_bytes"] is None
