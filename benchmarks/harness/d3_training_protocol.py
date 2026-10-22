@@ -28,6 +28,7 @@ TESTS = (
     "tests/test_d3_training_model.py", "tests/test_d3_training_protocol.py",
     "tests/test_d3_training_analysis.py",
     "tests/test_d3_full_model.py",
+    "tests/test_f1_arm_validity.py",
     "tests/test_d3_expert_activation.py", "tests/test_d3_expert_derivatives.py",
     "tests/test_d3_f1_mapping.py",
 )
@@ -57,6 +58,12 @@ SUPERSEDED_ATTEMPT_FILES = (
     "benchmarks/results/d3-trained-step-attempt-05-20261022/attempt-05-no-verdict-0035af1.zip",
     "benchmarks/results/d3-trained-step-attempt-05-20261022/protocol.json",
     "benchmarks/results/d3-trained-step-attempt-05-20261022/report.md",
+    "benchmarks/results/d3-trained-step-attempt-06-20261022/.gitattributes",
+    "benchmarks/results/d3-trained-step-attempt-06-20261022/SHA256SUMS.json",
+    "benchmarks/results/d3-trained-step-attempt-06-20261022/attempt-06-no-verdict-8e5a770.zip",
+    "benchmarks/results/d3-trained-step-attempt-06-20261022/f1-cgroup-v2-diagnostic.json",
+    "benchmarks/results/d3-trained-step-attempt-06-20261022/protocol.json",
+    "benchmarks/results/d3-trained-step-attempt-06-20261022/report.md",
 )
 
 
@@ -157,10 +164,28 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
                       "or replacement. Share one canonical oracle-path helper between parent "
                       "and child, test the layout, then require a new frozen commit/protocol."),
     }
-    if (rule.get("schema_version") != 6
+    prior_attempt_06 = {
+        "commit": "8e5a7708602620e0f334e5493e8ef7bbabd68865",
+        "protocol_sha256": "6e49ebbba4700542ceab7e639e07be33f2bcc29c8d18366ac4a14387d8422ee7",
+        "session_id": "52531df71df74c0a93fdac1f2425877d",
+        "attempt_archive_sha256": (
+            "1b7200e28b95958d3f28b483de16211c39312c310eea8cd5629d1e1f511e16b5"
+        ),
+        "status": "incomplete",
+        "completed_cells": 18,
+        "passed_cells": 18,
+        "no_verdict_cell": "timing-dense-block-01-1-grouped",
+        "cause": ("the formal F1 check used machine-global diskstats; container overlay loop0 "
+                  "and host-global NVMe counters both advanced during the arm, making the "
+                  "foreign-read bound unknown"),
+        "treatment": ("Retain all 18 passing correctness cells and the stopped timing cell as "
+                      "no-verdict. Revalidate F1 with cgroup-v2 io.stat controls, then use a "
+                      "new frozen protocol and commit; no replacement under revision 6."),
+    }
+    if (rule.get("schema_version") != 7
             or rule.get("prior_attempts") != [
                 prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04,
-                prior_attempt_05,
+                prior_attempt_05, prior_attempt_06,
             ]):
         raise ValueError("fresh series must identify all retained no-verdict attempts")
     if rule.get("container_restart_policy") != (
@@ -228,10 +253,10 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
         )
     archive_paths = (SUPERSEDED_ATTEMPT_FILES[2], SUPERSEDED_ATTEMPT_FILES[7],
                      SUPERSEDED_ATTEMPT_FILES[12], SUPERSEDED_ATTEMPT_FILES[17],
-                     SUPERSEDED_ATTEMPT_FILES[22])
+                     SUPERSEDED_ATTEMPT_FILES[22], SUPERSEDED_ATTEMPT_FILES[27])
     for prior, archive_path in zip(
         (prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04,
-         prior_attempt_05),
+         prior_attempt_05, prior_attempt_06),
         archive_paths, strict=True,
     ):
         if file_hash(contained(ROOT, archive_path)) != prior["attempt_archive_sha256"]:

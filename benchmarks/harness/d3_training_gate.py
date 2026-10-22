@@ -235,7 +235,12 @@ def child(args, rule: dict) -> int:
         import resource
 
         import torch
-        from arm_validity import ArmWatch, gpu_processes
+        from arm_validity import (
+            ArmWatch,
+            cgroup_disk_reads,
+            cgroup_other_disk_reads,
+            gpu_processes,
+        )
         from d3_cublas_grouped_probe import reference_policy
 
         session = json.loads((args.session / "session.json").read_text())
@@ -281,7 +286,8 @@ def child(args, rule: dict) -> int:
                 raise RuntimeError("the trained cell must be the sole exposed GPU workload")
             path = folder / bundle["layers"][0]["file"]
             with ArmWatch(arm=args.mode, round=0, run=0, model_path=str(path),
-                          disk_device=selector) as monitor:
+                          disk_device=selector, disk_reads=cgroup_disk_reads,
+                          other_disk_reads=cgroup_other_disk_reads) as monitor:
                 if args.kind == "correctness":
                     record.update(correctness(run, ids, args.out, bundle, rule, oracle))
                 else:
@@ -291,6 +297,10 @@ def child(args, rule: dict) -> int:
                 record["dispatch"] = run.check_dispatch()
             if monitor.record["outcome"] != "ok":
                 raise RuntimeError("F1 unknown/void: stop without a replacement")
+            monitor.record["counter_scope"] = (
+                "current-container cgroup-v2 io.stat; host-wide I/O and physical-host "
+                "isolation are not certified"
+            )
             after = gpu_processes()
             if after is None or {row["pid"] for row in after} != {row["pid"] for row in peers}:
                 raise RuntimeError("GPU peer set changed")

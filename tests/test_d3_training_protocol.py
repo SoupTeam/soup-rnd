@@ -23,9 +23,10 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert len(rule["bundle_sha256"]) == 3
     assert rule["expected_cell_count"] == 84
     assert rule["attempt_budget"]["total_cells"] == 84
-    assert rule["schema_version"] == 6
+    assert rule["schema_version"] == 7
     assert [attempt["status"] for attempt in rule["prior_attempts"]] == [
         "incomplete", "incomplete", "incomplete", "incomplete", "incomplete",
+        "incomplete",
     ]
     assert rule["prior_attempts"][0]["completed_cells"] == 1
     assert rule["prior_attempts"][0]["no_verdict_cell"] == "correctness-dense-native"
@@ -39,9 +40,15 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert rule["prior_attempts"][4]["completed_cells"] == 1
     assert rule["prior_attempts"][4]["passed_cell"] == "correctness-dense-native"
     assert rule["prior_attempts"][4]["no_verdict_cell"] == "correctness-dense-sequential"
+    assert rule["prior_attempts"][5]["completed_cells"] == 18
+    assert rule["prior_attempts"][5]["passed_cells"] == 18
+    assert rule["prior_attempts"][5]["no_verdict_cell"] == (
+        "timing-dense-block-01-1-grouped"
+    )
     assert rule["native_oracle_path_template"] == "correctness-{codec}-native"
     assert rule["gpu_uuid"].startswith("GPU-")
     assert "tests/test_d3_training_protocol.py" in source_paths()
+    assert "tests/test_f1_arm_validity.py" in source_paths()
     assert "tests/test_d3_full_model.py" in source_paths()
     assert any(path.endswith("attempt-01-no-verdict-a26f4948.zip")
                for path in source_paths())
@@ -52,6 +59,8 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert any(path.endswith("attempt-04-no-verdict-3492ed83.zip")
                for path in source_paths())
     assert any(path.endswith("attempt-05-no-verdict-0035af1.zip")
+               for path in source_paths())
+    assert any(path.endswith("attempt-06-no-verdict-8e5a770.zip")
                for path in source_paths())
 
 

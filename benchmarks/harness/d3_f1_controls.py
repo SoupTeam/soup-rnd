@@ -65,7 +65,7 @@ def foreign(session: Path) -> None:
 
 
 def watch(mapping_path: Path, session: Path) -> dict:
-    from arm_validity import ArmWatch
+    from arm_validity import ArmWatch, cgroup_disk_reads, cgroup_other_disk_reads
     from d3_f1_mapping_probe import direct_read
 
     mapping = json.loads(mapping_path.read_text())
@@ -76,7 +76,8 @@ def watch(mapping_path: Path, session: Path) -> dict:
     session.mkdir(parents=True, exist_ok=False)
     (session / "source.json").write_text(json.dumps({"path": source}) + "\n")
     result = {"status": "controls_failed", "kind": "F1 instrument controls, not D3 results",
-              "scope": "exposed kernel/cgroup counters, not physical-host certification",
+              "scope": ("current-container cgroup-v2 io.stat counters; host-wide I/O and "
+                        "physical-host isolation are not certified"),
               "pid": os.getpid(), "ppid": os.getppid(), "controls": [], "mapping": mapping}
     try:
         for index, (case, expected) in enumerate((("baseline", "ok"), ("own", "ok"),
@@ -84,7 +85,8 @@ def watch(mapping_path: Path, session: Path) -> dict:
             if case == "foreign":
                 wait_marker(session / "foreign-ready.json")
             with ArmWatch(arm=case, round=0, run=index, model_path=source,
-                          disk_device=selector) as monitor:
+                          disk_device=selector, disk_reads=cgroup_disk_reads,
+                          other_disk_reads=cgroup_other_disk_reads) as monitor:
                 if case == "own":
                     count = direct_read(Path(source), rounds=1024)
                 elif case == "foreign":

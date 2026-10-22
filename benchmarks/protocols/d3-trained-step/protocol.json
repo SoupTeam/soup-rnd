@@ -1,6 +1,6 @@
 {
   "task": "D3 full-model trained OLMoE optimizer-step comparison",
-  "schema_version": 6,
+  "schema_version": 7,
   "scope": "trained OLMoE optimizer-step numerical and descriptive GPU comparison; synthetic token IDs, no quality claim",
   "model_id": "allenai/OLMoE-1B-7B-0924",
   "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
@@ -64,20 +64,20 @@
   "gpu_uuid": "GPU-46abdddd-2f6a-a368-5b31-a7d0c0a4a9ef",
   "cublas_library_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e",
   "mapping_sha256": "4d14ef905b4c0ea6c5a45b1942f1925dc7bba495c981061046a83ad93bf09bd8",
-  "controls_sha256": "2b733f9df2caed285fdad8d41fb87ecaa1ba1178d58c531899c4d2b54e772acd",
-  "setup_archive_sha256": "85d1f600354997f5d9b008cef1f5b1ec4aee524a225080a2fc1646922270aaa7",
+  "controls_sha256": "9be401666ea677922194771b0b3bffe68778ed7ed235bd779a36f26e64ee1941",
+  "setup_archive_sha256": "e303b08c338ffdd02651ebd1985ec5f61fd706e39fcfe1f0bc07803e61e95323",
   "bundle_sha256": {
     "dense": "bcf2fb639b2d2116495bc60811dea4cdcdda27603e58eb76804b8f866fa9dfb8",
     "nf4": "ba2a9b96804d0512f10b25169845bd87aad0c1ca5feee8520dab0d73dc612444",
     "nf4-dq": "3dd7074c2eefbebbe85550600e71903983753f378cab8787669f457689770613"
   },
-  "execution": "Commit the exact source, rule and setup archive before creating a clean-Git source packet. One new Linux process per cell. Compare full native optimizer-step tensors and adapter state; no TF32; native BF16 only; one visible idle GPU. Five grouped/triton ABBA blocks per format, holding grouped GEMM and pool width constant to isolate the fused activation backend. No replacement attempts; stop on any mismatch, OOM or unknown/void F1.",
+  "execution": "Commit the exact source, rule and refreshed cgroup-v2 F1 setup archive before creating a clean-Git source packet. One new Linux process per cell. Compare full native optimizer-step tensors and adapter state; no TF32; native BF16 only; one visible idle GPU. Five grouped/triton ABBA blocks per format, holding grouped GEMM and pool width constant to isolate the fused activation backend. Linux F1 disk reads use the current container cgroup-v2 io.stat counters, not machine-global /proc/diskstats. No replacement attempts; stop on any mismatch, OOM or unknown/void F1.",
   "acceptance": "All 18 correctness cells, 60 timed cells and six profile cells are retained with passing F1, exact source/data/software identity, route and dispatch evidence, finite loss and gradients, and exact native-oracle tensors/adapter states. Analysis remains descriptive and requires independent review.",
   "failed_run": "Any mismatch is fail; OOM, interruption, missing dependency, uninspectable validity or identity mismatch is no-verdict. Preserve every attempt. No rerun/replacement under this frozen budget.",
   "limitations": [
     "Synthetic token IDs and four SGD steps establish numerical plumbing only; they do not measure quality, convergence or useful training.",
     "The comparison concerns the frozen residual adapter and tested complete OLMoE forward/backward path, not a supported Soup trainer feature.",
-    "The storage instrument identifies container-visible overlay loop0 only; physical NVMe identity, host isolation and physical-device throughput are not certified.",
+    "F1 counters are scoped to the current container cgroup v2. Host-wide I/O outside this cgroup and physical-host isolation are not certified; physical NVMe identity and physical-device throughput are not claims.",
     "RTX 3090 24 GB results do not establish performance or capacity for an 8 GB reference GPU or other hosts.",
     "The source-preparation bundle attempt that initially rejected loop0 is retained as a failed preparation attempt; it is not a trained-model arm."
   ],
@@ -138,6 +138,18 @@
       "no_verdict_cell": "correctness-dense-sequential",
       "cause": "the child oracle resolver looked under correctness/dense-native while the series wrote correctness-dense-native; the accepted dense/native cell was preserved, and sequential stopped before model construction/F1",
       "treatment": "Retain the native result and tensor oracle; this is not a comparison or replacement. Share one canonical oracle-path helper between parent and child, test the layout, then require a new frozen commit/protocol."
+    },
+    {
+      "commit": "8e5a7708602620e0f334e5493e8ef7bbabd68865",
+      "protocol_sha256": "6e49ebbba4700542ceab7e639e07be33f2bcc29c8d18366ac4a14387d8422ee7",
+      "session_id": "52531df71df74c0a93fdac1f2425877d",
+      "attempt_archive_sha256": "1b7200e28b95958d3f28b483de16211c39312c310eea8cd5629d1e1f511e16b5",
+      "status": "incomplete",
+      "completed_cells": 18,
+      "passed_cells": 18,
+      "no_verdict_cell": "timing-dense-block-01-1-grouped",
+      "cause": "the formal F1 check used machine-global diskstats; container overlay loop0 and host-global NVMe counters both advanced during the arm, making the foreign-read bound unknown",
+      "treatment": "Retain all 18 passing correctness cells and the stopped timing cell as no-verdict. Revalidate F1 with cgroup-v2 io.stat controls, then use a new frozen protocol and commit; no replacement under revision 6."
     }
   ],
   "container_restart_policy": "Any container or instance restart invalidates the prior mapping. Rediscover all shards and pass independent baseline/own/foreign F1 controls before freezing; identity mismatch is no-verdict and never an automatic replacement.",
