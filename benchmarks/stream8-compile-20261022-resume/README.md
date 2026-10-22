@@ -44,7 +44,7 @@ values/dtypes nor comparator inputs. A local ACK follows complete archive and
 every-file verification. Raw, encoded and compressed sizes are distinguished;
 synthetic/historical codec calibrations are not model-performance evidence.
 
-The scoped CPU suite passes 44 tests with
+The scoped CPU suite passes 45 tests with
 2 CUDA skips. The rented target software separately passes 16 regressions,
 including CUDA asynchronous ownership checks. These checks do not substitute for
 full pretrained-model qualification or timing results.
@@ -65,6 +65,8 @@ under `benchmarks/harness/`: `liger_streaming_bench.py`, `liger_streaming_parity
 and `streaming_optimization_bench.py`. They preserve the AST of the executed,
 archived versions; one long assertion is only wrapped for lint. Regression tests
 check those frozen ASTs and exercise the published original comparator directly.
+The executed benchmark and evidence snapshots disable Git newline conversion so
+their recorded byte hashes survive checkout on both Windows and Linux.
 
 `archive_ranges.py` and `remote_ranges.py` implement exact archive transport.
 They validate encoded objects against the new manifest, reuse identical objects

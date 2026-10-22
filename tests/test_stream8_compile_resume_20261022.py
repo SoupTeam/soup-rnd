@@ -1,6 +1,7 @@
 """Chunked independent replay must agree with the preserved original comparator."""
 
 import ast
+import hashlib
 import importlib.util
 import zipfile
 from pathlib import Path
@@ -14,6 +15,14 @@ def load_module(path, name):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_public_bench_preserves_bytes_recorded_in_gpu_provenance():
+    repo = Path(__file__).parents[1]
+    raw = (repo / "benchmarks/stream8-compile-20261022-resume/bench.py").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "080b4de75b8f228f367d7f9de2e4b7be7793b2b3c1e6c06c27ec0b0638b10f1b"
+    )
 
 
 @pytest.mark.parametrize("name", [
