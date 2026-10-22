@@ -91,8 +91,15 @@ class L2LState:
             self.store = None
 
 
-def _window_tensors(window: List[Any], device: Any) -> Tuple[List[Any], List[Any]]:
-    """Input ids and labels of each micro-batch, right-padded to one common shape."""
+def _window_tensors(
+    window: List[Any], device: Any, *, neftune: bool = False
+) -> Tuple[List[Any], List[Any]]:
+    """Input ids and labels of each micro-batch, right-padded to one common shape.
+
+    With NEFTune on, a window that needs padding is refused: the noise scales with
+    ``1 / sqrt(seq * hidden)`` and is drawn per element, so padding the ids before
+    the embedding changes both its size and the RNG sequence of gradient accumulation.
+    """
     import torch
 
     ids_list, label_list = [], []
@@ -113,6 +120,12 @@ def _window_tensors(window: List[Any], device: Any) -> Tuple[List[Any], List[Any
     shapes = {tuple(ids.shape) for ids in ids_list}
     if len(shapes) == 1:
         return ids_list, label_list
+    if neftune:
+        raise ValueError(
+            "training.l2l with training.neftune_alpha needs every micro-batch of a window "
+            f"to have one shape, but this window has {sorted(shapes)}: padding them would "
+            "change the NEFTune noise. Use rows of one length, or turn neftune_alpha off."
+        )
     rows = max(ids.shape[0] for ids in ids_list)
     longest = max(ids.shape[1] for ids in ids_list)
     seq = -(-longest // SHAPE_ROUND) * SHAPE_ROUND
@@ -137,20 +150,31 @@ def _l2l_step_for(state: L2LState, model: Any, shape: Tuple[int, int], ids: Any)
 
 
 def check_activation_budget(
-    nbytes: int, *, free_ram: Optional[int], n_layers: int, k: int, chunk_bytes: int
+    *, free_ram: Optional[int], n_layers: int, k: int, chunk_bytes: int, pinned: bool
 ) -> None:
     """Refuse an activation store that would not fit the free host RAM, before allocating it.
 
     The weight store and staging are already resident when this runs, so ``free_ram``
-    is what they left over. Without psutil (``free_ram`` is None) nothing is checked.
+    is what they left over. A pinned chunk is its own allocation, and torch's host
+    allocator rounds it up to the next power of two (#901). Without psutil
+    (``free_ram`` is None) nothing is checked.
     """
     from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
+    from soup_cli.utils.layer_stream_runtime import _next_power_of_two
 
+    block = _next_power_of_two(chunk_bytes) if pinned else chunk_bytes
+    nbytes = n_layers * k * block
     if free_ram is None or nbytes < free_ram * RAM_TIER_HEADROOM:
         return
+    kind = "pinned " if pinned else ""
+    rounding = (
+        f" (a {chunk_bytes / 1e6:.1f} MB chunk takes a {block / 1e6:.1f} MB pinned block)"
+        if block != chunk_bytes
+        else ""
+    )
     raise ValueError(
         f"training.l2l keeps {n_layers} layers x {k} micro-batches of activations in host "
-        f"RAM: {nbytes / 1e9:.2f} GB ({chunk_bytes / 1e6:.1f} MB each), but only "
+        f"RAM: {nbytes / 1e9:.2f} GB of {kind}blocks{rounding}, but only "
         f"{free_ram / 1e9:.1f} GB is free and {RAM_TIER_HEADROOM:.0%} of that is usable. "
         f"Lower gradient_accumulation_steps, data.max_length or batch_size, or free RAM."
     )
@@ -168,20 +192,21 @@ def _store_for(state: L2LState, step: Any, shape: Tuple[int, int], k: int, devic
         n_layers = len(step.layers)
         itemsize = torch.empty((), dtype=state.dtype).element_size()
         chunk_bytes = shape[0] * shape[1] * hidden * itemsize
+        pin = str(device).startswith("cuda")
         check_activation_budget(
-            n_layers * k * chunk_bytes,
             free_ram=free_ram_bytes(),
             n_layers=n_layers,
             k=k,
             chunk_bytes=chunk_bytes,
+            pinned=pin,
         )
         state.store = ActivationStore(
-            n_layers=len(step.layers),
+            n_layers=n_layers,
             k=k,
             chunk_shape=(shape[0], shape[1], hidden),
             dtype=state.dtype,
             device=device,
-            pin=str(device).startswith("cuda"),
+            pin=pin,
         )
     return state.store
 
@@ -227,7 +252,9 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                 )
             model.train()
             device = state.runtime.device
-            ids_list, label_list = _window_tensors(window, device)
+            ids_list, label_list = _window_tensors(
+                window, device, neftune=bool(self.args.neftune_noise_alpha)
+            )
             shape = tuple(int(dim) for dim in ids_list[0].shape)
             # The step bypasses the wrapped forward, where the Trainer applies its mixed
             # precision; forward, head and the recompute in backward all run inside it.

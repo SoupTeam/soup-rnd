@@ -212,7 +212,7 @@ def test_one_optimizer_step_per_window_and_same_adapters_as_accumulation(
     assert any(not torch.equal(l2l[n], before[n]) for n in l2l)
 
 
-def _same_adapters_as_accumulation(streamed, tmp_path, **targs):  # noqa: F811
+def _same_adapters_as_accumulation(streamed, tmp_path, lengths=None, **targs):  # noqa: F811
     import torch
     from transformers import Trainer
 
@@ -220,10 +220,10 @@ def _same_adapters_as_accumulation(streamed, tmp_path, **targs):  # noqa: F811
     model, runtime = streamed
     harness.make_non_vacuous(model)
     start = harness.snapshot_adapters(model)
-    _train(Trainer, model, runtime, tmp_path, l2l=False, k=2, **targs)
+    _train(Trainer, model, runtime, tmp_path, l2l=False, k=2, lengths=lengths, **targs)
     ga = _adapters(model)
     harness.restore_adapters(model, start)
-    _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, **targs)
+    _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, lengths=lengths, **targs)
     l2l = _adapters(model)
     for name in ga:
         assert torch.allclose(ga[name], l2l[name], atol=1e-6, rtol=1e-5), name
@@ -256,10 +256,39 @@ def test_activation_store_is_refused_before_it_is_allocated(streamed, tmp_path, 
 def test_activation_budget_accepts_what_fits_and_skips_without_psutil():
     from soup_cli.trainer.l2l_trainer import check_activation_budget
 
-    check_activation_budget(600, free_ram=1000, n_layers=2, k=3, chunk_bytes=100)
-    check_activation_budget(10**15, free_ram=None, n_layers=2, k=3, chunk_bytes=100)
+    kw = dict(n_layers=2, k=3, chunk_bytes=100, pinned=False)
+    check_activation_budget(free_ram=1000, **kw)
+    check_activation_budget(free_ram=None, **{**kw, "chunk_bytes": 10**15})
     with pytest.raises(ValueError, match="activation"):
-        check_activation_budget(800, free_ram=1000, n_layers=2, k=4, chunk_bytes=100)
+        check_activation_budget(free_ram=1000, **{**kw, "k": 4, "chunk_bytes": 100})
+
+
+def test_activation_budget_charges_pinned_chunks_at_the_next_power_of_two():
+    from soup_cli.trainer.l2l_trainer import check_activation_budget
+
+    mib, gib = 2**20, 2**30
+    # bf16, 80 layers, hidden 8192, seq 1088, k=16: a 17 MiB chunk occupies a 32 MiB
+    # pinned block, so the store needs 40 GiB, not the 21.25 GiB of its logical bytes.
+    kw = dict(free_ram=32 * gib, n_layers=80, k=16, chunk_bytes=17 * mib)
+    check_activation_budget(pinned=False, **kw)
+    with pytest.raises(ValueError, match="pinned"):
+        check_activation_budget(pinned=True, **kw)
+
+
+def test_neftune_with_mixed_length_windows_is_refused(streamed, tmp_path):  # noqa: F811
+    from transformers import Trainer
+
+    model, runtime = streamed
+    _load("l2l_schedule").make_non_vacuous(model)
+    with pytest.raises(ValueError, match=r"(?i)neftune.*(length|padd)"):
+        _train(
+            Trainer, model, runtime, tmp_path, l2l=True, k=2,
+            lengths=[5, 8, 3, 6], neftune_noise_alpha=5.0,
+        )
+
+
+def test_mixed_length_windows_without_neftune_still_train(streamed, tmp_path):  # noqa: F811
+    _same_adapters_as_accumulation(streamed, tmp_path, lengths=[5, 8, 3, 6])
 
 
 def test_counters_reach_the_training_log(streamed, tmp_path):  # noqa: F811

@@ -847,7 +847,8 @@ Refused at launch:
 - More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
 - `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
 - Rows with padding before real tokens. L2L needs right-padded rows.
-- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). The run stops before allocating when that exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+- `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
 
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
 different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
