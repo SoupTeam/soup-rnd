@@ -44,7 +44,7 @@ values/dtypes nor comparator inputs. A local ACK follows complete archive and
 every-file verification. Raw, encoded and compressed sizes are distinguished;
 synthetic/historical codec calibrations are not model-performance evidence.
 
-Before committing code preparation, the scoped CPU suite passes 34 tests with
+The scoped CPU suite passes 39 tests with
 2 CUDA skips. The rented target software separately passes 16 regressions,
 including CUDA asynchronous ownership checks. These checks do not substitute for
 full pretrained-model qualification or timing results.
@@ -52,9 +52,26 @@ full pretrained-model qualification or timing results.
 ```bash
 PYTHONPATH=src python -m pytest tests/test_streaming_residency_candidate.py \
   tests/test_streaming_residency_compile_bench.py tests/test_lossless_results.py \
-  tests/test_stream8_compile_resume_20261022.py --no-cov -q
+  tests/test_stream8_compile_resume_20261022.py \
+  tests/test_stream8_archive_ranges_20261022.py --no-cov -q
 ruff check src/soup_cli/ scripts/ tests/ benchmarks/
 ```
 
 The resume report will distinguish successful, failed and unattempted model/arm
 gates and retain failed attempts. No universal model-size maximum is inferred.
+
+`archive_ranges.py` and `remote_ranges.py` implement exact archive transport.
+They validate encoded objects against the new manifest, reuse identical objects
+from earlier complete or partial transfers, and retrieve missing immutable byte
+spans in bounded batches. The whole canonical tar is reconstructed byte for byte
+and must match the remote archive SHA before the unchanged codec verifies every
+original file. Reusing encoded bytes does not qualify a model or combine GPU
+performance cohorts.
+
+A retry timer measures the absence of durable byte progress. Continued progress
+across multiple connection failures resets that timer; a genuine lack of progress
+remains bounded. Regression tests cover that distinction, corrupted prior objects,
+resuming across span boundaries, canonical archive identity and all original bytes.
+The standalone offline oracles also reconstruct an actual retained 1.046 GB server
+archive with its original SHA, without network traffic. These are retention tests,
+not pretrained-model performance measurements.
