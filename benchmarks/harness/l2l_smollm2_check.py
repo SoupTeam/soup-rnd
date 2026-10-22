@@ -20,6 +20,7 @@ import os
 import sys
 import time
 from contextlib import contextmanager, nullcontext
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence
 
@@ -63,6 +64,42 @@ def _one_shared_stream() -> Iterator[None]:
         l2l_rng.layer_rng = real
 
 
+#: Record keys of the wrong-order controls; ``_controls`` writes them, ``verdict`` reads them.
+CONTROL_KEYS = ("control_stock_stream_equal", "control_shared_stream_equal")
+
+
+@dataclass(frozen=True)
+class RngPoint:
+    """The ``(seed, step)`` that fix every layer call's random state."""
+
+    seed: int = 0
+    step: int = 0
+
+
+@dataclass(frozen=True)
+class Case:
+    """What one k runs on: the model, its runtime, the micro-batches and the step's RNG point."""
+
+    model: Any
+    runtime: Any
+    mbs: List[Any]
+    store_factory: Callable[[], Any]
+    rng: RngPoint
+
+
+def _run_l2l(case: Case, call: Any) -> Any:
+    """One shipped L2L step on a fresh activation store; returns (stepper, losses, grads)."""
+    from soup_cli.utils.l2l_step import L2LStep
+
+    stepper = L2LStep(case.model, case.runtime, call, seed=case.rng.seed)
+    store = case.store_factory()
+    try:
+        losses = stepper.run(case.mbs, store, step=case.rng.step)
+    finally:
+        store.close()
+    return stepper, losses, l2l_schedule.collect_grads(case.model)
+
+
 def measure_k(
     model: Any,
     runtime: Any,
@@ -80,18 +117,18 @@ def measure_k(
     0 it is accumulation with the state hooks at ``(seed, step)``, the L2L step gets the
     same two numbers, and the two wrong-order controls are added to the record.
     """
-    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call, count_loads
-
-    if dropout > 0:
-        model.train()
-
-        def accumulate(mbs_: Sequence[Any]) -> List[Any]:
-            return l2l_schedule.seeded_ga_step(model, mbs_, seed=seed, step=step)
-    else:
-        accumulate = lambda mbs_: l2l_schedule.ga_step(model, mbs_)  # noqa: E731
+    from soup_cli.utils.l2l_step import capture_layer_call, count_loads
 
     mbs = list(micro_batches)
     k = len(mbs)
+    case = Case(model, runtime, mbs, store_factory, RngPoint(seed, step))
+    if dropout > 0:
+        model.train()
+
+    def accumulate() -> List[Any]:
+        if dropout > 0:
+            return l2l_schedule.seeded_ga_step(model, mbs, seed=seed, step=step)
+        return l2l_schedule.ga_step(model, mbs)
 
     def prepare() -> None:
         # Loads depend on what the previous walk left in the slots: every counted
@@ -102,22 +139,17 @@ def measure_k(
             cold(model)
 
     l2l_schedule.zero_grads(model)
-    ga1 = accumulate(mbs)
+    ga1 = accumulate()
     g1 = l2l_schedule.collect_grads(model)
 
     prepare()
     with count_loads(runtime) as ga_counters:
-        ga2 = accumulate(mbs)
+        ga2 = accumulate()
     g2 = l2l_schedule.collect_grads(model)
 
-    stepper = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=seed)
+    call = capture_layer_call(model, mbs[0])
     prepare()
-    store = store_factory()
-    try:
-        losses = stepper.run(mbs, store, step=step)
-    finally:
-        store.close()
-    g3 = l2l_schedule.collect_grads(model)
+    stepper, losses, g3 = _run_l2l(case, call)
 
     a_vs_a = l2l_schedule.compare(g1, g2)
     l2l = l2l_schedule.compare(g1, g3)
@@ -140,45 +172,38 @@ def measure_k(
         "digest": _digest(losses, g3),
     }
     if dropout > 0:
-        out.update(_controls(model, runtime, mbs, store_factory, g3, losses, seed, step))
+        out.update(_controls(case, g3, losses))
     return out
 
 
-def _controls(
-    model: Any, runtime: Any, mbs: List[Any], store_factory: Callable[[], Any],
-    l2l_grads: Dict[str, Any], l2l_losses: Sequence[Any], seed: int, step: int,
-) -> Dict[str, Any]:
+def _controls(case: Case, l2l_grads: Dict[str, Any], l2l_losses: Sequence[Any]) -> Dict[str, Any]:
     """Wrong-order runs against the L2L result; each should differ at dropout > 0."""
     import torch
 
-    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+    from soup_cli.utils.l2l_step import capture_layer_call
 
+    model = case.model
     l2l_schedule.zero_grads(model)
-    torch.manual_seed(seed)
-    stock_losses = l2l_schedule.ga_step(model, mbs)
+    torch.manual_seed(case.rng.seed)
+    stock_losses = l2l_schedule.ga_step(model, case.mbs)
     stock_grads = l2l_schedule.collect_grads(model)
 
-    call = capture_layer_call(model, mbs[0])
+    call = capture_layer_call(model, case.mbs[0])
     l2l_schedule.zero_grads(model)
-    store = store_factory()
-    torch.manual_seed(seed)
-    try:
-        with _one_shared_stream():
-            shared_losses = L2LStep(model, runtime, call, seed=seed).run(mbs, store, step=step)
-    finally:
-        store.close()
-    shared_grads = l2l_schedule.collect_grads(model)
+    torch.manual_seed(case.rng.seed)
+    # Patching the module attribute works because the L2L step imports ``layer_rng`` at call time.
+    with _one_shared_stream():
+        _, shared_losses, shared_grads = _run_l2l(case, call)
 
-    def same(losses: Sequence[Any], grads: Dict[str, Any]) -> bool:
+    def matches_l2l(losses: Sequence[Any], grads: Dict[str, Any]) -> bool:
         return bool(
             l2l_schedule.losses_equal(l2l_losses, losses)
             and l2l_schedule.compare(l2l_grads, grads)["equal"]
         )
 
-    return {
-        "control_stock_stream_equal": same(stock_losses, stock_grads),
-        "control_shared_stream_equal": same(shared_losses, shared_grads),
-    }
+    return dict(zip(CONTROL_KEYS, (
+        matches_l2l(stock_losses, stock_grads), matches_l2l(shared_losses, shared_grads),
+    )))
 
 
 def verdict(records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -198,7 +223,7 @@ def verdict(records: List[Dict[str, Any]]) -> Dict[str, Any]:
     controls_differ = all(
         not rec[key]
         for rec in records
-        for key in ("control_stock_stream_equal", "control_shared_stream_equal")
+        for key in CONTROL_KEYS
         if key in rec
     )
     return {
