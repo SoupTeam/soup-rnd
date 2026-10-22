@@ -6385,13 +6385,6 @@ class SoupConfig(BaseModel):
                 raise ValueError(
                     f"training.l2l supports task='sft' only; got task={self.task!r}."
                 )
-            if tcfg.lora.dropout != 0:
-                raise ValueError(
-                    f"training.l2l requires training.lora.dropout=0 (got "
-                    f"{tcfg.lora.dropout}): a layer-major pass draws dropout masks "
-                    f"in a different order than gradient accumulation, so the "
-                    f"result would differ."
-                )
         if not tcfg.stream_layers:
             # Footgun: a non-default stream_* while streaming is off almost
             # certainly means the user forgot stream_layers=true.

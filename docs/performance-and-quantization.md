@@ -840,21 +840,47 @@ existing configs. Report:
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
 - `task` other than `sft`.
-- `lora.dropout` other than 0. A layer-major pass draws dropout masks in a different order, so the result would differ from accumulation.
 
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
-- `attention_dropout` other than 0 on the model.
 - More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
 - `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
 - Rows with padding before real tokens. L2L needs right-padded rows.
 - `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the replayed draws would differ from accumulation. Use rows of one length or set the dropout to 0.
+- `neftune_alpha` together with `lora.dropout` or `attention_dropout` above 0.
+- `attention_dropout` above 0 with the `sdpa` attention implementation.
 - Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+
+**Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
+attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch
+after micro-batch, layer after layer. L2L cannot visit the layers in that order, so it replays the
+stream: it records which dropouts one layer call draws (shape, strides, dtype, device,
+probability), runs them on zeros in accumulation order to learn the generator state before each
+(micro-batch, layer) pair, and runs every layer call, in the forward and in the recompute, at its
+state. After the step the generators stand where accumulation leaves them. L2L therefore equals an
+unmodified Hugging Face Trainer, with no hooks on the reference side, and the next optimizer step
+starts from the same stream. Checked on CPU with a tiny Llama and LoRA: losses and gradients are
+bit-for-bit equal for k = 1, 2 and 4, two windows in a row stay equal, and a trainer run with
+`lora.dropout` 0.05 at k = 2 gives the same adapters as the plain Trainer. Controls (one shared
+stream, states saved in layer-major order, no state on the recompute, an outer stream left
+untouched) each disagree. On an RTX 3060 (CUDA 13, torch 2.14.1), SmolLM2-135M at dropout 0 and 0.05
+for k = 1, 2 and 4 gave losses, all 240 LoRA gradients and the generator state after the step equal to
+plain accumulation, with the shared-stream and other-seed controls disagreeing
+([`benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md`](../benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md)).
+Not checked: hidden states and logits compared directly, the full `SFTTrainer` path with a real
+collator, NF4, more than one card, and models larger than SmolLM2-135M.
+
+Refused because the stream cannot be replayed: `attention_dropout` above 0 with the `sdpa`
+attention implementation (its mask is drawn inside a fused kernel; load the model with
+`attn_implementation='eager'`), `neftune_alpha` together with dropout (accumulation draws the
+NEFTune noise from the same stream between the layers), and a window of rows with different
+lengths together with dropout (padding changes the shapes of the draws).
 
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
 different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
 each new shape costs one extra forward pass. Speed and memory were not measured, and the check
-used random tokens, not real text. Dropout above 0, MoE and multi-GPU are out of scope.
+used random tokens, not real text. MoE and multi-GPU are out of scope.
 
 **Counters.** Each logged training step carries four cumulative fields:
 
