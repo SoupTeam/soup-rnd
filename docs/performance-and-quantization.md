@@ -864,10 +864,12 @@ starts from the same stream. Checked on CPU with a tiny Llama and LoRA: losses a
 bit-for-bit equal for k = 1, 2 and 4, two windows in a row stay equal, and a trainer run with
 `lora.dropout` 0.05 at k = 2 gives the same adapters as the plain Trainer. Controls (one shared
 stream, states saved in layer-major order, no state on the recompute, an outer stream left
-untouched) each disagree. Not checked: CUDA with this replay (the CUDA tests in
-`tests/test_l2l_rng_cuda.py` and `benchmarks/harness/l2l_smollm2_check.py --dropout 0.05` have not
-run on a card), hidden states and logits compared directly, and the full `SFTTrainer` path with a
-real collator.
+untouched) each disagree. On an RTX 3060 (CUDA 13, torch 2.14.1), SmolLM2-135M at dropout 0 and 0.05
+for k = 1, 2 and 4 gave losses, all 240 LoRA gradients and the generator state after the step equal to
+plain accumulation, with the shared-stream and other-seed controls disagreeing
+([`benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md`](../benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md)).
+Not checked: hidden states and logits compared directly, the full `SFTTrainer` path with a real
+collator, NF4, more than one card, and models larger than SmolLM2-135M.
 
 Refused because the stream cannot be replayed: `attention_dropout` above 0 with the `sdpa`
 attention implementation (its mask is drawn inside a fused kernel; load the model with

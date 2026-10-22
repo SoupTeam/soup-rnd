@@ -78,6 +78,7 @@ def _l2l(model, runtime, harness, mbs, **kwargs):
 def test_cpu_and_cuda_state_are_set_from_the_snapshot_and_restored_apart():
     from soup_cli.utils import l2l_rng
 
+    torch.zeros(1, device=DEVICE)  # snapshot sees only initialised cards
     torch.manual_seed(1)
     torch.cuda.manual_seed(2)
     target = l2l_rng.snapshot()
