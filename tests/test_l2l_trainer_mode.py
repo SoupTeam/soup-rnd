@@ -237,6 +237,25 @@ def test_neftune_noise_sequence_is_the_one_accumulation_draws(streamed, tmp_path
     _same_adapters_as_accumulation(streamed, tmp_path, neftune_noise_alpha=5.0)
 
 
+def test_step_receives_the_training_seed_and_the_global_step(streamed, tmp_path, monkeypatch):  # noqa: F811
+    from transformers import Trainer
+
+    from soup_cli.utils.l2l_step import L2LStep
+
+    seen = []
+    run = L2LStep.run
+
+    def spy(self, *args, **kwargs):
+        seen.append((self.seed, kwargs.get("step")))
+        return run(self, *args, **kwargs)
+
+    monkeypatch.setattr(L2LStep, "run", spy)
+    model, runtime = streamed
+    _load("l2l_schedule").make_non_vacuous(model)
+    _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)  # TrainingArguments(seed=1)
+    assert seen == [(1, 0), (1, 1)]
+
+
 def test_activation_store_is_refused_before_it_is_allocated(streamed, tmp_path, monkeypatch):  # noqa: F811
     from transformers import Trainer
 

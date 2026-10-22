@@ -137,14 +137,16 @@ def _window_tensors(
     return padded_ids, padded_labels
 
 
-def _l2l_step_for(state: L2LState, model: Any, shape: Tuple[int, int], ids: Any) -> Any:
+def _l2l_step_for(
+    state: L2LState, model: Any, shape: Tuple[int, int], ids: Any, seed: int
+) -> Any:
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
     step = state.steps_by_shape.get(shape)
     if step is None:
         if len(state.steps_by_shape) >= MAX_CACHED_SHAPES:
             state.steps_by_shape.clear()
-        step = L2LStep(model, state.runtime, capture_layer_call(model, ids))
+        step = L2LStep(model, state.runtime, capture_layer_call(model, ids), seed=seed)
         state.steps_by_shape[shape] = step
     return step
 
@@ -259,10 +261,14 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             # The step bypasses the wrapped forward, where the Trainer applies its mixed
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
-                step = _l2l_step_for(state, model, shape, ids_list[0])
+                step = _l2l_step_for(state, model, shape, ids_list[0], int(self.args.seed))
                 store = _store_for(state, step, shape, len(window), device)
                 losses = step.run(
-                    ids_list, store, n_items=int(num_items_in_batch), labels=label_list
+                    ids_list,
+                    store,
+                    n_items=int(num_items_in_batch),
+                    labels=label_list,
+                    step=int(self.state.global_step),
                 )
             state.steps += 1
             state.totals.add(step.counters)

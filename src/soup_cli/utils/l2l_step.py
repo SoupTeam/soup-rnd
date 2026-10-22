@@ -22,6 +22,10 @@ and walk the backward the same way in reverse.
   with ``num_items_in_batch``. ``capture_layer_call`` records the layer kwargs
   from a real forward instead of rebuilding the rotary embeddings and the mask.
 
+* Every layer call, in the forward and in the recompute, runs at the random state
+  ``l2l_rng.layer_rng(seed, step, mb, layer)``, so ``lora.dropout`` > 0 draws the masks an
+  accumulation reference with the same function draws. See ``utils/l2l_rng.py``.
+
 No optimizer step. torch is imported inside functions.
 """
 
@@ -30,6 +34,8 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+
+from soup_cli.utils.seeding import DEFAULT_TRAINING_SEED
 
 SUPPORTED_ARCHS = ("llama", "mistral")
 
@@ -135,7 +141,15 @@ def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
 class L2LStep:
     """One layer-major step: forward, head, backward. No optimizer step."""
 
-    def __init__(self, model: Any, runtime: Any, call: LayerCall):
+    def __init__(
+        self,
+        model: Any,
+        runtime: Any,
+        call: LayerCall,
+        seed: int = DEFAULT_TRAINING_SEED,
+    ):
+        #: ``resolve_training_seed`` of the run; with ``step`` it fixes every dropout mask.
+        self.seed = int(seed)
         self.causal, self.owner = model_parts(model)
         self.layers = list(self.owner.layers)
         self.call = call
@@ -151,8 +165,13 @@ class L2LStep:
         #: Loads and restores of the last ``run``; ``None`` before the first.
         self.counters: Optional[LoadCounters] = None
 
-    def _layer(self, layer: Any, hidden: Any) -> Any:
-        out = layer(hidden, *self.call.args, **self.call.kwargs)
+    def _layer(self, layer: Any, hidden: Any, idx: int, mb: int, step: int) -> Any:
+        # The mask of a (step, micro-batch, layer) call is fixed by ``layer_rng``, so the
+        # forward and the recompute in the backward draw the same one in any visiting order.
+        from soup_cli.utils.l2l_rng import layer_rng
+
+        with layer_rng(self.seed, step, mb, idx, hidden.device):
+            out = layer(hidden, *self.call.args, **self.call.kwargs)
         return out[0] if isinstance(out, tuple) else out
 
     def run(
@@ -162,10 +181,14 @@ class L2LStep:
         *,
         n_items: Optional[int] = None,
         labels: Optional[Sequence[Any]] = None,
+        step: int = 0,
     ) -> List[Any]:
-        """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``."""
+        """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
+
+        ``step`` is ``trainer.state.global_step``; it enters every layer's random state.
+        """
         with count_loads(self.runtime) as counters:
-            losses = self._run(micro_batches, store, n_items, labels)
+            losses = self._run(micro_batches, store, n_items, labels, step)
         self.counters = counters
         return losses
 
@@ -175,6 +198,7 @@ class L2LStep:
         store: Any,
         n_items: Optional[int],
         labels: Optional[Sequence[Any]],
+        step: int,
     ) -> List[Any]:
         import torch
 
@@ -196,7 +220,7 @@ class L2LStep:
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
-                    hidden[mb] = self._layer(layer, hidden[mb])
+                    hidden[mb] = self._layer(layer, hidden[mb], idx, mb, step)
 
         losses: List[Any] = []
         grads: List[Any] = []
@@ -222,7 +246,7 @@ class L2LStep:
                 for mb in range(k):
                     inputs = store.get(idx, mb).requires_grad_(True)
                     with torch.enable_grad():
-                        out = self._layer(layer, inputs)
+                        out = self._layer(layer, inputs, idx, mb, step)
                     torch.autograd.backward(out, grad_tensors=grads[mb])
                     grads[mb] = inputs.grad
             finally:
