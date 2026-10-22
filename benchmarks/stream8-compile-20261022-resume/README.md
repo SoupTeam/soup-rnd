@@ -44,7 +44,7 @@ values/dtypes nor comparator inputs. A local ACK follows complete archive and
 every-file verification. Raw, encoded and compressed sizes are distinguished;
 synthetic/historical codec calibrations are not model-performance evidence.
 
-The scoped CPU suite passes 42 tests with
+The scoped CPU suite passes 44 tests with
 2 CUDA skips. The rented target software separately passes 16 regressions,
 including CUDA asynchronous ownership checks. These checks do not substitute for
 full pretrained-model qualification or timing results.
@@ -78,6 +78,8 @@ A retry timer measures the absence of durable byte progress. Continued progress
 across multiple connection failures resets that timer; a genuine lack of progress
 remains bounded. Regression tests cover that distinction, corrupted prior objects,
 resuming across span boundaries, canonical archive identity and all original bytes.
+An incomplete response with SSH status zero also resumes under the same bounded
+progress timer; it cannot create an ACK without all byte counts and hashes.
 The standalone offline oracles also reconstruct an actual retained 1.046 GB server
 archive with its original SHA, without network traffic. These are retention tests,
 not pretrained-model performance measurements.

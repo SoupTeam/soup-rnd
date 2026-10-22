@@ -149,6 +149,8 @@ def rebuild(layout, index, folder, prior_archives, stream, remaining, rate,
                 raise ValueError('range response exceeds requested bytes')
             if after > offset:
                 last_progress = clock()
+            if after < expected and failure is None:
+                failure = EOFError('SSH response ended before the requested range completed')
             record({'phase': 'range-receive', 'batch': batch_index, 'batches': len(batches),
                     'received_this_batch': after, 'expected_this_batch': expected,
                     'network_bytes_this_call': network,
@@ -170,8 +172,6 @@ def rebuild(layout, index, folder, prior_archives, stream, remaining, rate,
                     position += row['bytes']
             if after == expected:
                 break
-            if failure is None:
-                raise ValueError('successful SSH response was incomplete')
             if clock() - last_progress > 600:
                 raise RuntimeError('no new archive bytes for ten minutes') from failure
             sleep(15)

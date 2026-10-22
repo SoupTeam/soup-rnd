@@ -26,7 +26,8 @@ RANGES = load("archive_ranges")
 REMOTE = load("remote_ranges")
 
 
-def test_reuse_and_progress_reset_preserve_every_original_byte(tmp_path):
+@pytest.mark.parametrize("short_success", [False, True])
+def test_reuse_and_progress_reset_preserve_every_original_byte(tmp_path, short_success):
     source = tmp_path / "source"
     source.mkdir()
     rng = random.Random(792)
@@ -49,7 +50,7 @@ def test_reuse_and_progress_reset_preserve_every_original_byte(tmp_path):
         data = complete.getvalue()
         size = min(len(data), 512 * 1024)
         sink.write(data[:size])
-        if size != len(data):
+        if size != len(data) and not short_success:
             raise TimeoutError("useful progress before connection timeout")
 
     result = RANGES.rebuild(
@@ -67,7 +68,8 @@ def test_reuse_and_progress_reset_preserve_every_original_byte(tmp_path):
     assert virtual_time[0] > 600
 
 
-def test_true_absence_of_progress_is_bounded(tmp_path):
+@pytest.mark.parametrize("empty_success", [False, True])
+def test_true_absence_of_progress_is_bounded(tmp_path, empty_success):
     source = tmp_path / "source"
     source.mkdir()
     (source / "raw.bin").write_bytes(b"must remain byte exact")
@@ -77,7 +79,8 @@ def test_true_absence_of_progress_is_bounded(tmp_path):
 
     def no_bytes(_batch, _offset, _sink, _deadline):
         virtual_time[0] += 301
-        raise TimeoutError("no durable bytes")
+        if not empty_success:
+            raise TimeoutError("no durable bytes")
 
     with pytest.raises(RuntimeError, match="no new archive bytes"):
         RANGES.rebuild(
