@@ -1,0 +1,127 @@
+{
+ "meta": {
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "torch": "2.14.1+cu130",
+  "vram_total_gb": 12.49,
+  "soup_cli_file": "/root/soup/src/soup_cli/__init__.py",
+  "driver": "595.91.07",
+  "pcie_gen": "3",
+  "pcie_width": "16",
+  "weights": "HuggingFaceTB/SmolLM2-135M",
+  "quant": "nf4",
+  "dtype": "bfloat16",
+  "seq": 128,
+  "deterministic": false,
+  "arch": "llama",
+  "n_layers": 30,
+  "tie_word_embeddings": true,
+  "started": "2026-10-21T17:18:17"
+ },
+ "records": [
+  {
+   "kind": "k",
+   "k": 1,
+   "tensors": 240,
+   "grads_equal": true,
+   "max_abs": 0.0,
+   "worst": [],
+   "all_zero": [],
+   "losses_equal": true,
+   "a_vs_a_equal": true,
+   "losses_ga": [
+    13.512768745422363
+   ],
+   "losses_l2l": [
+    13.512768745422363
+   ],
+   "ga": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 210
+   },
+   "l2l": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 210
+   }
+  },
+  {
+   "kind": "k",
+   "k": 2,
+   "tensors": 240,
+   "grads_equal": true,
+   "max_abs": 0.0,
+   "worst": [],
+   "all_zero": [],
+   "losses_equal": true,
+   "a_vs_a_equal": true,
+   "losses_ga": [
+    6.756384372711182,
+    6.729488372802734
+   ],
+   "losses_l2l": [
+    6.756384372711182,
+    6.729488372802734
+   ],
+   "ga": {
+    "layer_loads": 115,
+    "large_loads": 0,
+    "restores": 210
+   },
+   "l2l": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 210
+   }
+  },
+  {
+   "kind": "k",
+   "k": 4,
+   "tensors": 240,
+   "grads_equal": true,
+   "max_abs": 0.0,
+   "worst": [],
+   "all_zero": [],
+   "losses_equal": true,
+   "a_vs_a_equal": true,
+   "losses_ga": [
+    3.378192186355591,
+    3.364744186401367,
+    3.288320541381836,
+    3.311354875564575
+   ],
+   "losses_l2l": [
+    3.378192186355591,
+    3.364744186401367,
+    3.288320541381836,
+    3.311354875564575
+   ],
+   "ga": {
+    "layer_loads": 229,
+    "large_loads": 0,
+    "restores": 210
+   },
+   "l2l": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 210
+   }
+  }
+ ],
+ "verdict": {
+  "equal": true,
+  "loads_flat": true,
+  "has_k1_baseline": true,
+  "l2l_layer_loads": {
+   "1": 58,
+   "2": 58,
+   "4": 58
+  },
+  "ga_layer_loads": {
+   "1": 58,
+   "2": 115,
+   "4": 229
+  },
+  "pass": true
+ }
+}
