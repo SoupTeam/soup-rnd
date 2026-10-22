@@ -1,4 +1,4 @@
-# G4 ticket 03: LoRA on a frozen NVFP4 base, small model
+# G1 ticket 03: LoRA on a frozen NVFP4 base, small model
 
 All numbers on this page are **synthetic**: a small random model, random tokens and a fixed random
 token mapping as the task. They say whether gradients reach the adapters through native FP4 GEMM.
@@ -15,7 +15,7 @@ They are not a quality or speed result, and not a Mistral-7B result.
 - Task: predict `mapping[token]` for a fixed random permutation of 64 tokens. Fresh random tokens
   every step.
 - Training: AdamW, lr 3e-3, no weight decay, 60 steps, seed 0. Harness:
-  `benchmarks/harness/g4_lora_nvfp4.py`. CPU tests: `tests/test_g4_lora_nvfp4.py`.
+  `benchmarks/harness/g1_lora_nvfp4.py`. CPU tests: `tests/test_g1_lora_nvfp4.py`.
 
 ## The pass rule, written before the GPU run
 
@@ -33,7 +33,7 @@ first-step check reads `lora_b` per adapter and the total norm. A reaches a nonz
 ## Result (synthetic, RTX 5090, 2026-10-22)
 
 Machine: Vast.ai instance 57232401, RTX 5090 (compute capability 12.0), torch 2.14.1+cu130,
-TransformerEngine 2.20.2. Raw record: `benchmarks/results/g4-lora-nvfp4/report.json`,
+TransformerEngine 2.20.2. Raw record: `benchmarks/results/g1-lora-nvfp4/report.json`,
 environment: `environment.txt`.
 
 **All five checks passed on the first run.** Base weight storage was `NVFP4Tensor` for every layer.

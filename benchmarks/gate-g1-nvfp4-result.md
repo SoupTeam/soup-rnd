@@ -1,8 +1,10 @@
-# G4 ticket 05: Mistral-7B, LoRA over a frozen NVFP4 base against NF4, result
+# G1 ticket 05: Mistral-7B, LoRA over a frozen NVFP4 base against NF4, result
 
-**Quality verdict: fail.** Task loss passes with a wide margin. Two of the four gate suites fail the rule's drop limit. Under the rule's outcome table G4 stops and speed is not measured.
+**Quality verdict: fail.** Task loss passes with a wide margin. Two of the four gate suites fail the rule's drop limit. Under the rule's outcome table G1 stops and speed is not measured.
 
-All numbers on this page are **real** runs: Mistral-7B-v0.1, the Dolly split of the rule, one RTX 5090 rented on Vast.ai. The rule is `benchmarks/gate-g4-nvfp4.md` (Russian text binding), committed at `4fddde39` before any run. Thresholds, data and arms did not change after the first run. The verdict is computed by `benchmarks/harness/g4_verdict.py` from the run records in `benchmarks/results/g4-mistral/runs/`, output in `benchmarks/results/g4-mistral/verdict.json`.
+**Naming.** This gate is G1. It was called G4 when the rule was committed, so the rule text (`benchmarks/gate-g1-nvfp4.md`, renamed with `git mv`, body unchanged), the run records under `benchmarks/results/g1-mistral/` and commit messages up to `471c09ca` still say G4 or `g4-`. Raw records were not edited.
+
+All numbers on this page are **real** runs: Mistral-7B-v0.1, the Dolly split of the rule, one RTX 5090 rented on Vast.ai. The rule is `benchmarks/gate-g1-nvfp4.md` (Russian text binding), committed at `4fddde39` before any run. Thresholds, data and arms did not change after the first run. The verdict is computed by `benchmarks/harness/g1_verdict.py` from the run records in `benchmarks/results/g1-mistral/runs/`, output in `benchmarks/results/g1-mistral/verdict.json`.
 
 ## Task loss
 
@@ -31,7 +33,7 @@ The bf16 reference scored 1, 0, 23 and 28 on the four suites. No suite is exclud
 
 ## Validity rows
 
-All seven checks of `g4_verdict.py` hold: the six rows of the rule and the commit order. No run was spoiled and none was repeated.
+All seven checks of `g1_verdict.py` hold: the six rows of the rule and the commit order. No run was spoiled and none was repeated.
 
 | Row | Result |
 |---|---|
@@ -45,8 +47,8 @@ All seven checks of `g4_verdict.py` hold: the six rows of the rule and the commi
 
 ## What changed during the runs
 
-- The first attempt used the harness default micro-batch of 4. NVFP4 ran out of GPU memory on the first forward pass (26.4 GiB allocated of 31.4 GiB). The rule fixes the effective batch (16) and not the micro-batch, and the ticket 04 report left the micro-batch for ticket 05. A micro-batch differing between arms would break the config row, and NVFP4 scales activations per tensor, so the micro-batch changes the numbers. All seven runs were therefore redone with `--micro-batch 2` (gradient accumulation 8). The two completed runs with micro-batch 4 (NF4 seeds 42 and 7) are kept in `benchmarks/results/g4-mistral/superseded-mb4/` and are not used.
-- A pilot NF4 run (seed 42, micro-batch 4, about 10 minutes) showed the train split stays at 4000 rows: far below the rule's 2 hour limit. Pilot records are in `benchmarks/results/g4-mistral/pilot/`. A killed NVFP4 probe with micro-batch 2 is in the same folder; it never reached the end and is not a run.
+- The first attempt used the harness default micro-batch of 4. NVFP4 ran out of GPU memory on the first forward pass (26.4 GiB allocated of 31.4 GiB). The rule fixes the effective batch (16) and not the micro-batch, and the ticket 04 report left the micro-batch for ticket 05. A micro-batch differing between arms would break the config row, and NVFP4 scales activations per tensor, so the micro-batch changes the numbers. All seven runs were therefore redone with `--micro-batch 2` (gradient accumulation 8). The two completed runs with micro-batch 4 (NF4 seeds 42 and 7) are kept in `benchmarks/results/g1-mistral/superseded-mb4/` and are not used.
+- A pilot NF4 run (seed 42, micro-batch 4, about 10 minutes) showed the train split stays at 4000 rows: far below the rule's 2 hour limit. Pilot records are in `benchmarks/results/g1-mistral/pilot/`. A killed NVFP4 probe with micro-batch 2 is in the same folder; it never reached the end and is not a run.
 - TransformerEngine imports only with the venv's NCCL preloaded (`LD_PRELOAD=…/nvidia/nccl/lib/libnccl.so.2`). The system `libnccl` 2.28.3 lacks `ncclCommResume`.
 
 ## Limits

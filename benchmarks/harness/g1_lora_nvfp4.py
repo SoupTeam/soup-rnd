@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""G4 ticket 03: LoRA on a frozen NVFP4 base, on a small synthetic model.
+"""G1 ticket 03: LoRA on a frozen NVFP4 base, on a small synthetic model.
 
 The base is a stack of ``te.Linear`` layers built under ``te.quantized_model_init`` with the
 ``NVFP4BlockScaling`` recipe: weights are held packed in NVFP4 and frozen. Each one is wrapped by
@@ -26,7 +26,7 @@ from typing import Callable, ContextManager, Dict, Iterator, List, Optional, Tup
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from g4_fp4_layer import UnsupportedShapeError, check_fp4_shape  # noqa: E402,F401
+from g1_fp4_layer import UnsupportedShapeError, check_fp4_shape  # noqa: E402,F401
 
 REPORT_LABEL = "RTX 5090, synthetic (small random model, random tokens, fixed token mapping)"
 

@@ -1,4 +1,4 @@
-"""G4 ticket 05: the quality verdict under benchmarks/gate-g4-nvfp4.md (g4_verdict.py).
+"""G1 ticket 05: the quality verdict under benchmarks/gate-g1-nvfp4.md (g1_verdict.py).
 
 Every run record here is written by hand, so nothing trains.
 """
@@ -29,10 +29,10 @@ DEFAULT_CORRECT = {"mini_mmlu": 10, "mini_common_sense": 12,
 
 @pytest.fixture(scope="module")
 def harness() -> Iterator[ModuleType]:
-    name = "_g4_verdict_test_module"
+    name = "_g1_verdict_test_module"
     previous = sys.modules.get(name)
     sys.path.insert(0, str(HARNESS))
-    spec = importlib.util.spec_from_file_location(name, HARNESS / "g4_verdict.py")
+    spec = importlib.util.spec_from_file_location(name, HARNESS / "g1_verdict.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
@@ -105,7 +105,7 @@ class TestOutcome:
     def test_identical_arms_pass(self, harness):
         result = harness.verdict(_all_runs())
         assert result["outcome"] == "pass"
-        assert result["g4"] == "measure_speed"
+        assert result["g1"] == "measure_speed"
         assert result["mean_ratio"] == pytest.approx(1.0)
 
     def test_a_mean_ratio_of_exactly_1_03_passes(self, harness):
@@ -116,7 +116,7 @@ class TestOutcome:
     def test_a_mean_ratio_above_1_03_fails(self, harness):
         result = harness.verdict(_all_runs(nll=[26.0] * 4))
         assert result["outcome"] == "fail"
-        assert result["g4"] == "stop"
+        assert result["g1"] == "stop"
         assert "mean_ratio" in result["fail_reasons"]
 
     def test_an_interval_above_1_05_in_one_seed_fails(self, harness):
@@ -170,7 +170,7 @@ class TestValidityRows:
                                                   "lm_head.weight": "bb"})
         result = harness.verdict(runs)
         assert result["outcome"] == "no_verdict"
-        assert result["g4"] == "repeat"
+        assert result["g1"] == "repeat"
         assert result["validity"]["unquantized_fingerprints"] is False
 
     def test_a_data_hash_mismatch_gives_no_verdict(self, harness):

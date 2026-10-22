@@ -1,9 +1,9 @@
-"""G4 ticket 05: the quality verdict under benchmarks/gate-g4-nvfp4.md, from the run records.
+"""G1 ticket 05: the quality verdict under benchmarks/gate-g1-nvfp4.md, from the run records.
 
-Spec: .scratch/g4-nvfp4/issues/05-mistral-runs-and-verdict.md. Rule (binding, in Russian):
-benchmarks/gate-g4-nvfp4.md. Run records come from ``g4_train.py``, one ``run.json`` per attempt.
+Spec: .scratch/g1-nvfp4/issues/05-mistral-runs-and-verdict.md. Rule (binding, in Russian):
+benchmarks/gate-g1-nvfp4.md. Run records come from ``g1_train.py``, one ``run.json`` per attempt.
 
-    python benchmarks/harness/g4_verdict.py RUNS_DIR --out verdict.json
+    python benchmarks/harness/g1_verdict.py RUNS_DIR --out verdict.json
 
 Every ``run.json`` under the given paths enters the verdict, spoiled ones included: the
 one-repeat rule decides which attempt counts. Exit code 0 means the verdict was computed,
@@ -46,8 +46,8 @@ MAX_MEAN_RATIO = Fraction("1.03")
 MAX_UPPER_BOUND = 1.05
 MAX_SUITE_DROP = Fraction(3)
 
-#: What the outcome means for G4 (the rule's table, before the speed measurement of ticket 06).
-G4_DECISION = {"pass": "measure_speed", "fail": "stop", "no_verdict": "repeat"}
+#: What the outcome means for G1 (the rule's table, before the speed measurement of ticket 06).
+G1_DECISION = {"pass": "measure_speed", "fail": "stop", "no_verdict": "repeat"}
 
 
 def suite_results(selected: dict[tuple[str, int], dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -209,7 +209,7 @@ def verdict(runs: Sequence[dict[str, Any]], *, synthetic: bool = False) -> dict[
     return {
         "synthetic": synthetic,
         "outcome": outcome,
-        "g4": G4_DECISION[outcome],
+        "g1": G1_DECISION[outcome],
         "validity": validity,
         "config_diff": diffs,
         "missing": selection["missing"],
@@ -241,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
     out.write_text(json.dumps(c5._json_ready(result), indent=1), encoding="utf-8")
     label = "SYNTHETIC " if args.synthetic else ""
     console.print(
-        f"{label}verdict: {result['outcome']} (G4: {result['g4']}), "
+        f"{label}verdict: {result['outcome']} (G1: {result['g1']}), "
         f"mean ratio {result['mean_ratio']}, fail reasons {result['fail_reasons'] or 'none'}, "
         f"validity {result['validity']} -> {out}"
     )

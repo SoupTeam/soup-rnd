@@ -1,13 +1,13 @@
-"""G4 ticket 04: one LoRA run over a frozen Mistral-7B base in NVFP4, NF4 or bf16.
+"""G1 ticket 04: one LoRA run over a frozen Mistral-7B base in NVFP4, NF4 or bf16.
 
-Spec: .scratch/g4-nvfp4/issues/04-mistral-harness-and-gate-rule.md. Rule (binding, in
-Russian): benchmarks/gate-g4-nvfp4.md. Temporary harness, not a product path (ADR 0003).
+Spec: .scratch/g1-nvfp4/issues/04-mistral-harness-and-gate-rule.md. Rule (binding, in
+Russian): benchmarks/gate-g1-nvfp4.md. Temporary harness, not a product path (ADR 0003).
 
 One process trains one arm on one seed and writes ``run.json``:
 
-    python benchmarks/harness/g4_train.py --arm nvfp4 --seed 42 --data-dir DATA \\
+    python benchmarks/harness/g1_train.py --arm nvfp4 --seed 42 --data-dir DATA \\
         --device cuda --out-dir RUNS/nvfp4-s42-a1
-    python benchmarks/harness/g4_train.py --arm nf4 --seed 42 --fixture mistral \\
+    python benchmarks/harness/g1_train.py --arm nf4 --seed 42 --fixture mistral \\
         --data-dir DATA --train-limit 64 --panel-limit 16 --device cuda --out-dir RUNS/x
 
 ``DATA`` is the output of ``c5_data.py`` (the rule reuses the C5 splits). The fixture is a
@@ -19,7 +19,7 @@ What this file adds to ``c5_train.py`` (data, training loop, panel loss are reus
 - The base is Mistral's decoder linears (``q/k/v/o/gate/up/down`` of every layer, 224 tensors
   for Mistral-7B) replaced one by one by NVFP4 ``te.Linear`` or bitsandbytes NF4 layers. The
   embedding, norms and ``lm_head`` stay bf16 in every arm.
-- LoRA comes from ``g4_lora_nvfp4.LoRALinear`` in every arm (peft does not wrap ``te.Linear``),
+- LoRA comes from ``g1_lora_nvfp4.LoRALinear`` in every arm (peft does not wrap ``te.Linear``),
   so the arms share the adapter code and its initialisation for a given seed.
 - Every micro batch is right-padded to a multiple of 16 tokens and the gate suites decode
   greedily without a KV cache, because the native FP4 GEMM refuses a token count that is not a
@@ -48,9 +48,9 @@ from rich.console import Console
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import c5_train as c5  # noqa: E402
-import g4_lora_nvfp4  # noqa: E402
+import g1_lora_nvfp4  # noqa: E402
 import l2l_box  # noqa: E402
-from g4_fp4_layer import FP4_MULTIPLES, UnsupportedShapeError, check_fp4_shape  # noqa: E402,F401
+from g1_fp4_layer import FP4_MULTIPLES, UnsupportedShapeError, check_fp4_shape  # noqa: E402,F401
 
 if TYPE_CHECKING:
     import torch
@@ -61,7 +61,7 @@ console = Console()
 _c5_collate = c5.collate
 
 REPO = Path(__file__).resolve().parents[2]
-RULE = REPO / "benchmarks" / "gate-g4-nvfp4.md"
+RULE = REPO / "benchmarks" / "gate-g1-nvfp4.md"
 MODEL = "mistralai/Mistral-7B-v0.1"
 REVISION = "27d67f1b5f57dc0953326b2601d68371d40ea8da"
 #: The arm's base storage format. The only thing the three arm configs differ in.
@@ -303,7 +303,7 @@ def add_lora(model: torch.nn.Module, config: dict[str, Any], seed: int) -> torch
             if leaf not in lora["target_modules"]:
                 continue
             parent = _projection(layer, parent_path)
-            setattr(parent, leaf, g4_lora_nvfp4.LoRALinear(
+            setattr(parent, leaf, g1_lora_nvfp4.LoRALinear(
                 getattr(parent, leaf), rank=lora["r"], alpha=lora["alpha"],
                 dtype=embedding.dtype, device=embedding.device))
     return model
@@ -343,7 +343,9 @@ def rule_state(repo: Path, rule: Path) -> dict[str, Any]:
         return subprocess.run(["git", *args], capture_output=True, text=True, cwd=repo
                               ).stdout.strip()
 
-    added = git("log", "--diff-filter=A", "--format=%H %cI", "--", str(rule)).splitlines()
+    # --follow: the rule file was renamed later; its first commit is the one that counts.
+    added = git("log", "--follow", "--diff-filter=A", "--format=%H %cI", "--",
+                str(rule)).splitlines()
     commit, _, when = added[-1].partition(" ") if added else (None, "", None)
     return {
         "added_commit": commit or None,
@@ -355,7 +357,7 @@ def rule_state(repo: Path, rule: Path) -> dict[str, Any]:
 def require_committed_rule(state: dict[str, Any]) -> None:
     if not state["added_commit"] or not state["clean"]:
         raise RuntimeError(
-            "the rule file benchmarks/gate-g4-nvfp4.md must be committed and unchanged before "
+            "the rule file benchmarks/gate-g1-nvfp4.md must be committed and unchanged before "
             f"a real run: {state}")
 
 
@@ -508,7 +510,7 @@ def main(argv: list[str] | None = None) -> int:
         "status": "running",
         "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "started_unix": time.time(),
-        "command": [sys.executable, *sys.argv] if argv is None else ["g4_train.py", *argv],
+        "command": [sys.executable, *sys.argv] if argv is None else ["g1_train.py", *argv],
         "commit": c5._commit(),
         "rule": rule,
         "versions": _versions(),

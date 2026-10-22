@@ -1,4 +1,4 @@
-# G4 ticket 02: one layer, native FP4 GEMM against NF4 plus a bf16 matmul
+# G1 ticket 02: one layer, native FP4 GEMM against NF4 plus a bf16 matmul
 
 All numbers on this page are **synthetic**: random bf16 data, one linear layer, forward only. They
 are not training and not a model result.
@@ -13,7 +13,7 @@ are not training and not a model result.
   Frobenius error and the cosine of its output against it, measured once per run, before timing.
 - Time: median of 200 timed steps after 50 warm-up steps, CUDA events, one synchronize per step.
 - Order and repeats: `benchmarks/METHOD.md`. Blocks of A, B, B, A, each run a fresh process, a
-  5-block pilot, then N from `repeats`, one top-up at most. Harness: `benchmarks/harness/g4_fp4_layer.py`.
+  5-block pilot, then N from `repeats`, one top-up at most. Harness: `benchmarks/harness/g1_fp4_layer.py`.
 - Padding cost (separate): arm A is `fp4` at a shape that is a multiple of 16 but not of 128,
   arm B is `fp4+pad`: the same layer padded to a multiple of 128 (weight zero-padded once, outside the
   timed step; the activation is padded and the output sliced inside every step). Same A-B-B-A
@@ -44,7 +44,7 @@ paths, and the cost of padding to 128.
 
 Machine: Vast.ai instance 57227559, RTX 5090 (UUID GPU-ef2be508-ab9a-3253-3f2c-617b895842ae),
 driver 580.119.02, torch 2.14.1+cu130, TransformerEngine 2.20.2, bitsandbytes 0.50.2.
-Raw records: `benchmarks/results/g4-single-layer/`. Every comparison ran 5 blocks (20 runs); the
+Raw records: `benchmarks/results/g1-single-layer/`. Every comparison ran 5 blocks (20 runs); the
 repeats rule gave N = 2 each time (sigma 1.5 to 6 microseconds), so the pilot was enough.
 No arm was void. `suspend` and `power` were ok in every arm. `foreign_reads` was unknown in every
 arm (the container's disk has no block device); the rule does not require it. The GPU clock record
