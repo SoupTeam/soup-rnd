@@ -1,0 +1,91 @@
+G3 — review packet, 2026-10-23 (Asia/Almaty)
+
+Status: INCOMPLETE / ENVIRONMENT_BLOCKED. Support verdict: NO_VERDICT.
+This packet is a partial research report, not a completed G3 acceptance claim.
+No direct NVMe-to-VRAM transfer or comparative speedup was established.
+
+Question and acceptance scope
+Compare a native direct NVMe-to-device-memory primitive against unbuffered disk
+reads into pinned host staging followed by completed H2D copies (#974-style).
+Full positive scope includes one drive and two independent drives concurrently,
+bandwidth, CPU and pinned-host RAM, byte correctness and required validity rows.
+The primitive here reproduces the ordinary transfer mechanism; it is not an
+integrated production #974 trainer benchmark. A missing driver or tool cannot
+be promoted to an explicit unsupported-on-tested-stack result.
+
+What was implemented and frozen
+- c611499fa064310028e764b346497fa7e605f9d3: bounded native primitive, inventory,
+  F1 calibration, source/authority checks, independent auditor, safe archive.
+- 50cbebde583e74fa50184b9dc35c6f96b4c50ac5: correct CUDA runtime UUID query
+  after actual SDK compilation exposed the initial API defect.
+- 9f72f9547af6d79192e9c4c6552d03b14101d777: conservative offline host-selection
+  gate and prospective selection addendum. It never authorizes execution.
+Measurement protocol SHA256:
+49878ed2eee7835b0bc4aaffc3a19660a804dd0799a02533dad5dd6f822ec292
+Existing measured source/protocol and raw outcomes were not rewritten.
+
+Six leases, distinct phases (all provider resources deleted)
+1. 57253071 / volume57253070, RTX3090: preparation compilation failure caused
+   by invalid CUDA runtime UUID API. No transfer arms.
+2. 57256165 / volume57256164, RTX3090: corrected source compiled and linked
+   against CUDA12.8.1; target was loop-backed. No executable/GPU transfer run.
+3. 57258175 / volume57258174, RTX4090: one controlled capability attempt.
+   Independent sensor calibration passed, including a foreign read through a
+   second SSH connection. Fresh C,D,D,C processes all passed F1/clocks.
+   C0 and C3 each copied64MiB via pinned staging/H2D and passed full D2H oracle.
+   D1 and D2 failed at cuFileDriverOpen, code5001 DRIVER_NOT_INITIALIZED;
+   explicit_not_supported=false. Completed direct reads:0. Frozen local raw
+   audit PASS, recomputed verdict NO_VERDICT. Stats-off branch was declared
+   before arms and cannot certify a positive route or performance.
+4. 57264221 / volume57264220, A40, machine152158: read-only host discovery;
+   target md RAID; no loaded nvidia_fs/counters or gdscheck.
+5. 57268242 / volume57268241, A100, machine145857: read-only host discovery;
+   local nvme0n1 partition/XFS was suitable, but nvidia_fs/counters and
+   gdscheck were absent.
+6. 57268755 / volume57268754, L40S, machine41600: read-only host discovery;
+   target md RAID; no loaded nvidia_fs/counters or gdscheck.
+All three discovery images also lacked cufile_stats.h. They performed no
+probe CUDA allocations/transfers, installations or host configuration changes.
+GeForce-focused initial selection missed the vendor-documented professional
+GPU baseline. The later shortlist corrected selection, not previous verdicts.
+
+What the evidence establishes
+The corrected primitive can compile against a real CUDA/cuFile SDK. Ordinary
+transfer controls and the independent disk sensor calibration worked on the
+third attempt. The tested professional-GPU hosts were not ready for the frozen
+nvidia-fs route. These observations do not show that A40/A100/L40S or Vast as a
+whole cannot support GDS. P2PDMA was not enabled or tested as an alternative.
+No comparative bandwidth, speed multiplier, CPU reduction, internal total
+pinned-memory saving or training-throughput claim is made. Two passing single
+control reads are correctness evidence, not an ABBA performance study.
+
+Preservation and cleanup
+study_summary.json identifies each local archive by basename, size and SHA256.
+Original three archives retain prior verified safe expansion, member readbacks
+and source audits. Assembly rechecked their archive SHA; discovery ZIP members
+and their cleanup proof hashes were rechecked too. The third frozen audit was
+not rerun or modified for this summary. Large archives, adapters/fixtures,
+credentials, SSH material and provider screenshots are intentionally excluded
+from Git. The review packet summarizes them; it does not replace raw evidence.
+All6instance/volume pairs were permanently deleted after preservation and user
+confirmation; absence was checked in provider Instances and Storage panels.
+No active or stopped G3 resource remains at packet assembly.
+
+Budget and remaining work
+One cumulative authorization: $3. Conservative carry-forward reservation:
+$1.15, NOT an invoice. Exact per-instance provider billing remains unavailable;
+account balance changes include unrelated work and were not charged to G3.
+Do not treat $1.85 as a verified spendable provider balance.
+Before further paid work, obtain a configured supported GPU/NVMe/GDS host,
+version-appropriate native counters/headers, a declared fresh authority and
+passing required controls. Then prove bytes and route before performance.
+Two-drive implementation/measurement remains open. No host kernel/module/
+driver/security changes, compatibility fallback, automatic retry or H2 rental
+is authorized by this report. G3 must remain blocked, not marked Done.
+
+Review navigation
+- study_summary.json: all6leases, artifact SHA, cleanup and outcome fields.
+- checklist_status.json: all task acceptance items remain incomplete.
+- CAPABILITY_REPORT.txt and capability_result.json: detailed controlled run.
+- ../20261022/: original two preparation records (historical snapshots).
+- PR_BODY.txt: proposed PR description; no PR/commit/push performed by agent.

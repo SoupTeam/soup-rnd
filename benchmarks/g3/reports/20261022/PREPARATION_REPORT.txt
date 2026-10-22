@@ -1,0 +1,54 @@
+G3 preparation report — 2026-10-22
+
+Status: INCOMPLETE / ENVIRONMENT_BLOCKED. Support verdict: NO_VERDICT.
+No NVMe-to-GPU transfer, sensor calibration or performance arm has run.
+This report must not be used to mark the G3 measurement checklist complete.
+
+The owner froze and pushed the primitive, control protocol and exporter at
+c611499fa064310028e764b346497fa7e605f9d3. The first rented target exposed
+/data on an XFS partition of nvme0n1. Compilation on the real CUDA 12.8.1 SDK
+failed because the probe used a nonexistent CUDA Runtime function,
+cudaDeviceGetUuid. Behavioral CPU substitutes had not caught that interface bug.
+No transfer executable was produced or run in that attempt.
+
+The owner subsequently committed the fix at
+50cbebde583e74fa50184b9dc35c6f96b4c50ac5. UUID identification now uses
+cudaGetDeviceProperties(...).uuid. The CPU substitute follows that real API;
+a wrong-device control and optional real-SDK compilation tests were added.
+Local focused validation: 231 passed, 7 skipped, clean ruff. Two skipped cases
+require a real Linux SDK; their macOS skip is not a compilation pass.
+
+The second preparation successfully compiled AND linked the corrected native
+probe with the actual CUDA 12.8.1/cuFile headers and libraries, with stats off.
+The native executable was never run. The second host presented /data on XFS
+via /dev/loop21 (7:21), rather than the declared direct NVMe namespace.
+That topology is outside the frozen measurement scope, so no fixture read,
+control calibration or candidate transfer was started. This is an environment
+block, not evidence that GDS is unsupported on RTX 3090 or other GPUs.
+
+No bandwidth, CPU comparison, total pinned-RAM reduction or training speedup
+can be reported. CUDA 12.8 lacks cufile_stats.h on these images; the frozen
+stats-off branch can only support a controlled explicit native rejection,
+never a positive direct-route or performance claim. A positive one-device
+result would also leave concurrent two-drive measurement and internal pinned
+host-memory accounting unresolved.
+
+Both attempts' unique evidence is local and SHA/readback verified. The first
+archive also contains a full source snapshot: 2497 regular files independently
+checked against the owner commit, with individual SHA256 recorded. The second
+archive contains the compiler output, native binary, headers and topology;
+no code extracted from an archive was executed. Archive identities and
+provider-cleanup status are in preparation_results.json.
+
+The previously verified direct-NVMe machine 109150 currently has no matching
+rentable offer. Further measured work needs an available target with an
+attributable ext4/xfs NVMe namespace, the required same-boot independent F1
+controls and a compatible native SDK. No additional speculative rental was
+started after the second preparation. The total G3 authorization remains $3,
+including both preparations; H2 is outside this budget. The $0.50 carry-forward
+reservation is conservative accounting, not a provider invoice. Account-wide
+balance changes include unrelated work and are not attributed to G3.
+
+Cleanup confirmed: both G3 instances and their volumes were permanently deleted
+with the owner's action-time confirmation. Provider reloads show neither G3 ID
+and the Storage page reports no volumes. No G3 lease remains active.
