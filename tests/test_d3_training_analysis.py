@@ -108,3 +108,26 @@ def test_incomplete_or_corrupted_cell_cannot_be_analyzed(tmp_path: Path) -> None
 
     with pytest.raises(ValueError, match="cell count"):
         analyze(tmp_path)
+
+
+def test_abba_uses_both_arms_so_linear_drift_cancels(tmp_path: Path) -> None:
+    _session(tmp_path)
+    session_path = tmp_path / "session.json"
+    session = json.loads(session_path.read_text())
+    for cell in session["cells"]:
+        if cell["kind"] != "timing" or "-block-01-" not in cell["name"]:
+            continue
+        position = int(cell["name"].split("-block-01-")[1].split("-")[0])
+        path = tmp_path / cell["name"] / "result.json"
+        row = json.loads(path.read_text())
+        for step in row["steps"]:
+            step["seconds"] = 9.0 + position
+        cell["result_sha256"] = _write(path, row)
+    _write(session_path, session)
+
+    result = analyze(tmp_path)
+
+    for codec in CODECS:
+        first = result["timing"][codec]["ABBA_contrasts"][0]
+        assert first["control_seconds"] == first["candidate_seconds"] == 11.5
+        assert first["relative_change"] == 0.0

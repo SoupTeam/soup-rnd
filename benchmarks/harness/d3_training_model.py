@@ -204,6 +204,7 @@ class TrainingRun:
 def open_training_model(folder: Path, *, mode: str, device: str, library: Path | None,
                         retain_derivatives: bool, seed: int = 25, rank: int = 4,
                         lr: float = 0.5, native_rows_max: int = 128,
+                        native_rows_from: int | None = None,
                         weight_budget_bytes: int = 64 * 2**20,
                         gemm_call_budget_bytes: int = 64 * 2**20,
                         activation_budget_bytes: int = 256 * 2**20) -> TrainingRun:
@@ -217,14 +218,16 @@ def open_training_model(folder: Path, *, mode: str, device: str, library: Path |
         owner = open_resident_model(folder, device=device, library=library,
                                     backend="native" if mode == "native" else "grouped-compute",
                                     gemm_call_budget_bytes=gemm_call_budget_bytes,
-                                    native_olmoe_rows_max=native_rows_max)
+                                    native_olmoe_rows_max=native_rows_max,
+                                    native_olmoe_rows_from=native_rows_from)
     else:
         owner = open_streamed_model(folder, device=device, library=library,
                                     backend="sequential" if mode == "sequential"
                                     else "grouped-compute", weight_budget_bytes=weight_budget_bytes,
                                     gemm_call_budget_bytes=gemm_call_budget_bytes,
                                     activation_budget_bytes=activation_budget_bytes,
-                                    native_olmoe_rows_max=native_rows_max)
+                                    native_olmoe_rows_max=native_rows_max,
+                                    native_olmoe_rows_from=native_rows_from)
     try:
         if mode != "native":
             for index, layer in enumerate(owner.model.model.layers):

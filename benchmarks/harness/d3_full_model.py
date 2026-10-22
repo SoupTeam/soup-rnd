@@ -184,6 +184,7 @@ def open_streamed_model(
     folder: Path, *, device: str, backend: str, library: Path | None = None,
     weight_budget_bytes: int = 64 * 2**20, activation_budget_bytes: int = 256 * 2**20,
     gemm_call_budget_bytes: int = 64 * 2**20, native_olmoe_rows_max: int = 16,
+    native_olmoe_rows_from: int | None = None,
 ) -> WholeModel:
     """Assemble all native model blocks, replacing only their routed experts.
 
@@ -246,7 +247,8 @@ def open_streamed_model(
         gemm = None
         if backend == "grouped-compute":
             gemm = GroupedGemm(library, call_budget_bytes=gemm_call_budget_bytes,
-                               native_olmoe_rows_max=native_olmoe_rows_max)
+                               native_olmoe_rows_max=native_olmoe_rows_max,
+                               native_olmoe_rows_from=native_olmoe_rows_from)
             stack.callback(gemm.close)
             factory = grouped_compute_experts_class()
         state = load_file(str(contained(folder, "nonexpert.safetensors")))
@@ -269,6 +271,7 @@ def open_streamed_model(
 def open_resident_model(
     folder: Path, *, device: str, backend: str = "native", library: Path | None = None,
     gemm_call_budget_bytes: int = 64 * 2**20, native_olmoe_rows_max: int = 16,
+    native_olmoe_rows_from: int | None = None,
 ) -> WholeModel:
     """Independent full resident oracle; deliberately NOT the bounded candidate.
 
@@ -304,7 +307,8 @@ def open_resident_model(
         gemm = None
         if backend == "grouped-compute":
             gemm = GroupedGemm(library, call_budget_bytes=gemm_call_budget_bytes,
-                               native_olmoe_rows_max=native_olmoe_rows_max)
+                               native_olmoe_rows_max=native_olmoe_rows_max,
+                               native_olmoe_rows_from=native_olmoe_rows_from)
             stack.callback(gemm.close)
         # Loaded lazily because this is a benchmark oracle, not a public runtime.
         from d3_grouped_restore_check import ResidentControlPool, _baseline

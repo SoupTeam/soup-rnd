@@ -23,7 +23,10 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert len(rule["bundle_sha256"]) == 3
     assert rule["expected_cell_count"] == 84
     assert rule["attempt_budget"]["total_cells"] == 84
-    assert rule["schema_version"] == 7
+    assert rule["schema_version"] == 8
+    assert rule["disk_counter_source"] == "guest-diskstats"
+    assert rule["native_rows_from"] == 481
+    assert rule["superseded_unexecuted_protocol"]["formal_session_started"] is False
     assert [attempt["status"] for attempt in rule["prior_attempts"]] == [
         "incomplete", "incomplete", "incomplete", "incomplete", "incomplete",
         "incomplete",
@@ -80,6 +83,8 @@ def test_native_oracle_path_matches_series_layout() -> None:
         lambda rule: rule.update(tokens=1024),
         lambda rule: rule.update(formats=["dense"]),
         lambda rule: rule.update(scope="training quality benchmark"),
+        lambda rule: rule.update(native_rows_from=480),
+        lambda rule: rule.update(disk_counter_source="cgroup-v2"),
     ],
 )
 def test_protocol_rejects_unfrozen_recipe_or_budget(change) -> None:

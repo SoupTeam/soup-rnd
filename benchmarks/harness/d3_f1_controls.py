@@ -36,7 +36,50 @@ def verified_selector(mapping: dict):
     return select
 
 
-def wait_marker(path: Path, timeout: float = 30) -> None:
+def verified_counters(mapping: dict):
+    """Choose only the counter family explicitly retained by discovery."""
+    from arm_validity import (
+        cgroup_disk_reads,
+        cgroup_other_disk_reads,
+        disk_reads,
+        other_disk_reads,
+    )
+
+    source = mapping.get("counter_source", "cgroup-v2")
+    if source == "guest-diskstats":
+        return disk_reads, other_disk_reads
+    if source == "cgroup-v2":
+        return cgroup_disk_reads, cgroup_other_disk_reads
+    raise ValueError("unrecognized verified F1 counter source")
+
+
+def direct_full_files(paths: list[Path]) -> int:
+    """Read every aligned extent, rather than repeat a cached first MiB."""
+    import mmap
+
+    total = 0
+    with mmap.mmap(-1, 4 * 2**20) as buffer:
+        for path in paths:
+            remaining = path.stat().st_size // 4096 * 4096
+            fd = os.open(path, os.O_RDONLY | os.O_DIRECT)
+            try:
+                while remaining:
+                    count = min(remaining, len(buffer))
+                    view = memoryview(buffer)[:count]
+                    try:
+                        read = os.readv(fd, [view])
+                    finally:
+                        view.release()
+                    if read != count:
+                        raise RuntimeError("short direct read in complete-shard control")
+                    remaining -= read
+                    total += read
+            finally:
+                os.close(fd)
+    return total
+
+
+def wait_marker(path: Path, timeout: float = 120) -> None:
     start = time.monotonic()
     while not path.is_file():
         if time.monotonic() - start > timeout:
@@ -65,19 +108,19 @@ def foreign(session: Path) -> None:
 
 
 def watch(mapping_path: Path, session: Path) -> dict:
-    from arm_validity import ArmWatch, cgroup_disk_reads, cgroup_other_disk_reads
-    from d3_f1_mapping_probe import direct_read
+    from arm_validity import ArmWatch
 
     mapping = json.loads(mapping_path.read_text())
     selector = verified_selector(mapping)
+    disk_counter, other_counter = verified_counters(mapping)
     source = mapping["files"][0]["path"]
     for row in mapping["files"]:
         selector(row["path"])
     session.mkdir(parents=True, exist_ok=False)
     (session / "source.json").write_text(json.dumps({"path": source}) + "\n")
     result = {"status": "controls_failed", "kind": "F1 instrument controls, not D3 results",
-              "scope": ("current-container cgroup-v2 io.stat counters; host-wide I/O and "
-                        "physical-host isolation are not certified"),
+              "scope": mapping["scope"],
+              "counter_source": mapping.get("counter_source", "cgroup-v2"),
               "pid": os.getpid(), "ppid": os.getppid(), "controls": [], "mapping": mapping}
     try:
         for index, (case, expected) in enumerate((("baseline", "ok"), ("own", "ok"),
@@ -85,10 +128,10 @@ def watch(mapping_path: Path, session: Path) -> dict:
             if case == "foreign":
                 wait_marker(session / "foreign-ready.json")
             with ArmWatch(arm=case, round=0, run=index, model_path=source,
-                          disk_device=selector, disk_reads=cgroup_disk_reads,
-                          other_disk_reads=cgroup_other_disk_reads) as monitor:
+                          disk_device=selector, disk_reads=disk_counter,
+                          other_disk_reads=other_counter) as monitor:
                 if case == "own":
-                    count = direct_read(Path(source), rounds=1024)
+                    count = direct_full_files([Path(row["path"]) for row in mapping["files"]])
                 elif case == "foreign":
                     (session / "foreign-go").write_text("go\n")
                     wait_marker(session / "foreign-done.json")

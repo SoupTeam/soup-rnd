@@ -1,6 +1,6 @@
 {
   "task": "D3 full-model trained OLMoE optimizer-step comparison",
-  "schema_version": 7,
+  "schema_version": 8,
   "scope": "trained OLMoE optimizer-step numerical and descriptive GPU comparison; synthetic token IDs, no quality claim",
   "model_id": "allenai/OLMoE-1B-7B-0924",
   "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
@@ -55,31 +55,32 @@
     "python": "3.12.15",
     "torch": "2.14.1+cu130",
     "cuda": "13.0",
-    "driver": "595.99.02",
+    "driver": "580.95.05",
     "transformers": "5.19.0",
     "triton": "3.8.0",
     "bitsandbytes": "0.50.2",
     "safetensors": "0.8.0"
   },
-  "gpu_uuid": "GPU-46abdddd-2f6a-a368-5b31-a7d0c0a4a9ef",
+  "gpu_uuid": "GPU-20b47f62-2dce-6790-3477-7a6b76093e15",
   "cublas_library_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e",
-  "mapping_sha256": "4d14ef905b4c0ea6c5a45b1942f1925dc7bba495c981061046a83ad93bf09bd8",
-  "controls_sha256": "9be401666ea677922194771b0b3bffe68778ed7ed235bd779a36f26e64ee1941",
-  "setup_archive_sha256": "e303b08c338ffdd02651ebd1985ec5f61fd706e39fcfe1f0bc07803e61e95323",
+  "mapping_sha256": "de0e59ef02ec63a4483efbad5d6a513a1a971f9e2426cf37b7c4a56f34b94ae4",
+  "controls_sha256": "4001e38bdb97a884111ff0ad7c12afa74d4defd195791c1b97fade00bbd9ed0f",
+  "setup_archive_sha256": "561e8587df0c6e3b702d455f206e81eaf7d441e1abc292ff8b52e61035314ed0",
   "bundle_sha256": {
     "dense": "bcf2fb639b2d2116495bc60811dea4cdcdda27603e58eb76804b8f866fa9dfb8",
     "nf4": "ba2a9b96804d0512f10b25169845bd87aad0c1ca5feee8520dab0d73dc612444",
     "nf4-dq": "3dd7074c2eefbebbe85550600e71903983753f378cab8787669f457689770613"
   },
-  "execution": "Commit the exact source, rule and refreshed cgroup-v2 F1 setup archive before creating a clean-Git source packet. One new Linux process per cell. Compare full native optimizer-step tensors and adapter state; no TF32; native BF16 only; one visible idle GPU. Five grouped/triton ABBA blocks per format, holding grouped GEMM and pool width constant to isolate the fused activation backend. Linux F1 disk reads use the current container cgroup-v2 io.stat counters, not machine-global /proc/diskstats. No replacement attempts; stop on any mismatch, OOM or unknown/void F1.",
+  "execution": "Commit the exact source, rule and VM preparation evidence before creating a clean-Git source packet. One new Linux process per cell. Compare full native optimizer-step tensors and adapter state; no TF32; native BF16 only; one visible idle GPU. Five grouped/triton ABBA blocks per format hold GEMM dispatch and pool width constant: native OLMoE rows 1-128 and 481+, grouped rows 129-480. Use guest-visible whole-disk /proc/diskstats counters with empirical sysfs mapping, unchanged F1 checks, and complete-shard own-read plus independent foreign-read controls. No replacement attempts; stop on any mismatch, OOM or unknown/void F1.",
   "acceptance": "All 18 correctness cells, 60 timed cells and six profile cells are retained with passing F1, exact source/data/software identity, route and dispatch evidence, finite loss and gradients, and exact native-oracle tensors/adapter states. Analysis remains descriptive and requires independent review.",
   "failed_run": "Any mismatch is fail; OOM, interruption, missing dependency, uninspectable validity or identity mismatch is no-verdict. Preserve every attempt. No rerun/replacement under this frozen budget.",
   "limitations": [
     "Synthetic token IDs and four SGD steps establish numerical plumbing only; they do not measure quality, convergence or useful training.",
     "The comparison concerns the frozen residual adapter and tested complete OLMoE forward/backward path, not a supported Soup trainer feature.",
-    "F1 counters are scoped to the current container cgroup v2. Host-wide I/O outside this cgroup and physical-host isolation are not certified; physical NVMe identity and physical-device throughput are not claims.",
+    "F1 counters cover guest-visible virtual disks only; physical-host storage, host cache and isolation are not certified.",
     "RTX 3090 24 GB results do not establish performance or capacity for an 8 GB reference GPU or other hosts.",
-    "The source-preparation bundle attempt that initially rejected loop0 is retained as a failed preparation attempt; it is not a trained-model arm."
+    "The source-preparation bundle attempt that initially rejected loop0 is retained as a failed preparation attempt; it is not a trained-model arm.",
+    "The RTX4090 VM uses an explicit native large-row boundary at 481. The historical cutoff-128 RTX3090 profile is not claimed bitwise exact on Ada; the failed synthetic VM sweep is retained before any model measurement."
   ],
   "prior_attempts": [
     {
@@ -153,5 +154,14 @@
     }
   ],
   "container_restart_policy": "Any container or instance restart invalidates the prior mapping. Rediscover all shards and pass independent baseline/own/foreign F1 controls before freezing; identity mismatch is no-verdict and never an automatic replacement.",
-  "native_oracle_path_template": "correctness-{codec}-native"
+  "native_oracle_path_template": "correctness-{codec}-native",
+  "native_rows_from": 481,
+  "disk_counter_source": "guest-diskstats",
+  "superseded_unexecuted_protocol": {
+    "commit": "6f9252a90b4d566b15eea4b381cd0b3088f70853",
+    "protocol_sha256": "c22793275856ada5675263dece06883281642afc1730aac9cbe1e73d3d07280b",
+    "formal_session_started": false,
+    "diagnostic_sha256": "ad5ff4045e6e766b0556b3a15a2513dfa687ebfb1540346e7e48c2da1a404765",
+    "reason": "Full-shard preflight still duplicated loop/backing reads under cgroup v2; no revision-7 formal session was created."
+  }
 }

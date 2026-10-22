@@ -102,6 +102,64 @@ def _is_overlay_loop(name: str, mount_type: str | None, allowed: bool) -> bool:
     return allowed and name.startswith("loop") and mount_type == "overlay"
 
 
+def guest_read_delta(before: dict, after: dict, count: int) -> None:
+    """Accept an exact guest-disk read with no unexplained other-disk delta."""
+    if (type(count) is not int or count <= 0
+            or any(type(row.get(key)) is not int or row[key] < 0
+                   for row in (before, after) for key in ("watched", "other"))
+            or after["watched"] - before["watched"] != count
+            or after["other"] != before["other"]):
+        raise ValueError("guest disk counters do not show one exact isolated read")
+
+
+def discover_guest(paths: list[Path]) -> dict:
+    """Map real guest filesystem disks using unchanged F1 diskstats sensors.
+
+    No host physical disk is claimed. Overlay/loop mappings are rejected rather
+    than bypassed; an unsupported or noisy counter remains a refused mapping.
+    """
+    from arm_validity import disk_device, disk_reads, other_disk_reads
+
+    if sys.platform != "linux":
+        raise ValueError("Linux guest diskstats and O_DIRECT required")
+    if not paths:
+        raise ValueError("at least one guest shard is required")
+    result = {"status": "requires_review", "kind": "instrument mapping, not D3 results",
+              "scope": "guest-visible whole disks; physical-host isolation is not certified",
+              "counter_source": "guest-diskstats", "files": []}
+    for path in paths:
+        start = path.stat()
+        name = disk_device(str(path))
+        if (not name or name.startswith(("loop", "ram", "zram"))
+                or _mount_type(path) in (None, "overlay", "tmpfs")
+                or start.st_size < READ_BYTES):
+            raise ValueError("a real guest filesystem disk and at least 1 MiB are required")
+        number = (Path("/sys/class/block") / name / "dev").read_text().strip()
+        if not (Path("/sys/dev/block") / number).exists():
+            raise ValueError("guest disk sysfs identity is unavailable")
+        row = {"path": os.path.realpath(path), "st_dev": start.st_dev, "inode": start.st_ino,
+               "size": start.st_size, "mtime_ns": start.st_mtime_ns, "reads": []}
+        result["files"].append(row)
+        row["metadata_warm_read_bytes"] = direct_read(path)
+        for _ in range(2):
+            before = {"watched": disk_reads(name), "other": other_disk_reads(name)}
+            count = direct_read(path)
+            after = {"watched": disk_reads(name), "other": other_disk_reads(name)}
+            row["reads"].append({"before": before, "after": after, "direct_bytes": count})
+            try:
+                guest_read_delta(before, after, count)
+            except ValueError as exc:
+                raise MappingFailureError(str(exc), result) from exc
+        end = path.stat()
+        if ((start.st_dev, start.st_ino, start.st_size, start.st_mtime_ns)
+                != (end.st_dev, end.st_ino, end.st_size, end.st_mtime_ns)
+                or disk_device(str(path)) != name):
+            raise ValueError("shard or guest disk identity changed during discovery")
+        row.update(device=number, disk_name=name, filesystem=_mount_type(path))
+    result["status"] = "mapping_observed_controls_still_required"
+    return result
+
+
 def discover(paths: list[Path], *, allow_overlay_loop: bool = False) -> dict:
     if sys.platform != "linux":
         raise ValueError("Linux cgroup v2 and O_DIRECT required")
@@ -165,13 +223,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--paths", type=Path, nargs="+", required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--allow-overlay-loop", action="store_true",
+    counters = parser.add_mutually_exclusive_group()
+    counters.add_argument("--guest-diskstats", action="store_true",
+                          help="verify guest filesystem disks using guest-wide F1 counters")
+    counters.add_argument("--allow-overlay-loop", action="store_true",
                         help="explicitly scope mapping to an overlay-backed loop device")
     args = parser.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=False)
     result = {"status": "requires_review", "d3_accepted": False}
     try:
-        result.update(discover(args.paths, allow_overlay_loop=args.allow_overlay_loop))
+        result.update(discover_guest(args.paths) if args.guest_diskstats else
+                      discover(args.paths, allow_overlay_loop=args.allow_overlay_loop))
     except (Exception, KeyboardInterrupt) as exc:
         result["traceback"] = traceback.format_exc()
         if isinstance(exc, MappingFailureError):

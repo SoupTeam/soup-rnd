@@ -124,15 +124,16 @@ def analyze(folder: Path) -> dict:
         arms = report["timing"].get(codec, [])
         blocks = {}
         for arm in arms:
-            blocks.setdefault(arm["block"], {})[arm["mode"]] = arm
+            blocks.setdefault(arm["block"], {}).setdefault(arm["mode"], []).append(arm)
         if len(blocks) != rule["measurement_blocks_per_codec"]:
             raise ValueError(f"incomplete ABBA timing blocks for {codec}")
         contrasts = []
         for number in sorted(blocks):
             pair = blocks[number]
-            if set(pair) != set(rule["timing_pair"]):
+            if (set(pair) != set(rule["timing_pair"])
+                    or any(len(mode_arms) != 2 for mode_arms in pair.values())):
                 raise ValueError(f"ABBA block {number} lacks an arm for {codec}")
-            control, candidate = (pair[mode]["mean_step_seconds"]
+            control, candidate = (statistics.fmean(arm["mean_step_seconds"] for arm in pair[mode])
                                   for mode in rule["timing_pair"])
             contrasts.append({"block": number, "control_seconds": control,
                               "candidate_seconds": candidate,
@@ -142,10 +143,10 @@ def analyze(folder: Path) -> dict:
             "control_mode": rule["timing_pair"][0],
             "candidate_mode": rule["timing_pair"][1],
             "control_median_seconds": statistics.median(
-                pair[rule["timing_pair"][0]]["mean_step_seconds"]
+                statistics.fmean(arm["mean_step_seconds"] for arm in pair[rule["timing_pair"][0]])
                 for pair in blocks.values()),
             "candidate_median_seconds": statistics.median(
-                pair[rule["timing_pair"][1]]["mean_step_seconds"]
+                statistics.fmean(arm["mean_step_seconds"] for arm in pair[rule["timing_pair"][1]])
                 for pair in blocks.values()),
             "median_relative_change": statistics.median(
                 pair["relative_change"] for pair in contrasts),

@@ -547,3 +547,29 @@ step qualification and training/performance study described in the completion
 sequence. Any formal comparison needs its own source-pinned prospective
 protocol before measurement, with the unchanged eager reference, fixed attempt
 budget, validity controls and all failed attempts retained.
+
+### VM preparation and the Ada large-row boundary
+
+The follow-up VM is a KVM guest with an ext4 filesystem on a visible virtual
+disk. Its setup uses the unchanged guest-wide F1 `/proc/diskstats` sensors,
+with explicit sysfs mapping and baseline/own/independent-foreign controls.
+Reading a 16 GiB fixture twice produced exactly 32 GiB of watched-disk reads
+and no other-disk reads. This certifies neither host physical storage nor host
+isolation. Actual prepared shards still require their own mapping and full-file
+read control before the prospective protocol can be frozen.
+
+On this RTX 4090, the previous cutoff-128 profile differed from native cuBLASLt
+at 481 through 512 rows in both tested OLMoE projection geometries and both
+synthetic seeds. Preserve that failed development sweep. An explicit optional
+`native_olmoe_rows_from=481` boundary sends these large OLMoE matrices through
+the existing native `torch.mm` path, retaining grouped compute at 129–480 rows.
+Tiny controls keep their previous cutoff and the default boundary remains
+disabled. This is a different declared dispatch profile, not evidence that the
+earlier RTX 3090 policy was exact on Ada. It must be held identical for the
+native-activation and Triton-activation timing arms; exact equality and positive
+grouped dispatch coverage remain required. No trained-model performance result
+is implied by these preparation tests.
+
+The trained-step analyzer averages both A arms and both B arms in each ABBA
+block. Its regression uses equal underlying costs plus linear drift to ensure
+the drift cancels, rather than retaining only the last occurrence of each arm.

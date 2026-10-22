@@ -71,3 +71,36 @@ def test_ambiguous_discovery_retains_raw_counter_evidence(tmp_path, monkeypatch)
     raw = evidence["files"][0]["reads"][0]
     assert raw["before"]["259:0"] == 0
     assert raw["after"]["259:0"] == module.READ_BYTES + 4096
+
+
+def test_guest_disk_exact_read_requires_unchanged_other_disk_counter():
+    module = _module()
+    module.guest_read_delta({"watched": 100, "other": 17},
+                            {"watched": 100 + module.READ_BYTES, "other": 17},
+                            module.READ_BYTES)
+
+
+@pytest.mark.parametrize("after", [
+    {"watched": 1048676, "other": 18},
+    {"watched": 1048675, "other": 17},
+    {"watched": 1048677, "other": 17},
+    {"watched": 99, "other": 17},
+    {"watched": None, "other": 17},
+    {"watched": 1048676, "other": 16},
+])
+def test_guest_disk_noise_missing_or_reset_counter_cannot_pass(after):
+    with pytest.raises(ValueError, match="isolated read"):
+        _module().guest_read_delta({"watched": 100, "other": 17}, after, 1048576)
+
+
+def test_counter_source_cannot_silently_fall_back():
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "benchmarks/harness"))
+    from arm_validity import cgroup_disk_reads, disk_reads
+    from d3_f1_controls import verified_counters
+
+    assert verified_counters({"counter_source": "guest-diskstats"})[0] is disk_reads
+    assert verified_counters({})[0] is cgroup_disk_reads
+    with pytest.raises(ValueError, match="unrecognized"):
+        verified_counters({"counter_source": "disable_other_disk_check"})

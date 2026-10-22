@@ -58,17 +58,48 @@ def test_explicit_olmoe_policy_keeps_tiny_controls_grouped_and_accounts_boundary
         plan_grouped_linear(shapes, native_olmoe_rows_max=512)
 
 
+def test_large_row_native_boundary_preserves_grouped_interval_and_tiny_controls():
+    from soup_cli.utils.expert_group_gemm import plan_grouped_linear
+
+    shapes = [(128, 1024, 2048), (129, 1024, 2048),
+              (480, 2048, 2048), (481, 2048, 2048)]
+    selected = plan_grouped_linear(shapes, native_olmoe_rows_max=128,
+                                   native_olmoe_rows_from=481)
+    assert selected["native_matrices"] == selected["grouped_matrices"] == 2
+    assert selected["pointer_bytes"] == 1536
+    default = plan_grouped_linear(shapes, native_olmoe_rows_max=128)
+    assert default["native_matrices"] == 1
+    assert default["grouped_matrices"] == 3
+    assert selected["output_bytes"] == default["output_bytes"]
+    large = plan_grouped_linear([(481, 2048, 2048), (512, 1024, 2048)],
+                                native_olmoe_rows_max=128, native_olmoe_rows_from=481)
+    assert large["grouped_matrices"] == large["pointer_bytes"] == 0
+    tiny = plan_grouped_linear([(512, 32, 32)], native_olmoe_rows_max=128,
+                               native_olmoe_rows_from=481)
+    assert tiny["grouped_matrices"] == 1
+
+
+@pytest.mark.parametrize("boundary", [True, 0, 128, -1, 481.0, 2**31])
+def test_large_row_boundary_refuses_invalid_or_overlapping_intervals(boundary):
+    from soup_cli.utils.expert_group_gemm import plan_grouped_linear
+
+    with pytest.raises(ValueError, match="boundary"):
+        plan_grouped_linear([(0, 32, 32)], native_olmoe_rows_max=128,
+                             native_olmoe_rows_from=boundary)
+
+
 @pytest.mark.gpu
 @pytest.mark.parametrize("inner", [1024, 2048])
 def test_cuda_prospective_olmoe_policy_exact_across_complete_512_token_row_range(inner):
-    """Large-shape regression: small fixtures do not expose RTX3090 dispatch choices."""
+    """Check every row, including Ada's distinct native dispatch above 480 rows."""
     import torch
 
     from soup_cli.utils.expert_group_gemm import GroupedGemm
 
     library = _library()
     with _policy(), torch.no_grad():
-        gemm = GroupedGemm(library, call_budget_bytes=64 * 2**20, native_olmoe_rows_max=128)
+        gemm = GroupedGemm(library, call_budget_bytes=64 * 2**20, native_olmoe_rows_max=128,
+                           native_olmoe_rows_from=481)
         try:
             for seed in (11, 29):
                 gen = torch.Generator().manual_seed(seed)
@@ -83,6 +114,7 @@ def test_cuda_prospective_olmoe_policy_exact_across_complete_512_token_row_range
                     assert all(torch.equal(a, b) for a, b in zip(expected, got)), (seed, start)
             assert gemm.grouped_matrices > 0 and gemm.native_matrices > 0
             assert gemm.stats()["native_olmoe_rows_max"] == 128
+            assert gemm.stats()["native_olmoe_rows_from"] == 481
         finally:
             gemm.close()
 

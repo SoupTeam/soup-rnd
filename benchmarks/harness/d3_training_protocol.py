@@ -182,12 +182,21 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
                       "no-verdict. Revalidate F1 with cgroup-v2 io.stat controls, then use a "
                       "new frozen protocol and commit; no replacement under revision 6."),
     }
-    if (rule.get("schema_version") != 7
+    if (rule.get("schema_version") != 8
             or rule.get("prior_attempts") != [
                 prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04,
                 prior_attempt_05, prior_attempt_06,
             ]):
         raise ValueError("fresh series must identify all retained no-verdict attempts")
+    if rule.get("superseded_unexecuted_protocol") != {
+        "commit": "6f9252a90b4d566b15eea4b381cd0b3088f70853",
+        "protocol_sha256": "c22793275856ada5675263dece06883281642afc1730aac9cbe1e73d3d07280b",
+        "formal_session_started": False,
+        "diagnostic_sha256": "ad5ff4045e6e766b0556b3a15a2513dfa687ebfb1540346e7e48c2da1a404765",
+        "reason": ("Full-shard preflight still duplicated loop/backing reads under cgroup v2; "
+                   "no revision-7 formal session was created."),
+    }:
+        raise ValueError("retain unexecuted revision-7 preflight separately from formal attempts")
     if rule.get("container_restart_policy") != (
             "Any container or instance restart invalidates the prior mapping. Rediscover all "
             "shards and pass independent baseline/own/foreign F1 controls before freezing; "
@@ -204,7 +213,8 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
                 "sessions_per_commit": 1, "replacements": 0,
                 "weight_budget_bytes": 64 * 2**20,
                 "gemm_call_budget_bytes": 64 * 2**20,
-                "activation_budget_bytes": 256 * 2**20, "native_rows_max": 128}
+                "activation_budget_bytes": 256 * 2**20, "native_rows_max": 128,
+                "native_rows_from": 481, "disk_counter_source": "guest-diskstats"}
     if any(rule.get(key) != value for key, value in expected.items()):
         raise ValueError("training protocol recipe differs from the validated design")
     if tuple(rule.get("modes", ())) != MODES or tuple(rule.get("formats", ())) != CODECS:
@@ -243,6 +253,7 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
             if hashlib.sha256(payload).hexdigest() != rule[name + "_sha256"]:
                 raise ValueError(f"setup archive {name} differs from its frozen identity")
         controls = json.loads(evidence.read("controls.json"))
+        mapping = json.loads(evidence.read("mapping.json"))
     if (controls.get("status") != "controls_passed"
             or [row.get("case") for row in controls.get("controls", ())]
             != ["baseline", "own", "foreign"]
@@ -250,6 +261,15 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
             != ["ok", "ok", "void"]):
         raise ValueError(
             "frozen setup archive must retain passing baseline/own/foreign F1 controls"
+        )
+    if (mapping.get("counter_source") != rule["disk_counter_source"]
+            or controls.get("counter_source") != rule["disk_counter_source"]
+            or len(mapping.get("files", ())) != 48
+            or controls["controls"][1].get("direct_bytes") != sum(
+                row["size"] // 4096 * 4096 for row in mapping["files"]
+            )):
+        raise ValueError(
+            "guest F1 must map all 48 shards and retain complete-shard own-read control"
         )
     archive_paths = (SUPERSEDED_ATTEMPT_FILES[2], SUPERSEDED_ATTEMPT_FILES[7],
                      SUPERSEDED_ATTEMPT_FILES[12], SUPERSEDED_ATTEMPT_FILES[17],

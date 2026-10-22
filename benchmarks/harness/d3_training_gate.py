@@ -81,7 +81,12 @@ def prepared_identity(prepared: Path, codec: str, rule: dict) -> tuple[dict, obj
             or [row["case"] for row in controls["controls"]] != ["baseline", "own", "foreign"]
             or [row["observed"] for row in controls["controls"]] != ["ok", "ok", "void"]):
         raise ValueError("effective baseline/own/independent-foreign F1 controls required")
-    selector = verified_selector(json.loads((prepared / "mapping.json").read_text()))
+    mapping = json.loads((prepared / "mapping.json").read_text())
+    if (mapping.get("counter_source", "cgroup-v2") != rule.get("disk_counter_source", "cgroup-v2")
+            or controls.get("counter_source", "cgroup-v2")
+            != rule.get("disk_counter_source", "cgroup-v2")):
+        raise ValueError("F1 discovery/controls do not match the frozen counter family")
+    selector = verified_selector(mapping)
     folder = prepared / codec
     bundle = validate_bundle(folder)
     if file_hash(folder / "bundle.json") != rule["bundle_sha256"][codec]:
@@ -237,11 +242,10 @@ def child(args, rule: dict) -> int:
         import torch
         from arm_validity import (
             ArmWatch,
-            cgroup_disk_reads,
-            cgroup_other_disk_reads,
             gpu_processes,
         )
         from d3_cublas_grouped_probe import reference_policy
+        from d3_f1_controls import verified_counters
 
         session = json.loads((args.session / "session.json").read_text())
         if session["source"] != source or session["status"] != "running":
@@ -249,6 +253,8 @@ def child(args, rule: dict) -> int:
         record["session_id"] = session["session_id"]
         record["software"] = runtime_identity(rule, args.library)
         bundle, selector = prepared_identity(args.prepared, args.codec, rule)
+        mapping = json.loads((args.prepared / "mapping.json").read_text())
+        disk_counter, other_counter = verified_counters(mapping)
         folder = args.prepared / args.codec
         watched = [folder / row["file"] for row in bundle["layers"]]
         watched += [folder / name for name in ("config.json", "nonexpert.safetensors",
@@ -278,6 +284,7 @@ def child(args, rule: dict) -> int:
                                       seed=rule["adapter_seed"], rank=rule["adapter_rank"],
                                       lr=rule["learning_rate"],
                                       native_rows_max=rule["native_rows_max"],
+                                      native_rows_from=rule.get("native_rows_from"),
                                       weight_budget_bytes=rule["weight_budget_bytes"],
                                       gemm_call_budget_bytes=rule["gemm_call_budget_bytes"],
                                       activation_budget_bytes=rule["activation_budget_bytes"])
@@ -286,8 +293,8 @@ def child(args, rule: dict) -> int:
                 raise RuntimeError("the trained cell must be the sole exposed GPU workload")
             path = folder / bundle["layers"][0]["file"]
             with ArmWatch(arm=args.mode, round=0, run=0, model_path=str(path),
-                          disk_device=selector, disk_reads=cgroup_disk_reads,
-                          other_disk_reads=cgroup_other_disk_reads) as monitor:
+                          disk_device=selector, disk_reads=disk_counter,
+                          other_disk_reads=other_counter) as monitor:
                 if args.kind == "correctness":
                     record.update(correctness(run, ids, args.out, bundle, rule, oracle))
                 else:
@@ -295,12 +302,10 @@ def child(args, rule: dict) -> int:
                         raise ValueError("only the two declared streamed timing arms are allowed")
                     record.update(timed_or_profile(run, ids, args.out, rule, oracle, args.kind))
                 record["dispatch"] = run.check_dispatch()
+            monitor.record["counter_scope"] = mapping["scope"]
+            monitor.record["counter_source"] = mapping.get("counter_source", "cgroup-v2")
             if monitor.record["outcome"] != "ok":
                 raise RuntimeError("F1 unknown/void: stop without a replacement")
-            monitor.record["counter_scope"] = (
-                "current-container cgroup-v2 io.stat; host-wide I/O and physical-host "
-                "isolation are not certified"
-            )
             after = gpu_processes()
             if after is None or {row["pid"] for row in after} != {row["pid"] for row in peers}:
                 raise RuntimeError("GPU peer set changed")
