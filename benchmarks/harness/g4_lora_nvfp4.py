@@ -174,8 +174,8 @@ def train(
 ) -> dict:
     """Train the adapters for ``steps`` AdamW steps and return the record ``verdict`` reads.
 
-    ``autocast`` makes the context the forward runs in (TransformerEngine's FP4 autocast on the
-    GPU); the loss and the backward run outside it.
+    ``autocast`` makes the context the forward and the loss run in (TransformerEngine's FP4
+    autocast on the GPU); the backward runs outside it.
     """
     torch = _torch()
     trainable = [p for p in model.parameters() if p.requires_grad]
@@ -192,10 +192,7 @@ def train(
         tokens, targets = tokens.to(device), targets.to(device)
         optimizer.zero_grad(set_to_none=True)
         with context():
-            logits = model(tokens)
-        loss = torch.nn.functional.cross_entropy(
-            logits.float().reshape(-1, logits.shape[-1]), targets.reshape(-1)
-        )
+            loss = loss_fn(model, tokens, targets)
         loss.backward()
         if step == 0:
             first_norm = _total_grad_norm(trainable)

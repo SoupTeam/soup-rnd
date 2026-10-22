@@ -48,11 +48,17 @@ environment: `environment.txt`.
 | loss, last 5 steps | 0.013, 0.013, 0.011, 0.010, 0.010 |
 | random-guess loss (ln 64) | 4.159 |
 
-The gradient reaches `up.0`, the adapter furthest from the loss, so the backward goes through the
-frozen NVFP4 layers (dgrad) and not only through the head.
+The gradient reaches `up.0`, the adapter furthest from the loss along the residual branch, so it
+crossed the frozen NVFP4 layers and not only the head. This does not show that the backward
+GEMMs ran in FP4: the harness has no hook or comparison against a bf16 backward, and the backward
+runs outside `te.autocast`. TransformerEngine reads the recipe saved at forward time, which is
+unchecked here. Nonzero gradients rule out the zero-gradient failure of TransformerEngine before 2.19.
 
 ## Limits
 
+- The harness as committed computes the loss inside the autocast context. The GPU run above used
+  the earlier version, which computed it outside. The loss is not a TransformerEngine op, so the
+  numbers are not expected to differ, but the GPU run was not repeated.
 - One run, one seed, one small model. It shows the path works, not how well it trains.
 - The task is a lookup table, so a near-zero loss shows the adapters learn, not that NVFP4 preserves
   model quality. That is the quality gate on a real model (tickets 04 and 05).
