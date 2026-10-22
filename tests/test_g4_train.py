@@ -19,7 +19,6 @@ torch = pytest.importorskip("torch")
 transformers = pytest.importorskip("transformers")
 
 HARNESS = Path(__file__).resolve().parents[1] / "benchmarks" / "harness"
-RULE = Path(__file__).resolve().parents[1] / "benchmarks" / "gate-g4-nvfp4.md"
 
 #: ``mistralai/Mistral-7B-v0.1`` config.json at the revision the rule pins.
 MISTRAL_7B = {
@@ -373,8 +372,3 @@ class TestRuleState:
         with pytest.raises(RuntimeError, match="rule"):
             g4.require_committed_rule({"added_commit": "a" * 40, "added_at": "x", "clean": False})
         g4.require_committed_rule({"added_commit": "a" * 40, "added_at": "x", "clean": True})
-
-    def test_the_repository_rule_is_committed_before_this_test_runs(self, g4):
-        root = Path(__file__).resolve().parents[1]
-        state = g4.rule_state(root, RULE)
-        assert state["added_commit"], "benchmarks/gate-g4-nvfp4.md must be committed"

@@ -579,7 +579,10 @@ def _run(
                                    tokens=args.micro_batch * c5.MAX_LENGTH)
     record["storage_counts"] = storage_counts(model)
     c5._phase(record, "base", start)
-    expected = {EXPECTED_STORAGE[args.arm]: len(quantized_linear_shapes(model))}
+    layers = len(quantized_linear_shapes(model))
+    if not args.fixture and layers != 224:
+        raise RuntimeError(f"Mistral-7B has 224 quantized linears, found {layers}")
+    expected = {EXPECTED_STORAGE[args.arm]: layers}
     if record["storage_counts"] != expected:
         raise RuntimeError(f"layers are not all in the arm's format: "
                            f"{record['storage_counts']}, expected {expected}")
