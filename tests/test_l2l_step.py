@@ -44,9 +44,9 @@ def test_shipped_l2l_step_equals_gradient_accumulation(harness, streamed, k):  #
     ga_losses = harness.ga_step(model, mbs)
     ga = harness.collect_grads(model)
 
-    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=0)
     harness.zero_grads(model)
-    l2l_losses = step.run(mbs, _store(k))
+    l2l_losses = step.run(mbs, _store(k), step=0)
     l2l = harness.collect_grads(model)
 
     result = harness.compare(ga, l2l)
@@ -78,12 +78,12 @@ def _l2l_counters(harness, model, runtime, k, cold=None):
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
     mbs = _micro_batches(k)
-    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=0)
     harness.zero_grads(model)
     _warm_walk(model, mbs[0])
     if cold:
         cold(model)
-    step.run(mbs, _store(k))
+    step.run(mbs, _store(k), step=0)
     return step.counters
 
 
@@ -121,9 +121,9 @@ def test_l2l_counters_exist_after_a_step_and_are_zero_before(harness, streamed):
 
     model, runtime = streamed
     mbs = _micro_batches(1)
-    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=0)
     assert step.counters is None
-    step.run(mbs, _store(1))
+    step.run(mbs, _store(1), step=0)
     assert step.counters.layer_loads > 0
 
 
@@ -221,9 +221,9 @@ def test_l2l_step_with_masked_labels_equals_gradient_accumulation(harness, strea
         model(input_ids=ids, labels=lab, num_items_in_batch=n_items).loss.backward()
     ga = harness.collect_grads(model)
 
-    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=0)
     harness.zero_grads(model)
-    step.run(mbs, _store(2), n_items=n_items, labels=labels)
+    step.run(mbs, _store(2), n_items=n_items, labels=labels, step=0)
     l2l = harness.collect_grads(model)
 
     assert harness.compare(ga, l2l)["equal"]

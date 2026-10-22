@@ -35,8 +35,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-from soup_cli.utils.seeding import DEFAULT_TRAINING_SEED
-
 SUPPORTED_ARCHS = ("llama", "mistral")
 
 
@@ -146,7 +144,7 @@ class L2LStep:
         model: Any,
         runtime: Any,
         call: LayerCall,
-        seed: int = DEFAULT_TRAINING_SEED,
+        seed: int,
     ):
         #: ``resolve_training_seed`` of the run; with ``step`` it fixes every dropout mask.
         self.seed = int(seed)
@@ -165,13 +163,13 @@ class L2LStep:
         #: Loads and restores of the last ``run``; ``None`` before the first.
         self.counters: Optional[LoadCounters] = None
 
-    def _layer(self, layer: Any, hidden: Any, idx: int, mb: int, step: int) -> Any:
+    def _layer(self, module: Any, hidden: Any, layer: int, mb: int, step: int) -> Any:
         # The mask of a (step, micro-batch, layer) call is fixed by ``layer_rng``, so the
         # forward and the recompute in the backward draw the same one in any visiting order.
         from soup_cli.utils.l2l_rng import layer_rng
 
-        with layer_rng(self.seed, step, mb, idx, hidden.device):
-            out = layer(hidden, *self.call.args, **self.call.kwargs)
+        with layer_rng(self.seed, step, mb, layer, hidden.device):
+            out = module(hidden, *self.call.args, **self.call.kwargs)
         return out[0] if isinstance(out, tuple) else out
 
     def run(
@@ -181,7 +179,7 @@ class L2LStep:
         *,
         n_items: Optional[int] = None,
         labels: Optional[Sequence[Any]] = None,
-        step: int = 0,
+        step: int,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 

@@ -62,11 +62,11 @@ def measure_k(
         ga2 = l2l_schedule.ga_step(model, mbs)
     g2 = l2l_schedule.collect_grads(model)
 
-    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]))
+    step = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=0)
     prepare()
     store = store_factory()
     try:
-        losses = step.run(mbs, store)
+        losses = step.run(mbs, store, step=0)
     finally:
         store.close()
     g3 = l2l_schedule.collect_grads(model)

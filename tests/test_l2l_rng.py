@@ -79,8 +79,7 @@ def _store(k):
     return store(k)
 
 
-def ga_reference(model, harness, mbs, *, seed=SEED, step=STEP, inside_checkpoint=False,
-                 preserve_rng_state=True):
+def ga_reference(model, harness, mbs, *, seed=SEED, step=STEP, inside_checkpoint=False):
     """Gradient accumulation with the state function installed as a pre-hook on every layer.
 
     The hook sets the generator from ``layer_seed(seed, step, mb, layer)`` before each
@@ -90,8 +89,6 @@ def ga_reference(model, harness, mbs, *, seed=SEED, step=STEP, inside_checkpoint
     on the wrapper (outside the checkpoint) or, with ``inside_checkpoint``, on the inner
     layer, where the recompute in the backward fires it a second time.
     """
-    from torch.utils.checkpoint import checkpoint as torch_checkpoint
-
     from soup_cli.utils.l2l_rng import set_layer_state
     from soup_cli.utils.layer_stream_runtime import decoder_owner
 
@@ -105,13 +102,6 @@ def ga_reference(model, harness, mbs, *, seed=SEED, step=STEP, inside_checkpoint
     ]
     for layer in layers:
         assert layer.use_checkpoint
-        if not preserve_rng_state:
-            def forward(hidden, *args, _layer=layer, **kwargs):
-                return torch_checkpoint(
-                    _layer._body, hidden, *args, use_reentrant=False,
-                    preserve_rng_state=False, **kwargs,
-                )
-            layer.forward = forward
     harness.zero_grads(model)
     try:
         total = harness.label_tokens(mbs)
@@ -125,8 +115,6 @@ def ga_reference(model, harness, mbs, *, seed=SEED, step=STEP, inside_checkpoint
     finally:
         for handle in handles:
             handle.remove()
-        for layer in layers:
-            layer.__dict__.pop("forward", None)
 
 
 def l2l_run(model, runtime, harness, mbs, *, seed=SEED, step=STEP):
@@ -277,10 +265,47 @@ def test_the_function_not_called_on_the_recompute_disagrees(make_model, harness,
     assert not _same(harness, ga, l2l_run(model, runtime, harness, mbs))
 
 
-def test_an_accumulation_reference_without_rng_preservation_disagrees(make_model, harness):
+def _l2l_layer_under_torch_checkpoint(preserve_rng_state):
+    """An ``L2LStep._layer`` that recomputes the layer in the backward with torch's checkpoint.
+
+    The state is set around the call only, so the recompute (which autograd runs later,
+    outside it) depends on ``preserve_rng_state`` to see the forward's masks.
+    """
+    import torch
+    from torch.utils.checkpoint import checkpoint
+
+    from soup_cli.utils.l2l_rng import layer_rng
+
+    def layer_call(self, module, hidden, layer, mb, step):
+        with layer_rng(self.seed, step, mb, layer, hidden.device):
+            if torch.is_grad_enabled():
+                out = checkpoint(
+                    module._body,
+                    hidden,
+                    *self.call.args,
+                    use_reentrant=False,
+                    preserve_rng_state=preserve_rng_state,
+                    **self.call.kwargs,
+                )
+            else:
+                out = module(hidden, *self.call.args, **self.call.kwargs)
+        return out[0] if isinstance(out, tuple) else out
+
+    return layer_call
+
+
+def test_l2l_recomputed_by_torch_checkpoint_matches_only_with_rng_preservation(
+    make_model, harness, monkeypatch
+):
+    from soup_cli.utils.l2l_step import L2LStep
     from tests.test_l2l_probe_harness import _micro_batches
 
     model, runtime = make_model(0.05)
     mbs = _micro_batches(2)
-    broken = ga_reference(model, harness, mbs, preserve_rng_state=False)
-    assert not _same(harness, broken, l2l_run(model, runtime, harness, mbs))
+    ga = ga_reference(model, harness, mbs)
+
+    monkeypatch.setattr(L2LStep, "_layer", _l2l_layer_under_torch_checkpoint(True))
+    assert _same(harness, ga, l2l_run(model, runtime, harness, mbs))  # the mutant is sound
+
+    monkeypatch.setattr(L2LStep, "_layer", _l2l_layer_under_torch_checkpoint(False))
+    assert not _same(harness, ga, l2l_run(model, runtime, harness, mbs))

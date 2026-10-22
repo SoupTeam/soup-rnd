@@ -142,13 +142,13 @@ def _l2l_step_for(
 ) -> Any:
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
-    step = state.steps_by_shape.get(shape)
-    if step is None:
+    stepper = state.steps_by_shape.get(shape)
+    if stepper is None:
         if len(state.steps_by_shape) >= MAX_CACHED_SHAPES:
             state.steps_by_shape.clear()
-        step = L2LStep(model, state.runtime, capture_layer_call(model, ids), seed=seed)
-        state.steps_by_shape[shape] = step
-    return step
+        stepper = L2LStep(model, state.runtime, capture_layer_call(model, ids), seed=seed)
+        state.steps_by_shape[shape] = stepper
+    return stepper
 
 
 def check_activation_budget(
@@ -182,16 +182,16 @@ def check_activation_budget(
     )
 
 
-def _store_for(state: L2LState, step: Any, shape: Tuple[int, int], k: int, device: Any) -> Any:
+def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, device: Any) -> Any:
     import torch
 
     from soup_cli.utils.l2l_activations import ActivationStore
     from soup_cli.utils.layer_stream import free_ram_bytes
 
-    hidden = int(step.causal.config.hidden_size)
+    hidden = int(stepper.causal.config.hidden_size)
     if state.store is None or state.store.shape[:2] != shape or state.store.k < k:
         state.close()
-        n_layers = len(step.layers)
+        n_layers = len(stepper.layers)
         itemsize = torch.empty((), dtype=state.dtype).element_size()
         chunk_bytes = shape[0] * shape[1] * hidden * itemsize
         pin = str(device).startswith("cuda")
@@ -261,9 +261,9 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             # The step bypasses the wrapped forward, where the Trainer applies its mixed
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
-                step = _l2l_step_for(state, model, shape, ids_list[0], int(self.args.seed))
-                store = _store_for(state, step, shape, len(window), device)
-                losses = step.run(
+                stepper = _l2l_step_for(state, model, shape, ids_list[0], int(self.args.seed))
+                store = _store_for(state, stepper, shape, len(window), device)
+                losses = stepper.run(
                     ids_list,
                     store,
                     n_items=int(num_items_in_batch),
@@ -271,7 +271,7 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                     step=int(self.state.global_step),
                 )
             state.steps += 1
-            state.totals.add(step.counters)
+            state.totals.add(stepper.counters)
             return torch.stack(losses).sum().to(self.args.device)
 
         def log(self, logs, *args, **kwargs):  # type: ignore[override]
