@@ -1,0 +1,143 @@
+"""One newUSD5 residency lease, verified artifact retention, unconditional cleanup."""
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT=Path(__file__).parent
+import cloud
+import transport
+
+
+def compact_verified(name):
+    """Remove only verified duplicate chunks; keep canonical archive and original paths."""
+    known={}
+    for retained in sorted((ROOT/'bundles').glob('*/retained')):
+        for path in retained.rglob('*.safetensors'):
+            size=path.stat().st_size
+            if size<1024*1024:continue
+            key=(size,transport.digest(path))
+            if key in known:
+                original=known[key]
+                if os.path.samefile(path,original):continue
+                assert transport.digest(path)==transport.digest(original)
+                path.unlink();os.link(original,path)
+            else:known[key]=path
+
+
+def initial_retention_plan(calibration, policy, physical, projection):
+    matching = (projection['gpu_uuid'] in physical['gpu']
+                and projection['source_sha256'] == policy['source_sha256'])
+    historical = projection['whole_archive_bytes']
+    # Reuse is an EXPECTATION for this proven repeatable same-GPU trace. The new
+    # archive's actual object layout/missing bytes and full canonical SHA govern
+    # final admission and acceptance; unexpected cache misses cannot fake proof.
+    expected_new = ((projection['missing_encoded_object_bytes'] + 64 * 2**20)
+                    if matching else historical + 64 * 2**20)
+    rate = calibration['encoded_mib_per_second'] * 2**20
+    reserve = expected_new / rate * 1.5 + 300
+    return {'expected_first_new_encoded_bytes': expected_new,
+            'first_capture_same_gpu_reuse_expected': matching,
+            'historical_whole_archive_bytes': historical,
+            'initial_raw_reserve_seconds': reserve,
+            'full_uncached_archive_seconds_at_measured_rate': historical / rate,
+            'admission_basis': 'actual prior encoded-object availability plus64MiB metadata variation; new layout and all hashes remain authoritative'}
+
+
+def main():
+    required=['source.tar.gz', 'setup.sh', 'worker.py', 'entry.py', 'prepare_model.py', 'artifacts.py', 'telemetry.py', 'protocol.json', 'source-manifest.json', 'pytest_gpu_entry.py', 'constraints.txt', 'pin_entry.py', 'lossless_results.py', 'remote_retention_probe.py', 'bench.py', 'remote_ranges.py']
+    manifest=json.loads((ROOT/'launch-manifest.json').read_text())
+    for name,row in manifest.items():
+        assert hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==row['sha256'],name
+    assert cloud.receipt()['label'] == cloud.LABEL
+    assert cloud.receipt()['maximum_usd'] == 5
+    assert cloud.receipt()['prior_usd'] == 3.95
+    try:
+        identity=cloud.receipt()['instance_id']
+        reply=cloud.api(f'/api/v0/instances/{identity}/ssh/','POST',
+                       {'ssh_key':cloud.SSH_KEY.with_suffix('.pub').read_text().strip()})
+        cloud.save('ssh-key-attach.json',{k:reply[k] for k in ['success','msg','error'] if k in reply})
+        boot=time.time()
+        while time.time()-boot<420:
+            subprocess.run([sys.executable,str(ROOT/'cloud.py'),'status'],check=True)
+            if (ROOT/'vast-connection.json').exists():
+                try:
+                    if cloud.ssh('true',15).returncode==0:break
+                except Exception:pass
+            time.sleep(3)
+        else:raise RuntimeError('SSH boot deadline')
+        guard=transport.ssh_retry('cat /root/liger/guard-status.json',30)
+        assert guard.returncode==0,'Remote independent guard not confirmed'
+        cloud.save('remote-guard-before-setup.json',json.loads(guard.stdout))
+        import shlex
+        reply=transport.ssh_retry('python3 -c '+shlex.quote("import json,subprocess,time\nsamples=[]\nfor index in range(3):\n    gpu=subprocess.check_output(['nvidia-smi','--query-gpu=uuid,utilization.gpu,memory.used','--format=csv,noheader,nounits'],text=True).strip()\n    apps=subprocess.check_output(['nvidia-smi','--query-compute-apps=gpu_uuid,pid,used_memory','--format=csv,noheader,nounits'],text=True).strip()\n    row={'unix':time.time(),'gpu':gpu,'compute_apps':apps};samples.append(row)\n    assert not apps,'GPU has pre-existing compute processes'\n    assert '\\n' not in gpu,'Expected one visible GPU'\n    fields=gpu.split(',')\n    assert int(fields[1])<=10 and int(fields[2])<=256,'GPU is not idle'\n    if index<2:time.sleep(5)\nprint(json.dumps({'passed':True,'samples':samples}))\n"),30)
+        (ROOT/'gpu-idle-preflight.log').write_bytes(reply.stdout+reply.stderr)
+        assert reply.returncode==0,'Idle GPU qualification failed; delete before setup'
+        cloud.save('gpu-idle-preflight.json',json.loads(reply.stdout))
+        reply=transport.ssh_retry('python3 -c '+shlex.quote("import json,subprocess\nfrom pathlib import Path\ngpu=subprocess.check_output(['nvidia-smi','--query-gpu=name,memory.total,uuid','--format=csv,noheader,nounits'],text=True).strip()\nfields=gpu.split(',')\nassert len(fields)==3 and 7900<=int(fields[1])<=8300,'Not one physical 8GiB GPU'\navailable=next(int(line.split()[1])*1024 for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemAvailable:'))\ncaps=[available]\nfor path in [Path('/sys/fs/cgroup/memory.max'),Path('/sys/fs/cgroup/memory/memory.limit_in_bytes')]:\n    if path.exists():\n        text=path.read_text().strip()\n        if text!='max':\n            limit=int(text)\n            usage=path.with_name('memory.current' if path.name=='memory.max' else 'memory.usage_in_bytes')\n            if usage.exists():caps.append(limit-int(usage.read_text()))\nassert min(caps)>=52*2**30,'Less than 52GiB currently usable RAM; reject before model download'\nprint(json.dumps({'gpu':gpu,'available_ram_lower_bound_bytes':min(caps),'passed':True}))\n"),30)
+        (ROOT/'capacity-preflight.log').write_bytes(reply.stdout+reply.stderr)
+        assert reply.returncode==0,'Physical GPU/RAM capacity preflight failed'
+        cloud.save('capacity-preflight.json',json.loads(reply.stdout))
+        transport.network_preflight()
+        calibration = json.loads((ROOT/'network-preflight.json').read_text())
+        policy = cloud.receipt()
+        projection = json.loads((ROOT / 'actual-partial-reuse-projection.json').read_text())
+        plan = initial_retention_plan(calibration, policy,
+            json.loads((ROOT / 'capacity-preflight.json').read_text()), projection)
+        remaining = policy['maximum_seconds'] - (time.time() - policy['created_unix'])
+        assert plan['initial_raw_reserve_seconds'] + 1800 < remaining, 'Actual expected missing first-capture objects cannot fit lease reserve'
+        cloud.save('baseline-retention-reserve.json', plan)
+        cloud.save('retention-policy.json', {**plan,
+            'encoded_bytes_per_second': calibration['encoded_mib_per_second'] * 2**20,
+            'first_capture_payload_bytes': 2707652672})
+        transport.upload('retention-policy.json')
+        for name in required:transport.upload(name)
+        reply=transport.ssh_retry('nohup bash /root/liger/setup.sh > /root/liger/setup.log 2>&1 < /dev/null &')
+        assert reply.returncode==0
+        finished=set();last=None
+        while True:
+            if time.time()>cloud.receipt()['created_unix']+cloud.receipt()['maximum_seconds']-180:
+                raise RuntimeError('Collection/financial deadline')
+            try:
+                text=transport.get('progress.json',30).decode()
+            except Exception:
+                reply=transport.ssh_retry('if test -f /root/liger/results/progress.json; then cat /root/liger/results/progress.json; elif test -f /root/liger/setup.exited; then echo SETUP_FAILED; tail -n 8 /root/liger/setup.log; else echo SETUP; tail -n 4 /root/liger/setup.log; fi')
+                text=reply.stdout.decode(errors='replace')
+            if text.startswith('SETUP_FAILED'):
+                detail=transport.ssh_retry('tail -n 150 /root/liger/setup.log',40)
+                (ROOT/'remote-setup-failure.log').write_bytes(detail.stdout)
+                raise RuntimeError(text)
+            if text.startswith('{'):
+                state=json.loads(text);cloud.save('remote-progress.json',state)
+                marker=(state['status'],state.get('current_stage'),len(state['stages']))
+                if marker!=last:
+                    transport.log({'status':marker[0],'stage':marker[1],'completed':marker[2]});last=marker
+                for bundle in state['bundles']:
+                    name=bundle['name']
+                    if name not in finished:
+                        transport.download(name);compact_verified(name);finished.add(name)
+                if state.get('export_error'):raise RuntimeError(state['export_error'])
+                if 'final' in finished:
+                    for _attempt in range(15):
+                        time.sleep(2);state=json.loads(transport.get('progress.json',30))
+                        cloud.save('remote-progress.json',state)
+                        if state['status'] in ['COMPLETE','FAILED']:break
+                    break
+            elif text[-500:]!=last:
+                transport.log(text[-500:]);last=text[-500:]
+            time.sleep(8)
+    finally:
+        try:
+            guard=transport.get('guard.json',20);cloud.save('post-transfer-guard.json',json.loads(guard))
+        except Exception:pass
+        cloud.destroy('Residency study finished; verified per-bundle receipts retained locally')
+
+
+if __name__=='__main__':
+    try:main()
+    except BaseException as error:
+        cloud.save('controller-error.json',{'error':type(error).__name__+': '+str(error),
+                                            'unix':time.time()});raise

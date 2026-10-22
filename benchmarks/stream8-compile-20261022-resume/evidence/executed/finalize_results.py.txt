@@ -1,0 +1,76 @@
+"""Assemble the final report only after independently verified cleanup."""
+import json
+from pathlib import Path
+
+from rich.console import Console
+
+ROOT = Path(__file__).parent
+DEST = ROOT.parents[1] / 'benchmarks/stream8-compile-20261022-resume'
+
+
+def load(name):
+    return json.loads((ROOT / name).read_text())
+
+
+def main():
+    recovery = ROOT.with_name('stream8-compile-20261022-resume-g')
+    cleanup = json.loads((recovery / 'final-cost-and-cleanup.json').read_text())
+    assert cleanup['all_study_instances_absent']
+    assert cleanup['compile_series_conservative_usd'] <= 5
+    assert cleanup['combined_conservative_usd'] <= 10
+    state = load('remote-progress.json')
+    assert (ROOT / 'bundle-f-timings-8-resident-verified.json').exists()
+    recovery_state = json.loads((recovery / 'remote-progress.json').read_text())
+    models = {'8': state['models']['8'], **recovery_state['models']}
+    if (recovery / 'controller-error.json').exists():
+        collection = json.loads((recovery / 'controller-error.json').read_text())
+    else:
+        collection = {'status': recovery_state['status']}
+    for size in ['14', '32', '24']:
+        models.setdefault(size, {'status': 'NOT_ATTEMPTED_AFTER_COLLECTION_BOUNDARY'})
+    native = {8: load('f-first-baseline-independent-sanity.json')}
+    for size in [14, 24, 32]:
+        path = recovery / f'g-native-{size}-independent-review.json'
+        if path.exists():
+            native[size] = json.loads(path.read_text())
+    timing = load('f-resident-independent-timing-review.json')
+    report = {'study': 'physical8GiB residency/Inductor resumed',
+              'upstream': 'd500ae0dca7c4da905f8d59c9866af2f8aaa824b',
+              'source_production_files_identical': 602,
+              'models': models, 'resident_8b_timing': timing,
+              'recovery_g_collection': collection,
+              'recovery_g_final_bundle_verified': (recovery / 'bundle-final-verified.json').exists(),
+              'historical_f14_collection': {
+                  'remote_native_capture_exit_code': 0, 'full_raw_retention': False,
+                  'collector_error': load('controller-error.json'),
+                  'scientific_trace_recovered_exactly': True,
+                  'exact_trace_recovery':
+                      'evidence/failed-f14/scientific-trace-exact-recovery.json',
+                  'received_encoded_bytes': load('range-state-f-baseline-14.json').get(
+                      'network_bytes_this_call'),
+                  'canonical_archive_created_locally': False},
+              'accuracy_replay': 'evidence/f-accuracy-independent-replay.json',
+              'native_independent_reviews': {str(size): {
+                  'scope': value['scope'],
+                  'evidence': ('evidence/f-first-baseline-independent-sanity.json' if size == 8
+                               else f'evidence/cohort-g/g-native-{size}-independent-review.json')}
+                  for size, value in native.items()},
+              'largest_observed_native_two_update_model_b': max(native),
+              'largest_qualified_14_update_optimized_model_b': 8,
+              'universal_maximum_established': False,
+              'qualified_compiled_candidates': [], 'cost_and_cleanup': cleanup,
+              'retention': 'evidence/raw-local-archives.json',
+              'historical_partial_canonical_archive_count': 3,
+              'historical_partial_encoded_object_transfers': 1,
+              'common_cache_inputs': 'evidence/common-8b-inputs-f-vs-cache-audit.json',
+              'validation': {'combined_cpu_passed': 64, 'combined_cuda_skipped': 10,
+                             'full_ruff': 'passed', 'compile_target_gpu_tests_passed': 16}}
+    assert timing['practical_gain']
+    (DEST / 'results.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    Console().print({'largest_native_two_update_b': max(native),
+                     'largest_qualified_14_update_optimized_b': 8,
+                     'all_instances_absent': True})
+
+
+if __name__ == '__main__':
+    main()

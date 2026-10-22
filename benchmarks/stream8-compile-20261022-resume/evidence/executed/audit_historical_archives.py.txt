@@ -1,0 +1,31 @@
+"""Inventory earlier local canonical files, preserving partial-transfer boundaries."""
+import hashlib
+import json
+from pathlib import Path
+
+from rich.console import Console
+
+ROOT = Path(__file__).parent
+rows = []
+for name in ['stream8-compile-20261022-resume', 'stream8-compile-20261022-resume-b',
+             'stream8-compile-20261022-resume-c', 'stream8-compile-20261022-resume-d',
+             'stream8-compile-20261022-resume-e']:
+    folder = ROOT.parent / name
+    for archive in sorted(folder.glob('bundles/*/results.tar')):
+        index = json.loads((archive.parent / 'index.json').read_text())
+        hashed = hashlib.sha256()
+        with archive.open('rb') as stream:
+            for block in iter(lambda: stream.read(8 * 2**20), b''):
+                hashed.update(block)
+        actual = hashed.hexdigest()
+        whole = actual == index['archive_sha256']
+        rows.append({'path': str(archive), 'observed_bytes': archive.stat().st_size,
+                     'expected_bytes': index['archive_bytes'], 'observed_sha256': actual,
+                     'expected_sha256': index['archive_sha256'], 'whole_archive_verified': whole,
+                     'limitation': ('complete canonical archive' if whole else
+                                    'partial immutable archive; no all-original-files retention claim')})
+out = ROOT / 'historical-archive-independent-inventory.json'
+out.write_text(json.dumps(rows, indent=2) + '\n', encoding='utf-8')
+Console().print([{key: value for key, value in row.items()
+                  if key in ['path', 'observed_bytes', 'expected_bytes', 'whole_archive_verified']}
+                 for row in rows])

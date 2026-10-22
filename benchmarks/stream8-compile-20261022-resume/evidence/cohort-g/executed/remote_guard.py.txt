@@ -1,0 +1,53 @@
+"""Uses only Vast's instance-scoped credential, never the account API key."""
+import json
+import os
+import time
+import urllib.request
+from pathlib import Path
+
+root = Path('/root/liger')
+policy = json.loads((root/'policy.json').read_text())
+identity = os.environ['CONTAINER_ID']
+key = os.environ['CONTAINER_API_KEY']
+
+
+def network():
+    rx = tx = 0
+    for line in Path('/proc/net/dev').read_text().splitlines():
+        if ':' in line and line.split(':')[0].strip() != 'lo':
+            values = line.split(':')[1].split()
+            rx += int(values[0]); tx += int(values[8])
+    return rx, tx
+
+
+reason = 'telemetry failure'
+try:
+    while True:
+        elapsed = time.time() - policy['created_unix']
+        # Include all observed container network traffic, not just post-guard traffic.
+        rx, tx = network()
+        cost = (elapsed+60)*policy['hourly_usd']/3600 + .04 + policy.get('prior_usd', 0)
+        cost += rx/1e9*policy['down_usd_per_gb'] + tx/1e9*policy['up_usd_per_gb']
+        status = {'instance_id': identity, 'elapsed_seconds': elapsed,
+            'conservative_usd': cost, 'rx_bytes': rx, 'tx_bytes': tx, 'unix': time.time()}
+        temp = root/'guard-status.tmp'
+        temp.write_text(json.dumps(status)); temp.replace(root/'guard-status.json')
+        if elapsed >= policy['maximum_seconds'] or cost >= policy['maximum_usd']-.15:
+            reason = 'time or money boundary'; break
+        if (root/'delete-now').exists():
+            reason = 'operator requested deletion'; break
+        time.sleep(5)
+except Exception:
+    pass
+(root/'guard-deletion.json').write_text(json.dumps({'reason': reason}))
+request = urllib.request.Request(f'https://console.vast.ai/api/v0/instances/{identity}/',
+    method='DELETE', data=b'{}',
+    headers={'Authorization': 'Bearer '+key, 'Content-Type': 'application/json'})
+for attempt in range(24):
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            if json.load(response).get('success'):
+                raise SystemExit(0)
+    except Exception:
+        pass
+    time.sleep(5)

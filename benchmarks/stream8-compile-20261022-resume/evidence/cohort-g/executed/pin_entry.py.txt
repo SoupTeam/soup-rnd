@@ -1,0 +1,61 @@
+"""Observe GPU-local CPU topology and pin this process and its children."""
+import json
+import os
+import runpy
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+
+def cpus(text):
+    result = set()
+    for field in text.strip().split(','):
+        if not field:
+            continue
+        bounds = [int(x) for x in field.split('-')]
+        result.update(range(bounds[0], bounds[-1] + 1))
+    return result
+
+
+def pin():
+    allowed = set(os.sched_getaffinity(0))
+    bus = subprocess.check_output(['nvidia-smi', '--query-gpu=pci.bus_id',
+                                   '--format=csv,noheader'], text=True).strip().lower()
+    assert '\n' not in bus, 'Expected one visible physical GPU'
+    bus = bus[-12:]
+    pci = Path('/sys/bus/pci/devices') / bus
+    node = int((pci / 'numa_node').read_text())
+    nodes = sorted(Path('/sys/devices/system/node').glob('node[0-9]*'))
+    if node < 0:
+        assert len(nodes) == 1, 'GPU locality unknown on multi-NUMA host'
+        node = int(nodes[0].name[4:])
+    local = cpus((Path('/sys/devices/system/node') / f'node{node}' / 'cpulist').read_text())
+    eligible = sorted(allowed & local)
+    chosen, cores = [], set()
+    for cpu in eligible:
+        root = Path('/sys/devices/system/cpu') / f'cpu{cpu}' / 'topology'
+        identity = ((root / 'physical_package_id').read_text().strip(),
+                    (root / 'core_id').read_text().strip())
+        if identity not in cores:
+            chosen.append(cpu)
+            cores.add(identity)
+        if len(chosen) == 4:
+            break
+    assert len(chosen) == 4, 'Four GPU-local physical cores required'
+    os.sched_setaffinity(0, chosen)
+    return {'unix': time.time(), 'gpu_bus': bus, 'gpu_numa_node': node,
+            'allowed_before': sorted(allowed), 'local_cpus': sorted(local),
+            'allowed_after': sorted(os.sched_getaffinity(0)), 'host_load': os.getloadavg(),
+            'cpu_max': Path('/sys/fs/cgroup/cpu.max').read_text().strip()
+                if Path('/sys/fs/cgroup/cpu.max').exists() else None,
+            'memory_binding_enforced': False}
+
+
+if __name__ == '__main__':
+    result = pin()
+    target = Path('/root/liger/results/gpu-local-cpu-affinity.json')
+    target.write_text(json.dumps(result, indent=2))
+    script = sys.argv.pop(1)
+    sys.argv[0] = script
+    runpy.run_path(script, run_name='__main__')

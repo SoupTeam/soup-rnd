@@ -1,0 +1,197 @@
+{
+  "status": "MATRIX_FINISHED_REQUIRES_INDEPENDENT_REPLAY",
+  "stages": [
+    {
+      "name": "scoped-regressions",
+      "exit_code": 0,
+      "seconds": 20.304917097091675,
+      "started_unix": 1792675122.3541079
+    },
+    {
+      "name": "prepare-14",
+      "exit_code": 0,
+      "seconds": 931.2538733482361,
+      "started_unix": 1792675142.9360008
+    },
+    {
+      "name": "capture-14-baseline",
+      "exit_code": 0,
+      "seconds": 197.3236780166626,
+      "started_unix": 1792676074.1943374
+    },
+    {
+      "name": "semantics-14-baseline",
+      "exit_code": 0,
+      "seconds": 131.1653368473053,
+      "started_unix": 1792676667.4394753
+    }
+  ],
+  "bundles": [
+    {
+      "name": "g-baseline-14",
+      "bytes": 1194967040
+    },
+    {
+      "name": "g-complete-14",
+      "bytes": 85299200
+    },
+    {
+      "name": "g-complete-32",
+      "bytes": 20480
+    }
+  ],
+  "models": {
+    "14": {
+      "model_id": "Qwen/Qwen3-14B",
+      "gates": {},
+      "timed_candidates": [],
+      "status": "BASELINE_CAPTURE_PASSED_NO_RESIDENCY_HEADROOM",
+      "staging_admission": {
+        "estimated_total_usd": 4.669128389228236,
+        "expected_encoded_allowance_bytes": 1569761280.0,
+        "based_on_actual_first_archive": true,
+        "transfer_reserve_seconds": 1639.6028530654125,
+        "remaining_seconds": 6729.062684297562
+      },
+      "baseline_encoded_export": {
+        "archive_bytes": 1194967040,
+        "archive_sha256": "65947a24c1200fca52556f7c04b1ee7bde7ca505f073d32bd148d7de4b4cea99",
+        "original_bytes": 3044532151,
+        "original_file_count": 50,
+        "unique_chunks": 749,
+        "format": "soup-lossless-results-v1",
+        "manifest_sha256": "e07d6bbdd5f8d48df1d72f377579af35d75c6068b654b35f336e9c3c4d6fb6c4",
+        "name": "g-baseline-14"
+      },
+      "indices": [],
+      "selection_baseline": {
+        "status": "COMPLETED_NOT_A_NUMERICAL_OR_PERFORMANCE_VERDICT",
+        "arm": "baseline",
+        "indices": [],
+        "physical_gpu_bytes": 8222670848,
+        "allocator_budget_bytes": 7516192768,
+        "budget_excludes_context": true,
+        "torch": "2.8.0+cu128",
+        "research_bench_sha256": "080b4de75b8f228f367d7f9de2e4b7be7793b2b3c1e6c06c27ec0b0638b10f1b",
+        "pid": 3846,
+        "affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "ordinary_setup_seconds": 148.37556857685558,
+        "layer_count": 40,
+        "per_layer_bytes": 660623872,
+        "host_memory_after_setup": {
+          "max_rss_bytes": 32618065920,
+          "VmLck_bytes": 0,
+          "VmPin_bytes": 0,
+          "VmHWM_bytes": 32618065920,
+          "VmRSS_bytes": 31131336704
+        },
+        "attention_backend": "sdpa",
+        "residency": {
+          "indices": [],
+          "dedicated_slots": {},
+          "rotating_slots": 2,
+          "resident_bytes": 0,
+          "preload_loads": 0,
+          "resident_load_calls_skipped": 0,
+          "dynamic_loads": 306,
+          "dynamic_logical_bytes": 202150904832,
+          "arithmetic_changed": false,
+          "host_store_retained": true,
+          "preload_seconds": 3.4670112654566765e-05
+        },
+        "compiled_decoders": 0,
+        "compile_wrapper_seconds": 1.1709053069353104e-06,
+        "all_update_wall_seconds": [
+          12.718989219050854,
+          11.682534798048437
+        ],
+        "compiler_before": {
+          "stats": {},
+          "frames": {},
+          "graph_break": {}
+        },
+        "setup_peak_allocated_bytes": 2975126528,
+        "setup_peak_reserved_bytes": 2975858688,
+        "all_update_peak_allocated_bytes": [
+          5382459392,
+          5510910464
+        ],
+        "all_update_peak_reserved_bytes": [
+          6090129408,
+          6092226560
+        ],
+        "per_update_loads": [
+          {
+            "step": 1,
+            "loads": 154,
+            "bytes": 101736076288
+          },
+          {
+            "step": 2,
+            "loads": 152,
+            "bytes": 100414828544
+          }
+        ],
+        "compiler_after": {
+          "stats": {},
+          "frames": {},
+          "graph_break": {}
+        },
+        "compiler_time_metrics_seconds_inclusive": {
+          "inductor_codecache_torch_key": [
+            0.233881077
+          ]
+        },
+        "host_memory_at_exit": {
+          "max_rss_bytes": 35491569664,
+          "VmLck_bytes": 0,
+          "VmPin_bytes": 0,
+          "VmHWM_bytes": 35491569664,
+          "VmRSS_bytes": 34369884160
+        },
+        "peak_allocated_bytes": 5510910464,
+        "peak_reserved_bytes": 6092226560,
+        "whole_run_peak_allocated_bytes": 5510910464,
+        "whole_run_peak_reserved_bytes": 6092226560,
+        "whole_entry_seconds": 186.19514464121312
+      },
+      "baseline_semantics_executed": true
+    },
+    "32": {
+      "model_id": "Qwen/Qwen3-32B",
+      "gates": {},
+      "timed_candidates": [],
+      "status": "NOT_STAGED_HOST_RAM_RESERVE",
+      "host_admission": {
+        "usable_bytes": 63534301184,
+        "required_bytes": 74114181120,
+        "basis": "one dense pinned host weight store plus8GiB reserve; measured RSS and cgroup limit retained"
+      }
+    },
+    "24": {
+      "model_id": "mistralai/Mistral-Small-24B-Base-2501",
+      "gates": {},
+      "timed_candidates": [],
+      "status": "NOT_STAGED_TIME_OR_BUDGET_RESERVE",
+      "host_admission": {
+        "usable_bytes": 63534317568,
+        "required_bytes": 55734740992,
+        "basis": "one dense pinned host weight store plus8GiB reserve; measured RSS and cgroup limit retained"
+      },
+      "staging_admission": {
+        "estimated_total_usd": 4.876127917478765,
+        "expected_encoded_allowance_bytes": 1792450560.0,
+        "based_on_actual_first_archive": true,
+        "transfer_reserve_seconds": 1119.9891072636474,
+        "remaining_seconds": 5027.721411943436
+      }
+    }
+  },
+  "timings": [],
+  "current_stage": "semantics-14-baseline"
+}

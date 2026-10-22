@@ -1,0 +1,6 @@
+import os,sys
+os.environ.pop('TORCH_LOGS',None)
+import torch
+torch.cuda.init()
+import pytest
+raise SystemExit(pytest.main(sys.argv[1:]))

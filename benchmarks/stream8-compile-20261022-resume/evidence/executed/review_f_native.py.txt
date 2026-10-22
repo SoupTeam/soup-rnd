@@ -1,0 +1,81 @@
+"""Audit a retained larger native capture; self checks are not candidate parity."""
+import importlib.util
+import json
+import sys
+import time
+from pathlib import Path
+
+from rich.console import Console
+
+
+def main():
+    import torch
+    from safetensors import safe_open
+
+    root = Path(__file__).parent
+    size = int(sys.argv[1])
+    torch.set_num_threads(2)
+    spec = importlib.util.spec_from_file_location(
+        'replay', root.parents[1] / 'benchmarks/stream8-compile-20261022-resume/compare_streamed.py')
+    replay = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(replay)
+    traces = list((root / 'bundles').glob(
+        f'*/retained/results/model-{size}/capture-baseline/trace.safetensors'))
+    assert traces, 'require complete decoded native capture'
+    trace = traces[-1]
+    bundle = trace.parents[4]
+    receipt = json.loads((root / f'bundle-{bundle.name}-verified.json').read_text())
+    assert receipt['all_original_files_verified'] > 0
+    capture = json.loads((trace.parent / 'capture.json').read_text())
+    provenance = json.loads((trace.parent / 'residency-compile-provenance.json').read_text())
+    assert capture['status'] == 'CAPTURED'
+    assert capture['amp'] == {'bf16': True, 'fp16': False}
+    assert capture['deterministic_algorithms']
+    assert capture['runtime']['tier'] == 'ram' and capture['runtime']['pinned']
+    assert capture['runtime']['buffers'] == 2
+    assert len(capture['losses']) == 4
+    assert len([row for row in capture['log_history'] if 'loss' in row]) == 2
+    result = replay.compare(trace, trace)
+    assert result['passed']
+    expected = provenance['layer_count'] * 14
+    assert result['groups']['initial']['tensors'] == expected
+    assert result['groups']['final']['tensors'] == expected
+    assert result['groups']['gradient']['tensors'] == expected * 2
+    with safe_open(trace, framework='pt', device='cpu') as opened:
+        initial = [key for key in opened.keys() if key.startswith('initial/')]
+        changed = sum(not torch.equal(opened.get_tensor(key),
+                                      opened.get_tensor('final/' + key[len('initial/'):]))
+                      for key in initial)
+        nonzero_b = sum(torch.count_nonzero(opened.get_tensor(key)).item() > 0
+                        for key in initial if '.lora_B.' in key)
+        nonzero_gradients = sum(torch.count_nonzero(opened.get_tensor(key)).item() > 0
+                                for key in opened.keys() if key.startswith('gradient/'))
+    assert changed > 0 and nonzero_b == expected // 2 and nonzero_gradients > 0
+    report = {'scope': 'native two-update sanity; not optimized parity or long-run stability',
+              'model_size_b': size, 'receipt': receipt, 'all_elements_finite': True,
+              'self_check': result, 'optimizer_updates': 2, 'microbatches': 4,
+              'changed_final_adapter_tensors': changed, 'nonzero_initial_B_tensors': nonzero_b,
+              'nonzero_gradient_tensors': nonzero_gradients, 'provenance': provenance,
+              'checked_unix': time.time()}
+    semantics = list((root / 'bundles').glob(
+        f'*/retained/results/model-{size}/semantics-baseline/trace.safetensors'))
+    if semantics:
+        semantic = semantics[-1]
+        semantic_receipt = json.loads((root / f'bundle-{semantic.parents[4].name}-verified.json').read_text())
+        assert semantic_receipt['all_original_files_verified'] > 0
+        semantic_provenance = json.loads((semantic.parent / 'study-provenance.json').read_text())
+        assert semantic_provenance['causal_prefix_exact']
+        assert semantic_provenance['masked_padding_isolation_exact']
+        semantic_result = replay.compare(semantic, semantic)
+        assert semantic_result['passed']
+        report['semantics'] = {'scope': 'all saved values finite and actual internal invariant checks passed',
+                               'self_check': semantic_result, 'provenance': semantic_provenance,
+                               'receipt': semantic_receipt}
+    (root / f'f-native-{size}-independent-review.json').write_text(
+        json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    Console().print({key: value for key, value in report.items()
+                     if key not in ['self_check', 'provenance', 'receipt', 'semantics']})
+
+
+if __name__ == '__main__':
+    main()

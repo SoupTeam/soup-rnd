@@ -1,0 +1,37 @@
+backend: transformers
+base: /root/liger/model-14
+data:
+  chat_template: chatml
+  format: chatml
+  max_length: 1024
+  train: /root/liger/train.jsonl
+  val_split: 0
+task: sft
+training:
+  batch_size: 1
+  epochs: 1
+  fast_lora: false
+  gradient_accumulation_steps: 2
+  gradient_checkpointing: true
+  lora:
+    alpha: 4
+    dropout: 0
+    r: 4
+    target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  lr: 2.0e-05
+  quantization: none
+  seed: 792
+  stream_buffers: 2
+  stream_layers: true
+  stream_pin: true
+  stream_read_ahead: 2
+  stream_source: ram
+  stream_vram_probe: false
+  warmup_ratio: 0
