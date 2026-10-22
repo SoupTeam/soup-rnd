@@ -2,7 +2,7 @@
 
 **Quality verdict: fail.** Task loss passes with a wide margin. Two of the four gate suites fail the rule's drop limit. Under the rule's outcome table G1 stops and speed is not measured.
 
-**Naming.** This gate is G1. It was called G4 when the rule was committed, so the rule text (`benchmarks/gate-g1-nvfp4.md`, renamed with `git mv`, body unchanged), the run records under `benchmarks/results/g1-mistral/` and commit messages up to `471c09ca` still say G4 or `g4-`. Raw records were not edited.
+**Naming.** This gate is G1. It was called G4 when the rule was committed, so the run records under `benchmarks/results/g1-mistral/` and commit messages up to `471c09ca` still say G4 or `g4-`; raw records were not edited. The rule text (`benchmarks/gate-g1-nvfp4.md`) was relabeled G1 in a later commit: names and the `--follow` in its commit-order command only, no threshold, data or arm changed.
 
 All numbers on this page are **real** runs: Mistral-7B-v0.1, the Dolly split of the rule, one RTX 5090 rented on Vast.ai. The rule is `benchmarks/gate-g1-nvfp4.md` (Russian text binding), committed at `4fddde39` before any run. Thresholds, data and arms did not change after the first run. The verdict is computed by `benchmarks/harness/g1_verdict.py` from the run records in `benchmarks/results/g1-mistral/runs/`, output in `benchmarks/results/g1-mistral/verdict.json`.
 

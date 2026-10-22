@@ -1,17 +1,17 @@
-# G4: LoRA over a frozen Mistral-7B base in NVFP4 versus NF4
+# G1: LoRA over a frozen Mistral-7B base in NVFP4 versus NF4
 
 **The decision rule is committed before any Mistral-7B run. Status: rule only, no 7B result yet. Data: a temporary set until the dataset protocol exists (временный набор до dataset протокола).**
 
-Spec: `.scratch/g4-nvfp4/issues/04-mistral-harness-and-gate-rule.md`. The seven runs under
+Spec: `.scratch/g1-nvfp4/issues/04-mistral-harness-and-gate-rule.md`. The seven runs under
 this rule are ticket 05. The speed and memory measurement and the final decision are
 ticket 06. Template: `benchmarks/gate-c5-q2-0-experts.md`. Why the base is checked with a
-harness and not a product path: `docs/adr/0003-g4-checks-nvfp4-with-a-harness-not-a-product-path.md`.
+harness and not a product path: `docs/adr/0003-g1-checks-nvfp4-with-a-harness-not-a-product-path.md`.
 
 ## Commit order
 
 - The rule below applies from the commit that added this file. That commit's time must be
   earlier than the `started` field of every Mistral-7B arm record. To check:
-  `git log --diff-filter=A --format='%H %cI' -- benchmarks/gate-g4-nvfp4.md`.
+  `git log --follow --diff-filter=A --format='%H %cI' -- benchmarks/gate-g1-nvfp4.md`.
 - Any change to the rule is a separate commit made before the first Mistral-7B arm. After the
   first arm the rule, the data and the thresholds do not change. A rebase or squash rewrites
   the dates, so the branch history from the rule commit on is not rewritten, and the PR merges
@@ -26,7 +26,7 @@ harness and not a product path: `docs/adr/0003-g4-checks-nvfp4-with-a-harness-no
 The Russian text below is the binding version. An English translation follows it; where the two
 differ, the Russian text wins.
 
-Термины по `GLOSSARY.md`, обоснование harness в `docs/adr/0003-g4-checks-nvfp4-with-a-harness-not-a-product-path.md`, запрет смешивать форматы в одном arm в `docs/adr/0001-c5-fake-quant-training.md`.
+Термины по `GLOSSARY.md`, обоснование harness в `docs/adr/0003-g1-checks-nvfp4-with-a-harness-not-a-product-path.md`, запрет смешивать форматы в одном arm в `docs/adr/0001-c5-fake-quant-training.md`.
 
 **Вопрос.** Теряет ли LoRA, обученная поверх замороженной базы Mistral-7B в NVFP4, не больше допустимого по task loss против той же LoRA поверх базы в NF4? Меньшая или более быстрая база без прохождения quality gate успехом не считается. Точное равенство с NF4 не заявляется.
 
@@ -89,16 +89,16 @@ differ, the Russian text wins.
 
 Границы включительные: 1.03 и 1.05 проходят. Пороги не меняются после первого прогона.
 
-### Что вердикт значит для G4
+### Что вердикт значит для G1
 
 Скорость шага меряется в тикете 06 по `benchmarks/METHOD.md` (A-B-B-A, число блоков по правилу повторов, обязательные проверки). Только при pass по качеству. Шаг NVFP4 «не медленнее» NF4, если медиана времени шага NVFP4 не больше медианы NF4 (отношение ≤ 1.00, граница включительная). Испорченный замер скорости решения не даёт.
 
 | Исход | Решение |
 |---|---|
 | Pass и шаг не медленнее NF4 | продолжать реализацию NVFP4 в продуктовом пути |
-| Pass и шаг медленнее NF4 | остановить G4 |
-| Fail | остановить G4, скорость не меряется |
-| No verdict | повторить замер, по G4 не решать |
+| Pass и шаг медленнее NF4 | остановить G1 |
+| Fail | остановить G1, скорость не меряется |
+| No verdict | повторить замер, по G1 не решать |
 
 ### Записывается в каждый прогон
 
@@ -108,7 +108,7 @@ GPU и его UUID, драйвер, версии Python, torch, transformers, pe
 
 Translation only. The Russian text above is binding.
 
-Terms follow `GLOSSARY.md`. The reason for a harness is in `docs/adr/0003-g4-checks-nvfp4-with-a-harness-not-a-product-path.md`. The ban on mixing formats in one arm is in `docs/adr/0001-c5-fake-quant-training.md`.
+Terms follow `GLOSSARY.md`. The reason for a harness is in `docs/adr/0003-g1-checks-nvfp4-with-a-harness-not-a-product-path.md`. The ban on mixing formats in one arm is in `docs/adr/0001-c5-fake-quant-training.md`.
 
 **Question.** Does a LoRA trained over a frozen Mistral-7B base in NVFP4 lose no more than the allowed amount of task loss against the same LoRA over a base in NF4? A smaller or faster base that does not pass the quality gate does not count as success. Exact parity with NF4 is not claimed.
 
@@ -171,16 +171,16 @@ Applied in order:
 
 Bounds are inclusive: 1.03 and 1.05 pass. The thresholds do not change after the first run.
 
-### What the verdict means for G4
+### What the verdict means for G1
 
 Step speed is measured in ticket 06 by `benchmarks/METHOD.md` (A-B-B-A, block count by the repeats rule, required checks), and only after a quality pass. The NVFP4 step is "not slower" than NF4 if the median NVFP4 step time is not above the median NF4 step time (ratio ≤ 1.00, bound inclusive). A spoiled speed measurement gives no decision.
 
 | Outcome | Decision |
 |---|---|
 | Pass and the step is not slower than NF4 | continue implementing NVFP4 in the product path |
-| Pass and the step is slower than NF4 | stop G4 |
-| Fail | stop G4; speed is not measured |
-| No verdict | repeat the measurement; no G4 decision |
+| Pass and the step is slower than NF4 | stop G1 |
+| Fail | stop G1; speed is not measured |
+| No verdict | repeat the measurement; no G1 decision |
 
 ### Recorded for every run
 
