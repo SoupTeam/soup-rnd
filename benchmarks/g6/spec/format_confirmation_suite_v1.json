@@ -1,0 +1,1296 @@
+{
+  "version": "g6-format-confirmation-v1",
+  "not_standard_benchmark": true,
+  "scope": "new template-balanced tasks; no model responses observed; old48 are development",
+  "cases": [
+    {
+      "id": "g6-format-confirm-v1-add-01",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 670 + 459. Reply with digits only.",
+      "expected": "1129",
+      "operands": [
+        670,
+        459
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-01",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 734 - 235. Reply with digits only.",
+      "expected": "499",
+      "operands": [
+        734,
+        235
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-01",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 26 times 35. Reply with digits only.",
+      "expected": "910",
+      "operands": [
+        26,
+        35
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-01",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 51, 86, 88, 14, 52. Reply as comma-separated integers without spaces.",
+      "expected": "14,51,52,86,88",
+      "operands": [
+        51,
+        86,
+        88,
+        14,
+        52
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-01",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry11, code:R1200, count:30}. Reply with only its code.",
+      "expected": "R1200",
+      "operands": {
+        "name": "entry11",
+        "code": "R1200",
+        "count": 30
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-01",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'cedar': quartz, quartz, cedar, quartz, cedar. Reply with digits only.",
+      "expected": "2",
+      "operands": {
+        "target": "cedar",
+        "words": [
+          "quartz",
+          "quartz",
+          "cedar",
+          "quartz",
+          "cedar"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-01",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: opal; fern; linenwood; linen. Reply with its last element only, in lowercase.",
+      "expected": "linen",
+      "operands": [
+        "opal",
+        "fern",
+        "linenwood",
+        "linen"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-01",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase coral, then quartz; join with / only. No extra text.",
+      "expected": "CORAL/QUARTZ",
+      "operands": [
+        "coral",
+        "quartz"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-01",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk0 is shiny. Arun is a zelk0. Is Arun shiny? Answer only yes or no, lowercase.",
+      "expected": "yes",
+      "operands": {
+        "all_members_have_property": true,
+        "group": "zelk0",
+        "person": "Arun",
+        "property": "shiny"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-01",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Kemi=Wednesday; Jori=Friday. Reply with the weekday assigned to Kemi, capitalized, and nothing else.",
+      "expected": "Wednesday",
+      "operands": {
+        "days": {
+          "Kemi": "Wednesday",
+          "Jori": "Friday"
+        },
+        "query": "Kemi"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-01",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: GWDY6C. Return only the reversed string; retain case.",
+      "expected": "C6YDWG",
+      "operands": "GWDY6C",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-01",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"cyan\"; count must be 21 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"cyan\",\"count\":21}",
+      "operands": {
+        "color": "cyan",
+        "count": 21
+      },
+      "scorer": "json_object"
+    },
+    {
+      "id": "g6-format-confirm-v1-add-02",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 797 + 317. Reply with digits only.",
+      "expected": "1114",
+      "operands": [
+        797,
+        317
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-02",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 600 - 233. Reply with digits only.",
+      "expected": "367",
+      "operands": [
+        600,
+        233
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-02",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 35 times 26. Reply with digits only.",
+      "expected": "910",
+      "operands": [
+        35,
+        26
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-02",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 73, 13, 64, 47, 49. Reply as comma-separated integers without spaces.",
+      "expected": "13,47,49,64,73",
+      "operands": [
+        73,
+        13,
+        64,
+        47,
+        49
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-02",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry12, code:R1267, count:31}. Reply with only its code.",
+      "expected": "R1267",
+      "operands": {
+        "name": "entry12",
+        "code": "R1267",
+        "count": 31
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-02",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'opal': opal, cobalt, cobalt, opal, cobalt, opal. Reply with digits only.",
+      "expected": "3",
+      "operands": {
+        "target": "opal",
+        "words": [
+          "opal",
+          "cobalt",
+          "cobalt",
+          "opal",
+          "cobalt",
+          "opal"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-02",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: linenwood; opal; cedar; linen. Reply with its last element only, in lowercase.",
+      "expected": "linen",
+      "operands": [
+        "linenwood",
+        "opal",
+        "cedar",
+        "linen"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-02",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase basalt, then cedar; join with / only. No extra text.",
+      "expected": "BASALT/CEDAR",
+      "operands": [
+        "basalt",
+        "cedar"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-02",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk1 is not tall. Edda is a zelk1. Is Edda tall? Answer only yes or no, lowercase.",
+      "expected": "no",
+      "operands": {
+        "all_members_have_property": false,
+        "group": "zelk1",
+        "person": "Edda",
+        "property": "tall"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-02",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Kemi=Friday; Gita=Wednesday. Reply with the weekday assigned to Gita, capitalized, and nothing else.",
+      "expected": "Wednesday",
+      "operands": {
+        "days": {
+          "Kemi": "Friday",
+          "Gita": "Wednesday"
+        },
+        "query": "Gita"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-02",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: GMX84W. Return only the reversed string; retain case.",
+      "expected": "W48XMG",
+      "operands": "GMX84W",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-02",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"teal\"; count must be 22 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"teal\",\"count\":22}",
+      "operands": {
+        "color": "teal",
+        "count": 22
+      },
+      "scorer": "json_object"
+    },
+    {
+      "id": "g6-format-confirm-v1-add-03",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 635 + 417. Reply with digits only.",
+      "expected": "1052",
+      "operands": [
+        635,
+        417
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-03",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 906 - 540. Reply with digits only.",
+      "expected": "366",
+      "operands": [
+        906,
+        540
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-03",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 20 times 24. Reply with digits only.",
+      "expected": "480",
+      "operands": [
+        20,
+        24
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-03",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 18, 92, 16, 63, 9. Reply as comma-separated integers without spaces.",
+      "expected": "9,16,18,63,92",
+      "operands": [
+        18,
+        92,
+        16,
+        63,
+        9
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-03",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry13, code:R1334, count:32}. Reply with only its code.",
+      "expected": "R1334",
+      "operands": {
+        "name": "entry13",
+        "code": "R1334",
+        "count": 32
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-03",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'linen': linen, fern, fern, linen, linen, fern, linen. Reply with digits only.",
+      "expected": "4",
+      "operands": {
+        "target": "linen",
+        "words": [
+          "linen",
+          "fern",
+          "fern",
+          "linen",
+          "linen",
+          "fern",
+          "linen"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-03",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: linen; opal; coral; linenwood. Reply with its last element only, in lowercase.",
+      "expected": "linenwood",
+      "operands": [
+        "linen",
+        "opal",
+        "coral",
+        "linenwood"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-03",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase quartz, then coral; join with / only. No extra text.",
+      "expected": "QUARTZ/CORAL",
+      "operands": [
+        "quartz",
+        "coral"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-03",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk2 is soft. Fenn is a zelk2. Is Fenn soft? Answer only yes or no, lowercase.",
+      "expected": "yes",
+      "operands": {
+        "all_members_have_property": true,
+        "group": "zelk2",
+        "person": "Fenn",
+        "property": "soft"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-03",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Kemi=Friday; Fenn=Monday. Reply with the weekday assigned to Kemi, capitalized, and nothing else.",
+      "expected": "Friday",
+      "operands": {
+        "days": {
+          "Kemi": "Friday",
+          "Fenn": "Monday"
+        },
+        "query": "Kemi"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-03",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: YQNSJB. Return only the reversed string; retain case.",
+      "expected": "BJSNQY",
+      "operands": "YQNSJB",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-03",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"violet\"; count must be 23 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"violet\",\"count\":23}",
+      "operands": {
+        "color": "violet",
+        "count": 23
+      },
+      "scorer": "json_object"
+    },
+    {
+      "id": "g6-format-confirm-v1-add-04",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 136 + 619. Reply with digits only.",
+      "expected": "755",
+      "operands": [
+        136,
+        619
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-04",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 479 - 330. Reply with digits only.",
+      "expected": "149",
+      "operands": [
+        479,
+        330
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-04",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 35 times 27. Reply with digits only.",
+      "expected": "945",
+      "operands": [
+        35,
+        27
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-04",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 37, 26, 33, 11, 2. Reply as comma-separated integers without spaces.",
+      "expected": "2,11,26,33,37",
+      "operands": [
+        37,
+        26,
+        33,
+        11,
+        2
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-04",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry14, code:R1401, count:33}. Reply with only its code.",
+      "expected": "R1401",
+      "operands": {
+        "name": "entry14",
+        "code": "R1401",
+        "count": 33
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-04",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'quartz': quartz, quartz, linenwood, quartz, linenwood, linenwood, quartz, quartz. Reply with digits only.",
+      "expected": "5",
+      "operands": {
+        "target": "quartz",
+        "words": [
+          "quartz",
+          "quartz",
+          "linenwood",
+          "quartz",
+          "linenwood",
+          "linenwood",
+          "quartz",
+          "quartz"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-04",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: linen; quartz; jasper; elm. Reply with its last element only, in lowercase.",
+      "expected": "elm",
+      "operands": [
+        "linen",
+        "quartz",
+        "jasper",
+        "elm"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-04",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase linen, then opal; join with / only. No extra text.",
+      "expected": "LINEN/OPAL",
+      "operands": [
+        "linen",
+        "opal"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-04",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk3 is not striped. Gita is a zelk3. Is Gita striped? Answer only yes or no, lowercase.",
+      "expected": "no",
+      "operands": {
+        "all_members_have_property": false,
+        "group": "zelk3",
+        "person": "Gita",
+        "property": "striped"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-04",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Gita=Monday; Edda=Friday. Reply with the weekday assigned to Edda, capitalized, and nothing else.",
+      "expected": "Friday",
+      "operands": {
+        "days": {
+          "Gita": "Monday",
+          "Edda": "Friday"
+        },
+        "query": "Edda"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-04",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: YNCGXL. Return only the reversed string; retain case.",
+      "expected": "LXGCNY",
+      "operands": "YNCGXL",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-04",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"crimson\"; count must be 24 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"crimson\",\"count\":24}",
+      "operands": {
+        "color": "crimson",
+        "count": 24
+      },
+      "scorer": "json_object"
+    },
+    {
+      "id": "g6-format-confirm-v1-add-05",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 373 + 558. Reply with digits only.",
+      "expected": "931",
+      "operands": [
+        373,
+        558
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-05",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 771 - 213. Reply with digits only.",
+      "expected": "558",
+      "operands": [
+        771,
+        213
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-05",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 14 times 13. Reply with digits only.",
+      "expected": "182",
+      "operands": [
+        14,
+        13
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-05",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 24, 82, 98, 34, 50. Reply as comma-separated integers without spaces.",
+      "expected": "24,34,50,82,98",
+      "operands": [
+        24,
+        82,
+        98,
+        34,
+        50
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-05",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry15, code:R1468, count:34}. Reply with only its code.",
+      "expected": "R1468",
+      "operands": {
+        "name": "entry15",
+        "code": "R1468",
+        "count": 34
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-05",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'cobalt': cobalt, cobalt, basalt, basalt, basalt. Reply with digits only.",
+      "expected": "2",
+      "operands": {
+        "target": "cobalt",
+        "words": [
+          "cobalt",
+          "cobalt",
+          "basalt",
+          "basalt",
+          "basalt"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-05",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: linen; cedar; coral; cobalt. Reply with its last element only, in lowercase.",
+      "expected": "cobalt",
+      "operands": [
+        "linen",
+        "cedar",
+        "coral",
+        "cobalt"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-05",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase linen, then cedar; join with / only. No extra text.",
+      "expected": "LINEN/CEDAR",
+      "operands": [
+        "linen",
+        "cedar"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-05",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk4 is heavy. Hadi is a zelk4. Is Hadi heavy? Answer only yes or no, lowercase.",
+      "expected": "yes",
+      "operands": {
+        "all_members_have_property": true,
+        "group": "zelk4",
+        "person": "Hadi",
+        "property": "heavy"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-05",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Gita=Tuesday; Arun=Monday. Reply with the weekday assigned to Gita, capitalized, and nothing else.",
+      "expected": "Tuesday",
+      "operands": {
+        "days": {
+          "Gita": "Tuesday",
+          "Arun": "Monday"
+        },
+        "query": "Gita"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-05",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: 6SJKY5. Return only the reversed string; retain case.",
+      "expected": "5YKJS6",
+      "operands": "6SJKY5",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-05",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"ochre\"; count must be 25 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"ochre\",\"count\":25}",
+      "operands": {
+        "color": "ochre",
+        "count": 25
+      },
+      "scorer": "json_object"
+    },
+    {
+      "id": "g6-format-confirm-v1-add-06",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 149 + 347. Reply with digits only.",
+      "expected": "496",
+      "operands": [
+        149,
+        347
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-06",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 541 - 188. Reply with digits only.",
+      "expected": "353",
+      "operands": [
+        541,
+        188
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-06",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 24 times 23. Reply with digits only.",
+      "expected": "552",
+      "operands": [
+        24,
+        23
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-06",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 35, 15, 17, 92, 50. Reply as comma-separated integers without spaces.",
+      "expected": "15,17,35,50,92",
+      "operands": [
+        35,
+        15,
+        17,
+        92,
+        50
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-06",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry16, code:R1535, count:35}. Reply with only its code.",
+      "expected": "R1535",
+      "operands": {
+        "name": "entry16",
+        "code": "R1535",
+        "count": 35
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-06",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'fern': fern, coral, fern, fern, coral, coral. Reply with digits only.",
+      "expected": "3",
+      "operands": {
+        "target": "fern",
+        "words": [
+          "fern",
+          "coral",
+          "fern",
+          "fern",
+          "coral",
+          "coral"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-06",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: basalt; quartz; elm; opal. Reply with its last element only, in lowercase.",
+      "expected": "opal",
+      "operands": [
+        "basalt",
+        "quartz",
+        "elm",
+        "opal"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-06",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase jasper, then elm; join with / only. No extra text.",
+      "expected": "JASPER/ELM",
+      "operands": [
+        "jasper",
+        "elm"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-06",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk5 is not transparent. Jori is a zelk5. Is Jori transparent? Answer only yes or no, lowercase.",
+      "expected": "no",
+      "operands": {
+        "all_members_have_property": false,
+        "group": "zelk5",
+        "person": "Jori",
+        "property": "transparent"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-06",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Ludo=Saturday; Kemi=Monday. Reply with the weekday assigned to Kemi, capitalized, and nothing else.",
+      "expected": "Monday",
+      "operands": {
+        "days": {
+          "Ludo": "Saturday",
+          "Kemi": "Monday"
+        },
+        "query": "Kemi"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-06",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: EW9UPG. Return only the reversed string; retain case.",
+      "expected": "GPU9WE",
+      "operands": "EW9UPG",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-06",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"navy\"; count must be 26 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"navy\",\"count\":26}",
+      "operands": {
+        "color": "navy",
+        "count": 26
+      },
+      "scorer": "json_object"
+    },
+    {
+      "id": "g6-format-confirm-v1-add-07",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 634 + 282. Reply with digits only.",
+      "expected": "916",
+      "operands": [
+        634,
+        282
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-07",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 609 - 600. Reply with digits only.",
+      "expected": "9",
+      "operands": [
+        609,
+        600
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-07",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 34 times 14. Reply with digits only.",
+      "expected": "476",
+      "operands": [
+        34,
+        14
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-07",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 97, 5, 83, 65, 57. Reply as comma-separated integers without spaces.",
+      "expected": "5,57,65,83,97",
+      "operands": [
+        97,
+        5,
+        83,
+        65,
+        57
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-07",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry17, code:R1602, count:36}. Reply with only its code.",
+      "expected": "R1602",
+      "operands": {
+        "name": "entry17",
+        "code": "R1602",
+        "count": 36
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-07",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'linenwood': walnut, linenwood, walnut, linenwood, linenwood, linenwood, walnut. Reply with digits only.",
+      "expected": "4",
+      "operands": {
+        "target": "linenwood",
+        "words": [
+          "walnut",
+          "linenwood",
+          "walnut",
+          "linenwood",
+          "linenwood",
+          "linenwood",
+          "walnut"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-07",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: cedar; walnut; basalt; cobalt. Reply with its last element only, in lowercase.",
+      "expected": "cobalt",
+      "operands": [
+        "cedar",
+        "walnut",
+        "basalt",
+        "cobalt"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-07",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase fern, then cedar; join with / only. No extra text.",
+      "expected": "FERN/CEDAR",
+      "operands": [
+        "fern",
+        "cedar"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-07",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk6 is cold. Kemi is a zelk6. Is Kemi cold? Answer only yes or no, lowercase.",
+      "expected": "yes",
+      "operands": {
+        "all_members_have_property": true,
+        "group": "zelk6",
+        "person": "Kemi",
+        "property": "cold"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-07",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Gita=Wednesday; Hadi=Tuesday. Reply with the weekday assigned to Gita, capitalized, and nothing else.",
+      "expected": "Wednesday",
+      "operands": {
+        "days": {
+          "Gita": "Wednesday",
+          "Hadi": "Tuesday"
+        },
+        "query": "Gita"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-07",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: 92NERD. Return only the reversed string; retain case.",
+      "expected": "DREN29",
+      "operands": "92NERD",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-07",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"pink\"; count must be 27 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"pink\",\"count\":27}",
+      "operands": {
+        "color": "pink",
+        "count": 27
+      },
+      "scorer": "json_object"
+    },
+    {
+      "id": "g6-format-confirm-v1-add-08",
+      "kind": "task",
+      "family": "add",
+      "prompt": "Calculate 216 + 463. Reply with digits only.",
+      "expected": "679",
+      "operands": [
+        216,
+        463
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-subtract-08",
+      "kind": "task",
+      "family": "subtract",
+      "prompt": "Calculate 490 - 224. Reply with digits only.",
+      "expected": "266",
+      "operands": [
+        490,
+        224
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-multiply-08",
+      "kind": "task",
+      "family": "multiply",
+      "prompt": "Calculate 22 times 28. Reply with digits only.",
+      "expected": "616",
+      "operands": [
+        22,
+        28
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-sort-08",
+      "kind": "task",
+      "family": "sort",
+      "prompt": "Sort ascending: 76, 9, 12, 28, 54. Reply as comma-separated integers without spaces.",
+      "expected": "9,12,28,54,76",
+      "operands": [
+        76,
+        9,
+        12,
+        28,
+        54
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-extract-08",
+      "kind": "task",
+      "family": "extract",
+      "prompt": "Entry {name:entry18, code:R1669, count:37}. Reply with only its code.",
+      "expected": "R1669",
+      "operands": {
+        "name": "entry18",
+        "code": "R1669",
+        "count": 37
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-count-08",
+      "kind": "task",
+      "family": "count",
+      "prompt": "Count occurrences of 'basalt': basalt, elm, elm, basalt, basalt, elm, basalt, basalt. Reply with digits only.",
+      "expected": "5",
+      "operands": {
+        "target": "basalt",
+        "words": [
+          "basalt",
+          "elm",
+          "elm",
+          "basalt",
+          "basalt",
+          "elm",
+          "basalt",
+          "basalt"
+        ]
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-last-08",
+      "kind": "task",
+      "family": "last",
+      "prompt": "Sequence: jasper; opal; linenwood; quartz. Reply with its last element only, in lowercase.",
+      "expected": "quartz",
+      "operands": [
+        "jasper",
+        "opal",
+        "linenwood",
+        "quartz"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-format-08",
+      "kind": "task",
+      "family": "format",
+      "prompt": "Uppercase linen, then quartz; join with / only. No extra text.",
+      "expected": "LINEN/QUARTZ",
+      "operands": [
+        "linen",
+        "quartz"
+      ],
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-logic-08",
+      "kind": "task",
+      "family": "logic",
+      "prompt": "Every zelk7 is not square. Ludo is a zelk7. Is Ludo square? Answer only yes or no, lowercase.",
+      "expected": "no",
+      "operands": {
+        "all_members_have_property": false,
+        "group": "zelk7",
+        "person": "Ludo",
+        "property": "square"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-context-08",
+      "kind": "task",
+      "family": "context",
+      "prompt": "Schedule: Arun=Thursday; Jori=Monday. Reply with the weekday assigned to Jori, capitalized, and nothing else.",
+      "expected": "Monday",
+      "operands": {
+        "days": {
+          "Arun": "Thursday",
+          "Jori": "Monday"
+        },
+        "query": "Jori"
+      },
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-reverse-08",
+      "kind": "task",
+      "family": "reverse",
+      "prompt": "Reverse this exact string: Q59JGZ. Return only the reversed string; retain case.",
+      "expected": "ZGJ95Q",
+      "operands": "Q59JGZ",
+      "scorer": "strip_exact"
+    },
+    {
+      "id": "g6-format-confirm-v1-json-08",
+      "kind": "task",
+      "family": "json",
+      "prompt": "Return a JSON object only: color must be \"azure\"; count must be 28 (integer). Exactly these two keys.",
+      "expected": "{\"color\":\"azure\",\"count\":28}",
+      "operands": {
+        "color": "azure",
+        "count": 28
+      },
+      "scorer": "json_object"
+    }
+  ],
+  "generation": {
+    "render": "user: {prompt}\nassistant:",
+    "add_BOS": true,
+    "add_EOS_to_prompt": false,
+    "do_sample": false,
+    "num_beams": 1,
+    "max_new_tokens": 128,
+    "use_cache": true,
+    "stop": "EOS or max_new_tokens; no string stopping",
+    "decode": "skip_special_tokens=True; clean_up_tokenization_spaces=False"
+  },
+  "scoring": "unchanged frozen strict scorer; no formatting normalization",
+  "authoring_seed": 22461022
+}

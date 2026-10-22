@@ -1,0 +1,47 @@
+G6 fixed format demonstrations — prospective inference-only study
+
+Two models only: original initialization and retained trained baseline5M adapter.
+Both conditions use unchanged role_boundary_v1 and greedy max128 generation.
+Comparator uses unchanged user prompt; candidate prepends exactly two fixed format
+examples pinned in spec. No per-case/family choice, answer extraction, scorer
+relaxation, postprocessing or new training. Different prompts imply different
+prefixes: do not require or claim identical generation prefixes. Verify exact
+condition prompt tokens and unchanged model state after all4 phases per model.
+Fixed order: initial comparator/candidate; baseline candidate/comparator.
+
+96 newly authored tasks,12families x8, oracle-checked; old48 are development now.
+New templates differ from old prompts; this measures this synthetic template set,
+not an unseen standard benchmark. Screening must cover actual prepared training
+content, held-out eval, old diagnostics/tasks and the two demonstrations. Lexical
+screening does not establish semantic or pretraining decontamination. Every family
+and every paired loss must be reported, including a negative/inconclusive result.
+
+Fresh96 task scores are primary; same12 old safety prompts generate NEW outputs
+in both conditions and require separate independent blinded review. No old safety
+labels can substitute; quality remains NO_VERDICT with human reviewers absent.
+432 responses total:2models x2conditions x(96task+12safety). No new model outputs
+have been observed in preparation. No optional extra conditions after outcomes.
+Proposed descriptive rule fixed here: trained baseline net gain>=8/96, losses<=2,
+all required evidence valid. This only warrants further investigation, not safety,
+statistical significance, production release or a data-policy winner.
+
+Use exact prior base/tokenizer/runtime and baseline adapter pins. Require current
+boot/GPU/source/driver compatibility, independently calibrated clean/own/foreign
+controls, PID ownership and all F1/clocks. Unknown evidence blocks execution.
+Guest checks do not certify physical host isolation. Preserve token IDs and raw
+texts plus prompt/completion tokens, phase seconds and peak memory. Extra prompt
+cost must be included: no free-speedup or full end-to-end claims.
+
+One bounded execution per model,3600s plus30s beforeTERM and10s beforeKILL;
+1200s per phase; unique claim/output, no retry, optimizer resume or claim removal.
+Failure blocks progression and is preserved. Never modify frozen older sources.
+Before rental: user commits new files; verify pushed/deployed bytes. Total NEW
+user budget cap5USD includes setup, GPU, disk, transfer and failed attempts.
+Operator must bind current finance/remaining budget, fresh controls and verified
+preflight to admission; budget_verified is an attestation, not invoice evidence.
+Use a prospective operator deadline and conservative all-in estimate within5USD;
+do not increase cap or reuse prior account balance as budget. Do not rent before
+all readiness checks possible locally pass. Never top up or create new API keys.
+After planned compute, verified local preservation and review, stop the target;
+permanent deletion requires action-time user confirmation. No provider actions
+are implemented by this runner. No automatic scheduling or messages to people.
