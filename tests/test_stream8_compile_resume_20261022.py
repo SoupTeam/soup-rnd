@@ -1,0 +1,75 @@
+"""Chunked independent replay must agree with the preserved original comparator."""
+
+import importlib.util
+import zipfile
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+
+def load_module(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_frozen_wrapper_metadata_compatibility_never_enables_liger():
+    repo = Path(__file__).parents[1]
+    bench = load_module(repo / "benchmarks/stream8-compile-20261022-resume/bench.py",
+                        "compile_resume_bench")
+    wrapper = SimpleNamespace(config=SimpleNamespace(training=SimpleNamespace(use_liger=False)))
+    bench.initialize_patch_metadata(wrapper)
+    assert wrapper._streaming_liger_patches == {}
+    wrapper._streaming_liger_patches = {"unexpected": 1}
+    bench.initialize_patch_metadata(wrapper)
+    assert wrapper._streaming_liger_patches == {"unexpected": 1}
+    wrapper.config.training.use_liger = True
+    with pytest.raises(ValueError, match="ordinary unpatched"):
+        bench.initialize_patch_metadata(wrapper)
+
+
+@pytest.mark.parametrize("mutation", ["none", "batch", "initial", "logits", "nan", "loss"])
+def test_chunked_gate_matches_original_comparator(tmp_path, mutation):
+    import torch
+    from safetensors.torch import save_file
+
+    repo = Path(__file__).parents[1]
+    archive = (repo / "benchmarks/evidence/streaming-residency-compile-8gb-20261021"
+               / "planned-harness.zip")
+    with zipfile.ZipFile(archive) as source:
+        name = next(name for name in source.namelist()
+                    if name.endswith("liger_streaming_parity.py"))
+        original_path = tmp_path / "original.py"
+        original_path.write_bytes(source.read(name))
+    original = load_module(original_path, "original_gate")
+    bounded = load_module(repo / "benchmarks/stream8-compile-20261022-resume/compare_streamed.py",
+                          "bounded_gate")
+    values = {
+        "batch/input_ids": torch.arange(8).reshape(1, 8),
+        "initial/weight": torch.tensor([1., 2., 0.]),
+        "logits/0": torch.linspace(-2, 2, 34 * 10001).reshape(1, 34, 10001),
+        "loss": torch.tensor([1.23449, 1.23449], dtype=torch.float64),
+    }
+    changed = {name: value.clone() for name, value in values.items()}
+    if mutation == "batch":
+        changed["batch/input_ids"][0, 0] += 1
+    elif mutation == "initial":
+        changed["initial/weight"][0] += .00001
+    elif mutation == "logits":
+        changed["logits/0"][0, 33, 10000] += .2
+    elif mutation == "nan":
+        changed["logits/0"][0, 18, 100] = float("nan")
+    elif mutation == "loss":
+        changed["loss"][0] = 1.23451
+    for folder, tensors in [("reference", values), ("candidate", changed)]:
+        target = tmp_path / folder
+        target.mkdir()
+        save_file(tensors, target / "trace.safetensors")
+    expected = original.compare(tmp_path / "reference", tmp_path / "candidate")
+    actual = bounded.compare(tmp_path / "reference/trace.safetensors",
+                             tmp_path / "candidate/trace.safetensors")
+    for field in ("passed", "loss_three_decimals", "groups", "rtol", "atol"):
+        assert actual[field] == expected[field]
+    assert actual["passed"] == (mutation == "none")
