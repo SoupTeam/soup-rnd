@@ -376,7 +376,8 @@ def _nvfp4_factory(device: str) -> tuple[Callable[[torch.Tensor], torch.nn.Modul
         with te.quantized_model_init(enabled=True, recipe=recipe):
             layer = te.Linear(in_features, out_features, bias=False,
                               params_dtype=torch.bfloat16, device=device)
-        layer.weight.copy_(weight.to(device=device, dtype=torch.bfloat16))
+        with torch.no_grad():
+            layer.weight.copy_(weight.to(device=device, dtype=torch.bfloat16))
         layer.weight.requires_grad_(False)
         return layer
 
