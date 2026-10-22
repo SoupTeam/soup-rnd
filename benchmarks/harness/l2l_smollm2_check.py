@@ -117,9 +117,9 @@ def measure_k(
     0 it is accumulation with the state hooks at ``(seed, step)``, the L2L step gets the
     same two numbers, and the two wrong-order controls are added to the record.
     """
-    from soup_cli.utils.l2l_step import capture_layer_call, count_loads
-
     import torch
+
+    from soup_cli.utils.l2l_step import capture_layer_call, count_loads
 
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats()
