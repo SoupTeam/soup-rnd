@@ -1,6 +1,6 @@
 {
   "task": "D3 full-model trained OLMoE optimizer-step comparison",
-  "schema_version": 5,
+  "schema_version": 6,
   "scope": "trained OLMoE optimizer-step numerical and descriptive GPU comparison; synthetic token IDs, no quality claim",
   "model_id": "allenai/OLMoE-1B-7B-0924",
   "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
@@ -126,7 +126,20 @@
       "attempted_cell": "correctness-dense-native",
       "cause": "after a container restart, the live shard st_dev changed from 46 to 49; the frozen mapping was correctly rejected before model construction",
       "treatment": "Retain as a no-verdict attempt with no replacement under revision 4. Revision 5 refreshes mapping and independently passing F1 controls; require a new frozen commit before any formal cell."
+    },
+    {
+      "commit": "0035af1ec02a896ca25fd5b755e8878223201198",
+      "protocol_sha256": "5beb564816c12018f2f360035f80779db6d669653cdcb7d51a3aa4fff4296c0e",
+      "session_id": "5617251ce0f14836b2eff51ecc548cbb",
+      "attempt_archive_sha256": "2f69267e89a945c8304eb021b91b40b2c058cd01509f3dbe1ce0e8345aff6f20",
+      "status": "incomplete",
+      "completed_cells": 1,
+      "passed_cell": "correctness-dense-native",
+      "no_verdict_cell": "correctness-dense-sequential",
+      "cause": "the child oracle resolver looked under correctness/dense-native while the series wrote correctness-dense-native; the accepted dense/native cell was preserved, and sequential stopped before model construction/F1",
+      "treatment": "Retain the native result and tensor oracle; this is not a comparison or replacement. Share one canonical oracle-path helper between parent and child, test the layout, then require a new frozen commit/protocol."
     }
   ],
-  "container_restart_policy": "Any container or instance restart invalidates the prior mapping. Rediscover all shards and pass independent baseline/own/foreign F1 controls before freezing; identity mismatch is no-verdict and never an automatic replacement."
+  "container_restart_policy": "Any container or instance restart invalidates the prior mapping. Rediscover all shards and pass independent baseline/own/foreign F1 controls before freezing; identity mismatch is no-verdict and never an automatic replacement.",
+  "native_oracle_path_template": "correctness-{codec}-native"
 }

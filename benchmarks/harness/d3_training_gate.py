@@ -17,7 +17,14 @@ from pathlib import Path
 
 from d3_full_model import file_hash, tensor_hash, validate_bundle
 from d3_training_model import MODES, open_training_model
-from d3_training_protocol import CODECS, ROOT, export_packet, frozen_source, read_rule
+from d3_training_protocol import (
+    CODECS,
+    ROOT,
+    export_packet,
+    frozen_source,
+    native_oracle_path,
+    read_rule,
+)
 
 
 class NumericalFailureError(RuntimeError):
@@ -96,7 +103,7 @@ def prepared_identity(prepared: Path, codec: str, rule: dict) -> tuple[dict, obj
 
 def oracle_identity(session: Path, codec: str, source: dict, rule: dict,
                     session_id: str, input_hash: str) -> tuple[Path, dict]:
-    folder = session / "correctness" / (codec + "-native")
+    folder = native_oracle_path(session, codec)
     record = json.loads((folder / "result.json").read_text())
     if (record.get("status") != "ok" or record.get("mode") != "native"
             or record.get("source") != source or record.get("session_id") != session_id

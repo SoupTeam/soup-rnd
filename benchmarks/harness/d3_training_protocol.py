@@ -52,6 +52,11 @@ SUPERSEDED_ATTEMPT_FILES = (
     "benchmarks/results/d3-trained-step-attempt-04-20261022/attempt-04-no-verdict-3492ed83.zip",
     "benchmarks/results/d3-trained-step-attempt-04-20261022/protocol.json",
     "benchmarks/results/d3-trained-step-attempt-04-20261022/report.md",
+    "benchmarks/results/d3-trained-step-attempt-05-20261022/.gitattributes",
+    "benchmarks/results/d3-trained-step-attempt-05-20261022/SHA256SUMS.json",
+    "benchmarks/results/d3-trained-step-attempt-05-20261022/attempt-05-no-verdict-0035af1.zip",
+    "benchmarks/results/d3-trained-step-attempt-05-20261022/protocol.json",
+    "benchmarks/results/d3-trained-step-attempt-05-20261022/report.md",
 )
 
 
@@ -59,6 +64,13 @@ def read_rule(root: Path = ROOT) -> dict:
     rule = json.loads(contained(root, RELATIVE_PROTOCOL).read_text(encoding="utf-8"))
     validate_rule(rule)
     return rule
+
+
+def native_oracle_path(session: Path, codec: str) -> Path:
+    """Return the canonical native-oracle folder shared by the series and child."""
+    if codec not in CODECS:
+        raise ValueError(f"unsupported trained-step codec: {codec}")
+    return session / f"correctness-{codec}-native"
 
 
 def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
@@ -127,9 +139,28 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
                       "Revision 5 refreshes mapping and independently passing F1 controls; "
                       "require a new frozen commit before any formal cell."),
     }
-    if (rule.get("schema_version") != 5
+    prior_attempt_05 = {
+        "commit": "0035af1ec02a896ca25fd5b755e8878223201198",
+        "protocol_sha256": "5beb564816c12018f2f360035f80779db6d669653cdcb7d51a3aa4fff4296c0e",
+        "session_id": "5617251ce0f14836b2eff51ecc548cbb",
+        "attempt_archive_sha256": (
+            "2f69267e89a945c8304eb021b91b40b2c058cd01509f3dbe1ce0e8345aff6f20"
+        ),
+        "status": "incomplete",
+        "completed_cells": 1,
+        "passed_cell": "correctness-dense-native",
+        "no_verdict_cell": "correctness-dense-sequential",
+        "cause": ("the child oracle resolver looked under correctness/dense-native while the "
+                  "series wrote correctness-dense-native; the accepted dense/native cell was "
+                  "preserved, and sequential stopped before model construction/F1"),
+        "treatment": ("Retain the native result and tensor oracle; this is not a comparison "
+                      "or replacement. Share one canonical oracle-path helper between parent "
+                      "and child, test the layout, then require a new frozen commit/protocol."),
+    }
+    if (rule.get("schema_version") != 6
             or rule.get("prior_attempts") != [
                 prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04,
+                prior_attempt_05,
             ]):
         raise ValueError("fresh series must identify all retained no-verdict attempts")
     if rule.get("container_restart_policy") != (
@@ -137,6 +168,8 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
             "shards and pass independent baseline/own/foreign F1 controls before freezing; "
             "identity mismatch is no-verdict and never an automatic replacement."):
         raise ValueError("container restart must invalidate mapping and require fresh F1 controls")
+    if rule.get("native_oracle_path_template") != "correctness-{codec}-native":
+        raise ValueError("parent and child must share the frozen native-oracle path layout")
     expected = {"model_id": "allenai/OLMoE-1B-7B-0924",
                 "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
                 "batch": 1, "tokens": 512, "input_seed": 1234,
@@ -194,9 +227,11 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
             "frozen setup archive must retain passing baseline/own/foreign F1 controls"
         )
     archive_paths = (SUPERSEDED_ATTEMPT_FILES[2], SUPERSEDED_ATTEMPT_FILES[7],
-                     SUPERSEDED_ATTEMPT_FILES[12], SUPERSEDED_ATTEMPT_FILES[17])
+                     SUPERSEDED_ATTEMPT_FILES[12], SUPERSEDED_ATTEMPT_FILES[17],
+                     SUPERSEDED_ATTEMPT_FILES[22])
     for prior, archive_path in zip(
-        (prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04),
+        (prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04,
+         prior_attempt_05),
         archive_paths, strict=True,
     ):
         if file_hash(contained(ROOT, archive_path)) != prior["attempt_archive_sha256"]:

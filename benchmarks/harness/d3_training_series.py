@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 
 from d3_full_model import file_hash
-from d3_training_protocol import CODECS, MODES, frozen_source
+from d3_training_protocol import CODECS, MODES, frozen_source, native_oracle_path
 
 
 def _save(path: Path, value: dict) -> None:
@@ -76,7 +76,7 @@ def parent(args, rule: dict) -> int:
                             kind="correctness", name=f"correctness-{codec}-{mode}",
                             oracle=oracle)
                 if mode == "native":
-                    oracle = args.out / f"correctness-{codec}-native"
+                    oracle = native_oracle_path(args.out, codec)
                     if set(row.get("oracle_files", {})) != {
                         f"step-{index}.safetensors" for index in range(rule["steps"])
                     }:
@@ -86,14 +86,14 @@ def parent(args, rule: dict) -> int:
 
         left, right = rule["timing_pair"]
         for codec in CODECS:
-            oracle = args.out / f"correctness-{codec}-native"
+            oracle = native_oracle_path(args.out, codec)
             for block in range(rule["measurement_blocks_per_codec"]):
                 for position, mode in enumerate((left, right, right, left)):
                     _cell(args, source, rule, session, codec=codec, mode=mode,
                           kind="timing", name=f"timing-{codec}-block-{block + 1:02d}-"
                           f"{position + 1}-{mode}", oracle=oracle)
         for codec in CODECS:
-            oracle = args.out / f"correctness-{codec}-native"
+            oracle = native_oracle_path(args.out, codec)
             for mode in rule["timing_pair"]:
                 _cell(args, source, rule, session, codec=codec, mode=mode,
                       kind="profile", name=f"profile-{codec}-{mode}", oracle=oracle)

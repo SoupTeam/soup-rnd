@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 
 import pytest
 from d3_training_gate import main
-from d3_training_protocol import read_rule, source_paths, validate_rule
+from d3_training_protocol import (
+    native_oracle_path,
+    read_rule,
+    source_paths,
+    validate_rule,
+)
 
 
 def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
@@ -17,9 +23,9 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert len(rule["bundle_sha256"]) == 3
     assert rule["expected_cell_count"] == 84
     assert rule["attempt_budget"]["total_cells"] == 84
-    assert rule["schema_version"] == 5
+    assert rule["schema_version"] == 6
     assert [attempt["status"] for attempt in rule["prior_attempts"]] == [
-        "incomplete", "incomplete", "incomplete", "incomplete",
+        "incomplete", "incomplete", "incomplete", "incomplete", "incomplete",
     ]
     assert rule["prior_attempts"][0]["completed_cells"] == 1
     assert rule["prior_attempts"][0]["no_verdict_cell"] == "correctness-dense-native"
@@ -30,6 +36,10 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert rule["prior_attempts"][3]["completed_cells"] == 0
     assert rule["prior_attempts"][3]["attempted_cell"] == "correctness-dense-native"
     assert "container or instance restart" in rule["container_restart_policy"]
+    assert rule["prior_attempts"][4]["completed_cells"] == 1
+    assert rule["prior_attempts"][4]["passed_cell"] == "correctness-dense-native"
+    assert rule["prior_attempts"][4]["no_verdict_cell"] == "correctness-dense-sequential"
+    assert rule["native_oracle_path_template"] == "correctness-{codec}-native"
     assert rule["gpu_uuid"].startswith("GPU-")
     assert "tests/test_d3_training_protocol.py" in source_paths()
     assert "tests/test_d3_full_model.py" in source_paths()
@@ -41,6 +51,16 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
                for path in source_paths())
     assert any(path.endswith("attempt-04-no-verdict-3492ed83.zip")
                for path in source_paths())
+    assert any(path.endswith("attempt-05-no-verdict-0035af1.zip")
+               for path in source_paths())
+
+
+def test_native_oracle_path_matches_series_layout() -> None:
+    session = Path("/tmp/d3-session")
+    for codec in ("dense", "nf4", "nf4-dq"):
+        assert native_oracle_path(session, codec) == session / f"correctness-{codec}-native"
+    with pytest.raises(ValueError, match="unsupported"):
+        native_oracle_path(session, "unknown")
 
 
 @pytest.mark.parametrize(
