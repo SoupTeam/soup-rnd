@@ -573,3 +573,15 @@ is implied by these preparation tests.
 The trained-step analyzer averages both A arms and both B arms in each ABBA
 block. Its regression uses equal underlying costs plus linear drift to ensure
 the drift cancels, rather than retaining only the last occurrence of each arm.
+
+### Completed bounded trained-step study
+
+The [revision-8 study](../benchmarks/results/d3-trained-step-0611f46b/report.md) completed
+all 84 cells on RTX 4090 with F1 OK and exact native step/adapter checks.
+The frozen base executes the complete forward/backward path; only the declared
+post-embedding rank-4 adapter is optimized. Timed native/Triton activation arms
+share one dispatch profile. Paired median timing changes were -1.3891% /
++0.8272% / +1.8686% for dense/NF4/nested NF4; observed whole-step allocator
+peaks were unchanged. This establishes the bounded numerical comparison,
+not a general speedup, model-quality result, full-weight fine-tuning, public
+trainer integration or final D3 acceptance. Independent review remains required.
