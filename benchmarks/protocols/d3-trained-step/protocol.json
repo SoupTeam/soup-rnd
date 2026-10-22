@@ -1,6 +1,6 @@
 {
   "task": "D3 full-model trained OLMoE optimizer-step comparison",
-  "schema_version": 4,
+  "schema_version": 5,
   "scope": "trained OLMoE optimizer-step numerical and descriptive GPU comparison; synthetic token IDs, no quality claim",
   "model_id": "allenai/OLMoE-1B-7B-0924",
   "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
@@ -63,9 +63,9 @@
   },
   "gpu_uuid": "GPU-46abdddd-2f6a-a368-5b31-a7d0c0a4a9ef",
   "cublas_library_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e",
-  "mapping_sha256": "53cad15f1cc03cbe21fb80c3689ab565e7eac680d856d53b63de7d73634ad43e",
-  "controls_sha256": "1cb4673409c99b8646fbf56d229ec4e1de8ebc2b0c3d946d37ce20ca2e2a50ff",
-  "setup_archive_sha256": "7a0ac80bb07ef6ee88e61e3e7cf9e86a25fff5a45c439a620a9eb07e19b93b6f",
+  "mapping_sha256": "4d14ef905b4c0ea6c5a45b1942f1925dc7bba495c981061046a83ad93bf09bd8",
+  "controls_sha256": "2b733f9df2caed285fdad8d41fb87ecaa1ba1178d58c531899c4d2b54e772acd",
+  "setup_archive_sha256": "85d1f600354997f5d9b008cef1f5b1ec4aee524a225080a2fc1646922270aaa7",
   "bundle_sha256": {
     "dense": "bcf2fb639b2d2116495bc60811dea4cdcdda27603e58eb76804b8f866fa9dfb8",
     "nf4": "ba2a9b96804d0512f10b25169845bd87aad0c1ca5feee8520dab0d73dc612444",
@@ -115,6 +115,18 @@
       "no_verdict_cell": "correctness-dense-sequential",
       "cause": "series passed --oracle to the child CLI, but the frozen child parser did not accept that argument; the next cell was rejected before model construction",
       "treatment": "Retain the native cell and failed invocation separately; do not treat this as a comparison or replacement. Add the missing child argument, verify native-to-candidate dispatch, then use a new frozen commit/protocol."
+    },
+    {
+      "commit": "3492ed83c2cd122ec0ad6318a2f40af6295ebcbc",
+      "protocol_sha256": "8a253f6c6f968d49e80bd235fa6eb9c0ac8f8f137c6384d239c5517e04fe180f",
+      "session_id": "bb01c3a357ee4f1aaefda153734762e5",
+      "attempt_archive_sha256": "80afca9d960093b826772ca2372d135eab2d8648e36c20a794a86f03a6fba0b3",
+      "status": "incomplete",
+      "completed_cells": 0,
+      "attempted_cell": "correctness-dense-native",
+      "cause": "after a container restart, the live shard st_dev changed from 46 to 49; the frozen mapping was correctly rejected before model construction",
+      "treatment": "Retain as a no-verdict attempt with no replacement under revision 4. Revision 5 refreshes mapping and independently passing F1 controls; require a new frozen commit before any formal cell."
     }
-  ]
+  ],
+  "container_restart_policy": "Any container or instance restart invalidates the prior mapping. Rediscover all shards and pass independent baseline/own/foreign F1 controls before freezing; identity mismatch is no-verdict and never an automatic replacement."
 }

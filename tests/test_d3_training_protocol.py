@@ -17,9 +17,9 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert len(rule["bundle_sha256"]) == 3
     assert rule["expected_cell_count"] == 84
     assert rule["attempt_budget"]["total_cells"] == 84
-    assert rule["schema_version"] == 4
+    assert rule["schema_version"] == 5
     assert [attempt["status"] for attempt in rule["prior_attempts"]] == [
-        "incomplete", "incomplete", "incomplete",
+        "incomplete", "incomplete", "incomplete", "incomplete",
     ]
     assert rule["prior_attempts"][0]["completed_cells"] == 1
     assert rule["prior_attempts"][0]["no_verdict_cell"] == "correctness-dense-native"
@@ -27,6 +27,9 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert rule["prior_attempts"][1]["attempted_cell"] == "correctness-dense-native"
     assert rule["prior_attempts"][2]["completed_cells"] == 1
     assert rule["prior_attempts"][2]["no_verdict_cell"] == "correctness-dense-sequential"
+    assert rule["prior_attempts"][3]["completed_cells"] == 0
+    assert rule["prior_attempts"][3]["attempted_cell"] == "correctness-dense-native"
+    assert "container or instance restart" in rule["container_restart_policy"]
     assert rule["gpu_uuid"].startswith("GPU-")
     assert "tests/test_d3_training_protocol.py" in source_paths()
     assert "tests/test_d3_full_model.py" in source_paths()
@@ -35,6 +38,8 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert any(path.endswith("attempt-02-no-verdict-23bad807.zip")
                for path in source_paths())
     assert any(path.endswith("attempt-03-no-verdict-46937f49.zip")
+               for path in source_paths())
+    assert any(path.endswith("attempt-04-no-verdict-3492ed83.zip")
                for path in source_paths())
 
 

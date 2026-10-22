@@ -47,6 +47,11 @@ SUPERSEDED_ATTEMPT_FILES = (
     "benchmarks/results/d3-trained-step-attempt-03-20261022/attempt-03-no-verdict-46937f49.zip",
     "benchmarks/results/d3-trained-step-attempt-03-20261022/protocol.json",
     "benchmarks/results/d3-trained-step-attempt-03-20261022/report.md",
+    "benchmarks/results/d3-trained-step-attempt-04-20261022/.gitattributes",
+    "benchmarks/results/d3-trained-step-attempt-04-20261022/SHA256SUMS.json",
+    "benchmarks/results/d3-trained-step-attempt-04-20261022/attempt-04-no-verdict-3492ed83.zip",
+    "benchmarks/results/d3-trained-step-attempt-04-20261022/protocol.json",
+    "benchmarks/results/d3-trained-step-attempt-04-20261022/report.md",
 )
 
 
@@ -106,11 +111,32 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
                       "as a comparison or replacement. Add the missing child argument, verify "
                       "native-to-candidate dispatch, then use a new frozen commit/protocol."),
     }
-    if (rule.get("schema_version") != 4
+    prior_attempt_04 = {
+        "commit": "3492ed83c2cd122ec0ad6318a2f40af6295ebcbc",
+        "protocol_sha256": "8a253f6c6f968d49e80bd235fa6eb9c0ac8f8f137c6384d239c5517e04fe180f",
+        "session_id": "bb01c3a357ee4f1aaefda153734762e5",
+        "attempt_archive_sha256": (
+            "80afca9d960093b826772ca2372d135eab2d8648e36c20a794a86f03a6fba0b3"
+        ),
+        "status": "incomplete",
+        "completed_cells": 0,
+        "attempted_cell": "correctness-dense-native",
+        "cause": ("after a container restart, the live shard st_dev changed from 46 to 49; "
+                  "the frozen mapping was correctly rejected before model construction"),
+        "treatment": ("Retain as a no-verdict attempt with no replacement under revision 4. "
+                      "Revision 5 refreshes mapping and independently passing F1 controls; "
+                      "require a new frozen commit before any formal cell."),
+    }
+    if (rule.get("schema_version") != 5
             or rule.get("prior_attempts") != [
-                prior_attempt_01, prior_attempt_02, prior_attempt_03,
+                prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04,
             ]):
         raise ValueError("fresh series must identify all retained no-verdict attempts")
+    if rule.get("container_restart_policy") != (
+            "Any container or instance restart invalidates the prior mapping. Rediscover all "
+            "shards and pass independent baseline/own/foreign F1 controls before freezing; "
+            "identity mismatch is no-verdict and never an automatic replacement."):
+        raise ValueError("container restart must invalidate mapping and require fresh F1 controls")
     expected = {"model_id": "allenai/OLMoE-1B-7B-0924",
                 "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
                 "batch": 1, "tokens": 512, "input_seed": 1234,
@@ -153,10 +179,25 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
     archive = contained(ROOT, "benchmarks/protocols/d3-trained-step/setup-evidence.zip")
     if file_hash(archive) != rule["setup_archive_sha256"]:
         raise ValueError("committed setup-evidence archive differs from its frozen identity")
+    with zipfile.ZipFile(archive) as evidence:
+        for name in ("mapping", "controls"):
+            payload = evidence.read(name + ".json")
+            if hashlib.sha256(payload).hexdigest() != rule[name + "_sha256"]:
+                raise ValueError(f"setup archive {name} differs from its frozen identity")
+        controls = json.loads(evidence.read("controls.json"))
+    if (controls.get("status") != "controls_passed"
+            or [row.get("case") for row in controls.get("controls", ())]
+            != ["baseline", "own", "foreign"]
+            or [row.get("observed") for row in controls.get("controls", ())]
+            != ["ok", "ok", "void"]):
+        raise ValueError(
+            "frozen setup archive must retain passing baseline/own/foreign F1 controls"
+        )
     archive_paths = (SUPERSEDED_ATTEMPT_FILES[2], SUPERSEDED_ATTEMPT_FILES[7],
-                     SUPERSEDED_ATTEMPT_FILES[12])
+                     SUPERSEDED_ATTEMPT_FILES[12], SUPERSEDED_ATTEMPT_FILES[17])
     for prior, archive_path in zip(
-        (prior_attempt_01, prior_attempt_02, prior_attempt_03), archive_paths, strict=True,
+        (prior_attempt_01, prior_attempt_02, prior_attempt_03, prior_attempt_04),
+        archive_paths, strict=True,
     ):
         if file_hash(contained(ROOT, archive_path)) != prior["attempt_archive_sha256"]:
             raise ValueError(
