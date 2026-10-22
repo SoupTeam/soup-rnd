@@ -96,3 +96,16 @@ padded once outside the timed step. The activation pad and the output slice are 
 The padded output matches the unpadded one: the error against bf16 is identical to four digits in
 every pair. The cost shrinks as the shape grows, from +25.6% at about 1000 to +3.9% at about 4100.
 These are numbers for a later decision. They do not recommend padding.
+
+### Amendment to the refusal row, made after the first padding attempt
+
+The decision rule above, committed before the first arm, said a dimension that is not a multiple of
+16 must be refused. The harness at that commit refused only that. The first padding attempt
+(`status-first-attempt.log`) then failed inside cuBLAS on in_features = 4112, a multiple of 16, so
+the harness now also refuses an in_features that is not a multiple of 32. The rule section above is
+unchanged. The amendment rests on one measured value (4112); other in_features equal to 16 mod 32
+were not tried, so the refusal is a conservative guard, not a measured boundary. Padding timings and
+the two FP4-against-NF4 comparisons all use shapes that meet both requirements.
+
+Not measured here: the plain bf16 `F.linear` step time without any quantization, and the padding cost
+per dimension (every dimension was padded at once).

@@ -43,7 +43,7 @@ def test_shape_multiple_of_16_is_accepted(g4):
         ((256, 512, 1000), "out_features=1000"),
     ],
 )
-def test_shape_not_multiple_of_16_is_refused_with_a_clear_message(g4, shape, bad):
+def test_shape_off_its_multiple_is_refused_with_a_clear_message(g4, shape, bad):
     tokens, k, n = shape
     with pytest.raises(g4.UnsupportedShapeError) as excinfo:
         g4.check_fp4_shape(tokens=tokens, in_features=k, out_features=n)

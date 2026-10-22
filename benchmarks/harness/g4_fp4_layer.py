@@ -7,8 +7,8 @@ Two paths run the same layer on the same synthetic data:
   multiplies on the packed weights (the native FP4 GEMM of GLOSSARY.md).
 - ``nf4``: bitsandbytes NF4 weights, restored to bf16, then a plain bf16 matmul.
 
-Each path records its error against the bf16 product and its time. A shape that
-TransformerEngine cannot quantize is refused with ``UnsupportedShapeError``. The
+Each path records its error against the bf16 product and its time. A shape the FP4
+GEMM cannot run (see ``FP4_MULTIPLES``) is refused with ``UnsupportedShapeError``. The
 layer never falls back to NF4, because that would mix two formats in one arm
 (ADR 0003, ADR 0001). The cost of padding to a multiple of 128 is measured
 separately, on synthetic shapes.
@@ -29,8 +29,8 @@ from typing import Callable, Dict, List, Optional, Sequence
 
 #: Multiple each dimension must have for the native FP4 GEMM. TransformerEngine's own check is 16
 #: for all three (``NVFP4_BLOCK_SIZE`` in ``csrc/quantizer.cpp``). On an RTX 5090 (sm_120) cuBLAS
-#: also finds no FP4 algorithm when in_features (K) is 16 mod 32, so K needs 32 (measured in
-#: benchmarks/gate-g4-single-layer.md). tokens and out_features only need 16.
+#: finds no FP4 algorithm for in_features (K) = 4112, so K is required to be a multiple of 32.
+#: One value was tried; this is a conservative guard (see benchmarks/gate-g4-single-layer.md). tokens and out_features only need 16.
 FP4_MULTIPLES = {"tokens": 16, "in_features": 32, "out_features": 16}
 
 
