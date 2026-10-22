@@ -1,5 +1,6 @@
 """Chunked independent replay must agree with the preserved original comparator."""
 
+import ast
 import importlib.util
 import zipfile
 from pathlib import Path
@@ -13,6 +14,21 @@ def load_module(path, name):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.mark.parametrize("name", [
+    "liger_streaming_bench", "liger_streaming_parity", "streaming_optimization_bench",
+])
+def test_published_runtime_dependencies_preserve_frozen_execution_ast(name):
+    repo = Path(__file__).parents[1]
+    archive = (repo / "benchmarks/evidence/streaming-residency-compile-8gb-20261021"
+               / "planned-harness.zip")
+    with zipfile.ZipFile(archive) as source:
+        member = next(member for member in source.namelist() if member.endswith(name + ".py"))
+        frozen = source.read(member)
+    public = repo / "benchmarks/harness" / (name + ".py")
+    assert ast.dump(ast.parse(public.read_bytes())) == ast.dump(ast.parse(frozen))
+    load_module(public, "runtime_dependency_" + name)
 
 
 def test_frozen_wrapper_metadata_compatibility_never_enables_liger():
@@ -49,14 +65,7 @@ def test_chunked_gate_matches_original_comparator(tmp_path, mutation):
     from safetensors.torch import save_file
 
     repo = Path(__file__).parents[1]
-    archive = (repo / "benchmarks/evidence/streaming-residency-compile-8gb-20261021"
-               / "planned-harness.zip")
-    with zipfile.ZipFile(archive) as source:
-        name = next(name for name in source.namelist()
-                    if name.endswith("liger_streaming_parity.py"))
-        original_path = tmp_path / "original.py"
-        original_path.write_bytes(source.read(name))
-    original = load_module(original_path, "original_gate")
+    original = load_module(repo / "benchmarks/harness/liger_streaming_parity.py", "original_gate")
     bounded = load_module(repo / "benchmarks/stream8-compile-20261022-resume/compare_streamed.py",
                           "bounded_gate")
     values = {

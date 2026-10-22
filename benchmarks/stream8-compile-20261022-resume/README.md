@@ -44,7 +44,7 @@ values/dtypes nor comparator inputs. A local ACK follows complete archive and
 every-file verification. Raw, encoded and compressed sizes are distinguished;
 synthetic/historical codec calibrations are not model-performance evidence.
 
-The scoped CPU suite passes 39 tests with
+The scoped CPU suite passes 42 tests with
 2 CUDA skips. The rented target software separately passes 16 regressions,
 including CUDA asynchronous ownership checks. These checks do not substitute for
 full pretrained-model qualification or timing results.
@@ -57,8 +57,14 @@ PYTHONPATH=src python -m pytest tests/test_streaming_residency_candidate.py \
 ruff check src/soup_cli/ scripts/ tests/ benchmarks/
 ```
 
-The resume report will distinguish successful, failed and unattempted model/arm
-gates and retain failed attempts. No universal model-size maximum is inferred.
+The [resume report](RESULTS.md) distinguishes successful, failed and unattempted
+model/arm gates and retains failed attempts. No universal model-size maximum is inferred.
+
+The three imported legacy runtime modules are included as ordinary source files
+under `benchmarks/harness/`: `liger_streaming_bench.py`, `liger_streaming_parity.py`
+and `streaming_optimization_bench.py`. They preserve the AST of the executed,
+archived versions; one long assertion is only wrapped for lint. Regression tests
+check those frozen ASTs and exercise the published original comparator directly.
 
 `archive_ranges.py` and `remote_ranges.py` implement exact archive transport.
 They validate encoded objects against the new manifest, reuse identical objects
