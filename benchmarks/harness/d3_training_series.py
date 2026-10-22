@@ -27,7 +27,7 @@ def _cell(args, source: dict, rule: dict, session: dict, *, codec: str,
     if oracle is not None:
         command += ["--oracle", str(oracle)]
     with folder.with_suffix(".log").open("x") as log:
-        proc = subprocess.run(command, cwd=Path(__file__).resolve().parents[2],
+        proc = subprocess.run(command, check=False, cwd=Path(__file__).resolve().parents[2],
                               stdout=log, stderr=subprocess.STDOUT, timeout=7200)
     if not folder.is_dir() or not (folder / "result.json").is_file():
         raise RuntimeError(f"cell produced no retained result: {folder}")
@@ -47,11 +47,11 @@ def _cell(args, source: dict, rule: dict, session: dict, *, codec: str,
         if (row.get("A_A_exact") is not True or row.get("restored_exact") is not True
                 or not row.get("steps") or row.get("control_target") is None):
             raise RuntimeError(f"training correctness controls are incomplete: {folder}")
-        if mode != "native" and not row.get("oracle_files"):
-            # Candidate cells must match the native step hashes; the native
-            # oracle cell alone writes the safetensors files.
-            if any(record.get("tensor_sha256") is None for record in row["steps"]):
-                raise RuntimeError(f"candidate step hashes are missing: {folder}")
+        # Candidate cells must match the native step hashes; the native oracle
+        # cell alone writes the safetensors files.
+        if (mode != "native" and not row.get("oracle_files")
+                and any(record.get("tensor_sha256") is None for record in row["steps"])):
+            raise RuntimeError(f"candidate step hashes are missing: {folder}")
     elif kind == "profile":
         if not row.get("steps") or not row["steps"][0].get("cuda_kernel_events"):
             raise RuntimeError(f"CUDA profiler retained no kernels: {folder}")
@@ -100,7 +100,7 @@ def parent(args, rule: dict) -> int:
         if len(session["cells"]) != rule["expected_cell_count"]:
             raise RuntimeError("series ended without consuming its exact frozen cell budget")
         session["status"] = "complete_pending_offline_analysis_and_review"
-    except (Exception, KeyboardInterrupt):
+    except BaseException:  # noqa: BLE001 - persist incomplete status on every abort
         session["status"] = "incomplete"
         session["traceback"] = traceback.format_exc()
     finally:

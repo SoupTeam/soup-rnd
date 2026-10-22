@@ -16,8 +16,15 @@ def test_committed_protocol_pins_checkpoint_device_and_all_evidence() -> None:
     assert len(rule["bundle_sha256"]) == 3
     assert rule["expected_cell_count"] == 84
     assert rule["attempt_budget"]["total_cells"] == 84
+    assert rule["schema_version"] == 2
+    assert rule["supersedes"]["status"] == "incomplete"
+    assert rule["supersedes"]["completed_cells"] == 1
+    assert rule["supersedes"]["no_verdict_cell"] == "correctness-dense-native"
     assert rule["gpu_uuid"].startswith("GPU-")
     assert "tests/test_d3_training_protocol.py" in source_paths()
+    assert "tests/test_d3_full_model.py" in source_paths()
+    assert any(path.endswith("attempt-01-no-verdict-a26f4948.zip")
+               for path in source_paths())
 
 
 @pytest.mark.parametrize(

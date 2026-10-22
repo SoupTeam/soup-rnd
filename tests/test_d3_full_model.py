@@ -19,6 +19,14 @@ FULL = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(FULL)
 
 
+def test_tensor_hash_handles_scalar_loss_values() -> None:
+    torch = pytest.importorskip("torch")
+
+    for dtype in (torch.float32, torch.bfloat16):
+        scalar = torch.tensor(1.25, dtype=dtype)
+        assert FULL.tensor_hash(scalar) == FULL.tensor_hash(scalar.reshape(1))
+
+
 @pytest.fixture
 def prepared(tmp_path):
     torch = pytest.importorskip("torch")

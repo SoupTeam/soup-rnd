@@ -292,7 +292,7 @@ def child(args, rule: dict) -> int:
             peak_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
             record["peak_process_rss_bytes"] = peak_rss
             record["status"] = "ok"
-    except (Exception, KeyboardInterrupt) as exc:
+    except BaseException as exc:  # noqa: BLE001 - every failed cell must be retained
         if isinstance(exc, NumericalFailureError):
             record["status"] = "fail"
         record["traceback"] = traceback.format_exc()
@@ -302,7 +302,7 @@ def child(args, rule: dict) -> int:
         if run is not None:
             try:
                 run.close()
-            except BaseException:
+            except BaseException:  # noqa: BLE001 - record cleanup failure with the cell
                 record["status"] = "no_verdict"
                 record["cleanup_traceback"] = traceback.format_exc()
         save(args.out / "result.json", record)
@@ -310,8 +310,6 @@ def child(args, rule: dict) -> int:
 
 
 def main(argv=None) -> int:
-    from rich.console import Console
-
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
     export = sub.add_parser("export")
@@ -328,7 +326,7 @@ def main(argv=None) -> int:
                                required=True)
     args = parser.parse_args(argv)
     if args.command == "export":
-        Console().print(export_packet(args.out))
+        print(json.dumps(export_packet(args.out), indent=2))
         return 0
     rule = read_rule()
     if args.command == "child":

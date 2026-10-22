@@ -35,7 +35,8 @@ def contained(folder: Path, name: str) -> Path:
 def tensor_hash(value: Any) -> str:
     import torch
 
-    return hashlib.sha256(value.detach().cpu().contiguous().view(torch.uint8).numpy()).hexdigest()
+    raw = value.detach().cpu().contiguous().reshape(-1).view(torch.uint8).numpy().tobytes()
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _write_json(path: Path, value: dict) -> None:
