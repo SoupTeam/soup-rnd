@@ -122,7 +122,7 @@ def l2l_run(model, runtime, harness, mbs, *, seed=SEED, step=STEP, store=None):
 
     stepper = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=seed)
     harness.zero_grads(model)
-    losses = stepper.run(mbs, store or _store(len(mbs)), step=step)
+    losses = stepper.run(mbs, _store(len(mbs)) if store is None else store, step=step)
     return losses, harness.collect_grads(model)
 
 
@@ -217,7 +217,7 @@ def test_one_shared_stream_as_in_a1_disagrees_with_accumulation(
     ga, model, runtime, mbs = _disagrees_with_accumulation(make_model, harness)
 
     @contextmanager
-    def shared_stream(seed, step, mb, layer, device=None):
+    def shared_stream(seed, step, mb, layer):
         yield
 
     _patch_layer_rng(monkeypatch, shared_stream)
@@ -234,7 +234,7 @@ def test_states_saved_and_restored_but_forward_in_layer_major_order_disagrees(
     saved = {}
 
     @contextmanager
-    def save_then_restore(seed, step, mb, layer, device=None):
+    def save_then_restore(seed, step, mb, layer):
         if torch.is_grad_enabled():
             torch.set_rng_state(saved[(mb, layer)])
         else:
@@ -254,11 +254,11 @@ def test_the_function_not_called_on_the_recompute_disagrees(make_model, harness,
     ga, model, runtime, mbs = _disagrees_with_accumulation(make_model, harness)
 
     @contextmanager
-    def forward_only(seed, step, mb, layer, device=None):
+    def forward_only(seed, step, mb, layer):
         if torch.is_grad_enabled():
             yield
         else:
-            with layer_rng(seed, step, mb, layer, device):
+            with layer_rng(seed, step, mb, layer):
                 yield
 
     _patch_layer_rng(monkeypatch, forward_only)
@@ -277,7 +277,7 @@ def _l2l_layer_under_torch_checkpoint(preserve_rng_state):
     from soup_cli.utils.l2l_rng import layer_rng
 
     def layer_call(self, module, hidden, layer, mb, step):
-        with layer_rng(self.seed, step, mb, layer, hidden.device):
+        with layer_rng(self.seed, step, mb, layer):
             if torch.is_grad_enabled():
                 out = checkpoint(
                     module._body,
@@ -309,3 +309,47 @@ def test_l2l_recomputed_by_torch_checkpoint_matches_only_with_rng_preservation(
 
     monkeypatch.setattr(L2LStep, "_layer", _l2l_layer_under_torch_checkpoint(False))
     assert not _same(harness, ga, l2l_run(model, runtime, harness, mbs))
+
+
+# --------------------------------------------------------------------------
+# which generators the call forks (torch.manual_seed seeds every initialised CUDA card)
+# --------------------------------------------------------------------------
+
+
+def test_layer_rng_forks_every_initialised_cuda_card(monkeypatch):
+    import torch
+
+    from soup_cli.utils.l2l_rng import layer_rng
+
+    forked = []
+
+    @contextmanager
+    def record(devices=None, **_kwargs):
+        forked.append(list(devices))
+        yield
+
+    monkeypatch.setattr(torch.random, "fork_rng", record)
+    monkeypatch.setattr(torch.cuda, "is_initialized", lambda: True)
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+    with layer_rng(SEED, STEP, 0, 0):
+        pass
+    assert forked == [[0, 1]]
+
+
+def test_layer_rng_forks_no_card_while_cuda_is_uninitialised(monkeypatch):
+    import torch
+
+    from soup_cli.utils.l2l_rng import layer_rng
+
+    forked = []
+
+    @contextmanager
+    def record(devices=None, **_kwargs):
+        forked.append(list(devices))
+        yield
+
+    monkeypatch.setattr(torch.random, "fork_rng", record)
+    monkeypatch.setattr(torch.cuda, "is_initialized", lambda: False)
+    with layer_rng(SEED, STEP, 0, 0):
+        pass
+    assert forked == [[]]

@@ -1,7 +1,7 @@
-"""The L2L layer-call state function on CUDA (ticket 02).
+"""The L2L layer-call state function on CUDA.
 
 ``layer_rng`` sets the CPU and the CUDA generator from ``layer_seed(...)`` inside
-``torch.random.fork_rng(devices=[device])``. The tests carry the ``gpu`` marker: the
+``torch.random.fork_rng`` over every initialised CUDA card. The tests carry the ``gpu`` marker: the
 conftest hook skips them without a GPU, and ``pytest -m gpu`` selects them. They check that
 the CUDA state is set and restored separately from the CPU state, and that the L2L step
 equals gradient accumulation at dropout 0 and 0.05.
@@ -9,7 +9,9 @@ equals gradient accumulation at dropout 0 and 0.05.
 Deterministic mode is needed even at dropout 0, as in the A0 probe (``--deterministic``):
 cuBLAS and some backward kernels pick different reductions between runs, so two correct
 schedules differ in the last bit without it. The module sets ``CUBLAS_WORKSPACE_CONFIG``
-before CUDA starts and turns on ``torch.use_deterministic_algorithms`` for each test.
+before CUDA starts, which holds only if no earlier test in the session initialised CUDA
+(run ``pytest -m gpu --no-cov`` alone). Each test turns on
+``torch.use_deterministic_algorithms``.
 """
 
 from __future__ import annotations
@@ -73,8 +75,7 @@ def _l2l(model, runtime, harness, mbs, **kwargs):
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("device", [torch.device("cuda"), torch.device("cuda", 0)], ids=str)
-def test_cpu_and_cuda_state_are_set_from_the_function_and_restored_apart(device):
+def test_cpu_and_cuda_state_are_set_from_the_function_and_restored_apart():
     from soup_cli.utils.l2l_rng import layer_rng, layer_seed
 
     torch.manual_seed(1)
@@ -82,42 +83,45 @@ def test_cpu_and_cuda_state_are_set_from_the_function_and_restored_apart(device)
     cpu_before = torch.get_rng_state()
     cuda_before = torch.cuda.get_rng_state(0)
 
-    with layer_rng(SEED, STEP, 1, 2, device):
+    with layer_rng(SEED, STEP, 1, 2):
         cpu_inside = torch.rand(4)
         cuda_inside = torch.rand(4, device=DEVICE)
-        cpu_state_inside = torch.get_rng_state()
-        cuda_state_inside = torch.cuda.get_rng_state(0)
+        # draw from the CUDA stream only: the CPU state must not move with it
+        cpu_mid = torch.get_rng_state()
+        torch.rand(64, device=DEVICE)
+        assert torch.equal(torch.get_rng_state(), cpu_mid)
 
     seed = layer_seed(SEED, STEP, 1, 2)
     cpu_gen = torch.Generator().manual_seed(seed)
     cuda_gen = torch.Generator(device=DEVICE).manual_seed(seed)
     assert torch.equal(cpu_inside, torch.rand(4, generator=cpu_gen))
     assert torch.equal(cuda_inside, torch.rand(4, device=DEVICE, generator=cuda_gen))
-    assert not torch.equal(cpu_state_inside, cpu_before)
-    assert not torch.equal(cuda_state_inside, cuda_before)
+    assert not torch.equal(cpu_mid, cpu_before)
     assert torch.equal(torch.get_rng_state(), cpu_before)
     assert torch.equal(torch.cuda.get_rng_state(0), cuda_before)
 
 
-def test_a_cpu_layer_call_leaves_the_cuda_generator_alone():
-    from soup_cli.utils.l2l_rng import layer_rng
-
-    torch.cuda.manual_seed(5)
-    before = torch.cuda.get_rng_state(0)
-    with layer_rng(SEED, STEP, 0, 0, torch.device("cpu")):
-        torch.rand(4)
-    assert torch.equal(torch.cuda.get_rng_state(0), before)
-
-
-@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="needs two visible CUDA cards")
-def test_a_layer_call_restores_the_card_it_ran_on_even_with_two_cards_visible():
+def test_a_layer_call_restores_every_card_even_when_the_input_is_on_the_cpu():
     from soup_cli.utils.l2l_rng import layer_rng
 
     torch.cuda.manual_seed_all(5)
-    before = torch.cuda.get_rng_state(0)
-    with layer_rng(SEED, STEP, 0, 0, torch.device("cuda", 0)):
+    before = [torch.cuda.get_rng_state(i) for i in range(torch.cuda.device_count())]
+    with layer_rng(SEED, STEP, 0, 0):
+        torch.rand(4)
+    after = [torch.cuda.get_rng_state(i) for i in range(torch.cuda.device_count())]
+    assert all(torch.equal(a, b) for a, b in zip(before, after))
+
+
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="needs two visible CUDA cards")
+def test_a_layer_call_restores_the_second_card_too():
+    from soup_cli.utils.l2l_rng import layer_rng
+
+    torch.cuda.manual_seed_all(5)
+    before = torch.cuda.get_rng_state(1)
+    with layer_rng(SEED, STEP, 0, 0):
         torch.rand(4, device="cuda:0")
-    assert torch.equal(torch.cuda.get_rng_state(0), before)
+        assert not torch.equal(torch.cuda.get_rng_state(1), before)  # manual_seed reached it
+    assert torch.equal(torch.cuda.get_rng_state(1), before)
 
 
 # --------------------------------------------------------------------------
@@ -173,13 +177,17 @@ def test_the_function_not_called_on_the_recompute_disagrees_on_cuda(
     mbs = _micro_batches(2)
     ga = ga_reference(model, harness, mbs)
 
+    skipped = []
+
     @contextmanager
-    def forward_only(seed, step, mb, layer, device=None):
+    def forward_only(seed, step, mb, layer):
         if torch.is_grad_enabled():
+            skipped.append((mb, layer))
             yield
         else:
-            with layer_rng(seed, step, mb, layer, device):
+            with layer_rng(seed, step, mb, layer):
                 yield
 
     _patch_layer_rng(monkeypatch, forward_only)
     assert not _same(harness, ga, _l2l(model, runtime, harness, mbs))
+    assert len(skipped) == 3 * len(mbs)  # the recompute ran once per (layer, micro-batch)

@@ -168,7 +168,7 @@ class L2LStep:
         # forward and the recompute in the backward draw the same one in any visiting order.
         from soup_cli.utils.l2l_rng import layer_rng
 
-        with layer_rng(self.seed, step, mb, layer, hidden.device):
+        with layer_rng(self.seed, step, mb, layer):
             out = module(hidden, *self.call.args, **self.call.kwargs)
         return out[0] if isinstance(out, tuple) else out
 

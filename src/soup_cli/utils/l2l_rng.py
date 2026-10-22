@@ -28,7 +28,7 @@ from __future__ import annotations
 import hashlib
 import struct
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Iterator
 
 
 def layer_seed(seed: int, step: int, mb: int, layer: int) -> int:
@@ -50,15 +50,21 @@ def set_layer_state(seed: int, step: int, mb: int, layer: int) -> None:
 
 
 @contextmanager
-def layer_rng(seed: int, step: int, mb: int, layer: int, device: Any = None) -> Iterator[None]:
+def layer_rng(seed: int, step: int, mb: int, layer: int) -> Iterator[None]:
     """Run a layer call at its state, then put the surrounding stream back.
 
-    ``device`` is the device of the layer's input: a CUDA device is forked with the CPU
-    generator, so the call draws nothing from the stream outside it.
+    ``torch.manual_seed`` seeds the CPU generator and every initialised CUDA card, so all
+    of them are forked and restored, not only the card of the layer's input. A CPU call
+    on a machine with an initialised GPU would otherwise leave that GPU's stream moved.
     """
+    import warnings
+
     import torch
 
-    cuda = [device] if getattr(device, "type", None) == "cuda" else []
-    with torch.random.fork_rng(devices=cuda):
-        set_layer_state(seed, step, mb, layer)
-        yield
+    cards = list(range(torch.cuda.device_count())) if torch.cuda.is_initialized() else []
+    with warnings.catch_warnings():
+        # fork_rng warns when it forks more than one card; that is the intent here
+        warnings.simplefilter("ignore")
+        with torch.random.fork_rng(devices=cards):
+            set_layer_state(seed, step, mb, layer)
+            yield
