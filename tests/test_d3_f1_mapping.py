@@ -21,6 +21,14 @@ def test_only_exact_single_device_read_delta_is_accepted():
     assert module.exact_read_device(before, after, 1048576) == "259:0"
 
 
+def test_overlay_loop_requires_explicit_container_scope():
+    module = _module()
+    assert module._is_overlay_loop("loop0", "overlay", True)
+    assert not module._is_overlay_loop("loop0", "overlay", False)
+    assert not module._is_overlay_loop("loop0", "ext4", True)
+    assert not module._is_overlay_loop("nvme0n1", "overlay", True)
+
+
 @pytest.mark.parametrize("after", [
     {"8:0": 0, "259:0": 0}, {"8:0": 0, "259:0": 1048575},
     {"8:0": 1, "259:0": 1048576}, {"8:0": 1048576, "259:0": 1048576},

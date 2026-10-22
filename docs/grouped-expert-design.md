@@ -391,3 +391,159 @@ deselected. The [regression report and raw evidence](../benchmarks/results/d3-cu
 retain JUnit, the exact selected node IDs, source hashes and the uncommitted test
 patch used for execution. This is separate synthetic regression evidence and
 does not alter the frozen trained-model or performance studies above.
+
+## Full-task completion audit, 2026-10-22
+
+**D3 remains incomplete.** The [latest review decision](https://github.com/SoupTeam/soup-rnd/pull/28#pullrequestreview-5605458361)
+requests full assigned delivery at the owner's direction and dismisses the
+earlier forward-only approval. The source/evidence audits and successful CI
+remain valid within their original scope. A bounded PR description does not
+constitute permission to reduce the assigned task.
+
+### Mapping to the assigned task
+
+| Requirement | Delivered at `d48ea507` | Still open |
+| --- | --- | --- |
+| Group restoration and expert matrix work | Bounded reader/arena, Triton decode, explicit hybrid GEMM | Training-capable use is not delivered by these forward-only modules. |
+| Avoid materializing the full dense MoE in the streamed path | Arena budget and lease/error tests; whole-model forward memory records | Backward/recomputation lifetime and storage accounting are unqualified. The full resident oracle is a separate comparison path. |
+| Empty experts and variable routed row counts | CPU and CUDA routing, empty/partial/all-expert and row-cutoff cases | Corresponding derivative/update cases must accompany a training path. |
+| Exactness against the sequential loop; same per-expert kernel policy in resident and streamed modes | Twelve whole-forward cells and changed/restored controls under the pinned policy | Input/router gradients and actual adapter updates are not qualified. Do not weaken the numerical gate to admit a new path. |
+| Time, memory and actual launch counts | Sixty layer timing arms, 1,200 samples and six profiles on RTX 3060 | The cutoff-16 layer result is not full-training throughput or a performance result for the later cutoff-128 policy. |
+| Coordinate the interface with B1 before its final measurements | Existing design and technical handoff below | Explicit interface acknowledgement and final D3 task acceptance are outstanding. A prepared handoff is not agreement. |
+| Repository task tracking | PR #28 and the Trello task link the design and evidence | Creating an issue in `SoupTeam/soup-rnd` on 2026-10-22 returned HTTP 410, `Issues has been disabled in this repository`. Do not claim this item completed or silently substitute an issue in another repository. |
+
+The ordinary Ubuntu/Python 3.12 suite for the merge candidate containing
+`d48ea507` passed: 35,692 passed, 420 skipped, 12 deselected, two xfailed,
+coverage 86.33%. The PR description now records that result and the committed
+`28.added.md` fragment. Optional platform/type/smoke jobs were skipped. These
+checks do not supply the missing training qualification.
+
+### B1 handoff and original-Soup reuse audit
+
+The existing B1.1 reader/layout and NF4 metadata contract remain the storage
+interface. `GroupedExpertPool` uses widths 1 through 4, one byte arena and a
+separate staging allocation. Its weight plan is separate from activation
+storage, BLAS workspace, allocator reservations and CUDA contexts. Consumers
+must retain a lease through device completion; an autograd graph must not save
+slot views that can be overwritten after release. Concurrent/reentrant leases,
+close during a lease and reuse after unknown synchronization remain refused.
+
+Original Soup at
+[`4a78a7ba`](https://github.com/MakazhanAlpamys/Soup/blob/4a78a7ba74d1b52c820fb156647ef1e78f3105a6/src/soup_cli/utils/expert_stream.py)
+already implements a sequential frozen-expert backward. Its `_ExpertMLP`
+autograd function saves the expert input and autocast settings, reloads the
+expert in backward and differentiates a local eager graph. Route weighting
+and ordered `index_add_` remain outside the custom function, allowing their
+native gradients. That is existing upstream work, not a new D3 contribution.
+
+It cannot be copied as a completed bounded grouped path: its `ExpertFetcher`
+returns separately allocated dense weight tensors, while RND's arena reuses
+slot views. The grouped backend also calls cuBLAS through ctypes and writes
+outputs without an autograd graph. A training design must explicitly account
+for backward recomputation/reloads, input and routing derivatives, the matching
+reference arithmetic, and lease completion. No claim of exact gradients follows
+from the current exact forward outputs.
+
+Concrete RND boundaries at the reviewed source:
+
+- `expert_stream._validate_routing` rejects gradient-bearing hidden/routing
+  inputs and names B1.3.
+- `GroupedGemm._prepare` rejects autograd-bearing matrix operands.
+- `layer_stream_runtime._refuse_expert_storage_cache` rejects public training
+  with the per-expert cache layout.
+- The whole-model harness is explicitly eval/no-grad; it is not an optimizer
+  step. Removing these guards without the missing implementation is not a fix.
+
+B1.3 separately requires B1.2 and A3/L2L in Trello. This audit does not implement
+or accept those tasks. Establish the exact shared training contract and identify
+any genuine dependency blocker before making shared API changes; do not call
+an isolated D3 derivative test complete B1.3/L2L integration.
+
+### Proposed completion sequence; not an executed or frozen benchmark
+
+1. Record the B1 ownership/API boundary and the remaining agreed implementation
+   scope. Resolve repository issue tracking with the maintainer. Preserve the
+   original task and numerical gates; any reduced delivery needs explicit owner
+   agreement.
+2. Develop the training primitive against an independent sequential reference,
+   reusing the audited upstream reload/recompute design where compatible. Test
+   forward and backward separately, native accumulation order, autocast,
+   unused experts, varied routing, repeated steps and lease/budget failures.
+   Retain effective changed/restored controls and actual adapter-update checks.
+3. Qualify a real small-MoE complete training step with identical inputs,
+   targets, numerics and kernel policy between reference and candidate. Do not
+   claim quality/convergence from a short numerical fixture or introduce a new
+   quality-study requirement merely because it remains unmeasured.
+4. Before formal training/performance measurements, commit a separate
+   prospective protocol: exact source/data/environment pins, numerical criteria,
+   token accounting, F1 controls, clocks, fresh-process order and attempt budget.
+   Measure complete-step time, peak memory and launch counts, preserving failures
+   and no-verdict outcomes. A positive speedup is not a new acceptance threshold.
+5. Re-run the required checks on the new source head and request full-task
+   review. Do not reuse the dismissed approval as completion sign-off.
+
+No new CUDA execution, training/performance measurement, B1 interface sign-off
+or task acceptance is claimed by this audit. The earlier protocols,
+raw records, numerical gates and retained failed session remain unchanged.
+
+### Development follow-up: backward and Triton activation storage
+
+The operator identified themselves as the B1.1/B1.2 owner on 2026-10-22. This
+establishes the coordination contact; technical agreement and final acceptance
+are still distinct from that ownership statement.
+
+Two experimental modules were developed outside the existing selected
+runtime and frozen studies:
+
+- `expert_group_autograd.py` adapts the audited upstream frozen-expert
+  reload/recompute idea to the reusable group arena. It saves gathered inputs,
+  reloads one expert for a local eager backward, and completes that derivative
+  inside the weight lease. Native route multiplication and ordered scatter stay
+  in autograd. Only first derivatives of stateless SiLU experts are supported;
+  no routed-expert adapters or public trainer integration is provided.
+- `expert_group_activation.py` proposes one Triton kernel for
+  `SiLU(gate) * up`. The existing path creates a BF16 SiLU tensor and then a
+  BF16 product tensor. The candidate rounds SiLU to BF16 before multiplication,
+  computes the product inside the kernel and allocates only its output. It uses
+  libdevice exponentiation and round-to-nearest division instead of Triton's
+  approximate `exp`. Matching this expression is a design choice, not proof of
+  bitwise equality with the installed PyTorch/CUDA build.
+
+`plan_swiglu` models the elimination of one activation tensor, including
+512-byte allocation rounding. This is not a measured total-VRAM reduction: the
+weight arena, other live activations, routing, BLAS workspace and CUDA context
+remain separate, and the model's peak may occur elsewhere. This candidate does
+not fuse NF4 decoding with matrix multiplication. It is not selected by
+`GroupedComputeExperts`; the development training primitive requires explicit
+`activation_backend="triton"` and keeps native activation as its default.
+
+The CUDA development gates in `test_d3_expert_activation.py` require exact BF16
+bits (including signed zero), all finite BF16 gate values with three multiplier
+patterns, varied/empty shapes, input preservation, pre-launch refusals, and a
+measured activation-only allocation-peak comparison after JIT warm-up. These
+checks now passed on the new RTX 3090 / 24 GB instance. The first development
+snapshot passed 14 CUDA cases; after explicit activation integration, a separate
+snapshot passed 22. The final snapshot, adding pre-read FP16-autocast refusals,
+passed all 25 selected CUDA cases with no skips, failures or errors.
+It includes exact forward/input/router gradients for dense, NF4 and
+nested NF4; two identical nonzero adapter updates on synthetic OLMoE-size
+2048/1024 expert matrices; and two complete optimizer steps through a synthetic
+two-layer MoE with one shared weight pool, for both native and Triton activation.
+The local CPU suite passed 37 cases. These are new development results from
+uncommitted snapshots, not reused historical CUDA evidence or a prospectively
+committed trained-model benchmark. See the
+[development report](../benchmarks/results/d3-triton-backward-development-20261022/report.md)
+for source identities, raw logs, scope and the activation-only 4 MiB to 2 MiB
+allocation result. No second SSD is needed.
+
+Retaining activations to avoid checkpoint recomputation is a different
+time/memory tradeoff: it spends additional VRAM. The externally quoted
+Mistral-7B / RTX 5070 Laptop numbers are not D3 measurements and are not evidence
+for this kernel. Do not transfer their speed or gradient-exactness claim to D3.
+
+Keep preserving failures and do not weaken the existing numerical gate. These
+synthetic integration and update checks still need the complete **trained-model**
+step qualification and training/performance study described in the completion
+sequence. Any formal comparison needs its own source-pinned prospective
+protocol before measurement, with the unchanged eager reference, fixed attempt
+budget, validity controls and all failed attempts retained.

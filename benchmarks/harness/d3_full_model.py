@@ -182,7 +182,7 @@ class WholeModel:
 def open_streamed_model(
     folder: Path, *, device: str, backend: str, library: Path | None = None,
     weight_budget_bytes: int = 64 * 2**20, activation_budget_bytes: int = 256 * 2**20,
-    native_olmoe_rows_max: int = 16,
+    gemm_call_budget_bytes: int = 64 * 2**20, native_olmoe_rows_max: int = 16,
 ) -> WholeModel:
     """Assemble all native model blocks, replacing only their routed experts.
 
@@ -244,7 +244,7 @@ def open_streamed_model(
             pool.validate_reader(reader)
         gemm = None
         if backend == "grouped-compute":
-            gemm = GroupedGemm(library, call_budget_bytes=64 * 2**20,
+            gemm = GroupedGemm(library, call_budget_bytes=gemm_call_budget_bytes,
                                native_olmoe_rows_max=native_olmoe_rows_max)
             stack.callback(gemm.close)
             factory = grouped_compute_experts_class()
@@ -267,7 +267,7 @@ def open_streamed_model(
 
 def open_resident_model(
     folder: Path, *, device: str, backend: str = "native", library: Path | None = None,
-    native_olmoe_rows_max: int = 16,
+    gemm_call_budget_bytes: int = 64 * 2**20, native_olmoe_rows_max: int = 16,
 ) -> WholeModel:
     """Independent full resident oracle; deliberately NOT the bounded candidate.
 
@@ -302,7 +302,7 @@ def open_resident_model(
         readers, residents = [], []
         gemm = None
         if backend == "grouped-compute":
-            gemm = GroupedGemm(library, call_budget_bytes=64 * 2**20,
+            gemm = GroupedGemm(library, call_budget_bytes=gemm_call_budget_bytes,
                                native_olmoe_rows_max=native_olmoe_rows_max)
             stack.callback(gemm.close)
         # Loaded lazily because this is a benchmark oracle, not a public runtime.

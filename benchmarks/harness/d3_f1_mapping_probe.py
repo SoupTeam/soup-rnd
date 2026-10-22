@@ -79,13 +79,39 @@ def direct_read(path: Path, *, rounds: int = 1) -> int:
         os.close(fd)
 
 
-def discover(paths: list[Path]) -> dict:
+def _mount_type(path: Path) -> str | None:
+    """Return the longest matching mount type from mountinfo."""
+    target = os.path.realpath(path)
+    matches = []
+    for line in Path("/proc/self/mountinfo").read_text().splitlines():
+        left, separator, right = line.partition(" - ")
+        fields = left.split()
+        if not separator or len(fields) < 6:
+            continue
+        mountpoint = fields[4]
+        for escaped, character in (("\\040", " "), ("\\011", "\t"),
+                                   ("\\012", "\n"), ("\\134", "\\")):
+            mountpoint = mountpoint.replace(escaped, character)
+        mountpoint = os.path.realpath(mountpoint)
+        if target == mountpoint or target.startswith(mountpoint.rstrip("/") + "/"):
+            matches.append((len(mountpoint), right.split()[0]))
+    return max(matches)[1] if matches else None
+
+
+def _is_overlay_loop(name: str, mount_type: str | None, allowed: bool) -> bool:
+    return allowed and name.startswith("loop") and mount_type == "overlay"
+
+
+def discover(paths: list[Path], *, allow_overlay_loop: bool = False) -> dict:
     if sys.platform != "linux":
         raise ValueError("Linux cgroup v2 and O_DIRECT required")
     cg = Path("/sys/fs/cgroup/io.stat")
     result = {"status": "requires_review", "kind": "instrument mapping, not D3 results",
               "scope": "empirical exposed-device association; not physical-host isolation",
               "cgroup": Path("/proc/self/cgroup").read_text(), "files": []}
+    if allow_overlay_loop:
+        result["scope"] = ("container-visible overlay loop-device association; "
+                           "physical-host storage and isolation are not certified")
     for path in paths:
         start = path.stat()
         if start.st_size < READ_BYTES:
@@ -113,7 +139,9 @@ def discover(paths: list[Path]) -> dict:
         device = devices[0]
         sys_path = Path("/sys/dev/block") / device
         name = os.path.basename(os.path.realpath(sys_path))
-        if not sys_path.exists() or not name or name.startswith(("loop", "ram", "zram")):
+        virtual_overlay = _is_overlay_loop(name, _mount_type(path), allow_overlay_loop)
+        if (not sys_path.exists() or not name
+                or (name.startswith(("loop", "ram", "zram")) and not virtual_overlay)):
             raise ValueError("associated device is not an exposed disk")
         disk_rows = [line.split() for line in Path("/proc/diskstats").read_text().splitlines()]
         if not any(f"{row[0]}:{row[1]}" == device and row[2] == name for row in disk_rows):
@@ -124,6 +152,9 @@ def discover(paths: list[Path]) -> dict:
         ):
             raise ValueError("shard identity changed during discovery")
         row.update(device=device, disk_name=name)
+        if virtual_overlay:
+            row["filesystem"] = "overlay"
+            row["device_scope"] = "container-visible loop device"
     result["status"] = "mapping_observed_controls_still_required"
     return result
 
@@ -134,11 +165,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--paths", type=Path, nargs="+", required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--allow-overlay-loop", action="store_true",
+                        help="explicitly scope mapping to an overlay-backed loop device")
     args = parser.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=False)
     result = {"status": "requires_review", "d3_accepted": False}
     try:
-        result.update(discover(args.paths))
+        result.update(discover(args.paths, allow_overlay_loop=args.allow_overlay_loop))
     except (Exception, KeyboardInterrupt) as exc:
         result["traceback"] = traceback.format_exc()
         if isinstance(exc, MappingFailureError):
