@@ -42,6 +42,11 @@ SUPERSEDED_ATTEMPT_FILES = (
     "benchmarks/results/d3-trained-step-attempt-02-20261022/attempt-02-no-verdict-23bad807.zip",
     "benchmarks/results/d3-trained-step-attempt-02-20261022/protocol.json",
     "benchmarks/results/d3-trained-step-attempt-02-20261022/report.md",
+    "benchmarks/results/d3-trained-step-attempt-03-20261022/.gitattributes",
+    "benchmarks/results/d3-trained-step-attempt-03-20261022/SHA256SUMS.json",
+    "benchmarks/results/d3-trained-step-attempt-03-20261022/attempt-03-no-verdict-46937f49.zip",
+    "benchmarks/results/d3-trained-step-attempt-03-20261022/protocol.json",
+    "benchmarks/results/d3-trained-step-attempt-03-20261022/report.md",
 )
 
 
@@ -84,9 +89,28 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
                       "ran. Create launch files with LF and require a fresh frozen commit/"
                       "protocol."),
     }
-    if (rule.get("schema_version") != 3
-            or rule.get("prior_attempts") != [prior_attempt_01, prior_attempt_02]):
-        raise ValueError("fresh series must identify both retained no-verdict attempts")
+    prior_attempt_03 = {
+        "commit": "46937f49994edd5667769ba4ec4f161d2154997f",
+        "protocol_sha256": "83af5ce45389f7f1796380459bcce3b55b08ff26d7d55e617e95d50fb49ac8a1",
+        "session_id": "d1238f4a055a4f189e5e69304f87b29e",
+        "attempt_archive_sha256": (
+            "611e81b81abae294ce5661b778ce738ede665b82877efea56b3d00b38bfe9b9c"
+        ),
+        "status": "incomplete",
+        "completed_cells": 1,
+        "passed_cell": "correctness-dense-native",
+        "no_verdict_cell": "correctness-dense-sequential",
+        "cause": ("series passed --oracle to the child CLI, but the frozen child parser did not "
+                  "accept that argument; the next cell was rejected before model construction"),
+        "treatment": ("Retain the native cell and failed invocation separately; do not treat this "
+                      "as a comparison or replacement. Add the missing child argument, verify "
+                      "native-to-candidate dispatch, then use a new frozen commit/protocol."),
+    }
+    if (rule.get("schema_version") != 4
+            or rule.get("prior_attempts") != [
+                prior_attempt_01, prior_attempt_02, prior_attempt_03,
+            ]):
+        raise ValueError("fresh series must identify all retained no-verdict attempts")
     expected = {"model_id": "allenai/OLMoE-1B-7B-0924",
                 "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
                 "batch": 1, "tokens": 512, "input_seed": 1234,
@@ -129,9 +153,10 @@ def validate_rule(rule: dict, *, require_execution: bool = False) -> None:
     archive = contained(ROOT, "benchmarks/protocols/d3-trained-step/setup-evidence.zip")
     if file_hash(archive) != rule["setup_archive_sha256"]:
         raise ValueError("committed setup-evidence archive differs from its frozen identity")
-    archive_paths = (SUPERSEDED_ATTEMPT_FILES[2], SUPERSEDED_ATTEMPT_FILES[7])
+    archive_paths = (SUPERSEDED_ATTEMPT_FILES[2], SUPERSEDED_ATTEMPT_FILES[7],
+                     SUPERSEDED_ATTEMPT_FILES[12])
     for prior, archive_path in zip(
-        (prior_attempt_01, prior_attempt_02), archive_paths, strict=True,
+        (prior_attempt_01, prior_attempt_02, prior_attempt_03), archive_paths, strict=True,
     ):
         if file_hash(contained(ROOT, archive_path)) != prior["attempt_archive_sha256"]:
             raise ValueError(

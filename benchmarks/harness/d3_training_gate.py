@@ -320,6 +320,7 @@ def main(argv=None) -> int:
             entry.add_argument("--" + flag, type=Path, required=True)
         if name == "child":
             entry.add_argument("--session", type=Path, required=True)
+            entry.add_argument("--oracle", type=Path)
             entry.add_argument("--mode", choices=MODES, required=True)
             entry.add_argument("--codec", choices=CODECS, required=True)
             entry.add_argument("--kind", choices=("correctness", "timing", "profile"),
