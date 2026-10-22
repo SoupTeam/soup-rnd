@@ -30,7 +30,8 @@ from typing import Callable, Dict, List, Optional, Sequence
 #: Multiple each dimension must have for the native FP4 GEMM. TransformerEngine's own check is 16
 #: for all three (``NVFP4_BLOCK_SIZE`` in ``csrc/quantizer.cpp``). On an RTX 5090 (sm_120) cuBLAS
 #: finds no FP4 algorithm for in_features (K) = 4112, so K is required to be a multiple of 32.
-#: One value was tried; this is a conservative guard (see benchmarks/gate-g4-single-layer.md). tokens and out_features only need 16.
+#: One value was tried; this is a conservative guard (see benchmarks/gate-g4-single-layer.md).
+#: tokens and out_features only need 16.
 FP4_MULTIPLES = {"tokens": 16, "in_features": 32, "out_features": 16}
 
 
