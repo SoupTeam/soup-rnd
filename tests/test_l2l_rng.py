@@ -52,10 +52,10 @@ def make_model(tmp_path):
     harness = _load("l2l_schedule")
     runtimes = []
 
-    def make(dropout):
+    def make(dropout, device="cpu"):
         root = tmp_path / f"model{len(runtimes)}"
         root.mkdir()
-        model, runtime = build_streamed(root, lora_dropout=dropout)
+        model, runtime = build_streamed(root, lora_dropout=dropout, device=device)
         runtimes.append(runtime)
         harness.make_non_vacuous(model)
         model.train()
@@ -117,12 +117,12 @@ def ga_reference(model, harness, mbs, *, seed=SEED, step=STEP, inside_checkpoint
             handle.remove()
 
 
-def l2l_run(model, runtime, harness, mbs, *, seed=SEED, step=STEP):
+def l2l_run(model, runtime, harness, mbs, *, seed=SEED, step=STEP, store=None):
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
     stepper = L2LStep(model, runtime, capture_layer_call(model, mbs[0]), seed=seed)
     harness.zero_grads(model)
-    losses = stepper.run(mbs, _store(len(mbs)), step=step)
+    losses = stepper.run(mbs, store or _store(len(mbs)), step=step)
     return losses, harness.collect_grads(model)
 
 

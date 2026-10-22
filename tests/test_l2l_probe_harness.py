@@ -352,7 +352,7 @@ def streamed(tmp_path):
     runtime.close()
 
 
-def build_streamed(tmp_path, lora_dropout=0.0):
+def build_streamed(tmp_path, lora_dropout=0.0, device="cpu"):
     """The ``streamed`` fixture's model; the caller closes ``runtime``."""
     pytest.importorskip("peft")
     from peft import LoraConfig, TaskType
@@ -377,7 +377,7 @@ def build_streamed(tmp_path, lora_dropout=0.0):
         shard_dir=shards,
         index=index,
         lora_config=lora,
-        device="cpu",
+        device=device,
         dtype="float32",
         buffers=2,
         pin=False,
