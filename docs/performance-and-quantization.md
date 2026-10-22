@@ -840,21 +840,32 @@ existing configs. Report:
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
 - `task` other than `sft`.
-- `lora.dropout` other than 0. A layer-major pass draws dropout masks in a different order, so the result would differ from accumulation.
 
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
-- `attention_dropout` other than 0 on the model.
 - More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
 - `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
 - Rows with padding before real tokens. L2L needs right-padded rows.
 - `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the dropout masks would differ from accumulation. Use rows of one length or set the dropout to 0.
 - Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+
+**Dropout.** `lora.dropout` and `attention_dropout` above 0 are allowed. Each layer call
+seeds the generator from `(training seed, optimizer step, micro-batch, layer)`, so the order in
+which L2L visits layers and micro-batches does not change a mask. With dropout above 0 the
+reference is gradient accumulation with the same state function installed as a forward pre-hook
+on every layer. L2L is not equal to an unmodified Hugging Face Trainer there: the Trainer draws
+all masks from one CPU stream in the order micro-batch, then layer, and a layer-major pass
+cannot follow that order. Checked on CPU with a tiny Llama and LoRA: losses and gradients are
+bit-for-bit equal for k = 1, 2 and 4, and a trainer run with `lora.dropout` 0.05 and with
+`attention_dropout` 0.1 at k = 2 gives the same adapters as accumulation. Not checked: CUDA
+through the trainer, hidden states and logits compared directly, and the full `SFTTrainer` path
+with a real collator at dropout above 0.
 
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
 different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
 each new shape costs one extra forward pass. Speed and memory were not measured, and the check
-used random tokens, not real text. Dropout above 0, MoE and multi-GPU are out of scope.
+used random tokens, not real text. MoE and multi-GPU are out of scope.
 
 **Counters.** Each logged training step carries four cumulative fields:
 

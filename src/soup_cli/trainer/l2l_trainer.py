@@ -45,13 +45,6 @@ def refuse_unsupported_l2l(
             f"training.l2l does not support model_type {arch!r}: the L2L step "
             f"re-implements the top-level forward of {' and '.join(SUPPORTED_ARCHS)} only."
         )
-    attention_dropout = float(getattr(model_config, "attention_dropout", 0.0) or 0.0)
-    if attention_dropout != 0:
-        raise ValueError(
-            f"training.l2l requires attention_dropout=0 on the model (got "
-            f"{attention_dropout}): a layer-major pass draws dropout masks in a "
-            f"different order than gradient accumulation."
-        )
     if n_gpu > 1:
         raise ValueError(
             f"training.l2l is single-GPU, but {n_gpu} GPUs are visible. Re-run with "
@@ -92,13 +85,15 @@ class L2LState:
 
 
 def _window_tensors(
-    window: List[Any], device: Any, *, neftune: bool = False
+    window: List[Any], device: Any, *, neftune: bool = False, dropout: bool = False
 ) -> Tuple[List[Any], List[Any]]:
     """Input ids and labels of each micro-batch, right-padded to one common shape.
 
     With NEFTune on, a window that needs padding is refused: the noise scales with
     ``1 / sqrt(seq * hidden)`` and is drawn per element, so padding the ids before
     the embedding changes both its size and the RNG sequence of gradient accumulation.
+    Dropout is refused the same way: padding changes the shape of the layer input and so
+    the shape and values of every mask drawn from ``l2l_rng.layer_seed``.
     """
     import torch
 
@@ -126,6 +121,13 @@ def _window_tensors(
             f"to have one shape, but this window has {sorted(shapes)}: padding them would "
             "change the NEFTune noise. Use rows of one length, or turn neftune_alpha off."
         )
+    if dropout:
+        raise ValueError(
+            "training.l2l with dropout (training.lora.dropout or attention_dropout above 0) "
+            f"needs every micro-batch of a window to have one shape, but this window has "
+            f"{sorted(shapes)}: padding them would change the dropout masks. Use rows of "
+            "one length, or set the dropout to 0."
+        )
     rows = max(ids.shape[0] for ids in ids_list)
     longest = max(ids.shape[1] for ids in ids_list)
     seq = -(-longest // SHAPE_ROUND) * SHAPE_ROUND
@@ -135,6 +137,20 @@ def _window_tensors(
         padded_ids.append(torch.nn.functional.pad(ids, pad, value=0))
         padded_labels.append(torch.nn.functional.pad(labels, pad, value=-100))
     return padded_ids, padded_labels
+
+
+def _has_dropout(model: Any) -> bool:
+    """True when the model draws dropout masks in training: LoRA dropout or attention dropout."""
+    import torch
+
+    config = getattr(model, "config", None)
+    if float(getattr(config, "attention_dropout", 0.0) or 0.0) != 0:
+        return True
+    return any(
+        (isinstance(module, torch.nn.Dropout) and module.p > 0)
+        or float(getattr(module, "attention_dropout", 0.0) or 0.0) != 0
+        for module in model.modules()
+    )
 
 
 def _l2l_step_for(
@@ -255,7 +271,10 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             model.train()
             device = state.runtime.device
             ids_list, label_list = _window_tensors(
-                window, device, neftune=bool(self.args.neftune_noise_alpha)
+                window,
+                device,
+                neftune=bool(self.args.neftune_noise_alpha),
+                dropout=_has_dropout(model),
             )
             shape = tuple(int(dim) for dim in ids_list[0].shape)
             # The step bypasses the wrapped forward, where the Trainer applies its mixed
