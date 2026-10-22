@@ -27,8 +27,11 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence
 
-#: TransformerEngine's NVFP4 block size (``NVFP4_BLOCK_SIZE`` in ``csrc/quantizer.cpp``).
-FP4_MULTIPLE = 16
+#: Multiple each dimension must have for the native FP4 GEMM. TransformerEngine's own check is 16
+#: for all three (``NVFP4_BLOCK_SIZE`` in ``csrc/quantizer.cpp``). On an RTX 5090 (sm_120) cuBLAS
+#: also finds no FP4 algorithm when in_features (K) is 16 mod 32, so K needs 32 (measured in
+#: benchmarks/gate-g4-single-layer.md). tokens and out_features only need 16.
+FP4_MULTIPLES = {"tokens": 16, "in_features": 32, "out_features": 16}
 
 
 class UnsupportedShapeError(ValueError):
@@ -36,22 +39,23 @@ class UnsupportedShapeError(ValueError):
 
 
 def check_fp4_shape(*, tokens: int, in_features: int, out_features: int) -> None:
-    """Refuse a shape with a dimension that is not a multiple of 16."""
+    """Refuse a shape with a dimension that is not a multiple of what the FP4 GEMM needs."""
     bad = [
-        f"{name}={value}"
+        f"{name}={value} (needs a multiple of {FP4_MULTIPLES[name]})"
         for name, value in (
             ("tokens", tokens),
             ("in_features", in_features),
             ("out_features", out_features),
         )
-        if value % FP4_MULTIPLE
+        if value % FP4_MULTIPLES[name]
     ]
     if bad:
         raise UnsupportedShapeError(
-            f"native FP4 GEMM needs every dimension divisible by {FP4_MULTIPLE}; got "
+            f"native FP4 GEMM needs every dimension divisible by its multiple; got "
             f"{', '.join(bad)}. There is no fallback to NF4: it would mix two formats in "
             "one arm. Change the shape or pad it."
         )
+
 
 #: The multiple the torchao NVFP4 training path requires; the padding cost is measured against it.
 PAD_MULTIPLE = 128

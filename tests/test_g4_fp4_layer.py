@@ -39,6 +39,7 @@ def test_shape_multiple_of_16_is_accepted(g4):
     [
         ((250, 512, 512), "tokens=250"),
         ((256, 520, 512), "in_features=520"),
+        ((256, 4112, 512), "in_features=4112"),
         ((256, 512, 1000), "out_features=1000"),
     ],
 )
@@ -48,7 +49,7 @@ def test_shape_not_multiple_of_16_is_refused_with_a_clear_message(g4, shape, bad
         g4.check_fp4_shape(tokens=tokens, in_features=k, out_features=n)
     message = str(excinfo.value)
     assert bad in message
-    assert "divisible by 16" in message
+    assert "multiple of" in message
     assert "NF4" in message and "no fallback" in message
 
 
@@ -128,3 +129,12 @@ def test_fp4_run_with_a_bad_shape_is_refused_before_any_work(g4):
     # No torch or TransformerEngine is imported on this path, and there is no NF4 fallback.
     with pytest.raises(g4.UnsupportedShapeError, match="no fallback"):
         g4.run_layer(path="fp4", tokens=250, in_features=512, out_features=512, steps=3, warmup=1)
+
+
+def test_in_features_needs_32_but_the_other_dimensions_only_16(g4):
+    # Measured on an RTX 5090 (sm_120): cuBLAS finds no FP4 algorithm for K=4112 but runs
+    # tokens=4112 and out_features=4112. TransformerEngine's own check passes all three.
+    g4.check_fp4_shape(tokens=4112, in_features=4128, out_features=4112)
+    refused = r"in_features=4112 \(needs a multiple of 32\)"
+    with pytest.raises(g4.UnsupportedShapeError, match=refused):
+        g4.check_fp4_shape(tokens=4096, in_features=4112, out_features=4096)
