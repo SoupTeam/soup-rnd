@@ -416,9 +416,9 @@ def test_l2l_equals_gradient_accumulation_bit_for_bit(sched, acts, streamed, k):
     ga = sched.collect_grads(model)
 
     call = sched.capture_layer_call(model, mbs[0])
-    step = sched.L2LStep(model, runtime, call, seed=0)
+    step = sched.L2LStep(model, runtime, call)
     sched.zero_grads(model)
-    l2l_losses = step.run(mbs, _cpu_store(acts, k), step=0)
+    l2l_losses = step.run(mbs, _cpu_store(acts, k))
     l2l = sched.collect_grads(model)
 
     result = sched.compare(ga, l2l)
@@ -436,9 +436,9 @@ def test_the_divisor_matters(sched, acts, streamed):
     sched.zero_grads(model)
     sched.ga_step(model, mbs)
     ga = sched.collect_grads(model)
-    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]), seed=0)
+    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]))
     sched.zero_grads(model)
-    step.run(mbs, _cpu_store(acts, 2), n_items=SEQ - 1, step=0)
+    step.run(mbs, _cpu_store(acts, 2), n_items=SEQ - 1)
     assert not sched.compare(ga, sched.collect_grads(model))["equal"]
 
 
@@ -448,9 +448,9 @@ def test_losses_are_compared_per_position(sched, acts, streamed):
     mbs = _micro_batches(2)
     sched.zero_grads(model)
     ga_losses = sched.ga_step(model, mbs)
-    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]), seed=0)
+    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]))
     sched.zero_grads(model)
-    swapped = step.run(list(reversed(mbs)), _cpu_store(acts, 2), step=0)
+    swapped = step.run(list(reversed(mbs)), _cpu_store(acts, 2))
     assert not sched.losses_equal(ga_losses, swapped)
 
 
@@ -460,7 +460,7 @@ def test_one_prime_and_the_loads_of_one_micro_batch(sched, acts, streamed):
     measured steps therefore follow the same forward-only walk."""
     model, runtime = streamed
     mbs = _micro_batches(3)
-    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]), seed=0)
+    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]))
     sched.zero_grads(model)
     loads = runtime.pool.loads
     sched.ga_step(model, mbs[:1])
@@ -468,7 +468,7 @@ def test_one_prime_and_the_loads_of_one_micro_batch(sched, acts, streamed):
     sched.capture_layer_call(model, mbs[0])
     sched.zero_grads(model)
     loads, primes = runtime.pool.loads, runtime.prefetcher.primes
-    step.run(mbs, _cpu_store(acts, 3), step=0)
+    step.run(mbs, _cpu_store(acts, 3))
     assert runtime.prefetcher.primes - primes == 1
     assert runtime.pool.loads - loads == ga_loads
 
@@ -476,8 +476,8 @@ def test_one_prime_and_the_loads_of_one_micro_batch(sched, acts, streamed):
 def test_checkpoint_flags_are_restored(sched, acts, streamed):
     model, runtime = streamed
     mbs = _micro_batches(2)
-    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]), seed=0)
-    step.run(mbs, _cpu_store(acts, 2), step=0)
+    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]))
+    step.run(mbs, _cpu_store(acts, 2))
     assert all(layer.use_checkpoint for layer in step.layers)
 
 
@@ -491,11 +491,11 @@ def test_capture_drops_num_items_and_keeps_rotary(sched, streamed):
 def test_run_refuses_more_micro_batches_than_the_store_holds(sched, acts, streamed):
     model, runtime = streamed
     mbs = _micro_batches(3)
-    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]), seed=0)
+    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]))
     with pytest.raises(ValueError, match="3 micro-batches.*holds 2"):
-        step.run(mbs, _cpu_store(acts, 2), step=0)
+        step.run(mbs, _cpu_store(acts, 2))
     with pytest.raises(ValueError, match="at least one"):
-        step.run([], _cpu_store(acts, 2), step=0)
+        step.run([], _cpu_store(acts, 2))
 
 
 def test_missing_prime_hook_is_refused(sched, streamed):
@@ -957,7 +957,7 @@ def test_the_l2l_step_calls_each_layer_twice_per_micro_batch(sched, acts, stream
     The wrapper's checkpoint left on would add a recompute: three calls, not two."""
     model, runtime = streamed
     mbs = _micro_batches(2)
-    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]), seed=0)
+    step = sched.L2LStep(model, runtime, sched.capture_layer_call(model, mbs[0]))
     calls = []
     original = runtime.prefetcher.advance
 
@@ -967,7 +967,7 @@ def test_the_l2l_step_calls_each_layer_twice_per_micro_batch(sched, acts, stream
 
     runtime.prefetcher.advance = counting
     try:
-        step.run(mbs, _cpu_store(acts, 2), step=0)
+        step.run(mbs, _cpu_store(acts, 2))
     finally:
         runtime.prefetcher.advance = original
     assert len(calls) == 2 * 2 * 3

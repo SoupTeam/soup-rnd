@@ -93,8 +93,8 @@ def _window_tensors(
     With NEFTune on, a window that needs padding is refused: the noise scales with
     ``1 / sqrt(seq * hidden)`` and is drawn per element, so padding the ids before
     the embedding changes both its size and the RNG sequence of gradient accumulation.
-    Dropout is refused the same way: padding changes the shape of the layer input and so
-    the shape and values of every mask drawn from ``l2l_rng.layer_seed``.
+    Dropout is refused the same way: padding changes the shape of the layer input, so the
+    replay of ``l2l_rng`` would no longer consume the stream the unpadded rows consume.
     """
     import torch
 
@@ -156,7 +156,7 @@ def _has_dropout(model: Any) -> bool:
 
 
 def _l2l_step_for(
-    state: L2LState, model: Any, shape: Tuple[int, int], ids: Any, seed: int
+    state: L2LState, model: Any, shape: Tuple[int, int], ids: Any
 ) -> Any:
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
@@ -164,7 +164,7 @@ def _l2l_step_for(
     if stepper is None:
         if len(state.steps_by_shape) >= MAX_CACHED_SHAPES:
             state.steps_by_shape.clear()
-        stepper = L2LStep(model, state.runtime, capture_layer_call(model, ids), seed=seed)
+        stepper = L2LStep(model, state.runtime, capture_layer_call(model, ids))
         state.steps_by_shape[shape] = stepper
     return stepper
 
@@ -273,6 +273,14 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             model.train()
             if state.has_dropout is None:
                 state.has_dropout = _has_dropout(model)
+            if self.args.neftune_noise_alpha and state.has_dropout:
+                raise ValueError(
+                    "training.l2l cannot combine neftune_alpha with dropout "
+                    "(training.lora.dropout or attention_dropout above 0): accumulation "
+                    "draws the NEFTune noise from the same stream as the dropout masks, "
+                    "between the layers, and a layer-major pass cannot replay that. Turn "
+                    "neftune_alpha off or set the dropout to 0."
+                )
             device = state.runtime.device
             ids_list, label_list = _window_tensors(
                 window,
@@ -284,14 +292,13 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             # The step bypasses the wrapped forward, where the Trainer applies its mixed
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
-                stepper = _l2l_step_for(state, model, shape, ids_list[0], int(self.args.seed))
+                stepper = _l2l_step_for(state, model, shape, ids_list[0])
                 store = _store_for(state, stepper, shape, len(window), device)
                 losses = stepper.run(
                     ids_list,
                     store,
                     n_items=int(num_items_in_batch),
                     labels=label_list,
-                    step=int(self.state.global_step),
                 )
             state.steps += 1
             state.totals.add(stepper.counters)

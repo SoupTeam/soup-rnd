@@ -215,7 +215,7 @@ def run_l2l_steps(step: Any, optimizer: Any, inst: Any, micro_batches: Sequence[
             torch.cuda.reset_peak_memory_stats()
         started_unix = time.time()
         wall_start = time.perf_counter()
-        losses = step.run(micro_batches, store, step=index)
+        losses = step.run(micro_batches, store)
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
         torch.cuda.synchronize()
@@ -293,14 +293,14 @@ def mode_correctness(args, model, runtime, config, sink, torch_dtype) -> None:
         ga2 = l2l_schedule.ga_step(model, mbs)
         g2 = l2l_schedule.collect_grads(model)
         call = l2l_schedule.capture_layer_call(model, mbs[0])
-        step = l2l_schedule.L2LStep(model, runtime, call, seed=0)
+        step = l2l_schedule.L2LStep(model, runtime, call)
         store, reason = allocate_store(**_store_kwargs(config, args, args.k, torch_dtype))
         if store is None:
             record["skipped"] = reason
             sink.add("correctness", record)
             return
         l2l_schedule.zero_grads(model)
-        losses = step.run(mbs, store, step=0)
+        losses = step.run(mbs, store)
         g3 = l2l_schedule.collect_grads(model)
         store.close()
     except RuntimeError as exc:
@@ -367,7 +367,7 @@ def mode_timing(args, model, runtime, config, sink, torch_dtype, meta) -> None:
     pool_mbs = [torch.randint(0, vocab, (1, args.seq), generator=gen, device="cuda")
                 for _ in range(max(ks + [args.cd_k]))]
     call = l2l_schedule.capture_layer_call(model, pool_mbs[0])
-    step = l2l_schedule.L2LStep(model, runtime, call, seed=0)
+    step = l2l_schedule.L2LStep(model, runtime, call)
     element = torch.empty((), dtype=torch_dtype).element_size()
     free_gb = meta["v3"]["free_gb"]
     commit_gb = meta["v3"]["commit_avail_gb"]
@@ -445,7 +445,7 @@ def mode_spill(args, model, runtime, config, sink, torch_dtype, meta) -> None:
     mbs = [torch.randint(0, vocab, (1, args.seq), generator=gen, device="cuda")
            for _ in range(args.spill_k)]
     call = l2l_schedule.capture_layer_call(model, mbs[0])
-    step = l2l_schedule.L2LStep(model, runtime, call, seed=0)
+    step = l2l_schedule.L2LStep(model, runtime, call)
     spill_layers = spill_layers_for(int(config.num_hidden_layers), args.spill_k,
                                     args.spill_budget_k)
     meta["spill_layers"] = spill_layers

@@ -115,13 +115,14 @@ def dropout_model(check, tmp_path):
 
 
 @pytest.mark.parametrize("k", [1, 2, 4])
-def test_measure_k_with_dropout_matches_the_seeded_reference(check, dropout_model, k):
+def test_measure_k_with_dropout_matches_the_unmodified_accumulation(check, dropout_model, k):
     model, runtime = dropout_model
     record = check.measure_k(
-        model, runtime, _micro_batches(k), _store_factory(k), dropout=0.05, seed=11, step=5
+        model, runtime, _micro_batches(k), _store_factory(k), dropout=0.05, seed=11
     )
     assert record["dropout"] == 0.05
-    assert (record["seed"], record["step"]) == (11, 5)
+    assert record["seed"] == 11
+    assert record["stream_equal"] is True
     assert record["grads_equal"] is True
     assert record["losses_equal"] is True
     assert record["a_vs_a_equal"] is True
@@ -131,19 +132,19 @@ def test_measure_k_with_dropout_matches_the_seeded_reference(check, dropout_mode
 def test_measure_k_control_with_the_wrong_order_disagrees(check, dropout_model):
     model, runtime = dropout_model
     record = check.measure_k(
-        model, runtime, _micro_batches(2), _store_factory(2), dropout=0.05, seed=11, step=5
+        model, runtime, _micro_batches(2), _store_factory(2), dropout=0.05, seed=11
     )
-    # one shared stream (the stock accumulation order) against the layer-major step
-    assert record["control_stock_stream_equal"] is False
+    # one shared stream (no replay) and another seed, each against the reference
     assert record["control_shared_stream_equal"] is False
+    assert record["control_other_seed_equal"] is False
 
 
 def test_measure_k_records_a_digest_that_repeats(check, dropout_model):
     model, runtime = dropout_model
     args = (model, runtime, _micro_batches(2), _store_factory(2))
-    first = check.measure_k(*args, dropout=0.05, seed=11, step=5)
-    again = check.measure_k(*args, dropout=0.05, seed=11, step=5)
-    other = check.measure_k(*args, dropout=0.05, seed=12, step=5)
+    first = check.measure_k(*args, dropout=0.05, seed=11)
+    again = check.measure_k(*args, dropout=0.05, seed=11)
+    other = check.measure_k(*args, dropout=0.05, seed=12)
     assert first["digest"] == again["digest"]
     assert first["digest"] != other["digest"]
 
@@ -153,11 +154,11 @@ def test_dropout_zero_has_no_controls(check, streamed):  # noqa: F811
     check.l2l_schedule.make_non_vacuous(model)
     record = check.measure_k(model, runtime, _micro_batches(2), _store_factory(2))
     assert record["dropout"] == 0.0
-    assert "control_stock_stream_equal" not in record
+    assert "control_shared_stream_equal" not in record
 
 
 def test_verdict_needs_the_wrong_order_controls_to_disagree(check):
-    good = [dict(_rec(k), control_stock_stream_equal=False, control_shared_stream_equal=False)
+    good = [dict(_rec(k), control_other_seed_equal=False, control_shared_stream_equal=False)
             for k in (1, 2, 4)]
     assert check.verdict(good)["pass"]
     bad = [dict(rec) for rec in good]

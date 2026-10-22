@@ -34,39 +34,6 @@ def ga_step(
     return losses
 
 
-def seeded_ga_step(
-    model: Any, micro_batches: Sequence[Any], *, seed: int, step: int
-) -> List[Any]:
-    """``ga_step`` with the L2L state function installed as a pre-hook on every layer.
-
-    The hook sets the generators from ``layer_seed(seed, step, mb, layer)`` before each
-    layer call, which is what ``L2LStep`` does around its own calls. This is the reference
-    for ``lora.dropout`` > 0; a stock accumulation draws every mask from one stream.
-    """
-    from soup_cli.utils.l2l_rng import set_layer_state
-    from soup_cli.utils.layer_stream_runtime import decoder_owner
-
-    current = {"mb": 0}
-    handles = [
-        layer.register_forward_pre_hook(
-            lambda _module, _args, idx=idx: set_layer_state(seed, step, current["mb"], idx)
-        )
-        for idx, layer in enumerate(decoder_owner(model).layers)
-    ]
-    total = label_tokens(micro_batches)
-    try:
-        losses = []
-        for mb, ids in enumerate(micro_batches):
-            current["mb"] = mb
-            out = model(input_ids=ids, labels=ids, num_items_in_batch=total)
-            out.loss.backward()
-            losses.append(out.loss.detach())
-        return losses
-    finally:
-        for handle in handles:
-            handle.remove()
-
-
 # --------------------------------------------------------------------------
 # adapters and gradients
 # --------------------------------------------------------------------------

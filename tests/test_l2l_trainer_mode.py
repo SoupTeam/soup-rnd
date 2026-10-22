@@ -237,25 +237,6 @@ def test_neftune_noise_sequence_is_the_one_accumulation_draws(streamed, tmp_path
     _same_adapters_as_accumulation(streamed, tmp_path, neftune_noise_alpha=5.0)
 
 
-def test_step_receives_the_training_seed_and_the_global_step(streamed, tmp_path, monkeypatch):  # noqa: F811
-    from transformers import Trainer
-
-    from soup_cli.utils.l2l_step import L2LStep
-
-    seen = []
-    run = L2LStep.run
-
-    def spy(self, *args, **kwargs):
-        seen.append((self.seed, kwargs.get("step")))
-        return run(self, *args, **kwargs)
-
-    monkeypatch.setattr(L2LStep, "run", spy)
-    model, runtime = streamed
-    _load("l2l_schedule").make_non_vacuous(model)
-    _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)  # TrainingArguments(seed=1)
-    assert seen == [(1, 0), (1, 1)]
-
-
 @pytest.fixture()
 def dropout_model(tmp_path):
     """The ``streamed`` model with ``lora.dropout`` 0.05, closed after the test."""
@@ -266,50 +247,14 @@ def dropout_model(tmp_path):
     runtime.close()
 
 
-def _set_attention_dropout(model, value):
+def _set_attention_dropout(model, value, *, eager=False):
+    """``eager`` switches the attention to the eager implementation, whose dropout is replayable."""
     for module in model.modules():
         if hasattr(module, "attention_dropout"):
             module.attention_dropout = value
-
-
-def _accumulation_with_state_function(k):
-    """A Trainer whose layers get the L2L state function as a pre-hook, per micro-batch.
-
-    This is the reference at dropout > 0: plain accumulation draws every mask from one
-    CPU stream, in an order a layer-major pass cannot follow (ADR 0002).
-    """
-    from transformers import Trainer
-
-    class Accumulation(Trainer):
-        def training_step(self, model, inputs, num_items_in_batch=None):
-            from soup_cli.utils.l2l_rng import set_layer_state
-            from soup_cli.utils.layer_stream_runtime import decoder_owner
-
-            if not hasattr(self, "_hooks"):
-                self._position = 0
-                self._hooks = [
-                    layer.register_forward_pre_hook(
-                        lambda _m, _a, idx=idx: set_layer_state(
-                            int(self.args.seed),
-                            int(self.state.global_step),
-                            self._position % k,
-                            idx,
-                        )
-                    )
-                    for idx, layer in enumerate(decoder_owner(model).layers)
-                ]
-            out = super().training_step(model, inputs, num_items_in_batch)
-            self._position += 1
-            return out
-
-        def train(self, *args, **kwargs):
-            try:
-                return super().train(*args, **kwargs)
-            finally:
-                for handle in getattr(self, "_hooks", []):
-                    handle.remove()
-
-    return Accumulation
+        config = getattr(module, "config", None)
+        if eager and hasattr(config, "_attn_implementation"):
+            config._attn_implementation = "eager"
 
 
 def _dropout_run_matches_accumulation(model_and_runtime, tmp_path, *, lengths=None, k=2):
@@ -320,7 +265,9 @@ def _dropout_run_matches_accumulation(model_and_runtime, tmp_path, *, lengths=No
     model, runtime = model_and_runtime
     harness.make_non_vacuous(model)
     start = harness.snapshot_adapters(model)
-    base = _accumulation_with_state_function(k)
+    from transformers import Trainer
+
+    base = Trainer
     _train(base, model, runtime, tmp_path, l2l=False, k=k, lengths=lengths)
     ga = _adapters(model)
     harness.restore_adapters(model, start)
@@ -338,37 +285,37 @@ def test_trainer_with_lora_dropout_matches_accumulation_at_k2(dropout_model, tmp
     assert any(not torch.equal(l2l[n], start[n]) for n in l2l)
 
 
-def test_lora_dropout_is_not_a_no_op_in_the_trainer_comparison(dropout_model, tmp_path):
-    """Control: without the state function plain accumulation draws other masks."""
+def test_lora_dropout_changes_the_adapters_the_trainer_trains(streamed, dropout_model, tmp_path):  # noqa: F811
+    """Control: the equality above is not vacuous, dropout 0.05 moves the adapters."""
     import torch
     from transformers import Trainer
 
-    harness = _load("l2l_schedule")
-    model, runtime = dropout_model
-    harness.make_non_vacuous(model)
-    start = harness.snapshot_adapters(model)
-    _train(Trainer, model, runtime, tmp_path, l2l=False, k=2)
-    plain = _adapters(model)
-    harness.restore_adapters(model, start)
-    _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)
-    l2l = _adapters(model)
-    assert any(not torch.allclose(plain[n], l2l[n], atol=1e-6, rtol=1e-5) for n in plain)
+    results = []
+    for model, runtime in (streamed, dropout_model):
+        harness = _load("l2l_schedule")
+        harness.make_non_vacuous(model)
+        _train(Trainer, model, runtime, tmp_path, l2l=False, k=2)
+        results.append(_adapters(model))
+    plain, dropped = results
+    assert any(not torch.allclose(plain[n], dropped[n], atol=1e-6, rtol=1e-5) for n in plain)
 
 
-def test_attention_dropout_alone_matches_accumulation_at_k2(streamed, tmp_path):  # noqa: F811
+def test_eager_attention_dropout_alone_matches_accumulation_at_k2(streamed, tmp_path):  # noqa: F811
     import torch
 
     harness = _load("l2l_schedule")
     model, runtime = streamed
     harness.make_non_vacuous(model)
     start = harness.snapshot_adapters(model)
-    base = _accumulation_with_state_function(2)
+    from transformers import Trainer
 
-    _set_attention_dropout(model, 0.0)
+    base = Trainer
+
+    _set_attention_dropout(model, 0.0, eager=True)
     _train(base, model, runtime, tmp_path, l2l=False, k=2)
     ga_without = _adapters(model)
 
-    _set_attention_dropout(model, 0.1)
+    _set_attention_dropout(model, 0.1, eager=True)
     harness.restore_adapters(model, start)
     _train(base, model, runtime, tmp_path, l2l=False, k=2)
     ga = _adapters(model)
@@ -398,6 +345,15 @@ def test_has_dropout_sees_lora_attention_and_config_dropout(dropout_model, strea
     assert _has_dropout(config_only)
 
 
+def test_neftune_with_dropout_is_refused(dropout_model, tmp_path):
+    from transformers import Trainer
+
+    model, runtime = dropout_model
+    _load("l2l_schedule").make_non_vacuous(model)
+    with pytest.raises(ValueError, match=r"(?i)neftune.*dropout"):
+        _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, neftune_noise_alpha=5.0)
+
+
 def test_mixed_length_windows_with_lora_dropout_are_refused(dropout_model, tmp_path):
     from transformers import Trainer
 
@@ -405,6 +361,16 @@ def test_mixed_length_windows_with_lora_dropout_are_refused(dropout_model, tmp_p
     _load("l2l_schedule").make_non_vacuous(model)
     with pytest.raises(ValueError, match=r"(?i)dropout.*(length|padd)"):
         _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, lengths=[5, 8, 3, 6])
+
+
+def test_sdpa_attention_dropout_is_refused_before_the_first_step(streamed, tmp_path):  # noqa: F811
+    from transformers import Trainer
+
+    model, runtime = streamed
+    _load("l2l_schedule").make_non_vacuous(model)
+    _set_attention_dropout(model, 0.1)
+    with pytest.raises(ValueError, match=r"(?i)scaled_dot_product_attention"):
+        _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)
 
 
 def test_mixed_length_windows_with_attention_dropout_only_are_refused(tmp_path, streamed):  # noqa: F811
