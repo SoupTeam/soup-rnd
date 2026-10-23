@@ -1,0 +1,969 @@
+#!/usr/bin/env python3
+"""Ticket A3-04: the Mistral-7B NF4 stand, gradient accumulation (GA) against ``training.l2l``.
+
+One window sequence, trained through the real HF trainer with the same seed, adapters and
+rows: GA twice (the A-vs-A control), the L2L trainer once and, in bf16, GA a third time on a
+second SDPA backend (the noise floor). The rows have different lengths, masked labels (-100)
+and an incomplete last window. Deterministic mode is on and documented:
+``CUBLAS_WORKSPACE_CONFIG`` is set before torch and CUDA start, strict
+``torch.use_deterministic_algorithms(True)`` follows, and one SDPA backend (MATH) is pinned
+in the main arms.
+
+The criterion is a tolerance (user decision, 2026-10-23), not bit equality. A-vs-A stays
+bitwise: if GA does not repeat, the run stops. Per optimizer step the relative L2 error of
+the LoRA gradients (and of the logged loss) must be, in bf16, at most 1.5 x the error between
+GA on MATH and GA on EFFICIENT_ATTENTION measured in the same run, and in fp32 at most 1e-4.
+Step count, lr per step and the log length are still compared exactly. The tolerance and its
+values are printed in the report; no option loosens them.
+
+The RAM plan (weights + workspace + activation cache / 0.7) is printed before anything is
+loaded, and the stand refuses to start without the RAM. Raw logs, the command, package
+versions and the GPU are written to ``--out``. Results carry their data kind:
+random-token rows are "synthetic" even on real weights.
+
+Benchmark code, not shipped. torch is imported inside functions, after the environment is set.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import platform
+import sys
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+DEFAULT_WEIGHTS = "mistralai/Mistral-7B-v0.1"
+CUBLAS_WORKSPACE_CONFIG = ":4096:8"
+PINNED_SDPA_BACKEND = "MATH"
+#: The second backend of the noise-floor arm (GA on MATH against GA on this).
+FLOOR_SDPA_BACKEND = "EFFICIENT_ATTENTION"
+#: bf16: L2L may differ from GA by at most this many times the noise floor, at every step.
+FLOOR_FACTOR = 1.5
+#: fp32: a correctness check, not a noise check.
+FP32_REL_LIMIT = 1e-4
+SDPA_BACKENDS = ("MATH", "FLASH_ATTENTION", "EFFICIENT_ATTENTION", "CUDNN_ATTENTION")
+#: Mistral-7B NF4 weights (3.6 GB of linear layers + 0.5 GB of bf16 embeddings), from the research.
+DEFAULT_WEIGHTS_BYTES = 4.1e9
+DEFAULT_WORKSPACE_BYTES = 1_000_000_000
+#: NF4 with double quant, bytes per parameter (``layer_stream.py``).
+NF4_BYTES_PER_PARAM = 0.5 + 1 / 64 + 4 / (64 * 256)
+PACKAGES = (
+    "torch", "transformers", "peft", "trl", "accelerate", "bitsandbytes", "numpy", "psutil",
+)
+
+
+class StandRefusedError(RuntimeError):
+    """The stand will not start or write: a missing precondition, not a result."""
+
+
+# --------------------------------------------------------------------------
+# RAM plan
+# --------------------------------------------------------------------------
+def ram_plan(
+    *, n_layers: int, hidden: int, k: int, batch: int, seq: int, itemsize: int = 2,
+    pinned: bool = True, weights_bytes: float = DEFAULT_WEIGHTS_BYTES,
+    workspace_bytes: int = DEFAULT_WORKSPACE_BYTES,
+) -> Dict[str, Any]:
+    """Host RAM the run needs, by ``check_activation_budget``'s formula.
+
+    The cache is ``n_layers x k`` chunks of ``batch x seq x hidden``; a pinned chunk takes a
+    power-of-two block. The trainer's check wants the cache below 0.7 of the RAM the weights
+    leave free, so the whole plan is weights + workspace + cache / 0.7.
+    """
+    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
+    from soup_cli.utils.layer_stream_runtime import _next_power_of_two
+
+    chunk = batch * seq * hidden * itemsize
+    block = _next_power_of_two(chunk) if pinned else chunk
+    cache = n_layers * k * block
+    need_cache = cache / RAM_TIER_HEADROOM
+    return {
+        "n_layers": n_layers, "hidden": hidden, "k": k, "batch": batch, "seq": seq,
+        "chunk_bytes": chunk, "block_bytes": block, "cache_bytes": cache,
+        "need_free_for_cache": need_cache, "weights_bytes": weights_bytes,
+        "workspace_bytes": workspace_bytes,
+        "need_total": weights_bytes + workspace_bytes + need_cache,
+    }
+
+
+def check_ram(plan: Dict[str, Any], free_ram: Optional[int]) -> None:
+    """Refuse when the free RAM is below the plan; an unknown amount is also a refusal."""
+    if free_ram is None:
+        raise StandRefusedError("free RAM is unknown (psutil is missing); the stand will not guess")
+    if free_ram < plan["need_total"]:
+        raise StandRefusedError(
+            f"the plan needs {plan['need_total'] / 2**30:.1f} GiB of free RAM (weights "
+            f"{plan['weights_bytes'] / 2**30:.1f} + workspace "
+            f"{plan['workspace_bytes'] / 2**30:.1f} + activation cache "
+            f"{plan['cache_bytes'] / 2**30:.1f} / 0.7), but only {free_ram / 2**30:.1f} GiB of "
+            f"free RAM is available"
+        )
+
+
+def weights_bytes_estimate(config: Any, quant: str) -> float:
+    """Resident weight bytes from the model config: NF4 linear layers, bf16 embeddings."""
+    hidden = int(config.hidden_size)
+    heads = int(config.num_attention_heads)
+    kv_dim = int(getattr(config, "num_key_value_heads", None) or heads) * (hidden // heads)
+    linear = int(config.num_hidden_layers) * (
+        2 * hidden * hidden + 2 * hidden * kv_dim + 3 * hidden * int(config.intermediate_size)
+    )
+    tied = bool(getattr(config, "tie_word_embeddings", False))
+    embed = int(config.vocab_size) * hidden * (1 if tied else 2)
+    per_linear = NF4_BYTES_PER_PARAM if quant == "nf4" else 2
+    return linear * per_linear + embed * 2
+
+
+# --------------------------------------------------------------------------
+# determinism
+# --------------------------------------------------------------------------
+def _cuda_started() -> bool:
+    torch = sys.modules.get("torch")
+    return bool(torch is not None and torch.cuda.is_initialized())
+
+
+def set_deterministic_env(
+    environ: Any = None, cuda_initialized: Callable[[], bool] = _cuda_started
+) -> None:
+    """Set ``CUBLAS_WORKSPACE_CONFIG``; it has no effect once CUDA is initialised, so refuse."""
+    environ = os.environ if environ is None else environ
+    if environ.get("CUBLAS_WORKSPACE_CONFIG") == CUBLAS_WORKSPACE_CONFIG:
+        return
+    if cuda_initialized():
+        raise StandRefusedError(
+            "CUBLAS_WORKSPACE_CONFIG must be set before CUDA starts, and CUDA is already "
+            "initialised in this process; start the stand in a fresh process"
+        )
+    environ["CUBLAS_WORKSPACE_CONFIG"] = CUBLAS_WORKSPACE_CONFIG
+
+
+def enable_deterministic() -> None:
+    """Strict mode: a non-deterministic op raises. ``warn_only`` stays off."""
+    import torch
+
+    torch.use_deterministic_algorithms(True)
+
+
+@contextmanager
+def pinned_sdpa(backend: str = PINNED_SDPA_BACKEND) -> Iterator[None]:
+    """Run attention on one SDPA backend, the same one in both arms."""
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    with sdpa_kernel(getattr(SDPBackend, backend)):
+        yield
+
+
+def floor_sdpa() -> Any:
+    """The second backend, for the arm that measures the bf16 noise floor."""
+    return pinned_sdpa(FLOOR_SDPA_BACKEND)
+
+
+def probe_sdpa_backends(
+    *, device: str, dtype: str, batch: int = 1, heads: int = 32, seq: int = 512,
+    head_dim: int = 128,
+) -> Dict[str, Dict[str, Any]]:
+    """Try each SDPA backend alone on the model's attention shape: forward, backward twice.
+
+    Records whether it runs and whether two backward passes give equal gradients, so the
+    choice of backend is measured on this card rather than assumed.
+    """
+    import torch
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    torch_dtype = getattr(torch, dtype)
+    gen = torch.Generator().manual_seed(0)
+
+    def make() -> Any:
+        return torch.randn((batch, heads, seq, head_dim), generator=gen).to(device, torch_dtype)
+
+    q, k, v = make(), make(), make()
+    mask = torch.ones(seq, seq, dtype=torch.bool, device=device).tril()
+    out: Dict[str, Dict[str, Any]] = {}
+    for name in SDPA_BACKENDS:
+        record: Dict[str, Any] = {"ok": False, "backward_repeatable": None, "error": None}
+        try:
+            grads = []
+            with sdpa_kernel(getattr(SDPBackend, name)):
+                for _ in range(2):
+                    qs, ks, vs = (t.clone().requires_grad_() for t in (q, k, v))
+                    res = torch.nn.functional.scaled_dot_product_attention(
+                        qs, ks, vs, attn_mask=mask
+                    )
+                    res.sum().backward()
+                    grads.append((qs.grad.clone(), ks.grad.clone(), vs.grad.clone()))
+            record["ok"] = True
+            record["backward_repeatable"] = all(
+                torch.equal(a, b) for a, b in zip(grads[0], grads[1])
+            )
+        except Exception as exc:  # a backend that cannot run here is a result, not a crash
+            record["error"] = f"{type(exc).__name__}: {str(exc).splitlines()[0][:200]}"
+        out[name] = record
+    return out
+
+
+# --------------------------------------------------------------------------
+# gemm_4bit path counter
+# --------------------------------------------------------------------------
+_DISPATCH = "_can_use_checkpoint_visible_nf4_gemm"
+
+
+class GemmPathCounter:
+    """Counts the NF4 matmul path of every streamed linear, by M (rows).
+
+    Soup's patched ``Linear4bit.forward`` asks ``_can_use_checkpoint_visible_nf4_gemm`` of
+    ``layer_stream_runtime`` once per call: True is bitsandbytes' custom ``gemm_4bit`` kernel,
+    False is dequantise + ``F.linear``. Counting the decision sees both paths at every M. The
+    wrapped functions of ``bitsandbytes.backends.cuda.ops`` do not: above the card's custom
+    window the patched forward never calls ``gemm_4bit`` at all, which is why the ticket 05
+    counters missed rows over 128 and L2L entirely. ``runtime=None`` counts nothing.
+    """
+
+    def __init__(self, runtime: Any):
+        self.runtime = runtime
+        self.counts: Optional[Dict[int, Dict[str, int]]] = None if runtime is None else {}
+        self._saved: Any = None
+
+    def __enter__(self) -> "GemmPathCounter":
+        if self.runtime is None:
+            return self
+        real = getattr(self.runtime, _DISPATCH)
+        self._saved = real
+
+        def counted(x: Any, *args: Any, **kwargs: Any) -> Any:
+            use_custom = real(x, *args, **kwargs)
+            rows = int(x.numel() // x.shape[-1])
+            entry = self.counts.setdefault(rows, {"custom": 0, "dequant": 0})
+            entry["custom" if use_custom else "dequant"] += 1
+            return use_custom
+
+        setattr(self.runtime, _DISPATCH, counted)
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        if self._saved is not None:
+            setattr(self.runtime, _DISPATCH, self._saved)
+        self._saved = None
+
+
+def paths_match(
+    left: Optional[Dict[int, Dict[str, int]]], right: Optional[Dict[int, Dict[str, int]]]
+) -> Optional[bool]:
+    """True when both arms used the same set of gemm_4bit paths; None if uncounted or empty.
+
+    An empty counter is not a result: two empties would agree, and ticket 05 had ``l2l: {}``.
+
+    Not keyed by M: GA runs rows at their own length and an L2L window is padded to a
+    multiple of 64, so the M values differ by design. The per-M counts stay in the report.
+    """
+    if not left or not right:
+        return None
+
+    def kinds(counts: Dict[int, Dict[str, int]]) -> set:
+        return {path for paths in counts.values() for path, n in paths.items() if n}
+
+    return kinds(left) == kinds(right)
+
+
+# --------------------------------------------------------------------------
+# bitsandbytes #2034: a recycled slot buffer must not change the gradients
+# --------------------------------------------------------------------------
+def judge_aliasing(*, shipped_max_abs: float, raw_max_abs: float) -> Dict[str, Any]:
+    """Verdict of one M. The shipped path must not move; the raw path is the control."""
+    if shipped_max_abs > 0:
+        return {
+            "status": "active", "pass": False,
+            "note": (
+                f"bnb #2034 reaches the shipped path: recycled-buffer gradients differ from "
+                f"private-buffer ones by {shipped_max_abs:.3e}. An L2L/GA gap on this stand "
+                "could come from the aliasing, not from the schedule."
+            ),
+        }
+    if raw_max_abs > 0:
+        return {"status": "neutralized", "pass": True,
+                "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"}
+    return {
+        "status": "not_reproduced", "pass": True,
+        "note": "the raw control is also equal at this M, so the probe cannot show the defect",
+    }
+
+
+def _aliasing_grads(
+    path: str, recycle: bool, *, device: str, dtype: Any, dim: int, n_layers: int,
+    slots: int, tokens: int,
+) -> List[Any]:
+    """Gradients of per-layer scales upstream of a checkpointed NF4 matmul, as bnb_repro.py does.
+
+    ``path`` is ``shipped`` (a Linear4bit patched by ``install_dequant_forward``) or ``raw``
+    (``bitsandbytes.matmul_4bit``). With ``recycle`` the packed weight is copied into a
+    round-robin slot buffer inside the checkpointed region, as the streaming runtime does.
+    """
+    import bitsandbytes as bnb
+    import torch
+    from bitsandbytes.functional import quantize_4bit
+    from torch.utils.checkpoint import checkpoint
+
+    from soup_cli.utils.layer_stream_runtime import install_dequant_forward
+
+    torch.manual_seed(0)
+    weights = [torch.randn(dim, dim, device=device, dtype=dtype) / 32 for _ in range(n_layers)]
+    quantised = [
+        quantize_4bit(w, blocksize=64, quant_type="nf4", compress_statistics=True)
+        for w in weights
+    ]
+    sources = [packed for packed, _ in quantised]
+    states = [state for _, state in quantised]
+    buffers = [torch.empty_like(sources[0]) for _ in range(slots)]
+    cursor = [0]
+    lin = None
+    if path == "shipped":
+        lin = bnb.nn.Linear4bit(dim, dim, bias=False, compute_dtype=dtype, quant_type="nf4")
+        lin.weight = bnb.nn.Params4bit(
+            data=sources[0], requires_grad=False, quant_state=states[0], blocksize=64,
+            compress_statistics=True, quant_type="nf4", bnb_quantized=True,
+        )
+        install_dequant_forward(lin)
+    gen = torch.Generator().manual_seed(1234)
+    scales = [
+        (1 + 0.01 * torch.randn(dim, generator=gen)).to(device, dtype).requires_grad_()
+        for _ in range(n_layers)
+    ]
+
+    def layer(idx: int) -> Callable[..., Any]:
+        def fn(x: Any, scale: Any) -> Any:
+            hidden = x * scale
+            weight = sources[idx]
+            if recycle:
+                weight = buffers[cursor[0] % slots]
+                cursor[0] += 1
+                weight.copy_(sources[idx])
+            if lin is not None:
+                lin.weight.data = weight
+                lin.weight.quant_state = states[idx]
+                return lin(hidden)
+            return bnb.matmul_4bit(hidden, weight.t(), quant_state=states[idx])
+
+        return fn
+
+    x = torch.randn(tokens, dim, device=device, dtype=dtype, requires_grad=True)
+    for idx in range(n_layers):
+        x = checkpoint(layer(idx), x, scales[idx], use_reentrant=False)
+    x.float().pow(2).mean().backward()
+    return [scale.grad.detach().float().cpu().clone() for scale in scales]
+
+
+def run_aliasing_probe(
+    *, device: str, dtype: str, m_values: Sequence[int], dim: int, n_layers: int = 8,
+    slots: int = 2,
+) -> Dict[str, Any]:
+    """Recycled against private buffers on the shipped NF4 path, at each M the stand uses."""
+    import torch
+
+    torch_dtype = getattr(torch, dtype)
+    by_m: Dict[int, Dict[str, Any]] = {}
+    for rows in sorted(set(int(m) for m in m_values)):
+        diffs = {}
+        for path in ("shipped", "raw"):
+            grads = [
+                _aliasing_grads(
+                    path, recycle, device=device, dtype=torch_dtype, dim=dim,
+                    n_layers=n_layers, slots=slots, tokens=rows,
+                )
+                for recycle in (True, False)
+            ]
+            diffs[path] = max(
+                (a - b).abs().max().item() for a, b in zip(grads[0], grads[1])
+            )
+        by_m[rows] = {
+            "shipped_max_abs": diffs["shipped"], "raw_max_abs": diffs["raw"],
+            **judge_aliasing(shipped_max_abs=diffs["shipped"], raw_max_abs=diffs["raw"]),
+        }
+    ok = all(rec["pass"] for rec in by_m.values())
+    statuses = {rec["status"] for rec in by_m.values()}
+    status = "active" if "active" in statuses else (
+        "neutralized" if "neutralized" in statuses else "not_reproduced"
+    )
+    return {"pass": ok, "status": status, "by_m": by_m, "dim": dim, "n_layers": n_layers,
+            "slots": slots}
+
+
+def aliasing_block(probe: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The verdict that stops the stand when #2034 is active on the shipped path, else None."""
+    if probe["pass"]:
+        return None
+    note = next(rec["note"] for rec in probe["by_m"].values() if not rec["pass"])
+    return {"pass": False, "status": "aliasing_active", "note": note,
+            "a_vs_a": None, "l2l_vs_ga": None}
+
+
+# --------------------------------------------------------------------------
+# runs and their comparison
+# --------------------------------------------------------------------------
+@dataclass
+class RunRecord:
+    """What one run leaves: its log rows, and the lr and LoRA gradient of each optimizer step."""
+
+    logs: List[dict]
+    rates: List[float]
+    grads: List[dict]
+    steps: int
+    l2l: bool = False
+
+
+def compare_runs(ref: RunRecord, cand: RunRecord) -> Dict[str, Any]:
+    """Bit-compare two runs: gradients, losses, step counts, lr per step and the log."""
+    import torch
+
+    unequal, diffs = False, []
+    if len(ref.grads) != len(cand.grads):
+        unequal = True
+    for step, (left, right) in enumerate(zip(ref.grads, cand.grads)):
+        if left.keys() != right.keys():
+            unequal = True
+            continue
+        for name in sorted(left):
+            if not torch.equal(left[name], right[name]):
+                unequal = True
+                gap = (left[name].float() - right[name].float()).abs().max().item()
+                diffs.append({"step": step, "name": name, "max_abs": float(gap)})
+    diffs.sort(key=lambda row: row["max_abs"], reverse=True)
+    losses_equal = [r.get("loss") for r in ref.logs] == [r.get("loss") for r in cand.logs]
+    rates_equal = ref.rates == cand.rates and [
+        r.get("learning_rate") for r in ref.logs
+    ] == [r.get("learning_rate") for r in cand.logs]
+    steps_equal = ref.steps == cand.steps and len(ref.grads) == len(cand.grads)
+    return {
+        "grads_equal": not unequal,
+        "losses_equal": losses_equal,
+        "rates_equal": rates_equal,
+        "steps_equal": steps_equal,
+        "steps": (ref.steps, cand.steps),
+        "max_abs": diffs[0]["max_abs"] if diffs else 0.0,
+        "worst": diffs[:5],
+        "equal": bool(not unequal and losses_equal and rates_equal and steps_equal),
+    }
+
+
+def _vacuous(run: RunRecord) -> bool:
+    return not run.grads or any(
+        not any(bool(g.abs().sum() > 0) for g in step.values()) for step in run.grads
+    )
+
+
+def rel_l2_by_step(ref: RunRecord, cand: RunRecord) -> List[float]:
+    """Per optimizer step: ||g_cand - g_ref|| / ||g_ref|| over all LoRA gradients, in float64.
+
+    A step whose parameter names differ has no meaningful error and gets ``inf``.
+    """
+    import math
+
+    out: List[float] = []
+    for left, right in zip(ref.grads, cand.grads):
+        if left.keys() != right.keys():
+            out.append(math.inf)
+            continue
+        num = den = 0.0
+        for name in left:
+            gap = left[name].double() - right[name].double()
+            num += float(gap.pow(2).sum())
+            den += float(left[name].double().pow(2).sum())
+        out.append(0.0 if num == 0 else (math.sqrt(num / den) if den else math.inf))
+    return out
+
+
+def loss_rel_by_step(ref: RunRecord, cand: RunRecord) -> List[float]:
+    """Per logged loss: |cand - ref| / |ref|."""
+    import math
+
+    out: List[float] = []
+    for left, right in zip(ref.logs, cand.logs):
+        a, b = left.get("loss"), right.get("loss")
+        if a is None or b is None:
+            out.append(math.inf)
+        else:
+            out.append(0.0 if a == b else abs(b - a) / abs(a) if a else math.inf)
+    return out
+
+
+def judge_tolerance(
+    ref: RunRecord, cand: RunRecord, *, mode: str, floor: Optional[RunRecord] = None
+) -> Dict[str, Any]:
+    """Per-step tolerance check of ``cand`` against ``ref``; every number is kept for the report.
+
+    ``fp32``: relative error at most ``FP32_REL_LIMIT``. ``bf16``: at most ``FLOOR_FACTOR`` x the
+    error of ``floor`` (GA on another SDPA backend) against ``ref``, step by step. bf16 without
+    a floor run is not judged (``judged`` False).
+    """
+    grad = rel_l2_by_step(ref, cand)
+    loss = loss_rel_by_step(ref, cand)
+    out: Dict[str, Any] = {
+        "mode": mode, "factor": FLOOR_FACTOR, "limit_fp32": FP32_REL_LIMIT,
+        "grad_rel": grad, "loss_rel": loss, "floor_grad": None, "floor_loss": None,
+        "judged": True, "failing": [], "pass": False,
+    }
+    if mode == "fp32":
+        grad_limit = [FP32_REL_LIMIT] * len(grad)
+        loss_limit = [FP32_REL_LIMIT] * len(loss)
+    else:
+        if floor is None:
+            out["judged"] = False
+            return out
+        out["floor_grad"] = floor_grad = rel_l2_by_step(ref, floor)
+        out["floor_loss"] = floor_loss = loss_rel_by_step(ref, floor)
+        grad_limit = [FLOOR_FACTOR * e for e in floor_grad]
+        loss_limit = [FLOOR_FACTOR * e for e in floor_loss]
+    out["grad_limit"], out["loss_limit"] = grad_limit, loss_limit
+    for what, errors, limits in (("gradient", grad, grad_limit), ("loss", loss, loss_limit)):
+        if len(errors) != len(limits):
+            out["failing"].append({"what": what, "step": None, "error": None, "limit": None})
+        for step, (err, lim) in enumerate(zip(errors, limits)):
+            if not err <= lim:
+                out["failing"].append({"what": what, "step": step, "error": err, "limit": lim})
+    out["pass"] = not out["failing"]
+    return out
+
+
+def decide(
+    ga1: RunRecord, ga2: RunRecord, l2l: RunRecord, *, mode: str,
+    floor: Optional[RunRecord] = None,
+) -> Dict[str, Any]:
+    """The verdict. A-vs-A comes first and stays bitwise: if GA does not repeat, the run stops."""
+    a_vs_a = compare_runs(ga1, ga2)
+    out: Dict[str, Any] = {"a_vs_a": a_vs_a, "l2l_vs_ga": None, "tolerance": None,
+                           "pass": False, "note": ""}
+    if not a_vs_a["equal"]:
+        out["status"] = "a_vs_a_failed"
+        out["note"] = (
+            f"two gradient-accumulation runs differ (max |d| {a_vs_a['max_abs']:.3e}), so the "
+            "reference does not repeat and the run stops without judging L2L. The tolerance "
+            "is not widened to cover it."
+        )
+        return out
+    out["l2l_vs_ga"] = compare = compare_runs(ga1, l2l)
+    if _vacuous(ga1) or _vacuous(l2l):
+        out["status"] = "vacuous"
+        out["note"] = "a step has all-zero LoRA gradients, so a small error proves nothing"
+        return out
+    flags = [k for k in ("rates_equal", "steps_equal") if not compare[k]]
+    if len(ga1.logs) != len(l2l.logs):
+        flags.append("log_length")
+    if flags:
+        out["status"] = "l2l_differs"
+        out["note"] = f"L2L differs from GA in {', '.join(flags)}; these are compared exactly"
+        return out
+    out["tolerance"] = tol = judge_tolerance(ga1, l2l, mode=mode, floor=floor)
+    if not tol["judged"]:
+        out["status"] = "no_floor"
+        out["note"] = "bf16 needs the noise-floor arm (GA on a second SDPA backend); it was not run"
+    elif not tol["pass"]:
+        out["status"] = "l2l_out_of_tolerance"
+        out["note"] = (
+            f"L2L is outside the {mode} tolerance at {len(tol['failing'])} check(s); "
+            f"first: {tol['failing'][:3]}"
+        )
+    else:
+        out["status"] = "within_tolerance"
+        out["pass"] = True
+    return out
+
+
+class SyntheticRows:
+    """Rows of random ids; ``masked_spans[i]`` lists the (start, stop) label slices set to -100."""
+
+    def __init__(self, lengths: Sequence[int], masked_spans: Sequence[Sequence[tuple]],
+                 vocab: int, seed: int = 5):
+        import torch
+
+        gen = torch.Generator().manual_seed(seed)
+        self.rows = []
+        for length, spans in zip(lengths, masked_spans):
+            ids = torch.randint(0, vocab, (length,), generator=gen)
+            labels = ids.clone()
+            for start, stop in spans:
+                labels[start:stop] = -100
+            self.rows.append(
+                {"input_ids": ids, "labels": labels, "attention_mask": torch.ones_like(ids)}
+            )
+
+    def __len__(self) -> int:
+        return len(self.rows)
+
+    def __getitem__(self, i: int) -> dict:
+        return self.rows[i]
+
+
+def train_arm(
+    model: Any, runtime: Any, rows: Any, work_dir: Path, *, name: str, l2l: bool, k: int,
+    dtype: Any, seed: int, trainer_options: Optional[dict] = None,
+) -> RunRecord:
+    """One run through the HF trainer (L2L subclass or plain); records each step's gradient, lr."""
+    import torch
+    from transformers import Trainer, TrainerCallback, TrainingArguments
+
+    from soup_cli.trainer.l2l_trainer import attach_l2l_state, make_l2l_trainer_class
+
+    grads: List[dict] = []
+    rates: List[float] = []
+
+    class Recorder(TrainerCallback):
+        def on_pre_optimizer_step(self, args, state, control, model=None, **kw):
+            grads.append({
+                n: p.grad.detach().to("cpu", copy=True)
+                for n, p in model.named_parameters()
+                if "lora_" in n and p.grad is not None
+            })
+
+        def on_step_end(self, args, state, control, optimizer=None, **kw):
+            rates.append(optimizer.param_groups[0]["lr"])
+
+    options: Dict[str, Any] = dict(
+        output_dir=str(work_dir / name), per_device_train_batch_size=1,
+        gradient_accumulation_steps=k, learning_rate=1e-3, optim="sgd",
+        lr_scheduler_type="linear", warmup_steps=1, num_train_epochs=1, logging_steps=1,
+        save_strategy="no", report_to=[], seed=seed, data_seed=seed, max_grad_norm=0.0,
+        disable_tqdm=True,
+    )
+    options.update(trainer_options or {})
+    cls = make_l2l_trainer_class(Trainer) if l2l else Trainer
+    trainer = cls(
+        model=model, args=TrainingArguments(**options), train_dataset=rows,
+        callbacks=[Recorder()],
+    )
+    state = attach_l2l_state(trainer, runtime, dtype=dtype or torch.float32) if l2l else None
+    try:
+        trainer.train()
+    finally:
+        if state is not None:
+            state.close()
+    logs = [row for row in trainer.state.log_history if "loss" in row]
+    return RunRecord(
+        logs=logs, rates=rates, grads=grads, steps=int(trainer.state.global_step), l2l=l2l
+    )
+
+
+def _log_text(run: RunRecord) -> str:
+    rows = [json.dumps(row, sort_keys=True) for row in run.logs]
+    return "\n".join(rows + [json.dumps({"lr_per_step": run.rates})]) + "\n"
+
+
+@dataclass
+class StandResult:
+    runs: Dict[str, RunRecord]
+    verdict: Dict[str, Any]
+    logs: Dict[str, str]
+    gemm_paths: Dict[str, Any] = field(default_factory=dict)
+
+
+def run_stand(
+    model: Any, runtime: Any, rows: Any, *, k: int, work_dir: Path,
+    trainer_options: Optional[dict] = None, dtype: Any = None, seed: int = 1,
+    path_runtime: Any = None, sdpa: Callable[[], Any] = pinned_sdpa, mode: str = "bf16",
+    floor_sdpa: Optional[Callable[[], Any]] = None,
+) -> StandResult:
+    """GA, GA again, L2L and (with ``floor_sdpa``) GA on a second backend, over the same rows
+    from the same adapters; return the verdict."""
+    import l2l_schedule
+    import torch
+
+    start = l2l_schedule.snapshot_adapters(model)
+    arms = [("ga1", False, sdpa), ("ga2", False, sdpa), ("l2l", True, sdpa)]
+    if floor_sdpa is not None:
+        arms.append(("ga_floor", False, floor_sdpa))
+    runs: Dict[str, RunRecord] = {}
+    counts: Dict[str, Any] = {}
+    for name, is_l2l, backend in arms:
+        l2l_schedule.restore_adapters(model, start)
+        torch.manual_seed(seed)
+        with backend(), GemmPathCounter(path_runtime) as counter:
+            runs[name] = train_arm(
+                model, runtime, rows, Path(work_dir), name=name, l2l=is_l2l, k=k,
+                dtype=dtype, seed=seed, trainer_options=trainer_options,
+            )
+        counts[name] = counter.counts
+    verdict = decide(runs["ga1"], runs["ga2"], runs["l2l"], mode=mode, floor=runs.get("ga_floor"))
+    gemm = {**counts, "match": paths_match(counts["ga1"], counts["l2l"]),
+            "a_vs_a_match": paths_match(counts["ga1"], counts["ga2"])}
+    return StandResult(
+        runs=runs, verdict=verdict, logs={f"{n}.log": _log_text(r) for n, r in runs.items()},
+        gemm_paths=gemm,
+    )
+
+
+# --------------------------------------------------------------------------
+# facts and report
+# --------------------------------------------------------------------------
+def environment_facts(packages: Sequence[str] = PACKAGES) -> Dict[str, Any]:
+    from importlib import metadata
+
+    versions: Dict[str, Optional[str]] = {}
+    for name in packages:
+        try:
+            versions[name] = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            versions[name] = None
+    return {"packages": versions, "python": sys.version.split()[0], "platform": platform.platform()}
+
+
+def _tolerance_lines(tol: Optional[Dict[str, Any]]) -> List[str]:
+    if tol is None:
+        return ["", "## Tolerance", "", "- not applied (the run stopped before the comparison)"]
+    lines = ["", "## Tolerance", ""]
+    active = tol["mode"]
+    lines.append(
+        f"- fp32: relative L2 error at most {tol['limit_fp32']:.0e} at every step"
+        + (" (this run)" if active == "fp32" else "")
+    )
+    lines.append(
+        f"- bf16: relative L2 error at most {tol['factor']} x the error of GA on MATH "
+        "against GA on EFFICIENT_ATTENTION (same run), at every step"
+        + (" (this run)" if active == "bf16" else "")
+    )
+    lines.append("- the threshold is fixed in the script; no option changes it")
+    if not tol.get("judged", True):
+        lines.append("- NOT JUDGED: the floor arm did not run")
+        return lines
+    lines += ["", "| step | what | L2L error | floor | limit | ok |",
+              "| --- | --- | --- | --- | --- | --- |"]
+    for what, err, floor, limit in (
+        ("gradient", tol["grad_rel"], tol.get("floor_grad"), tol.get("grad_limit")),
+        ("loss", tol["loss_rel"], tol.get("floor_loss"), tol.get("loss_limit")),
+    ):
+        for step, value in enumerate(err):
+            lim = limit[step] if limit else None
+            fl = floor[step] if floor else None
+            ok = lim is not None and value <= lim
+            lines.append(f"| {step} | {what} | {value:.4g} | {fl if fl is None else f'{fl:.4g}'} "
+                         f"| {lim if lim is None else f'{lim:.4g}'} | {ok} |")
+    return lines
+
+
+def render_report(payload: Dict[str, Any]) -> str:
+    verdict = payload["verdict"]
+    kind = payload["data_kind"]
+    other = "Real" if kind == "synthetic" else "Synthetic"
+    heading = "Synthetic data (random tokens, real weights)" if kind == "synthetic" else \
+        "Real data"
+    env = payload.get("env", {})
+    lines = [
+        f"# L2L against gradient accumulation: {payload.get('model', '?')}",
+        "",
+        f"**Verdict: {'PASS' if verdict['pass'] else 'FAIL'}** ({verdict['status']})",
+    ]
+    if verdict.get("note"):
+        lines += ["", verdict["note"]]
+    lines += ["", "## Command", "", "```", " ".join(payload.get("command", [])), "```", ""]
+    lines += ["## Environment", ""]
+    lines += [f"- {n} {v}" for n, v in env.get("packages", {}).items() if v]
+    lines += [f"- GPU: {env.get('gpu', '?')}", f"- Python: {env.get('python', '?')}",
+              f"- Platform: {env.get('platform', '?')}", ""]
+    det = payload.get("deterministic", {})
+    lines += ["## Determinism", ""]
+    lines += [f"- {key}: {value}" for key, value in det.items()]
+    sdpa = payload.get("sdpa", {})
+    lines += ["", "## SDPA backend", "", f"Pinned in both arms: {sdpa.get('pinned')}", ""]
+    for name, rec in sdpa.get("probe", {}).items():
+        lines.append(f"- {name}: {rec}")
+    gemm = payload.get("gemm_paths", {})
+    lines += ["", "## gemm_4bit path (calls by M)", ""]
+    for arm in ("ga1", "ga2", "l2l", "ga_floor"):
+        if arm in gemm or arm != "ga_floor":
+            lines.append(f"- {arm}: {gemm.get(arm, 'not counted')}")
+    lines.append(f"- same path in GA and L2L: {gemm.get('match')}")
+    if gemm.get("match") is False:
+        lines.append("- WARNING: the arms did not use the same set of gemm_4bit paths")
+    elif gemm.get("match") is None:
+        lines.append("- WARNING: gemm_4bit paths were not counted (no bitsandbytes CUDA ops)")
+    lines += ["", "## RAM plan", ""]
+    lines += [f"- {key}: {value}" for key, value in payload.get("ram_plan", {}).items()]
+    alias = payload.get("aliasing")
+    lines += ["", "## bitsandbytes #2034 (recycled slot buffers)", ""]
+    if alias is None:
+        lines.append("- not run")
+    else:
+        lines.append(f"- status: {alias['status']}")
+        for rows, rec in sorted(alias["by_m"].items()):
+            lines.append(
+                f"- M={rows}: shipped max |d| {rec['shipped_max_abs']}, "
+                f"raw control max |d| {rec['raw_max_abs']} ({rec['status']})"
+            )
+    a_vs_a = verdict.get("a_vs_a") or {}
+    lines += ["", f"## {heading}", "", f"- A-vs-A (GA twice) bit-equal: {a_vs_a.get('equal')}"]
+    if a_vs_a.get("max_abs") is not None:
+        lines.append(f"- A-vs-A max |d|: {a_vs_a['max_abs']}")
+    compare = verdict.get("l2l_vs_ga")
+    if compare is None:
+        lines.append("- L2L against GA: not judged")
+    else:
+        lines += [f"- L2L against GA bit-equal: {compare.get('equal')} (information, not the "
+                  "criterion)",
+                  f"- max |d| of LoRA gradients: {compare.get('max_abs')}",
+                  f"- optimizer steps (GA, L2L): {compare.get('steps')}"]
+    lines += _tolerance_lines(verdict.get("tolerance"))
+    lines += ["", f"## {other} data: not run", ""]
+    return "\n".join(lines)
+
+
+def write_outputs(out_dir: Path, payload: Dict[str, Any], raw_logs: Dict[str, str]) -> None:
+    """Write report.md, records.json and the raw logs; an existing directory is never touched."""
+    out = Path(out_dir)
+    if out.exists():
+        raise StandRefusedError(f"{out} exists; attempts are never overwritten")
+    (out / "raw").mkdir(parents=True)
+    (out / "report.md").write_text(render_report(payload), encoding="utf-8")
+    (out / "records.json").write_text(
+        json.dumps(payload, indent=1, default=str), encoding="utf-8"
+    )
+    for name, text in raw_logs.items():
+        (out / "raw" / name).write_text(text, encoding="utf-8")
+
+
+# --------------------------------------------------------------------------
+# command line
+# --------------------------------------------------------------------------
+def make_rows(count: int, seq: int, vocab: int) -> SyntheticRows:
+    """Rows of mixed lengths: odd rows mask a prefix, every third row masks a middle span."""
+    fractions = (1.0, 0.75, 0.5, 0.25, 0.9, 0.6)
+    lengths = [max(8, int(seq * fractions[i % len(fractions)])) for i in range(count)]
+    spans: List[List[tuple]] = []
+    for i, length in enumerate(lengths):
+        row: List[tuple] = []
+        if i % 2:
+            row.append((0, length // 4))
+        if i % 3 == 2:
+            row.append((length // 2, length // 2 + max(1, length // 8)))
+        spans.append(row)
+    return SyntheticRows(lengths, spans, vocab)
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--weights", default=DEFAULT_WEIGHTS)
+    parser.add_argument("--quant", choices=("none", "nf4"), default="nf4")
+    parser.add_argument("--k", type=int, default=4, help="gradient_accumulation_steps")
+    parser.add_argument("--rows", type=int, default=10, help="must leave an incomplete last window")
+    parser.add_argument("--seq", type=int, default=256, help="longest row, in tokens")
+    parser.add_argument(
+        "--dtype", choices=("auto", "float32"), default="auto",
+        help="auto: the card's stream dtype (bf16 on Ampere), tolerance 1.5 x floor; "
+        "float32: tolerance 1e-4",
+    )
+    parser.add_argument("--rng-seed", type=int, default=1)
+    parser.add_argument("--out", required=True)
+    parsed = parser.parse_args(argv)
+
+    set_deterministic_env()  # first, before torch and CUDA start
+    try:
+        if parsed.rows % parsed.k == 0:
+            raise StandRefusedError(
+                f"--rows {parsed.rows} fills every window of {parsed.k}; use a count that "
+                "leaves an incomplete last window"
+            )
+        if Path(parsed.out).exists():
+            raise StandRefusedError(f"{parsed.out} exists; attempts are never overwritten")
+        import stream_probe
+
+        if not stream_probe.cuda_available():
+            print("SKIP: CUDA is required for l2l_mistral_stand.py")
+            return 0
+        from transformers import AutoConfig
+
+        config = AutoConfig.from_pretrained(parsed.weights)
+        padded = -(-parsed.seq // 64) * 64  # an L2L window pads to a multiple of 64
+        plan = ram_plan(
+            n_layers=int(config.num_hidden_layers), hidden=int(config.hidden_size),
+            k=parsed.k, batch=1, seq=padded,
+            weights_bytes=weights_bytes_estimate(config, parsed.quant),
+        )
+        for key, value in plan.items():
+            print(f"ram_plan {key:<22}{value}")
+        from soup_cli.utils.layer_stream import free_ram_bytes
+
+        check_ram(plan, free_ram_bytes())
+    except StandRefusedError as exc:
+        print(f"REFUSED: {exc}")
+        return 2
+
+    import l2l_probe
+    import l2l_schedule
+    import torch
+
+    from soup_cli.utils.layer_stream import resolve_stream_dtype
+
+    enable_deterministic()
+    device = "cuda"
+    dtype = "float32" if parsed.dtype == "float32" else resolve_stream_dtype(device)
+    mode = "fp32" if dtype == "float32" else "bf16"
+    args = l2l_probe.parse_args([
+        "--mode", "correctness", "--weights", parsed.weights, "--quant", parsed.quant,
+        "--seq", str(parsed.seq), "--tier", "ram", "--out", str(Path(parsed.out) / "unused.json"),
+    ])
+    facts = stream_probe.gpu_facts(device)
+    print("RUN: L2L vs gradient accumulation,", parsed.weights, parsed.quant)
+    model, runtime, config, *_ = stream_probe.build(args, device, dtype)
+    try:
+        l2l_schedule.make_non_vacuous(model)
+        heads = int(config.num_attention_heads)
+        probe = probe_sdpa_backends(
+            device=device, dtype=dtype, heads=heads, seq=padded,
+            head_dim=int(config.hidden_size) // heads,
+        )
+        import soup_cli.utils.layer_stream_runtime as path_runtime
+        rows = make_rows(parsed.rows, parsed.seq, int(config.vocab_size))
+        lengths = [len(rows[i]["input_ids"]) for i in range(len(rows))]
+        aliasing = run_aliasing_probe(
+            device=device, dtype=dtype, dim=int(config.hidden_size),
+            m_values={min(lengths), max(lengths), padded},
+        )
+        print(f"bnb #2034 probe: {aliasing['status']}")
+        blocked = aliasing_block(aliasing)
+        import tempfile
+
+        if blocked is not None:
+            result = StandResult(runs={}, verdict=blocked, logs={})
+        else:
+            with tempfile.TemporaryDirectory() as work:
+                result = run_stand(
+                    model, runtime, rows, k=parsed.k, work_dir=Path(work),
+                    trainer_options={"bf16": dtype == "bfloat16"},
+                    dtype=getattr(torch, dtype), seed=parsed.rng_seed,
+                    path_runtime=path_runtime, mode=mode,
+                    floor_sdpa=floor_sdpa if mode == "bf16" else None,
+                )
+    finally:
+        runtime.close()
+    env = environment_facts()
+    env["gpu"] = facts.get("gpu")
+    env["gpu_facts"] = facts
+    payload = {
+        "data_kind": "synthetic", "model": parsed.weights, "quant": parsed.quant,
+        "command": [sys.executable, *sys.argv], "env": env,
+        "deterministic": {
+            "CUBLAS_WORKSPACE_CONFIG": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
+            "algorithms": "strict (warn_only off)",
+            "attn_implementation": getattr(config, "_attn_implementation", None),
+        },
+        "sdpa": {"pinned": PINNED_SDPA_BACKEND,
+                 "floor": FLOOR_SDPA_BACKEND if mode == "bf16" else None, "probe": probe},
+        "dtype": dtype,
+        "gemm_paths": result.gemm_paths, "ram_plan": plan, "verdict": result.verdict,
+        "aliasing": aliasing,
+        "k": parsed.k, "rows": parsed.rows, "seq": parsed.seq,
+    }
+    try:
+        write_outputs(Path(parsed.out), payload, result.logs)
+    except StandRefusedError as exc:
+        print(f"REFUSED: {exc}")
+        return 2
+    print(f"verdict {result.verdict['status']}: {result.verdict['note'] or 'within tolerance'}")
+    print(f"wrote {Path(parsed.out) / 'report.md'}")
+    return 0 if result.verdict["pass"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
