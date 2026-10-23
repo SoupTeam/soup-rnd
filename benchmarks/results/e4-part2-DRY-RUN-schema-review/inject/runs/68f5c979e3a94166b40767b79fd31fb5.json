@@ -1,0 +1,330 @@
+{
+ "attempt_id": "68f5c979e3a94166b40767b79fd31fb5",
+ "attempt_number": 2,
+ "box_stamp_after": {
+  "commit_charge": {
+   "limit_bytes": 128000000000,
+   "used_bytes": 8000000000
+  },
+  "cuda_available": false,
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_clock": {
+   "reasons": [],
+   "sm_clock_mhz": 1410
+  },
+  "gpu_compute_cap": "8.0",
+  "gpu_memory_total_mib": "40960",
+  "gpu_memory_used_mib": 0,
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_processes": [],
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-inject",
+  "instance_id": "dry-inject",
+  "own_pid": 61467,
+  "power_source": "N/A (hosted instance)",
+  "ram_available_bytes": 64000000000,
+  "torch_cuda": "dry-run (cpu)",
+  "unix_s": 1792596529.3355079,
+  "unknown": {}
+ },
+ "box_stamp_before": {
+  "commit_charge": {
+   "limit_bytes": 128000000000,
+   "used_bytes": 8000000000
+  },
+  "cuda_available": false,
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_clock": {
+   "reasons": [],
+   "sm_clock_mhz": 1410
+  },
+  "gpu_compute_cap": "8.0",
+  "gpu_memory_total_mib": "40960",
+  "gpu_memory_used_mib": 0,
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_processes": [],
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-inject",
+  "instance_id": "dry-inject",
+  "own_pid": 61467,
+  "power_source": "N/A (hosted instance)",
+  "ram_available_bytes": 64000000000,
+  "torch_cuda": "dry-run (cpu)",
+  "unix_s": 1792596526.820043,
+  "unknown": {}
+ },
+ "dry_run": {
+  "fake_card": "a100-40",
+  "inject": "F_A_on=kill,T=void,W=oom",
+  "note": "dry run: tiny random model on CPU, fake box stamp; no number is a result",
+  "skipped_checks": [
+   "provenance: the repository tree has uncommitted changes: .gitattributes, e4-part2-calibration-runbook.md, e4-rule-part2-decision-skeleton.md, e4-rule-part2-draft.md, tests/test_e4_part2_split.py"
+  ]
+ },
+ "identity": {
+  "bitsandbytes": "0.50.2",
+  "compute_capability": "8.0",
+  "dataset_revision": "dry-run-no-dataset",
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-inject",
+  "harness_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "harness_tree": "bdb00f56363b2ecc3fde4c9638d7ff4574f23b5a",
+  "instance_id": "dry-inject",
+  "memory_total_mib": "40960",
+  "peft": "0.21.2",
+  "python": "3.12.12",
+  "soup_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "torch": "2.14.1",
+  "torch_cuda": "dry-run (cpu)",
+  "transformers": "5.19.0"
+ },
+ "kind": "W",
+ "outcome": "ok",
+ "peers": {
+  "method": "dry run: no GPU, nothing to identify",
+  "own_pids": [
+   61467
+  ]
+ },
+ "provenance": {
+  "dirty_paths": [
+   ".gitattributes",
+   "e4-part2-calibration-runbook.md",
+   "e4-rule-part2-decision-skeleton.md",
+   "e4-rule-part2-draft.md",
+   "tests/test_e4_part2_split.py"
+  ],
+  "harness_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "harness_dirty": true,
+  "harness_tree": "bdb00f56363b2ecc3fde4c9638d7ff4574f23b5a",
+  "soup_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7"
+ },
+ "record_source": "run",
+ "result": {
+  "attention_implementation_resolved": [
+   "sdpa"
+  ],
+  "device_used": [
+   "cpu"
+  ],
+  "experts_implementations_bf16_fp32": [
+   [
+    "eager",
+    "eager"
+   ]
+  ],
+  "failed": false,
+  "fp32_flags": {
+   "autocast_cpu_enabled": false,
+   "autocast_cuda_enabled": false,
+   "cuda_matmul_allow_tf32": false,
+   "cudnn_allow_tf32": false,
+   "float32_matmul_precision": "highest"
+  },
+  "frozen_base_changed": [],
+  "layers": [
+   0,
+   1
+  ],
+  "per_call": [
+   {
+    "A_grad": 2.1808373276144266e-06,
+    "B_grad": 1.1454569175839424e-05,
+    "arm": "A_off",
+    "call": 0,
+    "input_grad": 2.2071355488151312e-05,
+    "layer": 0,
+    "output": 4.4653279474005103e-07,
+    "tokens": 12,
+    "update": 0.00019440986216068268
+   },
+   {
+    "A_grad": 2.9955117497593164e-06,
+    "B_grad": 4.867673851549625e-06,
+    "arm": "A_off",
+    "call": 1,
+    "input_grad": 1.6167236026376486e-05,
+    "layer": 0,
+    "output": 8.061360858846456e-07,
+    "tokens": 13,
+    "update": 0.0001976087223738432
+   },
+   {
+    "A_grad": 4.166096914559603e-06,
+    "B_grad": 1.1171738151460886e-05,
+    "arm": "A_off",
+    "call": 2,
+    "input_grad": 1.4664838090538979e-05,
+    "layer": 0,
+    "output": 4.738540155813098e-07,
+    "tokens": 16,
+    "update": 0.00019434094429016113
+   },
+   {
+    "A_grad": 2.547050826251507e-06,
+    "B_grad": 4.906090907752514e-06,
+    "arm": "A_off",
+    "call": 3,
+    "input_grad": 1.4097895473241806e-05,
+    "layer": 0,
+    "output": 7.349299266934395e-07,
+    "tokens": 13,
+    "update": 0.00019150367006659508
+   },
+   {
+    "A_grad": 1.6066042007878423e-06,
+    "B_grad": 4.621455445885658e-06,
+    "arm": "A_off",
+    "call": 0,
+    "input_grad": 1.334564876742661e-05,
+    "layer": 1,
+    "output": 4.72195097245276e-07,
+    "tokens": 12,
+    "update": 0.0001964569091796875
+   },
+   {
+    "A_grad": 2.661108737811446e-06,
+    "B_grad": 6.668851710855961e-06,
+    "arm": "A_off",
+    "call": 1,
+    "input_grad": 1.3080309145152569e-05,
+    "layer": 1,
+    "output": 5.982437869533896e-07,
+    "tokens": 13,
+    "update": 0.00019732490181922913
+   },
+   {
+    "A_grad": 2.264423528686166e-06,
+    "B_grad": 4.455912858247757e-06,
+    "arm": "A_off",
+    "call": 2,
+    "input_grad": 1.378524029860273e-05,
+    "layer": 1,
+    "output": 6.837290129624307e-07,
+    "tokens": 16,
+    "update": 0.0001982618123292923
+   },
+   {
+    "A_grad": 3.285298589617014e-06,
+    "B_grad": 5.600973963737488e-06,
+    "arm": "A_off",
+    "call": 3,
+    "input_grad": 1.6352219972759485e-05,
+    "layer": 1,
+    "output": 1.0004732757806778e-06,
+    "tokens": 13,
+    "update": 0.00019666925072669983
+   },
+   {
+    "A_grad": 2.217420842498541e-06,
+    "B_grad": 7.763621397316456e-06,
+    "arm": "A_on",
+    "call": 0,
+    "input_grad": 1.6271835193037987e-05,
+    "layer": 0,
+    "output": 3.193581505911425e-07,
+    "tokens": 12,
+    "update": 0.00019758008420467377
+   },
+   {
+    "A_grad": 3.104854840785265e-06,
+    "B_grad": 5.48484968021512e-06,
+    "arm": "A_on",
+    "call": 1,
+    "input_grad": 1.3741664588451385e-05,
+    "layer": 0,
+    "output": 1.041218638420105e-06,
+    "tokens": 13,
+    "update": 0.00019786646589636803
+   },
+   {
+    "A_grad": 2.4695764295756817e-06,
+    "B_grad": 1.0709685739129782e-05,
+    "arm": "A_on",
+    "call": 2,
+    "input_grad": 2.0687468349933624e-05,
+    "layer": 0,
+    "output": 7.341513992287219e-07,
+    "tokens": 16,
+    "update": 0.00019790232181549072
+   },
+   {
+    "A_grad": 2.9857619665563107e-06,
+    "B_grad": 5.2372924983501434e-06,
+    "arm": "A_on",
+    "call": 3,
+    "input_grad": 1.3550976291298866e-05,
+    "layer": 0,
+    "output": 6.524714990518987e-07,
+    "tokens": 13,
+    "update": 0.0001932978630065918
+   },
+   {
+    "A_grad": 2.19533103518188e-06,
+    "B_grad": 6.188405677676201e-06,
+    "arm": "A_on",
+    "call": 0,
+    "input_grad": 1.9666971638798714e-05,
+    "layer": 1,
+    "output": 4.982866812497377e-07,
+    "tokens": 12,
+    "update": 0.00019536842592060566
+   },
+   {
+    "A_grad": 2.4721957743167877e-06,
+    "B_grad": 4.543224349617958e-06,
+    "arm": "A_on",
+    "call": 1,
+    "input_grad": 1.062336377799511e-05,
+    "layer": 1,
+    "output": 6.730188033543527e-07,
+    "tokens": 13,
+    "update": 0.00019808486104011536
+   },
+   {
+    "A_grad": 3.688997821882367e-06,
+    "B_grad": 8.249073289334774e-06,
+    "arm": "A_on",
+    "call": 2,
+    "input_grad": 1.1228141374886036e-05,
+    "layer": 1,
+    "output": 6.232003215700388e-07,
+    "tokens": 16,
+    "update": 0.00019448623061180115
+   },
+   {
+    "A_grad": 2.910004695877433e-06,
+    "B_grad": 6.11267751082778e-06,
+    "arm": "A_on",
+    "call": 3,
+    "input_grad": 1.6599311493337154e-05,
+    "layer": 1,
+    "output": 4.556077328743413e-07,
+    "tokens": 13,
+    "update": 0.00019038468599319458
+   }
+  ],
+  "rows": 4,
+  "tol_W": {
+   "A_grad": 8.332193829119205e-06,
+   "B_grad": 2.2909138351678848e-05,
+   "input_grad": 4.4142710976302624e-05,
+   "output": 2.08243727684021e-06,
+   "update": 0.0003965236246585846
+  }
+ },
+ "run_id": "W",
+ "stack": {
+  "mismatches": [],
+  "versions": {
+   "bitsandbytes": "0.50.2",
+   "peft": "0.21.2",
+   "python": "3.12.12",
+   "torch": "2.14.1",
+   "transformers": "5.19.0"
+  }
+ },
+ "void_reasons": []
+}
