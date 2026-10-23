@@ -1059,6 +1059,9 @@ class LayerBufferPool:
         ]
         self.events = [torch.cuda.Event() for _ in range(self.n)] if self.is_cuda else []
         self.owner: list = [None] * self.n
+        self.resident_slots: Dict[int, int] = {}
+        self.resident_bytes = 0
+        self._resident_generation: Dict[int, int] = {}
         if active_keys_by_layer is None:
             shared = tuple(layer_spec)
             self.active_keys_by_layer = [shared]
@@ -1070,37 +1073,169 @@ class LayerBufferPool:
         )
 
     def slot_for(self, idx: int) -> int:
-        return idx % self.n
+        return self.resident_slots.get(idx, idx % self.n)
 
-    def load_async(self, idx: int, source: RamSource, stream: Any = None) -> int:
+    def resident_slot_bytes(self, idx: int) -> int:
+        """Exact private-slot payload, including quantisation sidecars."""
+        keys = (
+            self.active_keys_by_layer[0]
+            if len(self.active_keys_by_layer) == 1
+            else self.active_keys_by_layer[idx]
+        )
+        return sum(
+            self.buffers[0][name].numel() * self.buffers[0][name].element_size()
+            for name in keys
+        )
+
+    def reserve_layers(
+        self, indices: Sequence[int], source: Any, stream: Any = None
+    ) -> Dict[str, Any]:
+        """Preload immutable private slots, then publish them atomically.
+
+        Call only between completed steps, before a live autograd graph exists.
+        Rotating slots retain their original modulo and source-release ordering.
+        A failed allocation or preload leaves the original pool usable.
+        """
         import torch
 
-        slot = self.slot_for(idx)
+        chosen = tuple(indices)
+        if self.resident_slots:
+            raise ValueError("resident layers already reserved; clear them before changing them")
+        if len(self.buffers) != self.n or len(self.owner) != self.n:
+            raise ValueError("cannot reserve layers in an externally modified pool")
+        if any(type(idx) is not int or idx < 0 for idx in chosen):
+            raise ValueError("resident layer indices must be non-negative integers")
+        if tuple(sorted(set(chosen))) != chosen:
+            raise ValueError("resident layer indices must be unique and sorted")
+        layer_count = len(self.active_keys_by_layer)
+        if layer_count == 1:
+            store = getattr(source, "store", None)
+            layer_count = len(store) if store is not None else 0
+        if layer_count and any(idx >= layer_count for idx in chosen):
+            raise ValueError("resident layer index outside the source")
+        if not chosen:
+            return {"indices": [], "bytes": 0, "resident_bytes": 0}
+        if self.is_cuda:
+            torch.cuda.synchronize(self.device)
+        pending = []
+        events = []
+        total_bytes = 0
+        copying = None
+        try:
+            for idx in chosen:
+                keys = (
+                    self.active_keys_by_layer[0]
+                    if len(self.active_keys_by_layer) == 1
+                    else self.active_keys_by_layer[idx]
+                )
+                buffers = {}
+                pending.append(buffers)
+                for name in keys:
+                    buffers[name] = torch.empty_like(self.buffers[0][name])
+                events.append(torch.cuda.Event() if self.is_cuda else None)
+                total_bytes += sum(buf.numel() * buf.element_size() for buf in buffers.values())
+            for idx, buffers, event in zip(chosen, pending, events):
+                copying = idx
+                self._copy_layer(idx, buffers, event, source, stream)
+            if self.is_cuda:
+                torch.cuda.synchronize(self.device)
+        except BaseException:
+            # A partial non-blocking copy must drain before its temporary device
+            # tensors or a staging source's host buffers can be recycled.
+            try:
+                if self.is_cuda and copying is not None:
+                    torch.cuda.synchronize(self.device)
+                if copying is not None:
+                    _release_source(source, copying, None)
+            except Exception:
+                logger.warning("failed to drain a resident preload during cleanup", exc_info=True)
+            # A caller may catch the OOM and run the baseline while the exception
+            # traceback is still alive. Empty the dictionaries held by its frames
+            # so failed trial allocations do not remain live during that fallback.
+            for held in pending:
+                held.clear()
+            pending.clear()
+            events.clear()
+            raise
+        start = len(self.buffers)
+        self.buffers.extend(pending)
+        self.owner.extend(chosen)
+        if self.is_cuda:
+            self.events.extend(events)
+        # Old runtimes did not expose generations. Create them only for this
+        # native feature; external research wrappers keep their historical API.
+        if not hasattr(self, "generation"):
+            self.generation = [0] * start
+        self.generation.extend([1] * len(chosen))
+        self.resident_slots = {idx: start + offset for offset, idx in enumerate(chosen)}
+        self._resident_generation = {idx: 1 for idx in chosen}
+        self.resident_bytes = total_bytes
+        self.nbytes += total_bytes
+        self.loads += len(chosen)
+        return {
+            "indices": list(chosen), "bytes": total_bytes, "resident_bytes": total_bytes
+        }
+
+    def clear_resident_layers(self) -> None:
+        """Release private slots between completed steps; safe to call repeatedly.
+
+        Call ``clear_stream_substitution_cache(model)`` first when wrappers have
+        visited these slots, otherwise their cached views still hold storage.
+        """
+        if not self.resident_slots:
+            return
+        if self.is_cuda:
+            import torch
+
+            torch.cuda.synchronize(self.device)
+        del self.buffers[self.n :]
+        del self.owner[self.n :]
+        if self.is_cuda:
+            del self.events[self.n :]
+        if hasattr(self, "generation"):
+            del self.generation[self.n :]
+        self.nbytes -= self.resident_bytes
+        self.resident_bytes = 0
+        self.resident_slots.clear()
+        self._resident_generation.clear()
+
+    def _copy_layer(
+        self, idx: int, buffers: Dict[str, Any], event: Any, source: Any, stream: Any
+    ) -> None:
+        """The shared dynamic/preload copy path and source lifetime contract."""
+        import torch
+
         keys = (
             self.active_keys_by_layer[0]
             if len(self.active_keys_by_layer) == 1
             else self.active_keys_by_layer[idx]
         )
         if self.is_cuda and stream is not None:
-            # The slot's previous owner may still be in flight on the compute
-            # stream; the prefetch must not clobber it (plan P1).
             stream.wait_stream(torch.cuda.current_stream())
             with torch.cuda.stream(stream):
                 for name in keys:
-                    dst = self.buffers[slot][name]
-                    dst.copy_(source.get(idx, name), non_blocking=True)
-                self.events[slot].record(stream)
-            _release_source(source, idx, self.events[slot])
+                    buffers[name].copy_(source.get(idx, name), non_blocking=True)
+                event.record(stream)
+            _release_source(source, idx, event)
         else:
             for name in keys:
-                dst = self.buffers[slot][name]
-                dst.copy_(source.get(idx, name))
-            # No event: this branch's copy has already finished when `copy_`
-            # returns, so the source's buffer is free NOW rather than when a
-            # stream drains. Saying so is not decoration — a source that stages
-            # into a small reusable pool refills sooner for it.
+                buffers[name].copy_(source.get(idx, name))
             _release_source(source, idx, None)
+
+    def load_async(self, idx: int, source: RamSource, stream: Any = None) -> int:
+        slot = self.slot_for(idx)
+        if idx in self.resident_slots:
+            if self.owner[slot] != idx:
+                raise RuntimeError(f"resident layer {idx} slot owner changed")
+            if self.generation[slot] != self._resident_generation[idx]:
+                raise RuntimeError(f"resident layer {idx} slot generation changed")
+            return slot
+        self._copy_layer(
+            idx, self.buffers[slot], self.events[slot] if self.is_cuda else None, source, stream
+        )
         self.owner[slot] = idx
+        if hasattr(self, "generation"):
+            self.generation[slot] += 1
         self.loads += 1
         return slot
 
@@ -1120,9 +1255,36 @@ class LayerBufferPool:
                 f"{self.owner[slot]}, but layer {idx} was requested. Raise "
                 f"training.stream_buffers (currently {self.n}) or report this."
             )
+        if idx in self.resident_slots:
+            if self.generation[slot] != self._resident_generation[idx]:
+                raise RuntimeError(f"resident layer {idx} slot generation changed")
         if self.is_cuda:
             torch.cuda.current_stream().wait_event(self.events[slot])
         return self.buffers[slot]
+
+
+def clear_stream_substitution_cache(model: Any) -> None:
+    """Drop decoder views before changing private slots between completed steps.
+
+    A no-recompute runtime can also cache the storage pointers by slot number;
+    clear those when present so a reallocated slot cannot inherit stale pointers.
+    This cannot release tensors held by a live autograd graph: callers must have
+    completed its backward before reconfiguring residency.
+    """
+    pending = [model]
+    seen = set()
+    while pending:
+        module = pending.pop()
+        if id(module) in seen:
+            continue
+        seen.add(id(module))
+        pending.extend(child for child in module._modules.values() if child is not None)
+        if "_cached_substitution_buffers" in vars(module):
+            module._cached_substitution_buffers = None
+            module._cached_substitution_weights = None
+        pointers = vars(module).get("_slot_ptrs")
+        if pointers is not None:
+            pointers.clear()
 
 
 class LargeLayerBufferPool:
@@ -2747,6 +2909,8 @@ class StreamRuntime:
             "n_layers": self.n_layers,
             "buffers": self.pool.n,
             "buffer_bytes": self.pool.nbytes + getattr(self.large_pool, "nbytes", 0),
+            "resident_layer_bytes": getattr(self.pool, "resident_bytes", 0),
+            "resident_layer_indices": sorted(getattr(self.pool, "resident_slots", {})),
             "large_buffer_bytes": getattr(self.large_pool, "nbytes", 0),
             "store_bytes": self.source.nbytes,
             "pinned": self.pinned,

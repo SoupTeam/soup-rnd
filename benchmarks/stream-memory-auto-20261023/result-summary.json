@@ -1,0 +1,226 @@
+{
+  "source_archive_sha256": "adfc15617878f3592f3bd49c37fd69ef7b94f8e4e2d5b177e409a2e42f7e1bb7",
+  "model_id": "Qwen/Qwen3-8B",
+  "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "physical_gpu": "RTX 3070 8 GB",
+  "performance": {
+    "paired_step_time_reduction_percent": [
+      1.9565503340896129,
+      1.9394160982425745,
+      1.8752674090021348,
+      1.8988228007906338
+    ],
+    "median_paired_step_time_reduction_percent": 1.9191194495166042,
+    "bootstrap95_percent": [
+      1.8752674090021348,
+      1.9565503340896129
+    ],
+    "positive_pair_fraction": 1.0,
+    "practical_speed_gate_passed": false,
+    "bootstrap_unit": "entire fresh process pair",
+    "resamples": 20000,
+    "seed": 792,
+    "baseline_tokens_per_second": 376.6646164719805,
+    "auto_tokens_per_second": 384.03471425580057
+  },
+  "accuracy": {
+    "primary": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "groups": {
+        "batch": {
+          "tensors": 16,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "loss": {
+          "tensors": 1,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "final": {
+          "tensors": 504,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "gradient": {
+          "tensors": 1008,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "initial": {
+          "tensors": 504,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "logits": {
+          "tensors": 4,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        }
+      },
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "bitwise_equal": true,
+      "tensor_count": 2037
+    },
+    "semantics": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "groups": {
+        "batch": {
+          "tensors": 4,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "loss": {
+          "tensors": 1,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "gradient": {
+          "tensors": 504,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "initial": {
+          "tensors": 504,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "diagnostic": {
+          "tensors": 1,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        },
+        "logits": {
+          "tensors": 1,
+          "failed_tensors": 0,
+          "max_abs": 0.0,
+          "failures": []
+        }
+      },
+      "rtol": 0.01,
+      "atol": 1e-05,
+      "bitwise_equal": true,
+      "tensor_count": 1015
+    }
+  },
+  "timed_trajectories": {
+    "0": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "bitwise_equal": true,
+      "losses_equal": true,
+      "adapter_tensors": 504
+    },
+    "1": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "bitwise_equal": true,
+      "losses_equal": true,
+      "adapter_tensors": 504
+    },
+    "2": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "bitwise_equal": true,
+      "losses_equal": true,
+      "adapter_tensors": 504
+    },
+    "3": {
+      "passed": true,
+      "loss_three_decimals": true,
+      "bitwise_equal": true,
+      "losses_equal": true,
+      "adapter_tensors": 504
+    }
+  },
+  "arms": {
+    "baseline": {
+      "median_of_process_median_step_seconds": 5.43719773623161,
+      "measured_peak_allocated_bytes": 4447119872,
+      "measured_peak_reserved_bytes": 5056233472,
+      "maximum_host_high_water_rss_bytes": 21937500160,
+      "actual_resident_indices_by_process": [
+        [],
+        [],
+        [],
+        []
+      ],
+      "planner_seconds_by_process": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "auto": {
+      "median_of_process_median_step_seconds": 5.332851234474219,
+      "measured_peak_allocated_bytes": 5990693376,
+      "measured_peak_reserved_bytes": 6645874688,
+      "maximum_host_high_water_rss_bytes": 21936263168,
+      "actual_resident_indices_by_process": [
+        [
+          16,
+          17,
+          18,
+          19
+        ],
+        [
+          16,
+          17,
+          18,
+          19
+        ],
+        [
+          16,
+          17,
+          18,
+          19
+        ],
+        [
+          16,
+          17,
+          18,
+          19
+        ]
+      ],
+      "planner_seconds_by_process": [
+        6.494099827017635,
+        6.494736514985561,
+        6.458538178005256,
+        6.445549360010773
+      ]
+    }
+  },
+  "optional14b": {
+    "status": "NOT_STAGED_OPTIONAL_BUDGET_TIME_DISK_ADMISSION",
+    "admission": {
+      "remaining_usd": 9.237970456368851,
+      "estimated_stage_total_usd": 2.1438701437790835,
+      "remaining_seconds": 25972.50737285614,
+      "transfer_reserve_seconds": 1473.7412904297573,
+      "local_free_bytes": 104165830656,
+      "admitted": false,
+      "reason": "8B did not pass practical speed gate"
+    }
+  },
+  "budget": {
+    "maximum_usd": 10,
+    "conservative_total_usd": 0.7651583321813147,
+    "conservative_remaining_usd": 9.234841667818685,
+    "settled_invoice": false
+  }
+}

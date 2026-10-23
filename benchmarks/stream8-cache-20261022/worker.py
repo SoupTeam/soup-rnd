@@ -61,8 +61,9 @@ def invoke(arm, indices, target, *extra):
 
 def compare(reference, candidate):
     import torch
-    from benchmarks.harness.liger_streaming_parity import compare as original_compare
     from safetensors.torch import load_file
+
+    from benchmarks.harness.liger_streaming_parity import compare as original_compare
 
     result = original_compare(reference, candidate)
     first = load_file(str(reference / "trace.safetensors"))

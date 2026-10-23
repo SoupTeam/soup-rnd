@@ -455,6 +455,7 @@ training:
   stream_source: auto          # 'auto' (same-host RAM), 'ram', 'disk' (v0.72.3)
   stream_ngram_source: auto    # Qwen4 PLE only: 'auto', 'ram', or read-only 'disk'
   stream_buffers: 2            # Double-buffering; range [2, 8]
+  # stream_resident_layers: auto  # Keep selected weights in spare VRAM (CUDA/RAM SFT)
   stream_read_ahead: 2         # Disk tier only; range [1, 8]. N stages N-1 layers ahead, and each level costs one layer of pinned host RAM
   # stream_pin: false          # Force the pinned RAM store off (escape hatch) or on; unset = automatic. See below
   # stream_vram_override: 4_000_000_000   # Bytes to assume free (v0.73.x); see below
@@ -468,6 +469,33 @@ soup train --config soup.yaml
 ```
 
 **How it works.** LoRA adapters + their gradients + optimizer state stay resident in VRAM (they are small). The frozen base lives in CPU RAM, page-locked when the machine allows it, and is streamed: each decoder layer is copied into one of two pre-allocated VRAM buffers on a dedicated CUDA stream while the previous layer is still computing, so the load overlaps the compute. Vocabulary-sized `embed_tokens` and an untied `lm_head` use one additional shared slot: the embedding is loaded for the model input, then the same allocation is reused for the output head, whose copy is issued right after the embedding lookup (`StreamPrefetcher.head_prefetch_layer`, default `0`) rather than at the last decoder layer, and the embedding is reloaded into it at the tail of that step's backward pass so the copy overlaps the remaining compute instead of blocking the next step's first lookup. Each decoder layer is read **twice** per step — once in the forward pass and once when the backward pass recomputes it — because `dL/dx = Wᵀ · dL/dy` needs the weights to reach the layers below. That is physics, not an implementation detail, and it is why streaming costs time.
+
+**Persistent decoder weights (opt-in).** `training.stream_resident_layers: auto`
+measures forward/backward at the configured batch size and maximum context, then keeps a
+centred block of frozen decoder weights in private GPU slots. They are copied once during
+setup and reused across training steps. Other layers use the existing rotating buffers.
+An integer selects that many centred layers; `0` (the default) leaves ordinary streaming.
+The complete host store is retained. This does not change precision or update base weights.
+
+The first scope is dense text SFT on CUDA with a RAM source and an AdamW optimizer.
+NF4 slots keep the packed weights and quantization sidecars; dense slots keep the existing
+dtype. Automatic mode reports a fallback on CPU/MPS or the disk tier. Explicit positive
+counts refuse unsupported or over-budget requests. This pool feature does not suppress
+the disk reader's independent speculative reads, so it is not offered as an NVMe cache.
+
+The measured candidate must fit the smallest of 85% of physical VRAM, currently free plus
+reserved memory, and `stream_vram_override`, after a 64 MiB setup reserve and an estimated
+12 bytes per trainable parameter for future AdamW state/workspace. The setup probe includes
+forward/backward but no optimizer step. It preserves Torch RNG, adapter values and module
+training flags and requires pristine gradients. An automatic OOM or failed capacity check
+keeps the ordinary pool; a non-OOM execution error refuses the run. The ready message reports
+persistent memory separately from rotating buffers. Setup time is additional to training.
+
+This is a conservative capacity policy, not an optimal speed selector or a promise that
+occupying more VRAM is faster. Speed and peak memory must be checked for the actual model
+and configuration. Other persistent allocations already present are included in the measured
+peak. A future activation-retention auto mode must share the remaining cap including the
+optimizer/setup reserve; two independent planners must not each spend the same headroom.
 
 For streamed NF4 on CUDA, Soup follows bitsandbytes' own 4-bit dispatch. When
 bitsandbytes selects its custom fused GEMM, Soup executes that GEMM through a

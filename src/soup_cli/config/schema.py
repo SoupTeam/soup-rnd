@@ -3536,6 +3536,26 @@ class TrainingConfig(BaseModel):
             "single buffer cannot overlap load with compute."
         ),
     )
+    stream_resident_layers: Union[int, Literal["auto"]] = Field(
+        default=0,
+        description=(
+            "Opt-in persistent decoder weights for streamed text SFT. 0 keeps ordinary "
+            "streaming; a positive integer keeps a centred block of that many layers; "
+            "'auto' measures the configured forward/backward peak and selects layers "
+            "within a conservative VRAM budget. CUDA and RAM tier only. Auto falls "
+            "back to ordinary streaming elsewhere. The host store is retained. "
+            "Setup probes preserve RNG and do not update adapters. No speed guarantee."
+        ),
+    )
+
+    @field_validator("stream_resident_layers", mode="before")
+    @classmethod
+    def _validate_stream_resident_layers(cls, value: Any) -> Any:
+        if value == "auto":
+            return value
+        if type(value) is not int or value < 0:
+            raise ValueError("training.stream_resident_layers must be 0, a positive int or 'auto'")
+        return value
 
     @field_validator("stream_buffers", mode="before")
     @classmethod
@@ -6403,6 +6423,7 @@ class SoupConfig(BaseModel):
                 tcfg.stream_source != "auto"
                 or tcfg.stream_ngram_source != "auto"
                 or tcfg.stream_buffers != 2
+                or tcfg.stream_resident_layers != 0
                 or tcfg.stream_read_ahead != DEFAULT_STREAM_READ_AHEAD
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
@@ -6413,11 +6434,31 @@ class SoupConfig(BaseModel):
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
-                    "/ training.stream_disk_kind / training.stream_pin set but "
+                    "/ training.stream_disk_kind / training.stream_pin / "
+                    "training.stream_resident_layers set but "
                     "stream_layers is false; set stream_layers=true to stream the "
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_resident_layers != 0:
+            if self.task != "sft":
+                raise ValueError("training.stream_resident_layers requires task='sft'")
+            if tcfg.activation_offloading is not None:
+                raise ValueError(
+                    "training.stream_resident_layers cannot be combined with activation_offloading"
+                )
+            if tcfg.stream_source == "disk" and tcfg.stream_resident_layers != "auto":
+                raise ValueError(
+                    "training.stream_resident_layers requires the RAM tier; "
+                    "use stream_source='ram' or 'auto'"
+                )
+            if tcfg.optimizer not in {
+                "adamw_torch", "adamw_torch_fused", "adamw_8bit", "paged_adamw_8bit",
+            }:
+                raise ValueError(
+                    "training.stream_resident_layers requires an AdamW optimizer "
+                    "whose future moment allocation can be budgeted"
+                )
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
         # read-ahead reader belongs to the NVMe disk tier, so a non-default

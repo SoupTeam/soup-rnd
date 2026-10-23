@@ -1100,17 +1100,45 @@ class StreamingSetupMixin:
             except BaseException:
                 self._close_stream_runtime()
                 raise
+        if getattr(tcfg, "stream_resident_layers", 0) != 0:
+            from soup_cli.utils.stream_residency import configure_stream_residency
+
+            try:
+                if self._stream_total_experts(model_config) > 1:
+                    raise ValueError(
+                        "training.stream_resident_layers currently supports dense decoders only"
+                    )
+                shape = self._stream_shape_config(model_config)
+                self._stream_residency_plan = configure_stream_residency(
+                    model,
+                    runtime,
+                    tcfg.stream_resident_layers,
+                    rows=int(tcfg.batch_size),
+                    seq_len=int(cfg.data.max_length),
+                    vocab_size=int(shape.vocab_size),
+                    override_bytes=tcfg.stream_vram_override,
+                    notify=console.print,
+                )
+            except BaseException:
+                self._close_stream_runtime()
+                raise
         if probe_plan is not None:
             self._run_stream_vram_probe(model, probe_plan)
         stats = runtime.stats()
         source_line = _stream_source_line(stats)
         large_runtime_buffer = stats.get("large_buffer_bytes", 0)
-        decoder_buffers = stats["buffer_bytes"] - large_runtime_buffer
+        resident_bytes = stats.get("resident_layer_bytes", 0)
+        decoder_buffers = stats["buffer_bytes"] - large_runtime_buffer - resident_bytes
         buffer_line = (
             f"{stats['buffers']} x "
             f"{decoder_buffers / stats['buffers'] / 1e6:.0f} MB decoder buffers + "
             f"1 x {large_runtime_buffer / 1e6:.0f} MB large-layer slot"
         )
+        if resident_bytes:
+            buffer_line += (
+                f", {len(stats['resident_layer_indices'])} persistent decoder layers "
+                f"({resident_bytes / 1e6:.0f} MB)"
+            )
         console.print(
             f"[green]Layer streaming ready:[/] {stats['n_layers']} layers, "
             f"{source_line}, {buffer_line}"
