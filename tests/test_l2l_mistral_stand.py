@@ -383,3 +383,60 @@ def test_main_sets_the_cublas_workspace_before_anything_else(stand, tmp_path, mo
 
     assert os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":4096:8"
     monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG")
+
+
+# --------------------------------------------------------------------------
+# bnb #2034: a recycled slot buffer must not change the gradients
+# --------------------------------------------------------------------------
+def test_aliasing_is_active_when_the_shipped_path_differs(stand):
+    out = stand.judge_aliasing(shipped_max_abs=1e-3, raw_max_abs=0.5)
+    assert out["status"] == "active" and out["pass"] is False
+    assert "2034" in out["note"]
+
+
+def test_aliasing_is_neutralized_when_only_the_raw_path_differs(stand):
+    out = stand.judge_aliasing(shipped_max_abs=0.0, raw_max_abs=0.5)
+    assert out["status"] == "neutralized" and out["pass"] is True
+
+
+def test_aliasing_not_reproduced_still_passes_but_says_the_probe_is_blind(stand):
+    out = stand.judge_aliasing(shipped_max_abs=0.0, raw_max_abs=0.0)
+    assert out["status"] == "not_reproduced" and out["pass"] is True
+    assert "cannot show" in out["note"]
+
+
+def test_the_probe_passes_on_the_shipped_path_for_each_m(stand):
+    pytest.importorskip("bitsandbytes")
+    probe = stand.run_aliasing_probe(
+        device="cpu", dtype="float32", m_values=[8, 24], dim=64, n_layers=4
+    )
+    assert probe["pass"] is True
+    assert sorted(probe["by_m"]) == [8, 24]
+    for record in probe["by_m"].values():
+        assert record["shipped_max_abs"] == 0.0
+        assert record["raw_max_abs"] >= 0.0
+
+
+def test_the_probe_stops_the_stand_when_the_shipped_path_aliases(stand, monkeypatch):
+    pytest.importorskip("bitsandbytes")
+    import soup_cli.utils.layer_stream_runtime as runtime
+
+    # Without the patch the layers go through bitsandbytes' MatMul4Bit itself.
+    monkeypatch.setattr(runtime, "install_dequant_forward", lambda module: 0)
+    probe = stand.run_aliasing_probe(
+        device="cpu", dtype="float32", m_values=[8], dim=64, n_layers=4
+    )
+    if probe["by_m"][8]["raw_max_abs"] == 0.0:
+        pytest.skip("this bitsandbytes build does not reproduce #2034 on CPU")
+    assert probe["pass"] is False
+    verdict = stand.aliasing_block(probe)
+    assert verdict["pass"] is False and verdict["status"] == "aliasing_active"
+    assert stand.aliasing_block({"pass": True, "by_m": {}}) is None
+
+
+def test_the_report_has_an_aliasing_section(stand):
+    probe = {"pass": True, "status": "neutralized", "by_m": {8: {"shipped_max_abs": 0.0,
+             "raw_max_abs": 0.25, "status": "neutralized"}}}
+    text = stand.render_report(_payload(stand, aliasing=probe))
+    assert "bitsandbytes #2034" in text and "neutralized" in text
+    assert "not run" in stand.render_report(_payload(stand)).split("#2034")[1].split("##")[0]

@@ -252,6 +252,137 @@ def paths_match(
 
 
 # --------------------------------------------------------------------------
+# bitsandbytes #2034: a recycled slot buffer must not change the gradients
+# --------------------------------------------------------------------------
+def judge_aliasing(*, shipped_max_abs: float, raw_max_abs: float) -> Dict[str, Any]:
+    """Verdict of one M. The shipped path must not move; the raw path is the control."""
+    if shipped_max_abs > 0:
+        return {
+            "status": "active", "pass": False,
+            "note": (
+                f"bnb #2034 reaches the shipped path: recycled-buffer gradients differ from "
+                f"private-buffer ones by {shipped_max_abs:.3e}. An L2L/GA gap on this stand "
+                "could come from the aliasing, not from the schedule."
+            ),
+        }
+    if raw_max_abs > 0:
+        return {"status": "neutralized", "pass": True,
+                "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"}
+    return {
+        "status": "not_reproduced", "pass": True,
+        "note": "the raw control is also equal at this M, so the probe cannot show the defect",
+    }
+
+
+def _aliasing_grads(
+    path: str, recycle: bool, *, device: str, dtype: Any, dim: int, n_layers: int,
+    slots: int, tokens: int,
+) -> List[Any]:
+    """Gradients of per-layer scales upstream of a checkpointed NF4 matmul, as bnb_repro.py does.
+
+    ``path`` is ``shipped`` (a Linear4bit patched by ``install_dequant_forward``) or ``raw``
+    (``bitsandbytes.matmul_4bit``). With ``recycle`` the packed weight is copied into a
+    round-robin slot buffer inside the checkpointed region, as the streaming runtime does.
+    """
+    import bitsandbytes as bnb
+    import torch
+    from bitsandbytes.functional import quantize_4bit
+    from torch.utils.checkpoint import checkpoint
+
+    from soup_cli.utils.layer_stream_runtime import install_dequant_forward
+
+    torch.manual_seed(0)
+    weights = [torch.randn(dim, dim, device=device, dtype=dtype) / 32 for _ in range(n_layers)]
+    quantised = [
+        quantize_4bit(w, blocksize=64, quant_type="nf4", compress_statistics=True)
+        for w in weights
+    ]
+    sources = [packed for packed, _ in quantised]
+    states = [state for _, state in quantised]
+    buffers = [torch.empty_like(sources[0]) for _ in range(slots)]
+    cursor = [0]
+    lin = None
+    if path == "shipped":
+        lin = bnb.nn.Linear4bit(dim, dim, bias=False, compute_dtype=dtype, quant_type="nf4")
+        lin.weight = bnb.nn.Params4bit(
+            data=sources[0], requires_grad=False, quant_state=states[0], blocksize=64,
+            compress_statistics=True, quant_type="nf4", bnb_quantized=True,
+        )
+        install_dequant_forward(lin)
+    gen = torch.Generator().manual_seed(1234)
+    scales = [
+        (1 + 0.01 * torch.randn(dim, generator=gen)).to(device, dtype).requires_grad_()
+        for _ in range(n_layers)
+    ]
+
+    def layer(idx: int) -> Callable[..., Any]:
+        def fn(x: Any, scale: Any) -> Any:
+            hidden = x * scale
+            weight = sources[idx]
+            if recycle:
+                weight = buffers[cursor[0] % slots]
+                cursor[0] += 1
+                weight.copy_(sources[idx])
+            if lin is not None:
+                lin.weight.data = weight
+                lin.weight.quant_state = states[idx]
+                return lin(hidden)
+            return bnb.matmul_4bit(hidden, weight.t(), quant_state=states[idx])
+
+        return fn
+
+    x = torch.randn(tokens, dim, device=device, dtype=dtype, requires_grad=True)
+    for idx in range(n_layers):
+        x = checkpoint(layer(idx), x, scales[idx], use_reentrant=False)
+    x.float().pow(2).mean().backward()
+    return [scale.grad.detach().float().cpu().clone() for scale in scales]
+
+
+def run_aliasing_probe(
+    *, device: str, dtype: str, m_values: Sequence[int], dim: int, n_layers: int = 8,
+    slots: int = 2,
+) -> Dict[str, Any]:
+    """Recycled against private buffers on the shipped NF4 path, at each M the stand uses."""
+    import torch
+
+    torch_dtype = getattr(torch, dtype)
+    by_m: Dict[int, Dict[str, Any]] = {}
+    for rows in sorted(set(int(m) for m in m_values)):
+        diffs = {}
+        for path in ("shipped", "raw"):
+            grads = [
+                _aliasing_grads(
+                    path, recycle, device=device, dtype=torch_dtype, dim=dim,
+                    n_layers=n_layers, slots=slots, tokens=rows,
+                )
+                for recycle in (True, False)
+            ]
+            diffs[path] = max(
+                (a - b).abs().max().item() for a, b in zip(grads[0], grads[1])
+            )
+        by_m[rows] = {
+            "shipped_max_abs": diffs["shipped"], "raw_max_abs": diffs["raw"],
+            **judge_aliasing(shipped_max_abs=diffs["shipped"], raw_max_abs=diffs["raw"]),
+        }
+    ok = all(rec["pass"] for rec in by_m.values())
+    statuses = {rec["status"] for rec in by_m.values()}
+    status = "active" if "active" in statuses else (
+        "neutralized" if "neutralized" in statuses else "not_reproduced"
+    )
+    return {"pass": ok, "status": status, "by_m": by_m, "dim": dim, "n_layers": n_layers,
+            "slots": slots}
+
+
+def aliasing_block(probe: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The verdict that stops the stand when #2034 is active on the shipped path, else None."""
+    if probe["pass"]:
+        return None
+    note = next(rec["note"] for rec in probe["by_m"].values() if not rec["pass"])
+    return {"pass": False, "status": "aliasing_active", "note": note,
+            "a_vs_a": None, "l2l_vs_ga": None}
+
+
+# --------------------------------------------------------------------------
 # runs and their comparison
 # --------------------------------------------------------------------------
 @dataclass
@@ -507,6 +638,17 @@ def render_report(payload: Dict[str, Any]) -> str:
         lines.append("- WARNING: gemm_4bit paths were not counted (no bitsandbytes CUDA ops)")
     lines += ["", "## RAM plan", ""]
     lines += [f"- {key}: {value}" for key, value in payload.get("ram_plan", {}).items()]
+    alias = payload.get("aliasing")
+    lines += ["", "## bitsandbytes #2034 (recycled slot buffers)", ""]
+    if alias is None:
+        lines.append("- not run")
+    else:
+        lines.append(f"- status: {alias['status']}")
+        for rows, rec in sorted(alias["by_m"].items()):
+            lines.append(
+                f"- M={rows}: shipped max |d| {rec['shipped_max_abs']}, "
+                f"raw control max |d| {rec['raw_max_abs']} ({rec['status']})"
+            )
     a_vs_a = verdict.get("a_vs_a") or {}
     lines += ["", f"## {heading}", "", f"- A-vs-A (GA twice) bit-equal: {a_vs_a.get('equal')}"]
     if a_vs_a.get("max_abs") is not None:
@@ -627,14 +769,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         except Exception:
             bnb_ops = None
         rows = make_rows(parsed.rows, parsed.seq, int(config.vocab_size))
+        lengths = [len(rows[i]["input_ids"]) for i in range(len(rows))]
+        aliasing = run_aliasing_probe(
+            device=device, dtype=dtype, dim=int(config.hidden_size),
+            m_values={min(lengths), max(lengths), padded},
+        )
+        print(f"bnb #2034 probe: {aliasing['status']}")
+        blocked = aliasing_block(aliasing)
         import tempfile
 
-        with tempfile.TemporaryDirectory() as work:
-            result = run_stand(
-                model, runtime, rows, k=parsed.k, work_dir=Path(work),
-                trainer_options={"bf16": dtype == "bfloat16"},
-                dtype=getattr(torch, dtype), seed=parsed.rng_seed, bnb_ops=bnb_ops,
-            )
+        if blocked is not None:
+            result = StandResult(runs={}, verdict=blocked, logs={})
+        else:
+            with tempfile.TemporaryDirectory() as work:
+                result = run_stand(
+                    model, runtime, rows, k=parsed.k, work_dir=Path(work),
+                    trainer_options={"bf16": dtype == "bfloat16"},
+                    dtype=getattr(torch, dtype), seed=parsed.rng_seed, bnb_ops=bnb_ops,
+                )
     finally:
         runtime.close()
     env = environment_facts()
@@ -650,6 +802,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         },
         "sdpa": {"pinned": PINNED_SDPA_BACKEND, "probe": probe},
         "gemm_paths": result.gemm_paths, "ram_plan": plan, "verdict": result.verdict,
+        "aliasing": aliasing,
         "k": parsed.k, "rows": parsed.rows, "seq": parsed.seq,
     }
     try:
