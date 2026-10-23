@@ -13,14 +13,14 @@ from tests.test_l2l_probe_harness import SEQ, _load, streamed  # noqa: F401
 
 
 class _MaskedRows:
-    """Rows of random ids; ``masks[i]`` lists the (start, stop) label slices set to -100."""
+    """Rows of random ids; ``masked_spans[i]`` lists the (start, stop) label slices set to -100."""
 
-    def __init__(self, lengths, masks, vocab=64, seed=5):
+    def __init__(self, lengths, masked_spans, vocab=64, seed=5):
         import torch
 
         gen = torch.Generator().manual_seed(seed)
         self.rows = []
-        for length, spans in zip(lengths, masks):
+        for length, spans in zip(lengths, masked_spans):
             ids = torch.randint(0, vocab, (length,), generator=gen)
             labels = ids.clone()
             for start, stop in spans:
@@ -36,7 +36,7 @@ class _MaskedRows:
         return self.rows[i]
 
 
-def _run(base_cls, model, runtime, tmp_path, data, *, l2l, k):
+def _train_epoch(base_cls, model, runtime, tmp_path, data, *, l2l, k):
     """Train one epoch; return the logged loss and the LoRA gradient of every window."""
     import torch
     from transformers import TrainerCallback, TrainingArguments
@@ -45,7 +45,7 @@ def _run(base_cls, model, runtime, tmp_path, data, *, l2l, k):
 
     grads = []
 
-    class Grabs(TrainerCallback):
+    class GradientRecorder(TrainerCallback):
         def on_pre_optimizer_step(self, args, state, control, model=None, **kw):
             grads.append(
                 {
@@ -73,7 +73,7 @@ def _run(base_cls, model, runtime, tmp_path, data, *, l2l, k):
         disable_tqdm=True,
     )
     cls = make_l2l_trainer_class(base_cls) if l2l else base_cls
-    trainer = cls(model=model, args=args, train_dataset=data, callbacks=[Grabs()])
+    trainer = cls(model=model, args=args, train_dataset=data, callbacks=[GradientRecorder()])
     if l2l:
         attach_l2l_state(trainer, runtime, dtype=torch.float32)
     trainer.train()
@@ -81,7 +81,7 @@ def _run(base_cls, model, runtime, tmp_path, data, *, l2l, k):
     return losses, grads
 
 
-def _compare(streamed, tmp_path, k, lengths, masks, *, exact):  # noqa: F811
+def _assert_matches_accumulation(streamed, tmp_path, k, lengths, masked_spans, *, exact):  # noqa: F811
     import math
 
     import torch
@@ -92,10 +92,10 @@ def _compare(streamed, tmp_path, k, lengths, masks, *, exact):  # noqa: F811
     harness.make_non_vacuous(model)
     start = harness.snapshot_adapters(model)
 
-    data = _MaskedRows(lengths, masks)
-    ga_losses, ga_grads = _run(Trainer, model, runtime, tmp_path, data, l2l=False, k=k)
+    data = _MaskedRows(lengths, masked_spans)
+    ga_losses, ga_grads = _train_epoch(Trainer, model, runtime, tmp_path, data, l2l=False, k=k)
     harness.restore_adapters(model, start)
-    l2l_losses, l2l_grads = _run(Trainer, model, runtime, tmp_path, data, l2l=True, k=k)
+    l2l_losses, l2l_grads = _train_epoch(Trainer, model, runtime, tmp_path, data, l2l=True, k=k)
 
     assert len(ga_grads) == len(l2l_grads) == len(lengths) // k
     assert all(math.isfinite(loss) for loss in l2l_losses)
@@ -117,14 +117,16 @@ def _compare(streamed, tmp_path, k, lengths, masks, *, exact):  # noqa: F811
 
 @pytest.mark.parametrize("k", [2, 4])
 def test_masked_labels_in_different_places_match_accumulation(streamed, tmp_path, k):  # noqa: F811
-    masks = [[(0, 3)], [(SEQ - 2, SEQ)], [], [(2, 5)], [(0, 1), (6, 8)], [(3, 4)], [], [(1, 4)]]
-    _compare(streamed, tmp_path, k, [SEQ] * 8, masks, exact=True)
+    masked_spans = [
+        [(0, 3)], [(SEQ - 2, SEQ)], [], [(2, 5)], [(0, 1), (6, 8)], [(3, 4)], [], [(1, 4)]
+    ]
+    _assert_matches_accumulation(streamed, tmp_path, k, [SEQ] * 8, masked_spans, exact=True)
 
 
 @pytest.mark.parametrize("k", [2, 4])
 def test_a_micro_batch_of_only_masked_labels_gives_no_nan(streamed, tmp_path, k):  # noqa: F811
-    masks = [[(0, SEQ)], [(2, 4)], [], [(5, 7)], [], [(0, SEQ)], [(1, 3)], []]
-    _compare(streamed, tmp_path, k, [SEQ] * 8, masks, exact=True)
+    masked_spans = [[(0, SEQ)], [(2, 4)], [], [(5, 7)], [], [(0, SEQ)], [(1, 3)], []]
+    _assert_matches_accumulation(streamed, tmp_path, k, [SEQ] * 8, masked_spans, exact=True)
 
 
 @pytest.mark.parametrize("k", [2, 4])
@@ -132,10 +134,10 @@ def test_rows_of_different_lengths_with_masked_labels_match_accumulation(
     streamed, tmp_path, k  # noqa: F811
 ):
     lengths = [5, 8, 3, 6, 70, 9, 4, 66]
-    masks = [[(0, 2)], [], [(1, 3)], [(4, 6)], [(0, 30)], [(7, 9)], [], [(60, 66)]]
-    _compare(streamed, tmp_path, k, lengths, masks, exact=False)
+    masked_spans = [[(0, 2)], [], [(1, 3)], [(4, 6)], [(0, 30)], [(7, 9)], [], [(60, 66)]]
+    _assert_matches_accumulation(streamed, tmp_path, k, lengths, masked_spans, exact=False)
 
 
 def test_k1_with_masked_labels_matches_accumulation(streamed, tmp_path):  # noqa: F811
-    masks = [[(0, 3)], [], [(SEQ - 2, SEQ)], [(2, 5)]]
-    _compare(streamed, tmp_path, 1, [SEQ] * 4, masks, exact=True)
+    masked_spans = [[(0, 3)], [], [(SEQ - 2, SEQ)], [(2, 5)]]
+    _assert_matches_accumulation(streamed, tmp_path, 1, [SEQ] * 4, masked_spans, exact=True)
