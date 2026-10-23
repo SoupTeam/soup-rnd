@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """Ticket A3-04: the Mistral-7B NF4 stand, gradient accumulation (GA) against ``training.l2l``.
 
-One window sequence, trained three times through the real HF trainer with the same seed,
-adapters and rows: GA twice (the A-vs-A control) and the L2L trainer once. The rows have
-different lengths, masked labels (-100) and an incomplete last window. The stand compares
-every optimizer step's LoRA gradients with ``torch.equal``, the logged losses, the number
-of optimizer steps, the lr of each step and the log. Deterministic mode is on and
-documented: ``CUBLAS_WORKSPACE_CONFIG`` is set before torch and CUDA start, strict
-``torch.use_deterministic_algorithms(True)`` follows, and one SDPA backend (MATH) is
-pinned in both arms. A bitwise mismatch prints the largest gap and exits 1; the
-threshold is never loosened. If A-vs-A already differs, the bitwise criterion cannot be
-judged and the script says the criterion has to move to a tolerance, which is the
-user's decision.
+One window sequence, trained through the real HF trainer with the same seed, adapters and
+rows: GA twice (the A-vs-A control), the L2L trainer once and, in bf16, GA a third time on a
+second SDPA backend (the noise floor). The rows have different lengths, masked labels (-100)
+and an incomplete last window. Deterministic mode is on and documented:
+``CUBLAS_WORKSPACE_CONFIG`` is set before torch and CUDA start, strict
+``torch.use_deterministic_algorithms(True)`` follows, and one SDPA backend (MATH) is pinned
+in the main arms.
+
+The criterion is a tolerance (user decision, 2026-10-23), not bit equality. A-vs-A stays
+bitwise: if GA does not repeat, the run stops. Per optimizer step the relative L2 error of
+the LoRA gradients (and of the logged loss) must be, in bf16, at most 1.5 x the error between
+GA on MATH and GA on EFFICIENT_ATTENTION measured in the same run, and in fp32 at most 1e-4.
+Step count, lr per step and the log length are still compared exactly. The tolerance and its
+values are printed in the report; no option loosens them.
 
 The RAM plan (weights + workspace + activation cache / 0.7) is printed before anything is
 loaded, and the stand refuses to start without the RAM. Raw logs, the command, package
@@ -37,6 +40,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 DEFAULT_WEIGHTS = "mistralai/Mistral-7B-v0.1"
 CUBLAS_WORKSPACE_CONFIG = ":4096:8"
 PINNED_SDPA_BACKEND = "MATH"
+#: The second backend of the noise-floor arm (GA on MATH against GA on this).
+FLOOR_SDPA_BACKEND = "EFFICIENT_ATTENTION"
+#: bf16: L2L may differ from GA by at most this many times the noise floor, at every step.
+FLOOR_FACTOR = 1.5
+#: fp32: a correctness check, not a noise check.
+FP32_REL_LIMIT = 1e-4
 SDPA_BACKENDS = ("MATH", "FLASH_ATTENTION", "EFFICIENT_ATTENTION", "CUDNN_ATTENTION")
 #: Mistral-7B NF4 weights (3.6 GB of linear layers + 0.5 GB of bf16 embeddings), from the research.
 DEFAULT_WEIGHTS_BYTES = 4.1e9
@@ -141,12 +150,17 @@ def enable_deterministic() -> None:
 
 
 @contextmanager
-def pinned_sdpa() -> Iterator[None]:
+def pinned_sdpa(backend: str = PINNED_SDPA_BACKEND) -> Iterator[None]:
     """Run attention on one SDPA backend, the same one in both arms."""
     from torch.nn.attention import SDPBackend, sdpa_kernel
 
-    with sdpa_kernel(getattr(SDPBackend, PINNED_SDPA_BACKEND)):
+    with sdpa_kernel(getattr(SDPBackend, backend)):
         yield
+
+
+def floor_sdpa() -> Any:
+    """The second backend, for the arm that measures the bf16 noise floor."""
+    return pinned_sdpa(FLOOR_SDPA_BACKEND)
 
 
 def probe_sdpa_backends(
@@ -195,54 +209,58 @@ def probe_sdpa_backends(
 # --------------------------------------------------------------------------
 # gemm_4bit path counter
 # --------------------------------------------------------------------------
-_PATH_FUNCTIONS = {"_gemm_4bit_kernel_impl": "custom", "_dequant_linear_fallback": "dequant"}
+_DISPATCH = "_can_use_checkpoint_visible_nf4_gemm"
 
 
 class GemmPathCounter:
-    """Counts bitsandbytes' ``gemm_4bit`` calls by M (rows) and path (own kernel or dequant).
+    """Counts the NF4 matmul path of every streamed linear, by M (rows).
 
-    Wraps the two path functions of ``bitsandbytes.backends.cuda.ops`` for the length of a
-    ``with`` block and restores them. ``ops=None`` (no bitsandbytes CUDA ops) counts nothing.
+    Soup's patched ``Linear4bit.forward`` asks ``_can_use_checkpoint_visible_nf4_gemm`` of
+    ``layer_stream_runtime`` once per call: True is bitsandbytes' custom ``gemm_4bit`` kernel,
+    False is dequantise + ``F.linear``. Counting the decision sees both paths at every M. The
+    wrapped functions of ``bitsandbytes.backends.cuda.ops`` do not: above the card's custom
+    window the patched forward never calls ``gemm_4bit`` at all, which is why the ticket 05
+    counters missed rows over 128 and L2L entirely. ``runtime=None`` counts nothing.
     """
 
-    def __init__(self, ops: Any):
-        self.ops = ops
-        self.counts: Optional[Dict[int, Dict[str, int]]] = None if ops is None else {}
-        self._saved: Dict[str, Any] = {}
+    def __init__(self, runtime: Any):
+        self.runtime = runtime
+        self.counts: Optional[Dict[int, Dict[str, int]]] = None if runtime is None else {}
+        self._saved: Any = None
 
     def __enter__(self) -> "GemmPathCounter":
-        if self.ops is None:
+        if self.runtime is None:
             return self
-        for name, path in _PATH_FUNCTIONS.items():
-            real = getattr(self.ops, name)
-            self._saved[name] = real
-            setattr(self.ops, name, self._wrap(real, path))
+        real = getattr(self.runtime, _DISPATCH)
+        self._saved = real
+
+        def counted(x: Any, *args: Any, **kwargs: Any) -> Any:
+            use_custom = real(x, *args, **kwargs)
+            rows = int(x.numel() // x.shape[-1])
+            entry = self.counts.setdefault(rows, {"custom": 0, "dequant": 0})
+            entry["custom" if use_custom else "dequant"] += 1
+            return use_custom
+
+        setattr(self.runtime, _DISPATCH, counted)
         return self
 
-    def _wrap(self, real: Callable[..., Any], path: str) -> Callable[..., Any]:
-        def counted(act: Any, *args: Any, **kwargs: Any) -> Any:
-            rows = int(act.numel() // act.shape[-1])
-            entry = self.counts.setdefault(rows, {"custom": 0, "dequant": 0})
-            entry[path] += 1
-            return real(act, *args, **kwargs)
-
-        return counted
-
     def __exit__(self, *exc: Any) -> None:
-        for name, real in self._saved.items():
-            setattr(self.ops, name, real)
-        self._saved = {}
+        if self._saved is not None:
+            setattr(self.runtime, _DISPATCH, self._saved)
+        self._saved = None
 
 
 def paths_match(
     left: Optional[Dict[int, Dict[str, int]]], right: Optional[Dict[int, Dict[str, int]]]
 ) -> Optional[bool]:
-    """True when both arms used the same set of gemm_4bit paths; None if uncounted.
+    """True when both arms used the same set of gemm_4bit paths; None if uncounted or empty.
+
+    An empty counter is not a result: two empties would agree, and ticket 05 had ``l2l: {}``.
 
     Not keyed by M: GA runs rows at their own length and an L2L window is padded to a
     multiple of 64, so the M values differ by design. The per-M counts stay in the report.
     """
-    if left is None or right is None:
+    if not left or not right:
         return None
 
     def kinds(counts: Dict[int, Dict[str, int]]) -> set:
@@ -436,33 +454,119 @@ def _vacuous(run: RunRecord) -> bool:
     )
 
 
-def decide(ga1: RunRecord, ga2: RunRecord, l2l: RunRecord) -> Dict[str, Any]:
-    """The verdict. A-vs-A comes first: if GA does not repeat, L2L cannot be judged in bits."""
+def rel_l2_by_step(ref: RunRecord, cand: RunRecord) -> List[float]:
+    """Per optimizer step: ||g_cand - g_ref|| / ||g_ref|| over all LoRA gradients, in float64.
+
+    A step whose parameter names differ has no meaningful error and gets ``inf``.
+    """
+    import math
+
+    out: List[float] = []
+    for left, right in zip(ref.grads, cand.grads):
+        if left.keys() != right.keys():
+            out.append(math.inf)
+            continue
+        num = den = 0.0
+        for name in left:
+            gap = left[name].double() - right[name].double()
+            num += float(gap.pow(2).sum())
+            den += float(left[name].double().pow(2).sum())
+        out.append(0.0 if num == 0 else (math.sqrt(num / den) if den else math.inf))
+    return out
+
+
+def loss_rel_by_step(ref: RunRecord, cand: RunRecord) -> List[float]:
+    """Per logged loss: |cand - ref| / |ref|."""
+    import math
+
+    out: List[float] = []
+    for left, right in zip(ref.logs, cand.logs):
+        a, b = left.get("loss"), right.get("loss")
+        if a is None or b is None:
+            out.append(math.inf)
+        else:
+            out.append(0.0 if a == b else abs(b - a) / abs(a) if a else math.inf)
+    return out
+
+
+def judge_tolerance(
+    ref: RunRecord, cand: RunRecord, *, mode: str, floor: Optional[RunRecord] = None
+) -> Dict[str, Any]:
+    """Per-step tolerance check of ``cand`` against ``ref``; every number is kept for the report.
+
+    ``fp32``: relative error at most ``FP32_REL_LIMIT``. ``bf16``: at most ``FLOOR_FACTOR`` x the
+    error of ``floor`` (GA on another SDPA backend) against ``ref``, step by step. bf16 without
+    a floor run is not judged (``judged`` False).
+    """
+    grad = rel_l2_by_step(ref, cand)
+    loss = loss_rel_by_step(ref, cand)
+    out: Dict[str, Any] = {
+        "mode": mode, "factor": FLOOR_FACTOR, "limit_fp32": FP32_REL_LIMIT,
+        "grad_rel": grad, "loss_rel": loss, "floor_grad": None, "floor_loss": None,
+        "judged": True, "failing": [], "pass": False,
+    }
+    if mode == "fp32":
+        grad_limit = [FP32_REL_LIMIT] * len(grad)
+        loss_limit = [FP32_REL_LIMIT] * len(loss)
+    else:
+        if floor is None:
+            out["judged"] = False
+            return out
+        out["floor_grad"] = floor_grad = rel_l2_by_step(ref, floor)
+        out["floor_loss"] = floor_loss = loss_rel_by_step(ref, floor)
+        grad_limit = [FLOOR_FACTOR * e for e in floor_grad]
+        loss_limit = [FLOOR_FACTOR * e for e in floor_loss]
+    out["grad_limit"], out["loss_limit"] = grad_limit, loss_limit
+    for what, errors, limits in (("gradient", grad, grad_limit), ("loss", loss, loss_limit)):
+        if len(errors) != len(limits):
+            out["failing"].append({"what": what, "step": None, "error": None, "limit": None})
+        for step, (err, lim) in enumerate(zip(errors, limits)):
+            if not err <= lim:
+                out["failing"].append({"what": what, "step": step, "error": err, "limit": lim})
+    out["pass"] = not out["failing"]
+    return out
+
+
+def decide(
+    ga1: RunRecord, ga2: RunRecord, l2l: RunRecord, *, mode: str,
+    floor: Optional[RunRecord] = None,
+) -> Dict[str, Any]:
+    """The verdict. A-vs-A comes first and stays bitwise: if GA does not repeat, the run stops."""
     a_vs_a = compare_runs(ga1, ga2)
-    out: Dict[str, Any] = {"a_vs_a": a_vs_a, "l2l_vs_ga": None, "pass": False, "note": ""}
+    out: Dict[str, Any] = {"a_vs_a": a_vs_a, "l2l_vs_ga": None, "tolerance": None,
+                           "pass": False, "note": ""}
     if not a_vs_a["equal"]:
         out["status"] = "a_vs_a_failed"
         out["note"] = (
-            f"two gradient-accumulation runs differ (max |d| {a_vs_a['max_abs']:.3e}), so a "
-            "bitwise comparison of L2L against GA is meaningless on this stand. The "
-            "criterion has to move to a tolerance; that decision is the user's, and the "
-            "stand does not loosen it."
+            f"two gradient-accumulation runs differ (max |d| {a_vs_a['max_abs']:.3e}), so the "
+            "reference does not repeat and the run stops without judging L2L. The tolerance "
+            "is not widened to cover it."
         )
         return out
     out["l2l_vs_ga"] = compare = compare_runs(ga1, l2l)
     if _vacuous(ga1) or _vacuous(l2l):
         out["status"] = "vacuous"
-        out["note"] = "a step has all-zero LoRA gradients, so equality proves nothing"
-    elif not compare["equal"]:
+        out["note"] = "a step has all-zero LoRA gradients, so a small error proves nothing"
+        return out
+    flags = [k for k in ("rates_equal", "steps_equal") if not compare[k]]
+    if len(ga1.logs) != len(l2l.logs):
+        flags.append("log_length")
+    if flags:
         out["status"] = "l2l_differs"
-        flags = [k for k in ("grads_equal", "losses_equal", "rates_equal", "steps_equal")
-                 if not compare[k]]
+        out["note"] = f"L2L differs from GA in {', '.join(flags)}; these are compared exactly"
+        return out
+    out["tolerance"] = tol = judge_tolerance(ga1, l2l, mode=mode, floor=floor)
+    if not tol["judged"]:
+        out["status"] = "no_floor"
+        out["note"] = "bf16 needs the noise-floor arm (GA on a second SDPA backend); it was not run"
+    elif not tol["pass"]:
+        out["status"] = "l2l_out_of_tolerance"
         out["note"] = (
-            f"L2L differs from GA in {', '.join(flags)}; largest gradient gap "
-            f"{compare['max_abs']:.6g}; worst {compare['worst'][:3]}"
+            f"L2L is outside the {mode} tolerance at {len(tol['failing'])} check(s); "
+            f"first: {tol['failing'][:3]}"
         )
     else:
-        out["status"] = "equal"
+        out["status"] = "within_tolerance"
         out["pass"] = True
     return out
 
@@ -557,27 +661,30 @@ class StandResult:
 def run_stand(
     model: Any, runtime: Any, rows: Any, *, k: int, work_dir: Path,
     trainer_options: Optional[dict] = None, dtype: Any = None, seed: int = 1,
-    bnb_ops: Any = None, sdpa: Callable[[], Any] = pinned_sdpa,
+    path_runtime: Any = None, sdpa: Callable[[], Any] = pinned_sdpa, mode: str = "bf16",
+    floor_sdpa: Optional[Callable[[], Any]] = None,
 ) -> StandResult:
-    """GA, GA again, then L2L over the same rows from the same adapters; return the verdict."""
+    """GA, GA again, L2L and (with ``floor_sdpa``) GA on a second backend, over the same rows
+    from the same adapters; return the verdict."""
     import l2l_schedule
     import torch
 
     start = l2l_schedule.snapshot_adapters(model)
-    arms = (("ga1", False), ("ga2", False), ("l2l", True))
+    arms = [("ga1", False, sdpa), ("ga2", False, sdpa), ("l2l", True, sdpa)]
+    if floor_sdpa is not None:
+        arms.append(("ga_floor", False, floor_sdpa))
     runs: Dict[str, RunRecord] = {}
     counts: Dict[str, Any] = {}
-    with sdpa():
-        for name, is_l2l in arms:
-            l2l_schedule.restore_adapters(model, start)
-            torch.manual_seed(seed)
-            with GemmPathCounter(bnb_ops) as counter:
-                runs[name] = train_arm(
-                    model, runtime, rows, Path(work_dir), name=name, l2l=is_l2l, k=k,
-                    dtype=dtype, seed=seed, trainer_options=trainer_options,
-                )
-            counts[name] = counter.counts
-    verdict = decide(runs["ga1"], runs["ga2"], runs["l2l"])
+    for name, is_l2l, backend in arms:
+        l2l_schedule.restore_adapters(model, start)
+        torch.manual_seed(seed)
+        with backend(), GemmPathCounter(path_runtime) as counter:
+            runs[name] = train_arm(
+                model, runtime, rows, Path(work_dir), name=name, l2l=is_l2l, k=k,
+                dtype=dtype, seed=seed, trainer_options=trainer_options,
+            )
+        counts[name] = counter.counts
+    verdict = decide(runs["ga1"], runs["ga2"], runs["l2l"], mode=mode, floor=runs.get("ga_floor"))
     gemm = {**counts, "match": paths_match(counts["ga1"], counts["l2l"]),
             "a_vs_a_match": paths_match(counts["ga1"], counts["ga2"])}
     return StandResult(
@@ -599,6 +706,39 @@ def environment_facts(packages: Sequence[str] = PACKAGES) -> Dict[str, Any]:
         except metadata.PackageNotFoundError:
             versions[name] = None
     return {"packages": versions, "python": sys.version.split()[0], "platform": platform.platform()}
+
+
+def _tolerance_lines(tol: Optional[Dict[str, Any]]) -> List[str]:
+    if tol is None:
+        return ["", "## Tolerance", "", "- not applied (the run stopped before the comparison)"]
+    lines = ["", "## Tolerance", ""]
+    active = tol["mode"]
+    lines.append(
+        f"- fp32: relative L2 error at most {tol['limit_fp32']:.0e} at every step"
+        + (" (this run)" if active == "fp32" else "")
+    )
+    lines.append(
+        f"- bf16: relative L2 error at most {tol['factor']} x the error of GA on MATH "
+        "against GA on EFFICIENT_ATTENTION (same run), at every step"
+        + (" (this run)" if active == "bf16" else "")
+    )
+    lines.append("- the threshold is fixed in the script; no option changes it")
+    if not tol.get("judged", True):
+        lines.append("- NOT JUDGED: the floor arm did not run")
+        return lines
+    lines += ["", "| step | what | L2L error | floor | limit | ok |",
+              "| --- | --- | --- | --- | --- | --- |"]
+    for what, err, floor, limit in (
+        ("gradient", tol["grad_rel"], tol.get("floor_grad"), tol.get("grad_limit")),
+        ("loss", tol["loss_rel"], tol.get("floor_loss"), tol.get("loss_limit")),
+    ):
+        for step, value in enumerate(err):
+            lim = limit[step] if limit else None
+            fl = floor[step] if floor else None
+            ok = lim is not None and value <= lim
+            lines.append(f"| {step} | {what} | {value:.4g} | {fl if fl is None else f'{fl:.4g}'} "
+                         f"| {lim if lim is None else f'{lim:.4g}'} | {ok} |")
+    return lines
 
 
 def render_report(payload: Dict[str, Any]) -> str:
@@ -629,8 +769,9 @@ def render_report(payload: Dict[str, Any]) -> str:
         lines.append(f"- {name}: {rec}")
     gemm = payload.get("gemm_paths", {})
     lines += ["", "## gemm_4bit path (calls by M)", ""]
-    for arm in ("ga1", "ga2", "l2l"):
-        lines.append(f"- {arm}: {gemm.get(arm, 'not counted')}")
+    for arm in ("ga1", "ga2", "l2l", "ga_floor"):
+        if arm in gemm or arm != "ga_floor":
+            lines.append(f"- {arm}: {gemm.get(arm, 'not counted')}")
     lines.append(f"- same path in GA and L2L: {gemm.get('match')}")
     if gemm.get("match") is False:
         lines.append("- WARNING: the arms did not use the same set of gemm_4bit paths")
@@ -657,9 +798,11 @@ def render_report(payload: Dict[str, Any]) -> str:
     if compare is None:
         lines.append("- L2L against GA: not judged")
     else:
-        lines += [f"- L2L against GA bit-equal: {compare.get('equal')}",
+        lines += [f"- L2L against GA bit-equal: {compare.get('equal')} (information, not the "
+                  "criterion)",
                   f"- max |d| of LoRA gradients: {compare.get('max_abs')}",
                   f"- optimizer steps (GA, L2L): {compare.get('steps')}"]
+    lines += _tolerance_lines(verdict.get("tolerance"))
     lines += ["", f"## {other} data: not run", ""]
     return "\n".join(lines)
 
@@ -705,6 +848,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--k", type=int, default=4, help="gradient_accumulation_steps")
     parser.add_argument("--rows", type=int, default=10, help="must leave an incomplete last window")
     parser.add_argument("--seq", type=int, default=256, help="longest row, in tokens")
+    parser.add_argument(
+        "--dtype", choices=("auto", "float32"), default="auto",
+        help="auto: the card's stream dtype (bf16 on Ampere), tolerance 1.5 x floor; "
+        "float32: tolerance 1e-4",
+    )
     parser.add_argument("--rng-seed", type=int, default=1)
     parser.add_argument("--out", required=True)
     parsed = parser.parse_args(argv)
@@ -749,7 +897,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     enable_deterministic()
     device = "cuda"
-    dtype = resolve_stream_dtype(device)
+    dtype = "float32" if parsed.dtype == "float32" else resolve_stream_dtype(device)
+    mode = "fp32" if dtype == "float32" else "bf16"
     args = l2l_probe.parse_args([
         "--mode", "correctness", "--weights", parsed.weights, "--quant", parsed.quant,
         "--seq", str(parsed.seq), "--tier", "ram", "--out", str(Path(parsed.out) / "unused.json"),
@@ -764,10 +913,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             device=device, dtype=dtype, heads=heads, seq=padded,
             head_dim=int(config.hidden_size) // heads,
         )
-        try:
-            from bitsandbytes.backends.cuda import ops as bnb_ops
-        except Exception:
-            bnb_ops = None
+        import soup_cli.utils.layer_stream_runtime as path_runtime
         rows = make_rows(parsed.rows, parsed.seq, int(config.vocab_size))
         lengths = [len(rows[i]["input_ids"]) for i in range(len(rows))]
         aliasing = run_aliasing_probe(
@@ -785,7 +931,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 result = run_stand(
                     model, runtime, rows, k=parsed.k, work_dir=Path(work),
                     trainer_options={"bf16": dtype == "bfloat16"},
-                    dtype=getattr(torch, dtype), seed=parsed.rng_seed, bnb_ops=bnb_ops,
+                    dtype=getattr(torch, dtype), seed=parsed.rng_seed,
+                    path_runtime=path_runtime, mode=mode,
+                    floor_sdpa=floor_sdpa if mode == "bf16" else None,
                 )
     finally:
         runtime.close()
@@ -800,7 +948,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "algorithms": "strict (warn_only off)",
             "attn_implementation": getattr(config, "_attn_implementation", None),
         },
-        "sdpa": {"pinned": PINNED_SDPA_BACKEND, "probe": probe},
+        "sdpa": {"pinned": PINNED_SDPA_BACKEND,
+                 "floor": FLOOR_SDPA_BACKEND if mode == "bf16" else None, "probe": probe},
+        "dtype": dtype,
         "gemm_paths": result.gemm_paths, "ram_plan": plan, "verdict": result.verdict,
         "aliasing": aliasing,
         "k": parsed.k, "rows": parsed.rows, "seq": parsed.seq,
@@ -810,7 +960,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except StandRefusedError as exc:
         print(f"REFUSED: {exc}")
         return 2
-    print(f"verdict {result.verdict['status']}: {result.verdict['note'] or 'bit-equal'}")
+    print(f"verdict {result.verdict['status']}: {result.verdict['note'] or 'within tolerance'}")
     print(f"wrote {Path(parsed.out) / 'report.md'}")
     return 0 if result.verdict["pass"] else 1
 

@@ -73,41 +73,93 @@ def test_each_difference_trips_its_own_flag(stand, change, flag):
 
 
 # --------------------------------------------------------------------------
-# verdict: the A-against-A control comes first
+# verdict: the A-against-A control comes first, then a tolerance
 # --------------------------------------------------------------------------
-def test_verdict_passes_when_both_comparisons_are_bit_equal(stand):
-    out = stand.decide(_run(stand), _run(stand), _run(stand))
-    assert out["pass"] is True
-    assert out["status"] == "equal"
-
-
-def test_unequal_a_vs_a_makes_the_l2l_comparison_meaningless(stand):
+def _scaled(stand, factor, steps=3, base=(3.0, 4.0)):
+    """A run whose gradients are the base vector times ``factor`` (relative error |factor-1|)."""
     import torch
 
-    drift = [{"lora_A": torch.tensor([1.0, 2.0000002])} for _ in range(2)]
-    out = stand.decide(_run(stand), _run(stand, grads=drift), _run(stand))
+    grads = [{"lora_A": torch.tensor(base) * factor} for _ in range(steps)]
+    logs = [{"loss": 2.0 * factor, "learning_rate": 0.5} for _ in range(steps)]
+    return stand.RunRecord(logs=logs, rates=[0.5] * steps, grads=grads, steps=steps)
+
+
+def test_relative_error_is_the_l2_norm_of_the_gap_over_the_norm_of_the_reference(stand):
+    errors = stand.rel_l2_by_step(_scaled(stand, 1.0), _scaled(stand, 1.02))
+    assert errors == pytest.approx([0.02, 0.02, 0.02])
+
+
+def test_fp32_passes_below_1e_minus_4_and_fails_above(stand):
+    ok = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), _scaled(stand, 1 + 5e-5),
+                      mode="fp32")
+    assert ok["pass"] is True and ok["status"] == "within_tolerance"
+    bad = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), _scaled(stand, 1 + 3e-4),
+                       mode="fp32")
+    assert bad["pass"] is False and bad["status"] == "l2l_out_of_tolerance"
+    assert bad["tolerance"]["limit_fp32"] == 1e-4
+
+
+def test_bf16_limit_is_one_and_a_half_times_the_floor_at_every_step(stand):
+    floor = _scaled(stand, 1.04)  # floor error 4% at each step
+    inside = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), _scaled(stand, 1.059),
+                          mode="bf16", floor=floor)
+    assert inside["pass"] is True
+    assert inside["tolerance"]["grad_limit"] == pytest.approx([0.06, 0.06, 0.06])
+    outside = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), _scaled(stand, 1.062),
+                           mode="bf16", floor=floor)
+    assert outside["pass"] is False and outside["status"] == "l2l_out_of_tolerance"
+    assert outside["tolerance"]["factor"] == 1.5
+
+
+def test_one_bad_step_fails_even_when_the_others_are_inside(stand):
+    import torch
+
+    cand = _scaled(stand, 1.0)
+    cand.grads[2] = {"lora_A": torch.tensor((3.0, 4.0)) * 1.5}
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), cand, mode="bf16",
+                       floor=_scaled(stand, 1.04))
+    assert out["pass"] is False
+    assert [row["step"] for row in out["tolerance"]["failing"]] == [2]
+
+
+def test_bf16_without_a_floor_run_is_not_judged_and_fails(stand):
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), _scaled(stand, 1.0), mode="bf16")
+    assert out["pass"] is False and out["status"] == "no_floor"
+
+
+def test_a_different_step_count_or_lr_still_fails_under_a_tolerance(stand):
+    short = _scaled(stand, 1.0, steps=2)
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), short, mode="fp32")
+    assert out["pass"] is False and out["status"] == "l2l_differs"
+    cand = _scaled(stand, 1.0)
+    cand.rates = [0.5, 0.5, 0.25]
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), cand, mode="fp32")
+    assert out["pass"] is False and "rates_equal" in out["note"]
+
+
+def test_losses_are_held_to_the_same_tolerance(stand):
+    cand = _scaled(stand, 1.0)
+    cand.logs[1] = {"loss": 2.0 * 1.01, "learning_rate": 0.5}
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), cand, mode="fp32")
+    assert out["pass"] is False
+    assert out["tolerance"]["failing"][0]["what"] == "loss"
+
+
+def test_unequal_a_vs_a_stops_the_run_and_does_not_judge_l2l(stand):
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0 + 1e-7), _scaled(stand, 1.0),
+                       mode="fp32")
     assert out["pass"] is False
     assert out["status"] == "a_vs_a_failed"
-    assert "tolerance" in out["note"] and "user" in out["note"]
+    assert "stops" in out["note"]
     assert out["l2l_vs_ga"] is None  # not judged against a reference that does not repeat
-
-
-def test_unequal_l2l_fails_and_names_the_largest_gap(stand):
-    import torch
-
-    off = [{"lora_A": torch.tensor([1.0, 2.5])} for _ in range(2)]
-    out = stand.decide(_run(stand), _run(stand), _run(stand, grads=off))
-    assert out["pass"] is False
-    assert out["status"] == "l2l_differs"
-    assert out["l2l_vs_ga"]["max_abs"] == 0.5
-    assert "0.5" in out["note"]
 
 
 def test_all_zero_gradients_are_never_a_pass(stand):
     import torch
 
     zero = [{"lora_A": torch.zeros(2)} for _ in range(2)]
-    out = stand.decide(_run(stand, grads=zero), _run(stand, grads=zero), _run(stand, grads=zero))
+    out = stand.decide(_run(stand, grads=zero), _run(stand, grads=zero), _run(stand, grads=zero),
+                       mode="fp32")
     assert out["pass"] is False
     assert out["status"] == "vacuous"
 
@@ -195,29 +247,26 @@ def test_the_pinned_sdpa_context_still_runs_attention(stand):
 # --------------------------------------------------------------------------
 # gemm_4bit path counter
 # --------------------------------------------------------------------------
-def _fake_bnb_ops():
-    calls = []
-    ops = SimpleNamespace(
-        _dequant_linear_fallback=lambda act, *a, **kw: calls.append("dequant"),
-        _gemm_4bit_kernel_impl=lambda act, *a, **kw: calls.append("custom"),
+def _fake_runtime(custom_up_to=128):
+    """A stand-in for ``layer_stream_runtime``: the dispatch decision the patched forward asks."""
+    return SimpleNamespace(
+        _can_use_checkpoint_visible_nf4_gemm=lambda x, state: x.shape[0] <= custom_up_to
     )
-    return ops, calls
 
 
 def _mat(rows):
     return SimpleNamespace(numel=lambda: rows * 8, shape=(rows, 8))
 
 
-def test_path_counter_counts_by_rows_and_restores_the_functions(stand):
-    ops, calls = _fake_bnb_ops()
-    original = ops._dequant_linear_fallback
-    with stand.GemmPathCounter(ops) as counter:
-        ops._gemm_4bit_kernel_impl(_mat(16))
-        ops._dequant_linear_fallback(_mat(2048))
-        ops._dequant_linear_fallback(_mat(2048))
-    assert counter.counts == {16: {"custom": 1, "dequant": 0}, 2048: {"custom": 0, "dequant": 2}}
-    assert calls == ["custom", "dequant", "dequant"]  # the real functions still ran
-    assert ops._dequant_linear_fallback is original
+def test_path_counter_counts_every_m_including_above_128_and_restores_the_hook(stand):
+    runtime = _fake_runtime()
+    original = runtime._can_use_checkpoint_visible_nf4_gemm
+    with stand.GemmPathCounter(runtime) as counter:
+        assert runtime._can_use_checkpoint_visible_nf4_gemm(_mat(64), None) is True
+        runtime._can_use_checkpoint_visible_nf4_gemm(_mat(2048), None)
+        runtime._can_use_checkpoint_visible_nf4_gemm(_mat(2048), None)
+    assert counter.counts == {64: {"custom": 1, "dequant": 0}, 2048: {"custom": 0, "dequant": 2}}
+    assert runtime._can_use_checkpoint_visible_nf4_gemm is original
 
 
 def test_paths_match_compares_the_kinds_of_path_not_the_m_values(stand):
@@ -228,7 +277,13 @@ def test_paths_match_compares_the_kinds_of_path_not_the_m_values(stand):
     assert stand.paths_match(one, None) is None
 
 
-def test_path_counter_without_bitsandbytes_cuda_ops_reports_not_counted(stand):
+def test_an_empty_counter_is_not_a_match(stand):
+    # 05 recorded ``l2l: {}`` and compared it with a non-empty GA: two empties must not agree.
+    assert stand.paths_match({}, {2048: {"custom": 0, "dequant": 1}}) is None
+    assert stand.paths_match({}, {}) is None
+
+
+def test_path_counter_without_a_runtime_reports_not_counted(stand):
     assert stand.GemmPathCounter(None).counts is None
 
 
@@ -247,8 +302,15 @@ def _payload(stand, **over):
                        "ga2": {2048: {"custom": 0, "dequant": 4}},
                        "l2l": {2048: {"custom": 0, "dequant": 4}}, "match": True},
         "ram_plan": {"cache_bytes": GIB, "need_total": 7e9},
-        "verdict": {"pass": True, "status": "equal", "note": "", "a_vs_a": {"equal": True},
-                    "l2l_vs_ga": {"equal": True, "max_abs": 0.0, "steps": (3, 3)}},
+        "verdict": {"pass": True, "status": "within_tolerance", "note": "",
+                    "a_vs_a": {"equal": True},
+                    "l2l_vs_ga": {"equal": False, "max_abs": 0.25, "steps": (3, 3)},
+                    "tolerance": {"mode": "bf16", "factor": 1.5, "limit_fp32": 1e-4,
+                                  "grad_rel": [0.018, 0.016, 0.053],
+                                  "grad_limit": [0.021, 0.0225, 0.0675],
+                                  "floor_grad": [0.014, 0.015, 0.045],
+                                  "loss_rel": [0.0, 0.0, 0.0], "loss_limit": [0.0, 0.0, 0.0],
+                                  "floor_loss": [0.0, 0.0, 0.0], "failing": [], "pass": True}},
     }
     base.update(over)
     return base
@@ -263,6 +325,18 @@ def test_report_has_every_required_fact(stand):
         assert needle in text, needle
     assert "ga1: {2048: {'custom': 0, 'dequant': 4}}" in text
     assert "not counted" not in text
+
+
+def test_report_prints_the_tolerance_and_its_values(stand):
+    text = stand.render_report(_payload(stand))
+    assert "## Tolerance" in text
+    assert "1.5" in text and "1e-04" in text.replace("0.0001", "1e-04")
+    assert "0.053" in text and "0.0675" in text  # error and limit of the worst step
+
+
+def test_an_empty_gemm_counter_gets_a_warning(stand):
+    text = stand.render_report(_payload(stand, gemm_paths={"ga1": {}, "l2l": {}, "match": None}))
+    assert "WARNING: gemm_4bit paths were not counted" in text
 
 
 def test_uncounted_gemm_paths_get_a_warning(stand):
@@ -319,10 +393,11 @@ def test_the_stand_passes_end_to_end_on_the_tiny_model(streamed, stand, tmp_path
     )
     result = stand.run_stand(
         model, runtime, rows, k=3, work_dir=tmp_path,
-        trainer_options={"use_cpu": True}, dtype=None,
+        trainer_options={"use_cpu": True}, dtype=None, mode="fp32",
     )
     verdict = result.verdict
-    assert verdict["status"] == "equal" and verdict["pass"] is True
+    assert verdict["status"] == "within_tolerance" and verdict["pass"] is True
+    assert verdict["tolerance"]["grad_rel"] == pytest.approx([0.0] * 3, abs=1e-4)
     assert verdict["a_vs_a"]["equal"] is True
     assert verdict["l2l_vs_ga"]["steps"] == (3, 3)  # windows of 3, 3 and 1 row
     assert set(result.logs) == {"ga1.log", "ga2.log", "l2l.log"}
@@ -332,21 +407,32 @@ def test_the_stand_passes_end_to_end_on_the_tiny_model(streamed, stand, tmp_path
 def test_the_stand_reports_a_failure_when_l2l_is_broken(streamed, stand, tmp_path, monkeypatch):  # noqa: F811
     model, runtime = streamed
     rows = stand.SyntheticRows(lengths=[SEQ] * 3, masked_spans=[[], [], []], vocab=64)
-    real = stand.compare_runs
+    real = stand.train_arm
 
-    def broken(ref, cand):
-        out = real(ref, cand)
-        if cand.l2l:
-            out.update(grads_equal=False, equal=False, max_abs=0.125)
-        return out
+    def broken(*args, **kwargs):
+        record = real(*args, **kwargs)
+        if record.l2l:  # an L2L whose gradients are 1% off
+            record.grads = [{n: g * 1.01 for n, g in step.items()} for step in record.grads]
+        return record
 
-    monkeypatch.setattr(stand, "compare_runs", broken)
+    monkeypatch.setattr(stand, "train_arm", broken)
     result = stand.run_stand(
         model, runtime, rows, k=3, work_dir=tmp_path,
-        trainer_options={"use_cpu": True}, dtype=None,
+        trainer_options={"use_cpu": True}, dtype=None, mode="fp32",
     )
-    assert result.verdict["status"] == "l2l_differs"
+    assert result.verdict["status"] == "l2l_out_of_tolerance"
     assert result.verdict["pass"] is False
+
+
+def test_the_stand_runs_a_floor_arm_when_given_a_second_backend(streamed, stand, tmp_path):  # noqa: F811
+    model, runtime = streamed
+    rows = stand.SyntheticRows(lengths=[SEQ] * 3, masked_spans=[[], [], []], vocab=64)
+    result = stand.run_stand(
+        model, runtime, rows, k=3, work_dir=tmp_path, trainer_options={"use_cpu": True},
+        dtype=None, mode="bf16", floor_sdpa=stand.pinned_sdpa,
+    )
+    assert "ga_floor.log" in result.logs
+    assert result.verdict["tolerance"]["floor_grad"] is not None
 
 
 # --------------------------------------------------------------------------
