@@ -16,6 +16,7 @@ They are the evidence behind the preprint:
 
 | File | What it gates | Headline |
 |---|---|---|
+| [`d1-final-result-20261016.md`](d1-final-result-20261016.md) | Scoped checkpoint-safe BF16 NF4 kernel; exact full updates through Soup's streaming runtime on a synthetic four-layer decoder | **Research review; full D1 open.** Peak allocated −157 MiB, reserved −140 MiB on the stated fixture. Formal speed verdict **NO_VERDICT** due to clock drift. Production is not switched. [Raw data and historical reports](D1_EVIDENCE.md) are archived separately with per-file integrity checks. |
 | [`B1.2 trained-layer forward gate`](results/b1.2-olmoe-forward-20261020/report.md) | Forward-only expert streaming on trained OLMoE layers; RTX 3060 | 12/12 prospective cells PASS: CPU fp32, CUDA BF16/NF4/nested NF4 at layers 0/7/15. Exact output hashes, effective negative controls and 12/16 MiB CUDA weight arenas within a 64 MiB budget. |
 | [`probe-c1-batch-vast.md`](probe-c1-batch-vast.md) | C1 synthetic 70B batch control on RTX 3090; guest virtual-disk scope | 60 accepted arms: batch 1/2/3 at 48.05/95.45/124.74 input tok/s; batch 3 wins among tested choices. One void block retained; no additional F1 repeats requested. |
 | [`probe-e3-lorafa-vast.md`](probe-e3-lorafa-vast.md) | E3 LoRA / LoRA-FA under RAM streaming at 512, 2048 and 4096 tokens | Exploratory RTX 3090 study: 60 accepted arms, 5.25 MiB lower peak allocated memory with FA and longer observed steps. Preserves invalid runs and the missing pre-run protocol commit as an acceptance limitation. |
