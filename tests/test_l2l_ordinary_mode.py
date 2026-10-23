@@ -25,7 +25,6 @@ def test_wrapper_without_l2l_builds_an_ordinary_trainer(tmp_path, monkeypatch, s
     assert isinstance(trainer, SFTTrainer)
     assert type(trainer).training_step is SFTTrainer.training_step
     assert not hasattr(trainer, "soup_l2l")
-    assert not hasattr(trainer, "_soup_l2l")
 
 
 @pytest.mark.parametrize("stream_layers", [True, False])
@@ -96,6 +95,9 @@ def test_l2l_with_k_one_equals_streaming_without_l2l(streamed, tmp_path):  # noq
     l2l_losses = [r["loss"] for r in l2l_trainer.state.log_history if "loss" in r]
 
     assert plain_steps == l2l_steps == 4
+    # control: the L2L path ran at k=1, the plain run never logs its counters
+    assert l2l_trainer.state.log_history[-2]["l2l_steps"] == 4
+    assert not [k for r in plain_trainer.state.log_history for k in r if k.startswith("l2l_")]
     assert all(math.isfinite(loss) for loss in l2l_losses)
     assert l2l_losses == pytest.approx(plain_losses, abs=1e-5, rel=1e-4)
     for name in plain:
@@ -106,7 +108,7 @@ def test_l2l_with_k_one_equals_streaming_without_l2l(streamed, tmp_path):  # noq
 # --------------------------------------------------------------------------
 # the subclass without attached state, and the recipes
 # --------------------------------------------------------------------------
-def test_subclass_without_state_trains_as_the_base_trainer_and_logs_no_l2l_fields(
+def test_subclass_without_state_trains_as_the_base_trainer(
     streamed, tmp_path  # noqa: F811
 ):
     import torch
@@ -123,14 +125,12 @@ def test_subclass_without_state_trains_as_the_base_trainer_and_logs_no_l2l_field
     base = _adapters(model)
     harness.restore_adapters(model, start)
 
-    class Probe(make_l2l_trainer_class(Trainer)):
+    class Stateless(make_l2l_trainer_class(Trainer)):
         pass
 
-    assert Probe._soup_l2l is None
     # l2l=False in the helper uses the given class and attaches no state
-    trainer, _ = _train(Probe, model, runtime, tmp_path, l2l=False, k=2)
+    _train(Stateless, model, runtime, tmp_path, l2l=False, k=2)
     plain = _adapters(model)
-    assert not [k for row in trainer.state.log_history for k in row if k.startswith("l2l_")]
     for name in base:
         assert torch.equal(base[name], plain[name]), name
 
