@@ -1,0 +1,124 @@
+H2 preparation — current state,2026-10-23
+Branch research/h2-kernel-comparison; base f043bcd33d791a8e88fe6b729dddb5102baa1daf.
+Status: CPU_COMPONENTS_TESTED; NO_8B_CUDA_OR_PERFORMANCE_VERDICT. No H2 rent.
+This is prospective preparation, not a frozen executable performance study.
+
+Task and dependencies
+Compare baseline Transformers, Liger and Unsloth on the same8B recipe with actual
+LoRA updates, numerics, useful/padded/processed token accounting, interleaved
+full-window throughput and peakVRAM. A configuration-specific multiplier requires
+accepted hardware evidence, not a kernel flag or local CPU timing.
+D1 PR16 is open/approved with scope limitations; D2 PR5 and D3 PR28 are open with
+changes requested at last check. H1 accepted receipt is unverified. Board checklist
+completion is not proof that code is included in this main. See dependencies.json.
+Dense8B does not exercise groupedMoE; record D3 applicability explicitly. Do not
+merge or port another owner's unaccepted work as part of this preparation.
+
+Model candidate and actual tokenizer
+model_candidate_metadata.json records two immutable repositories. Upstream Meta
+Llama-3.1-8B is gated. The public unsloth/Meta-Llama-3.1-8B candidate revision is
+e9a141a2091ea561b96483212645a2a05e6f99fc. Published SHA256 for its four safetensors
+shards match Meta metadata; all four weight shards were downloaded and fully
+SHA256-verified locally. snapshot_preparation_result.json pins11files/16,077,845,652bytes.
+The independent structure audit passed for291tensors/8,030,261,248parameters. Config/tokenizer artifacts differ from upstream, so do not claim that
+all files are identical. Use one exact snapshot for ALL arms and declare its
+identity. Access/license confirmation remains pending; successful byte verification does
+not imply a CUDA or performance verdict.
+Small config/tokenizer/index files were downloaded anonymously and verified by
+published LFS SHA256 or Git blob identity. The mirror has no chat_template.
+All three candidate configs now explicitly set data.chat_template=llama3 using
+Soup's registered template. The override is required before SFT formatting.
+The connected USB holds Ollama GGUF Mistral/llama3/llama3.1 variants; they were
+inventoried without copying/loading weights. They are not used as the HF/NF4
+reference. Dequantizing GGUF would be a separately declared source/workload choice.
+
+Workload scope — important
+The128deterministic arithmetic rows actually produce3072nonpadding tokens,
+768causal useful targets and maximum24tokens with the actual candidate tokenizer.
+prepared_fixture_candidate.jsonl and tokenizer_preparation_result.json retain the
+actual formatter output and SHA. These SHORT examples are for correctness ONLY.
+max_length512 is an upper bound, not proof of512processed tokens per row. Design
+and freeze a separate representative performance workload before timing kernels.
+Candidate settings otherwise share microbatch1,GA4, seed/data_seed42, one epoch,
+NF4 QLoRA r16/alpha32/dropout0 on seven projections, AdamW2e-4, constant LR,
+no warmup and checkpointing. Expected32updates requires all128rows retained and
+complete accumulation. Only backend/Liger flag and output paths differ. Synthetic
+data tests systems behavior; no quality/convergence claim follows.
+
+Runtime candidate — metadata resolution is not a CUDA pass
+runtime_candidate.lock resolves104packages for Python3.11/Linuxx86_64 with wheel
+hashes. Key pins: torch2.14.1,transformers5.17.0,trl0.29.1,peft0.21.2,
+bitsandbytes0.50.2,liger-kernel0.8.5,unsloth/unsloth-zoo2026.10.7,triton3.8.0.
+The resolution includes CUDA13.0 runtime packages; choose and verify a compatible
+host driver before any paid run. Unsloth's current metadata caps Transformers at
+5.17.0, so the original local5.19.0 tests alone did not establish a common stack.
+An isolated local CPU environment with5.17.0/tokenizers0.23.3/datasets4.8.5 passes
+all96H2tests. Other CPU dependencies are shared read-only from the existing local
+venv. This is NOT an installation/import/JIT test of all104Linux packages.
+Liger,Unsloth and CUDA execution remain unvalidated. No main venv was modified.
+
+Implemented correctness evidence
+- h2_update_oracle.py: exact expected trainable manifest, before/after adapter
+  bytes, frozen parameters/buffers, finite loss/gradients and nonzero updates.
+- h2_quant_state.py: packed NF4 bytes plus reviewed Params4bit/QuantState decode
+  state, nested scales/codebook/offset, shape/dtype and source identity. Unknown,
+  uninitialized, nonfinite or inconsistent schemas fail. Actual tiny CPU NF4
+  quantize/dequantize and hidden-state mutation controls pass; not8B QLoRA.
+- h2_work_equivalence.py: ordered input IDs, masks, labels and counts, backwards
+  and complete accumulation boundaries. Equal counts with different masks fail.
+- h2_numerics.py: deterministic first collated row, train-mode scalar model loss
+  and raw adapter gradients, no optimizer; restore torch RNG/module modes and
+  clear probe gradients. Safetensors export and independent CPU metrics enforce
+  the prospective NUMERICAL_POLICY.txt/JSON. Limits are not validated on8B CUDA.
+  One-row model parity does not verify TRL accumulation normalization/full32-step
+  numerical equivalence, model quality or kernel attribution.
+- h2_trainer_smoke.py: actual offline Soup/TRL/PEFT tiny random CPU Llama. Normal
+  updates pass; no-op optimizer and wrong targets fail. Per-batch/backward/step
+  JSONL and profiler operation names are retained. Not throughput evidence.
+- h2_gpu_correctness.py: unvalidated fresh-process prototype for exact Llama3.1
+  architecture/LoRA shapes,NF4/bf16, one CUDA device, backend attribution and
+  correct observed work/updates. Requires committed code, exact versions/model
+  files, numerical policy SHA, live boot/GPU identity and explicit H2 authority.
+  Module/forward names do not substitute for independent executed-kernel review.
+- h2_watchdog.py: local POSIX process-group supervision, whole-child timeout,
+  TERM/KILL with a held session leader, bounded logs and failure receipts. Real
+  macOS tests cover resistant descendants, orphan cleanup, isolated process
+  survival, exits and flood limits. No arbitrary-session containment or Linux
+  CUDA guarantee is claimed. It cannot stop provider billing or delete resources.
+
+Before GPU correctness
+1. Resolve dependency acceptance/applicability and review this candidate.
+2. Obtain/verify approved full model+tokenizer snapshot and common Linux packages,
+   including wheel/source identity, actual compute dtype and checkpointing behavior.
+3. Owner commits/pushes source and policy; freeze exact attempt authority. The
+   example contract is DISABLED and null budget/model/source fields are not guesses.
+4. Obtain a NEW explicit H2 cap, bounded lease and cleanup plan; G3's$3 does not
+   apply. Run only on its exact authorized instance, never another person's GPU.
+5. Use the external watchdog, not the runner's soft SIGALRM alone. Keep package
+   writers out. Retain every failure; no silent fallback, resume or automatic retry.
+6. Independently audit probe parity, actual updates, raw work and kernel trace;
+   preserve local evidence with every file SHA before provider cleanup.
+
+Before ANY performance claim
+Freeze separate full-training numerical/F1/clocks/timing/peakVRAM controls and a
+representative workload. baseline-vs-Liger and baseline-vs-Unsloth prospective
+ABBA5pilot+METHOD one-topup remains planned, not implemented/accepted. Record
+actual optimizer, target names, quantized initial state, loss reduction, dtype,
+attention/checkpointing/kernel dispatch. Unsloth chooses its own dtype/checkpoint
+path; flags alone are not equivalence. Instrumented hashing/profiling windows
+must never supply a throughput multiplier. No performance run is authorized.
+
+Local checks (no network/model loading/GPU)
+PYTHONPATH=src python -m pytest --no-cov tests/test_h2_*.py -q
+ruff check src/soup_cli/ scripts/ tests/ benchmarks/
+All96H2tests and full Ruff pass on the explicitly recorded CPU stacks.
+Historical *_result.json and private archives preserve earlier source hashes;
+they are not rewritten to claim old runs used today's code. manifest.json pins
+current payload files. No agent commit/push/PR/card edit/message/rental occurred.
+
+Snapshot transfer
+Copy only the11files listed in snapshot_preparation_result.json to a clean
+/data/h2/model_snapshot. Keep the external H2_SNAPSHOT_RECEIPT.json and macOS
+AppleDouble ._* files outside that directory. The GPU runner rejects extra files
+and rehashes every listed file; this strict check remains unchanged. The complete
+snapshot is on the external USB, not bundled into Git or duplicated on the Mac.
