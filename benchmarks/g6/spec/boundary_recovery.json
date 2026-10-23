@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "scope": "one-nvml-infrastructure-recovery",
+  "status": "PREPARED_NOT_RUN",
+  "new_series_attempts": 1,
+  "target_instance_id": 57170422,
+  "target_gpu_uuid_sha256": "c126c954f6e5da364ca24fd40092d14b649f87ea232b1dc366902a6238550314",
+  "expected_driver_version": "580.178.04",
+  "cumulative_budget_usd": 5,
+  "budget_resets": false,
+  "base_contract": {
+    "path": "benchmarks/g6/spec/boundary_confirmation.json",
+    "sha256": "8f8c1607cb0302347b7bd8ff5f98ce693aa6d4975b7159a424af99d52ecb926c",
+    "commit": "fee72251eb3a7b35f4b164e353bd23f896cc5fe1"
+  },
+  "model_order": [
+    "initial",
+    "baseline",
+    "coherence_filter",
+    "length_curriculum",
+    "reverse_length_curriculum"
+  ],
+  "model_task_decoder_scorer_or_threshold_changes": false,
+  "prior_failure": {
+    "kind": "NVML driver/library mismatch before any generation file",
+    "archive_sha256": "3bbdec6bcad8a04f53a748581fbf629f28618ef670a49d7c4f6382ea735688cc",
+    "archive_bytes": 71577159,
+    "boot_id_sha256": "c767ec6e74ca66047c1f351d1fc6f4f48a784a465e15069d65b4a89bed00d5ef",
+    "required_members_sha256": {
+      "runs/initial/failure.json": "a05d6fb97c373cddb9ece7e697e0d0a6a83f1f42f6d42c597ebfae820f54f10b",
+      "runs/initial.launcher.json": "0471311b4a294d2c5a69fbb01faeae3b0bbab687a448e0bd34d9c043b479a30a",
+      "final_inventory_001.json": "e9a00987c4835462ae827f400c1c4e65167c8147e6a6105b9950d96528e7977f"
+    },
+    "local_preservation_receipt_sha256": "61f97dcba7fd4364f89ad69484612d7425ea642d4a1975c12f5171b72de4ce5a"
+  },
+  "harness_sha256": "ae7e6e5f4d4df460202c8229deb167c43a350f41538c25dc571f21a5791190f9",
+  "calibration_source_sha256": "573b99ee0bdef7c9e1f8226b760917c64b434164729083ded65535bdf435e6e8",
+  "source_sha256": {
+    "benchmarks/g6/boundary_recovery_preflight.py": "8af9bcbd5842e24f3610dd1c7abe32ca886cb8f6259242b089bfc34dc410b8a3",
+    "benchmarks/g6/BOUNDARY_RECOVERY_PROTOCOL.txt": "1c5170286ffdea49217dae5e889e1c283e17f0a64ded203e5e9937bd6bea4cd9",
+    "benchmarks/g6/boundary_recovery_commit_paths.txt": "4688d4c1e04cbe1d4eeced0514eda3a4a5ce73eab407c219fa24499be0ca79b9",
+    "tests/test_g6_boundary_recovery.py": "979f52ec8b6c2b9d6fd93ba09d3cfc29d257ca3390abcc0cdad907c4c20fc625"
+  },
+  "quality_verdict": "NO_VERDICT",
+  "new_training_allowed": false,
+  "provider_actions_implemented": false,
+  "execution_authority_required": true
+}
