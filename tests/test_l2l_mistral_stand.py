@@ -220,11 +220,12 @@ def test_path_counter_counts_by_rows_and_restores_the_functions(stand):
     assert ops._dequant_linear_fallback is original
 
 
-def test_paths_match_only_for_the_same_path_at_every_m(stand):
+def test_paths_match_compares_the_kinds_of_path_not_the_m_values(stand):
     one = {2048: {"custom": 0, "dequant": 5}}
-    assert stand.paths_match(one, {2048: {"custom": 0, "dequant": 9}}) is True
+    assert stand.paths_match(one, {1024: {"custom": 0, "dequant": 9}}) is True
     assert stand.paths_match(one, {2048: {"custom": 3, "dequant": 0}}) is False
-    assert stand.paths_match(one, {1024: {"custom": 0, "dequant": 5}}) is False
+    assert stand.paths_match(one, {2048: {"custom": 3, "dequant": 5}}) is False
+    assert stand.paths_match(one, None) is None
 
 
 def test_path_counter_without_bitsandbytes_cuda_ops_reports_not_counted(stand):
@@ -242,7 +243,8 @@ def _payload(stand, **over):
         "env": {"packages": {"torch": "2.14.1", "bitsandbytes": "0.50.2"}, "gpu": "RTX 3060"},
         "deterministic": {"CUBLAS_WORKSPACE_CONFIG": ":4096:8", "algorithms": "strict"},
         "sdpa": {"pinned": "MATH", "probe": {"MATH": {"ok": True}}},
-        "gemm_paths": {"ga": {2048: {"custom": 0, "dequant": 4}},
+        "gemm_paths": {"ga1": {2048: {"custom": 0, "dequant": 4}},
+                       "ga2": {2048: {"custom": 0, "dequant": 4}},
                        "l2l": {2048: {"custom": 0, "dequant": 4}}, "match": True},
         "ram_plan": {"cache_bytes": GIB, "need_total": 7e9},
         "verdict": {"pass": True, "status": "equal", "note": "", "a_vs_a": {"equal": True},
@@ -259,6 +261,13 @@ def test_report_has_every_required_fact(stand):
         "RTX 3060", ":4096:8", "MATH", "gemm_4bit", "PASS", "A-vs-A",
     ):
         assert needle in text, needle
+    assert "ga1: {2048: {'custom': 0, 'dequant': 4}}" in text
+    assert "not counted" not in text
+
+
+def test_uncounted_gemm_paths_get_a_warning(stand):
+    text = stand.render_report(_payload(stand, gemm_paths={"match": None}))
+    assert "WARNING: gemm_4bit paths were not counted" in text
 
 
 def test_synthetic_and_real_results_are_labelled_apart(stand):

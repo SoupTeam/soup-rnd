@@ -237,14 +237,18 @@ class GemmPathCounter:
 def paths_match(
     left: Optional[Dict[int, Dict[str, int]]], right: Optional[Dict[int, Dict[str, int]]]
 ) -> Optional[bool]:
-    """True when both arms saw the same M values and the same path at each; None if uncounted."""
+    """True when both arms used the same set of gemm_4bit paths; None if uncounted.
+
+    Not keyed by M: GA runs rows at their own length and an L2L window is padded to a
+    multiple of 64, so the M values differ by design. The per-M counts stay in the report.
+    """
     if left is None or right is None:
         return None
 
-    def used(counts: Dict[int, Dict[str, int]]) -> Dict[int, set]:
-        return {m: {p for p, n in paths.items() if n} for m, paths in counts.items()}
+    def kinds(counts: Dict[int, Dict[str, int]]) -> set:
+        return {path for paths in counts.values() for path, n in paths.items() if n}
 
-    return used(left) == used(right)
+    return kinds(left) == kinds(right)
 
 
 # --------------------------------------------------------------------------
@@ -407,7 +411,8 @@ def train_arm(
 
 
 def _log_text(run: RunRecord) -> str:
-    return "\n".join(json.dumps(row, sort_keys=True) for row in run.logs) + "\n"
+    rows = [json.dumps(row, sort_keys=True) for row in run.logs]
+    return "\n".join(rows + [json.dumps({"lr_per_step": run.rates})]) + "\n"
 
 
 @dataclass
@@ -497,7 +502,9 @@ def render_report(payload: Dict[str, Any]) -> str:
         lines.append(f"- {arm}: {gemm.get(arm, 'not counted')}")
     lines.append(f"- same path in GA and L2L: {gemm.get('match')}")
     if gemm.get("match") is False:
-        lines.append("- WARNING: the arms did not use the same gemm_4bit path at the same M")
+        lines.append("- WARNING: the arms did not use the same set of gemm_4bit paths")
+    elif gemm.get("match") is None:
+        lines.append("- WARNING: gemm_4bit paths were not counted (no bitsandbytes CUDA ops)")
     lines += ["", "## RAM plan", ""]
     lines += [f"- {key}: {value}" for key, value in payload.get("ram_plan", {}).items()]
     a_vs_a = verdict.get("a_vs_a") or {}
@@ -645,7 +652,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "gemm_paths": result.gemm_paths, "ram_plan": plan, "verdict": result.verdict,
         "k": parsed.k, "rows": parsed.rows, "seq": parsed.seq,
     }
-    write_outputs(Path(parsed.out), payload, result.logs)
+    try:
+        write_outputs(Path(parsed.out), payload, result.logs)
+    except StandRefusedError as exc:
+        print(f"REFUSED: {exc}")
+        return 2
     print(f"verdict {result.verdict['status']}: {result.verdict['note'] or 'bit-equal'}")
     print(f"wrote {Path(parsed.out) / 'report.md'}")
     return 0 if result.verdict["pass"] else 1
