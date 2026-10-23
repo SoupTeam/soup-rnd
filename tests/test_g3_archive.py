@@ -73,11 +73,17 @@ def test_changed_archive_sha_refused_before_extracting(tmp_path):
     assert not (tmp_path/'verified').exists()
 
 
-def test_pack_rejects_links_and_output_inside_session(tmp_path):
+def test_pack_rejects_output_inside_session(tmp_path):
     root = tmp_path/'session'
     root.mkdir()
     with pytest.raises(ValueError):
         archive.pack(root, root/'archive.tar.gz')
+
+
+@pytest.mark.requires_symlink
+def test_pack_rejects_links(tmp_path):
+    root = tmp_path/'session'
+    root.mkdir()
     (root/'link').symlink_to('/etc/passwd')
     with pytest.raises(ValueError, match='Symlink'):
         archive.pack(root, tmp_path/'archive.tar.gz')
