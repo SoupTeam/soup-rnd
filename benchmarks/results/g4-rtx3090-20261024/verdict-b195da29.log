@@ -1,0 +1,32 @@
+V1_error_eligible                ok  error.json: cuda
+V2_harness_exact                 ok  GA == L2L, recording == plain, identity == plain in 2 sets (grads and losses torch.equal)
+V3_forward_exact                 ok  every codec's per-micro-batch losses torch.equal to exact L2L
+V4_codec_conforms                ok  every codec's element error within its definition
+V5_control_discriminates         ok  int4 must fail every error gate; it fails E1, E2 and E3
+V6_training_eligible             ok  four cuda arms
+V7_arms_complete                 ok  every arm ran every step, finite
+V8_same_inputs                   ok  same data, panel, harness, commit, versions, GPU and model
+V9_configs                       ok  every arm ran its own (codec, seed); codec arms differ only in codec, noise arm only in seed
+V10_first_step_forward_exact     ok  first-step per-micro-batch losses of the main-seed arms: {'bf16': [0.8514249920845032, 0.5370102524757385, 0.4189463257789612, 0.6421406865119934], 'int8': [0.8514249920845032, 0.5370102524757385, 0.4189463257789612, 0.6421406865119934], 'fp8_e4m3': [0.8514249920845032, 0.5370102524757385, 0.4189463257789612, 0.6421406865119934]}
+V11_noise_floor_usable           ok  seed-to-seed task-loss spread 0.0005525439157887391 must be <= 0.03 x exact task loss
+V12_suites_records               ok  four suites records, adapters match
+V13_base_parity                  ok  resident base reproduces the streamed model on every arm's parity rows (worst rel 0 <= 0.0025); live adapters equal their files
+V14_error_linked                 ok  error.json and every arm: same model, code, dependencies, data and setup
+
+int8: fail
+  E1 pass       max over layers: rms row rel 0.04799 (bound 0.05), worst row rel 0.1424 (bound 0.25); layers over: []
+  E2 fail       max branch rms row rel 0.1737 (bound 0.1); layers over: [2, 3, 4, 5, 6, 7]; layer output (residual included) 0.1097
+  E3 fail       worst set: global rel L2 0.4551 (bound 0.05), min tensor cosine -0.055615 (bound 0.99)
+  Q1 pass       task loss 1.418501 vs exact 1.417643: delta +0.000858, margin 0.007088
+  Q2 pass       mean train-loss gap over the last 99 steps +0.000506, margin 0.008539
+  Q3 pass       mini_mmlu 24/26 vs 25 (margin 2), mini_common_sense 22/24 vs 22 (margin 2), mini_instruction 23/24 vs 22 (margin 2), mini_arithmetic 27/40 vs 27 (margin 2)
+
+fp8_e4m3: pass
+  E1 pass       max over layers: rms row rel 0.02641 (bound 0.05), worst row rel 0.02846 (bound 0.25); layers over: []
+  E2 pass       max branch rms row rel 0.03223 (bound 0.1); layers over: []; layer output (residual included) 0.02604
+  E3 pass       worst set: global rel L2 0.03563 (bound 0.05), min tensor cosine 0.997300 (bound 0.99)
+  Q1 pass       task loss 1.418505 vs exact 1.417643: delta +0.000861, margin 0.007088
+  Q2 pass       mean train-loss gap over the last 99 steps -0.000725, margin 0.008539
+  Q3 pass       mini_mmlu 25/26 vs 25 (margin 2), mini_common_sense 22/24 vs 22 (margin 2), mini_instruction 24/24 vs 22 (margin 2), mini_arithmetic 28/40 vs 27 (margin 2)
+
+Verdict: PASS: fp8_e4m3
