@@ -1018,7 +1018,7 @@ class AsyncDiskSource:
             del self._slot_of[layer]
         return chosen
 
-    def _hold(self, idx: int) -> None:
+    def _hold(self, idx: int, *, staging: bool = True) -> None:
         """Mark ``idx``'s slot as in use and release the rest. Lock held.
 
         What "release the rest" may mean depends on how the staging was
@@ -1041,7 +1041,11 @@ class AsyncDiskSource:
           layer's weights. A loud stop is the only honest answer, because the
           alternative is a wrong gradient with no error anywhere.
         """
-        keep = self._slot_of.get(idx)
+        # A setup probe can leave an idle staging mapping for a layer later
+        # promoted into the immutable RAM hotset. A cache hit must check cold
+        # loans without borrowing that obsolete slot; release() tracks the
+        # cached arena's DMA event separately.
+        keep = self._slot_of.get(idx) if staging else None
         borrowed = [
             slot
             for slot in range(len(self._slots))
@@ -1328,7 +1332,7 @@ class AsyncDiskSource:
                 if idx in self._cache:
                     tensor = self._cache[idx][name]
                     self._check_the_reader_is_making_progress(idx)
-                    self._hold(idx)
+                    self._hold(idx, staging=False)
                     if idx not in self._cache_borrowed:
                         with self._open_buffered(self._paths[idx]) as handle:
                             if identity_of(handle) != self._identities[idx]:

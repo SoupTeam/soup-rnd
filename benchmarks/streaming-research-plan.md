@@ -72,8 +72,49 @@ or a larger-model task-quality result. Instance and persistent volume were delet
 That stage cost $0.492097 conservatively. Combined accounting since the 4B pilot is
 $2.334227, leaving $11.009379. The extra $10 allowance remains unused so far.
 
-Next: keep the same physical RAM/GPU boundary, use the supported SSD tier, profile,
-then qualify ordinary streaming / bounded RAM cache / GPU residency / both before
+Next: keep the same physical RAM/GPU boundary, use the supported SSD tier and qualify
+ordinary streaming / bounded RAM cache / GPU residency / both. Then profile and run
 matched timing. Preserve the existing source headroom and numerical tolerances.
 An automatic speed-aware placement policy remains separate from the existing
 startup capacity planner; maximum cache occupancy is not the acceptance target.
+
+## Latest SSD outcome and concrete next actions
+
+The [bounded 32B NF4 disk attempt](nf4-ssd-32b-20261024-blocked/README.md) completed
+preparation and a preliminary GPU-only capacity probe with seven resident layers.
+The combined 14 GiB RAM / GPU cache then hit the pinned staging-loan guard before
+independent accuracy qualification or accepted timing. A stale rotating-slot mapping
+was incorrectly borrowed again after the same layer entered the immutable RAM cache.
+The fix separates those ownership paths and preserves rejection of genuine cold loans.
+
+The CPU regression fails on the old behavior; a mutation bypassing the remaining
+cold-loan guard also fails. Focused validation: 200 passed, 18 CUDA skips; final changed
+module: 19 passed, 2 CUDA skips. The new real-CUDA regression still needs the retry.
+No performance benefit is inferred from the preliminary capacity probe. A separate
+prospective profiler warmup error was also repaired and checked against the native
+benchmark API; explicit stop signals now have retention-aware handlers in the helper.
+
+- [ ] Retry real-CUDA source/regression and native helper controls before model download.
+- [ ] Qualify all eight primary/semantics captures for the four cache variants; replay
+  complete tensors and actual parameter updates independently before subsequent phases.
+- [ ] Retain a separate CUDA diagnostic profile; ordinary speed runs remain unprofiled.
+- [ ] Retain all 16 fresh-process timing runs and 96 warmup/measured updates, then replay
+  all final adapters, losses, RAM/swap boundaries and batch identities.
+- [ ] Use the measured bottleneck and startup costs to choose a speed-aware placement
+  feature. Treat the existing auto-residency and RAM-hotset planners as capacity policies.
+
+Current task accounting since the 4B pilot is $2.842538 conservatively, leaving
+$10.501068 from the combined authorization. All instances and persistent volumes
+created by this task are deleted and independently absent by exact IDs. The user
+confirmed that the API key is shared by the group; unrelated colleague rentals stay
+untouched and outside this task's ledger. Lease/cleanup guards now use exact owned
+IDs and stage labels rather than demand an empty account; unresolved new resources
+on the selected machine remain a hard stop rather than being guessed or deleted.
+
+[10Cache](https://arxiv.org/html/2511.14124v1) motivates profiling tensor reuse/order
+and reusable pinned buffers. Soup already has asynchronous reads, prefetch and pinned
+arenas, so copying those concepts alone is not a new feature. After the NF4 profile,
+compare exposed source waits, large vocabulary loads and repeated dequantization before
+choosing a cache or kernel change. The paper's DeepSpeed training gains are not Soup
+LoRA measurements. Preserve memory headroom and measure benefit rather than target 100%
+occupancy or extrapolate the paper's speedups.

@@ -7,6 +7,55 @@ import pytest
 from tests.test_stream_ram_cache import source
 
 
+def test_promoted_cache_hit_does_not_borrow_its_stale_staging_slot(tmp_path):
+    import threading
+
+    import torch
+
+    from soup_cli.utils.async_disk_source import AsyncDiskSource
+    from soup_cli.utils.safetensors_reader import identity_of
+
+    # A completed setup probe can leave layer 0 in an idle rotating slot when
+    # the independent RAM hotset subsequently promotes that same layer.
+    ours = object.__new__(AsyncDiskSource)
+    ours._ready = threading.Condition()
+    ours._error, ours._closed, ours.pinned = None, False, True
+    cached = torch.tensor([10.0])
+    ours._cache = {0: {"weight": cached}}
+    ours._slots = [{"weight": torch.tensor([10.0])}, {"weight": torch.tensor([20.0])}]
+    ours._slot_of = {0: 0, 1: 1}
+    ours._live, ours._drain = [False, False], [None, None]
+    ours._resident = frozenset()
+    ours._cache_borrowed, ours._cache_events = {0}, {}
+    ours._cache_stats = {"tensor_hits": 0}
+    path = tmp_path / "cached-layer"
+    path.write_bytes(b"unchanged cached shard")
+    ours._paths = {0: path}
+    ours._open_buffered = lambda filename: open(filename, "rb")
+    with path.open("rb") as handle:
+        ours._identities = {0: identity_of(handle)}
+    ours._check_the_reader_is_making_progress = lambda _idx: None
+    ours._note_direction = lambda _idx: None
+    ours._plan_queue = lambda _idx: []
+
+    class PendingCopy:
+        def query(self):
+            return False
+
+    event = PendingCopy()
+    assert ours.get(0, "weight") is cached
+    ours.release(0, event)
+    # The cached copy drains from its private arena, not the old rotating slot.
+    ours._slots[0]["weight"].fill_(-1)
+    assert torch.equal(cached, torch.tensor([10.0]))
+    assert torch.equal(ours.get(1, "weight"), torch.tensor([20.0]))
+    # Cache hits must still reject a genuinely outstanding *cold* staging loan.
+    with pytest.raises(RuntimeError, match="on loan"):
+        ours.get(0, "weight")
+    ours.release(1)
+    assert ours._cache_events[0] is event
+
+
 @pytest.mark.parametrize("depth", [1, 2, 4])
 @pytest.mark.parametrize("ram_bytes", [0, 16384])
 def test_source_skips_gpu_layers_and_preserves_rotating_pool_bytes(
@@ -189,6 +238,52 @@ def test_pinned_joint_cache_uses_real_cuda_pool_and_retains_exact_bytes(tmp_path
             for name, actual in values.items():
                 assert torch.equal(_raw_bytes(actual.cpu()), _raw_bytes(reference.get(idx, name)))
         assert RamSource.layer_specs_from_shards(folder, 8) == specs
+    finally:
+        ours.close()
+        reference.close()
+
+
+@pytest.mark.gpu
+def test_promoted_probe_slot_does_not_block_large_layer_dma(tmp_path, monkeypatch):
+    import torch
+
+    from soup_cli.utils.async_disk_source import AsyncDiskSource
+    from soup_cli.utils.layer_stream_runtime import (
+        DiskSource,
+        LargeLayerBufferPool,
+        LayerBufferPool,
+    )
+    from tests.test_issue971_async_disk_source import _raw_bytes
+
+    folder, specs, seed_source = source(tmp_path, monkeypatch, budget=0)
+    seed_source.close()
+    ours = AsyncDiskSource(folder, 8, specs, pin=True, ram_cache_bytes=0)
+    # Demand reads still use the real reader. Suppress speculation only to keep
+    # the completed setup probe's stale layer-0 mapping deterministic.
+    monkeypatch.setattr(ours, "_plan_queue", lambda _idx: [])
+    reference = DiskSource(folder, 8, specs)
+    pool = LayerBufferPool(specs[0], device="cuda")
+    stream = torch.cuda.Stream()
+    try:
+        pool.reserve_layers([1, 2, 3, 4, 5, 6], ours, stream)
+        ours.set_resident_layers([1, 2, 3, 4, 5, 6])
+        pool.load_async(0, ours, stream)
+        pool.wait(0)
+        ours.configure_ram_cache(8192)
+        assert ours.ram_cache_stats()["indices"] == [0]
+        assert 0 in ours._slot_of, "the regression requires the probe's idle staging mapping"
+        pool.load_async(0, ours, stream)
+        cached = {name: value.clone() for name, value in pool.wait(0).items()}
+
+        name = next(iter(specs[7]))
+        large = LargeLayerBufferPool({name: specs[7][name]}, {name: 7}, device="cuda")
+        large.load_async(name, ours, stream)
+        cold = large.wait(name).clone()
+        ours.close()
+        torch.cuda.synchronize()
+        for key, value in cached.items():
+            assert torch.equal(_raw_bytes(value.cpu()), _raw_bytes(reference.get(0, key)))
+        assert torch.equal(_raw_bytes(cold.cpu()), _raw_bytes(reference.get(7, name)))
     finally:
         ours.close()
         reference.close()
