@@ -455,7 +455,7 @@ training:
   stream_source: auto          # 'auto' (same-host RAM), 'ram', 'disk' (v0.72.3)
   stream_ngram_source: auto    # Qwen4 PLE only: 'auto', 'ram', or read-only 'disk'
   stream_buffers: 2            # Double-buffering; range [2, 8]
-  # stream_resident_layers: auto  # Keep selected weights in spare VRAM (CUDA/RAM SFT)
+  # stream_resident_layers: auto  # Keep selected weights in spare VRAM (CUDA RAM/SSD SFT)
   stream_read_ahead: 2         # Disk tier only; range [1, 8]. N stages N-1 layers ahead, and each level costs one layer of pinned host RAM
   # stream_ram_cache_mb: 14336 # Optional SSD-tier RAM hotset allocation ceiling in MiB; 0 disables it
   # stream_pin: false          # Force the pinned RAM store off (escape hatch) or on; unset = automatic. See below
@@ -476,13 +476,16 @@ measures forward/backward at the configured batch size and maximum context, then
 centred block of frozen decoder weights in private GPU slots. They are copied once during
 setup and reused across training steps. Other layers use the existing rotating buffers.
 An integer selects that many centred layers; `0` (the default) leaves ordinary streaming.
-The complete host store is retained. This does not change precision or update base weights.
+The complete host store is retained on the RAM tier. This does not change precision
+or update base weights.
 
-The first scope is dense text SFT on CUDA with a RAM source and an AdamW optimizer.
+The scope is dense text SFT on CUDA with a RAM or coordinated async SSD source and
+an AdamW optimizer.
 NF4 slots keep the packed weights and quantization sidecars; dense slots keep the existing
-dtype. Automatic mode reports a fallback on CPU/MPS or the disk tier. Explicit positive
-counts refuse unsupported or over-budget requests. This pool feature does not suppress
-the disk reader's independent speculative reads, so it is not offered as an NVMe cache.
+dtype. Automatic mode reports a fallback on CPU/MPS or unsupported disk sources.
+Explicit positive counts refuse unsupported or over-budget requests. On the async
+SSD source, already preloaded GPU layers are removed from speculative read queues.
+In-flight setup reads may finish once; subsequent lookahead skips GPU-resident indices.
 
 The measured candidate must fit the smallest of 85% of physical VRAM, currently free plus
 reserved memory, and `stream_vram_override`, after a 64 MiB setup reserve and an estimated
@@ -503,7 +506,11 @@ RAM, `training.stream_ram_cache_mb` can keep a fixed, centred hotset of frozen l
 in host memory. The remaining layers continue through the existing async NVMe reader.
 Cached layers are read once at setup and skipped by subsequent speculative disk reads;
 they still use the ordinary GPU buffers and host-to-device copies. This is separate
-from `stream_resident_layers`, which keeps weights on the GPU and requires the RAM tier.
+from `stream_resident_layers`, which keeps weights on the GPU. They can be combined:
+GPU residency is selected and validated first, then the RAM hotset fills its ceiling
+with other layers. No layer occupies both caches. A rejected residency candidate
+restores the ordinary source. Existing RAM hotsets are drained and released before
+replanning, so replacement never requires two full host caches simultaneously.
 
 The integer is an **allocation ceiling in MiB**, including power-of-two pinned arenas
 or pageable alignment slack. The layer count fits that ceiling and a conservative
@@ -531,6 +538,9 @@ on an uncached layer, its own slot leaves the usual N-1 slots for lookahead.
 The [physical 8 GB Qwen3-32B BF16 LoRA study](../benchmarks/ssd-ram-cache-20261024/README.md)
 reports accuracy, paired step/whole-entry timing, RAM/VRAM and exact evidence for
 one RAM-constrained NVMe configuration; its speedup is not universal.
+The [four-arm joint-cache study](../benchmarks/joint-cache-20261024/README.md)
+compares ordinary SSD streaming, RAM caching, GPU residency, and both together
+with matched configuration, independent full-tensor replay, and separate setup costs.
 
 For streamed NF4 on CUDA, Soup follows bitsandbytes' own 4-bit dispatch. When
 bitsandbytes selects its custom fused GEMM, Soup executes that GEMM through a

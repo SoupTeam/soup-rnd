@@ -1068,6 +1068,8 @@ class StreamingSetupMixin:
                 "a pageable CPU source.[/]"
             )
 
+        cache_bytes = tcfg.stream_ram_cache_mb * 2**20 if tier == TIER_DISK else 0
+        defer_ram_cache = bool(cache_bytes and getattr(tcfg, "stream_resident_layers", 0) != 0)
         model, runtime = build_streamed_model(
             model_id=cfg.base,
             shard_dir=shard_dir,
@@ -1098,8 +1100,7 @@ class StreamingSetupMixin:
             weights_dir=weights_dir,
             ngram_source=ngram_source,
             refill_before_backward=self._STREAM_REFILL_BEFORE_BACKWARD,
-            **({"ram_cache_bytes": tcfg.stream_ram_cache_mb * 2**20}
-               if tcfg.stream_ram_cache_mb and tier == TIER_DISK else {}),
+            **({"ram_cache_bytes": cache_bytes} if cache_bytes and not defer_ram_cache else {}),
         )
         if tcfg.stream_ram_cache_mb and tier != TIER_DISK:
             console.print(
@@ -1137,6 +1138,12 @@ class StreamingSetupMixin:
                     override_bytes=tcfg.stream_vram_override,
                     notify=console.print,
                 )
+            except BaseException:
+                self._close_stream_runtime()
+                raise
+        if defer_ram_cache:
+            try:
+                runtime.source.configure_ram_cache(cache_bytes)
             except BaseException:
                 self._close_stream_runtime()
                 raise

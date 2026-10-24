@@ -142,7 +142,7 @@ def cache_budget(requested, available):
     return min(requested, max(0, available * 7 // 10 - _RUNTIME_RESERVE))
 
 
-def plan_hotset(spans, groups, depth, budget, *, pinned):
+def plan_hotset(spans, groups, depth, budget, *, pinned, excluded=()):
     """Center repeated groups; charge actual arena/alignment allocation, not payload.
 
     Singleton/small groups already fit entirely in ordinary staging. The fixed
@@ -152,7 +152,9 @@ def plan_hotset(spans, groups, depth, budget, *, pinned):
 
     selected, allocated = [], 0
     for group in sorted(set(groups)):
-        members = [idx for idx, value in enumerate(groups) if value == group]
+        members = [
+            idx for idx, value in enumerate(groups) if value == group and idx not in excluded
+        ]
         if len(members) <= depth:
             continue
         center = (members[0] + members[-1]) / 2

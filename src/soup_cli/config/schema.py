@@ -3542,8 +3542,10 @@ class TrainingConfig(BaseModel):
             "Opt-in persistent decoder weights for streamed text SFT. 0 keeps ordinary "
             "streaming; a positive integer keeps a centred block of that many layers; "
             "'auto' measures the configured forward/backward peak and selects layers "
-            "within a conservative VRAM budget. CUDA and RAM tier only. Auto falls "
-            "back to ordinary streaming elsewhere. The host store is retained. "
+            "within a conservative VRAM budget. CUDA with RAM or coordinated async SSD "
+            "sources. GPU-resident layers skip SSD reads and are excluded from the RAM "
+            "hotset. Auto falls back on unsupported sources. The full RAM-tier host store "
+            "is retained. "
             "Setup probes preserve RNG and do not update adapters. No speed guarantee."
         ),
     )
@@ -6464,11 +6466,6 @@ class SoupConfig(BaseModel):
             if tcfg.activation_offloading is not None:
                 raise ValueError(
                     "training.stream_resident_layers cannot be combined with activation_offloading"
-                )
-            if tcfg.stream_source == "disk" and tcfg.stream_resident_layers != "auto":
-                raise ValueError(
-                    "training.stream_resident_layers requires the RAM tier; "
-                    "use stream_source='ram' or 'auto'"
                 )
             if tcfg.optimizer not in {
                 "adamw_torch", "adamw_torch_fused", "adamw_8bit", "paged_adamw_8bit",

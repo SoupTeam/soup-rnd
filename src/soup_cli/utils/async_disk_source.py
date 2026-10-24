@@ -370,6 +370,8 @@ class AsyncDiskSource:
         self._cache_arenas = []
         self._cache_borrowed = set()
         self._cache_events = {}
+        self._resident = frozenset()
+        self._cache_config_lock = threading.Lock()
         self._cache_stats = {
             "requested_bytes": ram_cache_bytes, "indices": [], "allocated_bytes": 0,
             "payload_bytes": 0, "preload_seconds": 0.0, "tensor_hits": 0,
@@ -671,7 +673,7 @@ class AsyncDiskSource:
         memory = available_memory()
         budget = cache_budget(requested, memory["available_bytes"])
         plan = plan_hotset([item.span for item in self._plans], self._group_of,
-                           self.read_ahead, budget, pinned=self.pinned)
+                           self.read_ahead, budget, pinned=self.pinned, excluded=self._resident)
         self._cache_stats.update(memory_admission=memory, budget_bytes=budget)
         indices = plan["indices"]
         if not indices:
@@ -724,7 +726,65 @@ class AsyncDiskSource:
     def ram_cache_stats(self) -> dict:
         """Allocation includes arena rounding; historical selection survives close()."""
         return {**self._cache_stats, "indices": list(self._cache_stats["indices"]),
+                "resident_indices": sorted(self._resident),
                 "live_allocated_bytes": 0 if self._closed else self._cache_stats["allocated_bytes"]}
+
+    def set_resident_layers(self, indices: Sequence[int]) -> None:
+        """Exclude already preloaded GPU layers, between completed training graphs.
+
+        A RAM hotset is rebuilt without those layers. Old host storage is drained
+        and freed before allocating its replacement; two full hotsets never coexist.
+        An already in-flight cold read may finish once during this setup transition.
+        """
+        chosen = tuple(indices)
+        if (
+            any(type(idx) is not int or not 0 <= idx < self.n_layers for idx in chosen)
+            or tuple(sorted(set(chosen))) != chosen
+        ):
+            raise ValueError("resident indices must be unique, sorted and inside the source")
+        with self._cache_config_lock:
+            if frozenset(chosen) != self._resident:
+                self._replace_ram_cache(self._cache_stats["requested_bytes"], frozenset(chosen))
+
+    def configure_ram_cache(self, requested_bytes: int) -> None:
+        """Allocate the host hotset after GPU residency has been selected at setup."""
+        if type(requested_bytes) is not int or requested_bytes < 0:
+            raise ValueError("RAM cache byte ceiling must be a non-negative integer")
+        with self._cache_config_lock:
+            self._replace_ram_cache(requested_bytes, self._resident)
+
+    def _replace_ram_cache(self, requested: int, resident: frozenset) -> None:
+        with self._ready:
+            if self._closed:
+                raise RuntimeError("layer-stream disk source is closed")
+            if self._error is not None:
+                raise self._error
+            if self._cache_borrowed or any(self._live):
+                raise RuntimeError("cannot reconfigure a source while host buffers are on loan")
+            events = list(self._cache_events.values())
+        for event in {id(value): value for value in events if value is not None}.values():
+            event.synchronize()
+        # No consumer may be active during setup reconfiguration. The ordinary
+        # reader may finish its independent pending reads under the original lock.
+        with self._ready:
+            if self.pinned:
+                self.pinned_bytes -= self._cache_stats["allocated_bytes"]
+            self._cache = {}
+            self._cache_arenas = []
+            self._cache_events = {}
+            self._resident = resident
+            self._cache_stats = {
+                "requested_bytes": requested, "indices": [], "allocated_bytes": 0,
+                "payload_bytes": 0, "preload_seconds": 0.0, "tensor_hits": 0,
+            }
+            self._queue = [idx for idx in self._queue if idx not in resident]
+            self._ready.notify_all()
+        if requested:
+            try:
+                self._initialize_ram_cache(requested)
+            except BaseException:
+                self.close()
+                raise
 
     @staticmethod
     def _normalize_layer_roots(layer_roots: Optional[Sequence[int]], n_layers: int) -> List[int]:
@@ -886,15 +946,18 @@ class AsyncDiskSource:
         the layer the consumer is standing on is the one thing that must not be
         evicted, and is also the one thing there is no point fetching.
         """
+        if layer in self._resident:
+            return False
         group = self._group_of[layer]
         anchor = self._last_get.get(group)
         if anchor is None:
             return False
         step = (layer - anchor) * self._direction.get(group, 1)
-        if self._cache and step >= 0:
+        if (self._cache or self._resident) and step >= 0:
             low, high = sorted((anchor, layer))
             distance = sum(
-                idx != anchor and idx not in self._cache and self._group_of[idx] == group
+                idx != anchor and idx not in self._cache and idx not in self._resident
+                and self._group_of[idx] == group
                 for idx in range(low, high + 1)
             )
             return distance < self._window_span(group) + (anchor in self._cache)
@@ -1037,10 +1100,10 @@ class AsyncDiskSource:
         plan: List[int] = []
         direction = self._direction.get(self._group_of[idx], 1)
         nxt = idx + direction
-        for _ in range(self.n_layers if self._cache else self.read_ahead):
+        for _ in range(self.n_layers if self._cache or self._resident else self.read_ahead):
             if not 0 <= nxt < self.n_layers:
                 break
-            if nxt in self._cache:
+            if nxt in self._cache or nxt in self._resident:
                 nxt += direction
                 continue
             group = self._group_of[nxt]
@@ -1077,7 +1140,8 @@ class AsyncDiskSource:
         position = 0
         while position < len(self._queue):
             idx = self._queue[position]
-            if idx in self._cache or idx in self._slot_of or idx in self._in_flight_batch:
+            if (idx in self._cache or idx in self._resident or idx in self._slot_of
+                    or idx in self._in_flight_batch):
                 self._queue.pop(position)
                 continue
             root = self._root_of[idx]
@@ -1257,6 +1321,10 @@ class AsyncDiskSource:
                     raise self._error
                 if self._closed:
                     raise RuntimeError("layer-stream disk source is closed")
+                if idx in self._resident:
+                    raise RuntimeError(
+                        "GPU-resident layer must be served by its private device slot"
+                    )
                 if idx in self._cache:
                     tensor = self._cache[idx][name]
                     self._check_the_reader_is_making_progress(idx)
