@@ -2925,6 +2925,10 @@ class StreamRuntime:
             # number there would be an invented one.
             "read_ahead": getattr(self.source, "read_ahead", None),
             "disk_bytes": getattr(self.source, "disk_bytes", 0),
+            "ram_cache_allocated_bytes": getattr(self.source, "_cache_stats", {}).get(
+                "allocated_bytes", 0
+            ),
+            "ram_cache_indices": list(getattr(self.source, "_cache_stats", {}).get("indices", [])),
             "layer_loads": self.pool.loads,
             "large_loads": getattr(self.large_pool, "loads", 0),
             "device": self.device,
@@ -2976,6 +2980,7 @@ def install_streaming(
     read_ahead: int = DEFAULT_STREAM_READ_AHEAD,
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    ram_cache_bytes: int = 0,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3103,6 +3108,7 @@ def install_streaming(
         read_ahead=read_ahead,
         layer_roots=source_roots,
         read_ahead_decision=read_ahead_decision,
+        **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
     )
     pool = LayerBufferPool(
         spec,
@@ -3398,6 +3404,7 @@ def _build_source(
     read_ahead=DEFAULT_STREAM_READ_AHEAD,
     layer_roots=None,
     read_ahead_decision=None,
+    ram_cache_bytes=0,
 ):
     """Build the weight source for the chosen tier.
 
@@ -3432,6 +3439,10 @@ def _build_source(
     the host-side source memory is page-locked.
     """
     source_kwargs = {} if shard_paths is None else {"shard_paths": shard_paths}
+    if type(ram_cache_bytes) is not int or ram_cache_bytes < 0:
+        raise ValueError("ram_cache_bytes must be a non-negative integer byte ceiling")
+    if ram_cache_bytes and tier != "disk":
+        raise ValueError("ram_cache_bytes is only applicable to the disk tier")
     if tier == "disk":
         from soup_cli.utils.async_disk_source import AsyncDiskSource
         from soup_cli.utils.stripe_roots import ReadAheadDecision
@@ -3447,6 +3458,17 @@ def _build_source(
             # R4: which drive each source index lives on. Only the async reader uses it; the
             # RAM tier reads every file once whatever drive it is on.
             open_kwargs["layer_roots"] = layer_roots
+        if ram_cache_bytes:
+            # An explicit cache request is attempted once. In particular, a cache
+            # I/O/identity failure must never be reinterpreted as pinning failure
+            # and hidden by the legacy pageable fallback below.
+            source = AsyncDiskSource(
+                shard_dir, n_layers, spec, pin=pin,
+                ram_cache_bytes=ram_cache_bytes, **open_kwargs,
+            )
+            if console is not None and not source.ram_cache_stats()["indices"]:
+                console.print("[yellow]No repeated layer fits the safe RAM cache budget.[/]")
+            return source, source.pinned
         if pin:
             try:
                 source = AsyncDiskSource(shard_dir, n_layers, spec, pin=True, **open_kwargs)
@@ -3581,6 +3603,7 @@ def build_streamed_model(
     ngram_source: str = "disk",
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    ram_cache_bytes: int = 0,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -3633,6 +3656,7 @@ def build_streamed_model(
             read_ahead=read_ahead,
             refill_before_backward=refill_before_backward,
             read_ahead_decision=read_ahead_decision,
+            **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
         )
     except BaseException:
         for external in external_sources:

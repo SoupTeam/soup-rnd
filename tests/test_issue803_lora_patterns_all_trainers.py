@@ -325,6 +325,7 @@ def test_layer_streaming_builds_the_lora_config_with_its_patterns(monkeypatch, t
         stream_vram_probe=False,
         stream_vram_override=None,
         stream_read_ahead=DEFAULT_STREAM_READ_AHEAD,
+        stream_ram_cache_mb=0,
         lora=config.training.lora,
     )
     cfg = SimpleNamespace(base="Qwen/Qwen3-0.6B", data=SimpleNamespace(max_length=64))

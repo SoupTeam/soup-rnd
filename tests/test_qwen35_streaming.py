@@ -817,6 +817,7 @@ class TestQwen35StreamingSetup:
             stream_source="auto",
             stream_buffers=2,
             stream_read_ahead=2,
+            stream_ram_cache_mb=0,
             stream_disk_kind=None,
             stream_pin=None,
             seed=7,

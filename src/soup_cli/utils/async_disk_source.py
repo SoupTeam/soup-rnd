@@ -339,6 +339,11 @@ class AsyncDiskSource:
     neither would ever be served. The shipped consumer is ``StreamPrefetcher``
     on the compute thread, which is single-threaded by construction; nothing
     here enforces it, so a second caller is a caller bug.
+
+    ``ram_cache_bytes`` optionally admits a fixed hotset in additional host RAM.
+    Its allocation is capped by the requested bytes and current memory headroom.
+    Cached views are not recycled, but release events still protect their lifetime
+    at close. Ordinary staging retains its existing get/release ownership rules.
     """
 
     def __init__(
@@ -355,9 +360,20 @@ class AsyncDiskSource:
         pin: bool = True,
         read_ranges: int = DEFAULT_STREAM_READ_RANGES,
         layer_roots: Optional[Sequence[int]] = None,
+        ram_cache_bytes: int = 0,
     ):
         from soup_cli.utils.layer_stream_runtime import RamSource
 
+        if type(ram_cache_bytes) is not int or ram_cache_bytes < 0:
+            raise ValueError("ram_cache_bytes must be a non-negative integer byte ceiling")
+        self._cache = {}
+        self._cache_arenas = []
+        self._cache_borrowed = set()
+        self._cache_events = {}
+        self._cache_stats = {
+            "requested_bytes": ram_cache_bytes, "indices": [], "allocated_bytes": 0,
+            "payload_bytes": 0, "preload_seconds": 0.0, "tensor_hits": 0,
+        }
         if isinstance(read_ahead, bool):
             raise ValueError("training.stream_read_ahead must be an int, not bool")
         read_ahead = int(read_ahead)
@@ -641,6 +657,74 @@ class AsyncDiskSource:
         self._reader_entered = threading.Event()
         self._reader_starts = 0
         self._start_reader()
+        if ram_cache_bytes:
+            try:
+                self._initialize_ram_cache(ram_cache_bytes)
+            except BaseException:
+                self.close()
+                raise
+
+    def _initialize_ram_cache(self, requested: int) -> None:
+        from soup_cli.utils.stream_ram_cache import available_memory, cache_budget, plan_hotset
+
+        started = time.monotonic()
+        memory = available_memory()
+        budget = cache_budget(requested, memory["available_bytes"])
+        plan = plan_hotset([item.span for item in self._plans], self._group_of,
+                           self.read_ahead, budget, pinned=self.pinned)
+        self._cache_stats.update(memory_admission=memory, budget_bytes=budget)
+        indices = plan["indices"]
+        if not indices:
+            self._cache_stats["reason"] = "no repeated layer fits the safe allocation budget"
+            return
+        staging_pinned_bytes = self.pinned_bytes
+        try:
+            arenas, regions = self._allocate_staging([self._plans[idx].span for idx in indices])
+        except (RuntimeError, MemoryError) as error:
+            raise MemoryError(
+                "Cannot allocate the SSD RAM cache; lower training.stream_ram_cache_mb "
+                "or set training.stream_pin=false if page-locking is unavailable"
+            ) from error
+        finally:
+            self.pinned_bytes = staging_pinned_bytes
+        self._cache_arenas = arenas
+        allocated = sum(arena.numel() * arena.element_size() for arena in arenas)
+        if allocated != plan["allocated_bytes"] or allocated > budget:
+            raise RuntimeError("RAM cache allocation differs from its admitted arena plan")
+        cached = {}
+        for idx, region in zip(indices, regions):
+            # The original range reader validates each opened shard's identity.
+            # Ordinary staging and its initial background read remain independent.
+            pool = self._pools[self._root_of[idx]]
+            jobs = pool.submit(self._range_works(idx, region))
+            deadline = time.monotonic() + _MAX_READ_SECONDS
+            while not all(job.done.is_set() for job in jobs):
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"RAM cache preload for layer {idx} exceeded read deadline")
+                for job in jobs:
+                    job.done.wait(timeout=_LIVENESS_POLL_SECONDS)
+                pool._check_workers()
+            pool.wait(jobs)
+            cached[idx] = self._views(self._plans[idx], region)
+        payload = sum(tensor.numel() * tensor.element_size()
+                      for values in cached.values() for tensor in values.values())
+        with self._ready:
+            if self._error is not None:
+                raise self._error
+            self._cache = cached
+            self._queue = [idx for idx in self._queue if idx not in cached]
+            self._cache_stats.update(
+                indices=indices, allocated_bytes=allocated, payload_bytes=payload,
+                preload_seconds=time.monotonic() - started,
+            )
+            if self.pinned:
+                self.pinned_bytes += allocated
+            self._ready.notify_all()
+
+    def ram_cache_stats(self) -> dict:
+        """Allocation includes arena rounding; historical selection survives close()."""
+        return {**self._cache_stats, "indices": list(self._cache_stats["indices"]),
+                "live_allocated_bytes": 0 if self._closed else self._cache_stats["allocated_bytes"]}
 
     @staticmethod
     def _normalize_layer_roots(layer_roots: Optional[Sequence[int]], n_layers: int) -> List[int]:
@@ -807,6 +891,13 @@ class AsyncDiskSource:
         if anchor is None:
             return False
         step = (layer - anchor) * self._direction.get(group, 1)
+        if self._cache and step >= 0:
+            low, high = sorted((anchor, layer))
+            distance = sum(
+                idx != anchor and idx not in self._cache and self._group_of[idx] == group
+                for idx in range(low, high + 1)
+            )
+            return distance < self._window_span(group) + (anchor in self._cache)
         return 0 <= step < self._window_span(group)
 
     def _claim_slot(self, idx: int, exclude: frozenset = frozenset()) -> Optional[int]:
@@ -942,13 +1033,16 @@ class AsyncDiskSource:
         are not re-queued.
         """
         budget = [self._window_span(group) for group in range(len(self._group_slots))]
-        budget[self._group_of[idx]] -= 1
+        budget[self._group_of[idx]] -= idx not in self._cache
         plan: List[int] = []
         direction = self._direction.get(self._group_of[idx], 1)
         nxt = idx + direction
-        for _ in range(self.read_ahead):
+        for _ in range(self.n_layers if self._cache else self.read_ahead):
             if not 0 <= nxt < self.n_layers:
                 break
+            if nxt in self._cache:
+                nxt += direction
+                continue
             group = self._group_of[nxt]
             if budget[group] <= 0:
                 break
@@ -983,7 +1077,7 @@ class AsyncDiskSource:
         position = 0
         while position < len(self._queue):
             idx = self._queue[position]
-            if idx in self._slot_of or idx in self._in_flight_batch:
+            if idx in self._cache or idx in self._slot_of or idx in self._in_flight_batch:
                 self._queue.pop(position)
                 continue
             root = self._root_of[idx]
@@ -1163,6 +1257,20 @@ class AsyncDiskSource:
                     raise self._error
                 if self._closed:
                     raise RuntimeError("layer-stream disk source is closed")
+                if idx in self._cache:
+                    tensor = self._cache[idx][name]
+                    self._check_the_reader_is_making_progress(idx)
+                    self._hold(idx)
+                    if idx not in self._cache_borrowed:
+                        with self._open_buffered(self._paths[idx]) as handle:
+                            if identity_of(handle) != self._identities[idx]:
+                                raise RuntimeError(f"layer {idx}'s cached shard changed on disk")
+                        self._cache_borrowed.add(idx)
+                        self._note_direction(idx)
+                        self._queue = self._plan_queue(idx)
+                        self._ready.notify_all()
+                    self._cache_stats["tensor_hits"] += 1
+                    return tensor
                 slot_index = self._slot_of.get(idx)
                 if slot_index is not None:
                     tensor = self._slots[slot_index][name]
@@ -1300,6 +1408,15 @@ class AsyncDiskSource:
         have been evicted, which requires having been released already.
         """
         with self._ready:
+            if idx in self._cache:
+                previous = self._cache_events.get(idx)
+                if previous is not None and previous is not event and not previous.query():
+                    # Bound event ownership per cached layer, including callers
+                    # using different CUDA streams. Cached bytes are never refilled.
+                    previous.synchronize()
+                self._cache_events[idx] = event
+                self._cache_borrowed.discard(idx)
+                return
             slot_index = self._slot_of.get(idx)
             if slot_index is None:
                 return
@@ -1327,7 +1444,21 @@ class AsyncDiskSource:
             self._ready.notify_all()
         if self._thread.is_alive():
             self._thread.join(timeout=10.0)
+        # Cache views can outlive a get/release call while a DMA is pending.
+        # Wait only at teardown; there is no global CUDA barrier in the step path.
+        for event in {id(value): value for value in self._cache_events.values()
+                      if value is not None}.values():
+            event.synchronize()
+        if self.pinned and self._cache_borrowed:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
         with self._ready:
+            self._cache = {}
+            self._cache_arenas = []
+            self._cache_events = {}
+            self._cache_borrowed = set()
             self._slots = []
             self._regions = []
             self._arenas = []

@@ -62,11 +62,17 @@ def _stream_source_line(stats: dict) -> str:
         )
     # Since #974 the staging lives in the same power-of-two arenas as the RAM
     # store, so the disk tier can say what was page-locked too.
+    cache = ""
+    if stats.get("ram_cache_allocated_bytes", 0):
+        cache = (
+            f", {stats['ram_cache_allocated_bytes'] / 1e9:.2f} GB RAM cache "
+            f"({len(stats['ram_cache_indices'])} layers)"
+        )
     return (
         f"streamed from DISK ({stats['disk_bytes'] / 1e9:.2f} GB on an NVMe volume) "
         f"by an async reader, read_ahead={stats['read_ahead']}, "
         f"{stats['store_bytes'] / 1e6:.0f} MB {pinned} host staging"
-    ) + _page_locked_note(stats)
+    ) + cache + _page_locked_note(stats)
 
 
 def _page_locked_note(stats: dict) -> str:
@@ -852,6 +858,12 @@ class StreamingSetupMixin:
 
         free_ram = free_ram_bytes()
         total_ram = total_ram_bytes()
+        if tcfg.stream_ram_cache_mb:
+            from soup_cli.utils.stream_ram_cache import available_memory
+
+            # A large host may give this process only a small cgroup. Do not
+            # select a whole-model RAM store using physical-host availability.
+            free_ram = available_memory(host_available=free_ram)["available_bytes"]
         if free_ram is None:
             console.print(
                 "[yellow]psutil unavailable — cannot size the RAM tier; "
@@ -1086,7 +1098,13 @@ class StreamingSetupMixin:
             weights_dir=weights_dir,
             ngram_source=ngram_source,
             refill_before_backward=self._STREAM_REFILL_BEFORE_BACKWARD,
+            **({"ram_cache_bytes": tcfg.stream_ram_cache_mb * 2**20}
+               if tcfg.stream_ram_cache_mb and tier == TIER_DISK else {}),
         )
+        if tcfg.stream_ram_cache_mb and tier != TIER_DISK:
+            console.print(
+                "[dim]RAM cache is unnecessary: the complete streamed store fits in RAM.[/]"
+            )
         self.model = model
         self._stream_runtime = runtime
         if getattr(tcfg, "fast_lora", False):

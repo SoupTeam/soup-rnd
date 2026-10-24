@@ -3599,6 +3599,18 @@ class TrainingConfig(BaseModel):
             raise ValueError("training.stream_read_ahead must be an int, not bool")
         return v
 
+    stream_ram_cache_mb: int = Field(
+        default=0,
+        ge=0,
+        strict=True,
+        description=(
+            "Optional allocation ceiling in MiB for a persistent RAM hotset on the SSD "
+            "streaming tier. Zero disables it. Layer count is selected automatically, "
+            "including arena rounding, current cgroup limits, 30% available-RAM slack "
+            "and a 512 MiB runtime reserve. Does not change weights or GPU buffers."
+        ),
+    )
+
     stream_pin: Optional[bool] = Field(
         default=None,
         description=(
@@ -6424,6 +6436,7 @@ class SoupConfig(BaseModel):
                 or tcfg.stream_ngram_source != "auto"
                 or tcfg.stream_buffers != 2
                 or tcfg.stream_resident_layers != 0
+                or tcfg.stream_ram_cache_mb != 0
                 or tcfg.stream_read_ahead != DEFAULT_STREAM_READ_AHEAD
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
@@ -6435,11 +6448,16 @@ class SoupConfig(BaseModel):
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
                     "/ training.stream_disk_kind / training.stream_pin / "
-                    "training.stream_resident_layers set but "
+                    "training.stream_resident_layers / training.stream_ram_cache_mb set but "
                     "stream_layers is false; set stream_layers=true to stream the "
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_ram_cache_mb and tcfg.stream_source == "ram":
+            raise ValueError(
+                "training.stream_ram_cache_mb requires stream_source='disk' or 'auto'; "
+                "the RAM tier already holds the complete store"
+            )
         if tcfg.stream_resident_layers != 0:
             if self.task != "sft":
                 raise ValueError("training.stream_resident_layers requires task='sft'")

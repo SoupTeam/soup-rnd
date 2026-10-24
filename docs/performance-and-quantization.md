@@ -457,6 +457,7 @@ training:
   stream_buffers: 2            # Double-buffering; range [2, 8]
   # stream_resident_layers: auto  # Keep selected weights in spare VRAM (CUDA/RAM SFT)
   stream_read_ahead: 2         # Disk tier only; range [1, 8]. N stages N-1 layers ahead, and each level costs one layer of pinned host RAM
+  # stream_ram_cache_mb: 14336 # Optional SSD-tier RAM hotset allocation ceiling in MiB; 0 disables it
   # stream_pin: false          # Force the pinned RAM store off (escape hatch) or on; unset = automatic. See below
   # stream_vram_override: 4_000_000_000   # Bytes to assume free (v0.73.x); see below
   # stream_vram_probe: true    # Decide the fit by MEASURING one step (sft only); see below
@@ -496,6 +497,40 @@ occupying more VRAM is faster. Speed and peak memory must be checked for the act
 and configuration. Other persistent allocations already present are included in the measured
 peak. A future activation-retention auto mode must share the remaining cap including the
 optimizer/setup reserve; two independent planners must not each spend the same headroom.
+
+**Partial RAM cache for the SSD tier (opt-in).** If the full base does not fit in
+RAM, `training.stream_ram_cache_mb` can keep a fixed, centred hotset of frozen layers
+in host memory. The remaining layers continue through the existing async NVMe reader.
+Cached layers are read once at setup and skipped by subsequent speculative disk reads;
+they still use the ordinary GPU buffers and host-to-device copies. This is separate
+from `stream_resident_layers`, which keeps weights on the GPU and requires the RAM tier.
+
+The integer is an **allocation ceiling in MiB**, including power-of-two pinned arenas
+or pageable alignment slack. The layer count fits that ceiling and a conservative
+current-RAM allowance: 70% of available memory minus a 512 MiB future-runtime reserve.
+On Linux, visible cgroup hard limits, `memory.high`, and finite positive v1 soft-limit
+hints also constrain the allowance. Clean file-cache pages may be reclaimed; dirty,
+writeback, shared and unevictable pages and swap capacity are excluded. Limits and
+system settings are never changed. Singleton groups already held by ordinary staging
+are not duplicated. No fitting layer means ordinary disk streaming with a notice.
+
+`0` is the default and does not probe or allocate the hotset. Explicit `stream_source:
+ram` rejects a nonzero cache budget; `auto` uses the complete RAM store when it fits and
+reports that the partial cache is unnecessary. An explicit cache allocation failure
+refuses with advice to lower the budget or disable pinning; SSD read/identity failures
+are propagated rather than retried through a different source. Cached buffers remain
+alive until their outstanding copy events finish at teardown.
+
+The cache preserves original tensor bytes, including packed NF4 weights and sidecars;
+it adds no quantization, arithmetic kernel, activation retention or compilation.
+Setup preload consumes time and additional RAM. A speed benefit requires exposed SSD
+waiting and enough repeated reads to repay preload; filling memory alone is not a
+speed guarantee. On a cached layer, all ordinary staging slots can prefetch cold layers;
+on an uncached layer, its own slot leaves the usual N-1 slots for lookahead.
+
+The [physical 8 GB Qwen3-32B BF16 LoRA study](../benchmarks/ssd-ram-cache-20261024/README.md)
+reports accuracy, paired step/whole-entry timing, RAM/VRAM and exact evidence for
+one RAM-constrained NVMe configuration; its speedup is not universal.
 
 For streamed NF4 on CUDA, Soup follows bitsandbytes' own 4-bit dispatch. When
 bitsandbytes selects its custom fused GEMM, Soup executes that GEMM through a
