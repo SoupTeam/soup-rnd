@@ -11,7 +11,7 @@ and comparisons, rather than assume that maximum cache occupancy means maximum s
 
 ## Agreed order and decision criteria
 
-- [ ] **First: Qwen3-4B BF16 versus NF4 on BoolQ.** Freeze model/data revisions,
+- [x] **First: Qwen3-4B BF16 versus NF4 on BoolQ.** Freeze model/data revisions,
   token arrays, training budget, seeds, optimizer and evaluation before rental.
   Evaluate before/after matched adapter training. Retain logits, adapters and batch
   identities; replay accuracy/NLL independently. Report uncertainty and practical
@@ -53,6 +53,17 @@ This is a spending ceiling, not a commitment to spend it or a promise all stages
 
 ## Active work
 
-Preparing the 4B quality pilot. No new rental or GPU result is implied by this checklist.
-The quality pilot does not require claiming an enforced 32 GiB host-memory limit;
-that hard limit remains a separate acceptance condition for the 32B capacity study.
+The [4B pilot](nf4-boolq-4b-20261024/README.md) is complete and independently replayed:
+post-training accuracy BF16 86.719% versus NF4 85.547%, difference -1.172 pp with a
+paired 95% interval [-3.906, +1.172] pp. NF4 reduced paired optimizer-step time by
+17.230%; peak process RSS was 3.626 versus 9.045 GiB. This is a precision tradeoff,
+not an equivalence or larger-model quality result. Keep BF16 as a control.
+
+All four pilot instances and volumes were deleted. Conservative pilot accounting,
+including retries: $1.842130, leaving $11.501476 from the combined authorization.
+No additional $10 has been consumed yet. Exact bytes are retained and hash-indexed.
+
+Preparing the separate 32B NF4 capacity/residency study on a physical 8 GB GPU and
+a physical/native-kernel RAM upper bound of 32 GiB. It measures same-precision
+numerical correctness, capacity, step/entry times and memory; it does not transfer
+the 4B quality finding to 32B. Preflight and retention admission precede model download.
