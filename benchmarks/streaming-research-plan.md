@@ -1,6 +1,6 @@
 # Streaming research plan
 
-Updated 2026-10-24. Destination: SoupTeam/soup-rnd PR #5.
+Updated 2026-10-25. Destination: SoupTeam/soup-rnd PR #5.
 
 ## Goal and checklist
 
@@ -21,6 +21,77 @@ is not the objective.
   Existing automatic GPU residency is a capacity policy, not a speed optimizer.
 - [ ] Larger-model capacity and candidate Triton kernels need their own evidence.
   No 70B/120B run or capacity claim has been completed.
+
+## New opportunity screen on current upstream, 2026-10-25
+
+The GPU results below remain frozen on the older research source. Upstream Soup
+0.76.0 at `51777d12077df022db8ee8a57cf46ed2f76909ef` already includes the improved
+pinned-arena packer and `stream_recompute`. Do not rediscover either as a new feature
+or transfer old timings to the changed code. The next measurement needs a fresh baseline.
+
+[CPU screening data](streaming-impact-20261025/candidate-screen.json) and its
+[self-contained evidence](streaming-impact-20261025/evidence-manifest.json) retain
+the exact inspected source, real 32B tensor headers and reproduction script.
+The extracted archive reproduced its JSON byte-for-byte. No GPU was rented or used.
+These are mechanism/placement checks, not new training-speed or capacity results.
+
+1. **First candidate: cache-aware activation retention.** The current native
+   `stream_recompute: auto` returns immediately for `tier='disk'`, without probing
+   retention. An extracted-method control confirms this; the RAM positive control
+   reaches the planner. Our combined cache covers 63/64 decoder layers, so the tier
+   name alone is insufficient to classify that workload as read-bound. Rebase the
+   cache prototype on current upstream, then compare RAM cache alone, RAM plus GPU
+   weights, RAM plus retained activations, and their combination. Share one VRAM
+   cap and include optimizer/setup reserves, lifetime guards and setup break-even.
+   The changed decision is a hypothesis until full correctness and GPU timing pass.
+2. **Second candidate: avoid duplicate CPU copies of persistent GPU weights.**
+   Current `RamSource` keeps the full base. With hypothetical exclusion of four
+   centred decoder layers, real 32B headers and the current upstream packer give
+   18.205 GB CPU payload and 17 GiB pinned arenas. Both pass the same host's 55%
+   physical-RAM term. Seven exclusions give 17.450 GB payload / 16.5 GiB arenas.
+   Without exclusions, 19.211 GB payload / 18 GiB arenas still fail that term.
+   Placement bounds/non-overlap were checked for counts 0 through 12. This makes
+   training without recurring disk weight loads worth testing on 8 GB VRAM / 32 GB
+   RAM, without raising the safety fraction. It is not a whole-run memory proof:
+   extras, runtime, transient allocations, pinned allocator caching and cgroup
+   availability still matter. Bootstrap, source replacement and rollback need work.
+3. **Third candidate: frozen embedding row gather with one persistent head slot.**
+   An untied Qwen3-32B vocabulary matrix is 1,555,824,640 BF16 bytes. Four current
+   large loads move about 6.22 GB/update. Gathering only the input rows on CPU and
+   keeping the head in the existing GPU slot would instead transfer at most 10 MiB
+   of embedding activations for two 512-token microbatches, after the initial head
+   preload. Decoder-only host staging arithmetic falls from 4 GiB to 0.5 GiB.
+   Small CPU float32/BF16 lookup and downstream LoRA-gradient controls are bitwise
+   equal, and a wrong-row negative control is detected. This is not streamed GPU
+   qualification: row I/O, device synchronization, hooks, predictor and lifetimes
+   remain untested. Existing large-copy prefetch overlaps compute, so fewer bytes
+   do not predict a step-time percentage. Scope starts with frozen untied weights;
+   this does not propose the extra GPU slot declined in issue #1174.
+4. **Secondary candidate: direct prequantized NF4 input/import.** The current
+   source gate explicitly refuses a bitsandbytes NF4 checkpoint; a CPU control
+   reproduces that refusal and accepts the unquantized positive control. Supporting
+   packed weights and their complete quantization state could reduce cold download,
+   conversion and scratch-space costs. This is a startup/storage opportunity,
+   not an established step-speed gain. Never bypass the protective source gate.
+
+Relevant upstream work and ownership were checked read-only:
+
+- [#2152](https://github.com/MakazhanAlpamys/Soup/pull/2152) is merged: native
+  activation retention exists and differs from the earlier conservative prototype.
+- [#1702](https://github.com/MakazhanAlpamys/Soup/issues/1702) is closed: improved
+  arena packing already shipped. Its speed result does not establish a gain.
+- [#1693](https://github.com/MakazhanAlpamys/Soup/issues/1693), the chunked head/loss
+  work, is claimed; do not duplicate it as an unowned task.
+- [#2161](https://github.com/MakazhanAlpamys/Soup/pull/2161) remains under review;
+  [#2162](https://github.com/MakazhanAlpamys/Soup/issues/2162) explicitly awaits
+  maintainer scope/triage before a claim. Do not start a competing QKVO feature.
+- [#842](https://github.com/MakazhanAlpamys/Soup/issues/842) already has merged
+  fused-forward code and substitution caching; the issue remains for GPU measurement.
+  A new transposed kernel is not a small unimplemented forward patch.
+
+The useful 10Cache direction is profile-guided joint placement and prefetch using
+actual reuse/waits. Soup already has the basic buffers/prefetch; the paper's speedups
+are not a forecast. New kernel work follows an intended-production-setting profile.
 
 ## Completed 4B quality pilot
 
@@ -88,11 +159,11 @@ Do not unconditionally spend spare VRAM when its measured incremental benefit fa
 
 [10Cache](https://arxiv.org/html/2511.14124v1) motivates profiling reuse/order and
 prefetch. Soup already has async reads, lookahead and reusable pinned arenas. The
-paper's DeepSpeed gains are not Soup LoRA results. A possible GPU-first host-store
-upgrade also needs arena-aware admission: excluding seven GPU layers leaves about
-17.45 GB of CPU payload but roughly 19.33 GB of existing pinned arenas, exceeding
-this host's unchanged 55% physical-RAM allowance. Payload arithmetic alone is not proof
-of a safe full-RAM source. This alternative is not implemented or validated.
+paper's DeepSpeed gains are not Soup LoRA results. The old measured source predicted
+19.33 GB pinned after seven GPU exclusions, above the host's 55% RAM term. The fresh
+upstream packer changes that arithmetic as shown in the new opportunity screen above;
+the original GPU results are unchanged. A GPU-exclusive full-RAM source still needs
+implementation and real qualification. Payload/arena arithmetic is not a whole-run proof.
 
 ## Funding, history and cleanup
 
