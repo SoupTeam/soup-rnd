@@ -63,7 +63,17 @@ All four pilot instances and volumes were deleted. Conservative pilot accounting
 including retries: $1.842130, leaving $11.501476 from the combined authorization.
 No additional $10 has been consumed yet. Exact bytes are retained and hash-indexed.
 
-Preparing the separate 32B NF4 capacity/residency study on a physical 8 GB GPU and
-a physical/native-kernel RAM upper bound of 32 GiB. It measures same-precision
-numerical correctness, capacity, step/entry times and memory; it does not transfer
-the 4B quality finding to 32B. Preflight and retention admission precede model download.
+The [32B NF4 RAM-source attempt](nf4-capacity-32b-20261024/README.md) verified the
+physical 8 GB GPU and a real 29.756 GiB cgroup RAM bound on a 30.997 GiB host.
+NF4 preparation completed; native RAM-source setup refused its 19.2 GB base/extras
+under the unchanged 55% physical-RAM policy, before any training. This is not OOM
+or a larger-model task-quality result. Instance and persistent volume were deleted.
+
+That stage cost $0.492097 conservatively. Combined accounting since the 4B pilot is
+$2.334227, leaving $11.009379. The extra $10 allowance remains unused so far.
+
+Next: keep the same physical RAM/GPU boundary, use the supported SSD tier, profile,
+then qualify ordinary streaming / bounded RAM cache / GPU residency / both before
+matched timing. Preserve the existing source headroom and numerical tolerances.
+An automatic speed-aware placement policy remains separate from the existing
+startup capacity planner; maximum cache occupancy is not the acceptance target.
