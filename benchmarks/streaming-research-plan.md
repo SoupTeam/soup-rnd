@@ -118,3 +118,16 @@ compare exposed source waits, large vocabulary loads and repeated dequantization
 choosing a cache or kernel change. The paper's DeepSpeed training gains are not Soup
 LoRA measurements. Preserve memory headroom and measure benefit rather than target 100%
 occupancy or extrapolate the paper's speedups.
+
+The [first fixed-source GPU check](nf4-ssd-32b-20261024-fixture-check/README.md)
+stopped before model download: 148/149 source/helper controls passed; the new CUDA
+regression's hotset was empty because its two eligible decoder layers already fit
+ordinary read-ahead and its tiny budget did not cover a native pinned arena.
+The fixture now keeps three eligible decoder layers plus a distinct cold vocabulary
+group, and derives its ceiling from the actual arena plan. A new CPU check proves
+that the same pinned plan is nonempty. Final changed-module checks: 20 passed,
+2 CUDA skips. The next GPU-host control count is 150; model download remains gated.
+
+This check's instance and volume were deleted. Conservative own-study accounting
+is now $3.155377, leaving $10.188229 from the combined authorization; colleague
+rentals remain outside this ledger. The numerical contract is unchanged.

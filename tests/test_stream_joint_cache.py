@@ -243,6 +243,48 @@ def test_pinned_joint_cache_uses_real_cuda_pool_and_retains_exact_bytes(tmp_path
         reference.close()
 
 
+def _promotion_fixture(tmp_path, monkeypatch):
+    import torch
+    from safetensors.torch import save_file
+
+    from soup_cli.utils.layer_shard import layer_shard_path
+    from soup_cli.utils.layer_stream_runtime import RamSource
+
+    folder, _specs, seed_source = source(tmp_path, monkeypatch, budget=0)
+    seed_source.close()
+    # A distinct singleton group stays in ordinary staging, like the real
+    # untied vocabulary weight; it must not disappear into the decoder hotset.
+    save_file({"lm_head.weight": torch.rand(64, 16)}, layer_shard_path(folder, 7))
+    return folder, RamSource.layer_specs_from_shards(folder, 8)
+
+
+def _promotion_budget(ours):
+    from soup_cli.utils.layer_stream_runtime import plan_pinned_arenas
+    from soup_cli.utils.safetensors_reader import SECTOR_BYTES
+
+    return plan_pinned_arenas(
+        [ours._plans[idx].span for idx in (0, 5, 6)], align=SECTOR_BYTES
+    ).pinned_bytes
+
+
+def test_promotion_fixture_admits_a_nonempty_native_pinned_hotset(tmp_path, monkeypatch):
+    from soup_cli.utils.async_disk_source import AsyncDiskSource
+    from soup_cli.utils.stream_ram_cache import plan_hotset
+
+    folder, specs = _promotion_fixture(tmp_path, monkeypatch)
+    ours = AsyncDiskSource(folder, 8, specs, pin=False, ram_cache_bytes=0)
+    try:
+        plan = plan_hotset(
+            [item.span for item in ours._plans], ours._group_of, ours.read_ahead,
+            _promotion_budget(ours), pinned=True, excluded=[1, 2, 3, 4],
+        )
+        assert plan["indices"] == [0, 5, 6]
+        assert plan["allocated_bytes"] == _promotion_budget(ours) > 0
+        assert ours._group_of[7] != ours._group_of[0]
+    finally:
+        ours.close()
+
+
 @pytest.mark.gpu
 def test_promoted_probe_slot_does_not_block_large_layer_dma(tmp_path, monkeypatch):
     import torch
@@ -255,8 +297,7 @@ def test_promoted_probe_slot_does_not_block_large_layer_dma(tmp_path, monkeypatc
     )
     from tests.test_issue971_async_disk_source import _raw_bytes
 
-    folder, specs, seed_source = source(tmp_path, monkeypatch, budget=0)
-    seed_source.close()
+    folder, specs = _promotion_fixture(tmp_path, monkeypatch)
     ours = AsyncDiskSource(folder, 8, specs, pin=True, ram_cache_bytes=0)
     # Demand reads still use the real reader. Suppress speculation only to keep
     # the completed setup probe's stale layer-0 mapping deterministic.
@@ -265,12 +306,12 @@ def test_promoted_probe_slot_does_not_block_large_layer_dma(tmp_path, monkeypatc
     pool = LayerBufferPool(specs[0], device="cuda")
     stream = torch.cuda.Stream()
     try:
-        pool.reserve_layers([1, 2, 3, 4, 5, 6], ours, stream)
-        ours.set_resident_layers([1, 2, 3, 4, 5, 6])
+        pool.reserve_layers([1, 2, 3, 4], ours, stream)
+        ours.set_resident_layers([1, 2, 3, 4])
         pool.load_async(0, ours, stream)
         pool.wait(0)
-        ours.configure_ram_cache(8192)
-        assert ours.ram_cache_stats()["indices"] == [0]
+        ours.configure_ram_cache(_promotion_budget(ours))
+        assert ours.ram_cache_stats()["indices"] == [0, 5, 6]
         assert 0 in ours._slot_of, "the regression requires the probe's idle staging mapping"
         pool.load_async(0, ours, stream)
         cached = {name: value.clone() for name, value in pool.wait(0).items()}
