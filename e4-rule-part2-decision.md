@@ -352,7 +352,7 @@ Forward output cells: 28 reachable, 24 calibrated, 4 not. Backward cells: all 7 
 
 ### 9.14c Main-run counts (owner's engineering decision, 2026-10-25)
 
-nurik delegated engineering decisions to the owner on 2026-10-25 via Telegram. Under that delegation the owner decides:
+nurik delegated engineering decisions to me on 2026-10-25 via Telegram. Under that delegation the owner decides:
 - one S, X and E control pass per training run (10 passes: 3 A_off, 4 A_on incl. rerun, 3 A_bf16);
 - one DECISION NLL pass per trained adapter plus one for the base (M0): 11 passes.
 
