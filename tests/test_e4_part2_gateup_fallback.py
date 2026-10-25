@@ -1,11 +1,13 @@
 """Targeting of the four uncalibrated gate/up fallback cells (T, --fallback-gateup).
 
-CPU only. The kernel threshold is read from the installed bitsandbytes source, not
-reimplemented, and is skipped when bitsandbytes is not installed.
+Each call is the concatenation of the first captured SMOKE inputs of distinct sources, in unit
+order, truncated to M. CPU only. The kernel threshold is read from the installed bitsandbytes
+source, not reimplemented, and the test is skipped when bitsandbytes is not installed.
 """
 
 import ast
 import importlib.util
+import types
 
 import pytest
 
@@ -17,35 +19,71 @@ import e4_part2_calibration as cal  # noqa: E402
 import e4_part2_quant as quant  # noqa: E402
 
 
+def unit(key, kind, layer, expert):
+    return types.SimpleNamespace(key=key, kind=kind, layer=layer, expert=expert)
+
+
+def rows(tag, n, width=3):
+    """n distinct rows; each row encodes (tag, row index) so duplicates are detectable."""
+    base = torch.arange(n, dtype=torch.float32).reshape(n, 1)
+    return torch.cat([torch.full((n, 1), float(tag)), base, torch.zeros(n, width - 2)], dim=1)
+
+
 def test_targets_are_in_the_fallback_range_and_one_per_call():
     assert len(cal.FALLBACK_GATEUP_M) == cal.CALLS_PER_UNIT
     assert all(129 <= m <= 512 for m in cal.FALLBACK_GATEUP_M)
 
 
-def test_tile_rows_repeats_in_order_to_exact_length():
-    x = torch.arange(6.0).reshape(3, 2)
-    y = cal.tile_rows(x, 7)
-    assert y.shape == (7, 2)
-    assert torch.equal(y[:3], x) and torch.equal(y[3:6], x) and torch.equal(y[6], x[0])
+def test_concatenates_distinct_sources_in_unit_order_and_truncates_the_last():
+    order = [unit("a", "gate_proj", 0, 1), unit("b", "up_proj", 0, 2), unit("c", "gate_proj", 1, 0)]
+    inputs = {"a": [rows(1, 4)], "b": [rows(2, 5)], "c": [rows(3, 6)]}
+    x, used, total = cal.concat_sources(order, inputs, 12)
+    assert total == 12 and used == ["a", "b", "c"]
+    assert torch.equal(x[:4], rows(1, 4))
+    assert torch.equal(x[4:9], rows(2, 5))
+    assert torch.equal(x[9:12], rows(3, 6)[:3])  # truncated, not repeated
 
 
-def test_gateup_selection_is_the_full_t_selection_restricted():
+def test_no_row_is_used_twice_across_sources_within_a_call():
+    order = [unit("a", "gate_proj", 0, 1), unit("b", "gate_proj", 0, 2)]
+    inputs = {"a": [rows(1, 4)], "b": [rows(2, 4)]}
+    x, _, total = cal.concat_sources(order, inputs, 8)
+    assert total == 8 and len({tuple(r.tolist()) for r in x}) == 8
+
+
+def test_gate_and_up_of_the_same_expert_are_one_source():
+    # gate and up of one expert see the same routed tokens: count those rows once
+    order = [unit("g", "gate_proj", 3, 7), unit("u", "up_proj", 3, 7), unit("v", "gate_proj", 3, 8)]
+    inputs = {"g": [rows(1, 4)], "u": [rows(1, 4)], "v": [rows(2, 4)]}
+    x, used, total = cal.concat_sources(order, inputs, 8)
+    assert used == ["g", "v"] and total == 8
+
+
+def test_a_shortage_is_reported_not_padded():
+    order = [unit("a", "gate_proj", 0, 1)]
+    _, used, total = cal.concat_sources(order, {"a": [rows(1, 4)]}, 9)
+    assert total == 4 and used == ["a"]
+
+
+def test_fallback_targets_are_the_gateup_units_with_one_call_per_target_m():
     units = quant.enumerate_units()
     full = cal.select_units(units, cal.T_SELECTION_SEED, 8)
-    inputs = {u.key: [torch.zeros(5, 4)] for us in full.values() for u in us}
-    kept, tiled = cal.fallback_targets(full, inputs)
+    inputs = {u.key: [rows(i + 1, 40)] for i, us in enumerate(full.values()) for u in us}
+    kept, tiled, sources = cal.fallback_targets(full, inputs)
     assert set(kept) == set(cal.FALLBACK_GATEUP_KINDS)
     assert [u.key for u in kept["gate_proj"]] == [u.key for u in full["gate_proj"]]
-    assert [u.key for u in kept["up_proj"]] == [u.key for u in full["up_proj"]]
     for key, calls in tiled.items():
         assert [c.shape[0] for c in calls] == list(cal.FALLBACK_GATEUP_M)
+        assert [s["M"] for s in sources[key]] == list(cal.FALLBACK_GATEUP_M)
+        assert all(s["source_units"] for s in sources[key])
 
 
-def test_a_unit_without_captured_input_gets_no_calls():
+def test_a_pool_too_small_for_a_target_m_stops_the_run():
     units = quant.enumerate_units()
     full = cal.select_units(units, cal.T_SELECTION_SEED, 8)
-    _, tiled = cal.fallback_targets(full, {})
-    assert tiled and all(calls == [] for calls in tiled.values())
+    inputs = {u.key: [rows(1, 2)] for us in full.values() for u in us}
+    with pytest.raises(cal.common.CalibrationStopped, match="cannot reach M"):
+        cal.fallback_targets(full, inputs)
 
 
 def _bitsandbytes_custom_fn():

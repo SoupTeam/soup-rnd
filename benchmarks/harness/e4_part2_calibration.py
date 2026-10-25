@@ -895,28 +895,54 @@ def summarize_contribution(chosen: Dict[str, List[quant.Unit]], inputs: Dict[str
     }
 
 
-def tile_rows(x, m: int):
-    """The rows of ``x`` (tokens, in) repeated in order to exactly ``m`` rows."""
+def concat_sources(order: Sequence[quant.Unit], inputs: Dict[str, List[Any]], m: int):
+    """Rows for one fallback call: the first captured SMOKE input of distinct sources, in
+    ``order``, concatenated until ``m`` rows and truncated in the last source.
+
+    A source is one (layer, expert): gate and up of the same expert see the same routed tokens,
+    so only the first of them contributes. No row is used twice. Returns (rows or None, source
+    unit keys used, rows obtained). Fewer than ``m`` rows means the pool is too small.
+    """
     import torch
 
-    return x[torch.arange(m, device=x.device) % x.shape[0]]
+    parts, used, seen, total = [], [], set(), 0
+    for unit in order:
+        if total == m:
+            break
+        source = (unit.layer, unit.expert)
+        captured = inputs.get(unit.key) or []
+        if source in seen or not captured:
+            continue
+        take = min(captured[0].shape[0], m - total)
+        parts.append(captured[0][:take])
+        used.append(unit.key)
+        seen.add(source)
+        total += take
+    return (torch.cat(parts) if parts else None), used, total
 
 
 def fallback_targets(chosen: Dict[str, List[quant.Unit]], inputs: Dict[str, List[Any]]):
-    """Restrict a T selection to the gate/up units, with four calls each of M in
-    FALLBACK_GATEUP_M tiled from that unit's first captured SMOKE input.
-
-    ``chosen`` must be the full ``select_units`` result: the generator draws kinds in order, so
-    the gate/up units are the same units the full T run uses. A unit with no captured input
-    gets no calls (listed as non-contributing, as in the full run).
+    """Restrict a T selection to the gate/up units. Every such unit gets the same four calls,
+    one per M in FALLBACK_GATEUP_M, built by ``concat_sources`` over the gate/up units in
+    (layer, expert) order. Returns (kept units, {unit key: [rows per call]}, {unit key: [per-call
+    record of M and source units]}). A target M the pool cannot reach stops the run.
     """
     kept = {kind: chosen[kind] for kind in FALLBACK_GATEUP_KINDS}
-    tiled: Dict[str, List[Any]] = {}
-    for kind in FALLBACK_GATEUP_KINDS:
-        for unit in kept[kind]:
-            seen = inputs.get(unit.key, [])
-            tiled[unit.key] = [tile_rows(seen[0], m) for m in FALLBACK_GATEUP_M] if seen else []
-    return kept, tiled
+    order = sorted((u for kind in FALLBACK_GATEUP_KINDS for u in kept[kind]),
+                   key=lambda u: (u.layer, u.expert))
+    calls, meta = [], []
+    for m in FALLBACK_GATEUP_M:
+        x, used, total = concat_sources(order, inputs, m)
+        if total < m:
+            raise common.CalibrationStopped(
+                f"fallback targets: cannot reach M={m} from {total} distinct SMOKE rows; "
+                "no row is repeated, so the target is not calibrated")
+        calls.append(x)
+        meta.append({"M": m, "source_units": used, "rows": total})
+    tiled = {unit.key: list(calls) for kind in FALLBACK_GATEUP_KINDS for unit in kept[kind]}
+    sources = {unit.key: [dict(m) for m in meta] for kind in FALLBACK_GATEUP_KINDS
+               for unit in kept[kind]}
+    return kept, tiled, sources
 
 
 def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe, device: str,
@@ -924,9 +950,10 @@ def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe,
           min_units: int = MIN_UNITS_FOR_TAU, fallback_gateup: bool = False) -> Dict[str, Any]:
     chosen = select_units(units, T_SELECTION_SEED, per_kind)
     inputs = capture_unit_inputs(bf16_model, chosen, smoke_token_rows, calls_per_unit, device)
+    target_sources: Dict[str, List[Dict[str, Any]]] = {}
     if fallback_gateup:
         assert calls_per_unit == len(FALLBACK_GATEUP_M), "one call per target M"
-        chosen, inputs = fallback_targets(chosen, inputs)
+        chosen, inputs, target_sources = fallback_targets(chosen, inputs)
     records: List[Dict[str, Any]] = []
     e0: List[Dict[str, Any]] = []
     contribution = summarize_contribution(chosen, inputs, min_units)
@@ -939,8 +966,11 @@ def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe,
                 make_r = make_r_factory(packed, qs, w_dq.shape[1], w_dq.shape[0], device)
                 if not inputs[unit.key]:
                     continue
-                records += run_t_unit_calls(unit, tag, w_dq, make_r, inputs[unit.key], probe,
-                                            device)
+                new = run_t_unit_calls(unit, tag, w_dq, make_r, inputs[unit.key], probe, device)
+                for rec in new:
+                    if target_sources:
+                        rec["source_units"] = target_sources[unit.key][rec["call"]]["source_units"]
+                records += new
                 e0.append({"unit": unit.key, "dq": tag, **e0_check(make_r(), w_dq)})
                 if kind in ATTENTION_KINDS:
                     for x in inputs[unit.key][:1]:
@@ -952,7 +982,7 @@ def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe,
             "selected_units": {k: [u.key for u in v] for k, v in chosen.items()},
             "calls_per_unit": calls_per_unit, "units_with_fewer_calls": fewer,
             "records": records, "e0": e0,
-            "fallback_gateup": fallback_gateup,
+            "fallback_gateup": fallback_gateup, "fallback_sources": target_sources,
             "target_misses": [r["cell"] for r in records
                               if fallback_gateup and r.get("kernel") != "fallback"],
             "needs_grad_probe_mismatches": [r["unit"] for r in records
