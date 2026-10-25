@@ -53,6 +53,7 @@ def _full_query_trajectories(
     tmp_path: Path, *, dtype: str, quant: str, device: str, bitwise: bool,
     evidence_dir: Path | None = None,
     host_cache_policy: str = "lru",
+    config_overrides: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     import torch
     from peft import LoraConfig, TaskType
@@ -70,6 +71,8 @@ def _full_query_trajectories(
     weights, original = _tiny_deepseek_v3(tmp_path)
     config = original.config
     del original
+    if config_overrides is not None:
+        config = type(config).from_dict({**config.to_dict(), **config_overrides})
     config.q_lora_rank = None
     torch.manual_seed(11)
     resident = DeepseekV3ForCausalLM(config).to(torch.float32).eval()
