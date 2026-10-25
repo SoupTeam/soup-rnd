@@ -250,7 +250,8 @@ Placeholder fills (values or references to section 9): section 4 suite epsilon; 
 2. **Resolved: both commits cited** (section 9.1). The run commit is the code that produced the values; the record commit is their source.
 3. **Resolved: cell of each main-run call.** The cell functions are in section 9.12 and the inherited "no claim" is kept. The main-run record reports the count of no-claim calls per cell (reporting only). The main-run harness must import the functions; that is a build requirement.
 4. **Resolved: split pinned** by the three manifest hashes (section 9.13). The 11,952 count is an unexplained earlier count that does not affect validity; the reviewer reproduced 11,844 eligible rows and all three manifests byte-for-byte.
-5. **Budget.** Observed wall-clock per stage is in section 9.14, labelled observed, not a prediction. Loading, evaluation, controls and retries have no estimate for the main run. **OPEN for nurik: the main-run spending cap.** No cap is proposed here.
+5. **Budget.** Observed timings are in section 9.14. The projected table in 9.14 is labelled PROJECTED from calibration timings; rows with an unstated count are UNKNOWN and excluded from the total. Cost = total hours x RATE, RATE owner-supplied. **OPEN for nurik: the main-run spending cap.** No cap is proposed here.
+6. **S coverage gap.** 4 of 28 reachable output cells (gate_proj and up_proj on the fallback kernel) have no calibrated tau (section 9.15). A mandatory S control on such a call makes that decision run INVALID. How often main-run calls reach them is UNKNOWN. Owner decision needed.
 
 ### 9.12 Cell of each main-run call
 
@@ -303,3 +304,47 @@ Source: `attempts.jsonl` start and end timestamps (UTC) and each run's `seconds_
 | All attempts (journal sum) | 5724 |
 
 Totals: first attempt start to last attempt end is about 1 h 38 min on the calibration box. The F and P rows are the 16-update runs at the calibration schedule, not main-plan runs; nothing here is a projection.
+
+### 9.14b Projected budget (PROJECTED from calibration timings, not a prediction)
+
+Counts: arms and seeds from the skeleton (section 2: arms table; seeds 42, 7, 123 on line 22). 256 updates from the recipe schedule in calibration section 3 ("linear decay to 0 at update 256"). The rerun count of 1 is stated in calibration section 3 ("9 runs + 1 rerun"); its arm (A_on) is from report.json `projected_main_plan.rerun_arm` only. Per-update times and attempt overhead are observed in 9.14. Nothing is estimated beyond these.
+
+| Component | Count | Per-unit time (observed) | Formula | Source | Hours |
+|---|---|---|---|---|---|
+| Training updates | 10 runs (3 A_off, 4 A_on incl. rerun, 3 A_bf16), 256 updates each | A_off 7.45720755495131 s; A_on 7.577096295077354 s; A_bf16 7.3511017670389265 s per update | 256 x (3 x 7.4572 + 4 x 7.5771 + 3 x 7.3511) s = 19131.7 s | counts: skeleton section 2, calibration section 3; times: report.json `projected_main_plan.median_seconds_per_update` | 5.3144 |
+| Loading (per training attempt) | 10 attempts | 152.47 s: mean over F_A_off, F_A_on, F_A_bf16, P of (attempt wall - update time). Includes model load and any other non-training time; not separated | 10 x 152.47 s = 1524.8 s | journal `attempts.jsonl`; run records `seconds_per_update` | 0.4235 |
+| Evaluation: suite scorings (M2) | 6 scorings (A_on and A_off, 3 seeds): DERIVED from skeleton section 4 ("on every seed"); the rule states no count | 760.6 s: mean of N_1 to N_5 attempt wall (includes model load) | 6 x 760.6 s = 4563.6 s | N run records and journal | 1.2677 |
+| Evaluation: DECISION NLL (M0, M1) | M1: 9 passes derived (3 arms x 3 seeds); M0 count not stated | UNKNOWN: no DECISION NLL pass was timed in calibration | not computed | none | UNKNOWN (excluded) |
+| Controls: S, X1-X4, E1-E4 | UNKNOWN: the rule states no per-run count | Observed single-attempt proxies only: T 112 s, W 729 s (one attempt each in calibration, not per main run) | not computed | journal (T, W attempts) | UNKNOWN (excluded) |
+| Retry allowance | 10: INTERPRETATION of section 5 ("rerun once"; second void stops), one retry per training attempt. The rule states no total. Whether the planned A_on rerun has its own retry is not stated | Full attempt, worst case A_on: 256 x 7.577096 s + 152.47 s = 2092.2 s | 10 x 2092.2 s = 20922.1 s | section 5; record of A_on times | 5.8117 |
+| **Total, known components** | | | training + loading + evaluation + retry allowance | | **12.8173** |
+
+Cost = total hours x RATE. RATE: owner to supply. Excluded rows are UNKNOWN, so the total is a lower bound on what the rule would need. The retry row is the upper bound of the allowance, not an expected cost.
+
+### 9.15 S controls and "no claim" (decision recorded 2026-10-25)
+
+Decisions, as the owner relayed them from nurik's review: (1) "no claim" stays for E1-E4; (2) mandatory S controls may not be skipped when their cell has no calibrated tau. **Source note:** these two decisions are not in the text of nurik's review on #36 (checked on 2026-10-25: the review body mentions mini_safety and the section 7 proposals only). They are recorded here from the owner's instruction and need a citation before merge.
+
+**Rule text added (new text; inherited lines unchanged):**
+- "No claim" applies to E1-E4 only, as the inherited section 5 E paragraph already states.
+- A mandatory S control whose cell has no calibrated tau is not skipped and is not a pass. The decision run is INVALID: NO VERDICT (invalid).
+
+**S coverage** (S uses the output tau per cell, section 5). Reachable cells are kind x needs_grad x kernel for the forward output, and kind/backward for input gradients, on the A100 40 GB card.
+
+| Cell group | Reachable | Calibrated tau | Not calibrated |
+|---|---|---|---|
+| q_proj, k_proj, v_proj, o_proj: fused and fallback, needs_grad False and True | 16 | 16 | 0 |
+| gate_proj, up_proj: fused, needs_grad False and True | 4 | 4 | 0 |
+| down_proj: fused and fallback, needs_grad False and True | 4 | 4 | 0 |
+| gate_proj, up_proj: fallback, needs_grad False and True | 4 | 0 | 4 |
+| Input-gradient cells (kind/backward), 7 kinds | 7 | 7 | 0 |
+
+Forward output cells: 28 reachable, 24 calibrated, 4 not. Backward cells: all 7 calibrated. LoRA quantities are not used by S.
+
+**Evidence.**
+- Calibrated cells: report.json `tau` (record d1a3ddf1): 31 keys; no gate_proj or up_proj fallback key. Cell names: `cell_name` at `benchmarks/harness/e4_part2_calibration.py:514`; kernel set `KERNEL_ATTRS` at `benchmarks/harness/e4_part2_gemm_probe.py:21-25`.
+- Not calibrated: T run record fc373330 (`result.records`): gate_proj and up_proj calls were all `fused`, at 1 to 70 and 1 to 88 tokens. Attention fallback was seen at 149 to 319 tokens; down fallback at 17 to 150.
+- Kernel rule: `bitsandbytes/backends/cuda/ops.py:584-678` (`_gemm_4bit_use_custom_cuda`, sm80 branch). Evaluated with A100 properties (108 SMs, sm80), the function gives gate/up (N=1024, K=2048): fused for M up to 128, fallback for M 129 to 512. Down (N=2048, K=1024): fused up to 16. Attention (N=K=2048): fused up to 128. These thresholds reproduce every kernel observed in the T records. This is an evaluation of the installed function, not a measurement.
+- Main-run token range: calibration section 3, max length 512. An expert's M is the number of tokens routed to it, so M above 128 is possible but its frequency in the main data is UNKNOWN.
+
+**Consequence.** A main run that reaches gate_proj or up_proj on the fallback kernel with a mandatory S control on that call is INVALID under the decision above. The calibration does not cover those cells. Whether to recalibrate them is an owner decision; nothing is changed here.
