@@ -53,11 +53,14 @@ delta = **0.005 nat** (AGREED; about 0.5% in perplexity ratio; a margin for this
 
 nurik delegated engineering decisions to me on 2026-10-25 via Telegram. This section is the owner's engineering decision under that delegation.
 
-- The four uncalibrated output cells `gate_proj` and `up_proj` on the fallback kernel, with needs_grad False and True (section 9.15), are calibrated with concatenated SMOKE inputs at M = 129, 256, 384 and 512.
-- Each call concatenates the first captured SMOKE input of distinct sources, in (layer, expert) order, truncated to M. Gate and up of one expert count as one source, and no row is repeated. The source unit ids are recorded on every call.
-- Code: branch `e4-part2-gateup-fallback-cal`, commit `83786f7c`; option `--fallback-gateup` on `run --stage T`; tests in `tests/test_e4_part2_gateup_fallback.py`.
+- The four uncalibrated output cells `gate_proj` and `up_proj` on the fallback kernel, with needs_grad False and True (section 9.15), are calibrated with concatenated SMOKE inputs in the fallback range (M > 128).
+- Targets, decided 2026-10-25: M = 129 and 256, then the full distinct pool when the pool is above 256 (capped at 512). Cells are keyed on (kind, needs_grad, kernel), not on M, so any target in the fallback range calibrates the same cell. No row is repeated.
+- Each call concatenates the first captured SMOKE input of distinct sources, in (layer, expert) order, truncated to M. Gate and up of one expert count as one source. The source unit ids and the pool size are recorded on every call.
+- Observation (2026-10-25, on the box): the first target rule (M = 129, 256, 384, 512) stopped `T_fallback_gateup` on commit `5ab78624` with `fallback targets: cannot reach M=384 from 286 distinct SMOKE rows`. The pool is 286 distinct rows. The rule above replaces the M = 384 and 512 targets with 286.
+- Code: branch `e4-part2-run`; `fallback_m_targets` and `fallback_targets` in `benchmarks/harness/e4_part2_calibration.py`; tests in `tests/test_e4_part2_gateup_fallback.py`. Only the fallback target selection changed.
+- Disclosure: W, N and P ran on commit `5ab78624`. Only `T_fallback_gateup` runs on the commit that carries this rule. The calibration rule says a failed T attempt stops calibration and is not rerun (calibration section 8). Rerunning `T_fallback_gateup` after that stop is an owner's decision, recorded here, and is not an allowance in the rule.
 - These taus are merged only through this section. They are not added to the section 9.2 table. Inherited lines, including calibration section 4, are unchanged.
-- Card: the values come from a new run on the instance the rule names. The calibration rule's card-change clause (calibration rule, line 155) applies; see section 9.16.
+- Card: the values come from the same instance as the rest of the calibration (the card-change clause, calibration rule line 155; section 9.16).
 - Status: no values yet. Section 9.15 keeps the four cells uncovered until the run's taus are entered here.
 
 ## 5. Validity (any failure gives NO VERDICT)
