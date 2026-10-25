@@ -191,11 +191,27 @@ def _sha256(path: Path) -> Optional[str]:
         return None
 
 
+#: The shipped modules the step actually executes; the harness's l2l_activations.py and
+#: l2l_schedule.py only re-export them, so their own hashes do not cover the running code.
+EXECUTED_SOURCES = ("l2l_step.py", "l2l_rng.py", "l2l_activations.py")
+
+
 def harness_hashes() -> Dict[str, Optional[str]]:
+    """SHA-256 of the harness files and of the shipped L2L modules they run.
+
+    The shipped modules are hashed where the imported ``soup_cli`` package really is (the
+    record's ``soup_cli_file``), keyed by their package path (``soup_cli/utils/l2l_step.py``)
+    so the two ``l2l_activations.py`` never collide. Records written before 2026-10-25 (the
+    GPU run at b195da29) hold the harness names only."""
+    import soup_cli
+
     names = sorted(HARNESS.glob("g4_*.py")) + [
         HARNESS / name for name in ("l2l_activations.py", "l2l_schedule.py", "stream_probe.py")
     ]
-    return {path.name: _sha256(path) for path in names}
+    out = {path.name: _sha256(path) for path in names}
+    utils = Path(soup_cli.__file__).resolve().parent / "utils"
+    out.update({f"soup_cli/utils/{name}": _sha256(utils / name) for name in EXECUTED_SOURCES})
+    return out
 
 
 def versions() -> Dict[str, str]:

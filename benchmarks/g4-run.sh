@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # G4 GPU runbook: every arm of benchmarks/probe-g4-l2l-activation-compression.md §7, in the
-# order the rule names, on a fresh Linux box with one CUDA GPU (24 GB is enough).
+# order the rule names, on a Linux box with one CUDA GPU (24 GB is enough).
 #
-#   bash benchmarks/g4-run.sh setup            # venv + pins + CPU tests (online)
+# The environment is a prerequisite, not something this script installs: a Python with the
+# CUDA torch build and the pinned packages of §5, Soup's sources on PYTHONPATH (set below).
+# G4_PYTHON names that interpreter (default: python3 on PATH).
+#
+#   bash benchmarks/g4-run.sh check            # CUDA, CPU tests, CUDA codec round trip
 #   bash benchmarks/g4-run.sh fixtures         # model + Dolly at pinned revisions (online)
 #   bash benchmarks/g4-run.sh arms <results>   # every arm, offline, then the verdict
 #
@@ -19,7 +23,7 @@ REVISION=60b99dcbc7f853b7cd18472a607e8d045b96f03e
 MODEL_DIR="$G4/mistral-7b-instruct-v0.3"
 SHARDS="$G4/shards"
 DOLLY_PATH_FILE="$G4/dolly-path.txt"
-PY="$ROOT/.venv/bin/python"
+PY="${G4_PYTHON:-python3}"
 export PYTHONPATH="$ROOT/src" HF_HUB_DISABLE_TELEMETRY=1
 
 # SHA-256 of the pinned model files (Hub LFS oids at $REVISION, and the small files hashed
@@ -67,13 +71,12 @@ need_cuda() {
 }
 
 case "${1:-}" in
-setup)
+check)
   nvidia-smi
-  bash benchmarks/a0-bootstrap.sh
   need_cuda
   "$PY" -m pytest tests/test_g4_codec.py tests/test_g4_harness.py tests/test_g4_rule.py \
     tests/test_l2l_probe_harness.py tests/test_l2l_session.py -q -o addopts='' \
-    --basetemp "$ROOT/.soup/bootstrap/g4-test-tmp"
+    --basetemp "$G4/check-test-tmp"
   # The codecs only cast (no FP8 GEMM), so any CUDA card must round-trip them on the device.
   PYTHONPATH="$ROOT/src:$ROOT/benchmarks/harness" "$PY" -c "
 import torch, g4_activation_codec as c
@@ -151,7 +154,7 @@ arms)
   (cd "$OUT" && find . -type f ! -name 'sha256.txt' -print0 | sort -z | xargs -0 sha256sum > sha256.txt)
   ;;
 *)
-  sed -n '2,12p' "$0"
+  sed -n '2,16p' "$0"
   exit 2
   ;;
 esac

@@ -3,10 +3,10 @@ Working measurement record, published verbatim. The decision rule in §3 is fixe
 GPU run and is committed in the branch's pre-GPU commit, before the first GPU arm, which is the
 point of it: a rule written after the numbers are in is not a rule.
 
-Measured on research/g4-l2l-activation-compression (cut from origin/main fdf067fc) at
-b195da29; this pull request carries the harness, the rule with its post-run V15 fix and the
-compact GPU record on current origin/main. src/ is unchanged; everything is under benchmarks/
-and tests/.
+Measured at commit b195da29 of a local research branch (cut from origin/main fdf067fc; not
+published, kept locally with the raw run). This pull request carries the harness, the rule
+with its post-run V15 fix and the compact GPU record on current origin/main. src/ is
+unchanged; everything is under benchmarks/ and tests/.
 Harness: benchmarks/harness/g4_activation_codec.py (codecs, error metrics, the store),
 g4_data.py (pinned Dolly, C5's split, packing), g4_probe.py (error / train / suites / timing
 modes), g4_timing.py (A-B-B-A driver), g4_rule.py (the verdict from the JSON alone),
@@ -395,13 +395,17 @@ Overall: `PASS: <codecs>` if at least one candidate passes, `FAIL` if both fail,
 ## 5. Box state required
 
 - Linux, one CUDA GPU with ≥ 8 GB free (A0 ran this 7B NF4 L2L on 8 GB; the shared 24 GB
-  server is enough). Python 3.11 or 3.12, `torch==2.14.1` (cu130 wheel) and
-  `benchmarks/a0-requirements.txt`, installed by `a0-bootstrap.sh`.
+  server is enough). A prepared environment, which the runner does not install: Python 3.11
+  or 3.12 with `torch==2.14.1` (CUDA 13.0 wheel) and the pins of
+  `benchmarks/a0-requirements.txt` (`transformers==5.19.0`, `peft==0.21.2`,
+  `accelerate==1.15.0`, `bitsandbytes==0.50.2`, `safetensors==0.8.0`, `numpy==2.4.6`, pytest
+  for `check`). The GPU run's full `pip freeze` is in `results/g4-rtx3090-20261024/`.
+  `G4_PYTHON` names the interpreter (default `python3`).
 - RAM: about 4.2 GB pinned for the NF4 store plus 0.54 GB (bf16) or 0.27 GB (int8/fp8) for the
   activation store at k = 4, and the sharding pass once. **32 GB recommended.** Available RAM
   and RSS are recorded in every training and timing JSON.
-- Disk: about 35 GB free (model 14.5 GB, NF4 shard store about 4.2 GB, venv about 8 GB, four
-  adapters at about 55 MB each, results under 50 MB). No large SSD is needed.
+- Disk: about 30 GB free (model 14.5 GB, NF4 shard store about 4.2 GB, four adapters at about
+  55 MB each, results under 50 MB), plus the environment. No large SSD is needed.
 - Book a measurement window on the shared server. Training arms do not need an idle GPU for
   validity (their numerics do not depend on peers), but every step stamps the GPU peers
   (`logs/<step>.box`). Timing runs need no other compute process on the GPU; a run with peers
@@ -430,17 +434,19 @@ each). The factor between them holds, and their absolute sizes are A4's to plan.
 
 ## 7. GPU runbook
 
-`benchmarks/g4-run.sh`, from the repo root on a fresh Linux CUDA box:
+`benchmarks/g4-run.sh`, from the repository root on a Linux CUDA box with the environment of
+§5 already in place (the runner installs nothing):
 
 ```bash
 git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout research/g4-l2l-activation-compression   # the commit that holds this rule
-bash benchmarks/g4-run.sh setup        # venv, A0 pins, CPU tests, CUDA codec round trip  ~15 min
-bash benchmarks/g4-run.sh fixtures     # Mistral @60b99dc + Dolly @bdd27f4, SHA-256 checked ~10-20 min
+git checkout g4-l2l-activation-compression   # the published branch with this rule
+export G4_PYTHON=/path/to/python              # the prepared interpreter of §5
+bash benchmarks/g4-run.sh check       # CUDA, CPU tests, CUDA codec round trip  ~2 min
+bash benchmarks/g4-run.sh fixtures    # Mistral @60b99dc + Dolly @bdd27f4, SHA-256 checked ~10-20 min
 bash benchmarks/g4-run.sh arms benchmarks/results/g4-<gpu>-<yyyymmdd>   # offline from here
 ```
 
-`setup` and `arms` refuse to continue when torch sees no CUDA device, and `g4_probe.py` itself
+`check` and `arms` refuse to continue when torch sees no CUDA device, and `g4_probe.py` itself
 exits 3 (not 0) when `--device cuda` has no CUDA, so no step can be marked done without its
 JSON. `arms` runs each step logged and box-stamped, resumable: a finished step leaves
 `logs/<step>.done`; a step whose JSON exists without that marker refuses to start until the
@@ -459,8 +465,9 @@ JSON is renamed; a step that exits 0 without writing its JSON fails the script.
 --seq 512 --k 4 --lora-r 16`). Every flag the script passes exists in `--help` of the script
 it calls; the review ran `--help` for each.
 
-Total about 5.5-7.5 h of box time **[estimate]**. Peak VRAM is expected near A0's 4.1 GB for
-training (A0 measured it at k = 16) and about 5 GB for the resident suites model **[estimate]**.
+Total about 5-7 h of box time after the environment exists **[estimate]**. Peak VRAM is
+expected near A0's 4.1 GB for training (A0 measured it at k = 16) and about 5 GB for the
+resident suites model **[estimate]**.
 
 **Files that come back** (in the results directory): `error.json`, `train-{bf16,int8,fp8_e4m3}-seed1.json`,
 `train-bf16-seed2.json`, `suites-*.json` (×4, each with its `base_parity` record), `timing.json`
@@ -475,15 +482,30 @@ attempt.
 
 ## 8. Results
 
-GPU run 2026-10-24, **measured at commit `b195da29`**: `g4-run.sh setup`, `fixtures`, `arms`,
+GPU run 2026-10-24, **measured at commit `b195da29`** of the local research branch (cut from
+`fdf067fc`; that commit is not published, its tree is kept locally with the raw run): the
+runner then had a `setup` step (venv through `a0-bootstrap.sh`), then `fixtures`, `arms`,
 unchanged (394 steps per arm, every threshold and control as in §3). One RTX 3090 24 GB (driver
 595.58.03, CUDA 13.2), Linux container, Python 3.12.3, torch 2.14.1+cu130. One attempt per
 step, none void or failed. The run's `verdict.json` came from `g4_rule.py` at `b195da29`; the
-harness hashes inside the raw JSON are those of `b195da29` and stay as recorded.
+harness hashes inside the raw JSON are those of `b195da29` and stay as recorded. At
+`b195da29` the L2L step and activation store ran from the harness's own
+`l2l_schedule.py` / `l2l_activations.py`; those source hashes are in each record.
+
+**What this pull request runs is newer code than what was measured.** Current `main` moved
+the L2L step into `soup_cli.utils.l2l_step`, together with `soup_cli.utils.l2l_rng` (dropout
+replay) and load counters, and the store into `soup_cli.utils.l2l_activations`; the harness
+files only re-export them now. `l2l_step.py` and `l2l_rng.py` are not the step that ran at
+`b195da29`, and neither was re-run on a GPU for G4. The CPU tests of this branch (GA == L2L on
+the tiny streamed model, the codec store's exactness through the plain store) pass on them;
+that is not a GPU equivalence. From this branch on, each record also hashes the executed
+`soup_cli/utils/l2l_step.py`, `l2l_rng.py` and `l2l_activations.py` (from the imported
+package), not only the harness wrappers. The GPU numbers below are those of `b195da29`.
 
 **Verdict: `PASS: fp8_e4m3`.** int8 FAILS on E2 and E3. V1-V15 all hold.
 
-**Reanalysis 2026-10-25** with the fixed analyzer (V15, `g4_rule.py` at commit `4dd530da`), on
+**Reanalysis 2026-10-25** with the fixed analyzer (V15; local commit `4dd530da`, the same
+`g4_rule.py` as in this pull request), on
 the unchanged raw files (`sha256.txt` re-verified, 125 files), written to a new
 file beside the original, which is kept: V15 holds (2 error sets of 4 micro-batches, all 32
 decoder layers for int8, fp8 and int4, 4096 rows per layer, 256 gradient tensors in every
@@ -544,9 +566,9 @@ not used), commit `fdf067fc` plus this branch's uncommitted harness, Python 3.12
 `12fd25f77366fa6b3b4b768ec3050bf629380bac` (30 layers, hidden 576), streamed, `--quant none`,
 float32, seq 256, k = 4, LoRA r 8, the pinned Dolly and C5's split. The exact command of each
 run is in its JSON's `meta.args`; the sequence is below. Its output (`g4-cpu-pilot/`, every
-JSON labelled `SYNTHETIC/CPU PILOT smoke` with `verdict_eligible: false`) is kept on the
-research branch `research/g4-l2l-activation-compression`, not in this pull request: it holds
-the laptop's local paths and gives no verdict. Total wall time 1665 s.
+JSON labelled `SYNTHETIC/CPU PILOT smoke` with `verdict_eligible: false`) is not published:
+it holds the laptop's local paths and gives no verdict, and it is kept locally with the
+research branch. Total wall time 1665 s.
 
 ```bash
 export HF_HUB_OFFLINE=1 PYTHONPATH=src
@@ -645,7 +667,7 @@ compress 0.24 ms, restore 0.14 ms; fp8 0.31 / 0.26 ms; int4 0.48 / 0.36 ms. Payl
   inputs reproduce the replay exactly), the run's own `verdict-b195da29.json` and log, the V15
   replay and the comparison of the two. Timing run logs, step logs and the adapters stay with
   the raw run.
-- The CPU pilot and review evidence of §9 and §11 stay on the research branch.
+- The CPU pilot and review evidence of §9 and §11 are not published; they are kept locally.
 
 ## 11. Acceptance review, 2026-10-22 (CPU only, SYNTHETIC/CPU PILOT)
 
@@ -688,9 +710,9 @@ added and one tightened before any GPU arm:
   attempt's runs into a new `runs/attempt-NN/`, and never opens a run's report or log over an
   existing file (before, a restarted step reopened `runs/run001-*` with mode `w`).
 
-Smokes, raw logs, commands, versions and `git rev-parse HEAD` are kept on the research branch
-under `benchmarks/results/g4-cpu-pilot/acceptance-20261022/` (HEAD fdf067fc plus that branch's
-uncommitted harness; Python 3.12.10, torch 2.14.1+cpu, transformers 5.19.0, peft 0.21.2):
+Smokes, raw logs, commands, versions and `git rev-parse HEAD` are kept locally (not
+published) under `g4-cpu-pilot/acceptance-20261022/` (HEAD fdf067fc plus the research
+branch's uncommitted harness; Python 3.12.10, torch 2.14.1+cpu, transformers 5.19.0, peft 0.21.2):
 
 - `error-smollm2-seq64-k4.*`: `g4_probe.py --mode error` on SmolLM2-135M, float32, seq 64,
   k = 4, one set: GA == L2L, recording == plain and identity == plain (240 LoRA tensors,

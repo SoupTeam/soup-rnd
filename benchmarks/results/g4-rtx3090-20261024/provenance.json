@@ -1,7 +1,8 @@
 {
- "measured_commit": "b195da29bad0b31463f072f8bd0cd2d304e21708",
+ "measured_commit": "b195da29bad0b31463f072f8bd0cd2d304e21708 (local research branch, not published; the L2L step and store then ran from the harness's own l2l_schedule.py / l2l_activations.py, hashed in each record)",
  "analyzer_of_original_verdict": "b195da29 (verdict-b195da29.json)",
- "analyzer_of_replay": "4dd530da (verdict-v15-replay.json), same verdict and numbers",
+ "analyzer_of_replay": "local commit 4dd530da, whose g4_rule.py is the one in this pull request (verdict-v15-replay.json); same verdict and numbers",
+ "note_on_current_code": "this pull request's runner imports soup_cli.utils.l2l_step / l2l_rng / l2l_activations from current main, which differ from the measured step; the published inputs are re-analysed only, not re-run",
  "path_placeholders": {
   "<work>": "the run's repository checkout",
   "<hf-cache>": "the Hugging Face cache"

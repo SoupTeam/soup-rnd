@@ -8,6 +8,7 @@ import argparse
 import json
 import math
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
@@ -140,6 +141,32 @@ def test_int4_is_not_a_training_codec(probe):
     with pytest.raises(SystemExit):
         probe.parse_args(["--mode", "train", "--codec", "int4", "--weights", "w",
                           "--out", "o.json"])
+
+
+def test_source_hashes_cover_the_shipped_l2l_code_the_step_runs(probe, monkeypatch, tmp_path):
+    """The harness's l2l_activations.py / l2l_schedule.py only re-export soup_cli's modules,
+    so the record must hash the shipped files that run, from the imported package."""
+    import hashlib
+
+    import soup_cli
+
+    hashes = probe.harness_hashes()
+    utils = Path(soup_cli.__file__).resolve().parent / "utils"
+    for name in ("l2l_step.py", "l2l_rng.py", "l2l_activations.py"):
+        assert hashes[f"soup_cli/utils/{name}"] == hashlib.sha256(
+            (utils / name).read_bytes()).hexdigest()
+    assert hashes["l2l_activations.py"] != hashes["soup_cli/utils/l2l_activations.py"]
+    # A changed executed module changes the record (so V8 / V14 see it), whatever the
+    # harness wrappers say.
+    fake = tmp_path / "soup_cli"
+    (fake / "utils").mkdir(parents=True)
+    for name in ("l2l_step.py", "l2l_rng.py", "l2l_activations.py"):
+        (fake / "utils" / name).write_bytes((utils / name).read_bytes())
+    (fake / "utils" / "l2l_step.py").write_bytes(b"# changed\n")
+    monkeypatch.setattr(soup_cli, "__file__", str(fake / "__init__.py"))
+    changed = probe.harness_hashes()
+    assert changed["soup_cli/utils/l2l_step.py"] != hashes["soup_cli/utils/l2l_step.py"]
+    assert changed["soup_cli/utils/l2l_rng.py"] == hashes["soup_cli/utils/l2l_rng.py"]
 
 
 def test_suites_refuses_an_adapter_that_is_not_the_trained_one(probe, tmp_path):
