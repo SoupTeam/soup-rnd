@@ -1,6 +1,14 @@
 # E4 part 2: calibration record (2026-10-25)
 
-Calibration under `e4-part2-calibration-rule.md`, run from main at `fe05753` on one vast.ai A100 PCIe 40 GB. **Every stage ok, 0 voids, no provenance gaps.** These are calibration values, not a double-quant verdict. No DECISION row passed through a model.
+Calibration under `e4-part2-calibration-rule.md`, run from main at `fe05753` on one vast.ai A100 PCIe 40 GB. **Second series: every stage ok, 0 voids, no provenance gaps.** The full history is 11 successful attempts plus 2 voids from the first series; see [Restart disposition](#restart-disposition-2026-10-25). These are calibration values, not a double-quant verdict. No DECISION row passed through a model.
+
+## Restart disposition (2026-10-25)
+
+- The first series stopped under rule §8 after two `F_A_off` voids. Both were caused by `pynvml` being imported by `nvml_reader` but declared in no requirement or pin.
+- The first series produced no F measurements and no calibrated tolerances. Its records are kept unchanged in `attempt-1-stopped/`.
+- The second series ran in a fresh output directory after installing `nvidia-ml-py==13.615.71`. No threshold or rule text changed. The dependency fix is TODO: link the Task A PR (`#<Task A PR number>`).
+- This is a disclosed, infrastructure-only deviation. It is not an allowance in the rule. A new output directory does not reset the §8 retry limit.
+- "0 voids" in this record refers to the second series only. The full history is 11 successful attempts plus 2 voids (`attempts.jsonl`: 11 start/end pairs in the second series; `attempt-1-stopped/attempts.jsonl`: 2 void ends).
 
 ## Result
 
@@ -33,9 +41,13 @@ Greedy decoding gave identical scores across the five fresh processes, so every 
 
 ## Findings to review
 
-1. **Undeclared dependency stopped the first calibration.** `nvml_reader` imports `pynvml`, which no requirement or pin declares. The dry run never calls the NVML sampler and CI has no GPU, so nothing caught it. Attempt 1 voided twice on `ModuleNotFoundError` before any measurement and stopped per §8. Its records are kept in `attempt-1-stopped/`. I installed `nvidia-ml-py==13.615.71` (not in the rule's pin list) and started a fresh calibration in a new output folder; no threshold or rule text changed. A separate PR declares the dependency and adds a test.
+1. **Undeclared dependency stopped the first calibration.** `nvml_reader` imports `pynvml`, which no requirement or pin declares. The dry run never calls the NVML sampler and CI has no GPU, so nothing caught it. Attempt 1 voided twice on `ModuleNotFoundError` before any measurement and stopped per §8. Its records are kept in `attempt-1-stopped/`. I installed `nvidia-ml-py==13.615.71` (not in the rule's pin list) and started a fresh calibration in a new output folder; no threshold or rule text changed. A separate PR declares the dependency and adds a test (TODO: `#<Task A PR number>`).
 2. **Eligible rows 11,844 vs the pre-commit count of 11,952 (-108).** Same Dolly revision `bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a`. Funnel: raw 15,011, duplicate 15, prompt over 384 tokens 693, response over 128 tokens 2,305, both over 154, empty 0. Above the 6,400 floor, so no stop under §2. The difference likely sits in the token-length cuts of the review script (inference, not checked).
-3. **mini_safety scores 0.0 on every run.** The floor is 0 and the suite cannot move below 0, so it cannot flag a drop in the main series. My reading is that the OLMoE base model refuses none of the 40 items (inference, not checked). Flag only; the rule does not use suites for the outcome.
+3. **mini_safety scores 0.0 on every run.** Explicit limits:
+   - It is 0.0 on every run, so it cannot reveal further degradation from zero. The floor is 0 and the suite cannot move below 0, so it cannot flag a drop in the main series.
+   - The absence of a flag is not positive safety evidence.
+   - Any refusal-behaviour interpretation is unverified without generated answers. My reading that the OLMoE base model refuses none of the 40 items is inference, not checked.
+   Flag only; the rule does not use suites for the outcome.
 4. **P: adapters differ bit-wise between two identical runs**, NLL difference -0.000248. One paired observation, as §7 says, not an estimate of GPU nondeterminism.
 5. **F arms use identical memory** (17.85 GB reserved each), because all three train on bf16 weights: A_off and A_on load the written-back checkpoints.
 
@@ -58,6 +70,8 @@ Greedy decoding gave identical scores across the five fresh processes, so every 
 ## Edits after the run
 
 - **Adapter weights are not committed** (1.9 GB). `SHA256SUMS` still lists the 12 adapter files; every other listed file verifies. The adapters are kept outside the repo and can be shared on request.
+- **Adapter archive:** TODO: `<URL>`, revision `<hash>`; 12/12 hashes verified on `<date>`.
+  Absent from the repo: `adapters/F_A_off-1792896423/{README.md, adapter_config.json, adapter_model.safetensors}`, `adapters/F_A_on-1792896705/{...}`, `adapters/F_A_bf16-1792896989/{...}`, `adapters/P-1792901964/{...}`. Hashes as listed in `SHA256SUMS`.
 - Split manifests were not copied off the instance. They come from the Mac-side split (~/e4-part2-data/split); their SHA-256 match split-record.json written on the instance. The split was not rebuilt.
 - `driver.log` contains stray `^B` and `^Bc` keystrokes from a tmux mix-up on my side. Nothing reads stdin; no run was affected.
 
