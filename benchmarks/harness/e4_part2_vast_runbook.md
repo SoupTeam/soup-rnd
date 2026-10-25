@@ -95,8 +95,11 @@ cat $RUN/decision.json
 
 ## 6. T: full selection, then the gate/up fallback targets
 
+Disclosure: W, N and P ran on commit `5ab78624`. The gate/up fallback targets were changed after `T_fallback_gateup` stopped on that commit (`cannot reach M=384 from 286 distinct SMOKE rows`). From the new commit on, only `T_fallback_gateup` runs with the new target rule (M = 129, 256, and the pool when it is above 256, capped at 512). Record that in the calibration report. The fallback targets are the only code that changed.
+
 ```bash
 python $H run --stage T $C --run-id T
+# on the commit that carries the pool-based targets (the e4-part2-run head after 5ab78624)
 python $H run --stage T $C --fallback-gateup --run-id T_fallback_gateup
 ```
 Check the second record: `target_misses` must be empty (step 10).

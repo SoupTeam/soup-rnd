@@ -69,7 +69,20 @@ CALLS_PER_UNIT = 4  # SMOKE rows per unit in T; the rule does not say, pinned he
 # dequant + F.linear fallback for M = 129..512 tokens and the fused kernel for M <= 128. No SMOKE
 # unit reached M > 128 (calibration T records: gate/up 1-88 tokens), so these cells have no tau.
 FALLBACK_GATEUP_KINDS = ("gate_proj", "up_proj")
-FALLBACK_GATEUP_M = (129, 256, 384, 512)
+FALLBACK_GATEUP_M_FLOOR = (129, 256)  # fused up to M=128, fallback from 129 (see above)
+FALLBACK_M_CAP = 512
+
+
+def fallback_m_targets(pool_rows: int) -> tuple:
+    """The fallback call sizes for a pool of ``pool_rows`` distinct SMOKE rows: 129 and 256, then
+    the whole pool when it is above 256 (capped at 512). Cells are keyed on kind, needs_grad and
+    kernel, not on M, so any M in the fallback range calibrates the same cell."""
+    if pool_rows < FALLBACK_GATEUP_M_FLOOR[1]:
+        raise common.CalibrationStopped(
+            f"fallback targets: cannot reach M=256 from {pool_rows} distinct SMOKE rows; no row "
+            "is repeated, so the target is not calibrated")
+    extra = (min(pool_rows, FALLBACK_M_CAP),) if pool_rows > FALLBACK_GATEUP_M_FLOOR[1] else ()
+    return FALLBACK_GATEUP_M_FLOOR + extra
 W_LAYERS = (0, 8)
 W_ROWS = 32
 N_REPEATS = 5
@@ -924,23 +937,26 @@ def concat_sources(order: Sequence[quant.Unit], inputs: Dict[str, List[Any]], m:
 
 
 def fallback_targets(chosen: Dict[str, List[quant.Unit]], inputs: Dict[str, List[Any]]):
-    """Restrict a T selection to the gate/up units. Every such unit gets the same four calls,
-    one per M in FALLBACK_GATEUP_M, built by ``concat_sources`` over the gate/up units in
-    (layer, expert) order. Returns (kept units, {unit key: [rows per call]}, {unit key: [per-call
-    record of M and source units]}). A target M the pool cannot reach stops the run.
+    """Restrict a T selection to the gate/up units. Every such unit gets the same calls, one per
+    target M from ``fallback_m_targets`` (fixed by the pool size), built by ``concat_sources``
+    over the gate/up units in (layer, expert) order.
+
+    Returns (kept units, {unit key: [rows per call]}, {unit key: [per-call record of M and
+    source units]}). A target M the pool cannot reach stops the run.
     """
     kept = {kind: chosen[kind] for kind in FALLBACK_GATEUP_KINDS}
     order = sorted((u for kind in FALLBACK_GATEUP_KINDS for u in kept[kind]),
                    key=lambda u: (u.layer, u.expert))
+    _, _, pool = concat_sources(order, inputs, FALLBACK_M_CAP)
     calls, meta = [], []
-    for m in FALLBACK_GATEUP_M:
+    for m in fallback_m_targets(pool):
         x, used, total = concat_sources(order, inputs, m)
         if total < m:
             raise common.CalibrationStopped(
                 f"fallback targets: cannot reach M={m} from {total} distinct SMOKE rows; "
                 "no row is repeated, so the target is not calibrated")
         calls.append(x)
-        meta.append({"M": m, "source_units": used, "rows": total})
+        meta.append({"M": m, "source_units": used, "rows": total, "pool_rows": pool})
     tiled = {unit.key: list(calls) for kind in FALLBACK_GATEUP_KINDS for unit in kept[kind]}
     sources = {unit.key: [dict(m) for m in meta] for kind in FALLBACK_GATEUP_KINDS
                for unit in kept[kind]}
@@ -954,7 +970,6 @@ def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe,
     inputs = capture_unit_inputs(bf16_model, chosen, smoke_token_rows, calls_per_unit, device)
     target_sources: Dict[str, List[Dict[str, Any]]] = {}
     if fallback_gateup:
-        assert calls_per_unit == len(FALLBACK_GATEUP_M), "one call per target M"
         chosen, inputs, target_sources = fallback_targets(chosen, inputs)
     records: List[Dict[str, Any]] = []
     e0: List[Dict[str, Any]] = []

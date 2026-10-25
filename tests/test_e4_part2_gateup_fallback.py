@@ -29,9 +29,31 @@ def rows(tag, n, width=3):
     return torch.cat([torch.full((n, 1), float(tag)), base, torch.zeros(n, width - 2)], dim=1)
 
 
-def test_targets_are_in_the_fallback_range_and_one_per_call():
-    assert len(cal.FALLBACK_GATEUP_M) == cal.CALLS_PER_UNIT
-    assert all(129 <= m <= 512 for m in cal.FALLBACK_GATEUP_M)
+def test_targets_are_129_and_256_then_the_pool_when_it_is_above_256_capped_at_512():
+    assert cal.fallback_m_targets(286) == (129, 256, 286)
+    assert cal.fallback_m_targets(256) == (129, 256)
+    assert cal.fallback_m_targets(1000) == (129, 256, 512)
+
+
+def test_a_pool_below_256_cannot_reach_the_second_target():
+    with pytest.raises(cal.common.CalibrationStopped, match="cannot reach M=256"):
+        cal.fallback_m_targets(255)
+
+
+def test_every_target_is_in_the_fallback_range():
+    for pool in (256, 286, 512, 4000):
+        assert all(129 <= m <= 512 for m in cal.fallback_m_targets(pool))
+
+
+def test_the_286_row_pool_from_the_box_gives_three_calls_with_no_repeated_row():
+    order = [unit(f"u{i}", "gate_proj", i // 64, i % 64) for i in range(11)]
+    inputs = {f"u{i}": [rows(i + 1, 26)] for i in range(11)}  # 11 x 26 = 286 distinct rows
+    kept, tiled, sources = cal.fallback_targets({"gate_proj": order, "up_proj": []}, inputs)
+    meta = sources["u0"]
+    assert [m["M"] for m in meta] == [129, 256, 286]
+    assert [m["rows"] for m in meta] == [129, 256, 286]
+    x = tiled["u0"][2]
+    assert len({tuple(r.tolist()) for r in x}) == 286
 
 
 def test_concatenates_distinct_sources_in_unit_order_and_truncates_the_last():
@@ -72,9 +94,10 @@ def test_fallback_targets_are_the_gateup_units_with_one_call_per_target_m():
     kept, tiled, sources = cal.fallback_targets(full, inputs)
     assert set(kept) == set(cal.FALLBACK_GATEUP_KINDS)
     assert [u.key for u in kept["gate_proj"]] == [u.key for u in full["gate_proj"]]
+    targets = cal.fallback_m_targets(640)  # 16 sources x 40 rows
     for key, calls in tiled.items():
-        assert [c.shape[0] for c in calls] == list(cal.FALLBACK_GATEUP_M)
-        assert [s["M"] for s in sources[key]] == list(cal.FALLBACK_GATEUP_M)
+        assert [c.shape[0] for c in calls] == list(targets)
+        assert [s["M"] for s in sources[key]] == list(targets)
         assert all(s["source_units"] for s in sources[key])
 
 
@@ -103,6 +126,6 @@ def _bitsandbytes_custom_fn():
 @pytest.mark.skipif(_bitsandbytes_custom_fn() is None, reason="bitsandbytes not installed")
 def test_the_installed_kernel_rule_sends_gateup_to_fallback_at_every_target_m():
     custom = _bitsandbytes_custom_fn()
-    for m in cal.FALLBACK_GATEUP_M:
+    for m in cal.fallback_m_targets(4000):
         assert custom(0, torch.bfloat16, m, 1024, 2048) is False  # gate/up: N=1024, K=2048
     assert custom(0, torch.bfloat16, 128, 1024, 2048) is True      # last fused M
