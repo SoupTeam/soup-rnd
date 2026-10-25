@@ -65,6 +65,10 @@ The prefix deliberately lacks the full trace's reuse pattern, so its hit rate
 must not replace the complete-trace comparison. Profiler timing is excluded
 from throughput claims. Stored JSON includes source/route hashes, allocation
 counts, ownership checks, RSS, after-clear/GC snapshots and limitations.
+All original JSON, both complete CPU profiler traces and validation logs/XML
+are retained byte-for-byte in `cpu-evidence.zip`; `evidence-manifest.json` lists
+every original length and SHA-256. This keeps raw routing arrays out of the
+review diff without changing or dropping their contents.
 
 Candidate-scoped local validation: **301 passed, four CUDA skips**, Ruff and
 applicable staged pre-commit clean. An additional runtime/residency/RAM/SSD
