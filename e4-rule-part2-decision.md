@@ -248,11 +248,11 @@ Placeholder fills (values or references to section 9): section 4 suite epsilon; 
 
 1. **Blocked on #36.** The record is not merged. The values cite #36's branch (`d1a3ddf1`). Citations move to #36's merge commit when it lands; the rule is not in force until then.
 2. **Resolved: both commits cited** (section 9.1). The run commit is the code that produced the values; the record commit is their source.
-3. **Partly open: cell of each main-run call.** The calibration harness records (kind, needs_grad, kernel) per call and assigns the cell with the functions in section 9.12. Proposed rule text is in 9.12. One clause conflicts with inherited text and stays OPEN there.
+3. **Resolved: cell of each main-run call.** The cell functions are in section 9.12 and the inherited "no claim" is kept. The main-run record reports the count of no-claim calls per cell (reporting only). The main-run harness must import the functions; that is a build requirement.
 4. **Resolved: split pinned** by the three manifest hashes (section 9.13). The 11,952 count is an unexplained earlier count that does not affect validity; the reviewer reproduced 11,844 eligible rows and all three manifests byte-for-byte.
 5. **Budget.** Observed wall-clock per stage is in section 9.14, labelled observed, not a prediction. Loading, evaluation, controls and retries have no estimate for the main run. **OPEN for nurik: the main-run spending cap.** No cap is proposed here.
 
-### 9.12 Cell of each main-run call (OPEN 3)
+### 9.12 Cell of each main-run call
 
 Check result: the calibration harness records (kind, needs_grad, kernel) per call, and the cell is assigned in one place:
 
@@ -263,11 +263,11 @@ Check result: the calibration harness records (kind, needs_grad, kernel) per cal
 
 No main-run module calls these functions yet (grep: only the calibration harness and the probe module). The main-run harness must import them; this is a requirement, not a completed step.
 
-**Proposed rule text (not in force; for review):** For every main-run call the harness assigns the cell with the functions of section 9.12 (kernel from the GEMM probe, cell from `cell_name`, input gradients from `backward_cell`) and logs the cell on that call's record.
+**Proposed rule text (not in force; for review):** For every main-run call the harness assigns the cell with the functions of section 9.12 (kernel from the GEMM probe, cell from `cell_name`, input gradients from `backward_cell`) and logs the cell on that call's record. The main-run record reports, per cell, the count of calls with no calibrated tau (no claim). Reporting only; no claim does not count as pass.
 
-**CONFLICT, not written as rule text.** The instruction "a call whose cell has no calibrated tau is void" conflicts with inherited text: calibration section 4 and skeleton section 5 both say a cell with no tau gets no claim. Inherited text is not changed here. Reviewer to choose: keep "no claim", or make such a call void, which is a new rule version.
+**Resolution.** The instruction "a call whose cell has no calibrated tau is void" conflicts with inherited text (calibration section 4 and skeleton section 5: no claim). The inherited "no claim" is kept and no void clause is written. Inherited lines are not changed.
 
-### 9.13 Split pin (OPEN 4)
+### 9.13 Split pin
 
 | Manifest | File | Rows | SHA-256 |
 |---|---|---|---|
