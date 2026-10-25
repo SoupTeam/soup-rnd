@@ -50,7 +50,7 @@ Greedy decoding gave identical scores across the five fresh processes, so every 
 | `preflight-*.json` | card check before the first attempt |
 | `SHA256SUMS` | as written on the instance |
 | `driver.log` | full driver output |
-| `split/` | `split-record.json` and the SMOKE/TRAIN manifests |
+| `split/` | `split-record.json` (from the instance) and the DECISION, SMOKE and TRAIN manifests |
 | `verified.json` | U4: all 78 output and 9 source files matched the quant manifest on the instance |
 | `pip-freeze.txt` | the instance's venv |
 | `attempt-1-stopped/` | the stopped attempt: journal, 2 void records, preflight, driver log |
@@ -58,6 +58,7 @@ Greedy decoding gave identical scores across the five fresh processes, so every 
 ## Edits after the run
 
 - **Adapter weights are not committed** (1.9 GB). `SHA256SUMS` still lists the 12 adapter files; every other listed file verifies. The adapters are kept outside the repo and can be shared on request.
+- Split manifests were not copied off the instance. They come from the Mac-side split (~/e4-part2-data/split); their SHA-256 match split-record.json written on the instance. The split was not rebuilt.
 - `driver.log` contains stray `^B` and `^Bc` keystrokes from a tmux mix-up on my side. Nothing reads stdin; no run was affected.
 
 ## Environment
