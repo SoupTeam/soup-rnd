@@ -1,0 +1,546 @@
+{
+  "rule": {
+    "profile": "a4-ram-budget-spill-v1",
+    "G1": "for k in 2,3,4: every planned budget (0.5, 0.25, min) gives per-micro-batch losses (forward) and nonzero LoRA grads (backward) torch.equal to the all-pinned L2L AND to GA; references reproducible (GA vs GA, pinned vs pinned), else the --deterministic rerun; the corrupted-spill-read control's grads must DIFFER, else no verdict",
+    "G2": "every arm: the store holds exactly the plan's bytes (power-of-two pinned blocks, rings at chunk+4096) and <= its budget; CUDA host allocator peak during the timed steps minus its baseline before the store <= the activation budget; with a declared host total, the process peak RSS <= that total",
+    "G3": "cleanup: Ctrl-C mid-backward, exception mid-forward and ENOSPC mid-step each raise their named error, leave no spill file, no spill thread, and return the host allocator to its baseline; ENOSPC names SPILL_ENOSPC with the arithmetic; and no arm leaves a spill file",
+    "G4": "ram_k2_half and ram_k4_half: mean per-block step-time overhead of B (spill) over A (all pinned), two-sided 95% t interval: pass if its upper bound < 10%, fail if its lower bound >= 10%, else no verdict",
+    "G5": "disk_k4_same_drive: weight read GB/s while busy, B (spill on the weights' drive) over A (no spill), per-block ratio, 95% t interval: pass (no interference past 10%) if lower bound >= 0.9, fail if upper bound < 0.9, else no verdict",
+    "V1": "required F1 checks (suspend, power, foreign_reads) ok on every arm a gate reads; a block with a void arm is replaced (METHOD.md), an unknown one removes the gate",
+    "V2": "spill volume scope local or virtual, never tmpfs/overlay/network; unbuffered round trip ok; every spilling arm's store is direct",
+    "V3": "device cuda; a CPU pilot never gets a verdict",
+    "V4": "A and B of a block train on the same token rows (ids fingerprint)",
+    "V5": "finite losses on every timed step",
+    "V6": "the plan happened: budget '1' spills nothing; any other budget spills > 0 layers and writes and reads exactly spill_file_bytes per step",
+    "V7": "blocks: the F1 repeats rule has no block left to add (blocks_to_add == 0)",
+    "V8": "disk-tier arms: the weight source reads with direct I/O",
+    "V9": "disk_k4_same_drive: every spilling arm's OS placement records (resolved path, mount, whole physical disk) show the spill file and the weight shards on one physical disk; unknown placement removes G5",
+    "order": "A-B-B-A blocks, fresh process per arm, comparisons in the order listed",
+    "hidden": "informational: overhead upper bound <= 5% is 'hidden'; the hidden share of spill I/O is 1 - (put+get wait)/(write+read busy)"
+  },
+  "verdict": "SPILL NOT SAFE: A3 must not ship the spill path as built",
+  "gates": {
+    "G1": {
+      "status": "pass",
+      "detail": "k=2: forward and backward exact at spill layers {'0.5': 24, '0.25': 32, 'min': 32}; control differs; k=3: forward and backward exact at spill layers {'0.5': 22, '0.25': 30, 'min': 32}; control differs; k=4: forward and backward exact at spill layers {'0.5': 20, '0.25': 28, 'min': 32}; control differs",
+      "parts": [
+        {
+          "status": "pass",
+          "detail": "k=2: forward and backward exact at spill layers {'0.5': 24, '0.25': 32, 'min': 32}; control differs",
+          "deterministic": true
+        },
+        {
+          "status": "pass",
+          "detail": "k=3: forward and backward exact at spill layers {'0.5': 22, '0.25': 30, 'min': 32}; control differs",
+          "deterministic": true
+        },
+        {
+          "status": "pass",
+          "detail": "k=4: forward and backward exact at spill layers {'0.5': 20, '0.25': 28, 'min': 32}; control differs",
+          "deterministic": true
+        }
+      ]
+    },
+    "G2": {
+      "status": "fail",
+      "detail": "280 arm(s) over budget: {'disk_k4_same_drive/b00_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b00_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b00_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b00_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b01_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b01_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b01_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b01_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b02_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b02_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b02_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b02_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b03_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b03_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b03_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b03_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b04_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b04_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b04_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b04_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b05_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b05_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b05_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b05_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b06_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b06_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b06_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b06_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b07_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b07_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b07_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b07_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b08_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b08_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b08_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b08_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b09_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b09_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b09_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b09_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b10_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b10_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b10_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b10_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b11_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'disk_k4_same_drive/b11_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b11_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'disk_k4_same_drive/b11_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k2_half/b00_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b00_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b00_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b00_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b01_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b01_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b01_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b01_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b02_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b02_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b02_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b02_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b03_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b03_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b03_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b03_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b04_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b04_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b04_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b04_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b05_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b05_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b05_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b05_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b06_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b06_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b06_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b06_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b07_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b07_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b07_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b07_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b08_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b08_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b08_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b08_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b09_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b09_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b09_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b09_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b10_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b10_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b10_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b10_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b11_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_half/b11_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b11_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k2_half/b11_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b00_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b00_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b00_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b00_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b01_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b01_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b01_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b01_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b02_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b02_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b02_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b02_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b03_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b03_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b03_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b03_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b04_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b04_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b04_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b04_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b05_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b05_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b05_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b05_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b06_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b06_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b06_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b06_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b07_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b07_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b07_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b07_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b08_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b08_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b08_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b08_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b09_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b09_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b09_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b09_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b10_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b10_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b10_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b10_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b11_p0_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k2_min/b11_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b11_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k2_min/b11_p3_A.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k3_min/b00_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b00_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b00_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b00_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b01_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b01_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b01_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b01_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b02_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b02_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b02_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b02_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b03_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b03_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b03_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b03_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b04_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b04_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b04_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b04_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b05_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b05_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b05_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b05_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b06_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b06_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b06_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b06_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b07_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b07_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b07_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b07_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b08_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b08_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b08_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b08_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b09_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b09_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b09_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b09_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b10_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b10_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b10_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b10_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b11_p0_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k3_min/b11_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b11_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k3_min/b11_p3_A.json': ['host allocator grew 402,653,188 B during the arm, over the 402,653,184 B activation budget'], 'ram_k4_half/b00_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b00_p1_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b00_p2_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b00_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b01_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b01_p1_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b01_p2_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b01_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b02_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b02_p1_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b02_p2_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b02_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b03_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b03_p1_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b03_p2_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b03_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b04_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_half/b04_p1_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b04_p2_B.json': ['host allocator grew 268,435,460 B during the arm, over the 268,435,456 B activation budget'], 'ram_k4_half/b04_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b00_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b00_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b00_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b00_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b01_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b01_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b01_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b01_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b02_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b02_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b02_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b02_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b03_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b03_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b03_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b03_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b04_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_min/b04_p1_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b04_p2_B.json': ['host allocator grew 67,108,868 B during the arm, over the 67,108,864 B activation budget'], 'ram_k4_min/b04_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b00_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b00_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b00_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b00_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b01_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b01_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b01_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b01_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b02_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b02_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b02_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b02_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b03_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b03_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b03_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b03_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b04_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b04_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b04_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b04_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b05_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b05_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b05_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b05_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b06_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b06_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b06_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b06_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b07_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b07_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b07_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b07_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b08_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b08_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b08_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b08_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b09_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b09_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b09_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b09_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b10_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b10_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b10_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b10_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b11_p0_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget'], 'ram_k4_quarter/b11_p1_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b11_p2_B.json': ['host allocator grew 134,217,732 B during the arm, over the 134,217,728 B activation budget'], 'ram_k4_quarter/b11_p3_A.json': ['host allocator grew 536,870,916 B during the arm, over the 536,870,912 B activation budget']}"
+    },
+    "G3": {
+      "status": "pass",
+      "detail": "['ctrl_c_mid_backward', 'enospc_injected_mid_step', 'enospc_real', 'exception_mid_forward']: named, no file, no thread, pinned memory returned"
+    },
+    "G4": {
+      "status": "no verdict",
+      "detail": "ram_k2_half: V7: the repeats rule wants 321 more block(s); ram_k4_half: overhead -0.61% [-5.56%, +4.33%] < 10% (hidden)",
+      "parts": [
+        {
+          "status": "no verdict",
+          "detail": "ram_k2_half: V7: the repeats rule wants 321 more block(s)",
+          "blocks": 12,
+          "valid_blocks": 12,
+          "void_blocks": 0,
+          "problems": [
+            "V7: the repeats rule wants 321 more block(s)"
+          ],
+          "effects": [
+            0.2844186114764879,
+            0.08369279494669471,
+            2.176425198175036,
+            0.04820854846037252,
+            0.010829617287082635,
+            0.004460521109028916,
+            0.03827747247455564,
+            0.022221501061448507,
+            0.026540057226472437,
+            0.06727698258268981,
+            0.01949259712437344,
+            0.24661216179530032
+          ],
+          "interval": {
+            "n": 12,
+            "mean": 0.25237133864329525,
+            "low": -0.13701013037613957,
+            "high": 0.6417528076627301
+          },
+          "hidden_share_median": 0.6965589773985468,
+          "spill_write_gb_per_s_median": 1.9897791892716183,
+          "spill_read_gb_per_s_median": 1.9382232444066152,
+          "spill_layers": 24
+        },
+        {
+          "status": "pass",
+          "detail": "ram_k4_half: overhead -0.61% [-5.56%, +4.33%] < 10% (hidden)",
+          "blocks": 5,
+          "valid_blocks": 5,
+          "void_blocks": 0,
+          "problems": [],
+          "effects": [
+            0.005969563894876112,
+            0.02476806876397904,
+            -0.052035431037902334,
+            0.0348177310867985,
+            -0.04422375064421694
+          ],
+          "interval": {
+            "n": 5,
+            "mean": -0.006140763587293126,
+            "low": -0.05555141385054571,
+            "high": 0.04326988667595946
+          },
+          "hidden_share_median": 0.681878900012769,
+          "spill_write_gb_per_s_median": 2.0253131984903234,
+          "spill_read_gb_per_s_median": 1.9383880786877923,
+          "spill_layers": 20
+        }
+      ]
+    },
+    "G5": {
+      "status": "no verdict",
+      "detail": "V7: the repeats rule wants 6 more block(s)",
+      "blocks": 12,
+      "valid_blocks": 12,
+      "void_blocks": 0,
+      "problems": [
+        "V7: the repeats rule wants 6 more block(s)"
+      ],
+      "effects": [
+        0.89402343408902,
+        0.6560873920049877,
+        0.5191161592529633,
+        0.8958876893228287,
+        0.8955590642627845,
+        0.9008177027149712,
+        0.8951624121903426,
+        0.7734377404623245,
+        0.9288533979755011,
+        0.9025376652143602,
+        0.8970891675252055,
+        0.8964164577549283
+      ],
+      "interval": {
+        "n": 12,
+        "mean": 0.8379156902308514,
+        "low": 0.7577094865351247,
+        "high": 0.9181218939265782
+      },
+      "hidden_share_median": 0.9806934807919634,
+      "spill_write_gb_per_s_median": 0.5406513970095816,
+      "spill_read_gb_per_s_median": 0.7371410351404235,
+      "spill_layers": 32,
+      "step_overhead": {
+        "n": 12,
+        "mean": 0.13399388512713636,
+        "low": 0.055860236046514494,
+        "high": 0.21212753420775823
+      }
+    }
+  },
+  "informative": {
+    "ram_k2_min": {
+      "blocks": 12,
+      "valid_blocks": 12,
+      "void_blocks": 0,
+      "problems": [
+        "V7: the repeats rule wants 20 more block(s)"
+      ],
+      "effects": [
+        0.545191777643026,
+        0.043910683621392416,
+        0.08812704985725145,
+        0.06412956548981025,
+        0.06533341599901601,
+        0.0811501594676996,
+        0.061648223021283095,
+        0.10147085359968351,
+        0.09250008626553358,
+        0.09960776873120769,
+        0.0626869579949237,
+        0.08530562827936436
+      ],
+      "interval": {
+        "n": 12,
+        "mean": 0.11592184749751598,
+        "low": 0.02930608789011778,
+        "high": 0.2025376071049142
+      },
+      "hidden_share_median": 0.6494187362019654,
+      "spill_write_gb_per_s_median": 2.010080752569581,
+      "spill_read_gb_per_s_median": 1.8853238089569455,
+      "spill_layers": 32
+    },
+    "ram_k3_min": {
+      "blocks": 12,
+      "valid_blocks": 12,
+      "void_blocks": 0,
+      "problems": [
+        "V7: the repeats rule wants 34 more block(s)"
+      ],
+      "effects": [
+        0.8235544969484686,
+        0.03343910008090251,
+        0.037324830828407145,
+        0.07559891489243913,
+        0.08269451887764799,
+        -0.005657632830217191,
+        0.03720587006562362,
+        0.05673092395746909,
+        0.08990234562108018,
+        0.7968542746203592,
+        0.009996712070261213,
+        0.044449297804477726
+      ],
+      "interval": {
+        "n": 12,
+        "mean": 0.17350780441140992,
+        "low": -0.01631497824899203,
+        "high": 0.3633305870718119
+      },
+      "hidden_share_median": 0.6573815311610132,
+      "spill_write_gb_per_s_median": 2.0537432474938395,
+      "spill_read_gb_per_s_median": 1.9314644547261697,
+      "spill_layers": 32
+    },
+    "ram_k4_min": {
+      "blocks": 5,
+      "valid_blocks": 5,
+      "void_blocks": 0,
+      "problems": [],
+      "effects": [
+        0.06751662264139431,
+        0.06164448753280052,
+        0.04884933983971236,
+        0.053075855203837334,
+        0.017607617353557054
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 0.049738784514260316,
+        "low": 0.025680805507240556,
+        "high": 0.07379676352128008
+      },
+      "hidden_share_median": 0.6601555666093112,
+      "spill_write_gb_per_s_median": 2.049064400269351,
+      "spill_read_gb_per_s_median": 1.9286609759934945,
+      "spill_layers": 32
+    },
+    "ram_k4_quarter": {
+      "blocks": 12,
+      "valid_blocks": 12,
+      "void_blocks": 0,
+      "problems": [
+        "V7: the repeats rule wants 13 more block(s)"
+      ],
+      "effects": [
+        0.022634085717366866,
+        0.27094906428424104,
+        0.39797512478133695,
+        0.031423340536615184,
+        0.024270181513498898,
+        0.057269274653661675,
+        0.012350710996444355,
+        0.017621351234220317,
+        0.026120507981448125,
+        0.022939609526289543,
+        0.32826401670495,
+        0.009819341011483945
+      ],
+      "interval": {
+        "n": 12,
+        "mean": 0.10180305074512974,
+        "low": 0.011474036542496346,
+        "high": 0.19213206494776314
+      },
+      "hidden_share_median": 0.6705563167474582,
+      "spill_write_gb_per_s_median": 2.005781468637002,
+      "spill_read_gb_per_s_median": 1.9205917531592875,
+      "spill_layers": 28
+    }
+  },
+  "drive": {
+    "kind": "drive",
+    "skipped": null,
+    "volume": {
+      "path": "<box>/spill",
+      "platform": "linux",
+      "mount_point": "/",
+      "fstype": "ext4",
+      "source": "/dev/vda1",
+      "drive": {
+        "device": "vda",
+        "model": null,
+        "vendor": "0x1af4",
+        "rotational": "1",
+        "logical_block_size": "512"
+      },
+      "total_bytes": 135084687360,
+      "free_bytes": 104905129984,
+      "scope": "local",
+      "scope_reason": "ext4 on an unnamed drive",
+      "direct_io": true,
+      "direct_io_reason": "aligned 1 MiB unbuffered write and read returned the same bytes",
+      "refusals": [],
+      "ok": true
+    },
+    "chunk_bytes": 4194304,
+    "bytes": 4294967296,
+    "fill_gb_per_s": 1.8832683351533834,
+    "passes": [
+      {
+        "write_gb_per_s": 0.9165719272995059,
+        "read_gb_per_s": 2.0658239135007967
+      },
+      {
+        "write_gb_per_s": 0.2296702647252958,
+        "read_gb_per_s": 2.03487450771092
+      },
+      {
+        "write_gb_per_s": 0.2310898860206153,
+        "read_gb_per_s": 2.0017317894226174
+      }
+    ],
+    "watch": {
+      "arm": "A",
+      "round": 0,
+      "run": 0,
+      "label": null,
+      "gpu": {
+        "id": "0",
+        "source": "default"
+      },
+      "required": [
+        "suspend",
+        "power",
+        "foreign_reads"
+      ],
+      "outcome": "ok",
+      "box_stamp_before": {
+        "unix_s": 1792924666.8872395,
+        "ram_available_bytes": 103383785472,
+        "commit_charge": {
+          "used_bytes": 3388379136,
+          "limit_bytes": 53060526080
+        },
+        "power_source": "mains",
+        "gpu_processes": [
+          {
+            "pid": 11556,
+            "type": "C",
+            "name": "<work>/.venv/bin/python",
+            "used_mib": 256
+          }
+        ],
+        "gpu_memory_used_mib": 265,
+        "unknown": {}
+      },
+      "box_stamp_after": {
+        "unix_s": 1792924715.460479,
+        "ram_available_bytes": 103332003840,
+        "commit_charge": {
+          "used_bytes": 3389169664,
+          "limit_bytes": 53060526080
+        },
+        "power_source": "mains",
+        "gpu_processes": [
+          {
+            "pid": 11556,
+            "type": "C",
+            "name": "<work>/.venv/bin/python",
+            "used_mib": 256
+          }
+        ],
+        "gpu_memory_used_mib": 265,
+        "unknown": {}
+      },
+      "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 210 to 1695 MHz over 25 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+        "samples": 25,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 210,
+          "median": 210,
+          "max": 1695
+        },
+        "reasons_seen": {
+          "gpu_idle": 16,
+          "sw_power_cap": 1
+        }
+      },
+      "checks": {
+        "suspend": {
+          "outcome": "ok",
+          "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+          "evidence": {
+            "sleep_offset_start_s": -1.7540005501359701e-06,
+            "sleep_offset_end_s": -9.910008884617127e-07,
+            "suspend_count_start": 0,
+            "suspend_count_end": 0
+          }
+        },
+        "power": {
+          "outcome": "ok",
+          "reason": "no battery in any of 26 power samples, so on mains",
+          "evidence": {
+            "samples": 26,
+            "off_mains_samples": [],
+            "battery_present": false,
+            "unknown_samples": 0,
+            "last_reading": {
+              "battery": false,
+              "online": {}
+            }
+          }
+        },
+        "foreign_reads": {
+          "outcome": "ok",
+          "reason": "at most 143360 bytes of foreign reads on vda (limit 1000000000)",
+          "evidence": {
+            "model_path": "<box>/spill",
+            "device": "vda",
+            "disk_read_bytes_start": 862561280,
+            "disk_read_bytes_end": 13747606528,
+            "other_disk_read_bytes_start": 344064,
+            "other_disk_read_bytes_end": 344064,
+            "own_read_bytes": 12884901888,
+            "foreign_read_bytes": 143360,
+            "foreign_read_bytes_min": 143360,
+            "foreign_read_bytes_max": 143360,
+            "uninspectable_processes": 6
+          },
+          "readers": [
+            {
+              "pid": 815,
+              "name": "kworker/u62:3-flush-253:0",
+              "read_bytes": 4612096
+            },
+            {
+              "pid": 1048,
+              "name": "sshd",
+              "read_bytes": 143360
+            }
+          ],
+          "unattributed_bytes": 0
+        }
+      }
+    },
+    "outcome": "ok",
+    "left_behind": false
+  },
+  "preflight_ok": true,
+  "tokens_per_step": [
+    {
+      "budget": "1",
+      "k_measured": 4,
+      "activation_budget_bytes": 536870912,
+      "seq": 512,
+      "without_spill": {
+        "k": 4,
+        "tokens": 2048,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 4096,
+        "tokens": 2097152,
+        "bound": "k_limit",
+        "spill_file_bytes": 549755813888
+      }
+    },
+    {
+      "budget": "min",
+      "k_measured": 4,
+      "activation_budget_bytes": 67108864,
+      "seq": 512,
+      "without_spill": {
+        "k": 0,
+        "tokens": 0,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 743,
+        "tokens": 380416,
+        "bound": "spill volume free space",
+        "spill_file_bytes": 99723771904
+      }
+    },
+    {
+      "budget": "1",
+      "k_measured": 2,
+      "activation_budget_bytes": 268435456,
+      "seq": 512,
+      "without_spill": {
+        "k": 2,
+        "tokens": 1024,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 4096,
+        "tokens": 2097152,
+        "bound": "k_limit",
+        "spill_file_bytes": 549755813888
+      }
+    },
+    {
+      "budget": "0.5",
+      "k_measured": 2,
+      "activation_budget_bytes": 134217728,
+      "seq": 512,
+      "without_spill": {
+        "k": 1,
+        "tokens": 512,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 750,
+        "tokens": 384000,
+        "bound": "spill volume free space",
+        "spill_file_bytes": 100663296000
+      }
+    },
+    {
+      "budget": "1",
+      "k_measured": 3,
+      "activation_budget_bytes": 402653184,
+      "seq": 512,
+      "without_spill": {
+        "k": 3,
+        "tokens": 1536,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 4096,
+        "tokens": 2097152,
+        "bound": "k_limit",
+        "spill_file_bytes": 549755813888
+      }
+    }
+  ],
+  "summary": {
+    "verdict": "SPILL NOT SAFE: A3 must not ship the spill path as built",
+    "G1": "pass",
+    "G2": "fail",
+    "G3": "pass",
+    "G4": "no verdict",
+    "G5": "no verdict",
+    "cpu_pilot": false
+  }
+}
