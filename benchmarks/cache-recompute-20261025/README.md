@@ -74,3 +74,5 @@ charge is $1.054928; these are not 32B training or performance results.
 The first complete numerical lease hit two consumer/orchestration errors after capture: configs had already been exported by the capacity bundles, and the approval filename became visible before its JSON upload completed. A separately hash-verified config view qualified the original captures without modifying any canonical archive or numerical gate. The next run fixes the export layout and uses atomic SFTP replacement; earlier immutable encoded objects are transport donors only. Every calculation is repeated on the GPU.
 
 The exact executed config-location consumer and its four negative/positive controls are preserved byte-for-byte in [replay-consumer.zip](replay-consumer.zip), for extraction into the retained study root.
+
+Full numerical replay, original control XMLs and all adapter-update audits are retained byte-for-byte in [accuracy-evidence.zip](accuracy-evidence.zip), indexed by [accuracy-evidence-manifest.json](accuracy-evidence-manifest.json). Compact qualification stays directly reviewable above.
