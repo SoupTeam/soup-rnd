@@ -74,6 +74,7 @@ case "${1:-}" in
 check)
   nvidia-smi
   need_cuda
+  mkdir -p "$G4"  # pytest's --basetemp needs its parent; on a fresh clone only fixtures made it
   "$PY" -m pytest tests/test_g4_codec.py tests/test_g4_harness.py tests/test_g4_rule.py \
     tests/test_l2l_probe_harness.py tests/test_l2l_session.py -q -o addopts='' \
     --basetemp "$G4/check-test-tmp"
