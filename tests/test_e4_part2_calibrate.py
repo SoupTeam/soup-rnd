@@ -372,6 +372,8 @@ class TestTheRealPathRequiresTheIdentity:
     def _run(self, tmp_path, monkeypatch, stamp):
         import types
 
+        tests.e4_part2_support.stub_setup(monkeypatch)
+
         import transformers
 
         manifest = tmp_path / "manifest.json"

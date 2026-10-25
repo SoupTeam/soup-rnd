@@ -30,3 +30,12 @@ def stub_pynvml(monkeypatch):
     import types
 
     monkeypatch.setitem(sys.modules, "pynvml", types.ModuleType("pynvml"))
+
+
+def stub_setup(monkeypatch):
+    """`run`/`drive`/`calibrate` refuse a data root with no pull record (setup_problem). Tests
+    that exercise another refusal or identity on a CPU box stub that one check; the setup check
+    itself is tested in test_e4_part2_setup_preflight.py."""
+    import e4_part2_calibration as cal
+
+    monkeypatch.setattr(cal, "setup_problem", lambda *_a, **_k: None)

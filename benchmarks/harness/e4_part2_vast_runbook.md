@@ -35,16 +35,30 @@ git status --short                 # must be empty
 ```
 Stop if the pin check fails or `git status` is not empty.
 
-## 2. Data-root (read-only token, revoked after the pull)
+## 2. Data-root: tokenizer, then the transfer pull (this writes verified.json)
+
+`verified.json` is written only by `e4_part2_transfer.py pull`, after every file has matched the manifest. A data root without it stops the run before any attempt (exit 6, `setup_problem`). Do not copy files into `$DATA` by hand.
 
 ```bash
-export HF_TOKEN=<read-only token scoped to RedBullet12/e4-part2-quant>   # environment only
-huggingface-cli download RedBullet12/e4-part2-quant --repo-type dataset \
-  --revision 2e09044127c7f8fd97ac474d89c2d98144ec7550 --local-dir $DATA
-unset HF_TOKEN
-shasum -a 256 $MAN                 # must print 1f3b550d707aa18c098851a1718f1712cdb1162adc28552c5fbbcce8611f0ccb
+mkdir -p $DATA/source
+hf download allenai/OLMoE-1B-7B-0924 --revision 6d84c48581ece794365f2b8e9cfb043c68ade9c5 \
+  --include tokenizer.json tokenizer_config.json special_tokens_map.json --local-dir $DATA/source
 ```
-Revoke the token in the HF settings once the download is done. Stop if the manifest hash differs. The run verifies each file against the manifest before any attempt (rule U4); a mismatch voids that run.
+The pull below downloads and verifies these again; this step only puts the tokenizer where the split step can read it early.
+
+Pull, with a read-only token held only in the environment:
+```bash
+python -c "from huggingface_hub import HfApi; print(HfApi().dataset_info('RedBullet12/e4-part2-quant').sha)"
+read -rs -p "HF read token: " HF_TOKEN; echo; export HF_TOKEN
+python benchmarks/harness/e4_part2_transfer.py pull --repo RedBullet12/e4-part2-quant --data-root $DATA
+unset HF_TOKEN
+env | grep -c '^HF_TOKEN=' || true       # must print 0
+test -f $DATA/verified.json && echo "verified.json present" || echo "NO verified.json: stop"
+shasum -a 256 $MAN                       # must print 1f3b550d707aa18c098851a1718f1712cdb1162adc28552c5fbbcce8611f0ccb
+```
+- The dataset sha printed first should be `2e09044127c7f8fd97ac474d89c2d98144ec7550`. `pull` takes the head of the dataset repo; the SHA-256 checks make a different head fail. Stop if the printed sha differs and the pull reports a mismatch.
+- Stop if `pull` exits non-zero (`VERIFY FAILED` or `manifest model ... is not the pinned one`) or if `verified.json` is absent.
+- Revoke the token on huggingface.co (Settings, Access Tokens) after the pull. Unsetting the variable does not revoke it.
 
 ## 3. Split (rebuild, then check the section 9.13 hashes)
 
@@ -122,6 +136,7 @@ PY
 - A void keeps its record. Rerun that exact command once, in the same folder, with the same flags. A second void of the same run stops calibration: do not continue, do not start the main series, and report both records.
 - Exit 4: the card is not the final card. Stop.
 - Exit 6: calibration was refused or stopped (`CalibrationStopped`), including a missing pynvml, a wrong card, a failed T, W, N or P, and a fallback pool that cannot reach M. Stop.
+- Exit 6 with `verified.json is missing` or `another manifest`: a setup error, refused before any attempt. No attempt is journaled, so the §8 rerun is not used. Run the pull in section 2, then repeat the same command. Any other exit 6 is a stop.
 - Any entry in `target_misses`: the targeted records do not show the fallback kernel. Stop.
 - Any changed frozen base hash (W or P): stop.
 

@@ -1752,6 +1752,10 @@ def _cmd_run(args) -> int:
     if problem:
         print(f"calibration stopped: {problem}", file=sys.stderr)
         return 6
+    problem = setup_problem(args.data_root, args.manifest)
+    if problem:
+        print(f"calibration stopped: {problem}", file=sys.stderr)
+        return 6
     if device.startswith("cuda"):
         import torch
 
@@ -1848,7 +1852,7 @@ def _cmd_drive(args) -> int:
         args.f_prefix = resolve_f_prefix(args.out, args.f_prefix)
         resolve_final_instance(args.out)
     if not is_dry(args) and resolve_device(args.device, args.gpu_index).startswith("cuda"):
-        problem = nvml_problem()
+        problem = nvml_problem() or setup_problem(args.data_root, args.manifest)
         if problem:
             print(f"calibration stopped: {problem}", file=sys.stderr)
             return 6
@@ -1875,6 +1879,24 @@ def nvml_problem() -> Optional[str]:
 # STOP_RECIPE_TO_OWNER or INCOMPLETE; decision.json says which), 6 calibration stopped or
 # refused before measurement (CalibrationStopped: wrong card, no instance id, pynvml /
 # nvidia-ml-py not importable, a second void, a failed T/W/N/P).
+def setup_problem(data_root: Path, manifest: Path) -> Optional[str]:
+    """Why the data root is not set up for a run, or None.
+
+    The transfer pull writes ``verified.json`` only after every file matched the manifest. A
+    missing record, or one for another manifest, is a setup error: it is refused before the first
+    attempt so it does not use the section 8 rerun (run_input_check still checks every file).
+    """
+    record_path = Path(data_root) / transfer.VERIFIED_NAME
+    if not record_path.exists():
+        return (f"{transfer.VERIFIED_NAME} is missing in {data_root}: run the transfer pull on "
+                "this instance first (e4_part2_transfer.py pull)")
+    record = json.loads(record_path.read_text())
+    if record.get("manifest_sha256") != common.sha256_file(Path(manifest)):
+        return ("the verification record is for another manifest than the supplied one; "
+                "rerun the transfer pull")
+    return None
+
+
 def preflight(args, out: Path) -> str:
     """Read the card before any attempt and refuse unless it is in the F or F80 class.
 
@@ -1892,6 +1914,9 @@ def preflight(args, out: Path) -> str:
         stamp = dryrun.fake_stamp(args.fake_card, instance, args.gpu_index)
     else:
         problem = nvml_problem() if args.device.startswith("cuda") else None
+        if problem:
+            raise common.CalibrationStopped(problem)
+        problem = setup_problem(args.data_root, args.manifest)
         if problem:
             raise common.CalibrationStopped(problem)
         common.require_single_gpu(args.gpu_index)

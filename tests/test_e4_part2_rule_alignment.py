@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from tests.e4_part2_support import stub_pynvml, tiny_model, write_legacy_checkpoint
+from tests.e4_part2_support import stub_pynvml, stub_setup, tiny_model, write_legacy_checkpoint
 from tests.test_e4_part2_calibration import E, GOOD_PROV, SMALL, synthetic_examples
 
 torch = pytest.importorskip("torch")
@@ -486,6 +486,7 @@ class TestDeviceFollowsGpuIndex:
             cal.resolve_device(device, index)
 
     def test_run_gives_the_body_the_mapped_device_and_selects_it(self, tmp_path, monkeypatch):
+        stub_setup(monkeypatch)
         stub_pynvml(monkeypatch)
         import transformers
 
@@ -569,6 +570,7 @@ class TestOneGpuPerRun:
             self.pick(index=index, visible="1")
 
     def test_run_refuses_before_starting_an_attempt(self, tmp_path, monkeypatch):
+        stub_setup(monkeypatch)
         stub_pynvml(monkeypatch)
         import transformers
 
@@ -589,6 +591,7 @@ class TestOneGpuPerRun:
                 cal._cmd_run(args)
 
     def test_drive_refuses_before_any_child_starts(self, tmp_path, monkeypatch):
+        stub_setup(monkeypatch)
         stub_pynvml(monkeypatch)
         def must_not_drive(*a, **k):
             raise AssertionError("drove a child on an unusable GPU selection")
@@ -691,6 +694,7 @@ class TestInputsBoundToThePinnedManifest:
         assert reasons  # not the pinned manifest: void, whatever files it names
 
     def test_run_hashes_the_bytes_it_parsed(self, tmp_path, monkeypatch):
+        stub_setup(monkeypatch)
         import transformers
 
         write_decision(tmp_path, {"decision": "FINAL_A100_40GB", "final_instance": INSTANCE})
@@ -782,6 +786,7 @@ class TestRestStagesStayOnTheChosenInstance:
         assert (tmp_path / "runs" / f"{record['attempt_id']}.json").exists()
 
     def test_run_passes_the_decided_instance_to_the_attempt(self, tmp_path, monkeypatch):
+        stub_setup(monkeypatch)
         import transformers
 
         write_decision(tmp_path, {"decision": "FINAL_A100_40GB", "final_instance": INSTANCE})
@@ -801,6 +806,7 @@ class TestRestStagesStayOnTheChosenInstance:
         assert seen["expected_instance"] == INSTANCE
 
     def test_the_f_stage_has_no_instance_to_match(self, tmp_path, monkeypatch):
+        stub_setup(monkeypatch)
         import transformers
 
         (tmp_path / "manifest.json").write_text("{}")
