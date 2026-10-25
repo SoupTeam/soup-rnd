@@ -1,6 +1,8 @@
 # Two-read expert cache integration: CPU preparation
 
-Status: CPU correctness controls passed; CUDA memory, real-model quality and speed are unqualified.
+**Latest GPU result:** [Moonlight four-arm qualification](GPU-RESULTS.md).
+
+Original preparation status: CPU correctness controls passed; CUDA memory, real-model quality and speed are unqualified.
 
 Source [b9d32144](https://github.com/SoupTeam/soup-rnd/tree/b9d32144c0131f5fb261ab25df298e9308ac1506) on
 `koko/two-read-cache-20261025` merges the exact upstream PR #2158 head `f2599ddc`
@@ -62,3 +64,7 @@ must not be counted twice. This preparation rented no GPU and spent no GPU budge
 ## Reproducible GPU runner prepared
 
 [Runner, commands and retained CPU verification](GPU-RUNNER.md): 172 passed, 1 CUDA skip, Ruff/pre-commit clean. This is preparation only; no GPU rental or speed result.
+
+## Real Moonlight GPU qualification completed
+
+[Four-arm results, exact gates, memory and cleanup](GPU-RESULTS.md).
