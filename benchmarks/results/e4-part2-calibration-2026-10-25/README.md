@@ -70,7 +70,7 @@ Greedy decoding gave identical scores across the five fresh processes, so every 
 ## Edits after the run
 
 - **Adapter weights are not committed** (1.9 GB). `SHA256SUMS` still lists the 12 adapter files; every other listed file verifies. The adapters are kept outside the repo and can be shared on request.
-- **Adapter archive:** TODO: `<URL>`, revision `<hash>`; 12/12 hashes verified on `<date>`.
+- **Adapter archive:** private Hugging Face repo [`RedBullet12/e4-part2-calibration-adapters`](https://huggingface.co/RedBullet12/e4-part2-calibration-adapters), revision `a2892103c1c2f83b91fc1e5a15ca0f16b98b1e48`; 12/12 hashes verified on 2026-10-25 from a fresh download at that revision.
   Absent from the repo: `adapters/F_A_off-1792896423/{README.md, adapter_config.json, adapter_model.safetensors}`, `adapters/F_A_on-1792896705/{...}`, `adapters/F_A_bf16-1792896989/{...}`, `adapters/P-1792901964/{...}`. Hashes as listed in `SHA256SUMS`.
 - Split manifests were not copied off the instance. They come from the Mac-side split (~/e4-part2-data/split); their SHA-256 match split-record.json written on the instance. The split was not rebuilt.
 - `driver.log` contains stray `^B` and `^Bc` keystrokes from a tmux mix-up on my side. Nothing reads stdin; no run was affected.
