@@ -49,6 +49,17 @@ delta = **0.005 nat** (AGREED; about 0.5% in perplexity ratio; a margin for this
 
 **Wording.** PASS means "no NLL effect larger than delta was found on this path with these seeds". It does not mean equivalence of anything else.
 
+## 4a. Gate/up fallback cells (owner's engineering decision, 2026-10-25)
+
+nurik delegated engineering decisions to me on 2026-10-25 via Telegram. This section is the owner's engineering decision under that delegation.
+
+- The four uncalibrated output cells `gate_proj` and `up_proj` on the fallback kernel, with needs_grad False and True (section 9.15), are calibrated with concatenated SMOKE inputs at M = 129, 256, 384 and 512.
+- Each call concatenates the first captured SMOKE input of distinct sources, in (layer, expert) order, truncated to M. Gate and up of one expert count as one source, and no row is repeated. The source unit ids are recorded on every call.
+- Code: branch `e4-part2-gateup-fallback-cal`, commit `83786f7c`; option `--fallback-gateup` on `run --stage T`; tests in `tests/test_e4_part2_gateup_fallback.py`.
+- These taus are merged only through this section. They are not added to the section 9.2 table. Inherited lines, including calibration section 4, are unchanged.
+- Card: the values come from a new run on the instance the rule names. The calibration rule's card-change clause (calibration rule, line 155) applies; see section 9.16.
+- Status: no values yet. Section 9.15 keeps the four cells uncovered until the run's taus are entered here.
+
 ## 5. Validity (any failure gives NO VERDICT)
 
 | Row | Check | Uses |
@@ -357,4 +368,31 @@ nurik delegated engineering decisions to me on 2026-10-25 via Telegram. Under th
 - one DECISION NLL pass per trained adapter plus one for the base (M0): 11 passes.
 
 These counts are the owner's decision, not values from the calibration record. The per-pass times in 9.14b are PROJECTED from calibration timings; the NLL pass time is UNKNOWN.
+
+### 9.16 Card change and data sources (for the gate/up run, section 4a)
+
+**Card-change clause** (calibration rule, `e4-part2-calibration-rule.md` line 155), quoted verbatim:
+
+> **Card changes.** All `[CAL]` values come from the final card's instance and are copied into the main rule before it is committed; the main series runs on that instance. If the instance changes after the main rule is committed, the old rule and every attempt are kept unchanged, and a new calibration record and a new preregistration version are committed before any new series. No tolerance in a committed rule is replaced at run time.
+
+**What it forces for a new A100 PCIe 40 GB instance (not 57596627):**
+- The first sentence applies now, before the main rule is committed: every `[CAL]` value must come from the final card's instance. A tolerance measured on a different instance cannot be entered in section 4a or in the main rule.
+- Because the main rule is not yet committed, the second trigger ("if the instance changes after the main rule is committed") is not yet met. Once it is committed, a new instance requires a new calibration record and a new preregistration version before any new series.
+- The clause defines no partial rerun. Its minimum reading is a new calibration record, which is the full calibration on that instance (F with decide, T, W, N, P). A T-only run on a new instance produces values that the clause does not allow to be used. This is an interpretation, for the owner to confirm.
+- The final card is 57596627 (`decision.json`). If it is still available, the gate/up run goes there. If not, the choice is a full calibration on the new instance, under the clause.
+
+**Data sources for the run** (`run --stage T` needs `--data-root`, `--split-dir`, `--manifest`):
+- `--manifest`: `benchmarks/results/e4-part2-quant/quant-manifest.json` in the repo. Its SHA-256 is `1f3b550d707aa18c098851a1718f1712cdb1162adc28552c5fbbcce8611f0ccb`, checked on this branch.
+- `--split-dir`: the split manifests (DECISION, SMOKE, TRAIN) and `split-record.json`. The split is deterministic from Dolly and the tokenizer, and it can be rebuilt on a fresh box (below). Expected SHA-256: DECISION `90787bbf…`, SMOKE `8e13970f…`, TRAIN `ba33e9dc…` (section 9.13). nurik rebuilt all three byte-for-byte (review on #36).
+- `--data-root`: contains `source/` (the OLMoE tokenizer) and the quantized weights and codes. The weights and codes are in the private HF dataset `RedBullet12/e4-part2-quant` at revision `2e09044127c7f8fd97ac474d89c2d98144ec7550`; they need a read-only token and are not rebuilt by this command. They are verified against the manifest on the box (rule U4).
+
+**Rebuild the split on a fresh box:**
+```
+mkdir -p <DATA_ROOT>/source
+huggingface-cli download allenai/OLMoE-1B-7B-0924 --revision 6d84c48581ece794365f2b8e9cfb043c68ade9c5 \
+  --include tokenizer.json tokenizer_config.json special_tokens_map.json --local-dir <DATA_ROOT>/source
+python benchmarks/harness/e4_part2_calibration.py split --data-root <DATA_ROOT> --out <SPLIT_DIR> \
+  --dataset-revision bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a
+```
+Check: `shasum -a 256 <SPLIT_DIR>/*.manifest.jsonl` must match the three hashes above. Not run here; the split needs the network for Dolly and the tokenizer.
 
