@@ -62,6 +62,12 @@ ARMS = ("A_off", "A_on", "A_bf16")
 F_MEMORY_LIMIT_BYTES = 36_000_000_000
 T_SELECTION_SEED = common.CAL_SEED
 CALLS_PER_UNIT = 4  # SMOKE rows per unit in T; the rule does not say, pinned here
+# Fallback targeting (--fallback-gateup, off by default). bitsandbytes
+# backends/cuda/ops.py:584-678: on A100 (sm80) gate_proj and up_proj (N=1024, K=2048) take the
+# dequant + F.linear fallback for M = 129..512 tokens and the fused kernel for M <= 128. No SMOKE
+# unit reached M > 128 (calibration T records: gate/up 1-88 tokens), so these cells have no tau.
+FALLBACK_GATEUP_KINDS = ("gate_proj", "up_proj")
+FALLBACK_GATEUP_M = (129, 256, 384, 512)
 W_LAYERS = (0, 8)
 W_ROWS = 32
 N_REPEATS = 5
@@ -889,17 +895,44 @@ def summarize_contribution(chosen: Dict[str, List[quant.Unit]], inputs: Dict[str
     }
 
 
+def tile_rows(x, m: int):
+    """The rows of ``x`` (tokens, in) repeated in order to exactly ``m`` rows."""
+    import torch
+
+    return x[torch.arange(m, device=x.device) % x.shape[0]]
+
+
+def fallback_targets(chosen: Dict[str, List[quant.Unit]], inputs: Dict[str, List[Any]]):
+    """Restrict a T selection to the gate/up units, with four calls each of M in
+    FALLBACK_GATEUP_M tiled from that unit's first captured SMOKE input.
+
+    ``chosen`` must be the full ``select_units`` result: the generator draws kinds in order, so
+    the gate/up units are the same units the full T run uses. A unit with no captured input
+    gets no calls (listed as non-contributing, as in the full run).
+    """
+    kept = {kind: chosen[kind] for kind in FALLBACK_GATEUP_KINDS}
+    tiled: Dict[str, List[Any]] = {}
+    for kind in FALLBACK_GATEUP_KINDS:
+        for unit in kept[kind]:
+            seen = inputs.get(unit.key, [])
+            tiled[unit.key] = [tile_rows(seen[0], m) for m in FALLBACK_GATEUP_M] if seen else []
+    return kept, tiled
+
+
 def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe, device: str,
           probe, per_kind: int = 8, calls_per_unit: int = CALLS_PER_UNIT,
-          min_units: int = MIN_UNITS_FOR_TAU) -> Dict[str, Any]:
+          min_units: int = MIN_UNITS_FOR_TAU, fallback_gateup: bool = False) -> Dict[str, Any]:
     chosen = select_units(units, T_SELECTION_SEED, per_kind)
     inputs = capture_unit_inputs(bf16_model, chosen, smoke_token_rows, calls_per_unit, device)
+    if fallback_gateup:
+        assert calls_per_unit == len(FALLBACK_GATEUP_M), "one call per target M"
+        chosen, inputs = fallback_targets(chosen, inputs)
     records: List[Dict[str, Any]] = []
     e0: List[Dict[str, Any]] = []
     contribution = summarize_contribution(chosen, inputs, min_units)
     fewer = [k for k, v in inputs.items() if 0 < len(v) < calls_per_unit]
     for kind in KINDS:
-        for unit in chosen[kind]:
+        for unit in chosen.get(kind, []):
             for tag in ("off", "on"):
                 w_dq = files.weight(tag, unit)
                 packed, qs = files.codes(tag, unit)
@@ -919,6 +952,9 @@ def run_t(units, files: UnitFiles, bf16_model, smoke_token_rows, recipe: Recipe,
             "selected_units": {k: [u.key for u in v] for k, v in chosen.items()},
             "calls_per_unit": calls_per_unit, "units_with_fewer_calls": fewer,
             "records": records, "e0": e0,
+            "fallback_gateup": fallback_gateup,
+            "target_misses": [r["cell"] for r in records
+                              if fallback_gateup and r.get("kernel") != "fallback"],
             "needs_grad_probe_mismatches": [r["unit"] for r in records
                                             if not r.get("needs_grad_matches_probe", True)]}
 
@@ -1630,7 +1666,8 @@ def _body(args, run_id, tokenizer, data_root, device, out, attempt_hint):
                          common.EXPERTS_IMPLEMENTATION)
         with GemmProbe() as probe:
             result = run_t(quant.enumerate_units(), UnitFiles(data_root), bf16, token_rows,
-                           RECIPE, device, probe)
+                           RECIPE, device, probe,
+                           fallback_gateup=bool(getattr(args, "fallback_gateup", False)))
         result["experts_implementation_resolved"] = bf16.config._experts_implementation
         result["attention_implementation_resolved"] = bf16.config._attn_implementation
         return result
@@ -1960,6 +1997,9 @@ def main(argv=None) -> int:
             p.add_argument("--instance-id")
             _add_dry_run_options(p)
         if name == "run":
+            p.add_argument("--fallback-gateup", action="store_true",
+                           help="T only: calibrate the gate/up fallback cells (M 129-512) "
+                                "instead of the full T selection")
             p.add_argument("--stage", choices=["F", "T", "W", "N", "P"], required=True)
             p.add_argument("--arm", choices=list(ARMS))
             p.add_argument("--repeat", type=int, default=1)
