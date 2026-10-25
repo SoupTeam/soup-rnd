@@ -509,26 +509,23 @@ class Instruments:
 
         pool = self.pool
         self._guard(
-            type(pool),
-            "load_async",
-            (
-                "stream.wait_stream(torch.cuda.current_stream())",
-                "dst.copy_(source.get(idx, name), non_blocking=True)",
-                "self.events[slot].record(stream)",
-                "_release_source(source, idx, self.events[slot])",
-                "_release_source(source, idx, None)",
-                "self.generation[slot] += 1",
-            ),
+            type(pool), "load_async",
+            ("self.resident_slots", "self._copy_layer(", "self.generation[slot] += 1"),
+        )
+        self._guard(
+            type(pool), "_copy_layer",
+            ("stream.wait_stream(torch.cuda.current_stream())",
+             "buffers[name].copy_(source.get(idx, name), non_blocking=True)",
+             "event.record(stream)", "_release_source(source, idx, event)",
+             "_release_source(source, idx, None)"),
         )
         inst = self
+        original_load = pool.load_async
+        original_copy = pool._copy_layer
 
-        def load_async(idx: int, source: Any, stream: Any = None) -> int:
-            slot = pool.slot_for(idx)
-            keys = (
-                pool.active_keys_by_layer[0]
-                if len(pool.active_keys_by_layer) == 1
-                else pool.active_keys_by_layer[idx]
-            )
+        def copy_layer(idx: int, buffers: Any, event: Any, source: Any, stream: Any) -> None:
+            if not inst.nocopy and not (inst.events_on and pool.is_cuda and stream is not None):
+                return original_copy(idx, buffers, event, source, stream)
             if pool.is_cuda and stream is not None:
                 stream.wait_stream(torch.cuda.current_stream())
                 with torch.cuda.stream(stream):
@@ -537,26 +534,22 @@ class Instruments:
                         start = torch.cuda.Event(enable_timing=True)
                         start.record(stream)
                     if not inst.nocopy:
-                        for name in keys:
-                            dst = pool.buffers[slot][name]
-                            dst.copy_(source.get(idx, name), non_blocking=True)
+                        original_copy(idx, buffers, event, source, stream)
+                    else:
+                        event.record(stream)
+                        _release_source(source, idx, event)
                     if inst.events_on:
                         end = torch.cuda.Event(enable_timing=True)
                         end.record(stream)
                         inst._copy_pairs.append((start, end))
-                    pool.events[slot].record(stream)
-                _release_source(source, idx, pool.events[slot])
             else:
-                for name in keys:
-                    pool.buffers[slot][name].copy_(source.get(idx, name))
-                _release_source(source, idx, None)
-            pool.owner[slot] = idx
-            # The no-recompute backward refuses a slot whose load generation
-            # moved since its first visit; a replacement load must bump it too.
-            pool.generation[slot] += 1
-            pool.loads += 1
-            return slot
+                original_copy(idx, buffers, event, source, stream)
 
+        def load_async(idx: int, source: Any, stream: Any = None) -> int:
+            # Delegate slot ownership, resident no-ops and generations to production.
+            return original_load(idx, source, stream)
+
+        pool._copy_layer = copy_layer
         original_wait = pool.wait
 
         def wait(idx: int) -> Any:

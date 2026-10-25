@@ -3708,6 +3708,29 @@ class TrainingConfig(BaseModel):
         ),
     )
 
+    stream_resident_layers: Union[int, Literal["auto"]] = Field(
+        default=0,
+        description=(
+            "Opt-in persistent decoder weights for streamed text SFT. 0 keeps ordinary "
+            "streaming; a positive integer keeps a centred block of that many layers; "
+            "'auto' measures the configured forward/backward peak and selects layers "
+            "within a conservative VRAM budget. CUDA with RAM or coordinated async SSD "
+            "sources. GPU-resident layers skip SSD reads and are excluded from the RAM "
+            "hotset. Auto falls back on unsupported sources. The full RAM-tier host store "
+            "is retained. "
+            "Setup probes preserve RNG and do not update adapters. No speed guarantee."
+        ),
+    )
+
+    @field_validator("stream_resident_layers", mode="before")
+    @classmethod
+    def _validate_stream_resident_layers(cls, value: Any) -> Any:
+        if value == "auto":
+            return value
+        if type(value) is not int or value < 0:
+            raise ValueError("training.stream_resident_layers must be 0, a positive int or 'auto'")
+        return value
+
     @field_validator("stream_buffers", mode="before")
     @classmethod
     def _validate_stream_buffers_int(cls, v: Any) -> Any:
@@ -3749,6 +3772,18 @@ class TrainingConfig(BaseModel):
         if isinstance(v, bool):
             raise ValueError("training.stream_read_ahead must be an int, not bool")
         return v
+
+    stream_ram_cache_mb: int = Field(
+        default=0,
+        ge=0,
+        strict=True,
+        description=(
+            "Optional allocation ceiling in MiB for a persistent RAM hotset on the SSD "
+            "streaming tier. Zero disables it. Layer count is selected automatically, "
+            "including arena rounding, current cgroup limits, 30% available-RAM slack "
+            "and a 512 MiB runtime reserve. Does not change weights or GPU buffers."
+        ),
+    )
 
     stream_pin: Optional[bool] = Field(
         default=None,
@@ -7071,6 +7106,8 @@ class SoupConfig(BaseModel):
                 tcfg.stream_source != "auto"
                 or tcfg.stream_ngram_source != "auto"
                 or tcfg.stream_buffers != 2
+                or tcfg.stream_resident_layers != 0
+                or tcfg.stream_ram_cache_mb != 0
                 or tcfg.stream_read_ahead != DEFAULT_STREAM_READ_AHEAD
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
@@ -7085,6 +7122,7 @@ class SoupConfig(BaseModel):
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
+                    "/ training.stream_resident_layers / training.stream_ram_cache_mb "
                     "/ training.stream_nf4_scale_cache / training.stream_recompute "
                     "/ training.stream_expert_layout "
                     "/ training.stream_disk_kind / training.stream_pin "
@@ -7092,6 +7130,32 @@ class SoupConfig(BaseModel):
                     "stream_layers=true to stream the base layer-by-layer."
                 )
             return self
+        if tcfg.stream_ram_cache_mb and tcfg.stream_source == "ram":
+            raise ValueError(
+                "training.stream_ram_cache_mb requires stream_source='disk' or 'auto'; "
+                "the RAM tier already holds the complete store"
+            )
+        if tcfg.stream_resident_layers != 0:
+            if self.task != "sft":
+                raise ValueError("training.stream_resident_layers requires task='sft'")
+            if tcfg.activation_offloading is not None:
+                raise ValueError(
+                    "training.stream_resident_layers cannot be combined with activation_offloading"
+                )
+            if tcfg.optimizer not in {
+                "adamw_torch", "adamw_torch_fused", "adamw_8bit", "paged_adamw_8bit",
+            }:
+                raise ValueError(
+                    "training.stream_resident_layers requires an AdamW optimizer "
+                    "whose future moment allocation can be budgeted"
+                )
+        if (
+            tcfg.stream_ram_cache_mb and tcfg.stream_recompute == "auto"
+            and tcfg.optimizer not in {
+                "adamw_torch", "adamw_torch_fused", "adamw_8bit", "paged_adamw_8bit",
+            }
+        ):
+            raise ValueError("cached stream_recompute='auto' requires an AdamW optimizer")
         if tcfg.stream_nf4_scale_cache and (
             tcfg.quantization != "4bit" or not tcfg.double_quant_on
         ):

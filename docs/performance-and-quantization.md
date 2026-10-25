@@ -612,6 +612,27 @@ on a read-bound 14B, worse at a high VRAM fill). `off` and `auto` are `task: sft
 only and refused beside `activation_offloading`, whose hooks would never see the
 activations a retained layer keeps.
 
+**Experimental joint memory caches (research candidate).**
+`training.stream_resident_layers: N` (or `auto`) keeps immutable decoder weights
+on CUDA. `training.stream_ram_cache_mb: M` keeps a byte-preserving RAM hotset
+under an allocation ceiling in MiB on the async disk tier. Both default to zero.
+GPU layers are preloaded first and excluded from RAM-cache membership and disk
+prefetch; the source drains outstanding copies before replacing a host hotset.
+The RAM tier still retains its complete host store, including GPU-resident layers.
+
+With an actual RAM/GPU cache installed, `stream_recompute: auto` may also probe
+the disk tier. The native one-layer estimate uses the common cap after a 64 MiB
+setup reserve and 12 bytes per trainable parameter for future AdamW states and
+workspace. Already installed GPU weights are present in the measured peak. A
+second full-shape forward/backward verifies the selected retained suffix before
+training. If it cannot fit or be measured, recomputation is restored. Execution
+errors other than OOM propagate and close the runtime. Probes preserve adapter
+values, Torch RNG and module modes and require pristine gradients. Setup takes
+additional time. This is memory admission, not a speed optimizer: retained
+activations and GPU weights compete for VRAM, and the benchmark must demonstrate
+an end-to-end benefit including setup. Cold disk `auto` keeps upstream behavior.
+This candidate has no new large-model speed claim until GPU qualification.
+
 **Qwen3.8-Flash-Next / Qwen4-Exp PLE.** The frozen PLE N-gram table is not a
 decoder-layer weight for storage purposes: putting it in the PLE layer's shard
 would make the shared layer buffer as large as the whole table. Soup keeps the
