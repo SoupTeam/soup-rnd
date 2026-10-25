@@ -13,6 +13,56 @@ from benchmarks.harness.two_read_cache_common import fingerprint_files, sha256_f
 from tests.test_two_read_cache_runner import _spec
 
 
+@pytest.mark.parametrize("query_rank,query", [(None, "q_proj"), (24, "q_b_proj")])
+def test_attention_targets_follow_the_checkpoint_query_path(query_rank, query) -> None:
+    assert runner.attention_targets(SimpleNamespace(q_lora_rank=query_rank)) == [
+        query, "kv_b_proj", "o_proj",
+    ]
+
+
+def test_attention_target_validation_rejects_a_silently_missing_query() -> None:
+    skeleton = SimpleNamespace(named_modules=lambda: [
+        ("", object()), ("model.layers.0.self_attn.q_proj", object()),
+        ("model.layers.0.self_attn.kv_b_proj", object()),
+        ("model.layers.0.self_attn.o_proj", object()),
+    ])
+    runner.validate_attention_targets(skeleton, ["q_proj", "kv_b_proj", "o_proj"])
+    with pytest.raises(ValueError, match="q_b_proj"):
+        runner.validate_attention_targets(skeleton, ["q_b_proj", "kv_b_proj", "o_proj"])
+
+
+def test_missing_query_is_refused_before_checkpoint_sharding(tmp_path, monkeypatch) -> None:
+    from transformers import AutoConfig
+
+    from soup_cli.utils import layer_shard, layer_stream_runtime
+
+    weights = tmp_path / "model"
+    weights.mkdir()
+    (weights / "config.json").write_text("{}", encoding="utf-8")
+    (weights / "model.safetensors").write_bytes(b"not read before target validation")
+    args = runner.parse_args([
+        "prepare", "--weights", str(weights), "--shards", str(tmp_path / "store"),
+        "--out", str(tmp_path / "out"), "--host-cache-gib", "2",
+        "--device-cache-gib", ".25",
+    ])
+    monkeypatch.setattr(runner, "hardware", lambda: {})
+    monkeypatch.setattr(runner, "host_boundary", lambda _limit: {})
+    monkeypatch.setattr(AutoConfig, "from_pretrained", lambda *args, **kwargs: SimpleNamespace(
+        model_type="deepseek_v3", n_routed_experts=8, max_position_embeddings=1024,
+        q_lora_rank=None,
+    ))
+    monkeypatch.setattr(layer_stream_runtime, "build_meta_skeleton", lambda *args, **kwargs:
+                        SimpleNamespace(named_modules=lambda: [
+                            ("self_attn.q_b_proj", object()),
+                            ("self_attn.kv_b_proj", object()), ("self_attn.o_proj", object()),
+                        ]))
+    monkeypatch.setattr(layer_shard, "shard_checkpoint", lambda *args, **kwargs:
+                        pytest.fail("missing query reached expensive sharding"))
+    with pytest.raises(ValueError, match="q_proj"):
+        runner.prepare(args)
+    assert not (tmp_path / "store").exists()
+
+
 def _bound_spec(tmp_path: Path, monkeypatch) -> dict:
     spec = _spec()
     for key in ("weights", "shard_dir"):

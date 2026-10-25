@@ -164,6 +164,25 @@ def environment() -> dict[str, Any]:
     }}
 
 
+def attention_targets(config: Any) -> list[str]:
+    """Freeze the actual DeepSeek query projection before preparing any arm.
+
+    Moonlight has no query low-rank factor: its attention owns ``q_proj``.
+    DeepSeek configurations with ``q_lora_rank`` instead own ``q_b_proj``.
+    The same resolved list is retained in the spec for all four arms.
+    """
+    query = "q_proj" if config.q_lora_rank is None else "q_b_proj"
+    return [query, "kv_b_proj", "o_proj"]
+
+
+def validate_attention_targets(skeleton: Any, targets: list[str]) -> None:
+    """Refuse an unmatched LoRA projection before expensive checkpoint sharding."""
+    available = {name.rsplit(".", 1)[-1] for name, _module in skeleton.named_modules()}
+    missing = sorted(set(targets) - available)
+    if missing:
+        raise ValueError(f"Requested attention targets are absent from the skeleton: {missing}")
+
+
 def validate_spec(spec: dict[str, Any]) -> None:
     for field, minimum in (("seq_len", 2), ("batch_size", 1), ("accumulation", 2),
                            ("accuracy_updates", 2), ("warmup_updates", 2), ("timed_updates", 6),
@@ -256,8 +275,10 @@ def prepare(args: argparse.Namespace) -> Path:
         raise ValueError("Two-read requires a supported DeepSeek-V3 MoE checkpoint")
     if args.seq_len > int(config.max_position_embeddings):
         raise ValueError("Sequence length exceeds the checkpoint context limit")
+    targets = attention_targets(config)
     before = fingerprint_files(_model_files(weights), weights)
     skeleton = build_meta_skeleton(str(weights), dtype="bfloat16", quant="nf4")
+    validate_attention_targets(skeleton, targets)
     suffixes = quantised_layer_suffixes(skeleton)
     del skeleton
     shard_started = time.perf_counter()
@@ -292,7 +313,7 @@ def prepare(args: argparse.Namespace) -> Path:
         "accuracy_updates": args.accuracy_updates, "warmup_updates": args.warmup_updates,
         "timed_updates": args.timed_updates, "rounds": args.rounds,
         "timeout_seconds": args.timeout_seconds, "lora_r": 4, "lora_alpha": 8,
-        "lora_targets": ["q_b_proj", "kv_b_proj", "o_proj"],
+        "lora_targets": targets,
         "host_cache_bytes": int(args.host_cache_gib * GIB),
         "device_cache_bytes": int(args.device_cache_gib * GIB),
         "device_cap_bytes": 8 * GIB, "max_host_bytes": int(args.max_host_gib * GIB),

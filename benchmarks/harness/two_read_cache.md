@@ -15,12 +15,17 @@ Keep the full output outside an ephemeral instance before its owner removes it.
 
 The native `shard_checkpoint` and `build_streamed_model` paths are used, with an
 NF4 frozen base, BF16 compute, disk tier, two decoder buffers, decoder RAM hotset
-disabled, and rank-4 attention LoRA (`q_b_proj`, `kv_b_proj`, `o_proj`, alpha 8).
+disabled, and rank-4 attention LoRA (alpha 8). The query target follows the
+checkpoint: `q_proj` when `q_lora_rank` is null, as in Moonlight-16B-A3B, otherwise
+`q_b_proj`; the other targets are `kv_b_proj` and `o_proj`. Every requested target
+must exist on the actual meta skeleton before checkpoint sharding starts.
 Routed-expert adapters, patched routers, forced uniform routing, retained decoder
 activations and compilation are excluded from this comparison. Each arm runs
 the same differentiable eval-mode graph with dropout disabled, AdamW lr .002 /
 weight decay .01 / foreach and fused off. LoRA B starts at a reproducible small
 nonzero value so both LoRA factors can actually update in this short control.
+The resolved target list is frozen once in the spec; base weights, initial
+adapters, inputs and numerical gates remain identical across all four arms.
 
 The current two-read implementation admits DeepSeek-V3 decoder layers only.
 Supply a materialized local supported real checkpoint, such as the native
@@ -55,6 +60,22 @@ Install/transfer time, the package lock (`pip freeze`), source checkpoint ID and
 immutable Hugging Face revision, disk model/mount and rental cost must be retained
 by the operator as well. A directory using symlinks outside its root is refused
 by the fingerprint containment check; materialize the local checkpoint first.
+
+Before transferring the real checkpoint, run the tiny CUDA NF4 controls on the
+chosen GPU. The second control uses Moonlight's full-rank query, BF16 autocast,
+the worker's complete four-arm updates and unchanged numerical gates:
+
+```bash
+python -m pytest \
+  tests/test_stream_expert_cache_nf4.py::test_real_cuda_nf4_expert_cache_preserves_complete_optimizer_trajectories \
+  tests/test_two_read_cache_full_query.py::test_real_cuda_nf4_full_rank_query_bf16_worker_trajectories \
+  -q -o addopts= --tb=short --junitxml=/results/preflight.xml
+```
+
+Require two actual passes, not skips. Retain the full-query test's `gpu-evidence`
+directory (its location is also recorded in JUnit properties): it includes
+numerical captures, hashes, comparisons and both cache-tier counters. CUDA
+bitwise equality is informational; CPU controls additionally require it.
 
 Choose explicit cache ceilings for a **qualification attempt**, not a claimed
 optimal policy. The example requests 2 GiB packed RAM and .25 GiB dense GPU cache;
@@ -149,11 +170,13 @@ durable storage, and link the compact final report from PR #5.
 ```bash
 python -m pytest tests/test_two_read_cache_evidence.py \
   tests/test_two_read_cache_runner.py tests/test_two_read_cache_worker.py \
-  tests/test_two_read_cache_preflight.py -q -o addopts= --tb=short
+  tests/test_two_read_cache_preflight.py tests/test_two_read_cache_full_query.py \
+  -q -o addopts= --tb=short
 python -m ruff check src/soup_cli/ scripts/ tests/ benchmarks/
 ```
 
 These tests exercise the real tiny-DeepSeek CPU training capture across four
 arms, fixed numerical gates, mutation-sensitive controller refusals, strong
-identity checks and memory/NaN guards. They do not qualify real CUDA allocation,
+identity checks and memory/NaN guards. The full-rank query path is checked with
+both dense BF16 and real CPU NF4 weights. They do not qualify real CUDA allocation,
 NF4 kernels, physical SSD traffic, real-model speed or downstream task quality.
