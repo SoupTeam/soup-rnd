@@ -252,6 +252,7 @@ Placeholder fills (values or references to section 9): section 4 suite epsilon; 
 4. **Resolved: split pinned** by the three manifest hashes (section 9.13). The 11,952 count is an unexplained earlier count that does not affect validity; the reviewer reproduced 11,844 eligible rows and all three manifests byte-for-byte.
 5. **Budget.** Observed timings are in section 9.14. The projected table in 9.14 is labelled PROJECTED from calibration timings; rows with an unstated count are UNKNOWN and excluded from the total. Cost = total hours x RATE, RATE owner-supplied. **OPEN for nurik: the main-run spending cap.** No cap is proposed here.
 6. **S coverage gap.** 4 of 28 reachable output cells (gate_proj and up_proj on the fallback kernel) have no calibrated tau (section 9.15). A mandatory S control on such a call makes that decision run INVALID. How often main-run calls reach them is UNKNOWN. Owner decision needed.
+7. **Main-run counts not stated.** The rule states no main-run count for S, X or E controls or for DECISION NLL passes (M0, M1). They are UNKNOWN in the projected table (section 9.14b) and are excluded from its total. Owner decision needed.
 
 ### 9.12 Cell of each main-run call
 
