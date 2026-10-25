@@ -16,18 +16,64 @@ is not the objective.
   a separate CUDA diagnostic and all 16 timing processes / 96 optimizer updates.
   Disk overflow was required by the unchanged RAM-source admission policy;
   physical NVMe backing and physical RAM infeasibility were not established.
+- [x] Fresh Soup 0.76.0 cache-aware native activation retention: shared VRAM cap,
+  setup/optimizer reserves, complete numerical replay and four balanced timing blocks.
 - [ ] Speed-aware automatic placement: compare additional cache budgets and
   intended production settings; include setup break-even and memory headroom.
   Existing automatic GPU residency is a capacity policy, not a speed optimizer.
 - [ ] Larger-model capacity and candidate Triton kernels need their own evidence.
   No 70B/120B run or capacity claim has been completed.
 
-## New opportunity screen on current upstream, 2026-10-25
+## Completed cached-retention follow-up on Soup 0.76.0
+
+[Full results, portable production patch and exact evidence](cache-recompute-20261025/README.md).
+Pinned upstream `51777d12` plus candidate `c22e5f90`, Qwen3-32B NF4, physical
+RTX 4060 Ti 8 GB and enforced native RAM bound 29.756 GiB. Every arm has the same
+14 GiB RAM hotset allocation; BF16 native adapters, context 512, batch 1 and
+accumulation 2. Deterministic arithmetic stays enabled, with debug empty-allocation
+fills disabled in all arms. These absolute timings must not be compared with the
+older study as an optimization gain.
+
+| Configuration | Step, s | Paired step-time reduction | Peak allocated VRAM, GiB |
+| --- | ---: | ---: | ---: |
+| RAM hotset, ordinary recomputation | 7.5863 | baseline | 3.6444 |
+| RAM hotset + seven retained-activation layers | 7.3974 | 2.512% | 5.0998 |
+| RAM hotset + four GPU-weight layers | 7.5453 | 0.537% | 4.7049 |
+| RAM hotset + four GPU-weight / three retained-activation layers | 7.4613 | 1.682% | 5.0925 |
+
+Only retained activations pass the unchanged >=2% practical speed gate; the
+pointwise descriptive 95% interval is [2.404%, 2.579%]. Adding GPU weights to that
+arm makes its step 0.849% slower. Peak process RSS is approximately 19.8-19.9 GiB.
+The six-update complete entry is slower with retained activations: 65.520 versus
+57.749 seconds, including native setup of 18.139 versus 7.885 seconds. This is a
+small measured step benefit that needs setup amortization, not a full-convergence result.
+
+All eight complete captures independently match bitwise; all 896 adapter tensors
+actually change. All 16 timing processes and 96 updates pass independent replay
+with the original reference-first rtol=.01, atol=1e-5, finite and .3f loss gates.
+All 30 model stages pass independent RAM/swap audits; no container swap is observed.
+The candidate connects upstream activation retention to cached disk streaming;
+retention itself is existing upstream work, not a new invention here.
+
+The separate profile has 0.953 s of source-get brackets, only 0.0327 s without
+observed GPU activity. GPU-copy and kernel interval unions are 5.212 and 7.016 s,
+and overlap; they cannot be added as removable time. Investigate transfer and NF4
+dequantization with controlled changes, rather than assuming the cached workload
+is disk-starved. Physical NVMe backing remains unverified; the matched VM disk-kind
+override is disclosed in the report.
+
+Next: a speed-aware placement policy should compare retained activations against
+GPU weights, preserve headroom, and account for expected training length. The
+current shared-cap planner proves capacity, not globally optimal placement.
+GPU-exclusive CPU storage and embedding/head transfer reductions remain candidates
+requiring implementation and their own real GPU qualification.
+
+## Historical opportunity screen on pinned upstream, 2026-10-25
 
 The GPU results below remain frozen on the older research source. Upstream Soup
 0.76.0 at `51777d12077df022db8ee8a57cf46ed2f76909ef` already includes the improved
 pinned-arena packer and `stream_recompute`. Do not rediscover either as a new feature
-or transfer old timings to the changed code. The next measurement needs a fresh baseline.
+or transfer old timings to the changed code. The follow-up above uses a fresh baseline.
 
 [CPU screening data](streaming-impact-20261025/candidate-screen.json) and its
 [self-contained evidence](streaming-impact-20261025/evidence-manifest.json) retain
@@ -43,7 +89,8 @@ These are mechanism/placement checks, not new training-speed or capacity results
    cache prototype on current upstream, then compare RAM cache alone, RAM plus GPU
    weights, RAM plus retained activations, and their combination. Share one VRAM
    cap and include optimizer/setup reserves, lifetime guards and setup break-even.
-   The changed decision is a hypothesis until full correctness and GPU timing pass.
+   The changed decision is now qualified by the matched follow-up above; only the
+   retained-activation arm passes its practical speed gate.
 2. **Second candidate: avoid duplicate CPU copies of persistent GPU weights.**
    Current `RamSource` keeps the full base. With hypothetical exclusion of four
    centred decoder layers, real 32B headers and the current upstream packer give
@@ -179,12 +226,15 @@ and colleague spending is outside this task's ledger.
 | First NF4 disk run: staging-loan failure | 0.508311 | [Original failure and fix](nf4-ssd-32b-20261024-blocked/README.md) |
 | CUDA fixture precondition failure before download | 0.312839 | [Fixture correction](nf4-ssd-32b-20261024-fixture-check/README.md) |
 | Successful bounded NF4 four-arm retry | 0.771675 | [Completed study](nf4-ssd-32b-20261024/README.md) |
+| Current-upstream cached retention, all five attempts | 2.390093 | [Completed follow-up](cache-recompute-20261025/README.md) |
 
-Aggregate since the 4B pilot: $3.927052; remaining $9.416553. Additional $10 allowance
-used: $0.583447. Conservative accounting includes reserves; it is not an invoice.
+Aggregate since the 4B pilot: $6.317145; remaining $7.026460. Additional $10 allowance
+used: $2.973540. Conservative accounting includes reserves; it is not an invoice.
 Earlier studies were already deducted from the starting remainder and are not charged again.
 
 Every instance and persistent volume created by this task is deleted. The final
-instance 57539954 and volume 57539953 are independently absent by exact IDs.
+instance 57640335 and volume 57640334 are independently absent by exact IDs, as
+are all four earlier attempts in this follow-up. Historical lease 57539954 and
+volume 57539953 remain covered by their retained cleanup proof.
 Unrelated colleague instance 57533867 was preserved. All original results and failed
 attempts remain retained; the public PR evidence uses lossless archives and hashes.
