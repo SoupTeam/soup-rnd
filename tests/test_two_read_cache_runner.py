@@ -175,6 +175,7 @@ def test_valid_spec_and_cli_keep_fixed_protocol_defaults() -> None:
     ])
     assert (args.seq_len, args.accumulation, args.accuracy_updates) == (512, 2, 2)
     assert (args.warmup_updates, args.timed_updates, args.rounds) == (2, 6, 4)
+    assert args.host_cache_policy == "lru"
     execute = runner.parse_args(["run", "--spec", "spec.json", "--out", "run", "--accuracy-only"])
     assert execute.accuracy_only and execute.spec == Path("spec.json")
 
@@ -186,6 +187,7 @@ def test_valid_spec_and_cli_keep_fixed_protocol_defaults() -> None:
     ("lora_targets", []), ("lora_targets", ["expert_proj"]),
     ("lora_targets", "q_proj"), ("lora_targets", [""]),
     ("lora_targets", ["q_proj", "q_proj"]),
+    ("host_cache_policy", "fifo"), ("host_cache_policy", None),
 ])
 def test_invalid_spec_is_refused(field: str, value) -> None:
     spec = _spec()

@@ -50,6 +50,7 @@ def _read_json(path: Path) -> dict[str, Any]:
 def source_fingerprint() -> dict[str, str]:
     paths = list((ROOT / "src" / "soup_cli").rglob("*.py"))
     paths += sorted((ROOT / "benchmarks" / "harness").glob("two_read_cache*.py"))
+    paths += sorted((ROOT / "benchmarks" / "harness").glob("expert_cache_*.py"))
     paths.append(ROOT / "pyproject.toml")
     return fingerprint_files(paths, ROOT)
 
@@ -184,6 +185,8 @@ def validate_attention_targets(skeleton: Any, targets: list[str]) -> None:
 
 
 def validate_spec(spec: dict[str, Any]) -> None:
+    if spec.get("host_cache_policy", "lru") not in ("lru", "static"):
+        raise ValueError("host_cache_policy must be 'lru' or 'static'")
     for field, minimum in (("seq_len", 2), ("batch_size", 1), ("accumulation", 2),
                            ("accuracy_updates", 2), ("warmup_updates", 2), ("timed_updates", 6),
                            ("rounds", 4), ("timeout_seconds", 1), ("lora_r", 1),
@@ -316,6 +319,7 @@ def prepare(args: argparse.Namespace) -> Path:
         "lora_targets": targets,
         "host_cache_bytes": int(args.host_cache_gib * GIB),
         "device_cache_bytes": int(args.device_cache_gib * GIB),
+        "host_cache_policy": args.host_cache_policy,
         "device_cap_bytes": 8 * GIB, "max_host_bytes": int(args.max_host_gib * GIB),
         "training_data_path": str(token_path), "training_data_sha256": sha256_file(token_path),
         "input_kind": "frozen_random_token_ids; numerical/throughput only, not task quality",
@@ -533,6 +537,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     stage.add_argument("--host-cache-gib", type=float, required=True)
     stage.add_argument("--device-cache-gib", type=float, required=True)
     stage.add_argument("--max-host-gib", type=float, default=32)
+    stage.add_argument("--host-cache-policy", choices=("lru", "static"), default="lru")
     for name, default in (("seq-len", 512), ("batch-size", 1), ("accumulation", 2),
                           ("accuracy-updates", 2), ("warmup-updates", 2), ("timed-updates", 6),
                           ("rounds", 4), ("seed", 3), ("input-seed", 29),

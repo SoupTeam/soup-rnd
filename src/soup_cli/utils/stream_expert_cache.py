@@ -22,9 +22,11 @@ EXPERT_CACHE_RESERVE_BYTES = 64 * 2**20
 class ExpertCachePlan:
     host_cache_bytes: int = 0
     device_cache_bytes: int = 0
+    host_cache_policy: str = "lru"
     host_available_bytes: int = 0
     host_cap_bytes: int = 0
     host_reserve_bytes: int = 0
+    candidate_host_available_bytes: int = 0
     cap_bytes: int = 0
     device_available_bytes: int = 0
     baseline_peak_allocated_bytes: int = 0
@@ -60,6 +62,7 @@ def configure_stream_expert_cache(
     *,
     host_cache_bytes: int = 0,
     device_cache_bytes: int = 0,
+    host_cache_policy: str = "lru",
     rows: int,
     seq_len: int,
     vocab_size: int,
@@ -83,6 +86,8 @@ def configure_stream_expert_cache(
     accumulated gradients are refused. Failed admission leaves both budgets at
     zero; non-OOM probe errors propagate with their original meaning.
     """
+    if not isinstance(host_cache_policy, str) or host_cache_policy not in {"lru", "static"}:
+        raise ValueError("host_cache_policy must be 'lru' or 'static'")
     for name, value in (
         ("host_cache_bytes", host_cache_bytes), ("device_cache_bytes", device_cache_bytes),
         ("reserve_bytes", reserve_bytes),
@@ -194,9 +199,18 @@ def configure_stream_expert_cache(
         clear_stream_substitution_cache(model)
         fetcher.configure_cache(
             host_cache_bytes=host_cache_bytes, device_cache_bytes=device_cache_bytes,
+            host_cache_policy=host_cache_policy,
         )
         candidate = probe("candidate")
         memory.synchronize()
+        # A payload ceiling is not a whole-process RAM bound. Resample after
+        # allocations/probes and keep admission headroom for the full lazy host
+        # ceiling, even if this probe already populated it. No allocator trim or
+        # reliance on evicted tensors being returned to the OS is assumed.
+        candidate_host = available_memory(host_available=host_available)
+        candidate_host_available_bytes = int(candidate_host["available_bytes"])
+        if host_charge > cache_budget(host_charge, candidate_host_available_bytes):
+            raise ValueError("expert host cache and its full ceiling exceed live RAM admission")
         # Another process can spend device memory while the candidate runs.
         # Resample live capacity, retaining the baseline cap as an upper bound.
         current_budget = residency_budget(
@@ -214,6 +228,11 @@ def configure_stream_expert_cache(
         )
         if required > cap_bytes:
             raise ValueError("expert cache candidate and full device ceiling exceed the shared cap")
+        if host_cache_policy == "static":
+            # The admission probe uses synthetic tokens. Never permanently pin
+            # its first-fit experts instead of the real workload's first visits.
+            # Clear entries only; retain both admitted ceilings and counters.
+            fetcher.clear_cache()
     except Exception as exc:
         try:
             rollback()
@@ -233,8 +252,10 @@ def configure_stream_expert_cache(
         source._expert_host_cache_reserve_bytes = host_charge
     return ExpertCachePlan(
         host_cache_bytes=host_cache_bytes, device_cache_bytes=device_cache_bytes,
+        host_cache_policy=host_cache_policy,
         host_available_bytes=host_available_bytes, host_cap_bytes=host_cap,
         host_reserve_bytes=host_charge, cap_bytes=cap_bytes,
+        candidate_host_available_bytes=candidate_host_available_bytes,
         device_available_bytes=current_budget.available_bytes,
         baseline_peak_allocated_bytes=baseline.peak_bytes,
         baseline_peak_reserved_bytes=baseline.reserved_bytes,

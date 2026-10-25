@@ -81,6 +81,58 @@ def test_small_device_hotset_and_host_lru_cover_different_experts(tmp_path):
         reader.close()
 
 
+@pytest.mark.parametrize("policy", ["lru", "static"])
+def test_scan_policy_preserves_values_while_static_stops_insertion_churn(tmp_path, policy):
+    from soup_cli.utils.expert_stream import ExpertFetcher
+
+    reader, pairs, _ = _reader(tmp_path)
+    one = sum(tensor.numel() * tensor.element_size() for tensor in pairs[0])
+    fetcher = ExpertFetcher(device="cpu", dtype="float32", host_cache_bytes=one,
+                            host_cache_policy=policy)
+    try:
+        for expert in (0, 1, 2) * 4:
+            _same(pairs[expert], fetcher.fetch(reader, expert))
+        stats = fetcher.cache_stats()
+        assert stats["host_cache_policy"] == policy
+        assert stats["host"]["payload_bytes"] == one
+        assert stats["host"]["entries"] == 1
+        if policy == "static":
+            assert stats["host"]["evictions"] == 0
+            assert stats["host"]["insertions"] == 1
+            assert stats["host"]["copied_bytes"] == one
+            assert stats["host"]["hits"] == 3
+            assert stats["storage_reads"] == 9
+        else:
+            assert stats["host"]["evictions"] == 11
+            assert stats["host"]["hits"] == 0
+            assert stats["storage_reads"] == 12
+    finally:
+        fetcher.close()
+        reader.close()
+
+
+def test_static_host_and_device_hotsets_keep_distinct_owned_experts(tmp_path):
+    from soup_cli.utils.expert_stream import ExpertFetcher
+
+    reader, pairs, _ = _reader(tmp_path)
+    one = sum(tensor.numel() * tensor.element_size() for tensor in pairs[0])
+    fetcher = ExpertFetcher(device="cpu", dtype="float32", host_cache_bytes=one,
+                            device_cache_bytes=one, host_cache_policy="static")
+    try:
+        for expert in (0, 1, 2, 0, 1, 2):
+            _same(pairs[expert], fetcher.fetch(reader, expert))
+        stats = fetcher.cache_stats()
+        assert stats["device"]["entries"] == stats["host"]["entries"] == 1
+        assert stats["device"]["hits"] == stats["host"]["hits"] == 1
+        assert stats["storage_reads"] == 4
+        assert stats["host"]["insertions"] == 1
+        assert stats["host"]["evictions"] == 0
+        assert stats["host"]["copied_bytes"] == one
+    finally:
+        fetcher.close()
+        reader.close()
+
+
 @pytest.mark.parametrize("device_cache", [False, True])
 def test_equal_expert_ids_from_different_layers_never_share_weights(tmp_path, device_cache):
     from soup_cli.utils.expert_stream import ExpertFetcher

@@ -10,15 +10,18 @@ import pytest
 
 
 @pytest.mark.parametrize("dtype,quant", [("bfloat16", "none"), ("float32", "nf4")])
+@pytest.mark.parametrize("host_cache_policy", ("lru", "static"))
 def test_full_rank_query_preserves_four_arm_worker_trajectories(
-    tmp_path: Path, dtype: str, quant: str,
+    tmp_path: Path, dtype: str, quant: str, host_cache_policy: str,
 ) -> None:
-    _full_query_trajectories(tmp_path, dtype=dtype, quant=quant, device="cpu", bitwise=True)
+    _full_query_trajectories(tmp_path, dtype=dtype, quant=quant, device="cpu", bitwise=True,
+                             host_cache_policy=host_cache_policy)
 
 
 @pytest.mark.gpu(reason="Full-rank query, CUDA NF4 and BF16 autocast need a real GPU")
+@pytest.mark.parametrize("host_cache_policy", ("lru", "static"))
 def test_real_cuda_nf4_full_rank_query_bf16_worker_trajectories(
-    tmp_path: Path, monkeypatch: Any, record_property: Any,
+    tmp_path: Path, monkeypatch: Any, record_property: Any, host_cache_policy: str,
 ) -> None:
     """Cheap Moonlight-shaped attention preflight before downloading real weights."""
     import torch
@@ -35,6 +38,7 @@ def test_real_cuda_nf4_full_rank_query_bf16_worker_trajectories(
         reports = _full_query_trajectories(
             tmp_path, dtype="bfloat16", quant="nf4", device="cuda", bitwise=False,
             evidence_dir=tmp_path / "gpu-evidence",
+            host_cache_policy=host_cache_policy,
         )
         # Bitwise equality is reported, never an extra CUDA acceptance gate.
         record_property("cuda_four_arm_comparisons", json.dumps(reports, sort_keys=True))
@@ -48,6 +52,7 @@ def test_real_cuda_nf4_full_rank_query_bf16_worker_trajectories(
 def _full_query_trajectories(
     tmp_path: Path, *, dtype: str, quant: str, device: str, bitwise: bool,
     evidence_dir: Path | None = None,
+    host_cache_policy: str = "lru",
 ) -> dict[str, Any]:
     import torch
     from peft import LoraConfig, TaskType
@@ -114,12 +119,14 @@ def _full_query_trajectories(
     return _qualify_full_query_captures(
         ordinary, default_runtime, two, two_runtime, ids, bitwise=bitwise,
         evidence_dir=evidence_dir,
+        host_cache_policy=host_cache_policy,
     )
 
 
 def _qualify_full_query_captures(
     ordinary: Any, default_runtime: Any, two: Any, two_runtime: Any, ids: Any,
     *, bitwise: bool, evidence_dir: Path | None,
+    host_cache_policy: str = "lru",
 ) -> dict[str, Any]:
     import torch
 
@@ -153,6 +160,7 @@ def _qualify_full_query_captures(
             runtime.expert_fetcher.configure_cache(
                 host_cache_bytes=2**20 if cache else 0,
                 device_cache_bytes=2**15 if cache else 0,
+                host_cache_policy=host_cache_policy,
             )
             capture = _run_accuracy(model, runtime, batches, spec)
             assert len(capture["microbatches"]) == 4

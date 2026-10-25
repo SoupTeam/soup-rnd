@@ -456,6 +456,7 @@ class ExpertFetcher:
     def __init__(
         self, *, device: str, dtype: str, codes: Optional[Mapping[str, Any]] = None,
         host_cache_bytes: int = 0, device_cache_bytes: int = 0,
+        host_cache_policy: str = "lru",
     ) -> None:
         import torch
 
@@ -474,26 +475,37 @@ class ExpertFetcher:
         self._materializations = 0
         self.configure_cache(
             host_cache_bytes=host_cache_bytes, device_cache_bytes=device_cache_bytes,
+            host_cache_policy=host_cache_policy,
         )
 
-    def configure_cache(self, *, host_cache_bytes: int = 0, device_cache_bytes: int = 0) -> None:
+    def configure_cache(
+        self, *, host_cache_bytes: int = 0, device_cache_bytes: int = 0,
+        host_cache_policy: str = "lru",
+    ) -> None:
         """Reset caller-admitted payload ceilings, shared by all expert readers.
 
-        The host tier is an LRU of owned packed tensors and all NF4 sidecars.
+        The host tier owns packed tensors and all NF4 sidecars. The legacy
+        ``lru`` policy replaces entries on capacity misses; opt-in ``static``
+        admits the first complete entries that fit and never evicts/replaces
+        them. Static cold misses after filling therefore allocate no new clones.
         The device tier keeps the first complete dense experts fitting its
         ceiling until reset. It never overwrites weights or duplicates host
         entries. Direct use does not prove whole-model RAM/VRAM fit; the setup
         helper in ``stream_expert_cache`` admits and probes these ceilings.
         CPU device caching is supported for correctness controls only.
         """
-        from soup_cli.utils.expert_cache import TensorLRU
+        from soup_cli.utils.expert_cache import TensorHotset, TensorLRU
 
         if self._closed:
             raise RuntimeError("expert fetcher is closed")
-        host = TensorLRU(host_cache_bytes, copy_on_insert=True)
+        if not isinstance(host_cache_policy, str) or host_cache_policy not in {"lru", "static"}:
+            raise ValueError("host_cache_policy must be 'lru' or 'static'")
+        host_type = TensorHotset if host_cache_policy == "static" else TensorLRU
+        host = host_type(host_cache_bytes, copy_on_insert=True)
         device = TensorLRU(device_cache_bytes, copy_on_insert=False)
         self._host_cache = host
         self._device_cache = device
+        self._host_cache_policy = host_cache_policy
 
     def clear_cache(self) -> None:
         """Drop immutable entries without changing configured payload ceilings."""
@@ -513,6 +525,7 @@ class ExpertFetcher:
             "storage_reads": self._storage_reads,
             "storage_bytes_read": self._storage_bytes_read,
             "materializations": self._materializations,
+            "host_cache_policy": self._host_cache_policy,
             "host": self._host_cache.stats(),
             "device": self._device_cache.stats(),
             "host_staging_bytes": (

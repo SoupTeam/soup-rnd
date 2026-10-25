@@ -112,3 +112,100 @@ class TensorLRU:
             "misses": self._misses,
             "evictions": self._evictions,
         }
+
+
+class TensorHotset(TensorLRU):
+    """First-fit complete entries that are never replaced or capacity-evicted.
+
+    Use ``copy_on_insert=True`` for host tensors backed by reusable staging.
+    Once the remaining payload cannot fit an entry, :meth:`put` bypasses it
+    without allocating a clone. A later smaller entry can still fit. Existing
+    keys also bypass, retaining their original immutable tensors. Only explicit
+    :meth:`discard` or :meth:`clear` releases an admitted entry.
+
+    The boolean copy policy has the same ownership contract as ``TensorLRU``;
+    reference mode requires owning tensors that the caller never overwrites.
+    This hotset additionally requires nonempty entries of ordinary dense,
+    non-meta tensors. Zero-sized entries cannot accumulate uncharged metadata.
+    Clone failures roll back the whole entry without changing earlier entries.
+
+    Stats retain the six LRU keys (``evictions`` stays zero), plus lifetime
+    ``insertions`` (published entries), ``copied_bytes`` (completed clones,
+    including those rolled back after a later error), and ``rejected_admissions``
+    (False-returning capacity/duplicate/disabled bypasses). Invalid inputs and
+    clone errors raise rather than counting as ordinary admission rejections.
+    """
+
+    def __init__(self, budget_bytes: int, *, copy_on_insert: bool) -> None:
+        super().__init__(budget_bytes, copy_on_insert=copy_on_insert)
+        self._insertions = 0
+        self._copied_bytes = 0
+        self._rejected_admissions = 0
+
+    def get(self, key: Any) -> Mapping[str, Any] | None:
+        """Return the immutable entry without modifying the static hotset order."""
+        entry = self._entries.get(key)
+        if entry is None:
+            self._misses += 1
+            return None
+        self._hits += 1
+        return entry[0]
+
+    def put(self, key: Any, tensors: Mapping[str, Any]) -> bool:
+        """First-fit one complete set; bypass never clones, evicts or overwrites."""
+        import torch
+
+        hash(key)
+        if not isinstance(tensors, Mapping):
+            raise TypeError("an expert hotset entry must be a mapping of named tensors")
+        items = tuple(tensors.items())
+        if not items:
+            raise ValueError("an expert hotset entry must be nonempty")
+        names = set()
+        payload = 0
+        for name, tensor in items:
+            if not isinstance(name, str) or not name or not isinstance(tensor, torch.Tensor):
+                raise TypeError("an expert hotset entry must map nonempty string names to tensors")
+            if name in names:
+                raise ValueError("an expert hotset entry must not repeat tensor names")
+            names.add(name)
+            if (tensor.layout != torch.strided or tensor.device.type == "meta"
+                    or tensor.is_quantized or tensor.numel() == 0):
+                raise ValueError("an expert hotset entry requires nonempty ordinary dense tensors")
+            payload += int(tensor.numel() * tensor.element_size())
+        if (key in self._entries or self._budget_bytes == 0
+                or payload > self._budget_bytes - self._payload_bytes):
+            self._rejected_admissions += 1
+            return False
+        owned: dict[str, Any] = {}
+        try:
+            for name, tensor in items:
+                if self.copy_on_insert:
+                    owned[name] = tensor.detach().clone()
+                    self._copied_bytes += int(owned[name].numel() * owned[name].element_size())
+                    if (owned[name].shape != tensor.shape or owned[name].dtype != tensor.dtype
+                            or owned[name].device != tensor.device
+                            or owned[name].layout != tensor.layout
+                            or owned[name].untyped_storage().data_ptr()
+                            == tensor.untyped_storage().data_ptr()):
+                        raise RuntimeError(
+                            "an expert hotset clone changed metadata or aliases input",
+                        )
+                else:
+                    owned[name] = tensor
+        except BaseException:
+            # Tracebacks may retain this frame; clear owned references explicitly.
+            owned.clear()
+            raise
+        self._entries[key] = (MappingProxyType(owned), payload)
+        self._payload_bytes += payload
+        self._insertions += 1
+        return True
+
+    def stats(self) -> dict[str, int]:
+        """Payload/lookup counts plus allocation work since this hotset was created."""
+        return super().stats() | {
+            "insertions": self._insertions,
+            "copied_bytes": self._copied_bytes,
+            "rejected_admissions": self._rejected_admissions,
+        }

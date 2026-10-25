@@ -49,7 +49,7 @@ def _gate(expected, actual, *, bitwise):
             assert candidate == reference, key
 
 
-def _nf4_trajectory_comparison(tmp_path, device):
+def _nf4_trajectory_comparison(tmp_path, device, host_cache_policy="lru"):
     pytest.importorskip("bitsandbytes")
     import torch
 
@@ -81,7 +81,7 @@ def _nf4_trajectory_comparison(tmp_path, device):
             model, runtime = _build(weights, index, shards, two_read=two_read, device=device)
             try:
                 _gate(initial, _adapter_values(model), bitwise=True)
-                _configure(runtime, arm)
+                _configure(runtime, arm, host_cache_policy)
                 _gate(expected, _trajectory(model, batches), bitwise=device == "cpu")
                 stats = runtime.expert_fetcher.cache_stats()
                 if arm != "none":
@@ -90,10 +90,16 @@ def _nf4_trajectory_comparison(tmp_path, device):
                 runtime.close()
 
 
-def test_real_cpu_nf4_expert_cache_preserves_complete_optimizer_trajectories(tmp_path):
-    _nf4_trajectory_comparison(tmp_path, "cpu")
+@pytest.mark.parametrize("host_cache_policy", ("lru", "static"))
+def test_real_cpu_nf4_expert_cache_preserves_complete_optimizer_trajectories(
+    tmp_path, host_cache_policy,
+):
+    _nf4_trajectory_comparison(tmp_path, "cpu", host_cache_policy)
 
 
 @pytest.mark.gpu(reason="Real CUDA NF4 kernels and device-cache parity require a GPU")
-def test_real_cuda_nf4_expert_cache_preserves_complete_optimizer_trajectories(tmp_path):
-    _nf4_trajectory_comparison(tmp_path, "cuda")
+@pytest.mark.parametrize("host_cache_policy", ("lru", "static"))
+def test_real_cuda_nf4_expert_cache_preserves_complete_optimizer_trajectories(
+    tmp_path, host_cache_policy,
+):
+    _nf4_trajectory_comparison(tmp_path, "cuda", host_cache_policy)

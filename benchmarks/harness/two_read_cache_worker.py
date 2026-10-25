@@ -512,6 +512,7 @@ def _build(spec: dict[str, Any], arm: str) -> tuple[Any, Any, Any]:
             plan = configure_stream_expert_cache(
                 model, runtime, host_cache_bytes=spec["host_cache_bytes"],
                 device_cache_bytes=spec["device_cache_bytes"], rows=spec["batch_size"],
+                host_cache_policy=spec.get("host_cache_policy", "lru"),
                 seq_len=spec["seq_len"], vocab_size=model.config.vocab_size,
                 override_bytes=spec["device_cap_bytes"],
             )

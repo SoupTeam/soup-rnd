@@ -616,6 +616,17 @@ Device entries are excluded from the host cache. Once the device ceiling fills,
 other experts use the host LRU or ordinary storage reads; device entries are not
 overwritten or automatically selected by measured popularity.
 
+An explicit `host_cache_policy="static"` selects a first-fit packed host hotset
+instead of the default `"lru"`. It owns complete expert payloads including NF4
+sidecars, but never evicts or replaces admitted entries. A miss that cannot fit
+bypasses the hotset without cloning its staging tensors. This avoids scan-driven
+allocation churn at the cost of keeping the initially selected experts; it is
+not a popularity selector or a promise of faster training. The dense device
+hotset and all numerical operations remain the same. Select a policy before
+setup admission and remeasure it with the actual routing workload.
+Successful static-policy admission clears the synthetic probe's entries while
+retaining the admitted ceilings, so real training selects the first-fit hotset.
+
 Build with the same `two_read_experts` API above, then admit explicit payload
 ceilings after the source, decoder hotset and staging have been installed:
 
@@ -641,6 +652,10 @@ state/workspace. The **full** lazy device ceiling stays reserved in later decode
 residency and cached-activation plans, even if warm entries are conservatively
 counted twice. Later SSD hotset rebuilds hold back the full expert host ceiling too.
 Re-run setup admission after changing cache budgets, sources, shapes or adapters.
+Host admission resamples live RAM after the candidate probe and retains headroom
+for the full lazy ceiling there too. This deliberately does not assume that
+evicted tensors are promptly returned to the OS: payload bytes and process RSS
+are different measurements.
 
 Direct `ExpertFetcher.configure_cache(...)` accepts caller-admitted payload limits;
 it does not establish whole-model fit. Payload counters exclude allocator overhead,

@@ -17,10 +17,11 @@ _CACHE_BYTES = 1024 * 1024
 _ARMS = ("none", "host", "device", "both")
 
 
-def _configure(runtime: Any, arm: str) -> None:
+def _configure(runtime: Any, arm: str, host_cache_policy: str = "lru") -> None:
     runtime.expert_fetcher.configure_cache(
         host_cache_bytes=_CACHE_BYTES if arm in {"host", "both"} else 0,
         device_cache_bytes=_CACHE_BYTES if arm in {"device", "both"} else 0,
+        host_cache_policy=host_cache_policy,
     )
 
 
@@ -196,8 +197,9 @@ def _observe_visits(runtime: Any) -> list[int]:
 
 @pytest.mark.parametrize("arm", _ARMS)
 @pytest.mark.parametrize("cell", ("fp32", "bf16", "bf16-autocast"))
+@pytest.mark.parametrize("host_cache_policy", ("lru", "static"))
 def test_expert_cache_preserves_accumulated_optimizer_trajectory(
-    tmp_path: Path, arm: str, cell: str,
+    tmp_path: Path, arm: str, cell: str, host_cache_policy: str,
 ) -> None:
     """Every cache arm equals resident and three-read controls through complete updates."""
     ref, (default, default_runtime), (two, two_runtime), ids = _three_way(
@@ -205,8 +207,8 @@ def test_expert_cache_preserves_accumulated_optimizer_trajectory(
     )
     runtimes = (default_runtime, two_runtime)
     try:
-        _configure(default_runtime, arm)
-        _configure(two_runtime, arm)
+        _configure(default_runtime, arm, host_cache_policy)
+        _configure(two_runtime, arm, host_cache_policy)
         initial = _adapter_values(ref)
         _assert_equal(_adapter_values(default), initial)
         _assert_equal(_adapter_values(two), initial)

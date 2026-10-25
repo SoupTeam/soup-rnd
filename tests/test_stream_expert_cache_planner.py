@@ -41,9 +41,12 @@ class FakeFetcher:
         self.configurations = []
         self.configure_cache()
 
-    def configure_cache(self, *, host_cache_bytes=0, device_cache_bytes=0):
+    def configure_cache(
+        self, *, host_cache_bytes=0, device_cache_bytes=0, host_cache_policy="lru",
+    ):
         self.host_budget = host_cache_bytes
         self.device_budget = device_cache_bytes
+        self.host_policy = host_cache_policy
         self.host_payload = self.device_payload = 0
         self.configurations.append((host_cache_bytes, device_cache_bytes))
 
@@ -53,6 +56,9 @@ class FakeFetcher:
             "device": {"budget_bytes": self.device_budget, "payload_bytes": self.device_payload},
             "host_staging_bytes": 99,
         }
+
+    def clear_cache(self):
+        self.host_payload = self.device_payload = 0
 
 
 def fixture(*, is_cuda=True, warm_bytes=200):
@@ -130,6 +136,37 @@ def test_complete_baseline_and_candidate_preserve_existing_source_and_staging():
     assert plan.reserve_bytes == 100
     assert plan.optimizer_reserve_bytes == 300
     assert plan.setup_seconds >= 0
+
+
+def test_static_policy_is_explicitly_admitted_and_recorded():
+    model, runtime, memory, _, measure = fixture()
+    plan = configure(model, runtime, memory, measure, host_cache_policy="static")
+    assert plan.host_cache_policy == runtime.expert_fetcher.host_policy == "static"
+    assert plan.candidate_host_available_bytes == 10 * 2**30
+    assert runtime.expert_fetcher.host_budget == 300
+    assert runtime.expert_fetcher.device_budget == 500
+    assert runtime.expert_fetcher.host_payload == runtime.expert_fetcher.device_payload == 0
+    assert plan.candidate_peak_allocated_bytes == 1200  # Measured before the clear.
+
+
+@pytest.mark.parametrize("policy", [None, "", "fifo", True, ["static"]])
+def test_invalid_policy_is_refused_even_with_disabled_budgets(policy):
+    with pytest.raises(ValueError, match="host_cache_policy"):
+        configure_stream_expert_cache(
+            None, None, rows=0, seq_len=0, vocab_size=0, host_cache_policy=policy,
+        )
+
+
+def test_host_capacity_is_rechecked_after_candidate_allocations(monkeypatch):
+    import soup_cli.utils.stream_expert_cache as planner
+
+    model, runtime, memory, _, measure = fixture()
+    samples = iter((10 * 2**30, 100))
+    monkeypatch.setattr(planner, "available_memory", lambda **_: {"available_bytes": next(samples)})
+    with pytest.raises(ValueError, match="live RAM admission"):
+        configure(model, runtime, memory, measure, host_available=None, host_cache_policy="static")
+    assert_disabled(runtime)
+    assert runtime.expert_fetcher.host_policy == "lru"
 
 
 def test_probe_restores_rng_adapter_values_gradients_and_mixed_modes():
