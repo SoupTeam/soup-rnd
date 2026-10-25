@@ -396,3 +396,11 @@ python benchmarks/harness/e4_part2_calibration.py split --data-root <DATA_ROOT> 
 ```
 Check: `shasum -a 256 <SPLIT_DIR>/*.manifest.jsonl` must match the three hashes above. Not run here; the split needs the network for Dolly and the tokenizer.
 
+### 9.17 Restart disposition (2026-10-25; owner's engineering decision)
+
+- The first calibration attempt on instance 57707996 stopped under section 8. Both `F_A_off` attempts voided with the same setup error: `verified.json` was missing, so the instance had not been verified by the transfer pull. No measurement was taken.
+- The attempt records are kept unchanged on the box in `/workspace/e4-calibration-2026-10-25-attempt-1-stopped`. They are not part of any result.
+- The restart runs in a new folder on the same kind of instance, after the pull, with the same rule and thresholds. The new run commit is the head of `e4-part2-run` (`5ab78624`), which adds a refusal for a missing pull record before any attempt. That refusal does not change any measurement.
+- This restart is disclosed. It is not an allowance in the rule and not a reset of the retry limit. A new output directory does not reset the section 8 void count, so `F_A_off` has used its retry on the first attempt.
+- Because the first attempt used the retry for `F_A_off`, a further void of that run stops calibration.
+
