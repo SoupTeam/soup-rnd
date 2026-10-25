@@ -18,11 +18,33 @@ is not the objective.
   physical NVMe backing and physical RAM infeasibility were not established.
 - [x] Fresh Soup 0.76.0 cache-aware native activation retention: shared VRAM cap,
   setup/optimizer reserves, complete numerical replay and four balanced timing blocks.
+- [x] Prepare expert RAM/device caches with upstream two-read replay: CPU exactness,
+  full optimizer trajectories, real CPU NF4 and shared-cap admission controls.
+- [ ] GPU-qualify the MoE four-arm comparison (ordinary/two-read/cache/combined)
+  on a supported real checkpoint and physical card; no rental is authorized for
+  this preparation turn.
 - [ ] Speed-aware automatic placement: compare additional cache budgets and
   intended production settings; include setup break-even and memory headroom.
   Existing automatic GPU residency is a capacity policy, not a speed optimizer.
 - [ ] Larger-model capacity and candidate Triton kernels need their own evidence.
   No 70B/120B run or capacity claim has been completed.
+
+## Prepared two-read expert-cache integration
+
+[CPU preparation report and exact evidence](two-read-expert-cache-20261025/README.md).
+Candidate source `b9d32144` preserves upstream PR #2158 head `f2599ddc` through a
+merge and integrates reader-level caches with the `c22e5f90` cache prototype.
+The source is on `koko/two-read-cache-20261025`; the older PR #5 production diff
+is unchanged. Shared expert fetches now use an owned packed host LRU and an
+immutable first-fit dense device hotset, without duplicate host/device entries.
+Full setup probes admit explicit budgets, and later planners reserve lazy growth.
+
+Focused CPU verification: 598 passed, 11 CUDA skips; all required real CPU NF4
+and dense FP32/BF16/autocast trajectory cells executed. Five deliberate mutations
+are killed with exact source restoration. Ruff passes. Whole-model CUDA fit,
+real-model task quality and speed remain unverified. New rental spend is $0;
+the retained GPU allowance below is unchanged. Next qualification must separate
+logical expert visits from physical reads and avoid counting the recompute saving twice.
 
 ## Completed cached-retention follow-up on Soup 0.76.0
 
