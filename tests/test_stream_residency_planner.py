@@ -161,6 +161,18 @@ def test_disabled_is_a_true_no_op_without_model_or_runtime():
     assert not plan.enabled
 
 
+def test_lazy_expert_cache_ceiling_is_held_back_from_decoder_residency():
+    model, runtime, memory, _, measure = fixture()
+    runtime.expert_fetcher = SimpleNamespace(
+        cache_stats=lambda: {"device": {"budget_bytes": 1000, "payload_bytes": 0}},
+    )
+    # 3000 cap - 1000 baseline - 100 setup - 300 optimizer - 1000 expert = 600.
+    plan = configure(model, runtime, memory, measure)
+    assert plan.indices == (2,)
+    assert plan.reserve_bytes == 1100
+    assert runtime.pool.resident_slots == {2: 1}
+
+
 def test_auto_preserves_rng_weights_gradients_and_mixed_training_flags():
     import torch
 

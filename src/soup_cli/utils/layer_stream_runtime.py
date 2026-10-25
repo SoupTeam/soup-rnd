@@ -3686,6 +3686,8 @@ class StreamRuntime:
     scale_cache: Any = None
     #: Per MoE layer, the reader of its experts file (expert_layout "per_expert").
     expert_readers: Tuple[Any, ...] = ()
+    #: Shared expert cache/staging owner; retained independently of model wrappers.
+    expert_fetcher: Any = None
 
     def close(self) -> None:
         """Release the weight source and detach the prefetch hook.
@@ -3697,25 +3699,25 @@ class StreamRuntime:
         mapping charges Windows commit for the file's whole size (#926).
         A no-op for the RAM tier, which owns neither a thread nor handles.
         """
-        try:
-            source_close = getattr(self.source, "close", None)
-            if callable(source_close):
-                source_close()
+        from contextlib import ExitStack
+
+        with ExitStack() as cleanup:
+            if self.hook is not None:
+                cleanup.callback(self.hook.remove)
+                self.hook = None
+            if self.scale_cache is not None:
+                cleanup.callback(self.scale_cache.clear)
+            for reader in self.expert_readers:
+                cleanup.callback(reader.close)
+            if self.expert_fetcher is not None:
+                cleanup.callback(self.expert_fetcher.close)
             for external in self.external_sources:
                 external_close = getattr(external, "close", None)
                 if callable(external_close):
-                    external_close()
-        finally:
-            # One open handle per MoE layer's experts file (expert_layout "per_expert").
-            for reader in self.expert_readers:
-                reader.close()
-        if self.hook is not None:
-            self.hook.remove()
-            self.hook = None
-        if self.scale_cache is not None:
-            # The layers' substituted weights still reference the cache object;
-            # emptying it is what returns the device memory.
-            self.scale_cache.clear()
+                    cleanup.callback(external_close)
+            source_close = getattr(self.source, "close", None)
+            if callable(source_close):
+                source_close()
 
     def stats(self) -> Dict[str, Any]:
         return {
@@ -3754,6 +3756,9 @@ class StreamRuntime:
             "nf4_scale_cache_bytes": getattr(self.scale_cache, "nbytes", 0),
             "expert_fetches": sum(reader.fetches for reader in self.expert_readers),
             "expert_bytes_read": sum(reader.bytes_read for reader in self.expert_readers),
+            "expert_cache": (
+                self.expert_fetcher.cache_stats() if self.expert_fetcher is not None else None
+            ),
         }
 
 
@@ -3842,7 +3847,7 @@ def _install_expert_streaming(
     device: str,
     codes: Optional[Mapping[str, Any]],
     two_reads: bool = False,
-) -> Tuple[Any, ...]:
+) -> Tuple[Tuple[Any, ...], Any]:
     """Swap each MoE layer's experts module for a ``StreamedExperts``.
 
     Only for a cache sharded with ``expert_layout="per_expert"``; returns the
@@ -3864,8 +3869,9 @@ def _install_expert_streaming(
                 "two_read_experts needs a cache sharded with expert_layout='per_expert'; "
                 f"this one is {getattr(index, 'expert_layout', '') or 'fused'!r}"
             )
-        return ()
+        return (), None
     readers: Dict[int, Any] = {}
+    fetcher = None
     try:
         for layer, path in expert_paths(shard_dir, index).items():
             readers[layer] = ExpertShardReader(
@@ -3878,10 +3884,12 @@ def _install_expert_streaming(
         fetcher = ExpertFetcher(device=device, dtype=index.dtype, codes=codes)
         install_expert_streaming(layers, readers, fetcher, two_reads=two_reads)
     except BaseException:
+        if fetcher is not None:
+            fetcher.close()
         for reader in readers.values():
             reader.close()
         raise
-    return tuple(readers.values())
+    return tuple(readers.values()), fetcher
 
 
 def install_streaming(
@@ -3982,7 +3990,7 @@ def install_streaming(
     _require_stripe_folders(shard_dir, index)
     # Before the name maps: the fused expert parameters leave the layer here,
     # so the layer pool never allocates them.
-    expert_readers = _install_expert_streaming(
+    expert_readers, expert_fetcher = _install_expert_streaming(
         layers, shard_dir, index, device=str(device), codes=codes, two_reads=two_read_experts
     )
     context_fns = [None] * n_layers
@@ -4188,6 +4196,7 @@ def install_streaming(
         hook=handle,
         total_params=int(getattr(index, "total_params", 0) or 0),
         expert_readers=expert_readers,
+        expert_fetcher=expert_fetcher,
         tier=tier,
         scale_cache=scale_cache,
     )

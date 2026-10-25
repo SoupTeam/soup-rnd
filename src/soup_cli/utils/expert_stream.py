@@ -353,6 +353,17 @@ class ExpertShardReader:
         self.fetches += 1
         return out
 
+    def validate_identity(self) -> None:
+        """Refuse changed files even when a cache hit avoids a fresh read."""
+        from soup_cli.utils.safetensors_reader import identity_of
+
+        if identity_of(self._open()) != self._identity:
+            self.close()
+            raise ValueError(
+                f"experts file {os.path.basename(self.path)} changed on disk since "
+                "its header was read — reshard the checkpoint and restart"
+            )
+
     def close(self) -> None:
         if self._handle is not None:
             self._handle.close()
@@ -442,12 +453,90 @@ class ExpertFetcher:
     sequential); a concurrent fetch would overwrite the staging under another.
     """
 
-    def __init__(self, *, device: str, dtype: str, codes: Optional[Mapping[str, Any]] = None):
-        self.device = device
+    def __init__(
+        self, *, device: str, dtype: str, codes: Optional[Mapping[str, Any]] = None,
+        host_cache_bytes: int = 0, device_cache_bytes: int = 0,
+    ) -> None:
+        import torch
+
+        target = torch.device(device)
+        if target.type == "cuda" and target.index is None:
+            target = torch.device("cuda", torch.cuda.current_device())
+        self.device = str(target)
         self.dtype = dtype
         self.codes = dict(codes or {})
         self._staging_owner: Any = None
         self._staging: Any = None
+        self._closed = False
+        self._logical_fetches = 0
+        self._storage_reads = 0
+        self._storage_bytes_read = 0
+        self._materializations = 0
+        self.configure_cache(
+            host_cache_bytes=host_cache_bytes, device_cache_bytes=device_cache_bytes,
+        )
+
+    def configure_cache(self, *, host_cache_bytes: int = 0, device_cache_bytes: int = 0) -> None:
+        """Reset caller-admitted payload ceilings, shared by all expert readers.
+
+        The host tier is an LRU of owned packed tensors and all NF4 sidecars.
+        The device tier keeps the first complete dense experts fitting its
+        ceiling until reset. It never overwrites weights or duplicates host
+        entries. Direct use does not prove whole-model RAM/VRAM fit; the setup
+        helper in ``stream_expert_cache`` admits and probes these ceilings.
+        CPU device caching is supported for correctness controls only.
+        """
+        from soup_cli.utils.expert_cache import TensorLRU
+
+        if self._closed:
+            raise RuntimeError("expert fetcher is closed")
+        host = TensorLRU(host_cache_bytes, copy_on_insert=True)
+        device = TensorLRU(device_cache_bytes, copy_on_insert=False)
+        self._host_cache = host
+        self._device_cache = device
+
+    def clear_cache(self) -> None:
+        """Drop immutable entries without changing configured payload ceilings."""
+        self._host_cache.clear()
+        self._device_cache.clear()
+
+    def close(self) -> None:
+        """Terminal, idempotent release of both caches and reusable staging."""
+        self.clear_cache()
+        self._staging = self._staging_owner = None
+        self._closed = True
+
+    def cache_stats(self) -> Dict[str, Any]:
+        """Owned payload and physical I/O, distinct from logical expert visits."""
+        return {
+            "logical_fetches": self._logical_fetches,
+            "storage_reads": self._storage_reads,
+            "storage_bytes_read": self._storage_bytes_read,
+            "materializations": self._materializations,
+            "host": self._host_cache.stats(),
+            "device": self._device_cache.stats(),
+            "host_staging_bytes": (
+                int(self._staging_owner.numel() * self._staging_owner.element_size())
+                if self._staging_owner is not None else 0
+            ),
+        }
+
+    def _cache_key(self, reader: ExpertShardReader, expert: int) -> Tuple[Any, ...]:
+        """A reader is a store/layer identity, never a rotating device slot."""
+        specs = tuple(
+            (part, tuple(spec.shape), str(spec.dtype), spec.blocksize, spec.quant_type,
+             spec.nested, spec.nested_blocksize)
+            for part, spec in sorted(reader.quant_specs.items())
+        )
+        codes = []
+        for name, value in sorted(self.codes.items()):
+            try:
+                version = value._version
+            except RuntimeError:
+                version = None  # Frozen code tables may be inference tensors.
+            # Keep the actual table alive; an id alone could be reused later.
+            codes.append((name, value, version))
+        return reader, reader._identity, expert, self.device, self.dtype, specs, tuple(codes)
 
     def _staging_for(self, reader: ExpertShardReader) -> Any:
         if self._staging is None or self._staging.numel() < reader.max_span:
@@ -457,7 +546,28 @@ class ExpertFetcher:
     def fetch(self, reader: ExpertShardReader, expert: int) -> Tuple[Any, Any]:
         from soup_cli.utils.layer_stream_runtime import _torch_dtype, rebuild_quant_state
 
-        host = reader.read_host(expert, self._staging_for(reader))
+        if self._closed:
+            raise RuntimeError("expert fetcher is closed")
+        if type(expert) is not int or not 0 <= expert < reader.count:
+            raise IndexError(f"expert {expert!r} outside [0, {reader.count})")
+        cached = bool(
+            self._host_cache.stats()["budget_bytes"] or self._device_cache.stats()["budget_bytes"]
+        )
+        # Preserve the reader's close/reopen file-identity refusal on hits too.
+        if cached:
+            reader.validate_identity()
+        self._logical_fetches += 1
+        cache_key = self._cache_key(reader, expert) if cached else None
+        device_entry = self._device_cache.get(cache_key)
+        if device_entry is not None:
+            return device_entry[GATE_UP], device_entry[DOWN]
+        host = self._host_cache.get(cache_key)
+        host_hit = host is not None
+        if host is None:
+            before = reader.bytes_read
+            host = reader.read_host(expert, self._staging_for(reader))
+            self._storage_reads += 1
+            self._storage_bytes_read += reader.bytes_read - before
         target = _torch_dtype(self.dtype)
         dense = []
         for part in EXPERT_PARTS:
@@ -477,6 +587,16 @@ class ExpertFetcher:
             }
             state = rebuild_quant_state(key, moved, spec, self.codes)
             dense.append(dequantize_4bit(moved[key], quant_state=state).to(target))
+        self._materializations += 1
+        if cached:
+            payload = {GATE_UP: dense[0], DOWN: dense[1]}
+            cost = sum(value.numel() * value.element_size() for value in payload.values())
+            device_stats = self._device_cache.stats()
+            if cost <= device_stats["budget_bytes"] - device_stats["payload_bytes"]:
+                self._device_cache.put(cache_key, payload)
+                self._host_cache.discard(cache_key)
+            elif not host_hit:
+                self._host_cache.put(cache_key, host)
         return dense[0], dense[1]
 
 

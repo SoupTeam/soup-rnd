@@ -607,6 +607,63 @@ including gradient accumulation, two forwards before one backward, `retain_graph
 no-grad forward and an exception mid-step. Hardware measurements are not part of this
 change and are discussed with its design.
 
+**Experimental expert RAM/device caches (setup API, off by default).**
+The per-expert reader is separate from the decoder-layer source: the existing
+`stream_ram_cache_mb` and `stream_resident_layers` do not cache routed experts.
+The shared `runtime.expert_fetcher` now supports a bounded host LRU of complete
+packed weights and NF4 sidecars, and a first-fit immutable dense device hotset.
+Device entries are excluded from the host cache. Once the device ceiling fills,
+other experts use the host LRU or ordinary storage reads; device entries are not
+overwritten or automatically selected by measured popularity.
+
+Build with the same `two_read_experts` API above, then admit explicit payload
+ceilings after the source, decoder hotset and staging have been installed:
+
+```python
+from soup_cli.utils.stream_expert_cache import configure_stream_expert_cache
+
+plan = configure_stream_expert_cache(
+    model, runtime,
+    host_cache_bytes=256 * 2**20,
+    device_cache_bytes=64 * 2**20,
+    rows=batch_size,
+    seq_len=context_tokens,
+    vocab_size=model.config.vocab_size,
+)
+```
+
+These example ceilings are not performance presets. Production admission requires
+CUDA and two complete forward/backward probes at the requested shape, with adapter
+values, RNG and module modes preserved and no optimizer step. Host admission keeps
+the existing headroom policy; device admission includes the shared 85%/free/override
+cap, 64 MiB setup reserve and 12 bytes per trainable parameter for future optimizer
+state/workspace. The **full** lazy device ceiling stays reserved in later decoder
+residency and cached-activation plans, even if warm entries are conservatively
+counted twice. Later SSD hotset rebuilds hold back the full expert host ceiling too.
+Re-run setup admission after changing cache budgets, sources, shapes or adapters.
+
+Direct `ExpertFetcher.configure_cache(...)` accepts caller-admitted payload limits;
+it does not establish whole-model fit. Payload counters exclude allocator overhead,
+the demanded expert/dequantization workspace, host staging and references still
+held by consumers after eviction. CPU device caching and injected capacity readers
+are correctness controls, not CUDA memory evidence. No automatic CLI/config wiring
+or training defaults change. A failed setup probe disables both expert caches;
+non-OOM failures propagate.
+
+Cache hits preserve reader identity checks after close/reopen, and owned entries
+never alias reusable staging. `runtime.stats()["expert_cache"]` separates logical
+expert requests, physical reads/bytes, materializations and tier hits. Closing the
+runtime releases both caches and staging even if another source's cleanup fails.
+The two-read architecture, adapter and hook refusals above remain unchanged.
+
+Accuracy tests compare resident/default/two-read paths through accumulated AdamW
+updates, plus the same frozen NF4 base with and without caches. CPU controls require
+bitwise equality as well as the original reference-first `rtol=.01, atol=1e-5`,
+finite and three-decimal loss gates. Real CUDA NF4 coverage is prepared but requires
+hardware. No speed, GPU capacity or task-quality result is established for this
+integration. Turning off checkpoint recompute already gives two expert requests on
+both paths, so that saving must not be counted again as a two-read cache benefit.
+
 **`stream_nf4_scale_cache` (opt-in).** On the dequantise + `F.linear` path, a
 double-quantised NF4 weight expands its 8-bit block scales to fp32 on every visit,
 forward and recompute alike: two small kernels and a temporary per projection.

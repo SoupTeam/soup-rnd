@@ -707,7 +707,14 @@ class AsyncDiskSource:
 
         started = time.monotonic()
         memory = available_memory()
-        budget = cache_budget(requested, memory["available_bytes"])
+        # Expert entries are lazy: an earlier probe may not have routed to all
+        # of them. Keep their full ceiling unavailable to later hotset rebuilds.
+        expert_reserve = getattr(self, "_expert_host_cache_reserve_bytes", 0)
+        if type(expert_reserve) is not int or expert_reserve < 0:
+            raise ValueError("expert host cache reserve must be a non-negative integer")
+        memory = dict(memory, expert_cache_reserve_bytes=expert_reserve)
+        available = max(0, memory["available_bytes"] - expert_reserve)
+        budget = cache_budget(requested, available)
         plan = plan_hotset([item.span for item in self._plans], self._group_of,
                            self.read_ahead, budget, pinned=self.pinned, excluded=self._resident)
         self._cache_stats.update(memory_admission=memory, budget_bytes=budget)

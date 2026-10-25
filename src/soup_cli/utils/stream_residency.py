@@ -219,6 +219,13 @@ def configure_stream_residency(
     if mode == 0:
         return ResidencyPlan(mode=mode)
 
+    from soup_cli.utils.stream_expert_cache import expert_device_reserve_bytes
+
+    if type(reserve_bytes) is not int or reserve_bytes < 0:
+        raise ValueError("reserve_bytes must be a non-negative integer byte count")
+    # Lazy expert entries may not all appear in a routing-dependent probe.
+    # Hold their entire declared ceiling, even if a warm probe counts it twice.
+    reserve_bytes += expert_device_reserve_bytes(runtime)
     started = time.perf_counter()
     state: dict[str, Any] = {"mode": mode, "reserve_bytes": reserve_bytes}
 

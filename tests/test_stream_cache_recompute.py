@@ -114,6 +114,21 @@ def test_zero_native_selection_does_not_run_a_second_probe():
     assert kept(model) == set()
 
 
+def test_lazy_expert_cache_ceiling_is_held_back_from_activation_retention():
+    model, runtime, seen, planner, _ = instruments()
+    runtime.pool.is_cuda = True  # Synthetic memory reader; no CUDA execution.
+    runtime.expert_fetcher = SimpleNamespace(
+        cache_stats=lambda: {"device": {"budget_bytes": 1000, "payload_bytes": 0}},
+    )
+    measure = lambda *args, **kwargs: SimpleNamespace(  # noqa: E731
+        peak_bytes=7000, reserved_bytes=7000, failed=False, oom=False,
+    )
+    result = configure(model, runtime, planner, measure, override_bytes=8000)
+    assert seen[0][1]["override_bytes"] == 6600
+    assert result.reserve_bytes == 1100 and result.retained_layers == 0
+    assert kept(model) == set()
+
+
 def test_oom_restores_recompute_and_other_errors_propagate():
     import torch
 
@@ -175,7 +190,7 @@ def test_disk_setup_only_probes_retention_when_an_actual_cache_exists(
 @pytest.mark.parametrize("resident", [(), (1,)])
 @pytest.mark.parametrize("retained", [1, 4])
 def test_real_nf4_disk_ram_cache_and_retention_match_all_gradients(
-    tmp_path, resident, retained,
+    tmp_path, resident, retained, monkeypatch,
 ):
     pytest.importorskip("bitsandbytes")
     from soup_cli.utils.layer_stream_runtime import (
@@ -198,6 +213,12 @@ def test_real_nf4_disk_ram_cache_and_retention_match_all_gradients(
         _randomise_lora_b(model)
         expected = _step(model, _ids())
         clear_stream_substitution_cache(model)
+        # A tiny positive cache control must not depend on other desktop apps.
+        # Actual host/cgroup refusal remains covered by the admission tests.
+        monkeypatch.setattr(
+            "soup_cli.utils.stream_ram_cache.available_memory",
+            lambda: {"available_bytes": 4 * 2**30, "constraints": []},
+        )
         runtime.source.configure_ram_cache(4 * 2**20)
         runtime.pool.reserve_layers(resident, runtime.source)
         runtime.source.set_resident_layers(resident)

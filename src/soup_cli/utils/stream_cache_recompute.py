@@ -66,6 +66,8 @@ def configure_cached_stream_recompute(
     started = time.perf_counter()
     state: dict[str, Any] = {}
     emit = notify if notify is not None else lambda _message: None
+    from soup_cli.utils.stream_expert_cache import expert_device_reserve_bytes
+
     if optimizer_reserve_bytes is None:
         optimizer_reserve_bytes = OPTIMIZER_RESERVE_BYTES_PER_PARAM * sum(
             int(param.numel()) for param in model.parameters() if param.requires_grad
@@ -73,6 +75,7 @@ def configure_cached_stream_recompute(
     for value in (reserve_bytes, optimizer_reserve_bytes):
         if type(value) is not int or value < 0:
             raise ValueError("setup and optimizer reserves must be non-negative integer bytes")
+    reserve_bytes += expert_device_reserve_bytes(runtime)
     state.update(reserve_bytes=reserve_bytes, optimizer_reserve_bytes=optimizer_reserve_bytes)
 
     def result(reason: str, **updates: Any) -> CacheRecomputePlan:

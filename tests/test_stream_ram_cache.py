@@ -104,6 +104,19 @@ def test_budget_smaller_than_one_real_allocation_uses_no_hotset(tmp_path, monkey
         ours.close()
 
 
+def test_hotset_rebuild_holds_back_a_lazy_expert_host_cache(tmp_path, monkeypatch):
+    _folder, _specs, ours = source(tmp_path, monkeypatch)
+    try:
+        assert ours.ram_cache_stats()["indices"]
+        ours._expert_host_cache_reserve_bytes = 8 * 2**30
+        ours.configure_ram_cache(32768)
+        stats = ours.ram_cache_stats()
+        assert stats["allocated_bytes"] == 0 and stats["indices"] == []
+        assert stats["memory_admission"]["expert_cache_reserve_bytes"] == 8 * 2**30
+    finally:
+        ours.close()
+
+
 def test_cached_hit_still_refuses_changed_shard(tmp_path, monkeypatch):
     _folder, specs, ours = source(tmp_path, monkeypatch)
     idx = ours.ram_cache_stats()["indices"][0]
