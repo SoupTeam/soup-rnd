@@ -1,0 +1,48 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Traceback (most recent call last):
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1998, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1992, in main
+    return {"split": _cmd_split, "run": _cmd_run, "drive": _cmd_drive, "decide": _cmd_decide,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1700, in _cmd_run
+    record = execute_attempt(
+             ^^^^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1284, in execute_attempt
+    result = body()
+             ^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1702, in <lambda>
+    lambda: _body(args, run_id, tokenizer, args.data_root, device, out, int(time.time())),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1612, in _body
+    memory = nvml_reader() if device.startswith("cuda") else None
+             ^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 311, in nvml_reader
+    import pynvml
+ModuleNotFoundError: No module named 'pynvml'
+F_A_off: void (["crash: ModuleNotFoundError: No module named 'pynvml'"]); the rule allows one rerun, starting it now
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Traceback (most recent call last):
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1998, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1992, in main
+    return {"split": _cmd_split, "run": _cmd_run, "drive": _cmd_drive, "decide": _cmd_decide,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1700, in _cmd_run
+    record = execute_attempt(
+             ^^^^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1284, in execute_attempt
+    result = body()
+             ^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1702, in <lambda>
+    lambda: _body(args, run_id, tokenizer, args.data_root, device, out, int(time.time())),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 1612, in _body
+    memory = nvml_reader() if device.startswith("cuda") else None
+             ^^^^^^^^^^^^^
+  File "/workspace/soup-rnd/benchmarks/harness/e4_part2_calibration.py", line 311, in nvml_reader
+    import pynvml
+ModuleNotFoundError: No module named 'pynvml'
+calibration stopped: F_A_off: second void (["crash: ModuleNotFoundError: No module named 'pynvml'"]); calibration stops
