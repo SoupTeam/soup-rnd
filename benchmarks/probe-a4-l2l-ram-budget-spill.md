@@ -471,19 +471,27 @@ continuous writing. Rental cost: $0.59 of the $15 v2 budget (invoices).
 
 What this does and does not show:
 
-- On these three rented VMs, the spill volume's write rate did not stay within half its
-  median over 10 minutes of continuous spill-pattern writing. With v1's dips (17 of 140
-  spill arms), that is four of four rented VMs whose virtual disk dips under sustained
-  writes. Per the stop rule, A4 reports: **spill's step-time cost cannot be measured to 10%
-  on these rented VMs** with this protocol.
+- No eligible v2 session: on these three rented VMs the spill volume's write rate did not
+  stay within half its median over 10 minutes of continuous spill-pattern writing, so no v2
+  arm ran and G4 / G5 have no v2 measurement. That is all three refusals establish. They do
+  not show that spill's cost cannot be measured to 10% on rented VMs: three machines are a
+  small sample, and a refused machine might still have run a session steadily (next point).
+  v1 did write slowly on some arms (17 of 140 spill arms), so dips have now been seen on four
+  of four rented VMs; the cause is not established.
 - The admission writes 0.6-2.2 TiB in 10 minutes; the whole v1 session wrote 0.34 TiB of
   spill. The dips starting only after ~0.5 TiB fits a host-side write cache filling up, but
   nothing here shows the cause (a neighbour, the virtual disk, the host SSD); it is a
   hypothesis. The admission's load is heavier than one session's, so a machine it refuses
   might still have run the session steadily; the rule was fixed before the rental and is
   not changed after seeing these numbers.
+- G4 and G5 WERE measured in v1, and stayed inconclusive (§9, v1 table): `ram_k4_half`
+  −0.61% [−5.56%, +4.33%] and `ram_k2_half` [−13.7%, +64.2%] at the 12-block cap; the
+  weight-read ratio 0.838 [0.758, 0.918]. v2 adds no measurement to them.
 - G1 and G3 (spill bit-exact; cleanup leaves nothing) and the store's exact accounting
   stand on the v1 session; v2 re-judged nothing. The v1 verdict stays v1's.
+- **No shipping clearance was established.** v1 is `SPILL NOT SAFE` (G2) and v2 has no
+  verdict, so A4 clears no spill mode for A3, neither an automatic fallback nor an explicit
+  one.
 
 Raw records stay outside the repository: the three admissions and preflights are published
 compactly in `results/a4-v2-admission-20261025/`.
