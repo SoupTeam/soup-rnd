@@ -58,3 +58,7 @@ Qualify full numerical captures before unprofiled speed/RAM/VRAM measurements.
 Record real physical reads separately from logical expert visits and include setup
 costs. Retained activations already remove checkpoint recompute, so the 3-to-2 saving
 must not be counted twice. This preparation rented no GPU and spent no GPU budget.
+
+## Reproducible GPU runner prepared
+
+[Runner, commands and retained CPU verification](GPU-RUNNER.md): 172 passed, 1 CUDA skip, Ruff/pre-commit clean. This is preparation only; no GPU rental or speed result.
