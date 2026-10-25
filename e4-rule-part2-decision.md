@@ -252,7 +252,7 @@ Placeholder fills (values or references to section 9): section 4 suite epsilon; 
 4. **Resolved: split pinned** by the three manifest hashes (section 9.13). The 11,952 count is an unexplained earlier count that does not affect validity; the reviewer reproduced 11,844 eligible rows and all three manifests byte-for-byte.
 5. **Budget.** Observed timings are in section 9.14. The projected table in 9.14 is labelled PROJECTED from calibration timings; rows with an unstated count are UNKNOWN and excluded from the total. Cost = total hours x RATE, RATE owner-supplied. **OPEN for nurik: the main-run spending cap.** No cap is proposed here.
 6. **S coverage gap.** 4 of 28 reachable output cells (gate_proj and up_proj on the fallback kernel) have no calibrated tau (section 9.15). A mandatory S control on such a call makes that decision run INVALID. How often main-run calls reach them is UNKNOWN. Owner decision needed.
-7. **Main-run counts not stated.** The rule states no main-run count for S, X or E controls or for DECISION NLL passes (M0, M1). They are UNKNOWN in the projected table (section 9.14b) and are excluded from its total. Owner decision needed.
+7. **Resolved: main-run counts** (owner's engineering decision, 2026-10-25; section 9.14c). One S, X and E pass per training run; one DECISION NLL pass per trained adapter plus one for the base.
 
 ### 9.12 Cell of each main-run call
 
@@ -315,12 +315,12 @@ Counts: arms and seeds from the skeleton (section 2: arms table; seeds 42, 7, 12
 | Training updates | 10 runs (3 A_off, 4 A_on incl. rerun, 3 A_bf16), 256 updates each | A_off 7.45720755495131 s; A_on 7.577096295077354 s; A_bf16 7.3511017670389265 s per update | 256 x (3 x 7.4572 + 4 x 7.5771 + 3 x 7.3511) s = 19131.7 s | counts: skeleton section 2, calibration section 3; times: report.json `projected_main_plan.median_seconds_per_update` | 5.3144 |
 | Loading (per training attempt) | 10 attempts | 152.47 s: mean over F_A_off, F_A_on, F_A_bf16, P of (attempt wall - update time). Includes model load and any other non-training time; not separated | 10 x 152.47 s = 1524.8 s | journal `attempts.jsonl`; run records `seconds_per_update` | 0.4235 |
 | Evaluation: suite scorings (M2) | 6 scorings (A_on and A_off, 3 seeds): DERIVED from skeleton section 4 ("on every seed"); the rule states no count | 760.6 s: mean of N_1 to N_5 attempt wall (includes model load) | 6 x 760.6 s = 4563.6 s | N run records and journal | 1.2677 |
-| Evaluation: DECISION NLL (M0, M1) | M1: 9 passes derived (3 arms x 3 seeds); M0 count not stated | UNKNOWN: no DECISION NLL pass was timed in calibration | not computed | none | UNKNOWN (excluded) |
-| Controls: S, X1-X4, E1-E4 | UNKNOWN: the rule states no per-run count | Observed single-attempt proxies only: T 112 s, W 729 s (one attempt each in calibration, not per main run) | not computed | journal (T, W attempts) | UNKNOWN (excluded) |
+| Evaluation: DECISION NLL passes (M1 per trained adapter, M0 for the base) | 11 passes: 10 trained adapters (3 A_off, 4 A_on incl. rerun, 3 A_bf16) + 1 base. Count decided by the owner's engineering decision of 2026-10-25 (see 9.14c) | UNKNOWN: no DECISION NLL pass (2048 rows) was timed in calibration | not computed | owner's decision (9.14c) | UNKNOWN (excluded) |
+| Controls: S, X1-X4, E1-E4 | 10 passes: one per training run (owner's engineering decision of 2026-10-25, see 9.14c) | 841 s per pass, PROXY: observed T attempt 112 s + W attempt 729 s (S and E use tau from T; X uses tol_W from W) | 10 x 841 s = 8410 s | journal (T, W attempts) | 2.3361 |
 | Retry allowance | 10: INTERPRETATION of section 5 ("rerun once"; second void stops), one retry per training attempt. The rule states no total. Whether the planned A_on rerun has its own retry is not stated | Full attempt, worst case A_on: 256 x 7.577096 s + 152.47 s = 2092.2 s | 10 x 2092.2 s = 20922.1 s | section 5; record of A_on times | 5.8117 |
-| **Total, known components** | | | training + loading + evaluation + retry allowance | | **12.8173** |
+| **Total, known components** | | | training + loading + evaluation + controls + retry allowance | | **15.1534** |
 
-Cost = total hours x RATE. RATE: owner to supply. Excluded rows are UNKNOWN, so the total is a lower bound on what the rule would need. The retry row is the upper bound of the allowance, not an expected cost.
+Cost = total hours x RATE. RATE: owner to supply. Excluded rows are UNKNOWN (DECISION NLL time only), so the total is a lower bound. The retry row is the upper bound of the allowance, not an expected cost.
 
 ### 9.15 S controls and "no claim" (decision recorded 2026-10-25)
 
@@ -349,3 +349,12 @@ Forward output cells: 28 reachable, 24 calibrated, 4 not. Backward cells: all 7 
 - Main-run token range: calibration section 3, max length 512. An expert's M is the number of tokens routed to it, so M above 128 is possible but its frequency in the main data is UNKNOWN.
 
 **Consequence.** A main run that reaches gate_proj or up_proj on the fallback kernel with a mandatory S control on that call is INVALID under the decision above. The calibration does not cover those cells. Whether to recalibrate them is an owner decision; nothing is changed here.
+
+### 9.14c Main-run counts (owner's engineering decision, 2026-10-25)
+
+nurik delegated engineering decisions to the owner on 2026-10-25 via Telegram. Under that delegation the owner decides:
+- one S, X and E control pass per training run (10 passes: 3 A_off, 4 A_on incl. rerun, 3 A_bf16);
+- one DECISION NLL pass per trained adapter plus one for the base (M0): 11 passes.
+
+These counts are the owner's decision, not values from the calibration record. The per-pass times in 9.14b are PROJECTED from calibration timings; the NLL pass time is UNKNOWN.
+
