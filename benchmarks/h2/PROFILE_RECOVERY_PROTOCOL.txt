@@ -1,0 +1,60 @@
+H2 prospective attribution-window recovery — 2026-10-26
+
+Status: LOCAL_VALIDATION_ONLY; CUDA correctness/performance remains NO_VERDICT.
+This changes instrumentation for a NEW, separately frozen attempt, never attempt006.
+It does not authorize rent, retry, resume, change numerical tolerances or accept
+partial evidence. The user publishes the commit before a new GPU authority is made.
+
+Evidence motivating the change
+At commit8b131fdde856fc9c94b6e210e78bbb7e81baa92d, attempt006 logged128batches,
+128backwards and32optimizer events, and saved an adapter. Local work accounting
+passes. Container cgroup reported oom=1/oom_kill=1; child exited -9. Final
+update/frozen-base oracles and trace are absent. Baseline remains unaccepted.
+All59unique files were archived and SHA-verified before instance57844465 and
+volume57844464 were deleted and their absence confirmed. Historical evidence
+and numerical policy remain unchanged.
+
+The old GPU runner profiled wrapper.train() continuously, including per-backward
+finite-gradient scans, optimizer adapter hashes and checkpoint serialization.
+This is a concrete accumulation risk, not proof of the exact OOM allocation.
+PyTorch documents continuous recording for the default profiler context:
+https://docs.pytorch.org/docs/stable/profiler.html
+
+New source-pinned window
+- Each arm uses exactly one window: one-based training microbatch5, after the
+  first accumulation group. The selection is fixed prospectively for ALL arms.
+- ProfileWindow wraps the base trainer training_step (forward, loss and backward),
+  including the compute_loss batch evidence, but closes before gradient-oracle
+  scans, optimizer hooks, checkpoint saving and remaining microbatches.
+- CPU+CUDA activities remain enabled on GPU. Synchronize immediately before the
+  selected window and before closing it. record_shapes/profile_memory/with_stack/
+  with_flops/with_modules are false. No repeated windows or late retries.
+- Export kernel_trace.json, aggregate operation names/counts and save
+  profile_window.json with selected index, scope, size and SHA immediately.
+  Release the profiler before further training. Export failure or a missing
+  selected step fails the run; an existing trace is never overwritten.
+- Trace covers ONE forward/backward sample. It cannot establish optimizer-kernel
+  dispatch, every-step kernel coverage, performance, or whole-run numerical parity.
+  Independent review must inspect actual CUDA kernels; requesting CUDA is not proof.
+- The unchanged journal/oracles cover all128batches,128backwards,32updates, exact
+  targets, finite gradients/loss, per-step adapter hashes, full before/after frozen
+  NF4 state and numerical probe. No frozen-state or work gate is removed.
+- The runner pins the new helper through SOURCES. Old authority without its SHA
+  cannot pass preflight; source must be committed before GPU execution.
+
+Limits and local validation
+A single window bounds recorded steps, not absolute RAM bytes. One CUDA window
+may still exhaust memory; the external900-second watchdog and lease cleanup
+remain necessary. No CPU test proves8B/NF4/CUDA compatibility or peak RAM.
+Local tests exercise real torch forward/backward and128/32event accounting;
+only batch5 appears in trace and optimizer/gradient-audit events are excluded.
+Fresh-process tiny CPU Soup/TRL/PEFT comparison checks identical before/after
+hashes, losses, batches, gradients and optimizer records with original versus
+bounded profiling. The4-row CPU fixture selects batch3; it is not the GPU recipe.
+No-op optimizer and wrong-target controls must still fail under both paths.
+
+Next gate
+Publish the reviewed recovery source; verify immutable source/recipe/runtime/model
+pins and remaining cumulative H2 budget before any new attempt. A future GPU
+baseline must pass full final oracles and independent review before Liger/Unsloth.
+Correctness-only timing must never be reported as throughput.

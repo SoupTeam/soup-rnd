@@ -19,7 +19,8 @@ from rich.console import Console
 TARGETS = ('q_proj', 'k_proj', 'v_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj')
 PACKAGES = ('torch', 'transformers', 'trl', 'peft', 'bitsandbytes', 'accelerate', 'datasets')
 SOURCES = ('h2_gpu_correctness.py', 'h2_update_oracle.py', 'h2_quant_state.py',
-           'h2_work_equivalence.py', 'h2_trainer_smoke.py', 'h2_watchdog.py', 'h2_numerics.py')
+           'h2_work_equivalence.py', 'h2_trainer_smoke.py', 'h2_watchdog.py', 'h2_numerics.py',
+           'h2_profile_window.py')
 
 
 def sha_file(path: Path) -> str:
@@ -246,6 +247,7 @@ def run(contract: dict, arm: str, out: Path) -> dict:
         import torch
         import trl
         from h2_numerics import collect_probe
+        from h2_profile_window import ProfileWindow
         from h2_trainer_smoke import recording_trainer
         from h2_update_oracle import audit_update, snapshot
         from h2_work_equivalence import validate_work
@@ -277,7 +279,8 @@ def run(contract: dict, arm: str, out: Path) -> dict:
                    'optimizer_events': [], 'observed_optimizers': set()}
         records['journal_path'] = str(out / 'events.jsonl')
         original = trl.SFTTrainer
-        trl.SFTTrainer = recording_trainer(original, records)
+        window = ProfileWindow(out, cuda=True, microbatch=5)
+        trl.SFTTrainer = recording_trainer(original, records, window)
         wrapper = SFTTrainerWrapper(cfg, device='cuda', report_to='none')
         dataset = load_dataset(cfg.data)
         if len(dataset['train']) != 128:
@@ -293,9 +296,8 @@ def run(contract: dict, arm: str, out: Path) -> dict:
         wrapper.trainer.create_optimizer()
         if type(wrapper.trainer.optimizer) is not torch.optim.AdamW:
             raise ValueError('Actual optimizer is not the declared torch AdamW')
-        with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU,
-                                               torch.profiler.ProfilerActivity.CUDA]) as prof:
-            wrapper.train()
+        wrapper.train()
+        result['profile_window'] = window.require_complete()
         torch.cuda.synchronize()
         result['after'] = snapshot(wrapper.model, expected)
         result['work_audit'] = validate_work(records, expected_batches=128, accumulation=4)
@@ -304,9 +306,7 @@ def run(contract: dict, arm: str, out: Path) -> dict:
                                               len(records['optimizer_events']),
                                               [row['loss'] for row in records['batches']])
         result['records'] = {k: v for k, v in records.items() if k != 'observed_optimizers'}
-        result['executed_operations'] = [{'name': e.key, 'count': e.count}
-                                         for e in prof.key_averages()]
-        prof.export_chrome_trace(str(out / 'kernel_trace.json'))
+        result['executed_operations'] = window.operations
         if (result['work_audit']['status'] != 'PASS_WORK_ACCOUNTING'
                 or result['update_audit']['status'] != 'PASS_UPDATE_EVIDENCE'
                 or wrapper.trainer.state.global_step != 32):

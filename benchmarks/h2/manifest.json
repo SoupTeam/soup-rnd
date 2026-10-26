@@ -4,17 +4,17 @@
   "base_commit": "f043bcd33d791a8e88fe6b729dddb5102baa1daf",
   "files_sha256": {
     "benchmarks/h2/RUNBOOK.txt": "f91d46345262fa639828a52dbcba3cd788d2126fc004623c85643e35b66bc00b",
-    "benchmarks/h2/candidate_configs/baseline.json": "16135ec0f8ff94d35b1bd03e6163d5714334dd4217896646b13976b663bc184c",
-    "benchmarks/h2/candidate_configs/liger.json": "84478e32f652f47683cc3273e32f81a647f83827b9e80cd8f16e0305db5751e5",
-    "benchmarks/h2/candidate_configs/unsloth.json": "9453c347d19289854cc69be9b12c2fe7ade155ec0e9253476c391d3dc838253e",
+    "benchmarks/h2/candidate_configs/baseline.json": "61889eccb324eed59ca5688ef903722906e085883c824282ef0ada51238e4f4b",
+    "benchmarks/h2/candidate_configs/liger.json": "8b1b9edbf2d98495eadc2a2afbaad3d010f570bfd353ce1f22a91336c4359846",
+    "benchmarks/h2/candidate_configs/unsloth.json": "39536a8783bde97f3547f42e5a6c30f4d168ff1258dffb2ea7bbcc6611412b8f",
     "benchmarks/h2/candidate_plan.json": "dfdcb7db4d14e720e97cec2f974d9068605297610c76556402f10d322884aba1",
     "benchmarks/h2/cpu_integration_result.json": "25faf17f7cadbdc9dc5bbf951c99b4ecf60539ad15e0ec509a3b7a82ae9e37f7",
     "benchmarks/h2/dependencies.json": "c34d326563ea4db445c80ff5f2f9167412786092a531889903297110383c67ce",
     "benchmarks/h2/synthetic_fixture.jsonl": "1d549ac99c544e492020f52a5fa1d9a063c361831cd2289af3dc5d378f253e2d",
-    "benchmarks/harness/h2_trainer_smoke.py": "6c744658182fb68841a78d611e45d8523c24156da17b5b2ef1cc2bd8b9b5333e",
+    "benchmarks/harness/h2_trainer_smoke.py": "32402e086dad4b98fc35ad54227f6e5ee0bcd4dbff4c0e09f844ee9cd402edf8",
     "benchmarks/harness/h2_update_oracle.py": "60b7f3bbed8ae2be8e9ac66b5288a45edf3bcdaca37cec28386770f0e2753b4a",
-    "tests/test_h2_candidate_recipe.py": "47b740a06d9e0cfa0f35acabff50e230768d01e3bde35b6131cad94eeb7fa74b",
-    "tests/test_h2_trainer_smoke.py": "138bcd375b42ceb30ad51ffd462c566ac48136ac97cbdce903560541507fd62a",
+    "tests/test_h2_candidate_recipe.py": "5293d3b3dbcc8a1167c0fc320a98714d54b3885e2480d2024cc6255d41bed0ef",
+    "tests/test_h2_trainer_smoke.py": "87b391f8251b65983e80738c59b8076f4319ac92d8c06d9bc42db61a917ea25f",
     "tests/test_h2_update_oracle.py": "65e98ffc0ac5afd884169b15e3726ba3eb69af64f42bc3193df31c8f0834d334",
     "benchmarks/harness/h2_work_equivalence.py": "11e4dfc4789bf1b9cc904ed8c22ed8ebb425e970651e882e95b925473c34d85b",
     "tests/test_h2_work_equivalence.py": "58b0458727fd40b584854cd160702e2e66815762f1dbfb5f048f1480f0ec831d",
@@ -22,8 +22,8 @@
     "benchmarks/harness/h2_quant_state.py": "c65268b77faafa06b5a9a9aef6a237de9714d52306cf47d3027de06632daada5",
     "tests/test_h2_quant_state.py": "3f17be6eb7056a6b08554012b3c1b1a6b7df05f71aa81da6d0ce2981c65549aa",
     "benchmarks/h2/nf4_integration_result.json": "718b47b28fd2eb61eb8c5ea437c7f409fcf4d15b153820dcff55717614ab4634",
-    "benchmarks/harness/h2_gpu_correctness.py": "7bad95e1031d1cb776a87e12cd36e665e834a7ca7efcb6cbbd107811ae82eff4",
-    "tests/test_h2_gpu_correctness.py": "034ef572b55540bcf3afc90699933941502ef4db9f90527de575f01ff5e34316",
+    "benchmarks/harness/h2_gpu_correctness.py": "4d4cd205bd88fc9e6f940e7d6f5b605f06aed1259cc8755f30f8c35dd5ed25a3",
+    "tests/test_h2_gpu_correctness.py": "5abcf440ad03395d1511b2f7bb4fd7474c928f9706573d58065a006f538d344b",
     "benchmarks/h2/gpu_correctness_contract.example.json": "d3b76c19ef68bc7f5d8661c6502c83b9fc8ede8c421a6119bc084a92c67a932b",
     "benchmarks/h2/runner_preparation_result.json": "3507c20ff12b1ec2f5f220c35b5012152bf9e7fcd9de580fcc90fdc4ee3c3dc7",
     "benchmarks/harness/h2_watchdog.py": "a64a517382c900703b85663232073684c76d0b5802c40f1845b5b822fb785d03",
@@ -42,11 +42,17 @@
     "benchmarks/h2/prepared_fixture_candidate.jsonl": "b8d9d98d01ee6bf9f45911db6f65a8045c32d6eecb6f6bfaa2693914e335c491",
     "benchmarks/h2/runtime_preparation_result.json": "53cffafeb983d0aa299954604c4228f07bc7c41b3a823f5be9d835e1a1f3d92d",
     "benchmarks/h2/snapshot_preparation_result.json": "9cb27caef0525b873a12554b502df67a77807d3d531857aa205dc7435ead4e4d",
-    "benchmarks/h2/NEXT_RUN_PLAN_RU.txt": "a38814297af2bc1924f0a6e4316fd3847fe5c6760b6e62d86d6b9ba79f3b9003"
+    "benchmarks/h2/NEXT_RUN_PLAN_RU.txt": "a38814297af2bc1924f0a6e4316fd3847fe5c6760b6e62d86d6b9ba79f3b9003",
+    "benchmarks/harness/h2_profile_window.py": "1740a0f03dd410a9000d57a0988080cfbd22248d14d0e3f6e2f7c2cd1da80953",
+    "tests/test_h2_profile_window.py": "417bfefe831ed55131cf6382485674f5996ae2d01d626b41632549daed311b63",
+    "benchmarks/h2/PROFILE_RECOVERY_PROTOCOL.txt": "6f557040ab1f77075879848bf334d22705bb0b312bd9bc668c54d8dde7cf4e34",
+    "benchmarks/h2/PROFILE_RECOVERY_PROTOCOL.sha256": "3825ec659b6e9a80f96ab38cc778893ac36006488a4c4b2549b5259d6f82e5a0"
   },
   "local_h2_tests": {
-    "passed": 96,
-    "skipped": 0
+    "passed": 138,
+    "failed": 0,
+    "skipped": 0,
+    "scope": "CPU test suite; Transformers5.19.0; not CUDA"
   },
   "earlier_fast_lora_regressions_with_original_oracle": {
     "passed": 225,
@@ -75,5 +81,16 @@
     "5.19.0",
     "5.17.0"
   ],
-  "snapshot_receipt": "benchmarks/h2/snapshot_preparation_result.json"
+  "snapshot_receipt": "benchmarks/h2/snapshot_preparation_result.json",
+  "previous_local_h2_tests": {
+    "passed": 96,
+    "skipped": 0
+  },
+  "profile_recovery": {
+    "protocol": "benchmarks/h2/PROFILE_RECOVERY_PROTOCOL.txt",
+    "review": "benchmarks/h2/profile_recovery_review.json",
+    "status": "LOCAL_VALIDATION_PASS_PENDING_SOURCE_PUBLICATION_AND_GPU",
+    "transformers517_targeted_tests_passed": 44,
+    "performance_verdict": "NO_VERDICT"
+  }
 }

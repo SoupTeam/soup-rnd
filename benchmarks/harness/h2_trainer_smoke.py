@@ -7,6 +7,7 @@ import importlib.metadata
 import json
 import math
 import os
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,7 @@ from h2_work_equivalence import batch_evidence, validate_work
 from rich.console import Console
 
 
-def recording_trainer(base: type, records: dict) -> type:
+def recording_trainer(base: type, records: dict, profile_window: Any = None) -> type:
     """Subclass the real trainer; retain collated work, backward and optimizer events."""
     def journal(kind: str, value: dict) -> None:
         if records.get('journal_path'):
@@ -36,7 +37,9 @@ def recording_trainer(base: type, records: dict) -> type:
             return result
 
         def training_step(self, model: Any, *args: Any, **kwargs: Any) -> Any:
-            result = super().training_step(model, *args, **kwargs)
+            context = profile_window.step() if profile_window is not None else nullcontext()
+            with context:
+                result = super().training_step(model, *args, **kwargs)
             records['gradients'].append(gradients(model, records['expected_names']))
             journal('backward', records['gradients'][-1])
             return result
@@ -90,7 +93,7 @@ def build_local_model(path: Path) -> None:
     tokenizer.save_pretrained(path)
 
 
-def run_smoke(root: Path, mode: str = 'normal') -> dict:
+def run_smoke(root: Path, mode: str = 'normal', *, bounded_profile: bool = False) -> dict:
     """Exercise Soup's real wrapper. Negative controls never count as accepted training."""
     if mode not in {'normal', 'skip_optimizer', 'wrong_targets'}:
         raise ValueError('Unknown smoke mode')
@@ -130,8 +133,11 @@ def run_smoke(root: Path, mode: str = 'normal') -> dict:
     records = {'expected_names': expected, 'batches': [], 'gradients': [],
                'optimizer_events': [], 'observed_optimizers': set(),
                'journal_path': str(root / 'events.jsonl')}
+    from h2_profile_window import ProfileWindow
+
+    window = ProfileWindow(root, cuda=False, microbatch=3) if bounded_profile else None
     original_trainer = trl.SFTTrainer
-    trl.SFTTrainer = recording_trainer(original_trainer, records)
+    trl.SFTTrainer = recording_trainer(original_trainer, records, window)
     try:
         class CPUWrapper(SFTTrainerWrapper):
             @staticmethod
@@ -174,8 +180,12 @@ def run_smoke(root: Path, mode: str = 'normal') -> dict:
                     [p for p in wrapper.model.parameters() if p.requires_grad], lr=0.01,
                 )
             # Attribution only: profiler overhead makes this unsuitable for throughput claims.
-            with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
+            context = (nullcontext() if bounded_profile else torch.profiler.profile(
+                activities=[torch.profiler.ProfilerActivity.CPU]))
+            with context as prof:
                 wrapper.train()
+            if window is not None:
+                window.require_complete()
             after = snapshot(wrapper.model, expected)
             audit = audit_update(before, after, records['gradients'],
                                  len(records['optimizer_events']),
@@ -190,7 +200,7 @@ def run_smoke(root: Path, mode: str = 'normal') -> dict:
                       'trainer_global_step': wrapper.trainer.state.global_step,
                       'trainer_class': type(wrapper.trainer).__qualname__,
                       'attention_implementation': wrapper.model.config._attn_implementation,
-                      'executed_cpu_operations': [
+                      'executed_cpu_operations': window.operations if window is not None else [
                           {'name': event.key, 'count': event.count} for event in prof.key_averages()
                       ],
                       'model_classes': sorted({type(m).__module__ + '.' + type(m).__name__
@@ -198,6 +208,8 @@ def run_smoke(root: Path, mode: str = 'normal') -> dict:
                       'performance_verdict': 'NO_VERDICT'}
     finally:
         trl.SFTTrainer = original_trainer
+    if window is not None and mode != 'wrong_targets':
+        result['profile_window'] = window.require_complete()
     result.update({'scope': 'Tiny random CPU Llama, real Soup/TRL SFT and PEFT; not 8B/CUDA',
                    'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                    'oracle_sha256': hashlib.sha256(
@@ -219,8 +231,9 @@ def main() -> None:
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--mode', choices=['normal', 'skip_optimizer', 'wrong_targets'],
                         default='normal')
+    parser.add_argument('--bounded-profile', action='store_true')
     args = parser.parse_args()
-    result = run_smoke(args.out, args.mode)
+    result = run_smoke(args.out, args.mode, bounded_profile=args.bounded_profile)
     status = result.get('audit', {}).get('status', result.get('status'))
     Console().print(str(status) + '; performance=NO_VERDICT')
     if args.mode == 'normal' and status != 'PASS_UPDATE_EVIDENCE':

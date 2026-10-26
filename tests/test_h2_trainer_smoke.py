@@ -13,7 +13,8 @@ RUNNER = ROOT / 'benchmarks/harness/h2_trainer_smoke.py'
 
 
 @pytest.mark.parametrize('mode', ['normal', 'skip_optimizer', 'wrong_targets'])
-def test_real_sft_update_and_failure_controls(tmp_path, mode):
+@pytest.mark.parametrize('bounded_profile', [False, True])
+def test_real_sft_update_and_failure_controls(tmp_path, mode, bounded_profile):
     for dependency in ['torch', 'transformers', 'trl', 'peft', 'datasets', 'tokenizers']:
         pytest.importorskip(dependency)
     output = tmp_path / mode
@@ -21,7 +22,8 @@ def test_real_sft_update_and_failure_controls(tmp_path, mode):
                TRANSFORMERS_OFFLINE='1', ACCELERATE_USE_CPU='true',
                ACCELERATE_TORCH_DEVICE='cpu', TOKENIZERS_PARALLELISM='false')
     result = subprocess.run(
-        [sys.executable, str(RUNNER), '--out', str(output), '--mode', mode],
+        [sys.executable, str(RUNNER), '--out', str(output), '--mode', mode]
+        + (['--bounded-profile'] if bounded_profile else []),
         cwd=ROOT, env=env, capture_output=True, text=True, timeout=90,
     )
     assert result.returncode == 0, result.stdout + result.stderr

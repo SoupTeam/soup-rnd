@@ -1,0 +1,78 @@
+{
+  "status": "BASELINE_OOM_FINAL_ORACLES_INCOMPLETE",
+  "source_commit": "8b131fdde856fc9c94b6e210e78bbb7e81baa92d",
+  "instance_id": 57844465,
+  "volume_id": 57844464,
+  "gpu": "RTX 4090 24GB",
+  "container_memory_limit_bytes": 64651001856,
+  "max_observed_container_memory_bytes": 61417021440,
+  "cgroup_oom": 1,
+  "cgroup_oom_kill": 1,
+  "baseline_child_returncode": -9,
+  "watchdog_status": "CHILD_EXITED",
+  "watchdog_elapsed_seconds": 872.7460065779742,
+  "group_cleanup_confirmed": true,
+  "training_progress_log_steps": 32,
+  "accepted_baseline": false,
+  "final_work_update_oracles": "MISSING_NOT_ACCEPTED",
+  "liger": "NOT_RUN",
+  "unsloth": "NOT_RUN",
+  "performance_verdict": "NO_VERDICT",
+  "preservation_status": "PASS_ARCHIVE_SAFE_EXTRACTION_AND_ALL_FILE_SHA",
+  "cleanup_status": "DESTROY_CONFIRMED_INSTANCE_AND_VOLUME_ABSENT",
+  "likely_area_to_investigate": "Unbounded CPU/CUDA profiler surrounding full training; attribution not proven by available evidence",
+  "no_retry_or_resume": true,
+  "updated_unix_s": 1793036080.799139,
+  "preservation": {
+    "instance_id": 57844465,
+    "files": 59,
+    "bytes": 461455581,
+    "archive_bytes": 304116434,
+    "archive_sha256": "ff3dc87f1fbbdf00a6c90e00a7da2851b221f71d9001a34418e8fd1044cff001",
+    "manifest_sha256": "a7a253cd4984ade5848c66fa389f37203b6ed5c5fee34207209b2cb75c06990b",
+    "status": "PASS_ARCHIVE_SAFE_EXTRACTION_AND_ALL_FILE_SHA",
+    "local_only": true,
+    "performance_verdict": "NO_VERDICT"
+  },
+  "partial_local_audit": {
+    "status": "PARTIAL_LOCAL_WORK_AUDIT_PASS_BASELINE_STILL_NOT_ACCEPTED",
+    "event_counts": {
+      "batch": 128,
+      "backward": 128,
+      "optimizer": 32
+    },
+    "work_audit": {
+      "status": "PASS_WORK_ACCOUNTING",
+      "reasons": [],
+      "totals": {
+        "processed_positions": 3072,
+        "nonpadding_tokens": 3072,
+        "padding_positions": 0,
+        "useful_targets": 768
+      },
+      "performance_verdict": "NO_VERDICT"
+    },
+    "all_recorded_backward_gradients_finite": true,
+    "adapter_saved": true,
+    "final_update_oracle": "MISSING",
+    "final_frozen_base_oracle": "MISSING",
+    "kernel_trace": "MISSING",
+    "performance_verdict": "NO_VERDICT"
+  },
+  "closure": {
+    "status": "DESTROY_CONFIRMED_INSTANCE_AND_VOLUME_ABSENT",
+    "instance_id": 57844465,
+    "volume_id": 57844464,
+    "unix_s": 1793036080.798056,
+    "user_confirmation": "Удалить 57844465 и volume 57844464",
+    "proof_sha256": {
+      "destroy_instances_ui.txt": "d20edf7cd3871898a9790611addfccc7032caeba929420267cd8aea3280c75fb",
+      "destroy_instances_ui.png": "8b7f7e6d2b19c95ee8170a5bfb7ab896fe74acd38e5d7d4afb932499c2bf38ed",
+      "destroy_storage_ui.txt": "386c7b8536f7f55283dcd7e9bbfe00473d4f0afbb2603f694999ef9f3e774dfb",
+      "destroy_storage_ui.png": "38729637f2fb7db049ded44c354e04aa72707527d8ea4257d78a00654e82cfa7"
+    },
+    "preservation": "preservation_audit.json",
+    "other_resources_untouched": true,
+    "verification": "Provider Instances page after reload: No instances found; Storage page: No volumes found."
+  }
+}
