@@ -801,6 +801,43 @@ def _routing_forward(self: Any, *args: Any, **kwargs: Any) -> Any:
         return forward(self, *args, **kwargs)
 
 
+def _legacy_expert_routes(expert_mask: Any, expert_hit: Any) -> Iterable[Tuple[Any, Any, Any]]:
+    """Original scalar guard/indexing and per-expert where, in its original order."""
+    import torch
+
+    for expert_idx in expert_hit:
+        expert_idx = expert_idx[0]
+        if expert_idx == expert_mask.shape[0]:
+            continue
+        top_k_pos, token_idx = torch.where(expert_mask[expert_idx])
+        yield expert_idx, top_k_pos, token_idx
+
+
+def _grouped_expert_routes(expert_mask: Any) -> Iterable[Tuple[int, Any, Any]]:
+    """Immutable lexicographic routes; one nonzero and one host count conversion.
+
+    The one-hot mask is ordered (expert, top-k slot, token). Nonzero's C-style
+    order preserves both the original ascending expert order and each expert's
+    where order. Slices retain their coordinate storage through autograd; no
+    mutable route buffer is reused by another layer or outstanding graph.
+    """
+    import torch
+
+    coordinates = torch.nonzero(expert_mask, as_tuple=False)
+    counts = expert_mask.sum(dim=(-1, -2)).tolist()
+    offset = 0
+    for expert_idx, count in enumerate(counts):
+        if count == 0:
+            continue
+        if count < 0 or offset + count > coordinates.shape[0]:
+            raise ValueError("grouped expert routes require a binary one-hot mask")
+        group = coordinates.narrow(0, offset, count)
+        offset += count
+        yield expert_idx, group[:, 1], group[:, 2]
+    if offset != coordinates.shape[0]:
+        raise ValueError("grouped expert routes omitted nonzero coordinates")
+
+
 def _build_streamed_experts_class():
     import torch
     import torch.nn as nn
@@ -886,14 +923,18 @@ def _build_streamed_experts_class():
     class StreamedExperts(nn.Module):
         """Drop-in for a transformers experts module; fetches each expert on use."""
 
-        def __init__(self, reader, fetcher, act_fn, layer_idx, two_reads=False):
+        def __init__(self, reader, fetcher, act_fn, layer_idx, two_reads=False,
+                     grouped_expert_routes=False):
             super().__init__()
+            if type(grouped_expert_routes) is not bool:
+                raise ValueError("grouped_expert_routes must be a bool")
             self.reader = reader
             self.fetcher = fetcher
             self.act_fn = act_fn
             self.layer_idx = layer_idx
             self.num_experts = reader.count
             self.two_reads = bool(two_reads)
+            self.grouped_expert_routes = grouped_expert_routes
 
         def fetch(self, expert):
             return self.fetcher.fetch(self.reader, expert)
@@ -903,15 +944,15 @@ def _build_streamed_experts_class():
             with torch.no_grad():
                 expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
                 expert_mask = expert_mask.permute(2, 1, 0)
-                expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
+                if self.grouped_expert_routes:
+                    routes = _grouped_expert_routes(expert_mask)
+                else:
+                    expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
+                    routes = _legacy_expert_routes(expert_mask, expert_hit)
             # Inside a two-read checkpoint recompute no expert is read.
             scope = _active_scope() if self.two_reads else None
             replay = scope is not None and scope.replay
-            for expert_idx in expert_hit:
-                expert_idx = expert_idx[0]
-                if expert_idx == self.num_experts:
-                    continue
-                top_k_pos, token_idx = torch.where(expert_mask[expert_idx])
+            for expert_idx, top_k_pos, token_idx in routes:
                 current_state = hidden_states[token_idx]
                 if self.two_reads:
                     current = _WeightedExpert.apply(
@@ -969,6 +1010,7 @@ def install_expert_streaming(
     fetcher: ExpertFetcher,
     *,
     two_reads: bool = False,
+    grouped_expert_routes: bool = False,
 ) -> int:
     """Replace each MoE layer's experts module with a ``StreamedExperts``.
 
@@ -998,6 +1040,8 @@ def install_expert_streaming(
     wrong gradients without an error; do not patch a two-read layer.
     Returns the number of layers converted.
     """
+    if type(grouped_expert_routes) is not bool:
+        raise ValueError("grouped_expert_routes must be a bool")
     import torch.nn as nn
 
     cls = streamed_experts_class()
@@ -1047,7 +1091,10 @@ def install_expert_streaming(
                 f"decoder layer {idx}: two reads replay the router's top-k decisions, but "
                 f"the MoE block has no router module at `.gate`"
             )
-        setattr(parent, attr, cls(reader, fetcher, module.act_fn, idx, two_reads=two_reads))
+        setattr(parent, attr, cls(
+            reader, fetcher, module.act_fn, idx, two_reads=two_reads,
+            **({"grouped_expert_routes": True} if grouped_expert_routes else {}),
+        ))
         if router is not None:
             router.forward = types.MethodType(_routing_forward, router)
         converted += 1

@@ -3688,6 +3688,8 @@ class StreamRuntime:
     expert_readers: Tuple[Any, ...] = ()
     #: Shared expert cache/staging owner; retained independently of model wrappers.
     expert_fetcher: Any = None
+    #: Actual parameter-free expert wrappers, for dispatch-mode evidence.
+    expert_modules: Tuple[Any, ...] = ()
 
     def close(self) -> None:
         """Release the weight source and detach the prefetch hook.
@@ -3759,6 +3761,10 @@ class StreamRuntime:
             "expert_cache": (
                 self.expert_fetcher.cache_stats() if self.expert_fetcher is not None else None
             ),
+            "expert_grouped_routes": {
+                str(module.layer_idx): module.grouped_expert_routes
+                for module in self.expert_modules
+            },
         }
 
 
@@ -3847,6 +3853,7 @@ def _install_expert_streaming(
     device: str,
     codes: Optional[Mapping[str, Any]],
     two_reads: bool = False,
+    grouped_expert_routes: bool = False,
 ) -> Tuple[Tuple[Any, ...], Any]:
     """Swap each MoE layer's experts module for a ``StreamedExperts``.
 
@@ -3855,6 +3862,8 @@ def _install_expert_streaming(
     any other cache is refused: accepted, it would read three times while the
     caller believes two.
     """
+    if type(grouped_expert_routes) is not bool:
+        raise ValueError("grouped_expert_routes must be a bool")
     from soup_cli.utils.expert_stream import (
         EXPERT_LAYOUT_PER_EXPERT,
         ExpertFetcher,
@@ -3869,6 +3878,8 @@ def _install_expert_streaming(
                 "two_read_experts needs a cache sharded with expert_layout='per_expert'; "
                 f"this one is {getattr(index, 'expert_layout', '') or 'fused'!r}"
             )
+        if grouped_expert_routes:
+            raise ValueError("grouped_expert_routes needs expert_layout='per_expert'")
         return (), None
     readers: Dict[int, Any] = {}
     fetcher = None
@@ -3882,7 +3893,10 @@ def _install_expert_streaming(
                 dtype=index.dtype,
             )
         fetcher = ExpertFetcher(device=device, dtype=index.dtype, codes=codes)
-        install_expert_streaming(layers, readers, fetcher, two_reads=two_reads)
+        install_expert_streaming(
+            layers, readers, fetcher, two_reads=two_reads,
+            **({"grouped_expert_routes": True} if grouped_expert_routes else {}),
+        )
     except BaseException:
         if fetcher is not None:
             fetcher.close()
@@ -3910,6 +3924,7 @@ def install_streaming(
     nf4_scale_cache: bool = False,
     ram_cache_bytes: int = 0,
     two_read_experts: bool = False,
+    grouped_expert_routes: bool = False,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3928,7 +3943,13 @@ def install_streaming(
     layer's checkpoint recompute replays its routers' top-k decisions and reads no
     expert, so a step reads every routed-to expert twice instead of three times
     (``expert_stream.two_read_checkpoint_contexts``).
+
+    ``grouped_expert_routes`` is an experimental, off-by-default setup API for
+    per-expert layouts. It groups integer route coordinates without changing
+    expert, token, or accumulation order; full candidate memory admission still applies.
     """
+    if type(grouped_expert_routes) is not bool:
+        raise ValueError("grouped_expert_routes must be a bool")
     import torch
 
     from soup_cli.utils.layer_shard import (
@@ -3991,8 +4012,16 @@ def install_streaming(
     # Before the name maps: the fused expert parameters leave the layer here,
     # so the layer pool never allocates them.
     expert_readers, expert_fetcher = _install_expert_streaming(
-        layers, shard_dir, index, device=str(device), codes=codes, two_reads=two_read_experts
+        layers, shard_dir, index, device=str(device), codes=codes, two_reads=two_read_experts,
+        **({"grouped_expert_routes": True} if grouped_expert_routes else {}),
     )
+    expert_modules = ()
+    if expert_readers:
+        from soup_cli.utils.expert_stream import streamed_experts_class
+
+        expert_class = streamed_experts_class()
+        expert_modules = tuple(module for layer in layers for module in layer.modules()
+                               if isinstance(module, expert_class))
     context_fns = [None] * n_layers
     if two_read_experts:
         from soup_cli.utils.expert_stream import checkpoint_context_fn
@@ -4197,6 +4226,7 @@ def install_streaming(
         total_params=int(getattr(index, "total_params", 0) or 0),
         expert_readers=expert_readers,
         expert_fetcher=expert_fetcher,
+        expert_modules=expert_modules,
         tier=tier,
         scale_cache=scale_cache,
     )
@@ -4604,13 +4634,17 @@ def build_streamed_model(
     nf4_scale_cache: bool = False,
     ram_cache_bytes: int = 0,
     two_read_experts: bool = False,
+    grouped_expert_routes: bool = False,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice. ``two_read_experts`` is
-    ``install_streaming``'s: an API switch, no config field.
+    ``install_streaming``'s: an API switch, no config field. The same is true of
+    the experimental, off-by-default ``grouped_expert_routes`` route dispatcher.
     """
+    if type(grouped_expert_routes) is not bool:
+        raise ValueError("grouped_expert_routes must be a bool")
     from peft import get_peft_model
 
     model = build_meta_skeleton(
@@ -4661,6 +4695,7 @@ def build_streamed_model(
             nf4_scale_cache=nf4_scale_cache,
             **({"ram_cache_bytes": ram_cache_bytes} if ram_cache_bytes else {}),
             two_read_experts=two_read_experts,
+            **({"grouped_expert_routes": True} if grouped_expert_routes else {}),
         )
     except BaseException:
         for external in external_sources:

@@ -627,6 +627,17 @@ setup admission and remeasure it with the actual routing workload.
 Successful static-policy admission clears the synthetic probe's entries while
 retaining the admitted ceilings, so real training selects the first-fit hotset.
 
+An experimental setup-only `build_streamed_model(..., grouped_expert_routes=True)`
+groups the one-hot route coordinates once per MoE call, rather than running
+`where` separately for every expert. The default remains the original scalar
+route loop. This option requires the `per_expert` layout and is independent of
+two-read replay and cache sizes. It preserves ascending expert order and each
+expert's top-k-slot/token order; immutable coordinate views retain their storage
+through backward. `runtime.stats()["expert_grouped_routes"]` reports each actual
+expert wrapper's mode by decoder-layer index. This is not a CLI/config setting
+or a speed guarantee. It requires the same numerical controls and a new full
+memory-admission probe before measuring a candidate.
+
 Build with the same `two_read_experts` API above, then admit explicit payload
 ceilings after the source, decoder hotset and staging have been installed:
 
