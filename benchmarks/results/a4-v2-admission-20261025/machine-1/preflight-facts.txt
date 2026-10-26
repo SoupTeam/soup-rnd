@@ -1,0 +1,16 @@
+cgroup: {'source': '/sys/fs/cgroup/system.slice/run-r4bad1f5e9acb46b7a6d099d959586ad1.scope/memory.max', 'limit_bytes': 25769803776, 'swap_max_bytes': 0, 'swap_total_bytes': 0, 'version': 2}
+spill volume: {'path': '<box>/spill', 'fstype': 'ext4', 'scope': 'local', 'direct_io': True, 'ok': True, 'refusals': [], 'free_bytes': 105564454912} drive: {"device": "vda", "model": null, "vendor": "0x1af4", "rotational": "1", "logical_block_size": "512"}
+weights volume: {"path": "<work>/.soup/f1-nf4", "fstype": "ext4", "drive": {"device": "vda", "model": null, "vendor": "0x1af4", "rotational": "1", "logical_block_size": "512"}, "free_bytes": 105564450816, "scope": "local", "direct_io": true}
+leftover spill files: []
+arm watch on <box>/spill: outcome ok
+  suspend: ok - boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0
+  power: ok - no battery in any of 7 power samples, so on mains
+  foreign_reads: ok - at most 0 bytes of foreign reads on vda (limit 1000000000)
+arm watch on .soup/models/mistral-7b: outcome ok
+  suspend: ok - boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0
+  power: ok - no battery in any of 6 power samples, so on mains
+  foreign_reads: ok - at most 0 bytes of foreign reads on vda (limit 1000000000)
+arm watch on <box>/wspill: outcome ok
+  suspend: ok - boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0
+  power: ok - no battery in any of 6 power samples, so on mains
+  foreign_reads: ok - at most 0 bytes of foreign reads on vda (limit 1000000000)
