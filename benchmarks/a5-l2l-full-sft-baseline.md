@@ -59,9 +59,9 @@ lists it as open. A5 measures the existing RAM store and the NVMe spill at the s
 ## GPU resources
 
 `vastai show user` on 2026-10-27: balance 0, balance threshold -0.01, credit 65.43,
-`can_pay` True. The ticket records a balance of 0 on 2026-10-26. Whether the 65.43 credit is
-spendable on rentals is not established. Tickets 03 to 05 stay blocked until the user
-confirms funds. Every GPU rental goes through `vastai`.
+`can_pay` True. The ticket records a balance of 0 on 2026-10-26. The user confirmed on
+2026-10-27 that the 65.43 credit can be spent on rentals, so tickets 03 to 05 are not
+blocked on funds. Every GPU rental goes through `vastai`.
 
 ## Environment
 
