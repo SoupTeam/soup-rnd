@@ -127,6 +127,23 @@ def validate_loaded(wrapper: Any, arm: str) -> dict:
             'scope': 'Loaded-module evidence; executed-kernel validation still required'}
 
 
+def canonical_gpu_uuid(value: str) -> str:
+    """Normalize only the optional NVIDIA prefix; keep the complete physical UUID."""
+    if not isinstance(value, str):
+        raise ValueError('Invalid physical GPU UUID')
+    raw = value.removeprefix('GPU-')
+    if re.fullmatch(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', raw) is None:
+        raise ValueError('Invalid physical GPU UUID')
+    return 'GPU-' + raw.lower()
+
+
+def validate_live_identity(contract: dict, boot_id: str, gpu_uuid: str) -> None:
+    """Compare boot and all UUID bits, accepting PyTorch's prefix-free rendering."""
+    if (boot_id != contract['boot_id']
+            or canonical_gpu_uuid(gpu_uuid) != canonical_gpu_uuid(contract['gpu_uuid'])):
+        raise ValueError('Live boot/GPU identity differs from authority')
+
+
 def validate_authority(contract: dict, arm: str) -> None:
     """Cheap authority checks before the external supervisor launches any child."""
     if contract.get('execution_authorized') is not True:
@@ -242,9 +259,10 @@ def run(contract: dict, arm: str, out: Path) -> dict:
                 or not torch.cuda.is_bf16_supported()
                 or torch.cuda.get_device_properties(0).total_memory < 16 * 1024**3):
             raise ValueError('Need one visible Ampere+ CUDA GPU with bf16 and at least16GiB')
-        if (Path('/proc/sys/kernel/random/boot_id').read_text().strip() != contract['boot_id']
-                or str(torch.cuda.get_device_properties(0).uuid) != contract['gpu_uuid']):
-            raise ValueError('Live boot/GPU identity differs from authority')
+        validate_live_identity(
+            contract, Path('/proc/sys/kernel/random/boot_id').read_text().strip(),
+            str(torch.cuda.get_device_properties(0).uuid),
+        )
         repo = Path(__file__).parents[2]
         recipe = repo / 'benchmarks/h2/candidate_configs' / (arm + '.json')
         fixture = repo / 'benchmarks/h2/synthetic_fixture.jsonl'

@@ -1,0 +1,34 @@
+{
+  "task": "H2",
+  "attempt": "004",
+  "frozen_commit": "3795c45e29ea0b58dffc00dda2d49905baf630bf",
+  "instance_id": 57830670,
+  "volume_id": 57830669,
+  "gpu": "NVIDIA L4",
+  "snapshot": {
+    "repo": "unsloth/Meta-Llama-3.1-8B",
+    "revision": "e9a141a2091ea561b96483212645a2a05e6f99fc",
+    "files": 11,
+    "bytes": 16077845652,
+    "tensors": 291,
+    "sha_and_structure": "PASS"
+  },
+  "baseline_status": "FAILED_BEFORE_MODEL_LOAD",
+  "reason": "Physical GPU UUID matches in full; frozen runner compared bare PyTorch UUID with NVIDIA GPU- prefixed string",
+  "optimizer_updates": 0,
+  "liger_run": false,
+  "unsloth_run": false,
+  "retry_performed": false,
+  "performance_verdict": "NO_VERDICT",
+  "archive_sha256": "895d69aab57f3b713595110101f70d057fafb190dfd081d20c1cb8b8312ee08f",
+  "preserved_files": 25,
+  "safe_extraction_all_file_sha": "PASS",
+  "instance_and_volume_deleted_verified": true,
+  "local_fix_tests_passed": 46,
+  "ruff": "PASS",
+  "remaining": [
+    "Owner review and commit before new GPU attempt",
+    "Baseline correctness, then treatment arms if gates pass",
+    "Separate representative performance workload; Track D acceptance not established"
+  ]
+}

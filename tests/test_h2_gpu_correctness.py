@@ -139,3 +139,31 @@ def test_runner_import_keeps_gpu_stack_lazy():
             '["torch","trl","transformers","peft","unsloth","bitsandbytes"])')
     subprocess.run([sys.executable, '-c', code], check=True, capture_output=True,
                    env=dict(os.environ, PYTHONPATH=str(HARNESS)), timeout=10)
+
+
+@pytest.mark.parametrize('prefix', ['', 'GPU-'])
+@pytest.mark.parametrize('uppercase', [False, True])
+def test_live_gpu_uuid_formats_preserve_complete_identity(prefix, uppercase):
+    raw = 'c78c68bf-6162-1d29-2f0e-00efc65ce2d6'
+    contract = {'gpu_uuid': 'GPU-' + raw, 'boot_id': 'boot-fixed'}
+    observed = prefix + (raw.upper() if uppercase else raw)
+    runner.validate_live_identity(contract, 'boot-fixed', observed)
+
+
+@pytest.mark.parametrize('observed', [None, '', '0', 'NVIDIA L4',
+    'MIG-c78c68bf-6162-1d29-2f0e-00efc65ce2d6',
+    'c78c68bf61621d292f0e00efc65ce2d6',
+    'c78c68bf-6162-1d29-2f0e-00efc65ce2d6 ', '-' * 36])
+def test_malformed_or_nonphysical_gpu_identity_is_rejected(observed):
+    with pytest.raises(ValueError, match='UUID'):
+        runner.canonical_gpu_uuid(observed)
+
+
+@pytest.mark.parametrize('changed', ['boot', 'gpu'])
+def test_live_identity_still_rejects_different_boot_or_single_uuid_bit(changed):
+    raw = 'c78c68bf-6162-1d29-2f0e-00efc65ce2d6'
+    contract = {'gpu_uuid': 'GPU-' + raw, 'boot_id': 'boot-fixed'}
+    boot = 'boot-other' if changed == 'boot' else 'boot-fixed'
+    observed = raw[:-1] + '7' if changed == 'gpu' else raw
+    with pytest.raises(ValueError, match='differs'):
+        runner.validate_live_identity(contract, boot, observed)
