@@ -1,0 +1,2607 @@
+[
+ [
+  {
+   "arm": "A",
+   "round": 1,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 3.1036843307083473,
+    "real_tokens": 3837,
+    "tokens_per_s": 206.04543885880568,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5982224384,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 1,
+    "run": 0,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055375.1128976,
+     "ram_available_bytes": 251151142912,
+     "commit_charge": {
+      "used_bytes": 60426113024,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055422.1281986,
+     "ram_available_bytes": 252420685824,
+     "commit_charge": {
+      "used_bytes": 52560289792,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1980 MHz over 24 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 24,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1770.0,
+      "max": 1980
+     },
+     "reasons_seen": {
+      "gpu_idle": 5,
+      "sw_power_cap": 2
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.1408701539039612e-06,
+       "sleep_offset_end_s": -1.2898817658424377e-06,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 25 power samples, so on mains",
+      "evidence": {
+       "samples": 25,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 1,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.8950726883097864,
+    "real_tokens": 3837,
+    "tokens_per_s": 220.8925539528873,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5983711232,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 1,
+    "run": 1,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055422.2284007,
+     "ram_available_bytes": 252420931584,
+     "commit_charge": {
+      "used_bytes": 52560306176,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055462.8279872,
+     "ram_available_bytes": 252402421760,
+     "commit_charge": {
+      "used_bytes": 52562784256,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1950 MHz over 21 samples; clock event reasons seen: gpu_idle",
+     "samples": 21,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1935,
+      "max": 1950
+     },
+     "reasons_seen": {
+      "gpu_idle": 4
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -8.800998330116272e-07,
+       "sleep_offset_end_s": -8.230563253164291e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 22 power samples, so on mains",
+      "evidence": {
+       "samples": 22,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 1,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.8461995457376665,
+    "real_tokens": 3837,
+    "tokens_per_s": 224.685581500315,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5972156416,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 1,
+    "run": 2,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055462.931188,
+     "ram_available_bytes": 252402708480,
+     "commit_charge": {
+      "used_bytes": 52562800640,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055501.9448814,
+     "ram_available_bytes": 246339297280,
+     "commit_charge": {
+      "used_bytes": 64746196992,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1935 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1912.5,
+      "max": 1935
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 1
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.0300427675247192e-06,
+       "sleep_offset_end_s": -9.101349860429764e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 1,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.793158908995489,
+    "real_tokens": 3837,
+    "tokens_per_s": 228.95224397740586,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5971365888,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 1,
+    "run": 3,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055502.0342603,
+     "ram_available_bytes": 246339600384,
+     "commit_charge": {
+      "used_bytes": 64746213376,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055540.7012196,
+     "ram_available_bytes": 252411502592,
+     "commit_charge": {
+      "used_bytes": 52585881600,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1935 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1897.5,
+      "max": 1935
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 3
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.0300427675247192e-06,
+       "sleep_offset_end_s": -8.670613169670105e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 2,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.772290946333669,
+    "real_tokens": 3837,
+    "tokens_per_s": 230.67564421610697,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5989531648,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 2,
+    "run": 0,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055540.846587,
+     "ram_available_bytes": 252427026432,
+     "commit_charge": {
+      "used_bytes": 52561391616,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055578.0904198,
+     "ram_available_bytes": 252252827648,
+     "commit_charge": {
+      "used_bytes": 54748020736,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1935 MHz over 19 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 19,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1905,
+      "max": 1935
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 1
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.0370276868343353e-06,
+       "sleep_offset_end_s": -9.760260581970215e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 20 power samples, so on mains",
+      "evidence": {
+       "samples": 20,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 2,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.817889203162243,
+    "real_tokens": 3837,
+    "tokens_per_s": 226.94291857974804,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5984727040,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 2,
+    "run": 1,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055578.214314,
+     "ram_available_bytes": 252443492352,
+     "commit_charge": {
+      "used_bytes": 55248982016,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055616.1960802,
+     "ram_available_bytes": 252405051392,
+     "commit_charge": {
+      "used_bytes": 52587823104,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1800.0,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 1
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -9.93022695183754e-07,
+       "sleep_offset_end_s": -8.228234946727753e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 20 power samples, so on mains",
+      "evidence": {
+       "samples": 20,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 2,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.7666540684876963,
+    "real_tokens": 3837,
+    "tokens_per_s": 231.145630848443,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5983604736,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 2,
+    "run": 2,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055616.2566094,
+     "ram_available_bytes": 252404563968,
+     "commit_charge": {
+      "used_bytes": 52587839488,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055655.2463,
+     "ram_available_bytes": 252370124800,
+     "commit_charge": {
+      "used_bytes": 53048758272,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1837.5,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -8.039642125368118e-07,
+       "sleep_offset_end_s": -5.790498107671738e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 2,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.9638853990472853,
+    "real_tokens": 3837,
+    "tokens_per_s": 215.76407785724834,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5972353024,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 2,
+    "run": 3,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055655.3604164,
+     "ram_available_bytes": 252368318464,
+     "commit_charge": {
+      "used_bytes": 53048774656,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055694.2617133,
+     "ram_available_bytes": 248894066688,
+     "commit_charge": {
+      "used_bytes": 61926076416,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1920.0,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -9.66014340519905e-07,
+       "sleep_offset_end_s": -9.830109775066376e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 3,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.696338821629373,
+    "real_tokens": 3837,
+    "tokens_per_s": 237.17345715979272,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5966618624,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 3,
+    "run": 0,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055694.3270824,
+     "ram_available_bytes": 248854110208,
+     "commit_charge": {
+      "used_bytes": 61977608192,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055731.99395,
+     "ram_available_bytes": 252405194752,
+     "commit_charge": {
+      "used_bytes": 52596473856,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1897.5,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 4
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.0530930012464523e-06,
+       "sleep_offset_end_s": -5.559995770454407e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 20 power samples, so on mains",
+      "evidence": {
+       "samples": 20,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 3,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.861088454374112,
+    "real_tokens": 3837,
+    "tokens_per_s": 223.5163331012414,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5980024832,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 3,
+    "run": 1,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055732.0915322,
+     "ram_available_bytes": 252403437568,
+     "commit_charge": {
+      "used_bytes": 52596490240,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055771.0406992,
+     "ram_available_bytes": 246524350464,
+     "commit_charge": {
+      "used_bytes": 64578355200,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1695.0,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 3
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -7.310882210731506e-07,
+       "sleep_offset_end_s": -4.631001502275467e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 3,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.785169496317394,
+    "real_tokens": 3837,
+    "tokens_per_s": 229.6090061468645,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5974781952,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 3,
+    "run": 2,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055771.122101,
+     "ram_available_bytes": 246524637184,
+     "commit_charge": {
+      "used_bytes": 64578371584,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055810.5094602,
+     "ram_available_bytes": 252420861952,
+     "commit_charge": {
+      "used_bytes": 52594647040,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1935 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1912.5,
+      "max": 1935
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 1
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -5.029141902923584e-07,
+       "sleep_offset_end_s": -1.0400544852018356e-06,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 3,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.644288355833851,
+    "real_tokens": 3837,
+    "tokens_per_s": 241.84200584218806,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5972553728,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 3,
+    "run": 3,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055810.5715675,
+     "ram_available_bytes": 252419284992,
+     "commit_charge": {
+      "used_bytes": 52594663424,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055845.5051026,
+     "ram_available_bytes": 246541844480,
+     "commit_charge": {
+      "used_bytes": 64578363392,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 18 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 18,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1882.5,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 3,
+      "sw_power_cap": 3
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.0079238563776016e-06,
+       "sleep_offset_end_s": -9.830109775066376e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 19 power samples, so on mains",
+      "evidence": {
+       "samples": 19,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 4,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.8965274597285315,
+    "real_tokens": 3837,
+    "tokens_per_s": 220.78161139198565,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5970677760,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 4,
+    "run": 0,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055845.6177905,
+     "ram_available_bytes": 246525313024,
+     "commit_charge": {
+      "used_bytes": 64603439104,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055884.120106,
+     "ram_available_bytes": 252297654272,
+     "commit_charge": {
+      "used_bytes": 52600995840,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1912.5,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 2
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.0970979928970337e-06,
+       "sleep_offset_end_s": -9.101349860429764e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 4,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.864209764675858,
+    "real_tokens": 3837,
+    "tokens_per_s": 223.27275323438892,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5985513472,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 4,
+    "run": 1,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055884.2082334,
+     "ram_available_bytes": 252299776000,
+     "commit_charge": {
+      "used_bytes": 52602179584,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055922.0982518,
+     "ram_available_bytes": 250852126720,
+     "commit_charge": {
+      "used_bytes": 60501254144,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1695.0,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 3,
+      "sw_power_cap": 1
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -5.905982106924057e-06,
+       "sleep_offset_end_s": -1.1650845408439636e-06,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 20 power samples, so on mains",
+      "evidence": {
+       "samples": 20,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 4,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.8239550923462957,
+    "real_tokens": 3837,
+    "tokens_per_s": 226.45544248675307,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5990055936,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 4,
+    "run": 2,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055922.1442428,
+     "ram_available_bytes": 250848280576,
+     "commit_charge": {
+      "used_bytes": 60501270528,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793055962.1645327,
+     "ram_available_bytes": 252361068544,
+     "commit_charge": {
+      "used_bytes": 52787273728,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1935 MHz over 21 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 21,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1800,
+      "max": 1935
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 2
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -8.728820830583572e-07,
+       "sleep_offset_end_s": -8.870847523212433e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 22 power samples, so on mains",
+      "evidence": {
+       "samples": 22,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 4,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.7450421267421916,
+    "real_tokens": 3837,
+    "tokens_per_s": 232.96545935306168,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5966192640,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 4,
+    "run": 3,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793055962.263195,
+     "ram_available_bytes": 252367540224,
+     "commit_charge": {
+      "used_bytes": 52787290112,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793056001.0193152,
+     "ram_available_bytes": 250313158656,
+     "commit_charge": {
+      "used_bytes": 60381745152,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1912.5,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 2
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -8.859205991029739e-07,
+       "sleep_offset_end_s": -9.599607437849045e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 5,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.973395849849718,
+    "real_tokens": 3837,
+    "tokens_per_s": 215.07395324854633,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5961138176,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 5,
+    "run": 0,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793056001.1361353,
+     "ram_available_bytes": 250246139904,
+     "commit_charge": {
+      "used_bytes": 60263960576,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793056042.2674987,
+     "ram_available_bytes": 252025827328,
+     "commit_charge": {
+      "used_bytes": 56273334272,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 21 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 21,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1920,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 4
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -9.401701390743256e-07,
+       "sleep_offset_end_s": -8.901115506887436e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 22 power samples, so on mains",
+      "evidence": {
+       "samples": 22,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 5,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 3.9534745887309932,
+    "real_tokens": 3837,
+    "tokens_per_s": 161.7564462973493,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5964935168,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 5,
+    "run": 1,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793056042.395725,
+     "ram_available_bytes": 252011094016,
+     "commit_charge": {
+      "used_bytes": 56287002624,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793056097.9857981,
+     "ram_available_bytes": 252180389888,
+     "commit_charge": {
+      "used_bytes": 53177573376,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1935 MHz over 28 samples; clock event reasons seen: gpu_idle",
+     "samples": 28,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1695.0,
+      "max": 1935
+     },
+     "reasons_seen": {
+      "gpu_idle": 5
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -8.528586477041245e-07,
+       "sleep_offset_end_s": -8.570495992898941e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 29 power samples, so on mains",
+      "evidence": {
+       "samples": 29,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 5,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.82663517317269,
+    "real_tokens": 3837,
+    "tokens_per_s": 226.24072822323524,
+    "peak_vram_allocated_bytes": 1098212864,
+    "peak_vram_reserved_bytes": 1201668096,
+    "peak_rss_bytes": 5967089664,
+    "pinned_store_bytes": 201326592,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 5,
+    "run": 2,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793056098.04446,
+     "ram_available_bytes": 252179931136,
+     "commit_charge": {
+      "used_bytes": 53177589760,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793056137.9120355,
+     "ram_available_bytes": 250671452160,
+     "commit_charge": {
+      "used_bytes": 60884234240,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1935 MHz over 21 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 21,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1920,
+      "max": 1935
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 1
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -9.669456630945206e-07,
+       "sleep_offset_end_s": -9.159557521343231e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 5,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "steps": 6,
+    "step_s_mean": 2.774548624137727,
+    "real_tokens": 3837,
+    "tokens_per_s": 230.48794115069566,
+    "peak_vram_allocated_bytes": 1099923968,
+    "peak_vram_reserved_bytes": 1117782016,
+    "peak_rss_bytes": 5969924096,
+    "pinned_store_bytes": 268435456,
+    "weight_read_bytes": 0,
+    "os_read_bytes": 0,
+    "os_write_bytes": 0,
+    "device_read_bytes": null,
+    "spill_written_bytes": 0,
+    "spill_read_bytes": 0,
+    "layer_loads": 366,
+    "nf4_restores": 0,
+    "unavailable": {
+     "device_read_bytes": "no device read counter was supplied, or the path has no block device"
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 5,
+    "run": 3,
+    "label": "A5-07 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793056137.980863,
+     "ram_available_bytes": 250610384896,
+     "commit_charge": {
+      "used_bytes": 60974235648,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793056176.122052,
+     "ram_available_bytes": 252241788928,
+     "commit_charge": {
+      "used_bytes": 52870426624,
+      "limit_bytes": 143750778880
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 1920 MHz over 20 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 20,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1882.5,
+      "max": 1920
+     },
+     "reasons_seen": {
+      "gpu_idle": 4,
+      "sw_power_cap": 4
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -8.800998330116272e-07,
+       "sleep_offset_end_s": -1.1271331459283829e-06,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 21 power samples, so on mains",
+      "evidence": {
+       "samples": 21,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "no model path given",
+      "evidence": {
+       "model_path": null,
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ]
+]

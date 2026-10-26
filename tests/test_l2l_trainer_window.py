@@ -222,8 +222,8 @@ def test_resume_does_not_shift_the_windows(streamed, tmp_path, monkeypatch):  # 
 
 
 @pytest.mark.parametrize("k,windows", [(1, 7), (2, 4), (4, 2)])
-def test_rows_of_different_lengths_match_accumulation_bit_for_bit(  # noqa: F811
-    streamed, tmp_path, k, windows
+def test_rows_of_different_lengths_match_accumulation_bit_for_bit(
+    streamed, tmp_path, k, windows  # noqa: F811
 ):
     from transformers import Trainer
 
