@@ -1,4 +1,4 @@
-# A4 protocol v2: three machine admissions, all refused (no v2 session)
+# A4 protocol v2: three machine admissions, none passed (no v2 session)
 
 `a4_admission.py` at `efdd1a76`, protocol settings (600 s of unbuffered spill-pattern I/O on
 the spill volume, 10 s windows, every window's write and read rate >= 50% of that
@@ -18,9 +18,16 @@ Per machine: `admission.json` (the record, windows and judgement), `admission-pe
 `preflight-facts.txt` (volume and the three required checks on the spill, weights and
 same-drive spill paths), `cuda.txt`. Box paths are replaced by `<box>` / `<work>`;
 `provenance.json` lists each file's raw and published SHA-256 and the hashes of the raw
-archives, which stay outside the repository. `a4_admission.judge` on the published windows
-reproduces each recorded judgement.
+archives, which stay outside the repository. `judge` in `a4_admission.py` at `efdd1a76`, on
+the published windows, reproduces each recorded judgement (protocol v3 replaced that
+function, probe doc §3.2).
 
-Not shown: why the writes dipped. All three dipped only after 0.5-0.7 TiB of continuous
-writes (seconds 171, 433 and 350), which fits a host-side write cache filling, but nothing
-here tells a neighbour, the virtual disk or the host SSD apart.
+The v2 admission was wrongly specified: it wrote with no pause, at 5-17 times v1's spill
+rate, and judged each window against the volume's own median rather than against what the
+session needs (probe doc §3.2). None of the three machines passed it, and the refusals give
+no conclusion about the platform: the lowest write window on any of them (0.31 GB/s, busy
+rate) is above v1's largest spill demand (0.233 GB/s).
+
+Not shown: why the writes dipped, only after 0.5-0.7 TiB of continuous writes (seconds 171,
+433 and 350). A host-side write cache filling is one hypothesis; nothing here tells it from
+a neighbour, the virtual disk or the host SSD.

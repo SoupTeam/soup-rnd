@@ -1,10 +1,14 @@
 # Probe A4 - L2L activations under a host-RAM budget, spilled to a drive past it
 
-**Status: closed without a v2 verdict.** v1 (the rule as first written) judged one RTX 3090
-session on 2026-10-25: `SPILL NOT SAFE` on G2 alone (§9). Protocol v2 (§3.1: G2 bounds only
-what spill adds, 24-block cap, a machine admission) was committed at `efdd1a76` before any v2
-arm; all three rented machines were refused by the admission and no v2 session ran (§9).
-v1's raw records are kept unchanged and its verdict stays its own.
+**Status: protocol v3 committed before its GPU session; no v3 verdict yet.** v1 (the rule as
+first written) judged one RTX 3090 session on 2026-10-25: `SPILL NOT SAFE` on G2 alone (§9).
+Protocol v2 (§3.1: G2 bounds only what spill adds, 24-block cap, a machine admission) was
+committed at `efdd1a76` before any v2 arm; none of three rented machines passed its
+admission and no v2 session ran (§9). The v2 admission was wrongly specified (§3.2): no
+pause, and a criterion relative to the volume's own median; the refusals say nothing about
+the platform. Protocol v3 replaces the admission with a schedule at twice v1's spill demand,
+runs only on the GPU class that demand was measured on (RTX 3090 / 3090 Ti), and keeps rule
+v2 (§3.2). v1's raw records are kept unchanged and its verdict stays its own.
 
 Track A, research question 4 of the program brief (`rndTASK`, Track A): "Host-RAM
 budget as a planner term: boundary activations compete with pinned staging and arenas
@@ -16,8 +20,8 @@ way for inference. Nothing here is claimed as new.
 
 Harness (benchmark code, not shipped): `harness/a4_activation_budget.py` (pure planner),
 `harness/a4_spill_store.py` (the store that obeys a plan), `harness/a4_box.py` (spill
-volume preflight, cgroup limit and swap, RSS), `harness/a4_admission.py` (the v2 machine
-admission, §3.1), `harness/a4_probe.py` (one process per arm), `harness/a4_session.py`
+volume preflight, cgroup limit and swap, RSS), `harness/a4_admission.py` (the v3 machine
+admission, §3.2), `harness/a4_probe.py` (one process per arm), `harness/a4_session.py`
 (A-B-B-A blocks), `harness/a4_rule.py` (verdict), `harness/a4_g4_compose.py` (G4's
 compressed store planned by A4 and spilled through the real unbuffered file, §2). Reused
 unchanged: the shipped `soup_cli.utils.l2l_step` / `l2l_activations` (through the harness
@@ -206,28 +210,114 @@ pilot, N from it, one top-up, `arm_validity.blocks_to_add`), validity rows V1-V9
 comparisons, steps per arm, the verdict order, `--max-hours 8` (a session that reaches it
 is recorded as stopped, not extended), the 24 GiB / swap 0 scope, no FP8, no second drive.
 
-**Machine admission** (`harness/a4_admission.py`; thresholds fixed here before any v2 box):
-600 s of unbuffered I/O on the spill volume in 4 MiB chunks, each cycle writing one k = 4
+**Machine admission, v2** (`a4_admission.py` at `efdd1a76`; replaced in v3, §3.2): 600 s of
+unbuffered I/O on the spill volume in 4 MiB chunks, each cycle writing one k = 4
 minimum-budget spill file (32 layers x 4 chunks) in the store's forward order and reading
-it back in the backward order (layers descending), from 16 distinct random chunks. Each
-operation's bytes and busy time are shared over the 10 s windows it overlaps. The machine
-is admitted iff every window's write rate AND read rate is >= 50% of that direction's
-median window rate, no read returns other bytes, and no file is left. A refused machine is
-deleted before the session. The per-second rates are logged (`admission-per-second.csv`).
-The rule never reads the admission except to list, for description only, spill arms whose
-write rate fell below 50% of the admission median; that list removes no arm and changes no
-verdict.
+it back in the backward order (layers descending), from 16 distinct random chunks, with
+no pause between cycles. Each operation's bytes and busy time are shared over the 10 s
+windows it overlaps. The machine was admitted iff every window's write rate AND read rate
+was >= 50% of that direction's median window rate, no read returned other bytes, and no
+file was left.
 
 **What the v1 data looks like under v2** (illustration, not a verdict:
 `results/a4-rtx3090-20261025/v1-under-rule-v2-ILLUSTRATION.json`): G2 would pass (A
 reference 4 B in all 70 blocks, every B excess 4 B), and the verdict would read `SPILL
 SAFE, COST NO VERDICT` with v1's 12 blocks.
 
-**Limits of v2.** The admission does not guarantee the volume will not dip during the
-session. The cause of v1's dips is not established (a host neighbour, the virtual disk,
-guest write-back or the host SSD: none is shown). `foreign_reads` sees only I/O inside
-the VM. The physical topology and the host's cache are not controlled. G2's v2 reference
-no longer catches an allocation both arms make; such an excess is still recorded per arm.
+**Limits of v2.** The cause of v1's dips is not established (a host neighbour, the virtual
+disk, guest write-back or the host SSD: none is shown). `foreign_reads` sees only I/O
+inside the VM. The physical topology and the host's cache are not controlled. G2's v2
+reference no longer catches an allocation both arms make; such an excess is still
+recorded per arm.
+
+### 3.2 Protocol v3: why the admission changed (fixed after the v2 refusals, before v3)
+
+v3 replaces the machine admission and restricts the GPU class (below). The decision rule is
+unchanged: `a4_rule.py` is byte-identical to v2's, so a v3 session is "protocol v3, rule v2"
+and `verdict.json` reads `rule_version` v2. G1-G5, their thresholds (10%, 0.90), the repeats
+rule, V1-V9, the seven comparisons, `--max-blocks 24`, `--max-hours 8`, the 24 GiB / swap 0
+scope, no FP8 and no second drive stay as §3.1 has them.
+
+**The v2 admission was wrongly specified, in two ways.**
+
+1. It wrote with no pause, at the volume's full speed. The whole v1 session asked for at
+   most 0.233 GB/s of spill writes (and the same volume of reads); the v2 admissions wrote
+   at 1.1-4.0 GB/s, 5-17 times that, and 0.6-2.2 TiB in 10 minutes against 0.34 TiB of
+   spill in the whole 2.5 h v1 session.
+2. Its criterion (`bins` / `judge`) divided bytes by the volume's busy time and compared
+   each window with the median of the same volume. That tests whether the volume is steady
+   against itself, not whether it keeps up with the session: a volume that dips from 10
+   to 3 GB/s is refused although 3 GB/s covers the demand many times over, and a volume
+   steady at 0.3 GB/s is admitted although it cannot keep the session's pace with margin.
+
+So the three v2 refusals say nothing about whether those machines would have run a session
+steadily; there is no conclusion about the platform. The v2 admission data are not re-judged
+by the v3 criterion: they were taken without the schedule.
+
+| load | write rate | written | duration |
+|---|---|---|---|
+| v1 session, largest spill arm (`ram_k3_min/b05_p1_B`) | 0.233 GB/s (written / step) | 384 MiB per 1.73 s step | |
+| v1 session, all 280 arms | | 0.34 TiB of spill | 2 h 29 min |
+| v2 admission, machine 1 (RTX 5090) | 4.04 GB/s (wall clock) | 2.21 TiB | 600 s |
+| v2 admission, machine 2 (RTX 3090 Ti) | 1.14 GB/s (wall clock) | 0.62 TiB | 600 s |
+| v2 admission, machine 3 (RTX 4090) | 1.49 GB/s (wall clock) | 0.81 TiB | 600 s |
+| v3 admission (schedule) | 0.466 GB/s (twice the demand) | 0.76 TiB | 1800 s |
+
+**Machine admission, v3** (`harness/a4_admission.py`; every number fixed here, before any
+v3 box):
+
+- **Demand** D = 402,653,184 B / 1.729781 s = 0.2328 GB/s: the largest, over v1's 140
+  spill arms, of the arm's median over its timed steps of `spill_written / step_s`
+  (`ram_k3_min/b05_p1_B.json`; `a4_admission.v1_demand` recomputes it from
+  `results/a4-rtx3090-20261025/`). The spill reads per step equal the writes.
+- **Cycle**: one k = 4 minimum-budget spill file (32 layers x 4 chunks x 4 MiB = 512 MiB)
+  written in the forward's order, then read back in the backward's, through the store's own
+  `DirectSpillFile`, from 16 distinct random chunks. Every 4 KiB sector carries its cycle
+  and file offset, so a read that returns stale or misplaced bytes counts as a mismatch.
+- **Schedule**: period P = 512 MiB / (2 D) = 1.1532 s, i.e. writes at twice the demand and
+  reads at twice the demand. Cycle i starts at max(t0 + i P, the end of cycle i - 1), so a
+  volume that falls behind runs cycles back to back; lateness_i = end_i - (t0 + (i + 1) P).
+  1,561 cycles, 0.76 TiB written, over 30 minutes.
+- **Admitted** iff the largest lateness over the 30 minutes is <= 5 s, every chunk read
+  back is the bytes its cycle wrote there, and no test file is left. 5 s is about four
+  periods of slack: a short stall passes; a sustained fall below the tested rate, the kind
+  v1's slow arms showed (0.04-0.44 GB/s), builds lateness fast and is refused.
+- **Recorded**: per cycle its planned start, start, end and lateness
+  (`admission-cycles.csv`); per second the bytes and busy time (`admission-per-second.csv`);
+  the 10 s windows against their median, as description only. The windows play no part in
+  the decision.
+
+On the controlled-time model in `tests/test_a4_admission.py` (exact fake volumes): a
+volume at 10 GB/s that dips to 3 GB/s for ten minutes never falls behind and is admitted,
+where v2 refused it; a volume steady at 0.3 GB/s ends 746 s behind and is refused, where
+v2 admitted it; five minutes at 0.1 GB/s, the rate of v1's slowest arms, end 237 s behind;
+one 3 s stall is absorbed, one 8 s stall is not.
+
+**What passing means.** The admission is a screen, not a guarantee: it shows the spill
+volume kept twice v1's spill pace for 30 minutes without falling more than 5 s behind. It
+does not show the volume cannot dip during the session, and it does not explain v1's dips.
+After a session, `a4_admission.describe_arms` lists, for description only, each spill
+arm's write rate against the demand and the arms below it; it drops no arm and changes no
+verdict. `a4_rule` reads nothing of the admission.
+
+**GPU class.** The demand was measured on an RTX 3090 (Mistral-7B NF4, seq 512). A faster
+GPU shortens the step and so raises the rate spill must sustain. The v1 step was set by
+compute: the all-pinned A arms took 0.577-0.591 s per micro-batch at k = 2, 3 and 4 alike
+(RAM tier, medians over arms), so the weight stream was hidden. NVIDIA's published dense
+BF16 tensor rate with FP32 accumulate is 71 TFLOPS on the RTX 3090, 80 on the RTX 3090 Ti
+and 165.2 on the RTX 4090 (the GA102 and Ada whitepapers). A 4090 step could therefore be
+up to about 2.3x shorter and its spill demand up to about 0.54 GB/s, above the 0.466 GB/s
+the admission holds; a 3090 Ti's, up to about 0.26 GB/s, stays inside it. So v3 runs only
+on an RTX 3090 or RTX 3090 Ti. The owner's instruction also allowed the RTX 4090; it is
+excluded for this reason, fixed before any v3 box.
+
+**The repeats rule** (unchanged) sizes the blocks to detect a 10% effect with 80% power
+(`ceil(7.85 (sigma / delta)^2)`, delta = 10% of A's mean); it is not sized to estimate the
+overhead to +-10%. G4 and G5 still decide on the 95% interval against 10% and 0.90, so a
+comparison can reach its N with an interval that still straddles the threshold.
+
+**The cause of v1's slow arms is not established**; v3 changes which machine is used, not
+what is known about why a volume dips.
 
 ## 4. Fixtures, arms and order
 
@@ -284,7 +374,8 @@ no longer catches an allocation both arms make; such an excess is still recorded
   information).
 - A physical-host view on a virtualised box: `foreign_reads` sees only I/O inside the VM;
   the physical topology under a virtual disk and the host's cache are not controlled.
-- Whether the spill volume stays as steady during the session as during the admission.
+- Whether the spill volume stays as steady during the session as during the admission, or
+  why a volume dips.
 - Endurance (TBW) of the spill drive.
 - Pageable (non-pinned) activations on CUDA; the planner handles `pin=False`, the
   GPU arms do not use it.
@@ -302,9 +393,9 @@ volume's filesystem, device, model and free space.
 
 ## 8. GPU runbook
 
-Target: a Linux CUDA box with a 24 GB GPU (the team's Vast.ai RTX 3090 class), one
-local NVMe that is NOT the container's overlay root, about 60 GB free, and
-`systemd-run` or `docker` to impose the RAM limit.
+Target: a Linux CUDA box with an RTX 3090 or RTX 3090 Ti (the GPU class v1's spill demand
+was measured on, §3.2), one local NVMe that is NOT the container's overlay root, about
+60 GB free, and `systemd-run` or `docker` to impose the RAM limit.
 
 ### Needs
 
@@ -314,7 +405,7 @@ local NVMe that is NOT the container's overlay root, about 60 GB free, and
 | Host RAM limit | 24 GiB (`MemoryMax`) | F1 RAM-tier store ~4.1 GB pinned + activations <= 512 MiB + ~6 GB process + reserve |
 | Disk | ~15 GB source + ~4.5 GB NF4 cache + <= 1 GiB spill + 4 GiB drive test; 60 GB free is ample | the `snapshot_download` below fetches the source |
 | Second physical drive | optional | `disk_k4_other_drive` only |
-| Time | v1 measured ~32 s per child (289 children in ~2 h 35 min on one RTX 3090 VM); v2 estimate: 10 min admission, then up to ~6 h if every comparison runs to the 24-block cap (`--max-hours 8` stops it) | 7 comparisons x 5-24 blocks x 4 arms; correctness 3 x ~3 min; cleanup ~3 min |
+| Time | v1 measured ~32 s per child (289 children in ~2 h 35 min on one RTX 3090 VM); v3 estimate: 30 min admission, then up to ~6 h if every comparison runs to the 24-block cap (`--max-hours 8` stops it) | 7 comparisons x 5-24 blocks x 4 arms; correctness 3 x ~3 min; cleanup ~3 min |
 
 ### How the RAM limit is imposed
 
@@ -362,9 +453,10 @@ EOF
 export HF_HUB_OFFLINE=1
 SPILL=/mnt/nvme/a4-spill            # a local NVMe directory, not overlay, not tmpfs
 WSPILL=/mnt/nvme-weights/a4-spill   # on the SAME physical disk as .soup/f1-nf4 (V9 checks)
-# 0. Machine admission (10 min, §3.1); exit 4 = refused: delete the box, take the next one.
+# 0. Machine admission (30 min, §3.2); exit 4 = refused: delete the box, take the next one.
 .venv/bin/python benchmarks/harness/a4_admission.py --spill-dir "$SPILL" \
-  --out .soup/admission.json --log .soup/admission-per-second.csv
+  --out .soup/admission.json --log .soup/admission-per-second.csv \
+  --cycles .soup/admission-cycles.csv
 # 1. Plan (prints every command, writes nothing):
 .venv/bin/python benchmarks/harness/a4_session.py \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
@@ -379,8 +471,11 @@ systemd-run --user --scope -p MemoryMax=24G -p MemorySwapMax=0 -- \
   --out .soup/results/a4-01 --execute
 # Optional, second physical drive:
 #   add --other-spill-dir /mnt/nvme2/a4-spill --comparisons <default list>,disk_k4_other_drive
-# 3. Verdict, recomputed from the raw JSON alone:
+# 3. Verdict, recomputed from the raw JSON alone, and the arms against the admission's
+#    demand (description only):
 .venv/bin/python benchmarks/harness/a4_rule.py .soup/results/a4-01 --out verdict.json
+.venv/bin/python benchmarks/harness/a4_admission.py --describe .soup/results/a4-01 \
+  --out arms-vs-demand.json
 ```
 
 The first `correctness` child shards the checkpoint into `.soup/f1-nf4` (about two
@@ -403,7 +498,8 @@ every gate that reads a spilling arm.
 `.soup/results/a4-01/`: `protocol.json`, `preflight.json`, `drive.json`,
 `correctness_k{2,3,4}.json` (and `_det` if run), `cleanup.json`,
 `arms/<comparison>/b<NN>_p<P>_<A|B>.json`, `logs/*.log`, `session.json`,
-`verdict.json`; beside it `.soup/admission.json` and `.soup/admission-per-second.csv`.
+`verdict.json`; beside it `.soup/admission.json`, `.soup/admission-per-second.csv` and
+`.soup/admission-cycles.csv`.
 
 ## 9. Results
 
@@ -431,6 +527,10 @@ CUDA or GPU evidence, and the rule refuses to judge any of it (V3).
   harness (22 children, all exit 0, `rule_version` v2 in `verdict.json`, `NO VERDICT:
   SYNTHETIC/CPU PILOT`), and a 30 s admission smoke on the laptop's NTFS volume through the
   real `DirectSpillFile` (refused, as a smoke, by its own non-protocol settings).
+- Protocol v3 (2026-10-26): a 60 s admission smoke on the laptop's NTFS volume through the
+  real `DirectSpillFile`: 53 of 53 scheduled cycles, largest lateness 0.116 s, 0 of 6,784
+  chunks read back wrong, wall write 0.471 GB/s, no file left (refused, as a smoke, by its
+  non-protocol duration); `--describe` on the published v1 records runs.
 
 ### GPU, v1: one RTX 3090 VM, 2026-10-25 (rule v1)
 
@@ -451,13 +551,13 @@ shards, session under `systemd-run --scope -p MemoryMax=24G -p MemorySwapMax=0` 
 back per PID from inside, in every arm record). After the run, not changing the verdict:
 the 4 B source (§3.1) and the v1 data under rule v2 (illustration).
 
-### GPU, v2: no verdict, no session (2026-10-25, rule v2 committed at `efdd1a76`)
+### GPU, v2: no session, the admission was wrongly specified (2026-10-25, `efdd1a76`)
 
 **No v2 verdict.** Three machines were rented, the owner's limit for the admission; each
 passed the preflight (MemTotal > 24 GiB, VRAM >= 23 GB, CUDA, cgroup 24 GiB / swap 0 read
 per PID inside the scope, spill ext4 local with direct I/O, suspend / power / foreign_reads
-ok) and each was **refused by the admission** (§3.1, protocol settings, unchanged), then
-destroyed and confirmed gone. No A4 arm ran on any of them. The stop rule ends A4 v2 here.
+ok) and none passed the v2 admission (§3.1, protocol settings, unchanged); each was then
+destroyed and confirmed gone. No A4 arm ran on any of them, and the stop rule ended v2.
 
 | machine | GPU, host / machine | write median, floor (GB/s) | low write windows | read median, min (GB/s) | first slow second, written before it |
 |---|---|---|---|---|---|
@@ -466,24 +566,18 @@ destroyed and confirmed gone. No A4 arm ran on any of them. The stop rule ends A
 | 3 | RTX 4090, 59399 / 11740 | 3.52, 1.76 | 12 (1.70-1.76) | 3.35, 3.23 | 350 s, 0.55 TiB |
 
 All three: KVM VM, one virtio disk `vda` for the spill and the weights, 0 read-back
-mismatches, no read window low; only writes dipped, and only after the first ~0.5-0.7 TiB of
-continuous writing. Rental cost: $0.59 of the $15 v2 budget (invoices).
+mismatches, no read window low. Rental cost: $0.59 of the $15 v2 budget (invoices).
 
 What this does and does not show:
 
-- No eligible v2 session: on these three rented VMs the spill volume's write rate did not
-  stay within half its median over 10 minutes of continuous spill-pattern writing, so no v2
-  arm ran and G4 / G5 have no v2 measurement. That is all three refusals establish. They do
-  not show that spill's cost cannot be measured to 10% on rented VMs: three machines are a
-  small sample, and a refused machine might still have run a session steadily (next point).
-  v1 did write slowly on some arms (17 of 140 spill arms), so dips have now been seen on four
-  of four rented VMs; the cause is not established.
-- The admission writes 0.6-2.2 TiB in 10 minutes; the whole v1 session wrote 0.34 TiB of
-  spill. The dips starting only after ~0.5 TiB fits a host-side write cache filling up, but
-  nothing here shows the cause (a neighbour, the virtual disk, the host SSD); it is a
-  hypothesis. The admission's load is heavier than one session's, so a machine it refuses
-  might still have run the session steadily; the rule was fixed before the rental and is
-  not changed after seeing these numbers.
+- None of the three machines passed the v2 admission, and the v2 admission was wrongly
+  specified (§3.2): it wrote with no pause, at 5-17 times v1's spill rate, and judged each
+  window against the volume's own median, not against what the session needs. The lowest
+  write window on any of the three (0.31 GB/s busy rate, machine 2) is above v1's largest
+  spill demand (0.233 GB/s). The refusals say nothing about whether these machines would
+  have run a session steadily: there is no conclusion about the platform.
+- Why the writes dipped after 0.5-0.7 TiB is not established (a host write cache filling,
+  a neighbour, the virtual disk, the host SSD: none is shown).
 - G4 and G5 WERE measured in v1, and stayed inconclusive (§9, v1 table): `ram_k4_half`
   −0.61% [−5.56%, +4.33%] and `ram_k2_half` [−13.7%, +64.2%] at the 12-block cap; the
   weight-read ratio 0.838 [0.758, 0.918]. v2 adds no measurement to them.
