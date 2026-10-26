@@ -336,6 +336,49 @@ class TestRepeatRule:
         assert result["validity"]["all_layers_in_arm_format"] is True
 
 
+class TestEarlyFailure:
+    """A run that fails while the model loads has no storage inventory yet (g1_train.main)."""
+
+    def _early(self, arm: str, seed: int, attempt: int = 1) -> dict[str, Any]:
+        run = {**_run(arm, seed, attempt=attempt), "status": "failed", "train_log": []}
+        del run["storage_counts"]
+        return run
+
+    def _cohort(self, early: dict[str, Any], *extra: dict[str, Any]) -> list[dict]:
+        key = (early["arm"], early["seed"])
+        return [early if (r["arm"], r["seed"]) == key else r for r in _all_runs()] + list(extra)
+
+    def test_an_early_failure_with_a_clean_repeat_still_gives_a_verdict(self, harness):
+        early = self._early("nvfp4", 42)
+        result = harness.verdict(self._cohort(early, _run("nvfp4", 42, attempt=2)))
+        assert result["outcome"] == "pass"
+        assert result["validity"]["all_layers_in_arm_format"] is True
+        assert result["spoiled"] == [
+            {"arm": "nvfp4", "seed": 42, "attempt": 1, "problems": ["not_finished"]}]
+        assert {"arm": "nvfp4", "seed": 42, "attempt": 2} in result["used"]
+
+    def test_an_early_failure_without_a_repeat_gives_no_verdict_and_does_not_crash(self, harness):
+        result = harness.verdict(self._cohort(self._early("nf4", 7)))
+        assert result["outcome"] == "no_verdict"
+        assert result["validity"]["runs_finished_finite"] is False
+
+    def test_a_counted_run_without_a_storage_inventory_is_unproven(self, harness):
+        run = _run("nvfp4", 123)
+        del run["storage_counts"]
+        runs = [run if (r["arm"], r["seed"]) == ("nvfp4", 123) else r for r in _all_runs()]
+        result = harness.verdict(runs)
+        assert result["outcome"] == "no_verdict"
+        assert result["validity"]["all_layers_in_arm_format"] is False
+
+    def test_a_recorded_wrong_format_after_a_load_failure_stays_non_repeatable(self, harness):
+        # g1_train records the counts, then raises when they are not all in the arm's format.
+        early = self._early("nvfp4", 42)
+        early["storage_counts"] = {"NVFP4Tensor": 223, "Parameter": 1}
+        result = harness.verdict(self._cohort(early, _run("nvfp4", 42, attempt=2)))
+        assert result["outcome"] == "no_verdict"
+        assert result["validity"]["all_layers_in_arm_format"] is False
+
+
 class TestInputs:
     def test_a_synthetic_run_never_enters_a_real_verdict(self, harness):
         runs = _replace(_all_runs(), "nf4", 42, synthetic=True)

@@ -93,7 +93,7 @@ def suites_complete(run: dict[str, Any]) -> bool:
 
 
 def layers_in_arm_format(run: dict[str, Any]) -> bool:
-    return run["storage_counts"] == {EXPECTED_STORAGE[run["arm"]]: QUANTIZED_LAYERS}
+    return run.get("storage_counts") == {EXPECTED_STORAGE[run["arm"]]: QUANTIZED_LAYERS}
 
 
 def select_runs(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -116,7 +116,9 @@ def select_runs(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
                 unexpected.append(where)
                 continue
             # Row 4 gets no repeat, so a wrong format counts whichever attempt shows it.
-            if not layers_in_arm_format(run):
+            # A run that failed while loading has no inventory yet: that proves nothing, so it is
+            # not a wrong format. A run that is counted must carry a right one (see _validity).
+            if "storage_counts" in run and not layers_in_arm_format(run):
                 wrong_format.append(where)
             problems = c5.run_problems(run)
             if problems:
@@ -167,7 +169,9 @@ def _validity(
         "unquantized_fingerprints": all(f == fingerprints[0] for f in fingerprints),
         "data_hashes": len(data) <= 1,
         "configs_differ_only_in_base_format": not diffs,
-        "all_layers_in_arm_format": not selection["wrong_format"],
+        "all_layers_in_arm_format": (
+            not selection["wrong_format"] and all(layers_in_arm_format(run) for run in chosen)
+        ),
         "runs_finished_finite": not {"not_finished", "non_finite"} & set(unrepaired),
         "first_grad_norm_positive": "first_grad_norm" not in unrepaired,
         "gate_suites_complete": all(suites_complete(run) for run in chosen),
