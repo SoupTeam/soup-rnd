@@ -233,3 +233,15 @@ def test_main_refuses_an_existing_output_directory(fwdbwd, tmp_path, capsys):
 def test_main_refuses_a_row_count_that_fills_every_window(fwdbwd, tmp_path, capsys):
     code = fwdbwd.main(["--out", str(tmp_path / "x"), "--card", "8gb", "--rows", "8"])
     assert code == 2 and "incomplete" in capsys.readouterr().out
+
+
+def test_card_label_must_fit_the_gpu(fwdbwd):
+    gib = 2**30
+    assert fwdbwd.card_matches("8gb", 8 * gib) and not fwdbwd.card_matches("8gb", 24 * gib)
+    assert fwdbwd.card_matches("24gb", 24 * gib) and not fwdbwd.card_matches("24gb", 8 * gib)
+    assert not fwdbwd.card_matches("8gb", None)
+
+
+def test_fewer_rows_than_k_is_refused(fwdbwd):
+    with pytest.raises(fwdbwd.FwdBwdRefusedError, match="full window"):
+        fwdbwd.check_case_shape(_rows(fwdbwd, [8, 6, 5]), 4)

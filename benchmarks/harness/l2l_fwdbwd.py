@@ -45,11 +45,19 @@ def build_rows(
     lengths: Sequence[int], masked_spans: Sequence[Sequence[tuple]], vocab: int, seed: int = 5
 ) -> List[Row]:
     """Rows of random ids, one batch row each, with ``-100`` over the masked spans."""
-    data = stand.SyntheticRows(lengths, masked_spans, vocab, seed=seed)
+    return _as_rows(stand.SyntheticRows(lengths, masked_spans, vocab, seed=seed))
+
+
+def _as_rows(data: Any) -> List[Row]:
     return [
         (data[i]["input_ids"].unsqueeze(0), data[i]["labels"].unsqueeze(0))
         for i in range(len(data))
     ]
+
+
+def leaves_incomplete_window(count: int, k: int) -> bool:
+    """k = 1 has no incomplete window to leave, so it always passes."""
+    return k == 1 or count % k != 0
 
 
 def cut_windows(rows: Sequence[Row], k: int) -> List[List[Row]]:
@@ -63,11 +71,21 @@ def check_case_shape(rows: Sequence[Row], k: int) -> None:
         raise FwdBwdRefusedError("the rows must have different lengths")
     if not any(bool((labels == -100).any()) for _, labels in rows):
         raise FwdBwdRefusedError("the rows must carry labels of -100")
-    if k > 1 and len(rows) % k == 0:
+    if len(rows) < k:
+        raise FwdBwdRefusedError(f"{len(rows)} rows give no full window of {k}")
+    if not leaves_incomplete_window(len(rows), k):
         raise FwdBwdRefusedError(
             f"{len(rows)} rows fill every window of {k}; use a count that leaves an "
             "incomplete last window"
         )
+
+
+def card_matches(card: str, vram_bytes: Optional[int]) -> bool:
+    """The label must fit the card in the box: 8gb up to 12 GiB, 24gb from 20 GiB."""
+    if vram_bytes is None:
+        return False
+    gib = vram_bytes / 2**30
+    return gib <= 12 if card == "8gb" else gib >= 20
 
 
 def n_items(window: Sequence[Row]) -> int:
@@ -398,11 +416,7 @@ def write_outputs(out_dir: Path, payload: Dict[str, Any], raw_logs: Dict[str, st
 # command line
 # --------------------------------------------------------------------------
 def make_rows(count: int, seq: int, vocab: int) -> List[Row]:
-    data = stand.make_rows(count, seq, vocab)
-    return [
-        (data[i]["input_ids"].unsqueeze(0), data[i]["labels"].unsqueeze(0))
-        for i in range(len(data))
-    ]
+    return _as_rows(stand.make_rows(count, seq, vocab))
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -426,9 +440,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         if Path(parsed.out).exists():
             raise FwdBwdRefusedError(f"{parsed.out} exists; attempts are never overwritten")
-        probe_rows = [(None, None)] * parsed.rows
         for k in ks:
-            if k > 1 and len(probe_rows) % k == 0:
+            if not leaves_incomplete_window(parsed.rows, k):
                 raise FwdBwdRefusedError(
                     f"--rows {parsed.rows} fills every window of {k}; use a count that leaves "
                     "an incomplete last window"
@@ -436,8 +449,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         import stream_probe
 
         if not stream_probe.cuda_available():
-            print("SKIP: CUDA is required for l2l_fwdbwd.py")
-            return 0
+            print("REFUSED: CUDA is required for l2l_fwdbwd.py")
+            return 2
+        import torch as _torch
+
+        vram = _torch.cuda.get_device_properties(0).total_memory
+        if not card_matches(parsed.card, vram):
+            raise FwdBwdRefusedError(
+                f"--card {parsed.card} does not fit this GPU ({vram / 2**30:.1f} GiB)"
+            )
         from transformers import AutoConfig
 
         config = AutoConfig.from_pretrained(parsed.weights)
