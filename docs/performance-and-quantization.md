@@ -603,6 +603,57 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
 - **The bf16 3B throughput above is a LOWER BOUND.** The reference box could not page-lock the 5.55 GB base (its measured page-locked ceiling was 7.65 GB — which #901 later traced to per-tensor pinning being rounded up to powers of two, so that store was really asking for ~10 GB; it would pin today), so that run fell back to a pageable store. Pageable memory makes the host-to-device copy synchronous, which costs overlap — visible as the GPU-utilisation drop from 96.8% (1.5B, pinned) to 79.3% (3B, pageable). Soup does this fallback automatically **and prints the cost** rather than absorbing it silently. NF4 lifts this at 3B: the store drops under the ceiling and pins.
 - Numbers are Windows/WDDM and therefore systematically pessimistic versus Linux. `expandable_segments:True` is silently ignored on Windows; Soup detects that and does not claim it is active.
 
+### Experimental partial RAM residency (C3)
+
+`training.stream_partial_ram` keeps a fixed subset of decoder layers in CPU RAM
+and sends only the remaining layers to the existing asynchronous disk reader.
+It is off by default. The first supported path is **dense Llama, unquantized
+Transformers SFT, explicit disk tier, without L2L**. CPU correctness tests pass;
+CUDA correctness, pinned-transfer lifetime and throughput still require hardware
+validation. This is not full C3 acceptance.
+
+```yaml
+training:
+  stream_layers: true
+  stream_source: disk
+  quantization: none
+  batch_size: 1
+  l2l: false
+  stream_partial_ram:
+    limit_bytes: 8589934592     # example 8 GiB host allocation envelope
+    reserved_bytes: 4294967296  # example 4 GiB for other host users/safety
+    cache_bytes: 2147483648     # at most 2 GiB of resident allocations
+```
+
+These values illustrate the configuration, not a measured safe recipe. Choose
+reservations for the actual workload. The trainer also charges resident extras
+and RAM-backed auxiliary weights, and caps the envelope using the existing
+free/physical-RAM headroom rules. The source checks the envelope **before buffer
+allocation**: caller/trainer reservations + resident allocations + disk staging
+allocations + the largest selected shard's loading map must fit. Pinned arena
+rounding and pageable staging alignment overhead count against the envelope.
+An oversized plan is refused; it does not silently reduce reservations, change
+pinning or restart with another plan.
+
+Selection is stable first-fit in decoder order, retaining complete layers only.
+Embedding/head shards remain on the existing path. Cached layers are removed
+from the disk reader's path list, including speculative lookahead; get/release
+indices are remapped together. Cache loading reads each selected shard once.
+The cache is immutable throughout training and is released on runtime close;
+outstanding recorded transfer events are synchronized before cached storage is
+released. Constructor failures close any already-started disk reader.
+
+The envelope bounds accounted allocations, **not process RSS**. Python overhead,
+allocator retention, the OS page cache and unrelated processes are not controlled.
+There is no dynamic pressure-driven eviction. The shared A4 reservation contract
+is not integrated, so L2L combination is rejected rather than risking double
+allocation. `resident_tensor_bytes_served` counts logical tensor requests served
+from RAM; it is neither physical SSD bytes saved nor a measured speedup. Runtime
+statistics distinguish resident tensor bytes, staging bytes, owned host
+allocations and the reserved peak including the loading transient.
+
+Local validation and open acceptance criteria: [C3 status](../benchmarks/c3/STATUS.md).
+
 ### FP8 source checkpoints (research track B3)
 
 DeepSeek-V3 and Kimi K2 publish their linear weights as `float8_e4m3fn` with an fp32 `<name>.weight_scale_inv` per 128 x 128 block, declared in `config.json` as `quantization_config: {quant_method: fp8, fmt: e4m3, weight_block_size: [128, 128]}`. The sharder reads that config and dequantises each FP8 weight once, at shard time: `q * scale` in fp32, rounded once to the store dtype, in block-aligned row chunks so no fp32 intermediate is larger than one chunk. From there it is an ordinary dense weight, and `quantization: 4bit` runs the unchanged NF4 path on it. A weight and its scale may sit in different files (DeepSeek-V3 puts 155 of its 45,808 scales in the file after their weight).

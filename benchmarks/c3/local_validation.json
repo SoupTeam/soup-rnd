@@ -1,0 +1,36 @@
+{
+  "status": "LOCAL_IMPLEMENTATION_TESTED_CUDA_AND_A4_PENDING",
+  "base_commit": "fe0575329428a9af4e643a70a928174c90d190ae",
+  "utc": "2026-10-24T11:45:22.243130+00:00",
+  "platform": "macOS-15.1.1-arm64-arm-64bit-Mach-O",
+  "new_c3_tests": {
+    "note": "included in combined regression; CUDA skipped locally"
+  },
+  "regression": {
+    "passed": 642,
+    "skipped": 24,
+    "warnings": 3,
+    "log": "private c3_gpu_attempt_001/local_regression.txt"
+  },
+  "lint": "PASS changed Python files",
+  "diff_check": "PASS",
+  "full_repository_ci": "NOT_RUN",
+  "cuda_validation": "NOT_RUN",
+  "performance_verdict": "NO_VERDICT",
+  "physical_ssd_bytes_saved": null,
+  "a4_integration": "Experimental shared lease + RAM-only activation bridge tested; public L2L disabled; A4 acceptance pending",
+  "source_sha256": {
+    "benchmarks/c3/compare.py": "f480892e2851df1bbf4ec09565bb062868867394d671700ed8d64aa6c5868d67",
+    "benchmarks/c3/gpu_tests.py": "bd5befd66c5d010632435af616dd915f0782cf70403e8081007c53980c5a9678",
+    "src/soup_cli/config/schema.py": "3a778473a5c1ba1131bb8e679aa746dd820cb9f4e43fd24dd165c90d69b1dc69",
+    "src/soup_cli/trainer/stream_setup.py": "664c7f5cd5bf0264c7d5c1668586c06b5de9507d5637544442d7a4eee37c2c4e",
+    "src/soup_cli/utils/async_disk_source.py": "089470446211ae86e8846aeeb803164c276c7f056ea100aab63d341748b4551b",
+    "src/soup_cli/utils/budgeted_activations.py": "7081b30e109e13b8a5f5ade5eac86d6eaf5da3b765aafb84673e76c04f790ea0",
+    "src/soup_cli/utils/host_memory_budget.py": "d0b272a384ef75d1481eca7c251a808365a98c4bb3befb68d2c1b0fbc18a19a6",
+    "src/soup_cli/utils/layer_stream_runtime.py": "5b6c9a896c28f38f467a34df1993c259befaf01d90b65f4338042b90bfb08920",
+    "src/soup_cli/utils/partial_ram_source.py": "11b45bca43aa358296257dc1331acff0d6f99f77c0220902fb6b27d7982e6da4",
+    "tests/test_c3_comparison.py": "3e5a0b7aa5bb3f6242321bfa66eb5aa586d1f0cf3111db7053ccf244326b7d48",
+    "tests/test_c3_host_budget.py": "45d19acbe26232efdb42aae4b9b93f604313854d2747cf6047ec2a1857fed1d4",
+    "tests/test_c3_partial_ram.py": "847cca60c90eff0b7c98632ca2f479d17c8e094d8bbe48c3855cb9ea3d5c6b96"
+  }
+}

@@ -1114,6 +1114,22 @@ class EvalGateConfig(BaseModel):
         return self
 
 
+class StreamPartialRamConfig(BaseModel):
+    """Experimental C3 host envelope; other consumers must have explicit reservations."""
+
+    model_config = {"extra": "forbid"}
+    limit_bytes: int = Field(gt=0, strict=True)
+    reserved_bytes: int = Field(ge=0, strict=True)
+    cache_bytes: int = Field(ge=0, strict=True)
+
+    @model_validator(mode="after")
+    def _check_budget(self) -> "StreamPartialRamConfig":
+        from soup_cli.utils.partial_ram_source import PartialRamBudget
+
+        PartialRamBudget(self.limit_bytes, self.reserved_bytes, self.cache_bytes)
+        return self
+
+
 class TrainingConfig(BaseModel):
     epochs: int = Field(default=3, ge=1, description="Number of training epochs")
     lr: float = Field(default=2e-5, gt=0, description="Learning rate")
@@ -3556,6 +3572,15 @@ class TrainingConfig(BaseModel):
         if isinstance(v, bool):
             raise ValueError("training.stream_buffers must be an int, not bool")
         return v
+
+    stream_partial_ram: Optional[StreamPartialRamConfig] = Field(
+        default=None,
+        description=(
+            "Experimental dense Llama, unquantized SFT disk cache. Explicit limit_bytes, "
+            "reserved_bytes for activations/other consumers, and cache_bytes allocation cap. "
+            "No L2L until the shared A4 memory contract is integrated."
+        ),
+    )
 
     # #971 — depth of the async disk-tier reader's background lookahead. NOT
     # the same quantity as stream_buffers (VRAM buffers): this is HOST-side
@@ -6373,6 +6398,15 @@ class SoupConfig(BaseModel):
         for rather than just saying no.
         """
         tcfg = self.training
+        if tcfg.stream_partial_ram is not None:
+            if (not tcfg.stream_layers or tcfg.stream_source != "disk" or tcfg.l2l
+                    or self.task != "sft" or self.backend != "transformers"
+                    or tcfg.quantization != "none"):
+                raise ValueError(
+                    "training.stream_partial_ram requires unquantized transformers SFT, "
+                    "stream_layers=true, stream_source='disk', and l2l=false; "
+                    "A4 shared-memory integration and other modes are pending"
+                )
         if tcfg.l2l:
             # ADR 0002: reject what would make L2L differ from gradient
             # accumulation rather than switch the mode off silently.

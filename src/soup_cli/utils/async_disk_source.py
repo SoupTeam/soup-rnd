@@ -355,6 +355,7 @@ class AsyncDiskSource:
         pin: bool = True,
         read_ranges: int = DEFAULT_STREAM_READ_RANGES,
         layer_roots: Optional[Sequence[int]] = None,
+        max_host_bytes: Optional[int] = None,
     ):
         from soup_cli.utils.layer_stream_runtime import RamSource
 
@@ -539,6 +540,21 @@ class AsyncDiskSource:
                 region_sizes.append(span)
                 first_member.append(members_of_group[0])
             self._group_slots.append(flat)
+        # C3: refuse before any tensor allocation or reader thread is started.
+        from soup_cli.utils.layer_stream_runtime import plan_pinned_arenas
+
+        self.host_allocated_bytes = (
+            plan_pinned_arenas(region_sizes, align=SECTOR_BYTES).pinned_bytes
+            if self.pinned else sum(size + SECTOR_BYTES for size in region_sizes)
+        )
+        if max_host_bytes is not None:
+            if type(max_host_bytes) is not int or max_host_bytes < 0:
+                raise ValueError("host RAM budget must be non-negative integer bytes")
+            if self.host_allocated_bytes > max_host_bytes:
+                raise ValueError(
+                    f"disk staging needs {self.host_allocated_bytes} bytes, "
+                    f"exceeding remaining host RAM budget {max_host_bytes}"
+                )
         self._arenas, self._regions = self._allocate_staging(region_sizes)
         self._slots: List[Dict[str, Any]] = [
             self._views(self._plans[first_member[slot]], self._regions[slot])
