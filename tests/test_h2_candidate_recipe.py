@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from soup_cli.config.schema import SoupConfig
+from soup_cli.data.loader import load_dataset
 
 ROOT = Path(__file__).parents[1] / 'benchmarks/h2'
 
@@ -33,6 +34,28 @@ def test_only_declared_treatment_and_output_paths_differ():
         value['training']['use_liger'] = False
         values.append(value)
     assert values[0] == values[1] == values[2]
+
+
+@pytest.mark.parametrize('arm', ['baseline', 'liger', 'unsloth'])
+def test_real_loader_retains_all_correctness_rows(arm):
+    value = json.loads((ROOT / 'candidate_configs' / (arm + '.json')).read_text())
+    value['data']['train'] = str(ROOT / 'synthetic_fixture.jsonl')
+    config = SoupConfig.model_validate(value)
+    dataset = load_dataset(config.data)
+    assert config.data.val_split == 0
+    assert set(dataset) == {'train'}
+    assert len(dataset['train']) == 128
+    assert len(dataset['train']) % config.training.gradient_accumulation_steps == 0
+    assert len(dataset['train']) // config.training.gradient_accumulation_steps == 32
+
+
+def test_implicit_validation_split_reproduces_failed_attempt():
+    value = json.loads((ROOT / 'candidate_configs/baseline.json').read_text())
+    value['data']['train'] = str(ROOT / 'synthetic_fixture.jsonl')
+    del value['data']['val_split']
+    dataset = load_dataset(SoupConfig.model_validate(value).data)
+    assert len(dataset['train']) == 115
+    assert len(dataset['val']) == 13
 
 
 def test_fixture_and_unresolved_pins_are_honestly_declared():
