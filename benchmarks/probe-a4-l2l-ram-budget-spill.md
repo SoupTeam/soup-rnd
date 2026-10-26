@@ -63,7 +63,7 @@ What was missing, and what this track adds:
 | A budget in bytes rather than micro-batches, a priority rule between activations, weight staging/arenas and C3 residency | `plan_activations`, `split_host_ram` (§2) |
 | A named refusal when the minimum cannot fit or the drive is short | `BudgetRefusalError` codes `BUDGET_BELOW_MINIMUM`, `RAM_OVER_BUDGET`, `SPILL_DISK_SHORT`, `UNALIGNED_SPILL`, each with the arithmetic |
 | A full drive mid-step: the writer thread's `OSError` surfaced as a generic `RuntimeError`, and nothing removed the file | `SpillDiskFullError` (`SPILL_ENOSPC`) with the arithmetic, raised after the file is removed and pinned memory returned |
-| Release on Ctrl-C or an exception mid-step; a constructor that fails after opening the spill file (`ActivationStore.__init__` opens it at `:318` before pinning the rings at `:320-321`) left the file behind | `BudgetedStore` closes on every exit, clears the traceback frames that still hold a buffer (the exception leaving the `with` block, a failed writer/reader thread) so their buffers can go, removes a file its opener left behind, releases the host cache; on POSIX the file is unlinked as soon as it is open, so even a cgroup OOM kill leaves no file. Tests: `test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing`, `test_no_store_buffer_is_reachable_when_the_pinned_cache_is_released` |
+| Release on Ctrl-C or an exception mid-step; a constructor that fails after opening the spill file (`ActivationStore.__init__` opens it at `:318` before pinning the rings at `:320-321`) left the file behind | `BudgetedStore` closes on every exit, clears the traceback frames that still hold a buffer (the exception leaving the `with` block, a failed writer/reader thread) so their buffers can go, removes a file its opener left behind, releases the host cache; on POSIX the file is unlinked as soon as it is open, so a kill should leave no named file (a kill -9 or an OOM kill was not tested: cleanup is best-effort). Tests: `test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing`, `test_no_store_buffer_is_reachable_when_the_pinned_cache_is_released` |
 | A spill-volume preflight (tmpfs, overlay, network volume, `O_DIRECT`) and the cgroup limit the run is really under (v2 and v1, from the process's own cgroup up, swap included) | `a4_box.spill_volume`, `a4_box.ram_limit` |
 | Spill write/read GB/s on the drive and the hidden share of the spill I/O | `TimedSpill`, `summarise` |
 | Whether spill writes slow the weight reads that share the drive | `WeightReadMeter` on the shipped `AsyncDiskSource` |
@@ -633,18 +633,53 @@ What this does and does not show:
 
 - **For A3** (§5): spill may be the automatic fallback past the RAM budget, on this
   evidence: bit-exact, RAM bounded to the plan plus what all-pinned also allocates, cleanup
-  after interruption and full disk, and a step-time overhead whose 95% upper bound is under
-  10% at k = 2 (+6.07%) and k = 4 (+5.50%). On the disk tier the spill must go to a drive the
-  weights are not read from: on one drive the weight reads fell to 0.830x and the step grew
-  13.3%. `disk_k4_other_drive` (a second physical drive) was not run, so whether a second
-  drive recovers it is not shown.
-- One machine, one GPU class (RTX 3090), one model (Mistral-7B NF4, seq 512, LoRA r 8),
-  k = 2-4, budgets 0.5 / 0.25 / min, one virtio disk. The G4 interval bounds the mean
-  overhead on this box; it is not a guarantee on another GPU, disk or model.
-- This box's step was slower than v1's on the same GPU model (all-pinned 0.84-0.88 s per
-  micro-batch against 0.58-0.59 s, at a higher SM clock, median 1950 against 1800 MHz). The
-  cause is not established; the CPU, host memory and PCIe path are not recorded. A slower
-  step asks less of the spill volume per second (0.156 against 0.233 GB/s), so the cost was
-  measured where spill had more time to hide. G4 compares B with A inside each block, so it
-  does not depend on the absolute step, but a faster RTX 3090 box would test spill harder.
+  after interruption and full disk, and, on this box, a step-time overhead whose 95% upper
+  bound is under 10% at k = 2 (+6.07%) and k = 4 (+5.50%). On the disk tier the spill must
+  go to a drive the weights are not read from: on one drive the weight reads fell to 0.830x
+  and the step grew 13.3%. `disk_k4_other_drive` (a second physical drive) was not run, so
+  whether a second drive recovers it is not shown.
+- The cost is measured only in this configuration: RTX 3090 on PCIe 3.0, Mistral-7B NF4,
+  seq 512, LoRA r 8, k = 2-4, ring 4, budgets 0.5 / 0.25 / min, one virtio disk. There the
+  spill slowed the step by +2.51% (k = 2) and +1.69% (k = 4) on average, 95% upper bounds
+  +6.07% and +5.50%. On other machines and configurations it may be more; with the spill on
+  the weights' drive the step grew 13.3%. Nothing here promises a speed.
+- The relative overhead depends on the step's length. In the RAM comparisons the spill I/O
+  took about as long per step on both boxes (0.19-0.51 s here against 0.20-0.54 s), but
+  this box's all-pinned step was 1.4-1.5x v1's, at a higher SM clock, so here the spill I/O
+  hid behind compute almost entirely (hidden share 0.987-0.996, against 0.649-0.697 on v1's
+  box). **G4 PASS is shown at this box's step speed; it is not shown for faster machines.**
+  The cause of the slower step is not established. The hypothesis, not tested, is the PCIe
+  3.0 link and the older CPU; this box also carried other tenants' GPUs (gpu_frac 0.25).
+
+  Both boxes, description only (every arm of both sessions, none dropped; changes no
+  verdict). CPU, PCIe generation and `pcie_bw` are vast's record of the instance at
+  creation; the link and the SM clock were read by `nvidia-smi` in every arm.
+
+  | | v1 box, 2026-10-25 | v3 box, 2026-10-26 |
+  |---|---|---|
+  | vast instance / host / machine | 57643280 / 166946 / 145338 | 57805796 / 122017 / 97012 |
+  | CPU | AMD EPYC 7502 | Intel Xeon E5-2673 v4 |
+  | PCIe (vast), `pcie_bw` | gen 4, 23.4 GB/s | gen 3, 11.3 GB/s |
+  | PCIe link in every arm | gen 4 x16 | gen 3 x16 |
+  | gpu_frac | 0.5 | 0.25 |
+  | SM clock, median over arms (range) | 1800 MHz (1695-1875) | 1950 MHz (1935-1950) |
+
+  | comparison | all-pinned step, s: v1 → v3 | v3 / v1 | spill demand, GB/s: v1 → v3 | spill I/O busy per step, s: v1 → v3 | hidden share: v1 → v3 |
+  |---|---|---|---|---|---|
+  | `ram_k2_half` | 1.15 → 1.76 | 1.53 | 0.168 → 0.112 | 0.204 → 0.192 | 0.697 → 0.996 |
+  | `ram_k2_min` | 1.15 → 1.75 | 1.52 | 0.218 → 0.148 | 0.274 → 0.260 | 0.649 → 0.987 |
+  | `ram_k3_min` | 1.76 → 2.59 | 1.48 | 0.221 → 0.148 | 0.403 → 0.385 | 0.657 → 0.990 |
+  | `ram_k4_half` | 2.35 → 3.45 | 1.47 | 0.142 → 0.097 | 0.337 → 0.316 | 0.682 → 0.995 |
+  | `ram_k4_quarter` | 2.36 → 3.37 | 1.43 | 0.194 → 0.134 | 0.478 → 0.445 | 0.671 → 0.996 |
+  | `ram_k4_min` | 2.36 → 3.44 | 1.46 | 0.218 → 0.149 | 0.541 → 0.514 | 0.660 → 0.991 |
+  | `disk_k4_same_drive` | 3.00 → 4.13 | 1.38 | 0.165 → 0.114 | 1.728 → 0.812 | 0.981 → 0.994 |
+
+  Step: median over the comparison's A arms of each arm's median step (k micro-batches).
+  Demand, busy and hidden share: medians over the B arms; demand is `a4_admission.arm_demand`
+  (spill bytes written per second of step), busy is the spill write+read time per step,
+  hidden share is `1 - exposed / busy`.
+- Cleanup is best-effort. G3 shows it after Ctrl-C, an exception and a full disk. A kill -9,
+  an OOM kill, a power loss and an OS crash were not tested. The harness unlinks the file on
+  POSIX as soon as it is open, so on Linux those should leave no named file; on Windows a
+  file can be left behind and has to be removed by hand.
 - v1 (`SPILL NOT SAFE` on rule v1's G2) stays v1's verdict; v3 does not re-judge it.

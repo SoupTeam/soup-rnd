@@ -41,8 +41,17 @@ Informational: `ram_k2_min` +3.85% [-0.97%, +8.66%], `ram_k3_min` +3.78% [+1.98%
   `verdict.json`) and the admission records, without run logs. Box paths are replaced by
   `<box>` / `<work>` / `<enospc-volume>`; `provenance.json` lists each file's raw and published
   SHA-256 and the archive's hash (kept outside the repository).
-- The step here was slower than in v1 on the same GPU model: all-pinned 0.84-0.88 s per
-  micro-batch against v1's 0.58-0.59 s, at a higher SM clock (median 1950 MHz against
-  1800 MHz). The cause is not established (this host shares the box with other GPUs; the CPU,
-  host memory and PCIe path are not recorded). G4 compares B with A inside each block on the
-  same box, so the verdict does not depend on the absolute step.
+- The cost is measured only in this configuration: RTX 3090 on PCIe 3.0, Mistral-7B NF4,
+  seq 512, LoRA r 8, k = 2-4, ring 4, one virtio disk: +2.51% and +1.69% on average, 95%
+  upper bounds +6.07% and +5.50%. On other machines and configurations it may be more; with
+  the spill on the weights' drive the step grew 13.3%.
+- The relative overhead depends on the step's length. The step here was 1.4-1.5x v1's on
+  the same GPU model (all-pinned 0.84-0.88 s per micro-batch against 0.58-0.59 s), at a
+  higher SM clock (median 1950 MHz against 1800 MHz). The spill I/O took about as long per
+  step as in v1, so here it hid behind compute almost entirely (hidden share 0.987-0.996,
+  against 0.649-0.697 in v1). **G4 PASS is shown at this box's step speed, not for faster
+  machines.** The cause is not established; the hypothesis, not tested, is the PCIe 3.0 link
+  (gen 3 x16 in every arm, against v1's gen 4 x16) and the older CPU (Xeon E5-2673 v4 against
+  v1's EPYC 7502). The machine table is in `probe-a4-l2l-ram-budget-spill.md` §9.
+- Cleanup is best-effort: shown after Ctrl-C, an exception and a full disk; a kill -9, an
+  OOM kill, a power loss and an OS crash were not tested.
