@@ -331,7 +331,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     from soup_cli.cli import app
 
-    command = ["train", "--config", parsed.config]
+    command = ["train", "--config", parsed.config, "--yes"]
     if parsed.name:
         command += ["--name", parsed.name]
     failure: Optional[str] = None
