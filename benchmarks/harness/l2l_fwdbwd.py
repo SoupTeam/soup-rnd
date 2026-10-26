@@ -235,7 +235,10 @@ def run_arm(
                     losses = []
                     with count_loads(runtime) as counters:
                         for ids, labels in window:
-                            out = model(input_ids=ids, labels=labels, num_items_in_batch=total)
+                            out = model(
+                                input_ids=ids.to(device), labels=labels.to(device),
+                                num_items_in_batch=total,
+                            )
                             out.loss.backward()
                             losses.append(out.loss.detach())
                     loads, restores = counters.layer_loads, counters.restores
