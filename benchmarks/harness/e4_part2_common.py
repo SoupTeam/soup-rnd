@@ -265,6 +265,27 @@ class AttemptsJournal:
                 closed.append(attempt["attempt_id"])
         return closed
 
+    def run_ids(self) -> List[str]:
+        """Every run id that has a start event, in journal order."""
+        seen: List[str] = []
+        for event in self.events():
+            if event["event"] == "start" and event["run_id"] not in seen:
+                seen.append(event["run_id"])
+        return seen
+
+    def void_entries(self) -> List[dict]:
+        """Every void in the journal, for any run: a closed void, or an attempt with a start and
+        no end yet (outcome "unclosed"; it is listed, not dropped)."""
+        entries: List[dict] = []
+        for run_id in self.run_ids():
+            for attempt in self.attempts(run_id):
+                if attempt["outcome"] == OUTCOME_VOID:
+                    entries.append({"run_id": run_id, **attempt})
+                elif attempt["outcome"] is None:
+                    entries.append({"run_id": run_id, **attempt, "outcome": "unclosed",
+                                    "reasons": ["start with no end event (interrupted)"]})
+        return entries
+
     def void_count(self, run_id: str) -> int:
         return sum(a["outcome"] == OUTCOME_VOID for a in self.attempts(run_id))
 

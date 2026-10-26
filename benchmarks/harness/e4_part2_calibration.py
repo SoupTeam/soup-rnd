@@ -1596,13 +1596,13 @@ def assemble_report(out: Path, prefix: str = "F") -> Dict[str, Any]:
     p = find_record(out, "P")
     if p is not None:
         report["repeatability"] = p["result"].get("comparison")
+    every_run = expected_run_ids(prefix) + [r for r in journal.run_ids()
+                                            if r not in expected_run_ids(prefix)]
     report["failed_runs"] = [
-        {"run_id": rid, **a} for rid in expected_run_ids(prefix)
+        {"run_id": rid, **a} for rid in every_run
         for a in journal.attempts(rid) if a["outcome"] == common.OUTCOME_FAILED]
-    report["voids"] = [
-        {"run_id": rid, **a} for rid in expected_run_ids(prefix)
-        for a in journal.attempts(rid) if a["outcome"] == common.OUTCOME_VOID]
-    report["provenance_gaps"] = journal.provenance_gap(expected_run_ids(prefix))
+    report["voids"] = journal.void_entries()
+    report["provenance_gaps"] = journal.provenance_gap(every_run)
     return report
 
 
