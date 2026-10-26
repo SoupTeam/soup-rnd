@@ -1,0 +1,21 @@
+{
+  "number": 41,
+  "title": "v0.31.0: recipe CI smoke-train validation for multi-GPU recipes",
+  "state": "open",
+  "state_reason": null,
+  "body": "## Context\n\nv0.27.0 adds 3 multi-GPU recipes:\n- `llama3-70b-fsdp2` (requires 8x A100/H100 80GB)\n- `qwen3-32b-zeropp` (requires 4+ GPUs with NVLink/NVSwitch)\n- `deepseek-v3-pipeline` (requires 4+ GPUs, pipeline exec deferred to v0.27.1)\n\nToday these recipes load cleanly as config (`test_multi_gpu.py::TestMultiGpuRecipes` verifies schema + fields) but are **not exercised by a 100-step CI smoke-train** \u2014 upstream tokenizer / model-loader changes could silently break them.\n\n## Proposal for v0.31.0 (per plan roadmap)\n\nFrom the roadmap:\n> **Recipe verification CI** \u2014 every recipe runs a 100-step smoke train in CI to catch regressions from upstream model changes.\n\nScope for multi-GPU specifically:\n- Use Modal.com or Lambda Labs free credits for one 4xA100 runner\n- Run 100-step smoke train for each multi-GPU recipe, assert loss decreased\n- Gate CI on this (fail PR if smoke train regresses)\n\n## Acceptance criteria\n\n- [ ] New workflow `.github/workflows/recipe-smoke-train.yml`\n- [ ] Runs on release branches only (not every push \u2014 cost)\n- [ ] Matrix over the 3 multi-GPU recipes\n- [ ] Artifact: final-step loss + wall-clock\n- [ ] Fails the release if any recipe's loss trajectory regresses >20% vs last recorded baseline\n\n## Risk notes\n\n- GPU runner cost \u2014 need a sponsor or free-credit strategy (Modal startup program, Lambda research credits)\n- Smoke train != full train \u2014 100 steps is too short to catch some regressions, but catches tokenizer / loader / quant breaks",
+  "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/41",
+  "updated_at": "2026-10-08T08:26:08Z",
+  "comments": [
+    {
+      "body": "v0.31.0 ships the **CPU-only validation tier** of recipe CI: `.github/workflows/recipe-validation.yml` runs the parametrized pytest validation (`tests/test_recipes_v031.py`) on every PR + push touching recipe / config / data code. This catches:\n\n- Schema regressions (Pydantic config rejecting a recipe yaml)\n- Catalog/yaml drift (`RecipeMeta.model` \u2260 yaml `base:`)\n- Unsafe model IDs (`..` / `://` / null bytes / backslashes)\n- Empty `lora.target_modules` (silent no-op LoRA)\n- `max_length` out of bounds\n- GRPO recipes missing `reward_fn` or `num_generations`\n- Vision recipes missing `image_dir`; audio recipes missing `audio_dir`\n\nSee [release notes](https://github.com/MakazhanAlpamys/Soup/releases/tag/v0.31.0).\n\nThe **100-step live smoke-train tier** (matrix over `llama3-70b-fsdp2` / `qwen3-32b-zeropp` / `deepseek-v3-pipeline`) requires a GPU runner and is **deferred to v0.31.1** \u2014 keeping this issue open as the tracker for that follow-up.",
+      "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/41#issuecomment-4319807634",
+      "updated_at": "2026-04-25T14:18:08Z"
+    },
+    {
+      "body": "Adding `infra-blocked`: the part still open is the 100-step live smoke-train of the three multi-GPU recipes, which needs a 4-8 GPU runner (and a credit or sponsor plan) that the local harness does not have. The CPU-only validation tier already ships, as the 2026-04-25 comment says.\n",
+      "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/41#issuecomment-6055867169",
+      "updated_at": "2026-10-08T08:26:06Z"
+    }
+  ]
+}

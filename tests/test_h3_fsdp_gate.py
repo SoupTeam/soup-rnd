@@ -1,0 +1,115 @@
+"""CPU checks for H3 measurement logic; these do not validate distributed CUDA."""
+
+import importlib.util
+import sys
+from pathlib import Path
+
+import pytest
+
+_PATH = Path(__file__).parents[1] / "benchmarks/harness/h3_fsdp_gate.py"
+_SPEC = importlib.util.spec_from_file_location("h3_fsdp_gate", _PATH)
+gate = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = gate
+_SPEC.loader.exec_module(gate)
+
+
+def test_batch_plan_preserves_global_batch():
+    assert gate.accumulation(8, 1, 1) == 8
+    assert gate.accumulation(8, 1, 2) == 4
+    with pytest.raises(ValueError, match="divisible"):
+        gate.accumulation(7, 1, 2)
+
+
+@pytest.mark.parametrize("args", [(0, 1, 2), (8, 0, 2), (8, 1, 0), (True, 1, 2)])
+def test_invalid_batch_plan(args):
+    with pytest.raises(ValueError):
+        gate.accumulation(*args)
+
+
+def test_dtensor_uses_actual_local_storage_not_global_numel():
+    class Local:
+        def numel(self):
+            return 3
+
+    class DTensor:
+        def numel(self):
+            raise AssertionError("global numel is not resident storage")
+
+        def to_local(self):
+            return Local()
+
+    assert gate.parameter_local_numel(DTensor()) == 3
+
+
+def test_sharding_accepts_uneven_orig_parameter_views_but_refuses_replication():
+    gate.assert_shards([5, 4], total=9, fsdp_units=[2, 2])
+    with pytest.raises(ValueError, match="shard"):
+        gate.assert_shards([9, 9], total=9, fsdp_units=[2, 2])
+    with pytest.raises(ValueError, match="FSDP"):
+        gate.assert_shards([5, 4], total=9, fsdp_units=[0, 0])
+
+
+def test_data_audit_detects_repeated_rank_samples_and_incomplete_accumulation():
+    gate.assert_data_window([["a", "b"], ["c", "d"]], global_batch=4)
+    for rows in ([["a", "b"], ["a", "d"]], [["a"], ["b"]]):
+        with pytest.raises(ValueError):
+            gate.assert_data_window(rows, global_batch=4)
+
+
+def test_measurement_uses_slowest_rank_and_actual_tokens():
+    result = gate.throughput([[1.0, 2.0], [2.0, 2.0]], [4096, 4096])
+    assert result["tokens_per_second"] == 2048
+    assert result["seconds_per_optimizer_step"] == 2
+    for times in ([[0]], [[float("nan")]], [[1], [1, 2]]):
+        with pytest.raises(ValueError):
+            gate.throughput(times, [1] * len(times))
+
+
+def test_tensor_checks_allow_zero_first_step_a_but_require_some_update():
+    import torch
+
+    before = {"A": torch.ones(2), "B": torch.zeros(2)}
+    after = {"A": torch.ones(2), "B": torch.ones(2) / 10}
+    assert gate.adapter_delta(before, after)["changed_tensors"] == ["B"]
+    with pytest.raises(ValueError, match="update"):
+        gate.adapter_delta(before, before)
+    with pytest.raises(ValueError, match="keys"):
+        gate.adapter_delta(before, {"A": before["A"]})
+    with pytest.raises(ValueError, match="finite"):
+        gate.adapter_delta(before, {**after, "A": torch.tensor([float("nan"), 1])})
+
+
+def test_reload_rejects_missing_keys_and_changed_values():
+    import torch
+
+    expected = {"a": torch.tensor([1.0, 2.0])}
+    gate.assert_adapter_equal(expected, expected)
+    with pytest.raises(ValueError, match="keys"):
+        gate.assert_adapter_equal(expected, {})
+    with pytest.raises(ValueError, match="values"):
+        gate.assert_adapter_equal(expected, {"a": torch.zeros(2)})
+
+
+def test_summary_refuses_failed_or_mismatched_arms():
+    good = {"status": "passed", "identity": {"model": "abc"}, "world_size": 1,
+            "tokens_per_second": 10}
+    two = {**good, "world_size": 2, "tokens_per_second": 15}
+    assert gate.scaling([good, two])["efficiency_2"] == 0.75
+    for bad in ({**two, "status": "failed"}, {**two, "identity": {"model": "xyz"}}):
+        with pytest.raises(ValueError):
+            gate.scaling([good, bad])
+
+
+@pytest.mark.parametrize("rate", [0, -1, float("nan"), float("inf")])
+def test_scaling_refuses_invalid_throughput(rate):
+    runs = [{"status": "passed", "identity": {}, "world_size": size,
+             "tokens_per_second": rate if size == 2 else 10} for size in (1, 2)]
+    with pytest.raises(ValueError):
+        gate.scaling(runs)
+
+
+def test_digest_handles_scalar_and_empty_rank_local_parameter_views():
+    import torch
+
+    assert gate.tensor_digest(torch.tensor(1.0)) != gate.tensor_digest(torch.tensor([1.0]))
+    assert gate.tensor_digest(torch.empty(0)) == gate.tensor_digest(torch.empty(0))
