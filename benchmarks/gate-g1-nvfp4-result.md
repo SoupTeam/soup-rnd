@@ -33,7 +33,7 @@ The bf16 reference scored 1, 0, 23 and 28 on the four suites. No suite is exclud
 
 ## Validity rows
 
-All seven checks of `g1_verdict.py` hold: the six rows of the rule and the commit order. No run was spoiled and none was repeated.
+All eight checks of `g1_verdict.py` hold: the six rows of the rule, complete gate suites and the commit order. No run was spoiled and none was repeated. A wrong storage format in any attempt gives no verdict, since the rule allows no repeat for row 4.
 
 | Row | Result |
 |---|---|
@@ -43,6 +43,7 @@ All seven checks of `g1_verdict.py` hold: the six rows of the rule and the commi
 | 224 layers in the arm's format, none refused | holds (NVFP4Tensor, Params4bit, Parameter) |
 | Every run reached step 250 with finite loss and grad norm | holds |
 | First-step grad norm above 0 | holds (1.97 to 4.00) |
+| Every record holds exactly the four gate suites, with their question counts and integer scores from 0 to n | holds |
 | Rule commit earlier than every run's `started` | holds |
 
 ## What changed during the runs

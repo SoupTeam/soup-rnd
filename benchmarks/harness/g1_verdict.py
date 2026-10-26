@@ -37,6 +37,11 @@ REQUIRED_RUNS = tuple((arm, seed) for arm in GATE_ARMS for seed in SEEDS) + (("b
 MAX_ATTEMPTS = c5.MAX_ATTEMPTS
 EXPECTED_STORAGE = {"nvfp4": "NVFP4Tensor", "nf4": "Params4bit", "bf16": "Parameter"}
 QUANTIZED_LAYERS = 224
+# The four gate suites of the rule and their question counts. Every required record carries
+# exactly these; a missing or malformed suite is no verdict, not a suite that does not gate.
+SUITE_SIZES = {
+    "mini_mmlu": 26, "mini_common_sense": 24, "mini_instruction": 24, "mini_arithmetic": 40,
+}
 CONFIG_KEYS_THAT_MAY_DIFFER = frozenset({"base.format", "seed"})
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 
@@ -57,8 +62,7 @@ def suite_results(selected: dict[tuple[str, int], dict[str, Any]]) -> dict[str, 
     gate (issue #1192).
     """
     results = {}
-    for name, first in selected["nf4", SEEDS[0]]["gate_suites"].items():
-        n = first["n"]
+    for name, n in SUITE_SIZES.items():
         mean = {
             arm: Fraction(sum(selected[arm, seed]["gate_suites"][name]["correct"]
                               for seed in SEEDS), len(SEEDS))
@@ -75,6 +79,23 @@ def suite_results(selected: dict[tuple[str, int], dict[str, Any]]) -> dict[str, 
     return results
 
 
+def suites_complete(run: dict[str, Any]) -> bool:
+    """The record holds exactly the rule's four suites, with their sizes and valid scores."""
+    suites = run["gate_suites"]
+    if set(suites) != set(SUITE_SIZES):
+        return False
+    return all(
+        suites[name]["n"] == n
+        and type(suites[name]["correct"]) is int
+        and 0 <= suites[name]["correct"] <= n
+        for name, n in SUITE_SIZES.items()
+    )
+
+
+def layers_in_arm_format(run: dict[str, Any]) -> bool:
+    return run["storage_counts"] == {EXPECTED_STORAGE[run["arm"]]: QUANTIZED_LAYERS}
+
+
 def select_runs(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """The run that counts for each arm and seed, under the one-repeat rule.
 
@@ -85,7 +106,7 @@ def select_runs(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
     attempts: dict[tuple[str, int], list[dict[str, Any]]] = {}
     for run in sorted(runs, key=lambda r: r["attempt"]):
         attempts.setdefault((run["arm"], run["seed"]), []).append(run)
-    selected, spoiled, unexpected, unrepaired = {}, [], [], []
+    selected, spoiled, unexpected, unrepaired, wrong_format = {}, [], [], [], []
     missing = [{"arm": arm, "seed": seed} for arm, seed in REQUIRED_RUNS
                if (arm, seed) not in attempts]
     for key, tries in attempts.items():
@@ -94,6 +115,9 @@ def select_runs(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
             if key not in REQUIRED_RUNS or key in selected or i >= MAX_ATTEMPTS:
                 unexpected.append(where)
                 continue
+            # Row 4 gets no repeat, so a wrong format counts whichever attempt shows it.
+            if not layers_in_arm_format(run):
+                wrong_format.append(where)
             problems = c5.run_problems(run)
             if problems:
                 spoiled.append({**where, "problems": problems})
@@ -103,7 +127,7 @@ def select_runs(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
             unrepaired.extend(c5.run_problems(tries[min(len(tries), MAX_ATTEMPTS) - 1]))
     return {
         "selected": selected, "spoiled": spoiled, "unexpected": unexpected,
-        "missing": missing, "unrepaired_problems": unrepaired,
+        "missing": missing, "unrepaired_problems": unrepaired, "wrong_format": wrong_format,
     }
 
 
@@ -134,7 +158,7 @@ def _rule_committed_first(run: dict[str, Any]) -> bool:
 def _validity(
     chosen: Sequence[dict[str, Any]], selection: dict[str, Any],
 ) -> tuple[dict[str, bool], list[dict[str, Any]]]:
-    """The six validity rows of the rule, plus the commit-order check."""
+    """The six validity rows of the rule, plus complete gate suites and the commit-order check."""
     diffs = config_diff(chosen) if chosen else []
     unrepaired = selection["unrepaired_problems"]
     fingerprints = [run["unquantized_fingerprints"] for run in chosen]
@@ -143,12 +167,10 @@ def _validity(
         "unquantized_fingerprints": all(f == fingerprints[0] for f in fingerprints),
         "data_hashes": len(data) <= 1,
         "configs_differ_only_in_base_format": not diffs,
-        "all_layers_in_arm_format": all(
-            run["storage_counts"] == {EXPECTED_STORAGE[run["arm"]]: QUANTIZED_LAYERS}
-            for run in chosen
-        ),
+        "all_layers_in_arm_format": not selection["wrong_format"],
         "runs_finished_finite": not {"not_finished", "non_finite"} & set(unrepaired),
         "first_grad_norm_positive": "first_grad_norm" not in unrepaired,
+        "gate_suites_complete": all(suites_complete(run) for run in chosen),
         "rule_committed_first": all(_rule_committed_first(run) for run in chosen),
     }, diffs
 
@@ -197,10 +219,8 @@ def verdict(runs: Sequence[dict[str, Any]], *, synthetic: bool = False) -> dict[
     selected = selection["selected"]
     chosen = [selected[key] for key in REQUIRED_RUNS if key in selected]
     validity, diffs = _validity(chosen, selection)
-    quality = (
-        _quality(selected) if all((arm, seed) in selected for arm in GATE_ARMS for seed in SEEDS)
-        else None
-    )
+    all_gate_runs = all((arm, seed) in selected for arm in GATE_ARMS for seed in SEEDS)
+    quality = _quality(selected) if all_gate_runs and validity["gate_suites_complete"] else None
     valid = all(validity.values()) and not selection["missing"] and not selection["unexpected"]
     if not valid or quality is None:
         outcome = "no_verdict"

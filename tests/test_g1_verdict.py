@@ -210,6 +210,65 @@ class TestValidityRows:
         assert harness.verdict(runs)["validity"]["rule_committed_first"] is False
 
 
+class TestMandatorySuites:
+    """The rule names four suites. Missing or malformed suite data gives no verdict."""
+
+    def _with_suites(self, arm: str, seed: int, suites: dict[str, Any]) -> list[dict]:
+        return _replace(_all_runs(), arm, seed, gate_suites=suites)
+
+    def _suites(self, **changes: Any) -> dict[str, Any]:
+        suites = {name: {"n": n, "correct": DEFAULT_CORRECT[name]}
+                  for name, n in SUITE_SIZES.items()}
+        for name, value in changes.items():
+            if value is None:
+                del suites[name]
+            else:
+                suites[name] = value
+        return suites
+
+    def test_deleting_the_failing_suites_from_one_record_cannot_turn_a_fail_into_a_pass(
+        self, harness,
+    ):
+        # NVFP4 answers 8 fewer mini_mmlu questions than NF4 on every seed: a fail. Then the
+        # first NF4 record, which used to define the suite set for all arms, loses that suite
+        # and another one.
+        nvfp4_low = _all_runs(nf4_correct={**DEFAULT_CORRECT, "mini_mmlu": 12},
+                              correct={**DEFAULT_CORRECT, "mini_mmlu": 4})
+        assert harness.verdict(nvfp4_low)["outcome"] == "fail"
+        broken = _replace(nvfp4_low, "nf4", 42, gate_suites=self._suites(
+            mini_mmlu=None, mini_common_sense=None))
+        result = harness.verdict(broken)
+        assert result["outcome"] == "no_verdict"
+        assert result["g1"] == "repeat"
+        assert result["validity"]["gate_suites_complete"] is False
+
+    def test_a_missing_suite_in_any_arm_gives_no_verdict(self, harness):
+        for arm, seed in (("nf4", 7), ("nvfp4", 123), ("bf16", 42)):
+            runs = self._with_suites(arm, seed, self._suites(mini_arithmetic=None))
+            result = harness.verdict(runs)
+            assert result["outcome"] == "no_verdict", (arm, seed)
+            assert result["validity"]["gate_suites_complete"] is False
+
+    def test_an_extra_suite_gives_no_verdict(self, harness):
+        runs = self._with_suites("nf4", 42, self._suites(mini_extra={"n": 5, "correct": 5}))
+        assert harness.verdict(runs)["validity"]["gate_suites_complete"] is False
+
+    def test_a_wrong_question_count_gives_no_verdict(self, harness):
+        runs = self._with_suites("nvfp4", 7, self._suites(mini_mmlu={"n": 25, "correct": 10}))
+        assert harness.verdict(runs)["validity"]["gate_suites_complete"] is False
+
+    @pytest.mark.parametrize("score", [-1, 27, 7.5, None, "10", True])
+    def test_a_score_that_is_not_an_integer_from_0_to_n_gives_no_verdict(self, harness, score):
+        runs = self._with_suites("nf4", 123, self._suites(
+            mini_mmlu={"n": 26, "correct": score}))
+        result = harness.verdict(runs)
+        assert result["outcome"] == "no_verdict"
+        assert result["validity"]["gate_suites_complete"] is False
+
+    def test_the_full_suite_set_is_valid(self, harness):
+        assert harness.verdict(_all_runs())["validity"]["gate_suites_complete"] is True
+
+
 class TestRepeatRule:
     def _spoiled(self, arm: str, seed: int, **fields: Any) -> dict[str, Any]:
         return {**_run(arm, seed), **fields}
@@ -244,6 +303,37 @@ class TestRepeatRule:
         result = harness.verdict(runs)
         assert result["outcome"] == "no_verdict"
         assert result["missing"] == [{"arm": "bf16", "seed": 42}]
+
+
+    def test_a_storage_format_failure_cannot_be_discarded_by_a_clean_repeat(self, harness):
+        # Validity row 4 gets no repeat: the storage format does not depend on the seed.
+        bad = self._spoiled("nvfp4", 42, storage_counts={"NVFP4Tensor": 223, "Parameter": 1})
+        runs = [bad if (r["arm"], r["seed"]) == ("nvfp4", 42) else r for r in _all_runs()]
+        runs.append(_run("nvfp4", 42, attempt=2))
+        result = harness.verdict(runs)
+        assert result["outcome"] == "no_verdict"
+        assert result["g1"] == "repeat"
+        assert result["validity"]["all_layers_in_arm_format"] is False
+
+    def test_a_storage_failure_in_a_spoiled_first_attempt_still_counts(self, harness):
+        # The first attempt is also non-finite (so a repeat is allowed for that), but its
+        # storage counts are wrong: the repeat does not clear row 4.
+        bad = self._spoiled("nf4", 7, storage_counts={"Params4bit": 223, "Parameter": 1},
+                            train_log=[{"step": 1, "loss": float("nan"), "grad_norm": 0.5}])
+        runs = [bad if (r["arm"], r["seed"]) == ("nf4", 7) else r for r in _all_runs()]
+        runs.append(_run("nf4", 7, attempt=2))
+        result = harness.verdict(runs)
+        assert result["outcome"] == "no_verdict"
+        assert result["validity"]["all_layers_in_arm_format"] is False
+
+    def test_clean_storage_in_both_attempts_still_passes(self, harness):
+        bad = self._spoiled("nvfp4", 42, train_log=[
+            {"step": 1, "loss": float("nan"), "grad_norm": 0.5}])
+        runs = [bad if (r["arm"], r["seed"]) == ("nvfp4", 42) else r for r in _all_runs()]
+        runs.append(_run("nvfp4", 42, attempt=2))
+        result = harness.verdict(runs)
+        assert result["outcome"] == "pass"
+        assert result["validity"]["all_layers_in_arm_format"] is True
 
 
 class TestInputs:
