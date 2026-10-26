@@ -1,0 +1,493 @@
+{
+ "meta": {
+  "mode": "arm",
+  "device": "cuda",
+  "weights": "<work>/.soup/models/mistral-7b",
+  "shards": "<work>/.soup/f1-nf4",
+  "quant": "nf4",
+  "tier": "ram",
+  "buffers": 2,
+  "read_ahead": 2,
+  "seq": 512,
+  "lora_r": 8,
+  "lora_targets": "q_proj,k_proj,v_proj,o_proj",
+  "seed": 3,
+  "input_seed": 17,
+  "k": 4,
+  "budget": "1",
+  "ring": 4,
+  "spill_dir": "<box>/spill",
+  "backend": "direct",
+  "accept_network": false,
+  "host_total_bytes": null,
+  "reserve_bytes": 4000000000,
+  "steps": 5,
+  "warmup": 2,
+  "comparison": "ram_k4_half",
+  "arm": "A",
+  "block": 2,
+  "position": 0,
+  "watch_path": null,
+  "deterministic": false,
+  "drive_bytes": 4294967296,
+  "drive_chunk_bytes": 4194304,
+  "drive_passes": 3,
+  "enospc_dir": null,
+  "out": "<work>/.soup/results/a4-v3/arms/ram_k4_half/b02_p0_A.json",
+  "label": "",
+  "lazy_shard_handles": false,
+  "control_sync_source": false,
+  "no_pin": false,
+  "soup_cli_file": "<work>/src/soup_cli/__init__.py",
+  "dtype": "bfloat16",
+  "arch": "mistral",
+  "n_layers": 32,
+  "hidden": 4096,
+  "vocab": 32768,
+  "chunk_bytes": 4194304,
+  "weights_dir": "<work>/.soup/models/mistral-7b",
+  "shard_dir": "<work>/.soup/f1-nf4",
+  "shard_seconds": 0.2290247229993838,
+  "build_seconds": 3.6904887900000176,
+  "runtime": {
+   "n_layers": 32,
+   "buffers": 2,
+   "buffer_bytes": 493494328,
+   "large_buffer_bytes": 268435456,
+   "store_bytes": 4137812864,
+   "pinned": true,
+   "pinned_bytes": 4294967296,
+   "tier": "ram",
+   "read_ahead": null,
+   "disk_bytes": 0,
+   "layer_loads": 0,
+   "layer_restores": 0,
+   "large_loads": 0,
+   "total_params": 7248023552
+  },
+  "source_class": "RamSource",
+  "direct_io": null,
+  "gpu": {
+   "gpu": "NVIDIA GeForce RTX 3090",
+   "torch": "2.14.1+cu130",
+   "vram_total_gb": 25.296,
+   "soup_cli_file": "<work>/src/soup_cli/__init__.py",
+   "driver": "580.95.05",
+   "pcie_gen": "3",
+   "pcie_width": "16"
+  },
+  "cgroup": {
+   "source": "/sys/fs/cgroup/system.slice/run-r3fcc893908b341b89474de7b76a3761e.scope/memory.max",
+   "limit_bytes": 25769803776,
+   "current_bytes": 9204875264,
+   "peak_bytes": 10335227904,
+   "swap_source": "/sys/fs/cgroup/system.slice/run-r3fcc893908b341b89474de7b76a3761e.scope/memory.swap.max",
+   "swap_max_bytes": 0,
+   "swap_total_bytes": 0,
+   "version": 2
+  },
+  "process_memory_after_build": {
+   "rss": 5240107008,
+   "rss_anon": 537473024,
+   "rss_shmem": 4303355904,
+   "peak_rss": 5507956736,
+   "locked": 0,
+   "swap": 0
+  },
+  "torch": "2.14.1+cu130",
+  "started": "2026-10-26T12:57:22"
+ },
+ "records": [
+  {
+   "kind": "arm",
+   "skipped": null,
+   "comparison": "ram_k4_half",
+   "arm": "A",
+   "block": 2,
+   "position": 0,
+   "k": 4,
+   "budget": "1",
+   "tier": "ram",
+   "ring": 4,
+   "backend": "direct",
+   "plan": {
+    "n_layers": 32,
+    "k": 4,
+    "chunk_bytes": 4194304,
+    "pinned_floor_bytes": 0,
+    "ring": 4,
+    "pin": true,
+    "budget_bytes": 536870912,
+    "spill_layers": 0,
+    "resident_layers": 32,
+    "host_bytes": 536870912,
+    "requested_bytes": 536870912,
+    "all_pinned_bytes": 536870912,
+    "minimum_bytes": 67108864,
+    "spill_file_bytes": 0,
+    "unused_bytes": 0,
+    "granularity_waste_bytes": 0,
+    "allocations": [
+     {
+      "kind": "resident_chunk",
+      "request_bytes": 4194304,
+      "count": 128,
+      "host_bytes_each": 4194304
+     }
+    ]
+   },
+   "split": {
+    "total_bytes": 25769803776,
+    "reserve_bytes": 4000000000,
+    "process_bytes": 547172352,
+    "weight_pinned_bytes": 4294967296,
+    "activation_budget_bytes": 536870912,
+    "peak_pinned_bytes": 4831838208,
+    "planned_host_bytes": 9379010560,
+    "spare_bytes": 16390793216,
+    "plan": {
+     "n_layers": 32,
+     "k": 4,
+     "chunk_bytes": 4194304,
+     "pinned_floor_bytes": 0,
+     "ring": 4,
+     "pin": true,
+     "budget_bytes": 536870912,
+     "spill_layers": 0,
+     "resident_layers": 32,
+     "host_bytes": 536870912,
+     "requested_bytes": 536870912,
+     "all_pinned_bytes": 536870912,
+     "minimum_bytes": 67108864,
+     "spill_file_bytes": 0,
+     "unused_bytes": 0,
+     "granularity_waste_bytes": 0,
+     "allocations": [
+      {
+       "kind": "resident_chunk",
+       "request_bytes": 4194304,
+       "count": 128,
+       "host_bytes_each": 4194304
+      }
+     ]
+    }
+   },
+   "volume": null,
+   "placement": {
+    "spill": {
+     "path": "<box>/spill",
+     "probed": "<box>/spill",
+     "platform": "linux",
+     "mount_point": "/",
+     "fstype": "ext4",
+     "source": "/dev/vda1",
+     "drive": {
+      "device": "vda",
+      "model": null,
+      "vendor": "0x1af4",
+      "rotational": "1",
+      "logical_block_size": "512"
+     }
+    },
+    "weights": {
+     "path": "<work>/.soup/f1-nf4",
+     "probed": "<work>/.soup/f1-nf4",
+     "platform": "linux",
+     "mount_point": "/",
+     "fstype": "ext4",
+     "source": "/dev/vda1",
+     "drive": {
+      "device": "vda",
+      "model": null,
+      "vendor": "0x1af4",
+      "rotational": "1",
+      "logical_block_size": "512"
+     }
+    }
+   },
+   "ids": {
+    "shape": [
+     4,
+     512
+    ],
+    "dtype": "int64",
+    "row_sha256": [
+     "01a8953cd89bfb3fe6e003606e1e10d7643bbc1c319458eb59ac53c5e0212b9b",
+     "72e9fc47c2509b3d9b031f3c1c16bade512145fe330c9a67e68c57620e1a9156",
+     "aa9c30d55ac158d6b7ea2c11ec951329257c8f264d530a20f8121bb469d8ce72",
+     "6533bb4c88dac1452f307719016c13d765cecfb71f4bf42adfc9c0d7fc5dd3e2"
+    ]
+   },
+   "watch": {
+    "arm": "A",
+    "round": 2,
+    "run": 0,
+    "label": null,
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "ok",
+    "box_stamp_before": {
+     "unix_s": 1793019443.960187,
+     "ram_available_bytes": 45261344768,
+     "commit_charge": {
+      "used_bytes": 7762718720,
+      "limit_bytes": 26480828416
+     },
+     "power_source": "mains",
+     "gpu_processes": [
+      {
+       "pid": 10213,
+       "type": "C",
+       "name": "<work>/.venv/bin/python",
+       "used_mib": 1134
+      }
+     ],
+     "gpu_memory_used_mib": 1151,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793019468.864662,
+     "ram_available_bytes": 45158068224,
+     "commit_charge": {
+      "used_bytes": 7867138048,
+      "limit_bytes": 26480828416
+     },
+     "power_source": "mains",
+     "gpu_processes": [
+      {
+       "pid": 10213,
+       "type": "C",
+       "name": "<work>/.venv/bin/python",
+       "used_mib": 1532
+      }
+     ],
+     "gpu_memory_used_mib": 1549,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 1845 to 1965 MHz over 14 samples; clock event reasons seen: sw_power_cap",
+     "samples": 14,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 1845,
+      "median": 1950.0,
+      "max": 1965
+     },
+     "reasons_seen": {
+      "sw_power_cap": 4
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.1199999789823778e-06,
+       "sleep_offset_end_s": -9.149998732027598e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 14 power samples, so on mains",
+      "evidence": {
+       "samples": 14,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+      "evidence": {
+       "model_path": "<box>/spill",
+       "device": "vda",
+       "disk_read_bytes_start": 931177249792,
+       "disk_read_bytes_end": 931177249792,
+       "other_disk_read_bytes_start": 344064,
+       "other_disk_read_bytes_end": 344064,
+       "own_read_bytes": 0,
+       "foreign_read_bytes": 0,
+       "foreign_read_bytes_min": 0,
+       "foreign_read_bytes_max": 0,
+       "uninspectable_processes": 7
+      },
+      "readers": [],
+      "unattributed_bytes": 0
+     }
+    }
+   },
+   "outcome": "ok",
+   "value": 3.5252854520003893,
+   "step_s_mean": 3.523782664400096,
+   "step_s": [
+    3.5252854520003893,
+    3.450236216000121,
+    3.49065379700005,
+    3.556526909999775,
+    3.596210947000145
+   ],
+   "spill_write_gb_per_s": null,
+   "spill_read_gb_per_s": null,
+   "spill_busy_s": 0.0,
+   "spill_exposed_s": 0.0,
+   "hidden_share": null,
+   "weight_read_gb_per_s": null,
+   "weight_read_bytes_per_step": null,
+   "finite": true,
+   "records": [
+    {
+     "step_s": 3.5252854520003893,
+     "losses": [
+      2.7656493186950684,
+      2.8055202960968018,
+      2.793597459793091,
+      2.7757937908172607
+     ],
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0,
+     "spill_write_s": 0.0,
+     "spill_read_s": 0.0,
+     "spill_written": 0,
+     "spill_read": 0
+    },
+    {
+     "step_s": 3.450236216000121,
+     "losses": [
+      2.740183115005493,
+      2.7828269004821777,
+      2.745899200439453,
+      2.699199676513672
+     ],
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0,
+     "spill_write_s": 0.0,
+     "spill_read_s": 0.0,
+     "spill_written": 0,
+     "spill_read": 0
+    },
+    {
+     "step_s": 3.49065379700005,
+     "losses": [
+      2.9331657886505127,
+      2.969296455383301,
+      3.0755484104156494,
+      2.6685521602630615
+     ],
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0,
+     "spill_write_s": 0.0,
+     "spill_read_s": 0.0,
+     "spill_written": 0,
+     "spill_read": 0
+    },
+    {
+     "step_s": 3.556526909999775,
+     "losses": [
+      2.746015787124634,
+      2.801879644393921,
+      2.7157156467437744,
+      2.614455223083496
+     ],
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0,
+     "spill_write_s": 0.0,
+     "spill_read_s": 0.0,
+     "spill_written": 0,
+     "spill_read": 0
+    },
+    {
+     "step_s": 3.596210947000145,
+     "losses": [
+      2.6237990856170654,
+      2.629180908203125,
+      2.619408130645752,
+      2.614314079284668
+     ],
+     "put_wait_s": 0.0,
+     "get_wait_s": 0.0,
+     "spill_write_s": 0.0,
+     "spill_read_s": 0.0,
+     "spill_written": 0,
+     "spill_read": 0
+    }
+   ],
+   "store": {
+    "chunk_bytes": 4194304,
+    "resident_chunks": 128,
+    "spilled_chunks": 0,
+    "spill_layers": 0,
+    "pinned": true,
+    "direct": null,
+    "bytes_written": 0,
+    "bytes_read": 0,
+    "put_wait_s": 0.0,
+    "get_wait_s": 0.0,
+    "spill_left_behind": null
+   },
+   "io": {
+    "write_s": 0.0,
+    "read_s": 0.0,
+    "bytes_written": 0,
+    "bytes_read": 0,
+    "write_gb_per_s": null,
+    "read_gb_per_s": null
+   },
+   "cap": {
+    "ok": true,
+    "reason": "within the plan",
+    "held_bytes": 536870912,
+    "plan_host_bytes": 536870912,
+    "budget_bytes": 536870912,
+    "allocator_delta_bytes": 536870912,
+    "allocator_matches_plan": true
+   },
+   "pinned": {
+    "allocator_baseline_bytes": 4294967296,
+    "allocator_peak_bytes": 4831838212,
+    "store_budget_bytes": 536870912,
+    "store_host_bytes": 536870912,
+    "runtime_pinned_bytes": 4294967296,
+    "rss_shmem_store_delta": 536870912
+   },
+   "peak_alloc_gb": 1.22322176,
+   "peak_reserved_gb": 1.24780544,
+   "process_memory": {
+    "rss": 5883117568,
+    "rss_anon": 1087188992,
+    "rss_shmem": 4309487616,
+    "peak_rss": 6421954560,
+    "locked": 0,
+    "swap": 0
+   },
+   "cgroup": {
+    "source": "/sys/fs/cgroup/system.slice/run-r3fcc893908b341b89474de7b76a3761e.scope/memory.max",
+    "limit_bytes": 25769803776,
+    "current_bytes": 9762160640,
+    "peak_bytes": 10335227904,
+    "swap_source": "/sys/fs/cgroup/system.slice/run-r3fcc893908b341b89474de7b76a3761e.scope/memory.swap.max",
+    "swap_max_bytes": 0,
+    "swap_total_bytes": 0,
+    "version": 2
+   },
+   "spill_path": null,
+   "spill_file_exists_after": false,
+   "leftover_spill_files": [],
+   "spill_threads_after": []
+  }
+ ]
+}

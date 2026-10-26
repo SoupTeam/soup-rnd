@@ -1,14 +1,16 @@
 # Probe A4 - L2L activations under a host-RAM budget, spilled to a drive past it
 
-**Status: protocol v3 committed before its GPU session; no v3 verdict yet.** v1 (the rule as
-first written) judged one RTX 3090 session on 2026-10-25: `SPILL NOT SAFE` on G2 alone (§9).
-Protocol v2 (§3.1: G2 bounds only what spill adds, 24-block cap, a machine admission) was
-committed at `efdd1a76` before any v2 arm; none of three rented machines passed its
-admission and no v2 session ran (§9). The v2 admission was wrongly specified (§3.2): no
-pause, and a criterion relative to the volume's own median; the refusals say nothing about
-the platform. Protocol v3 replaces the admission with a schedule at twice v1's spill demand,
-runs only on the GPU class that demand was measured on (RTX 3090 / 3090 Ti), and keeps rule
-v2 (§3.2). v1's raw records are kept unchanged and its verdict stays its own.
+**Status: v3 verdict, `SPILL READY FOR A3: automatic fallback past the RAM budget; on the
+disk tier spill to a drive the weights are not read from`** (one RTX 3090 VM, 2026-10-26,
+protocol v3 at `26c54ca8`, rule v2; §9). v1 (the rule as first written) judged one RTX 3090
+session on 2026-10-25: `SPILL NOT SAFE` on G2 alone (§9). Protocol v2 (§3.1: G2 bounds only
+what spill adds, 24-block cap, a machine admission) was committed at `efdd1a76` before any
+v2 arm; none of three rented machines passed its admission and no v2 session ran (§9). The
+v2 admission was wrongly specified (§3.2): no pause, and a criterion relative to the
+volume's own median; the refusals say nothing about the platform. Protocol v3 replaces the
+admission with a schedule at twice v1's spill demand, runs only on the GPU class that demand
+was measured on (RTX 3090 / 3090 Ti), and keeps rule v2 (§3.2). v1's raw records are kept
+unchanged and its verdict stays its own.
 
 Track A, research question 4 of the program brief (`rndTASK`, Track A): "Host-RAM
 budget as a planner term: boundary activations compete with pinned staging and arenas
@@ -583,9 +585,66 @@ What this does and does not show:
   weight-read ratio 0.838 [0.758, 0.918]. v2 adds no measurement to them.
 - G1 and G3 (spill bit-exact; cleanup leaves nothing) and the store's exact accounting
   stand on the v1 session; v2 re-judged nothing. The v1 verdict stays v1's.
-- **No shipping clearance was established.** v1 is `SPILL NOT SAFE` (G2) and v2 has no
-  verdict, so A4 clears no spill mode for A3, neither an automatic fallback nor an explicit
-  one.
+- v2 cleared no spill mode: v1 is `SPILL NOT SAFE` (G2) and v2 has no verdict. The v3
+  session below is the first verdict under rule v2.
 
 Raw records stay outside the repository: the three admissions and preflights are published
 compactly in `results/a4-v2-admission-20261025/`.
+
+### GPU, v3: one RTX 3090 VM, 2026-10-26 (protocol v3 at `26c54ca8`, rule v2)
+
+**`SPILL READY FOR A3: automatic fallback past the RAM budget; on the disk tier spill to a
+drive the weights are not read from`**, by rule v2 (`a4_rule.py` byte-identical to
+`efdd1a76`). Re-running the rule on the saved raw records reproduces `verdict.json` byte for
+byte. Compact record: `results/a4-v3-rtx3090-20261026/`.
+
+| gate | v3 result | blocks | interval |
+|---|---|---|---|
+| G1 | pass: k = 2, 3, 4 at spill layers 20-32, forward and backward `torch.equal` to all-pinned and GA, under the predeclared `--deterministic` rerun (the default runs were not reproducible GA vs GA at any k, as in v1); the corrupted-read control differs | | |
+| G2 | pass: 140 arms, store == plan <= budget; every B arm's excess outside its store <= its block's A excess (4 B in every block) | | |
+| G3 | pass: Ctrl-C mid-backward, exception mid-forward, injected ENOSPC and a real ENOSPC on a 64 MiB ext4 loop volume: named, no file, no thread, pinned memory returned | | |
+| G4 `ram_k2_half` | pass: overhead +2.51% | 5 | [−1.04%, +6.07%] |
+| G4 `ram_k4_half` | pass: overhead +1.69% | 5 | [−2.13%, +5.50%] |
+| G5 `disk_k4_same_drive` | **fail**: weight read rate with spill writes on the weights' drive 0.830x the rate without | 5 | [0.822, 0.837] |
+
+Informational, never gating (5 blocks each): `ram_k2_min` +3.85% [−0.97%, +8.66%],
+`ram_k3_min` +3.78% [+1.98%, +5.58%], `ram_k4_min` +6.18% [+2.42%, +9.93%],
+`ram_k4_quarter` +3.86% [+0.41%, +7.30%]; the `disk_k4_same_drive` step +13.3% [+10.3%,
+16.4%]. The repeats rule asked for no block past the 5-block pilot in any comparison, so no
+comparison reached the 24-block cap and the session ended well inside `--max-hours 8`
+(12:15-13:48Z). Hidden share of the spill I/O 0.987-0.996 (medians per comparison).
+
+Box: vast.ai RTX 3090 24 GB, host 122017 / machine 97012, gpu_frac 0.25, KVM VM, 49.3 GiB
+RAM, one virtio disk `vda` for the spill and the shards; driver 580.95.05, torch
+2.14.1+cu130. Every source file hashed in `protocol.json` equals `26c54ca8`. The session and
+all 149 children (all exit 0) ran in one `systemd-run --scope -p MemoryMax=24G -p
+MemorySwapMax=0`, read back per PID; all 140 arms F1 `ok`. Admission v3 before the session:
+ADMITTED, 1,561 of 1,561 cycles, largest lateness 0.679 s, 0 of 199,808 chunks wrong.
+Rental cost: $1.47 of the $15 v3 budget (invoices), including a first instance destroyed
+before boot when its creation response, which carries a per-instance key, was printed to the
+operator's log.
+
+Description only (`a4_admission.describe_arms`; drops no arm, changes no verdict): no spill
+arm wrote below the demand (0.233 GB/s) or the tested rate (0.466 GB/s); the slowest wrote
+at 1.746 GB/s (`disk_k4_same_drive`). The largest spill demand of any arm on this box was
+0.156 GB/s. No slow arm, so none in a pilot.
+
+What this does and does not show:
+
+- **For A3** (§5): spill may be the automatic fallback past the RAM budget, on this
+  evidence: bit-exact, RAM bounded to the plan plus what all-pinned also allocates, cleanup
+  after interruption and full disk, and a step-time overhead whose 95% upper bound is under
+  10% at k = 2 (+6.07%) and k = 4 (+5.50%). On the disk tier the spill must go to a drive the
+  weights are not read from: on one drive the weight reads fell to 0.830x and the step grew
+  13.3%. `disk_k4_other_drive` (a second physical drive) was not run, so whether a second
+  drive recovers it is not shown.
+- One machine, one GPU class (RTX 3090), one model (Mistral-7B NF4, seq 512, LoRA r 8),
+  k = 2-4, budgets 0.5 / 0.25 / min, one virtio disk. The G4 interval bounds the mean
+  overhead on this box; it is not a guarantee on another GPU, disk or model.
+- This box's step was slower than v1's on the same GPU model (all-pinned 0.84-0.88 s per
+  micro-batch against 0.58-0.59 s, at a higher SM clock, median 1950 against 1800 MHz). The
+  cause is not established; the CPU, host memory and PCIe path are not recorded. A slower
+  step asks less of the spill volume per second (0.156 against 0.233 GB/s), so the cost was
+  measured where spill had more time to hide. G4 compares B with A inside each block, so it
+  does not depend on the absolute step, but a faster RTX 3090 box would test spill harder.
+- v1 (`SPILL NOT SAFE` on rule v1's G2) stays v1's verdict; v3 does not re-judge it.
