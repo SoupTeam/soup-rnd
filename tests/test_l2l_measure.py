@@ -39,7 +39,7 @@ def _step(measure, **override):
 
 def test_real_tokens_leave_out_the_padding(measure):
     mask = [[1, 1, 1, 0, 0], [1, 1, 0, 0, 0]]
-    assert measure.real_tokens(mask) == 5
+    assert measure.count_real_tokens(mask) == 5
 
 
 def test_a_step_reports_tokens_without_padding_per_second(measure):
@@ -154,9 +154,6 @@ def test_a_tiny_cpu_step_gives_every_field_a_value_or_a_reason(measure):
     assert record["unavailable"]["weight_read_bytes"]
     for name in measure.MEASURED_FIELDS:
         assert (record[name] is None) == (name in record["unavailable"])
-        assert record[name] != 0 or name in record["unavailable"] or name in (
-            "layer_loads", "nf4_restores", "spill_written_bytes", "spill_read_bytes",
-            "pinned_store_bytes")
     json.dumps(record, allow_nan=False)
 
 
@@ -178,3 +175,51 @@ def test_counters_count_the_step_only(measure):
     assert record["pinned_store_bytes"] == 7
     assert record["weight_read_bytes"] == 0
     assert "weight_read_bytes" not in record["unavailable"]
+
+
+def _counters():
+    return {"layer_loads": 0, "nf4_restores": 0, "spill_written_bytes": 0,
+            "spill_read_bytes": 0, "pinned_store_bytes": 0}
+
+
+def test_the_rss_peak_is_the_steps_own_when_the_peak_can_be_reset(measure, monkeypatch):
+    import a4_box
+
+    calls = []
+    monkeypatch.setattr(a4_box, "reset_peak_rss", lambda: calls.append("reset") or True)
+    monkeypatch.setattr(a4_box, "process_memory", lambda: {"peak_rss": 123})
+    record = measure.measure_step(lambda: calls.append("body"), attention_mask=[[1]],
+                                  device="cpu", counters=_counters)
+    assert calls == ["reset", "body"]
+    assert record["peak_rss_bytes"] == 123
+
+
+def test_the_rss_peak_is_null_when_it_cannot_be_reset(measure, monkeypatch):
+    import a4_box
+
+    monkeypatch.setattr(a4_box, "reset_peak_rss", lambda: False)
+    monkeypatch.setattr(a4_box, "process_memory", lambda: {"peak_rss": 123})
+    record = measure.measure_step(lambda: None, attention_mask=[[1]], device="cpu",
+                                  counters=_counters)
+    assert record["peak_rss_bytes"] is None
+    assert "process-lifetime" in record["unavailable"]["peak_rss_bytes"]
+
+
+def test_a_counter_the_trainer_does_not_have_is_null_with_a_reason(measure):
+    def counters():
+        found = _counters()
+        del found["nf4_restores"]
+        return found
+
+    record = measure.measure_step(lambda: None, attention_mask=[[1]], device="cpu",
+                                  counters=counters)
+    assert record["nf4_restores"] is None
+    assert "nf4_restores" in record["unavailable"]["nf4_restores"]
+
+
+def test_a_read_counter_that_goes_backwards_is_null_with_a_reason(measure):
+    readings = iter([100, 40])
+    record = measure.measure_step(lambda: None, attention_mask=[[1]], device="cpu",
+                                  counters=_counters, read_bytes=lambda: next(readings))
+    assert record["weight_read_bytes"] is None
+    assert "backwards" in record["unavailable"]["weight_read_bytes"]

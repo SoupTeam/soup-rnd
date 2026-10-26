@@ -16,8 +16,14 @@ Benchmark harness code, not shipped. Standard library only.
 
 from __future__ import annotations
 
+import sys
 import time
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import a4_box  # noqa: E402
 
 #: Fields that hold a peak: a run takes the largest step value.
 PEAK_FIELDS = (
@@ -39,7 +45,7 @@ COUNT_FIELDS = (
 MEASURED_FIELDS = PEAK_FIELDS + COUNT_FIELDS
 
 
-def real_tokens(attention_mask: Any) -> int:
+def count_real_tokens(attention_mask: Any) -> int:
     """Tokens that are not padding: the ones in an attention mask (rows of 0 and 1)."""
     total = getattr(attention_mask, "sum", None)
     if callable(total):
@@ -123,9 +129,9 @@ def run_record(steps: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
             found = (step["unavailable"][name] for step in steps if name in step["unavailable"])
             reasons[name] = "; ".join(dict.fromkeys(found))
         elif name in PEAK_FIELDS:
-            record[name] = max(column)  # type: ignore[type-var]
+            record[name] = max(value for value in column if value is not None)
         else:
-            record[name] = sum(column)  # type: ignore[arg-type]
+            record[name] = sum(value for value in column if value is not None)
     record["unavailable"] = reasons
     return record
 
@@ -136,22 +142,19 @@ CUMULATIVE_COUNTERS = ("layer_loads", "nf4_restores", "spill_written_bytes", "sp
 NO_IO_COUNTER = "no operating-system read counter was supplied"
 
 
-def _peak_rss() -> Optional[int]:
-    from a4_box import process_memory
-
-    return process_memory()["peak_rss"]
-
-
-def _cuda_peaks(device: str) -> Dict[str, Optional[int]]:
+def _on_cuda(device: str) -> bool:
     import torch
 
-    if device != "cuda" or not torch.cuda.is_available():
-        return {"allocated": None, "reserved": None}
-    torch.cuda.synchronize()
-    return {
-        "allocated": int(torch.cuda.max_memory_allocated()),
-        "reserved": int(torch.cuda.max_memory_reserved()),
-    }
+    return device == "cuda" and torch.cuda.is_available()
+
+
+def _counter_delta(
+    name: str, before: Mapping[str, int], after: Mapping[str, int], reasons: Dict[str, str]
+) -> Optional[int]:
+    if name not in before or name not in after:
+        reasons[name] = f"the trainer's counters have no {name}"
+        return None
+    return after[name] - before[name]
 
 
 def measure_step(
@@ -165,45 +168,60 @@ def measure_step(
     """Run one step and return its ``step_record``.
 
     ``counters()`` returns ``layer_loads``, ``nf4_restores``, ``spill_written_bytes`` and
-    ``spill_read_bytes`` as running totals, and ``pinned_store_bytes`` as a level.
-    ``read_bytes()`` is the operating system's running total of bytes the process read
-    from the weights' disk; without it the field is null. VRAM peaks are null off CUDA,
-    and the RSS peak is null where the platform gives none.
+    ``spill_read_bytes`` as running totals, and ``pinned_store_bytes`` as a level. A key it
+    lacks gives a null with a reason. ``read_bytes()`` is the operating system's running
+    total of bytes the process read from the weights' disk; without it, or if it goes
+    backwards, the field is null. VRAM peaks are null off CUDA. The RSS peak is the
+    step's own only where the platform can reset it; otherwise it is null.
     """
     import torch
 
-    if device == "cuda" and torch.cuda.is_available():
+    on_cuda = _on_cuda(device)
+    if on_cuda:
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
+    rss_reset = a4_box.reset_peak_rss()
     before = dict(counters())
     read_before = read_bytes() if read_bytes is not None else None
     started = time.perf_counter()
     body()
-    if device == "cuda" and torch.cuda.is_available():
+    if on_cuda:
         torch.cuda.synchronize()
     step_s = time.perf_counter() - started
     after = dict(counters())
     read_after = read_bytes() if read_bytes is not None else None
 
     reasons: Dict[str, str] = {}
-    cuda = _cuda_peaks(device)
-    for name, key in (("peak_vram_allocated_bytes", "allocated"),
-                      ("peak_vram_reserved_bytes", "reserved")):
-        if cuda[key] is None:
-            reasons[name] = "no CUDA device"
-    peak_rss = _peak_rss()
-    if peak_rss is None:
+    allocated = reserved = None
+    if on_cuda:
+        allocated = int(torch.cuda.max_memory_allocated())
+        reserved = int(torch.cuda.max_memory_reserved())
+    else:
+        reasons["peak_vram_allocated_bytes"] = reasons["peak_vram_reserved_bytes"] = (
+            "no CUDA device"
+        )
+    peak_rss = a4_box.process_memory()["peak_rss"] if rss_reset else None
+    if not rss_reset:
+        reasons["peak_rss_bytes"] = "peak RSS is process-lifetime: VmHWM could not be reset"
+    elif peak_rss is None:
         reasons["peak_rss_bytes"] = "the platform gives no peak RSS"
-    weight_read = None if read_before is None or read_after is None else read_after - read_before
-    if weight_read is None:
+    weight_read = None
+    if read_before is None or read_after is None:
         reasons["weight_read_bytes"] = NO_IO_COUNTER
-    delta = {name: after[name] - before[name] for name in CUMULATIVE_COUNTERS}
+    elif read_after < read_before:
+        reasons["weight_read_bytes"] = "the read counter went backwards"
+    else:
+        weight_read = read_after - read_before
+    delta = {name: _counter_delta(name, before, after, reasons) for name in CUMULATIVE_COUNTERS}
+    pinned = after.get("pinned_store_bytes")
+    if pinned is None:
+        reasons["pinned_store_bytes"] = "the trainer's counters have no pinned_store_bytes"
     return step_record(
         step_s=step_s,
-        real_tokens=real_tokens(attention_mask),
-        pinned_store_bytes=after["pinned_store_bytes"],
-        peak_vram_allocated_bytes=cuda["allocated"],
-        peak_vram_reserved_bytes=cuda["reserved"],
+        real_tokens=count_real_tokens(attention_mask),
+        pinned_store_bytes=pinned,
+        peak_vram_allocated_bytes=allocated,
+        peak_vram_reserved_bytes=reserved,
         peak_rss_bytes=peak_rss,
         weight_read_bytes=weight_read,
         unavailable=reasons,
