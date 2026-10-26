@@ -259,3 +259,50 @@ def test_data_seed_changes_the_ids_but_not_the_lengths_or_masks(fwdbwd):
     assert [int(i.shape[1]) for i, _ in a] == [int(i.shape[1]) for i, _ in b]
     assert [int((m == -100).sum()) for _, m in a] == [int((m == -100).sum()) for _, m in b]
     assert any(not bool((x[0] == y[0]).all()) for x, y in zip(a, b) if x[0].shape == y[0].shape)
+
+
+# --------------------------------------------------------------------------
+# equal-length control: no padding in the L2L window
+# --------------------------------------------------------------------------
+def test_equal_length_rows_have_one_length_and_masked_labels(fwdbwd):
+    rows = fwdbwd.make_equal_rows(7, 8, 64)
+    assert {int(ids.shape[1]) for ids, _ in rows} == {8}
+    assert any(int((labels == -100).sum()) for _, labels in rows)
+
+
+def test_equal_length_control_is_refused_unless_asked_for(fwdbwd):
+    rows = fwdbwd.make_equal_rows(7, 8, 64)
+    with pytest.raises(fwdbwd.FwdBwdRefusedError, match="length"):
+        fwdbwd.check_case_shape(rows, 4)
+    fwdbwd.check_case_shape(rows, 4, equal_lengths=True)  # does not raise
+
+
+def test_equal_length_control_still_needs_an_incomplete_window_and_masks(fwdbwd):
+    with pytest.raises(fwdbwd.FwdBwdRefusedError, match="incomplete"):
+        fwdbwd.check_case_shape(fwdbwd.make_equal_rows(8, 8, 64), 4, equal_lengths=True)
+
+
+def test_equal_length_windows_are_not_padded(fwdbwd):
+    from soup_cli.trainer.l2l_trainer import _window_tensors
+
+    rows = fwdbwd.make_equal_rows(7, 8, 64)
+    ids, _ = _window_tensors(
+        [{"input_ids": i, "labels": m} for i, m in fwdbwd.cut_windows(rows, 4)[0]], "cpu"
+    )
+    assert {int(t.shape[1]) for t in ids} == {8}
+
+
+def test_tiny_model_runs_the_equal_length_control(streamed, fwdbwd):  # noqa: F811
+    model, runtime = streamed
+    result = fwdbwd.run_fwdbwd(
+        model, runtime, fwdbwd.make_equal_rows(7, 8, 64), ks=(2, 4), dtype=None, mode="fp32",
+        quant="none", device="cpu", equal_lengths=True,
+    )
+    assert all(v["status"] == "within_tolerance" for v in result.cases.values())
+    assert result.facts["equal_lengths"] is True
+
+
+def test_report_names_the_equal_length_control(fwdbwd):
+    payload = _payload()
+    payload["facts"] = {**payload["facts"], "equal_lengths": True}
+    assert "equal length" in fwdbwd.render_report(payload).lower()

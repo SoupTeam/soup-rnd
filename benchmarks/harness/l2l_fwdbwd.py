@@ -64,10 +64,28 @@ def cut_windows(rows: Sequence[Row], k: int) -> List[List[Row]]:
     return [list(rows[i : i + k]) for i in range(0, len(rows), k)]
 
 
-def check_case_shape(rows: Sequence[Row], k: int) -> None:
+def make_equal_rows(count: int, length: int, vocab: int, seed: int = 5) -> List[Row]:
+    """The padding control: every row has one length, so the L2L window is not padded.
+    Odd rows mask a prefix and every third row masks a middle span, as ``stand.make_rows``."""
+    spans: List[List[tuple]] = []
+    for i in range(count):
+        row: List[tuple] = []
+        if i % 2:
+            row.append((0, length // 4))
+        if i % 3 == 2:
+            row.append((length // 2, length // 2 + max(1, length // 8)))
+        spans.append(row)
+    return build_rows([length] * count, spans, vocab, seed=seed)
+
+
+def check_case_shape(rows: Sequence[Row], k: int, *, equal_lengths: bool = False) -> None:
     """Refuse rows that would not test what the ticket asks: different lengths, masked labels,
-    and (for k above 1) an incomplete last window."""
-    if len({int(ids.shape[1]) for ids, _ in rows}) < 2:
+    and (for k above 1) an incomplete last window. ``equal_lengths`` is the padding control:
+    the rows must then all have one length."""
+    lengths = {int(ids.shape[1]) for ids, _ in rows}
+    if equal_lengths and len(lengths) != 1:
+        raise FwdBwdRefusedError("the equal-length control needs rows of one length")
+    if not equal_lengths and len(lengths) < 2:
         raise FwdBwdRefusedError("the rows must have different lengths")
     if not any(bool((labels == -100).any()) for _, labels in rows):
         raise FwdBwdRefusedError("the rows must carry labels of -100")
@@ -282,7 +300,7 @@ class FwdBwdResult:
 
 def run_fwdbwd(
     model: Any, runtime: Any, rows: Sequence[Row], *, ks: Sequence[int], dtype: Any, mode: str,
-    quant: str, device: str, seed: int = 1, path_runtime: Any = None,
+    quant: str, device: str, seed: int = 1, path_runtime: Any = None, equal_lengths: bool = False,
     sdpa: Callable[[], Any] = stand.pinned_sdpa, floor_sdpa: Optional[Callable[[], Any]] = None,
 ) -> FwdBwdResult:
     """All cases: for each k the arms, the verdict of ``stand.decide`` and the counters."""
@@ -301,7 +319,7 @@ def run_fwdbwd(
     # a span after the first forward reads 0. The criterion is the total over the whole run.
     restores_before = runtime.stats()["layer_restores"]
     for k in ks:
-        check_case_shape(rows, k)
+        check_case_shape(rows, k, equal_lengths=equal_lengths)
         windows = cut_windows(rows, k)
         arms = [("ga1", "ga", sdpa), ("ga2", "ga", sdpa), ("l2l", "l2l", sdpa)]
         if floor_sdpa is not None:
@@ -331,6 +349,7 @@ def run_fwdbwd(
         "restores": restores,
         "restores_total": runtime.stats()["layer_restores"] - restores_before,
         "windows": {k: [len(w) for w in cut_windows(rows, k)] for k in ks},
+        "equal_lengths": equal_lengths,
     }
     findings = counter_findings(facts, quant=quant)
     return FwdBwdResult(
@@ -367,8 +386,11 @@ def render_report(payload: Dict[str, Any]) -> str:
         "",
     ]
     rows = payload.get("rows", {})
+    control = payload["facts"].get("equal_lengths")
     lines += [
         "## Synthetic rows (random tokens, real weights)", "",
+        *(["**Equal length control: every row has one length, the L2L window is not padded.**", ""]
+          if control else []),
         f"- lengths: {rows.get('lengths')}",
         f"- tokens labelled -100: {rows.get('masked')}",
         f"- windows by k (the last one incomplete): {payload['facts'].get('windows')}",
@@ -439,6 +461,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--seq", type=int, default=256, help="longest row, in tokens")
     parser.add_argument("--dtype", choices=("auto", "float32"), default="auto")
     parser.add_argument("--rng-seed", type=int, default=1)
+    parser.add_argument("--equal-length", type=int, default=0, metavar="N",
+                        help="padding control: all rows N tokens long, so L2L pads nothing")
     parser.add_argument("--data-seed", type=int, default=5,
                         help="seed of the random token ids; lengths and masks stay the same")
     parser.add_argument("--card", required=True, choices=CARDS,
@@ -506,11 +530,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("RUN: L2L against GA, forward and backward,", parsed.weights, parsed.quant, parsed.card)
     model, runtime, config, *_ = stream_probe.build(args, device, dtype)
     try:
-        rows = make_rows(parsed.rows, parsed.seq, int(config.vocab_size), seed=parsed.data_seed)
+        if parsed.equal_length:
+            rows = make_equal_rows(
+                parsed.rows, parsed.equal_length, int(config.vocab_size), seed=parsed.data_seed
+            )
+        else:
+            rows = make_rows(parsed.rows, parsed.seq, int(config.vocab_size), seed=parsed.data_seed)
         result = run_fwdbwd(
             model, runtime, rows, ks=ks, dtype=getattr(torch, dtype), mode=mode,
             quant=parsed.quant, device=device, seed=parsed.rng_seed, path_runtime=path_runtime,
             floor_sdpa=stand.floor_sdpa if mode == "bf16" else None,
+            equal_lengths=bool(parsed.equal_length),
         )
     finally:
         runtime.close()
