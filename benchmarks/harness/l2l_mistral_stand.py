@@ -489,6 +489,27 @@ def loss_rel_by_step(ref: RunRecord, cand: RunRecord) -> List[float]:
     return out
 
 
+def floor_problem(ref: RunRecord, floor: RunRecord) -> Optional[str]:
+    """Why ``floor`` cannot set a limit for ``ref``, or None. It must repeat the reference's
+    structure (steps, log rows, lr per step, parameter names) and give finite errors: an
+    infinite floor error would make an infinite limit that every candidate passes."""
+    import math
+
+    if len(floor.grads) != len(ref.grads):
+        return f"the floor ran {len(floor.grads)} optimizer steps, the reference {len(ref.grads)}"
+    if len(floor.logs) != len(ref.logs):
+        return f"the floor has {len(floor.logs)} log rows, the reference {len(ref.logs)}"
+    if floor.rates != ref.rates:
+        return "the floor's lr per step differs from the reference's"
+    for step, (left, right) in enumerate(zip(ref.grads, floor.grads)):
+        if left.keys() != right.keys():
+            return f"the floor's parameter names differ from the reference's at step {step}"
+    errors = rel_l2_by_step(ref, floor) + loss_rel_by_step(ref, floor)
+    if not all(math.isfinite(e) for e in errors):
+        return "the floor's errors are not finite (inf or nan in its gradients or losses)"
+    return None
+
+
 def judge_tolerance(
     ref: RunRecord, cand: RunRecord, *, mode: str, floor: Optional[RunRecord] = None
 ) -> Dict[str, Any]:
@@ -510,6 +531,10 @@ def judge_tolerance(
         loss_limit = [FP32_REL_LIMIT] * len(loss)
     else:
         if floor is None:
+            out["judged"] = False
+            return out
+        out["floor_problem"] = problem = floor_problem(ref, floor)
+        if problem is not None:
             out["judged"] = False
             return out
         out["floor_grad"] = floor_grad = rel_l2_by_step(ref, floor)
@@ -556,7 +581,12 @@ def decide(
         out["note"] = f"L2L differs from GA in {', '.join(flags)}; these are compared exactly"
         return out
     out["tolerance"] = tol = judge_tolerance(ga1, l2l, mode=mode, floor=floor)
-    if not tol["judged"]:
+    if tol.get("floor_problem"):
+        out["status"] = "invalid_floor"
+        out["note"] = (
+            f"the noise floor cannot set a limit: {tol['floor_problem']}. No verdict is given."
+        )
+    elif not tol["judged"]:
         out["status"] = "no_floor"
         out["note"] = "bf16 needs the noise-floor arm (GA on a second SDPA backend); it was not run"
     elif not tol["pass"]:
@@ -724,7 +754,10 @@ def _tolerance_lines(tol: Optional[Dict[str, Any]]) -> List[str]:
     )
     lines.append("- the threshold is fixed in the script; no option changes it")
     if not tol.get("judged", True):
-        lines.append("- NOT JUDGED: the floor arm did not run")
+        lines.append(
+            f"- NOT JUDGED: {tol['floor_problem']}" if tol.get("floor_problem")
+            else "- NOT JUDGED: the floor arm did not run"
+        )
         return lines
     lines += ["", "| step | what | L2L error | floor | limit | ok |",
               "| --- | --- | --- | --- | --- | --- |"]

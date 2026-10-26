@@ -127,6 +127,48 @@ def test_bf16_without_a_floor_run_is_not_judged_and_fails(stand):
     assert out["pass"] is False and out["status"] == "no_floor"
 
 
+def test_a_floor_with_infinite_values_gives_no_verdict(stand):
+    import torch
+
+    floor = _scaled(stand, 1.04)
+    floor.grads[1] = {"lora_A": torch.tensor((float("inf"), 4.0))}
+    floor.logs[1] = {"loss": float("inf"), "learning_rate": 0.5}
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), _scaled(stand, 10.0),
+                       mode="bf16", floor=floor)
+    assert out["pass"] is False and out["status"] == "invalid_floor"
+    assert "finite" in out["note"]
+
+
+def test_a_floor_with_other_parameter_names_gives_no_verdict(stand):
+    import torch
+
+    floor = _scaled(stand, 1.04)
+    floor.grads = [{"lora_B": torch.tensor((3.0, 4.0)) * 1.04} for _ in range(3)]
+    cand = _scaled(stand, 10.0)
+    cand.logs = _scaled(stand, 1.0).logs  # the losses match, only the gradients are 10x off
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), cand, mode="bf16", floor=floor)
+    assert out["pass"] is False and out["status"] == "invalid_floor"
+    assert "parameter" in out["note"]
+
+
+@pytest.mark.parametrize(
+    "damage, word",
+    [("steps", "step"), ("logs", "log"), ("rates", "lr")],
+)
+def test_a_floor_with_another_step_log_or_lr_structure_gives_no_verdict(stand, damage, word):
+    floor = _scaled(stand, 1.04)
+    if damage == "steps":
+        floor.grads.pop()
+    elif damage == "logs":
+        floor.logs.pop()
+    else:
+        floor.rates = [0.5, 0.5, 0.25]
+    out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), _scaled(stand, 1.0),
+                       mode="bf16", floor=floor)
+    assert out["pass"] is False and out["status"] == "invalid_floor"
+    assert word in out["note"]
+
+
 def test_a_different_step_count_or_lr_still_fails_under_a_tolerance(stand):
     short = _scaled(stand, 1.0, steps=2)
     out = stand.decide(_scaled(stand, 1.0), _scaled(stand, 1.0), short, mode="fp32")
