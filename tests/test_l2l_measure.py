@@ -516,3 +516,22 @@ def test_the_record_and_its_summary_are_written_side_by_side(measure, tmp_path):
                  "weight_read_bytes", "os_write_bytes", "layer_loads", "nf4_restores"):
         assert name in first
     assert summary["valid_blocks"] == 2
+
+
+def test_with_one_valid_block_the_difference_is_null_not_a_lone_number(measure):
+    summary = measure.summarize([_block(measure, 110, 100, 100, 110)])
+    assert summary["difference_a_minus_b"] == {"mean": None, "interval_95": None}
+
+
+def test_two_identical_valid_blocks_are_both_kept(measure):
+    blocks = [_block(measure, 110, 100, 100, 110), _block(measure, 110, 100, 100, 110)]
+    summary = measure.summarize(blocks)
+    assert summary["valid_blocks"] == 2 and summary["spoiled_blocks"] == []
+
+
+def test_a_report_never_leaves_one_file_when_the_other_exists(measure, tmp_path):
+    (tmp_path / "summary.json").write_text("{}", encoding="utf-8")
+    blocks = [_block(measure, 110, 100, 100, 110), _block(measure, 108, 100, 100, 108)]
+    with pytest.raises(FileExistsError):
+        measure.write_report(tmp_path, passport=_passport(measure), blocks=blocks)
+    assert not (tmp_path / "record.json").exists()

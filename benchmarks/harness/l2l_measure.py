@@ -296,7 +296,10 @@ def measure_step(
     operating system's running totals for this process (``process_read_counter``,
     ``process_write_counter``), ``device_read_bytes()`` is the drive's
     (``device_read_counter``). The weights' bytes are the process's reads minus the spill's
-    reads. A source that is missing, or goes backwards, gives null with a reason. VRAM peaks
+    reads. That subtraction holds for the direct-I/O spill, whose reads the kernel counts; a
+    buffered spill reads from the page cache, so only use the figure with ``direct`` spill.
+    Page-cache hits are not storage reads either, so a warm run undercounts the weights.
+    A source that is missing, or goes backwards, gives null with a reason. VRAM peaks
     are null off CUDA. The RSS peak is the step's own only where the platform can reset it.
     """
     import torch
@@ -434,12 +437,14 @@ def summarize(blocks: Sequence[Sequence[Mapping[str, Any]]]) -> Dict[str, Any]:
         ]
         for block in blocks
     ]
-    valid = arm_validity.valid_blocks(runs)
-    kept = [block for block, spans in zip(blocks, runs) if spans in valid]
+    valid = {
+        i for i, spans in enumerate(runs) if all(run.outcome != arm_validity.VOID for run in spans)
+    }
+    kept = [block for i, block in enumerate(blocks) if i in valid]
     summary: Dict[str, Any] = {
         "blocks": len(blocks),
         "valid_blocks": len(kept),
-        "spoiled_blocks": [i for i, block in enumerate(blocks, 1) if block not in kept],
+        "spoiled_blocks": [i for i in range(1, len(blocks) + 1) if i - 1 not in valid],
         "unverified_runs": sum(entry["unverified"] for block in kept for entry in block),
         "blocks_to_add": arm_validity.blocks_to_add(runs),
     }
@@ -453,7 +458,7 @@ def summarize(blocks: Sequence[Sequence[Mapping[str, Any]]]) -> Dict[str, Any]:
         statistics.fmean(v[i] for v in values for i in (1, 2)) if values else None
     )
     summary["difference_a_minus_b"] = {
-        "mean": statistics.fmean(diffs) if diffs else None,
+        "mean": statistics.fmean(diffs) if len(diffs) >= arm_validity.MIN_BLOCKS else None,
         "interval_95": _interval(diffs),
     }
     if len(kept) < arm_validity.MIN_BLOCKS:
@@ -582,6 +587,9 @@ def write_report(
     """
     directory.mkdir(parents=True, exist_ok=True)
     paths = {"record": directory / "record.json", "summary": directory / "summary.json"}
+    for path in paths.values():
+        if path.exists():
+            raise FileExistsError(f"{path} exists; a record is never overwritten")
     documents = {
         "record": {"passport": passport, "blocks": blocks},
         "summary": summarize(blocks),
