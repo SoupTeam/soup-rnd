@@ -1,0 +1,210 @@
+{
+  "scaling_status": "unmeasured",
+  "speedup_2": null,
+  "efficiency_2": null,
+  "diagnostic_rows": [
+    {
+      "arm": "campaign/repeat-1-gpu-1",
+      "commit": "34b99878",
+      "rank": 0,
+      "gpu_count": 1,
+      "steps": 28,
+      "measured_steps": 20,
+      "input_tokens_per_second": 423.33385464066157,
+      "seconds_per_optimizer_step": 9.675578636338468,
+      "training_memory": {
+        "allocated_peak_bytes": 2506250240,
+        "reserved_peak_bytes": 2770337792,
+        "rank_rss_peak_sampled_bytes": 1997836288,
+        "host_used_peak_sampled_bytes": 28818264064,
+        "host_sample_interval_seconds": 0.05
+      },
+      "all_recorded_losses_finite": true,
+      "gradient_checks": [
+        {
+          "optimizer_step": 1,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "bd69021b1bd4e70c5eba8fd76dcdaccaef29f983249acba0887ab1a94fa9c633"
+          ]
+        },
+        {
+          "optimizer_step": 2,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "2cd814e8efa519696ee30443dde86808babb625d39641e1cb76d99bd91e95c2e"
+          ]
+        },
+        {
+          "optimizer_step": 28,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "aab79baf2bd91302ae4da2e30f7f674a31ba4a3c019970791f3a57777d6cb8c7"
+          ]
+        }
+      ],
+      "first_changed_tensors": 48,
+      "final_changed_tensors": 96,
+      "frozen_base_unchanged": true,
+      "scaling_eligible": false,
+      "reason": "No complete matched repeated campaign; 2-GPU smoke is diagnostic only"
+    },
+    {
+      "arm": "campaign-v2/repeat-1-gpu-1",
+      "commit": "491ea26a",
+      "rank": 0,
+      "gpu_count": 1,
+      "steps": 18,
+      "measured_steps": 10,
+      "input_tokens_per_second": 416.14760106106183,
+      "seconds_per_optimizer_step": 9.842661569011398,
+      "training_memory": {
+        "allocated_peak_bytes": 2506209280,
+        "reserved_peak_bytes": 2770337792,
+        "rank_rss_peak_sampled_bytes": 1945075712,
+        "host_used_peak_sampled_bytes": 16113283072,
+        "host_sample_interval_seconds": 0.05
+      },
+      "all_recorded_losses_finite": true,
+      "gradient_checks": [
+        {
+          "optimizer_step": 1,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "14ef424515881b333f74fcf9a926fba8376235583526e98767d8c7b9e52afb0e"
+          ]
+        },
+        {
+          "optimizer_step": 2,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "feb68cae91a164c23d478a9e7ecf398bb93ae282e329b83b1035a96f8751dff1"
+          ]
+        },
+        {
+          "optimizer_step": 18,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "e75847feb7d1a5c014996bcee6bd95d0a87153132019fc641b130a36b203d27a"
+          ]
+        }
+      ],
+      "first_changed_tensors": 48,
+      "final_changed_tensors": 96,
+      "frozen_base_unchanged": true,
+      "scaling_eligible": false,
+      "reason": "No complete matched repeated campaign; 2-GPU smoke is diagnostic only"
+    },
+    {
+      "arm": "tied-fix-smoke",
+      "commit": "e3ea457f",
+      "rank": 0,
+      "gpu_count": 2,
+      "steps": 4,
+      "measured_steps": 1,
+      "input_tokens_per_second": 488.31074565811025,
+      "seconds_per_optimizer_step": 8.388101299060509,
+      "training_memory": {
+        "allocated_peak_bytes": 2245940224,
+        "reserved_peak_bytes": 2766143488,
+        "rank_rss_peak_sampled_bytes": 2239119360,
+        "host_used_peak_sampled_bytes": 14167257088,
+        "host_sample_interval_seconds": 0.05
+      },
+      "all_recorded_losses_finite": true,
+      "gradient_checks": [
+        {
+          "optimizer_step": 1,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "b5d281ab5bfd8b703fef33eb6cc8c51c28c4793747fb30719b0bec018697fc46",
+            "b5d281ab5bfd8b703fef33eb6cc8c51c28c4793747fb30719b0bec018697fc46"
+          ]
+        },
+        {
+          "optimizer_step": 4,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "73c8fb0c77eb62164802f03baae147e7784d7abaaeeb57c1f26afba43417223e",
+            "73c8fb0c77eb62164802f03baae147e7784d7abaaeeb57c1f26afba43417223e"
+          ]
+        }
+      ],
+      "first_changed_tensors": 48,
+      "final_changed_tensors": 96,
+      "frozen_base_unchanged": true,
+      "scaling_eligible": false,
+      "reason": "No complete matched repeated campaign; 2-GPU smoke is diagnostic only"
+    },
+    {
+      "arm": "tied-fix-smoke",
+      "commit": "e3ea457f",
+      "rank": 1,
+      "gpu_count": 2,
+      "steps": 4,
+      "measured_steps": 1,
+      "input_tokens_per_second": 488.31074565811025,
+      "seconds_per_optimizer_step": 8.388101299060509,
+      "training_memory": {
+        "allocated_peak_bytes": 2245940224,
+        "reserved_peak_bytes": 2766143488,
+        "rank_rss_peak_sampled_bytes": 2239725568,
+        "host_used_peak_sampled_bytes": 14167515136,
+        "host_sample_interval_seconds": 0.05
+      },
+      "all_recorded_losses_finite": true,
+      "gradient_checks": [
+        {
+          "optimizer_step": 1,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "b5d281ab5bfd8b703fef33eb6cc8c51c28c4793747fb30719b0bec018697fc46",
+            "b5d281ab5bfd8b703fef33eb6cc8c51c28c4793747fb30719b0bec018697fc46"
+          ]
+        },
+        {
+          "optimizer_step": 4,
+          "finite": true,
+          "some_nonzero": true,
+          "frozen_gradients_absent": true,
+          "reconstructed_sha256_per_rank": [
+            "73c8fb0c77eb62164802f03baae147e7784d7abaaeeb57c1f26afba43417223e",
+            "73c8fb0c77eb62164802f03baae147e7784d7abaaeeb57c1f26afba43417223e"
+          ]
+        }
+      ],
+      "first_changed_tensors": 48,
+      "final_changed_tensors": 96,
+      "frozen_base_unchanged": true,
+      "scaling_eligible": false,
+      "reason": "No complete matched repeated campaign; 2-GPU smoke is diagnostic only"
+    }
+  ],
+  "retained_root_checkpoint_adapter_tensors": 96,
+  "retained_root_checkpoint_adapter_exact_match": true,
+  "two_gpu_reload_status": "passed according to retained validation log",
+  "two_gpu_reload_max_abs_error": null,
+  "two_gpu_reload_artifact_gap": "reload-reference.pt and reload JSON not copied before deletion",
+  "first_step_control": "failed; unchanged atol=1e-5, rtol=0.02",
+  "resume": "unmeasured",
+  "4_gpu": "unmeasured",
+  "8_gpu": "unmeasured"
+}

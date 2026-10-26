@@ -1,0 +1,37 @@
+"""Separate from training: real reloads plus a first-step numerical control."""
+import argparse
+import gc
+import json
+from pathlib import Path
+
+import torch
+from h3_fsdp_run import reload_adapter
+from rich.console import Console
+
+root = Path('benchmarks/evidence/h3-fsdp-20261026')
+output = root / 'live/tied-fix-smoke'
+torch.set_num_threads(4)
+for checkpoint in (False, True):
+    reload_adapter(argparse.Namespace(prepared=str(root / 'prepared'), output=str(output),
+                                      device='cuda', checkpoint=checkpoint))
+    gc.collect()
+    torch.cuda.empty_cache()
+
+reference = root / 'live/campaign-v2/repeat-1-gpu-1'
+assert json.loads((reference/'rank-0.json').read_text())['data_windows'][0] == json.loads(
+    (output/'rank-0.json').read_text())['data_windows'][0]
+results = []
+for name in ('first-gradients.pt', 'first-adapter.pt'):
+    expected = torch.load(reference/name, weights_only=True, map_location='cpu')
+    actual = torch.load(output/name, weights_only=True, map_location='cpu')
+    assert expected.keys() == actual.keys()
+    max_error = 0.0
+    for key in expected:
+        torch.testing.assert_close(actual[key].float(), expected[key].float(), atol=1e-5, rtol=.02)
+        max_error = max(max_error, float((actual[key]-expected[key]).abs().max()))
+    results.append({'file': name, 'max_abs_error': max_error, 'atol': 1e-5, 'rtol': .02})
+(output/'first-step-control.json').write_text(json.dumps({
+    'status': 'passed', 'reference_commit': '491ea26a', 'smoke_commit': 'e3ea457f',
+    'scope': 'first-step control only; different run horizons/commits, no scaling verdict',
+    'comparisons': results}, indent=2))
+Console().print('First-step control passed')

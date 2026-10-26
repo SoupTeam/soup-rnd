@@ -1,0 +1,15 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  17%|█▋        | 50/290 [00:00<00:00, 499.69it/s]Loading weights:  47%|████▋     | 135/290 [00:00<00:00, 702.59it/s]Loading weights:  75%|███████▍  | 217/290 [00:00<00:00, 736.00it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 577.04it/s]
+Adapter reload passed: benchmarks/evidence/h3-fsdp-20261026/live/tied-fix-smoke
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  25%|██▍       | 72/290 [00:00<00:00, 694.92it/s]Loading weights:  49%|████▉     | 142/290 [00:00<00:00, 501.13it/s]Loading weights:  68%|██████▊   | 196/290 [00:00<00:00, 478.31it/s]Loading weights:  85%|████████▍ | 246/290 [00:00<00:00, 449.49it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 480.54it/s]
+Adapter reload passed: benchmarks/evidence/h3-fsdp-20261026/live/tied-fix-smoke
+Traceback (most recent call last):
+  File "/tmp/h3-finish-smoke.py", line 30, in <module>
+    torch.testing.assert_close(actual[key].float(), expected[key].float(), atol=1e-5, rtol=.02)
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/testing/_comparison.py", line 1631, in assert_close
+    raise error_metas[0].to_error(msg)
+AssertionError: Tensor-likes are not close!
+
+Mismatched elements: 12 / 7168 (0.2%)
+Greatest absolute difference: 3.701107925735414e-05 at index (544, 5) (up to 1e-05 allowed)
+Greatest relative difference: 0.27091076970100403 at index (736, 1) (up to 0.02 allowed)

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace/h3-soup
+git fetch --depth=1 origin koko/h3-fsdp-lora-20261026
+git reset --hard --quiet FETCH_HEAD
+test "$(git rev-parse --short=8 HEAD)" = 491ea26a
+test -z "$(git status --porcelain)"
+source benchmarks/evidence/h3-fsdp-20261026/venv/bin/activate
+export PYTHONPATH="$PWD/src"
+export OMP_NUM_THREADS=4
+export TOKENIZERS_PARALLELISM=false
+set +e
+python benchmarks/harness/h3_fsdp_campaign.py \
+ --prepared benchmarks/evidence/h3-fsdp-20261026/prepared \
+ --output benchmarks/evidence/h3-fsdp-20261026/live/campaign-v2 \
+ --repeats 2 --measured-steps 10 --timeout-seconds 600 --campaign-seconds 1500
+status=$?
+printf '%s\n' "$status" > /tmp/h3-v2.exit
+exit "$status"

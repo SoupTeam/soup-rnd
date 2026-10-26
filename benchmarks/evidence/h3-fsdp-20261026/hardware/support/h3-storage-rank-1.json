@@ -1,0 +1,6737 @@
+{
+  "counts": [
+    315354048,
+    315354048
+  ],
+  "prewrap_unique_total": 494573440,
+  "fsdp_units": [
+    26,
+    26
+  ],
+  "parameters": {
+    "base_model.model.model.embed_tokens.weight": {
+      "global_shape": [
+        151936,
+        896
+      ],
+      "global_numel": 136134656,
+      "local_shape": [
+        75968,
+        896
+      ],
+      "local_numel": 68067328,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688421680,
+      "storage_ptr": 125761843363840,
+      "storage_bytes": 136134656
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763612560,
+      "storage_ptr": 125762934697472,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763680848,
+      "storage_ptr": 125762935500288,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763683824,
+      "storage_ptr": 125762935501312,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763614768,
+      "storage_ptr": 125762935515648,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.0.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763612464,
+      "storage_ptr": 125762935529984,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.0.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766426864,
+      "storage_ptr": 125762935644672,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763682672,
+      "storage_ptr": 125762935645184,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763682480,
+      "storage_ptr": 125762935759872,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763682288,
+      "storage_ptr": 125762935760384,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763687856,
+      "storage_ptr": 125762935774720,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.0.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763687952,
+      "storage_ptr": 125762531229696,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.0.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766425520,
+      "storage_ptr": 125764363780096,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.0.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766425616,
+      "storage_ptr": 125764368138240,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.0.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763613520,
+      "storage_ptr": 125762682224640,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.0.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763613616,
+      "storage_ptr": 125762935776768,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.0.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763613808,
+      "storage_ptr": 125762935777792,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763688144,
+      "storage_ptr": 125762532032512,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763687376,
+      "storage_ptr": 125762935778816,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763687184,
+      "storage_ptr": 125762935779840,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763686992,
+      "storage_ptr": 125762935794176,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.1.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763686800,
+      "storage_ptr": 125762935808512,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.1.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763686608,
+      "storage_ptr": 125762935923200,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763686416,
+      "storage_ptr": 125762532835328,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763686320,
+      "storage_ptr": 125762935923712,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763681232,
+      "storage_ptr": 125762935924224,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763681424,
+      "storage_ptr": 125762935938560,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.1.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763681616,
+      "storage_ptr": 125762533326848,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.1.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763681808,
+      "storage_ptr": 125762686582784,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.1.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763682768,
+      "storage_ptr": 125762690940928,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.1.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763682960,
+      "storage_ptr": 125762695299072,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.1.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763683152,
+      "storage_ptr": 125762935940608,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.1.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763613424,
+      "storage_ptr": 125762935941632,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763613328,
+      "storage_ptr": 125762534129664,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763613040,
+      "storage_ptr": 125762935942656,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763612848,
+      "storage_ptr": 125762935943680,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766427440,
+      "storage_ptr": 125762935958016,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.2.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766427248,
+      "storage_ptr": 125762532950016,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.2.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766427056,
+      "storage_ptr": 125762935972352,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766426768,
+      "storage_ptr": 125762533064704,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766426576,
+      "storage_ptr": 125762935972864,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766426384,
+      "storage_ptr": 125762533179392,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764766426192,
+      "storage_ptr": 125762935973376,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.2.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763690256,
+      "storage_ptr": 125762535424000,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.2.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763690160,
+      "storage_ptr": 125762703196160,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.2.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763689968,
+      "storage_ptr": 125762707554304,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.2.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763689776,
+      "storage_ptr": 125762711912448,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.2.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763689584,
+      "storage_ptr": 125762935975424,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.2.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763689392,
+      "storage_ptr": 125762935976448,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763689296,
+      "storage_ptr": 125762536226816,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763689008,
+      "storage_ptr": 125762935977472,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763688816,
+      "storage_ptr": 125762533193728,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763688624,
+      "storage_ptr": 125762533208064,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.3.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763688432,
+      "storage_ptr": 125762534932480,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.3.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763688240,
+      "storage_ptr": 125762935978496,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763686128,
+      "storage_ptr": 125762535047168,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763685936,
+      "storage_ptr": 125762935979008,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763685744,
+      "storage_ptr": 125762533222400,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763685552,
+      "storage_ptr": 125762533236736,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.3.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763685360,
+      "storage_ptr": 125762537521152,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.3.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763685168,
+      "storage_ptr": 125762716270592,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.3.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763684976,
+      "storage_ptr": 125762724167680,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.3.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763684784,
+      "storage_ptr": 125762728525824,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.3.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763684592,
+      "storage_ptr": 125762533238784,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.3.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763684400,
+      "storage_ptr": 125762533239808,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763684304,
+      "storage_ptr": 125762538323968,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763690448,
+      "storage_ptr": 125762533240832,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763690544,
+      "storage_ptr": 125762533241856,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763690736,
+      "storage_ptr": 125762533256192,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.4.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763690928,
+      "storage_ptr": 125762535161856,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.4.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763691120,
+      "storage_ptr": 125762935979520,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763691312,
+      "storage_ptr": 125762535276544,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763691504,
+      "storage_ptr": 125762535391232,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763691696,
+      "storage_ptr": 125762535391744,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763691888,
+      "storage_ptr": 125762535406080,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.4.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763692080,
+      "storage_ptr": 125762539618304,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.4.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763692272,
+      "storage_ptr": 125762732883968,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.4.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763692464,
+      "storage_ptr": 125762737242112,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.4.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763692656,
+      "storage_ptr": 125762745139200,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.4.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763692848,
+      "storage_ptr": 125762535408128,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.4.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763693040,
+      "storage_ptr": 125762535409152,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763693136,
+      "storage_ptr": 125762540421120,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763693424,
+      "storage_ptr": 125762535410176,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763693616,
+      "storage_ptr": 125762533270528,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763693808,
+      "storage_ptr": 125762533284864,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.5.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763694000,
+      "storage_ptr": 125762537029632,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.5.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763694192,
+      "storage_ptr": 125762535411200,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763694384,
+      "storage_ptr": 125762537144320,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763694576,
+      "storage_ptr": 125762535411712,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763694768,
+      "storage_ptr": 125762533299200,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763694960,
+      "storage_ptr": 125762535412224,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.5.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763695152,
+      "storage_ptr": 125762541715456,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.5.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763695344,
+      "storage_ptr": 125762749497344,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.5.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763695536,
+      "storage_ptr": 125762753855488,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.5.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763695728,
+      "storage_ptr": 125762758213632,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.5.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763695920,
+      "storage_ptr": 125762535414272,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.5.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763696112,
+      "storage_ptr": 125762535415296,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763696208,
+      "storage_ptr": 125762542518272,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763696496,
+      "storage_ptr": 125762535416320,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763696688,
+      "storage_ptr": 125762537259008,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763696880,
+      "storage_ptr": 125762537273344,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.6.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763992144,
+      "storage_ptr": 125762537287680,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.6.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763992240,
+      "storage_ptr": 125762535417344,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763992432,
+      "storage_ptr": 125762537402368,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763992624,
+      "storage_ptr": 125762537517056,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763992816,
+      "storage_ptr": 125762539126784,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763993008,
+      "storage_ptr": 125762537517568,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.6.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763993200,
+      "storage_ptr": 125762543812608,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.6.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763993392,
+      "storage_ptr": 125762766110720,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.6.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763993584,
+      "storage_ptr": 125762770468864,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.6.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763993776,
+      "storage_ptr": 125762774827008,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.6.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763993968,
+      "storage_ptr": 125762537519616,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.6.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763994160,
+      "storage_ptr": 125762535417856,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763994256,
+      "storage_ptr": 125762544615424,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763994544,
+      "storage_ptr": 125762535418880,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763994736,
+      "storage_ptr": 125762539141120,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763994928,
+      "storage_ptr": 125762539155456,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.7.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763995120,
+      "storage_ptr": 125762539169792,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.7.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763995312,
+      "storage_ptr": 125762537520640,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763995504,
+      "storage_ptr": 125762539284480,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763995696,
+      "storage_ptr": 125762535419904,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763995888,
+      "storage_ptr": 125762539399168,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763996080,
+      "storage_ptr": 125762535420416,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.7.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763996272,
+      "storage_ptr": 125762545909760,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.7.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763996464,
+      "storage_ptr": 125762779185152,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.7.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763996656,
+      "storage_ptr": 125762787082240,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.7.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763996848,
+      "storage_ptr": 125762791440384,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.7.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763997040,
+      "storage_ptr": 125762535422464,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.7.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763997232,
+      "storage_ptr": 125762533313536,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763997328,
+      "storage_ptr": 125762546712576,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763997616,
+      "storage_ptr": 125762533314560,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763997808,
+      "storage_ptr": 125762539413504,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763998000,
+      "storage_ptr": 125762539427840,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.8.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763998192,
+      "storage_ptr": 125762539442176,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.8.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763998384,
+      "storage_ptr": 125762535423488,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763998576,
+      "storage_ptr": 125762541223936,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763998768,
+      "storage_ptr": 125762533315584,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763998960,
+      "storage_ptr": 125762539556864,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763999152,
+      "storage_ptr": 125762533316096,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.8.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763999344,
+      "storage_ptr": 67838672896,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.8.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763999536,
+      "storage_ptr": 125762795798528,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.8.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763999728,
+      "storage_ptr": 125762800156672,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.8.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764763999920,
+      "storage_ptr": 125762808053760,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.8.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764000112,
+      "storage_ptr": 125762533318144,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.8.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764000304,
+      "storage_ptr": 125762533319168,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764000400,
+      "storage_ptr": 67839475712,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764000688,
+      "storage_ptr": 125762533320192,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764000880,
+      "storage_ptr": 125762539571200,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764001072,
+      "storage_ptr": 125762539585536,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.9.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764001264,
+      "storage_ptr": 125762541338624,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.9.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764001456,
+      "storage_ptr": 125762533321216,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764001648,
+      "storage_ptr": 125762541453312,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764001840,
+      "storage_ptr": 125762533321728,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764002032,
+      "storage_ptr": 125762539599872,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764002224,
+      "storage_ptr": 125762539614208,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.9.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764002416,
+      "storage_ptr": 67840770048,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.9.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764002608,
+      "storage_ptr": 125762812411904,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.9.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764002800,
+      "storage_ptr": 125762816770048,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.9.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764002992,
+      "storage_ptr": 125762821128192,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.9.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764003184,
+      "storage_ptr": 125762539616256,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.9.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764003376,
+      "storage_ptr": 125762539617280,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764003760,
+      "storage_ptr": 67841572864,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764004048,
+      "storage_ptr": 125762533322240,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764004240,
+      "storage_ptr": 125762541568000,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764004432,
+      "storage_ptr": 125762541582336,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.10.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764004624,
+      "storage_ptr": 125762541596672,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.10.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764004816,
+      "storage_ptr": 125762533323264,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764005008,
+      "storage_ptr": 125762543321088,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764005200,
+      "storage_ptr": 125762533323776,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764005392,
+      "storage_ptr": 125762543435776,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764005584,
+      "storage_ptr": 125762533324288,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.10.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764005776,
+      "storage_ptr": 67842867200,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.10.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764005968,
+      "storage_ptr": 125762829025280,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.10.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764006160,
+      "storage_ptr": 125762833383424,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.10.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764006352,
+      "storage_ptr": 125762837741568,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.10.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764006544,
+      "storage_ptr": 125762541711360,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.10.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764006736,
+      "storage_ptr": 125762541712384,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764006832,
+      "storage_ptr": 67843670016,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764007120,
+      "storage_ptr": 125762541713408,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764007312,
+      "storage_ptr": 125762543450112,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764007504,
+      "storage_ptr": 125762543464448,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.11.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764007696,
+      "storage_ptr": 125762543478784,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.11.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764007888,
+      "storage_ptr": 125762533326336,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764008080,
+      "storage_ptr": 125762543593472,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764008272,
+      "storage_ptr": 125762541714432,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764205136,
+      "storage_ptr": 125762543708160,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764205328,
+      "storage_ptr": 125762543722496,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.11.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764205520,
+      "storage_ptr": 67844964352,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.11.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764205712,
+      "storage_ptr": 125762842099712,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.11.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764205904,
+      "storage_ptr": 125762849996800,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.11.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764206096,
+      "storage_ptr": 125762854354944,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.11.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764206288,
+      "storage_ptr": 125762543724544,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.11.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764206480,
+      "storage_ptr": 125762543725568,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764206576,
+      "storage_ptr": 67845767168,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764206864,
+      "storage_ptr": 125762543726592,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764207056,
+      "storage_ptr": 125762543727616,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764207248,
+      "storage_ptr": 125762543741952,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.12.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764207440,
+      "storage_ptr": 125762545418240,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.12.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764207632,
+      "storage_ptr": 125762541714944,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764207824,
+      "storage_ptr": 125762545532928,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764208016,
+      "storage_ptr": 125762543756288,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764208208,
+      "storage_ptr": 125762543756800,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764208400,
+      "storage_ptr": 125762543771136,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.12.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764208592,
+      "storage_ptr": 125762680127488,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.12.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764208784,
+      "storage_ptr": 125762858713088,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.12.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764208976,
+      "storage_ptr": 125762863071232,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.12.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764209168,
+      "storage_ptr": 125762870968320,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.12.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764209360,
+      "storage_ptr": 125762543773184,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.12.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764209552,
+      "storage_ptr": 125762543774208,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764209648,
+      "storage_ptr": 125762680930304,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764209936,
+      "storage_ptr": 125762543775232,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764210128,
+      "storage_ptr": 125762543776256,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764210320,
+      "storage_ptr": 125762543790592,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.13.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764210512,
+      "storage_ptr": 125762545647616,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.13.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764210704,
+      "storage_ptr": 125762543804928,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764210896,
+      "storage_ptr": 125762545762304,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764211088,
+      "storage_ptr": 125762543805440,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764211280,
+      "storage_ptr": 125762545876992,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764211472,
+      "storage_ptr": 125762543805952,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.13.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764211664,
+      "storage_ptr": 125762891939840,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.13.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764211856,
+      "storage_ptr": 125762875326464,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.13.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764212048,
+      "storage_ptr": 125762879684608,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.13.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764212240,
+      "storage_ptr": 125762884042752,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.13.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764212432,
+      "storage_ptr": 125762543808000,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.13.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764212624,
+      "storage_ptr": 125762543809024,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764212720,
+      "storage_ptr": 125762892742656,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764213008,
+      "storage_ptr": 125762543810048,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764213200,
+      "storage_ptr": 125762545891328,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764213392,
+      "storage_ptr": 125762547515392,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.14.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764213584,
+      "storage_ptr": 125762547529728,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.14.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764213776,
+      "storage_ptr": 125762543811072,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764213968,
+      "storage_ptr": 125762547644416,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764214160,
+      "storage_ptr": 125762543811584,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764214352,
+      "storage_ptr": 125762547759104,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764214544,
+      "storage_ptr": 125762545905664,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.14.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764214736,
+      "storage_ptr": 125762894036992,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.14.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764214928,
+      "storage_ptr": 125762896134144,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.14.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764215120,
+      "storage_ptr": 125762900492288,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.14.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764215312,
+      "storage_ptr": 125762904850432,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.14.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764215504,
+      "storage_ptr": 125762545907712,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.14.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764215696,
+      "storage_ptr": 125762545908736,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764215792,
+      "storage_ptr": 125762894839808,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764216080,
+      "storage_ptr": 125762547773440,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764216272,
+      "storage_ptr": 125762547774464,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764216464,
+      "storage_ptr": 125762547788800,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.15.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764216656,
+      "storage_ptr": 125762547803136,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.15.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764216848,
+      "storage_ptr": 125762543812096,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764217040,
+      "storage_ptr": 67840278528,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764217232,
+      "storage_ptr": 125762547917824,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764217424,
+      "storage_ptr": 125762547918336,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764217616,
+      "storage_ptr": 125762547932672,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.15.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764217808,
+      "storage_ptr": 125762917105664,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.15.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764218000,
+      "storage_ptr": 125762909208576,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.15.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764218192,
+      "storage_ptr": 125762212462592,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.15.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764218384,
+      "storage_ptr": 125762216820736,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.15.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764218576,
+      "storage_ptr": 125762547934720,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.15.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764218768,
+      "storage_ptr": 125762547935744,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764218864,
+      "storage_ptr": 125762917908480,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764219152,
+      "storage_ptr": 125762547936768,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764219344,
+      "storage_ptr": 125762547937792,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764219536,
+      "storage_ptr": 125762547952128,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.16.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764219728,
+      "storage_ptr": 67840393216,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.16.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764219920,
+      "storage_ptr": 125762547966464,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764220112,
+      "storage_ptr": 67840507904,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764220304,
+      "storage_ptr": 125762547966976,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764220496,
+      "storage_ptr": 125762547967488,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764220688,
+      "storage_ptr": 125762547981824,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.16.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764220880,
+      "storage_ptr": 125762233434112,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.16.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764221072,
+      "storage_ptr": 125762221178880,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.16.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764221264,
+      "storage_ptr": 125762225537024,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.16.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764500048,
+      "storage_ptr": 125762178908160,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.16.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764500240,
+      "storage_ptr": 125762547983872,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.16.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764500432,
+      "storage_ptr": 125762547984896,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764500528,
+      "storage_ptr": 125762234236928,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764500816,
+      "storage_ptr": 125762547985920,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764501008,
+      "storage_ptr": 125762547986944,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764501200,
+      "storage_ptr": 67840622592,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.17.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764501392,
+      "storage_ptr": 67840636928,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.17.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764501584,
+      "storage_ptr": 125762548001280,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764501776,
+      "storage_ptr": 67842375680,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764501968,
+      "storage_ptr": 125762548001792,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764502160,
+      "storage_ptr": 67840751616,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764502352,
+      "storage_ptr": 67840765952,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.17.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764502544,
+      "storage_ptr": 125762199879680,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.17.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764502736,
+      "storage_ptr": 125762183266304,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.17.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764502928,
+      "storage_ptr": 125762187624448,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.17.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764503120,
+      "storage_ptr": 125762191982592,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.17.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764503312,
+      "storage_ptr": 67840768000,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.17.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764503504,
+      "storage_ptr": 67840769024,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764503600,
+      "storage_ptr": 125762200682496,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764503888,
+      "storage_ptr": 125762548002304,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764504080,
+      "storage_ptr": 67842490368,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764504272,
+      "storage_ptr": 67842504704,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.18.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764504464,
+      "storage_ptr": 67842519040,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.18.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764504656,
+      "storage_ptr": 125762548003328,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764504848,
+      "storage_ptr": 67842633728,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764505040,
+      "storage_ptr": 125762548003840,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764505232,
+      "storage_ptr": 67842748416,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764505424,
+      "storage_ptr": 125762548004352,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.18.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764505616,
+      "storage_ptr": 125762201976832,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.18.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764505808,
+      "storage_ptr": 125762145353728,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.18.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764506000,
+      "storage_ptr": 125762149711872,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.18.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764506192,
+      "storage_ptr": 125762154070016,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.18.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764506384,
+      "storage_ptr": 67842762752,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.18.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764506576,
+      "storage_ptr": 67842763776,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764506864,
+      "storage_ptr": 125762202779648,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764507152,
+      "storage_ptr": 67842764800,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764507344,
+      "storage_ptr": 67842765824,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764507536,
+      "storage_ptr": 67842780160,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.19.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764507728,
+      "storage_ptr": 67844472832,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.19.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764507920,
+      "storage_ptr": 125762548006400,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764508112,
+      "storage_ptr": 67844587520,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764508304,
+      "storage_ptr": 67842794496,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764508496,
+      "storage_ptr": 67842795008,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764508688,
+      "storage_ptr": 67842809344,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.19.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764508880,
+      "storage_ptr": 125762166325248,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.19.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764509072,
+      "storage_ptr": 125762158428160,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.19.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764509264,
+      "storage_ptr": 125762111799296,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.19.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764509456,
+      "storage_ptr": 125762116157440,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.19.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764509648,
+      "storage_ptr": 67842811392,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.19.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764509840,
+      "storage_ptr": 67842812416,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764510320,
+      "storage_ptr": 125762167128064,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764510608,
+      "storage_ptr": 67842813440,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764510800,
+      "storage_ptr": 67842814464,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764510992,
+      "storage_ptr": 67842828800,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.20.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764511184,
+      "storage_ptr": 67844702208,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.20.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764511376,
+      "storage_ptr": 67842843136,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764511568,
+      "storage_ptr": 67844816896,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764511760,
+      "storage_ptr": 67842843648,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764511952,
+      "storage_ptr": 67842844160,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764512144,
+      "storage_ptr": 67842858496,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.20.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764512336,
+      "storage_ptr": 125762132770816,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.20.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764512528,
+      "storage_ptr": 125762120515584,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.20.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764512720,
+      "storage_ptr": 125762124873728,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.20.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764512912,
+      "storage_ptr": 125762078244864,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.20.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764513104,
+      "storage_ptr": 67842860544,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.20.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764513296,
+      "storage_ptr": 67842861568,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764513584,
+      "storage_ptr": 125762133573632,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764513872,
+      "storage_ptr": 67842862592,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764514064,
+      "storage_ptr": 67844931584,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764514256,
+      "storage_ptr": 67844945920,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.21.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764514448,
+      "storage_ptr": 67846569984,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.21.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764514640,
+      "storage_ptr": 67842863616,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764514832,
+      "storage_ptr": 67846684672,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764515024,
+      "storage_ptr": 67842864128,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764515216,
+      "storage_ptr": 67846799360,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764515408,
+      "storage_ptr": 67842864640,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.21.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764515600,
+      "storage_ptr": 125762099216384,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.21.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764515792,
+      "storage_ptr": 125762082603008,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.21.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764515984,
+      "storage_ptr": 125762086961152,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.21.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764764516176,
+      "storage_ptr": 125762091319296,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.21.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688412752,
+      "storage_ptr": 67844960256,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.21.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688412944,
+      "storage_ptr": 67844961280,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688413040,
+      "storage_ptr": 125762100019200,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688413328,
+      "storage_ptr": 67844962304,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688413520,
+      "storage_ptr": 67846813696,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688413712,
+      "storage_ptr": 67846828032,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.22.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688413904,
+      "storage_ptr": 67846842368,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.22.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688414096,
+      "storage_ptr": 67842866688,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688414288,
+      "storage_ptr": 125762681733120,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688414480,
+      "storage_ptr": 67844963328,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688414672,
+      "storage_ptr": 67846957056,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688414864,
+      "storage_ptr": 67846971392,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.22.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688415056,
+      "storage_ptr": 125762101313536,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.22.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688415248,
+      "storage_ptr": 125762044690432,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.22.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688415440,
+      "storage_ptr": 125762049048576,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.22.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688415632,
+      "storage_ptr": 125762053406720,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.22.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688415824,
+      "storage_ptr": 67846973440,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.22.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688416016,
+      "storage_ptr": 67846974464,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.base_layer.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688416112,
+      "storage_ptr": 125762102116352,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.base_layer.bias": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688416400,
+      "storage_ptr": 67846975488,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688416592,
+      "storage_ptr": 67846976512,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.lora_B.default.weight": {
+      "global_shape": [
+        896,
+        8
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        448,
+        8
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688416784,
+      "storage_ptr": 67846990848,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.23.self_attn.k_proj.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688416976,
+      "storage_ptr": 125762681847808,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.23.self_attn.k_proj.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688417168,
+      "storage_ptr": 67844963840,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.base_layer.weight": {
+      "global_shape": [
+        128,
+        896
+      ],
+      "global_numel": 114688,
+      "local_shape": [
+        64,
+        896
+      ],
+      "local_numel": 57344,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688417360,
+      "storage_ptr": 125762681962496,
+      "storage_bytes": 114688
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.base_layer.bias": {
+      "global_shape": [
+        128
+      ],
+      "global_numel": 128,
+      "local_shape": [
+        64
+      ],
+      "local_numel": 64,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688417552,
+      "storage_ptr": 67847005184,
+      "storage_bytes": 128
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.lora_A.default.weight": {
+      "global_shape": [
+        8,
+        896
+      ],
+      "global_numel": 7168,
+      "local_shape": [
+        4,
+        896
+      ],
+      "local_numel": 3584,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688417744,
+      "storage_ptr": 67847005696,
+      "storage_bytes": 14336
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.lora_B.default.weight": {
+      "global_shape": [
+        128,
+        8
+      ],
+      "global_numel": 1024,
+      "local_shape": [
+        64,
+        8
+      ],
+      "local_numel": 512,
+      "dtype": "torch.float32",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688417936,
+      "storage_ptr": 67847020032,
+      "storage_bytes": 2048
+    },
+    "base_model.model.model.layers.23.self_attn.o_proj.weight": {
+      "global_shape": [
+        896,
+        896
+      ],
+      "global_numel": 802816,
+      "local_shape": [
+        448,
+        896
+      ],
+      "local_numel": 401408,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688418128,
+      "storage_ptr": 125762065661952,
+      "storage_bytes": 802816
+    },
+    "base_model.model.model.layers.23.mlp.gate_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688418320,
+      "storage_ptr": 125762057764864,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.23.mlp.up_proj.weight": {
+      "global_shape": [
+        4864,
+        896
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        2432,
+        896
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688418512,
+      "storage_ptr": 125762011136000,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.23.mlp.down_proj.weight": {
+      "global_shape": [
+        896,
+        4864
+      ],
+      "global_numel": 4358144,
+      "local_shape": [
+        448,
+        4864
+      ],
+      "local_numel": 2179072,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688418704,
+      "storage_ptr": 125762015494144,
+      "storage_bytes": 4358144
+    },
+    "base_model.model.model.layers.23.input_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688418896,
+      "storage_ptr": 67847022080,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.layers.23.post_attention_layernorm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688419088,
+      "storage_ptr": 67847023104,
+      "storage_bytes": 896
+    },
+    "base_model.model.model.norm.weight": {
+      "global_shape": [
+        896
+      ],
+      "global_numel": 896,
+      "local_shape": [
+        448
+      ],
+      "local_numel": 448,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688675568,
+      "storage_ptr": 67847024128,
+      "storage_bytes": 896
+    },
+    "base_model.model.lm_head.weight": {
+      "global_shape": [
+        151936,
+        896
+      ],
+      "global_numel": 136134656,
+      "local_shape": [
+        75968,
+        896
+      ],
+      "local_numel": 68067328,
+      "dtype": "torch.bfloat16",
+      "device": "cuda:1",
+      "placements": "(Shard(dim=0),)",
+      "parameter_id": 125764688675664,
+      "storage_ptr": 125761675591680,
+      "storage_bytes": 136134656
+    }
+  }
+}
