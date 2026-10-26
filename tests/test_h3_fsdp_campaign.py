@@ -122,3 +122,13 @@ def test_cpu_fixture_cannot_enter_scaling(evidence):
     campaign.write_json(prepared / "prepared.json", {"cpu_fixture": True})
     with pytest.raises(ValueError, match="CPU fixture"):
         campaign.summarize(root, prepared)
+
+
+def test_ranks_with_different_precision_policies_are_rejected(evidence):
+    root, prepared = evidence
+    path = root / "two/rank-1.json"
+    rank = campaign.read_json(path)
+    rank["fsdp_policy"] = {"reduce_dtype": "bf16"}
+    campaign.write_json(path, rank)
+    with pytest.raises(ValueError, match="precision policies"):
+        campaign.summarize(root, prepared)

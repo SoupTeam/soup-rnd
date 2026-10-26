@@ -33,6 +33,38 @@ def assert_shards(counts: list[int], total: int, fsdp_units: list[int]) -> None:
         raise ValueError(f"resident shard accounting disagrees: {counts}, total={total}")
 
 
+def assert_fsdp2_shards(rank_rows: list[dict], expected: dict, aliases: list[list[str]]) -> dict:
+    """Validate actual local DTensor shards per parameter, including tied aliases.
+
+    Wrapping can turn a shared embed/head into two separately sharded parameters.
+    Account for that duplication explicitly; never divide the old unique total.
+    """
+    if len(rank_rows) < 2 or not rank_rows[0]:
+        raise ValueError("missing FSDP2 rank parameter readings")
+    names = set(rank_rows[0])
+    if any(set(row) != names for row in rank_rows) or not names <= set(expected):
+        raise ValueError("rank parameter names disagree with the pre-wrap model")
+    if not aliases or any(not set(group) & names for group in aliases):
+        raise ValueError("a pre-wrap parameter disappeared")
+    if set(name for group in aliases for name in group) != set(expected):
+        raise ValueError("incomplete pre-wrap alias inventory")
+    for name in names:
+        rows = [rank[name] for rank in rank_rows]
+        if any(row["global_shape"] != expected[name] or not row["sharded"]
+               or row["local_numel"] < 0 for row in rows):
+            raise ValueError(f"not an actual shard of the expected parameter: {name}")
+        if len({row["dtype"] for row in rows}) != 1:
+            raise ValueError(f"rank dtypes differ: {name}")
+        if sum(row["local_numel"] for row in rows) != math.prod(expected[name]):
+            raise ValueError(f"local shard sizes do not reconstruct parameter: {name}")
+    before = sum(math.prod(expected[group[0]]) for group in aliases)
+    after = sum(math.prod(expected[name]) for name in names)
+    return {"prewrap_unique_parameters": before, "postwrap_registered_parameters": after,
+            "extra_alias_parameters": after - before,
+            "local_parameters_per_rank": [sum(row["local_numel"] for row in rank.values())
+                                          for rank in rank_rows]}
+
+
 def assert_data_window(rank_rows: list[list[str]], global_batch: int) -> None:
     rows = [row for rank in rank_rows for row in rank]
     if len(rows) != global_batch:

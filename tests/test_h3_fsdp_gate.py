@@ -113,3 +113,50 @@ def test_digest_handles_scalar_and_empty_rank_local_parameter_views():
 
     assert gate.tensor_digest(torch.tensor(1.0)) != gate.tensor_digest(torch.tensor([1.0]))
     assert gate.tensor_digest(torch.empty(0)) == gate.tensor_digest(torch.empty(0))
+
+
+def test_fsdp2_accounts_for_two_sharded_copies_of_a_previously_tied_weight():
+    # Hardware failure: embed/lm_head become distinct DTensors/storage after
+    # wrapping. Both shards are real; comparing their sum to pre-wrap unique
+    # numel rejects valid sharding and hides the actual duplication.
+    expected = {"embed": [10], "head": [10], "other": [6]}
+    aliases = [["embed", "head"], ["other"]]
+    rank = {name: {"global_shape": shape, "local_numel": shape[0] // 2,
+                   "sharded": True, "dtype": "bf16"} for name, shape in expected.items()}
+    with pytest.raises(ValueError, match="resident shard accounting"):
+        gate.assert_shards([13, 13], total=16, fsdp_units=[2, 2])
+    result = gate.assert_fsdp2_shards([rank, rank], expected, aliases)
+    assert result["prewrap_unique_parameters"] == 16
+    assert result["postwrap_registered_parameters"] == 26
+    assert result["local_parameters_per_rank"] == [13, 13]
+    assert result["extra_alias_parameters"] == 10
+
+
+def test_fsdp2_accepts_an_alias_that_stays_tied_and_uneven_shards():
+    expected = {"embed": [5], "head": [5]}
+    ranks = [{"embed": {"global_shape": [5], "local_numel": size,
+                        "sharded": True, "dtype": "bf16"}} for size in (3, 2)]
+    assert gate.assert_fsdp2_shards(ranks, expected, [["embed", "head"]])[
+        "extra_alias_parameters"] == 0
+
+
+@pytest.mark.parametrize("change", ["replicated", "undercounted", "missing", "shape", "dtype"])
+def test_fsdp2_refuses_false_sharding_claims(change):
+    import copy
+
+    expected = {"weight": [8], "other": [4]}
+    rank = {name: {"global_shape": shape, "local_numel": shape[0] // 2,
+                   "sharded": True, "dtype": "bf16"} for name, shape in expected.items()}
+    ranks = [rank, copy.deepcopy(rank)]
+    if change == "replicated":
+        ranks[1]["weight"].update(sharded=False, local_numel=8)
+    elif change == "undercounted":
+        ranks[1]["weight"]["local_numel"] = 1
+    elif change == "missing":
+        ranks[1].pop("other")
+    elif change == "shape":
+        ranks[1]["weight"]["global_shape"] = [7]
+    else:
+        ranks[1]["weight"]["dtype"] = "fp32"
+    with pytest.raises(ValueError):
+        gate.assert_fsdp2_shards(ranks, expected, [["weight"], ["other"]])

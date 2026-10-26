@@ -70,6 +70,8 @@ def summarize(root: Path, prepared_path: Path) -> dict:
         if (any(r["status"] != "training_passed_reload_pending" for r in ranks)
                 or reload["status"] != "passed" or checkpoint_reload["status"] != "passed"):
             raise ValueError(f"invalid arm {name}")
+        if any(r.get("fsdp_policy") != rank0.get("fsdp_policy") for r in ranks):
+            raise ValueError("ranks have different FSDP precision policies")
         environments = [read_json(arm / f"environment-rank-{rank}.json")
                         for rank in range(world)]
         if any(e["git_status"] for e in environments):
@@ -94,10 +96,14 @@ def summarize(root: Path, prepared_path: Path) -> dict:
                      "seconds_per_optimizer_step": rank0["seconds_per_optimizer_step"],
                      "data_windows": rank0["data_windows"],
                      "memory_per_rank": [r["training_memory"] for r in ranks],
-                     "fsdp_version": rank0["fsdp_version"]})
+                     "fsdp_version": rank0["fsdp_version"],
+                     "fsdp_policy": rank0.get("fsdp_policy")})
     versions = {run["fsdp_version"] for run in runs if run["world_size"] == 2}
     if len(versions) != 1:
         raise ValueError("two-GPU repeats used different FSDP implementations")
+    policies = [run["fsdp_policy"] for run in runs if run["world_size"] == 2]
+    if any(policy != policies[0] for policy in policies):
+        raise ValueError("two-GPU repeats used different FSDP precision policies")
     reference = next(run for run in runs if run["world_size"] == 1)
     comparisons = []
     for run in runs:
@@ -145,6 +151,7 @@ def main() -> None:
     parser.add_argument("--prepared", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--measured-steps", type=int, default=20)
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--campaign-seconds", type=int, default=5400)
     parser.add_argument("--summarize-only", action="store_true")
@@ -156,7 +163,7 @@ def main() -> None:
         return
     if platform.system() != "Linux":
         parser.error("measured campaign requires Linux")
-    if min(args.repeats, args.timeout_seconds, args.campaign_seconds) < 1:
+    if min(args.repeats, args.measured_steps, args.timeout_seconds, args.campaign_seconds) < 1:
         parser.error("repeats and time limits must be positive")
     if read_json(prepared / "prepared.json")["cpu_fixture"]:
         parser.error("CPU fixture is excluded from scaling")
@@ -190,7 +197,7 @@ def main() -> None:
             command += ["-m", "torch.distributed.run", "--standalone", "--nnodes=1",
                         f"--nproc-per-node={world}"]
         command += [str(script), "train", "--prepared", str(prepared),
-                    "--output", str(root / name)]
+                    "--output", str(root / name), "--measured-steps", str(args.measured_steps)]
         for suffix, cmd in [("train", command), ("reload", [sys.executable, str(script),
                 "reload", "--prepared", str(prepared), "--output", str(root / name)]),
                 ("reload-checkpoint", [sys.executable, str(script), "reload", "--prepared",

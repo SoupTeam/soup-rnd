@@ -26,6 +26,7 @@ from h3_fsdp_gate import (
     adapter_delta,
     assert_adapter_equal,
     assert_data_window,
+    assert_fsdp2_shards,
     assert_shards,
     parameter_local_numel,
     state_digest,
@@ -134,7 +135,7 @@ def run(args: argparse.Namespace) -> None:
     import torch.distributed as dist
     from fsdp_sharding_probe import module_class_histogram
     from peft import get_peft_model_state_dict
-    from torch.distributed.fsdp import FSDPModule, FullyShardedDataParallel
+    from torch.distributed.fsdp import FSDPModule, FullyShardedDataParallel, MixedPrecisionPolicy
     from transformers import TrainerCallback
 
     from soup_cli.config.schema import SoupConfig
@@ -186,6 +187,12 @@ def run(args: argparse.Namespace) -> None:
     setup_start = time.perf_counter()
     wrapper.setup({"train": []})
     trainer = wrapper.trainer
+    plugin = getattr(trainer.accelerator.state, "fsdp_plugin", None)
+    if world == 2 and getattr(plugin, "fsdp_version", None) == 2:
+        # Fixed pilot control, declared before the first distributed optimizer
+        # step: match the baseline's FP32 LoRA gradient accumulation/reduction.
+        plugin.mixed_precision_policy = MixedPrecisionPolicy(
+            param_dtype=torch.bfloat16, reduce_dtype=torch.float32, output_dtype=torch.bfloat16)
     actual_rows = [{key: row[key] for key in ("input_ids", "labels", "attention_mask")}
                    for row in trainer.train_dataset]
     actual_hash = hashlib.sha256(json.dumps(actual_rows, separators=(",", ":")).encode())
@@ -202,6 +209,12 @@ def run(args: argparse.Namespace) -> None:
     initial_adapter = {key: value.detach().cpu().clone()
                        for key, value in get_peft_model_state_dict(wrapper.model).items()}
     total = sum(p.numel() for p in wrapper.model.parameters())
+    prewrap_shapes = {}
+    prewrap_aliases = {}
+    for name, parameter in wrapper.model.named_parameters(remove_duplicate=False):
+        prewrap_shapes[name] = list(parameter.shape)
+        prewrap_aliases.setdefault(id(parameter), []).append(name)
+    alias_groups = list(prewrap_aliases.values())
     fixed_ids = torch.tensor([trainer.train_dataset[0]["input_ids"][:64]],
                              device=trainer.args.device)
     setup_seconds = time.perf_counter() - setup_start
@@ -288,6 +301,10 @@ def run(args: argparse.Namespace) -> None:
                            **kwargs: Any) -> None:
             plugin = getattr(trainer.accelerator.state, "fsdp_plugin", None)
             record["fsdp_version"] = getattr(plugin, "fsdp_version", None)
+            policy = getattr(plugin, "mixed_precision_policy", None)
+            record["fsdp_policy"] = ({name: str(getattr(policy, name, None)) for name in
+                                      ("param_dtype", "reduce_dtype", "output_dtype")}
+                                     if policy is not None else None)
             if world == 2 and record["fsdp_version"] not in (1, 2):
                 raise ValueError("unknown FSDP version; refuse to infer sharding")
             histogram = dict(module_class_histogram(trainer.model_wrapped))
@@ -296,21 +313,31 @@ def run(args: argparse.Namespace) -> None:
                      else histogram.get("FullyShardedDataParallel", 0))
             local = sum(parameter_local_numel(p) for p in trainer.model_wrapped.parameters())
             shards = gathered({"local": local, "units": units})
-            if world == 2:
-                assert_shards([r["local"] for r in shards], total,
-                              [r["units"] for r in shards])
-            elif local != total or units:
-                raise ValueError("single-GPU control must hold full parameters without FSDP")
             record["shards"] = shards
             record["logical_total_parameters"] = total
             record["wrapper_classes"] = histogram
             record["parameter_storage"] = {
-                name: {"logical_shape": list(p.shape),
+                name: {"global_shape": list(p.shape),
                        "local_numel": parameter_local_numel(p),
+                       "dtype": str(p.dtype),
+                       "sharded": any(placement.is_shard()
+                                      for placement in getattr(p, "placements", ())),
                        "placements": str(getattr(p, "placements", None)),
                        "trainable": p.requires_grad}
                 for name, p in trainer.model_wrapped.named_parameters()
             }
+            record["prewrap_tied_aliases"] = [group for group in alias_groups if len(group) > 1]
+            if world == 2 and record["fsdp_version"] == 2:
+                if not all(row["units"] for row in shards):
+                    raise ValueError("FSDP2 modules missing on a rank")
+                storage_rows = gathered(record["parameter_storage"])
+                record["sharding_accounting"] = assert_fsdp2_shards(
+                    storage_rows, prewrap_shapes, alias_groups)
+            elif world == 2:
+                assert_shards([r["local"] for r in shards], total,
+                              [r["units"] for r in shards])
+            elif local != total or units:
+                raise ValueError("single-GPU control must hold full parameters without FSDP")
             record["base_before_sha256"] = base_digest()
             assert_adapter_equal(initial_adapter, adapter_snapshot())
 
@@ -336,6 +363,8 @@ def run(args: argparse.Namespace) -> None:
                        if not p.requires_grad):
                     raise ValueError("frozen base unexpectedly has gradients")
                 grads = adapter_snapshot(gradients=True)
+                if any(value.dtype != torch.float32 for value in grads.values()):
+                    raise ValueError("pilot requires FP32 LoRA gradients in both arms")
                 if not all(torch.isfinite(v).all().item() for v in grads.values()):
                     raise ValueError("nonfinite adapter gradient")
                 if not any(torch.count_nonzero(v).item() for v in grads.values()):
