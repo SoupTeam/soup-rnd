@@ -1,0 +1,20 @@
+ram_plan n_layers              32
+ram_plan hidden                4096
+ram_plan k                     4
+ram_plan batch                 1
+ram_plan seq                   256
+ram_plan chunk_bytes           2097152
+ram_plan block_bytes           2097152
+ram_plan cache_bytes           268435456
+ram_plan need_free_for_cache   383479222.85714287
+ram_plan weights_bytes         4124704768.0
+ram_plan workspace_bytes       1000000000
+ram_plan need_total            5508183990.857142
+RUN: L2L against GA, forward and backward, mistralai/Mistral-7B-v0.1 nf4 8gb
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 9 files:  78%|███████▊  | 7/9 [00:00<00:00, 68.72it/s]Fetching 9 files:  78%|███████▊  | 7/9 [00:17<00:00, 68.72it/s]Fetching 9 files:  89%|████████▉ | 8/9 [01:54<00:19, 19.42s/it]Fetching 9 files: 100%|██████████| 9/9 [01:54<00:00, 15.70s/it]Fetching 9 files: 100%|██████████| 9/9 [01:54<00:00, 12.77s/it]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[yellow]Re-sharding layer cache:[/] cache index is missing or unreadable.
+verdict l2l_out_of_tolerance: k=2: L2L is outside the bf16 tolerance at 2 check(s); first: [{'what': 'gradient', 'step': 2, 'error': 0.03974482457166442, 'limit': 0.03473116419867697}, {'what': 'loss', 'step': 0, 'error': 0.000391334001129453, 'limit': 0.0002780439312122994}]
+wrote /root/runs/fwdbwd-8gb-seed5/report.md
+EXIT=1
