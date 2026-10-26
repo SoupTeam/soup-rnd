@@ -251,3 +251,11 @@ def test_card_label_must_fit_the_gpu(fwdbwd):
 def test_fewer_rows_than_k_is_refused(fwdbwd):
     with pytest.raises(fwdbwd.FwdBwdRefusedError, match="full window"):
         fwdbwd.check_case_shape(_rows(fwdbwd, [8, 6, 5]), 4)
+
+
+def test_data_seed_changes_the_ids_but_not_the_lengths_or_masks(fwdbwd):
+    a = fwdbwd.make_rows(7, 64, 1000, seed=5)
+    b = fwdbwd.make_rows(7, 64, 1000, seed=6)
+    assert [int(i.shape[1]) for i, _ in a] == [int(i.shape[1]) for i, _ in b]
+    assert [int((m == -100).sum()) for _, m in a] == [int((m == -100).sum()) for _, m in b]
+    assert any(not bool((x[0] == y[0]).all()) for x, y in zip(a, b) if x[0].shape == y[0].shape)

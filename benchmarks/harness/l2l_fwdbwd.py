@@ -424,8 +424,8 @@ def write_outputs(out_dir: Path, payload: Dict[str, Any], raw_logs: Dict[str, st
 # --------------------------------------------------------------------------
 # command line
 # --------------------------------------------------------------------------
-def make_rows(count: int, seq: int, vocab: int) -> List[Row]:
-    return _as_rows(stand.make_rows(count, seq, vocab))
+def make_rows(count: int, seq: int, vocab: int, seed: int = 5) -> List[Row]:
+    return _as_rows(stand.make_rows(count, seq, vocab, seed=seed))
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -439,6 +439,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--seq", type=int, default=256, help="longest row, in tokens")
     parser.add_argument("--dtype", choices=("auto", "float32"), default="auto")
     parser.add_argument("--rng-seed", type=int, default=1)
+    parser.add_argument("--data-seed", type=int, default=5,
+                        help="seed of the random token ids; lengths and masks stay the same")
     parser.add_argument("--card", required=True, choices=CARDS,
                         help="label of the card this run is signed with")
     parser.add_argument("--out", required=True)
@@ -504,7 +506,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("RUN: L2L against GA, forward and backward,", parsed.weights, parsed.quant, parsed.card)
     model, runtime, config, *_ = stream_probe.build(args, device, dtype)
     try:
-        rows = make_rows(parsed.rows, parsed.seq, int(config.vocab_size))
+        rows = make_rows(parsed.rows, parsed.seq, int(config.vocab_size), seed=parsed.data_seed)
         result = run_fwdbwd(
             model, runtime, rows, ks=ks, dtype=getattr(torch, dtype), mode=mode,
             quant=parsed.quant, device=device, seed=parsed.rng_seed, path_runtime=path_runtime,
@@ -515,6 +517,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     argv_full = [sys.executable, *sys.argv]
     payload = {
         "model": parsed.weights, "quant": parsed.quant, "card": parsed.card, "mode": mode,
+        "data_seed": parsed.data_seed, "rng_seed": parsed.rng_seed,
         "dtype": dtype, "data_kind": "synthetic",
         "command_line": " ".join(argv_full),
         "passport": l2l_measure.launch_passport(argv=argv_full),
