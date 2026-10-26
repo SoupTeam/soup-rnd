@@ -121,11 +121,11 @@ def counter_findings(facts: Dict[str, Any], *, quant: str) -> List[Dict[str, str
             "note": f"layer loads grew with k ({loads}); layer-major order should load a "
             "layer once per window",
         })
-    if quant == "nf4" and not sum(facts["restores"].values()):
+    if quant == "nf4" and not facts["restores_total"]:
         found.append({
             "kind": "restores_zero",
-            "note": "discrepancy: NF4 restores are 0 on a quantized model "
-            f"({facts['restores']}); the restore path was not exercised, this is not a success",
+            "note": "discrepancy: NF4 restores are 0 over the whole run on a quantized model; "
+            "the restore path was not exercised, this is not a success",
         })
     return found
 
@@ -297,6 +297,9 @@ def run_fwdbwd(
     loads_first: Dict[int, int] = {}
     ga_loads_first: Dict[int, int] = {}
     restores: Dict[int, int] = {}
+    # The runtime rebuilds the NF4 views once per layer wrapper (#841 caches them after), so
+    # a span after the first forward reads 0. The criterion is the total over the whole run.
+    restores_before = runtime.stats()["layer_restores"]
     for k in ks:
         check_case_shape(rows, k)
         windows = cut_windows(rows, k)
@@ -326,6 +329,7 @@ def run_fwdbwd(
         "loads_first_full_window": loads_first,
         "ga_loads_first_full_window": ga_loads_first,
         "restores": restores,
+        "restores_total": runtime.stats()["layer_restores"] - restores_before,
         "windows": {k: [len(w) for w in cut_windows(rows, k)] for k in ks},
     }
     findings = counter_findings(facts, quant=quant)
@@ -391,7 +395,9 @@ def render_report(payload: Dict[str, Any]) -> str:
     lines += [
         f"- layer loads of the first full window, L2L, by k: {facts['loads_first_full_window']}",
         f"- layer loads of the same window, GA, by k: {facts.get('ga_loads_first_full_window')}",
-        f"- NF4 restores in the L2L arm, by k: {facts['restores']}",
+        f"- NF4 restores in the L2L arm, by k (0 is expected after the first forward): "
+        f"{facts['restores']}",
+        f"- NF4 restores over the whole run: {facts.get('restores_total')}",
         "", "## Findings", "",
     ]
     if payload["findings"]:

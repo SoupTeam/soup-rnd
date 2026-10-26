@@ -79,7 +79,8 @@ def _facts(**over):
     base = {
         "gemm": {"ga1": _counts(), "ga2": _counts(), "l2l": _counts()},
         "loads_first_full_window": {1: 32, 2: 32, 4: 32},
-        "restores": {1: 5, 2: 5, 4: 5},
+        "restores": {1: 0, 2: 0, 4: 0},
+        "restores_total": 32,
     }
     base.update(over)
     return base
@@ -103,14 +104,19 @@ def test_four_times_the_loads_at_k4_is_a_finding(fwdbwd):
     assert [f["kind"] for f in found] == ["loads_scale_with_k"]
 
 
-def test_zero_restores_on_nf4_is_a_discrepancy_not_a_success(fwdbwd):
-    found = fwdbwd.counter_findings(_facts(restores={1: 0, 2: 0, 4: 0}), quant="nf4")
+def test_zero_restores_in_the_l2l_arm_alone_is_not_a_finding(fwdbwd):
+    # the runtime caches the rebuilt views, so only the first forward counts restores
+    assert fwdbwd.counter_findings(_facts(restores={1: 0, 2: 0, 4: 0}), quant="nf4") == []
+
+
+def test_zero_restores_over_the_whole_run_on_nf4_is_a_discrepancy(fwdbwd):
+    found = fwdbwd.counter_findings(_facts(restores_total=0), quant="nf4")
     assert [f["kind"] for f in found] == ["restores_zero"]
     assert "discrepancy" in found[0]["note"]
 
 
 def test_zero_restores_without_quantization_is_expected(fwdbwd):
-    assert fwdbwd.counter_findings(_facts(restores={1: 0, 2: 0, 4: 0}), quant="none") == []
+    assert fwdbwd.counter_findings(_facts(restores_total=0), quant="none") == []
 
 
 def test_missing_loads_for_a_k_is_a_finding(fwdbwd):
