@@ -6,7 +6,7 @@ rows, the last window incomplete. Every window gets one forward and backward in 
 from the same adapters, and the LoRA gradients and the summed loss are compared per window:
 
 * ``ga1`` and ``ga2``: GA twice, A against A, bitwise.
-* ``l2l``: the shipped ``L2LStep`` over the window, padded the way the trainer pads it.
+* ``l2l``: the shipped ``L2LStep`` over the window, each row at its own length.
 * ``ga_floor`` (bf16 only): GA on a second SDPA backend, the noise floor.
 
 The tolerance is the one accepted in A3-07 and is not loosened here: bf16 at most 1.5 x the
@@ -182,47 +182,28 @@ def _autocast(device: str, dtype: Any) -> Any:
 
 
 class _Stepper:
-    """L2LStep and activation store per padded shape, as the trainer keeps them."""
+    """The trainer's own window runner (``run_window``) over an ``L2LState``."""
 
     def __init__(self, model: Any, runtime: Any, dtype: Any, device: str):
-        self.model, self.runtime, self.device = model, runtime, device
-        self.dtype = dtype
-        self.steps: Dict[Tuple[int, int], Any] = {}
-        self.store: Any = None
-
-    def close(self) -> None:
-        if self.store is not None:
-            self.store.close()
-            self.store = None
-
-    def run(self, window: Sequence[Row]) -> Tuple[List[Any], Any]:
         import torch
 
-        from soup_cli.trainer.l2l_trainer import _window_tensors
-        from soup_cli.utils.l2l_activations import ActivationStore
-        from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+        from soup_cli.trainer.l2l_trainer import L2LState
+
+        self.model, self.device = model, device
+        self.state = L2LState(runtime=runtime, dtype=dtype or torch.float32)
+
+    def close(self) -> None:
+        self.state.close()
+
+    def run(self, window: Sequence[Row]) -> Tuple[List[Any], Any]:
+        from soup_cli.trainer.l2l_trainer import _window_tensors, run_window
 
         ids_list, label_list = _window_tensors(
             [{"input_ids": ids, "labels": labels} for ids, labels in window], self.device
         )
-        shape = tuple(int(dim) for dim in ids_list[0].shape)
-        step = self.steps.get(shape)
-        if step is None:
-            step = L2LStep(self.model, self.runtime, capture_layer_call(self.model, ids_list[0]))
-            self.steps[shape] = step
-        hidden = int(step.causal.config.hidden_size)
-        k = len(window)
-        if self.store is None or self.store.shape[:2] != shape or self.store.k < k:
-            self.close()
-            self.store = ActivationStore(
-                n_layers=len(step.layers), k=k, chunk_shape=(shape[0], shape[1], hidden),
-                dtype=self.dtype or torch.float32, device=self.device,
-                pin=str(self.device).startswith("cuda"),
-            )
-        losses = step.run(
-            ids_list, self.store, n_items=n_items(window), labels=label_list
+        return run_window(
+            self.state, self.model, ids_list, label_list, n_items(window), self.device
         )
-        return losses, step.counters
 
 
 def run_arm(
@@ -232,7 +213,7 @@ def run_arm(
     """Every window once, forward and backward, from the current adapters.
 
     ``kind`` is ``ga`` (each row at its own length, loss over the window's label count) or
-    ``l2l`` (the window padded to one shape). Gradients are read and cleared per window.
+    ``l2l`` (each row at its own length). Gradients are read and cleared per window.
     """
     import l2l_schedule
 

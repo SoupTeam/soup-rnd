@@ -27,7 +27,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 SECTOR_BYTES = 4096
 DEFAULT_RING = 8
@@ -276,6 +276,7 @@ class ActivationStore:
         dtype: Any,
         device: Any,
         pin: bool,
+        mb_shapes: Optional[Sequence[Tuple[int, ...]]] = None,
         spill_layers: int = 0,
         spill_factory: Optional[Callable[[int], SpillBackend]] = None,
         ring: int = DEFAULT_RING,
@@ -291,6 +292,19 @@ class ActivationStore:
         self.n_layers = int(n_layers)
         self.k = int(k)
         self.shape = tuple(int(dim) for dim in chunk_shape)
+        #: Resident capacity of each micro-batch's chunks. Without ``mb_shapes`` every
+        #: micro-batch gets ``chunk_shape``; with it, each gets its own (rows of different
+        #: lengths), and ``chunk_shape`` must hold the largest (it sizes the spill chunk).
+        self.mb_shapes = (
+            [self.shape] * self.k
+            if mb_shapes is None
+            else [tuple(int(dim) for dim in shape) for shape in mb_shapes]
+        )
+        if len(self.mb_shapes) != self.k:
+            raise ValueError(f"{len(self.mb_shapes)} mb_shapes for k={self.k}")
+        if any(math.prod(shape) > math.prod(self.shape) for shape in self.mb_shapes):
+            raise ValueError(f"an mb_shape is larger than chunk_shape {self.shape}")
+        self._shapes: Dict[int, Tuple[int, ...]] = {}
         self.dtype = dtype
         self.device = torch.device(device)
         self.is_cuda = self.device.type == "cuda"
@@ -301,7 +315,9 @@ class ActivationStore:
         self._resident: Dict[Key, Any] = {}
         for layer in range(self.spill_layers, self.n_layers):
             for mb in range(self.k):
-                self._resident[(layer, mb)] = torch.empty(self.shape, dtype=dtype, pin_memory=pin)
+                self._resident[(layer, mb)] = torch.empty(
+                    math.prod(self.mb_shapes[mb]), dtype=dtype, pin_memory=pin
+                )
         self.stats = StoreStats(
             chunk_bytes=self.chunk_bytes,
             resident_chunks=len(self._resident),
@@ -341,6 +357,13 @@ class ActivationStore:
     def _typed(self, buf: Any) -> Any:
         return buf.view(self.dtype).view(self.shape)
 
+    def _shaped(self, buf: Any, shape: Tuple[int, ...]) -> Any:
+        return self._typed(buf).reshape(-1)[: math.prod(shape)].view(shape)
+
+    def _shape_of(self, mb: int) -> Tuple[int, ...]:
+        # the shape put() stored; chunk_shape for a store that was only read
+        return self._shapes.get(mb, self.mb_shapes[mb])
+
     def _record(self) -> Any:
         if not self.is_cuda:
             return None
@@ -368,8 +391,14 @@ class ActivationStore:
     def put(self, layer: int, mb: int, tensor: Any) -> None:
         self._raise_if_failed()
         key = (layer, mb)
+        shape = tuple(int(dim) for dim in tensor.shape)
+        if math.prod(shape) > math.prod(self.mb_shapes[mb]):
+            raise ValueError(
+                f"micro-batch {mb} has shape {shape}, but its chunk holds {self.mb_shapes[mb]}"
+            )
+        self._shapes[mb] = shape
         if not self.is_spilled(layer):
-            self._resident[key].copy_(tensor, non_blocking=True)
+            self._resident[key][: math.prod(shape)].view(shape).copy_(tensor, non_blocking=True)
             return
         started = time.perf_counter()
         buf = self._write_ring.acquire(lambda: self._error is not None or self._closing)
@@ -377,7 +406,7 @@ class ActivationStore:
         self._raise_if_failed()
         if buf is None:
             raise RuntimeError("the activation store was closed during a put")
-        self._typed(buf).copy_(tensor, non_blocking=True)
+        self._shaped(buf, shape).copy_(tensor, non_blocking=True)
         event = self._record()
         with self._cond:
             self._written.discard(key)
@@ -442,7 +471,9 @@ class ActivationStore:
         self._raise_if_failed()
         key = (layer, mb)
         if not self.is_spilled(layer):
-            return self._resident[key].to(self.device, non_blocking=True, copy=True)
+            shape = self._shape_of(mb)
+            flat = self._resident[key][: math.prod(shape)]
+            return flat.view(shape).to(self.device, non_blocking=True, copy=True)
         self._request(key)
         started = time.perf_counter()
         with self._cond:
@@ -454,7 +485,7 @@ class ActivationStore:
             self._requested.discard(key)
         self.stats.get_wait_s += time.perf_counter() - started
         self._raise_if_failed()
-        out = self._typed(buf).to(self.device, non_blocking=True, copy=True)
+        out = self._shaped(buf, self._shape_of(mb)).to(self.device, non_blocking=True, copy=True)
         self._read_ring.release(buf, self._record())
         return out
 

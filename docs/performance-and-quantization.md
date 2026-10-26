@@ -846,11 +846,11 @@ Refused at launch:
 - More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
 - `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
 - Rows with padding before real tokens. L2L needs right-padded rows.
-- `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
-- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the replayed draws would differ from accumulation. Use rows of one length or set the dropout to 0.
+- `neftune_alpha` with a window whose micro-batches differ in shape. L2L runs each micro-batch at its own length, but NEFTune noise (it scales with `1 / sqrt(seq * hidden)`) has not been checked against gradient accumulation for rows of different lengths, so the combination stays refused. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Rows of different lengths draw different masks, and the replay builds the generator states from one draw plan shared by all micro-batches. Use rows of one length or set the dropout to 0.
 - `neftune_alpha` together with `lora.dropout` or `attention_dropout` above 0.
 - `attention_dropout` above 0 with the `sdpa` attention implementation.
-- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM, each micro-batch at its own size (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
 
 **Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
 attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch
@@ -875,11 +875,14 @@ Refused because the stream cannot be replayed: `attention_dropout` above 0 with 
 attention implementation (its mask is drawn inside a fused kernel; load the model with
 `attn_implementation='eager'`), `neftune_alpha` together with dropout (accumulation draws the
 NEFTune noise from the same stream between the layers), and a window of rows with different
-lengths together with dropout (padding changes the shapes of the draws).
+lengths together with dropout (rows of different lengths draw different masks).
 
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
-different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
-each new shape costs one extra forward pass. Speed and memory were not measured, and the check
+different lengths are not padded. Each micro-batch runs at its own length, as in gradient
+accumulation, and the first micro-batch of each new shape costs one extra forward pass to
+capture the layer arguments. The activation store sizes the chunks of micro-batch `i` to the
+largest micro-batch that has been in position `i`, so a short row does not pay for the longest
+row of its window; the RAM check sums those sizes. Speed and memory were not measured, and the check
 used random tokens, not real text. MoE and multi-GPU are out of scope.
 
 **Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the

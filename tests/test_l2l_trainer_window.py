@@ -167,16 +167,15 @@ def test_a_short_window_before_a_full_one_replaces_the_store(streamed, tmp_path,
     model, runtime = streamed
     state = L2LState(runtime=runtime, dtype=torch.float32)
     ids = torch.zeros((1, SEQ), dtype=torch.long)
-    shape = (1, SEQ)
-    stepper = _l2l_step_for(state, model, shape, ids)
+    stepper, _ = _l2l_step_for(state, model, [ids])
 
-    small = _store_for(state, stepper, shape, 1, "cpu")
+    small = _store_for(state, stepper, [ids], "cpu")
     closed = []
     monkeypatch.setattr(small, "close", lambda *a, **kw: closed.append(small))
-    full = _store_for(state, stepper, shape, 3, "cpu")
+    full = _store_for(state, stepper, [ids] * 3, "cpu")
     assert full is not small and full.k == 3
     assert closed == [small]  # the short-window store is released, not leaked
-    assert _store_for(state, stepper, shape, 1, "cpu") is full  # a later short window reuses it
+    assert _store_for(state, stepper, [ids], "cpu") is full  # a later short window reuses it
     state.close()
 
 
@@ -220,3 +219,27 @@ def test_resume_does_not_shift_the_windows(streamed, tmp_path, monkeypatch):  # 
         assert [row["learning_rate"] for row in resumed.logs[-left:]] == [
             row["learning_rate"] for row in full.logs[-left:]
         ]
+
+
+@pytest.mark.parametrize("k,windows", [(1, 7), (2, 4), (4, 2)])
+def test_rows_of_different_lengths_match_accumulation_bit_for_bit(  # noqa: F811
+    streamed, tmp_path, k, windows
+):
+    from transformers import Trainer
+
+    harness = _load("l2l_schedule")
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    start = harness.snapshot_adapters(model)
+    # 7 rows, so the last window is incomplete for k=2 and k=4
+    lengths = [5, 8, 3, 6, 4, 7, 2]
+    data = _MaskedRows(lengths, [[(0, i % 3)] if i % 3 else [] for i in range(7)])
+    ga = _train(Trainer, model, runtime, tmp_path, data, l2l=False, k=k)
+    harness.restore_adapters(model, start)
+    l2l = _train(Trainer, model, runtime, tmp_path, data, l2l=True, k=k)
+    _assert_same_run(ga, l2l, windows)
+    # one captured call per distinct shape, and the store holds each row at its own size
+    assert len(l2l.state.calls_by_shape) == len({n for n in lengths})
+    store = l2l.state.store
+    if k > 1:
+        assert len({chunk.numel() for chunk in store._resident.values()}) > 1

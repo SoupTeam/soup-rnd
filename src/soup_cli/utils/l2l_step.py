@@ -167,14 +167,14 @@ class L2LStep:
         #: Loads and restores of the last ``run``; ``None`` before the first.
         self.counters: Optional[LoadCounters] = None
 
-    def _layer(self, module: Any, hidden: Any, state: Any) -> Any:
+    def _layer(self, module: Any, hidden: Any, state: Any, call: LayerCall) -> Any:
         # ``state`` is where accumulation's stream stands before this (micro-batch, layer)
         # pair, so the forward and the recompute in the backward draw the same mask in any
         # visiting order. ``None`` without dropout.
         from soup_cli.utils import l2l_rng
 
         with l2l_rng.state_at(state) if state is not None else nullcontext():
-            out = module(hidden, *self.call.args, **self.call.kwargs)
+            out = module(hidden, *call.args, **call.kwargs)
         return out[0] if isinstance(out, tuple) else out
 
     def run(
@@ -184,10 +184,16 @@ class L2LStep:
         *,
         n_items: Optional[int] = None,
         labels: Optional[Sequence[Any]] = None,
+        calls: Optional[Sequence[LayerCall]] = None,
     ) -> List[Any]:
-        """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``."""
+        """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
+
+        ``calls`` is one ``LayerCall`` per micro-batch, captured at that micro-batch's own
+        shape; micro-batches of different lengths run unpadded. Without it every
+        micro-batch uses the call the step was built with.
+        """
         with count_loads(self.runtime) as counters:
-            losses = self._run(micro_batches, store, n_items, labels)
+            losses = self._run(micro_batches, store, n_items, labels, calls)
         self.counters = counters
         return losses
 
@@ -197,6 +203,7 @@ class L2LStep:
         store: Any,
         n_items: Optional[int],
         labels: Optional[Sequence[Any]],
+        calls: Optional[Sequence[LayerCall]],
     ) -> List[Any]:
         import torch
 
@@ -211,6 +218,10 @@ class L2LStep:
             labels = micro_batches
         elif len(labels) != k:
             raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
+        if calls is None:
+            calls = [self.call] * k
+        elif len(calls) != k:
+            raise ValueError(f"{len(calls)} layer calls for {k} micro-batches")
         total = label_tokens(micro_batches) if n_items is None else int(n_items)
         vocab = int(self.causal.config.vocab_size)
 
@@ -226,7 +237,7 @@ class L2LStep:
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
                     hidden[mb] = self._layer(
-                        layer, hidden[mb], states[mb][idx] if states else None
+                        layer, hidden[mb], states[mb][idx] if states else None, calls[mb]
                     )
 
         losses: List[Any] = []
@@ -254,7 +265,7 @@ class L2LStep:
                     inputs = store.get(idx, mb).requires_grad_(True)
                     with torch.enable_grad():
                         out = self._layer(
-                            layer, inputs, states[mb][idx] if states else None
+                            layer, inputs, states[mb][idx] if states else None, calls[mb]
                         )
                     torch.autograd.backward(out, grad_tensors=grads[mb])
                     grads[mb] = inputs.grad
