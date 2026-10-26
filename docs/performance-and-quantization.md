@@ -1144,6 +1144,12 @@ fixture; distributed CUDA results remain **unmeasured**. The harness records the
 actual FSDP plugin version: older preset option names do not establish which
 implementation a particular Transformers/Accelerate environment selected.
 
+For transformers SFT with FSDP2, frozen tied input embeddings and the output head
+are placed jointly in one sharding group before the rest of the model is wrapped.
+This prevents Torch 2.13's first-forward rejection when Accelerate 1.14 places
+the two uses of a shared parameter in separate groups. Untied embeddings,
+trainable embedding/head modules and FSDP1 are left to their existing paths.
+
 Train on multiple GPUs with DeepSpeed or PyTorch FSDP2:
 
 ```bash

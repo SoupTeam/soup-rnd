@@ -16,6 +16,7 @@ Requires: torch >= 2.2.0, accelerate >= 0.27.0
 from __future__ import annotations
 
 import copy
+from typing import Any
 
 # FSDP2 Full Shard: shards params + gradients + optimizer states (like ZeRO-3)
 FSDP_FULL_SHARD = {
@@ -58,6 +59,45 @@ FSDP_CONFIGS = {
     "shard_grad": FSDP_SHARD_GRAD_OP,
     "full_offload": FSDP_FULL_SHARD_OFFLOAD,
 }
+
+
+def prepare_fsdp2_tied_embeddings(trainer: Any) -> bool:
+    """Keep frozen tied input/output weights in the same public FSDP2 group.
+
+    Accelerate 1.14 can carve the embedding into a tail group while the tied
+    head remains in the root. Torch 2.13 rejects that at its first forward.
+    Joint placement before Accelerate prepares the rest of the model preserves
+    the shared parameter and avoids separate groups claiming it.
+    """
+    accelerator = getattr(trainer, "accelerator", None)
+    plugin = getattr(getattr(accelerator, "state", None), "fsdp_plugin", None)
+    if getattr(plugin, "fsdp_version", None) != 2:
+        return False
+    model = trainer.model
+    embed = getattr(model, "get_input_embeddings", lambda: None)()
+    head = getattr(model, "get_output_embeddings", lambda: None)()
+    weight = getattr(embed, "weight", None)
+    if weight is None or weight is not getattr(head, "weight", None):
+        return False
+    if any(parameter.requires_grad for module in (embed, head)
+           for parameter in module.parameters()):
+        return False
+
+    from torch.distributed.fsdp import FSDPModule, MixedPrecisionPolicy, fully_shard
+
+    if isinstance(embed, FSDPModule) or isinstance(head, FSDPModule):
+        return False
+    mesh = getattr(accelerator, "torch_device_mesh", None)
+    if mesh is not None:
+        mesh = mesh[tuple(accelerator.parallelism_config.fsdp_dim_names)]
+    fully_shard(
+        [embed, head],
+        mesh=mesh,
+        mp_policy=getattr(plugin, "mixed_precision_policy", None) or MixedPrecisionPolicy(),
+        offload_policy=getattr(plugin, "cpu_offload", None),
+        reshard_after_forward=False,
+    )
+    return True
 
 
 def get_fsdp_config(preset: str) -> dict:
