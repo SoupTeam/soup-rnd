@@ -55,7 +55,7 @@ The first attempt on instance 57707996 stopped under section 8. Both `F_A_off` a
 
 The `adapters/` folder (12 files) is not in the repo. `SHA256SUMS` lists those files, and the archive is kept outside the repo.
 
-**Adapter archive:** TODO `<URL>`, revision `<hash>`; 12/12 hashes verified on `<date>`. The owner uploads the folder and fills this line.
+**Adapter archive:** https://huggingface.co/RedBullet12/e4-part2-calibration-adapters-b (gated, manual approval), revision `7cd1cf2be5e8491c9e6842879ce493f605fcfa82`; 12/12 hashes verified against `SHA256SUMS` from a fresh download on 2026-10-25.
 
 ## Not in this folder
 
