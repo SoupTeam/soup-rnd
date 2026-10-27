@@ -566,6 +566,8 @@ def reload_adapter(args: argparse.Namespace) -> None:
     prepared = read_json(Path(args.prepared) / "prepared.json")
     cpu = args.device == "cpu"
     precision = read_json(root / "rank-0.json").get("precision", "fp32" if cpu else "bf16")
+    if precision == "fp32":
+        torch.set_float32_matmul_precision("highest")
     reference = torch.load(root / "reload-reference.pt", map_location="cpu", weights_only=True)
     adapter_dir = root
     if args.checkpoint:
