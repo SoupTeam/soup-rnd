@@ -108,15 +108,11 @@ class DtypeLog:
 
 
 def tensor_sha(tensor: Any) -> str:
-    # Bytes, not values: numpy has no bf16, and equal bytes is the test that matters here.
-    raw = tensor.detach().cpu().contiguous().view(-1).view(torch_uint8()).numpy()
-    return hashlib.sha256(raw.tobytes()).hexdigest()
-
-
-def torch_uint8() -> Any:
     import torch
 
-    return torch.uint8
+    # Bytes, not values: numpy has no bf16, and equal bytes is the test that matters here.
+    raw = tensor.detach().cpu().contiguous().view(-1).view(torch.uint8).numpy()
+    return hashlib.sha256(raw.tobytes()).hexdigest()
 
 
 # ==========================================================================

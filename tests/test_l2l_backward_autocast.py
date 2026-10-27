@@ -13,7 +13,13 @@ from __future__ import annotations
 
 import pytest
 
-from tests.test_l2l_probe_harness import SEQ, _cpu_store, _load, _micro_batches, streamed  # noqa: F401
+from tests.test_l2l_probe_harness import (  # noqa: F401
+    SEQ,
+    _cpu_store,
+    _load,
+    _micro_batches,
+    streamed,
+)
 
 
 @pytest.fixture()

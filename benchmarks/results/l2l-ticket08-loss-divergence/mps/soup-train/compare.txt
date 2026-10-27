@@ -1,0 +1,29 @@
+# GA vs L2L before the fix (soup train on MPS, tiny Llama, bf16, k=4, 16 steps)
+ "store_dtype": "torch.bfloat16",
+ "hidden_dtypes_into_store": [
+ "store_rounds_hidden": false
+step  0: grad equal=False maxdiff=3.203e-04 (max|g|=2.120e-01) worst=base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight
+step  1: grad equal=False maxdiff=6.415e-04 (max|g|=2.138e-01) worst=base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight
+step  2: grad equal=False maxdiff=4.007e-04 (max|g|=1.332e-01) worst=base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight
+step  3: grad equal=False maxdiff=3.662e-04 (max|g|=1.484e-01) worst=base_model.model.model.layers.2.self_attn.o_proj.lora_B.default.weight
+step  0: param after step maxdiff=0.000e+00
+step  1: param after step maxdiff=1.385e-03
+step  2: param after step maxdiff=5.811e-03
+step  3: param after step maxdiff=5.916e-03
+gradient bytes equal per step: [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+loss relative error per step: 0.00e+00 0.00e+00 5.28e-05 3.70e-05 9.02e-05 3.60e-06 2.67e-05 8.05e-06 4.96e-06 2.80e-05 1.62e-04 4.91e-07 2.61e-04 3.50e-05 1.56e-05 1.65e-05
+
+# GA vs L2L after the fix
+ "store_dtype": "torch.bfloat16",
+ "hidden_dtypes_into_store": [
+ "store_rounds_hidden": false
+step  0: grad equal=True maxdiff=0.000e+00 (max|g|=2.120e-01) worst=None
+step  1: grad equal=True maxdiff=0.000e+00 (max|g|=2.138e-01) worst=None
+step  2: grad equal=True maxdiff=0.000e+00 (max|g|=1.332e-01) worst=None
+step  3: grad equal=True maxdiff=0.000e+00 (max|g|=1.484e-01) worst=None
+step  0: param after step maxdiff=0.000e+00
+step  1: param after step maxdiff=0.000e+00
+step  2: param after step maxdiff=0.000e+00
+step  3: param after step maxdiff=0.000e+00
+gradient bytes equal per step: [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]
+loss relative error per step: 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00
