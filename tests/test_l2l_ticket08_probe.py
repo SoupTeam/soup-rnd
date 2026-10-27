@@ -61,3 +61,13 @@ def test_dtype_summary_flags_a_store_that_rounds_the_residual_stream(probe):
     ok.note_store(torch.bfloat16)
     ok.note_hidden(torch.bfloat16)
     assert ok.summary()["store_rounds_hidden"] is False
+
+
+def test_gradient_hash_accepts_bf16_and_tells_values_apart(probe):
+    import torch
+
+    left = torch.tensor([1.0, 2.0], dtype=torch.bfloat16)
+    same = torch.tensor([1.0, 2.0], dtype=torch.bfloat16)
+    other = torch.tensor([1.0, 2.015625], dtype=torch.bfloat16)
+    assert probe.tensor_sha(left) == probe.tensor_sha(same)
+    assert probe.tensor_sha(left) != probe.tensor_sha(other)
