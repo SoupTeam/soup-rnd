@@ -112,6 +112,8 @@ def summarize(root: Path, prepared_path: Path) -> dict:
                     "steps": rank0["steps"], "warmup_steps": rank0["warmup_steps"],
                     "correctness_steps": rank0["correctness_steps"],
                     "measured_steps": rank0["measured_steps"]}
+        identity["precision"] = rank0.get("precision", "bf16")
+        identity["float32_matmul_precision"] = rank0.get("float32_matmul_precision")
         runs.append({"status": "passed", "identity": identity, "world_size": world,
                      "tokens_per_second": rank0["tokens_per_second"], "arm": name,
                      "seconds_per_optimizer_step": rank0["seconds_per_optimizer_step"],
@@ -156,6 +158,7 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--measured-steps", type=int, default=20)
+    parser.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--campaign-seconds", type=int, default=5400)
     parser.add_argument("--summarize-only", action="store_true")
@@ -201,7 +204,8 @@ def main() -> None:
             command += ["-m", "torch.distributed.run", "--standalone", "--nnodes=1",
                         f"--nproc-per-node={world}"]
         command += [str(script), "train", "--prepared", str(prepared),
-                    "--output", str(root / name), "--measured-steps", str(args.measured_steps)]
+                    "--output", str(root / name), "--measured-steps", str(args.measured_steps),
+                    "--precision", args.precision]
         for suffix, cmd in [("train", command), ("reload", [sys.executable, str(script),
                 "reload", "--prepared", str(prepared), "--output", str(root / name)]),
                 ("reload-checkpoint", [sys.executable, str(script), "reload", "--prepared",

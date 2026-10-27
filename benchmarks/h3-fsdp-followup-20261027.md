@@ -78,4 +78,29 @@ establish the same autocast/eval contexts. This run is excluded from scaling.
 The correction above implements the declared common autocast control; numeric
 tolerances and matching/repeat rules remain unchanged.
 
-Hardware outcome of the corrected protocol: pending.
+At `c6bd159e`, explicit autocast fixed the reload mismatch: both root and
+checkpoint reloads passed on both worlds. The original per-element first-step
+gate still failed. These BF16 arms remain excluded from accepted scaling.
+
+## Predeclared FP32 control
+
+To distinguish BF16 numerical sensitivity from distributed update semantics,
+the next primary comparison uses **full FP32 in both worlds**, before collecting
+any new timing. The strict first-step threshold remains `atol=1e-5, rtol=0.02`;
+the old BF16 failures are not relabelled. All other model/data/seed/LoRA/global
+batch, schedule and two-pair controls above stay fixed.
+
+The benchmark uses the SFT wrapper's existing load-dtype/mixed-precision
+resolution seams to load the same pinned pretrained values as FP32 and disable
+AMP, without changing production defaults. All parameters must read FP32,
+all observed trainable forwards must have autocast disabled, and matmul precision
+must be `highest` (IEEE, no TF32). FSDP preserves original FP32 dtypes and reduces
+in FP32. Reload uses the same FP32 base and `atol=rtol=1e-5`, declared before
+execution. The first-step and reload tolerances are not relaxed.
+
+Append `--precision fp32` to the campaign command above. The runner records this
+benchmark control separately from SoupConfig, actual dtypes and AMP state; the
+summary refuses pooling different precision modes. Real trainer setup/training,
+optimizer, FSDP placement, final and periodic adapter saves remain in use.
+
+Hardware outcome of this FP32 control: pending.

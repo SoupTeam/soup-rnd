@@ -147,9 +147,9 @@ def configure_fsdp2_pilot_precision(trainer: Any) -> None:
             param_dtype=None, reduce_dtype=torch.float32, output_dtype=None)
 
 
-def pilot_autocast(device: str) -> Any:
+def pilot_autocast(device: str, precision: str = "bf16") -> Any:
     """FSDP2 preparation bypasses Accelerate's ordinary forward AMP wrapper."""
-    if device == "cpu":
+    if device == "cpu" or precision == "fp32":
         return contextlib.nullcontext()
     import torch
 
@@ -174,6 +174,7 @@ def run(args: argparse.Namespace) -> None:
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise ValueError(f"base snapshot changed: {name}")
     cpu = args.device == "cpu"
+    precision = "fp32" if cpu else args.precision
     world = int(os.environ.get("WORLD_SIZE", "1"))
     rank = int(os.environ.get("RANK", "0"))
     if cpu and (not prepared["cpu_fixture"] or world != 1):
@@ -182,7 +183,7 @@ def run(args: argparse.Namespace) -> None:
         if platform.system() != "Linux" or not torch.cuda.is_available():
             raise ValueError("the measured pilot requires Linux + CUDA")
         torch.cuda.set_device(int(os.environ.get("LOCAL_RANK", "0")))
-        if not torch.cuda.is_bf16_supported():
+        if precision == "bf16" and not torch.cuda.is_bf16_supported():
             raise ValueError("BF16 is required; do not silently change precision")
     if world not in (1, 2):
         raise ValueError("this pilot only covers one or two GPUs")
@@ -209,7 +210,20 @@ def run(args: argparse.Namespace) -> None:
                               "target_modules": ["q_proj", "v_proj"]}},
     })
     fsdp = get_fsdp_training_args("full_shard") if world == 2 else None
-    wrapper = SFTTrainerWrapper(config, device=args.device, fsdp_config=fsdp)
+    wrapper_class = SFTTrainerWrapper
+    if precision == "fp32":
+        class FP32PilotWrapper(SFTTrainerWrapper):
+            # Benchmark-only use of the existing dtype-resolution seams. Keep
+            # production defaults and the real setup/train/save path intact.
+            def _resolve_load_dtype(self, tcfg: Any) -> Any:
+                return torch.float32
+
+            def _resolve_mixed_precision(self, tcfg: Any, base_model: str) -> tuple[bool, bool]:
+                return False, False
+
+        wrapper_class = FP32PilotWrapper
+        torch.set_float32_matmul_precision("highest")
+    wrapper = wrapper_class(config, device=args.device, fsdp_config=fsdp)
     setup_start = time.perf_counter()
     wrapper.setup({"train": []})
     trainer = wrapper.trainer
@@ -219,7 +233,8 @@ def run(args: argparse.Namespace) -> None:
     actual_hash = hashlib.sha256(json.dumps(actual_rows, separators=(",", ":")).encode())
     if actual_hash.hexdigest() != prepared["data_sha256"]:
         raise ValueError("actual Trainer data differs from the prepared token/label dataset")
-    if bool(trainer.args.bf16) != (not cpu) or trainer.args.fp16 or trainer.args.torch_compile:
+    if (bool(trainer.args.bf16) != (precision == "bf16")
+            or trainer.args.fp16 or trainer.args.torch_compile):
         raise ValueError("actual precision/compile differs from pilot specification")
     trainer.args.max_steps = steps
     trainer.args.disable_tqdm = True
@@ -282,7 +297,9 @@ def run(args: argparse.Namespace) -> None:
                              if not p.requires_grad})
 
     record: dict[str, Any] = {"status": "incomplete", "world_size": world, "rank": rank,
-                              "cpu_fixture": cpu, "setup_seconds": setup_seconds,
+                              "cpu_fixture": cpu, "precision": precision,
+                              "float32_matmul_precision": torch.get_float32_matmul_precision(),
+                              "setup_seconds": setup_seconds,
                               "gradient_accumulation_steps": accum,
                               "micro_batch": args.micro_batch, "global_batch": args.global_batch,
                               "steps": steps, "correctness_steps": args.correctness_steps,
@@ -301,7 +318,7 @@ def run(args: argparse.Namespace) -> None:
     def controlled_loss(*loss_args: Any, **loss_kwargs: Any) -> Any:
         # Enter the same forward/loss autocast for both worlds; leave backward
         # and optimizer outside it, as with Accelerate's ordinary AMP wrapper.
-        with pilot_autocast(args.device):
+        with pilot_autocast(args.device, precision):
             return original_loss(*loss_args, **loss_kwargs)
 
     trainer.compute_loss = controlled_loss
@@ -357,6 +374,10 @@ def run(args: argparse.Namespace) -> None:
                        "trainable": p.requires_grad}
                 for name, p in trainer.model_wrapped.named_parameters()
             }
+            if precision == "fp32" and (
+                    any(p.dtype != torch.float32 for p in trainer.model_wrapped.parameters())
+                    or torch.get_float32_matmul_precision() != "highest"):
+                raise ValueError("FP32 control requires all-FP32 parameters and IEEE matmul")
             record["prewrap_tied_aliases"] = [group for group in alias_groups if len(group) > 1]
             if world == 2 and record["fsdp_version"] == 2:
                 if not all(row["units"] for row in shards):
@@ -441,7 +462,7 @@ def run(args: argparse.Namespace) -> None:
                     handle.remove()
                 assert_forward_precision(record.get("forward_trainable_dtypes", {}),
                                          record.get("forward_autocast_enabled", {}),
-                                         len(initial_adapter), not cpu)
+                                         len(initial_adapter), precision == "bf16")
             if completed < args.correctness_steps:
                 rows = gathered(windows[completed])
                 assert_data_window(rows, args.global_batch)
@@ -474,7 +495,7 @@ def run(args: argparse.Namespace) -> None:
             adapted = adapter_snapshot()
             record["final_update"] = adapter_delta(initial_adapter, adapted)
             trainer.model_wrapped.eval()
-            with torch.no_grad(), pilot_autocast(args.device):
+            with torch.no_grad(), pilot_autocast(args.device, precision):
                 logits = trainer.model_wrapped(input_ids=fixed_ids,
                                                attention_mask=torch.ones_like(fixed_ids)).logits
             if not torch.isfinite(logits).all().item():
@@ -544,23 +565,24 @@ def reload_adapter(args: argparse.Namespace) -> None:
     root = Path(args.output)
     prepared = read_json(Path(args.prepared) / "prepared.json")
     cpu = args.device == "cpu"
+    precision = read_json(root / "rank-0.json").get("precision", "fp32" if cpu else "bf16")
     reference = torch.load(root / "reload-reference.pt", map_location="cpu", weights_only=True)
     adapter_dir = root
     if args.checkpoint:
         adapter_dir = root / f"checkpoint-{read_json(root / 'rank-0.json')['steps']}"
     saved = load_file(str(adapter_dir / "adapter_model.safetensors"))
     assert_adapter_equal(reference["adapter"], saved)
-    dtype = torch.float32 if cpu else torch.bfloat16
+    dtype = torch.float32 if precision == "fp32" else torch.bfloat16
     base = AutoModelForCausalLM.from_pretrained(prepared["base"], torch_dtype=dtype,
                                               local_files_only=True).to(args.device)
     model = PeftModel.from_pretrained(base, adapter_dir, is_trainable=False).eval()
     assert_adapter_equal(saved, get_peft_model_state_dict(model))
     ids = reference["input_ids"].to(args.device)
-    with torch.no_grad(), pilot_autocast(args.device):
+    with torch.no_grad(), pilot_autocast(args.device, precision):
         actual = model(input_ids=ids, attention_mask=torch.ones_like(ids)).logits.cpu()
     # BF16: one relative ULP plus two absolute ULPs near one. Same dtype,
     # backend and input; exact adapter key/value equality is checked separately.
-    atol, rtol = (1e-5, 1e-5) if cpu else (1 / 64, 1 / 128)
+    atol, rtol = (1e-5, 1e-5) if precision == "fp32" else (1 / 64, 1 / 128)
     torch.testing.assert_close(actual.float(), reference["logits"].float(), atol=atol, rtol=rtol)
     error = float((actual.float() - reference["logits"].float()).abs().max())
     target = "reload-checkpoint.json" if args.checkpoint else "reload.json"
@@ -569,6 +591,7 @@ def reload_adapter(args: argparse.Namespace) -> None:
                                       "atol": atol, "rtol": rtol,
                                       "max_abs_logit_error": error,
                                       "adapter_tensors": len(saved),
+                                        "precision": precision,
                                       "resume": "unmeasured"})
     console.print(f"Adapter reload passed: {root}")
 
@@ -589,6 +612,7 @@ def main() -> None:
         sub.add_argument("--output", required=True)
         sub.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
         if command == "train":
+            sub.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
             sub.add_argument("--global-batch", type=int, default=8)
             sub.add_argument("--micro-batch", type=int, default=1)
             sub.add_argument("--correctness-steps", type=int, default=2)

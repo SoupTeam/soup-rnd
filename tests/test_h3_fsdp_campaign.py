@@ -140,6 +140,16 @@ def test_cpu_fixture_cannot_enter_scaling(evidence):
         campaign.summarize(root, prepared)
 
 
+def test_cross_precision_arms_cannot_be_pooled(evidence):
+    root, prepared = evidence
+    path = root / "two/rank-0.json"
+    value = campaign.read_json(path)
+    value["precision"] = "fp32"
+    campaign.write_json(path, value)
+    with pytest.raises(ValueError, match="identities differ"):
+        campaign.summarize(root, prepared)
+
+
 def test_ranks_with_different_precision_policies_are_rejected(evidence):
     root, prepared = evidence
     path = root / "two/rank-1.json"
