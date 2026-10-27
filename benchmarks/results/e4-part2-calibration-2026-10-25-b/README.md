@@ -22,12 +22,14 @@ Calibration under `e4-part2-calibration-rule.md`, on one vast.ai A100 PCIe 40 GB
 
 | Run | Attempt | Start to end (UTC) | Outcome | Cause | Commit |
 |---|---|---|---|---|---|
+| F_A_off | `75034fef` | 2026-10-25 21:02:39 to 21:02:39 | void | `inputs: verified.json is missing; the instance was not verified by the transfer pull` (setup, attempt 1) | 5d3d61db |
+| F_A_off | `cf497e3a` | 2026-10-25 21:02:46 to 21:02:47 | void | same as above (setup, attempt 1) | 5d3d61db |
 | T_fallback_gateup | `fc0f5e1b` | 2026-10-25 23:32:19 to 23:34:53 | void | `cannot reach M=384 from 286 distinct SMOKE rows` | 5ab78624 |
 | N_4 | `3cdfb794` | 2026-10-26 00:36:18 to 00:43:29 | void | KeyboardInterrupt (accidental Ctrl-C) | 5ab78624 |
 | T_fallback_gateup | `ca44d213` | 2026-10-26 00:43:54 to 01:21:46 (closed by the journal) | void | interrupted: start with no end event; no record file | not recorded |
 | N_4 (rerun) | `636ae958` | 2026-10-26 00:46:31 to 01:00:50 | ok | none | 5ab78624 |
 
-- The journal has 3 voids (T_fallback_gateup 2, N_4 1) and no failed runs. No provenance gaps.
+- The first two rows are from the attempt-1 journal in `e4-calibration-2026-10-25-attempt-1-stopped/attempts.jsonl`. Both are setup voids with no measurements. The journal for this series has 3 voids (T_fallback_gateup 2, N_4 1) and no failed runs. No provenance gaps.
 - T_fallback_gateup stopped after its second void. Calibration section 8: a second void of the same run stops calibration. The gate/up fallback cells have no measurement here.
 
 **Report undercount.** `report.json` lists 1 void (N_4). It was generated before the void-scope fix (branch `e4-part2-report-void-scope`, commit `f47a859c`), which lists every run in the journal. The report's void list therefore omits the two T_fallback_gateup voids. Its values for F, T, W, N and P are not affected. Regenerate the report with `f47a859c` or later to get a void list that matches the journal; the records in this folder were not changed.
@@ -40,7 +42,7 @@ Calibration under `e4-part2-calibration-rule.md`, on one vast.ai A100 PCIe 40 GB
 
 ## Attempt 1 on the box (not in this folder)
 
-The first attempt on instance 57707996 stopped under section 8. Both `F_A_off` attempts voided with `verified.json` missing, which means the transfer pull had not run. No measurement was taken. Its records are kept unchanged on the box in `/workspace/e4-calibration-2026-10-25-attempt-1-stopped` and are not copied here. The restart (this folder) ran on the same instance after the pull. A new output folder does not reset the section 8 void count.
+The first attempt on instance 57707996 stopped under section 8. Both `F_A_off` attempts voided with `verified.json` missing, which means the transfer pull had not run. No measurement was taken. Its records are in `benchmarks/results/e4-calibration-2026-10-25-attempt-1-stopped/` (`attempts.jsonl` and two run records), unchanged from the box. The restart (this folder) ran on the same instance after the pull. A new output folder does not reset the section 8 void count.
 
 ## Files
 
@@ -52,6 +54,7 @@ The first attempt on instance 57707996 stopped under section 8. Both `F_A_off` a
 | `report.json` | every value the main rule copies (see the undercount note above) |
 | `SHA256SUMS` | as written on the instance; 28 entries, 12 of them adapter files |
 | `rest-of-calibration.log` | the driver output of the restart |
+| `../e4-calibration-2026-10-25-attempt-1-stopped/` | attempt 1 on the box: two setup voids, no measurements |
 
 The `adapters/` folder (12 files) is not in the repo. `SHA256SUMS` lists those files, and the archive is kept outside the repo.
 
