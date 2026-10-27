@@ -1,0 +1,101 @@
+Loading config from l2l.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 3090                                             │
+│ Memory:  23.6 GB                                                             │
+│ Model:   ./synth-llama-70b                                                   │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 16 train samples
+Run ID: run_20261027_212827_00dfab93
+Setting up model + trainer...
+Loading tokenizer: ./synth-llama-70b
+[transformers] Model config: bos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128000. This may result in unexpected behavior.
+[transformers] Model config: eos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128001. This may result in unexpected behavior.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 32,768,000 parameters; weights=131072000, 
+gradients=131072000, optimizer=262144000 CUDA bytes; CPU tensors=2560 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 137.98 GB                                                   │
+│ Soup materialized copy: 0.00 GB (no write required)                          │
+│ Layer-shard cache: 35.59 GB (reusable)                                       │
+│ Projected total on disk: 173.57 GB                                           │
+│ Additional writes before training: 0.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> /root/.soup/layer-stream/synth-llama-70b
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch llama, tier disk                                 │
+│   base         streamed from disk across 80 layers, staged by an async       │
+│ reader (no resident copy)                                                    │
+│   host staging read_ahead 2 -> 1957 MB (page-locked when the box allows)     │
+│   VRAM buffers 2 x 441 MB + 1 x 537 MB large-layer slot = 1420 MB            │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~2.45 GB at batch 1 x seq 256 (logits 0.12 GB)                │
+│   free VRAM    24.97 GB                                                      │
+│   forecast     104-153 tok/s — a compute-bound bound, not a promise          │
+│                (from 63.16 TFLOPS measured on this card now using bfloat16 @ │
+│ 210 MHz)                                                                     │
+│   ! accumulating 4x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 4 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+│   ! streaming from disk because stream_source='disk' was set, not because    │
+│ RAM was short. An async reader stages training.stream_read_ahead layers in   │
+│ host RAM (page-locked where the box allows) rather than holding the base     │
+│ resident, and is slower than the RAM tier it is being used instead of —      │
+│ measured 1.9-2.3x its step time with the store fully cached, on one box      │
+│ (benchmarks/gate-971-async-nvme-source.md).                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 80 layers, streamed from DISK (36.39 GB on an NVMe 
+volume) by an async reader, read_ahead=2, 1957 MB pinned host staging (2.15 GB 
+page-locked), 2 x 441 MB decoder buffers + 1 x 537 MB large-layer slot
+LoRA applied: 32,768,000 trainable / 68,989,231,104 total (0.05%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/16 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map: 100%|██████████| 16/16 [00:00<00:00, 980.99 examples/s]
+Map:   0%|          | 0/16 [00:00<?, ? examples/s]Map: 100%|██████████| 16/16 [00:00<00:00, 6304.85 examples/s]
+Truncating train dataset:   0%|          | 0/16 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 16/16 [00:00<00:00, 8532.60 examples/s]
+L2L: each streamed layer loads once per optimizer step and runs 4 
+micro-batch(es)
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'eos_token_id': 2, 'bos_token_id': 1, 'pad_token_id': 2}.
+  0%|          | 0/4 [00:00<?, ?it/s] 25%|██▌       | 1/4 [00:11<00:34, 11.43s/it]                                              25%|██▌       | 1/4 [00:11<00:34, 11.43s/it] 50%|█████     | 2/4 [00:22<00:22, 11.09s/it]                                              50%|█████     | 2/4 [00:22<00:22, 11.09s/it] 75%|███████▌  | 3/4 [00:32<00:10, 10.75s/it]                                              75%|███████▌  | 3/4 [00:32<00:10, 10.75s/it]100%|██████████| 4/4 [00:43<00:00, 10.80s/it]                                             100%|██████████| 4/4 [00:43<00:00, 10.80s/it]                                             100%|██████████| 4/4 [00:43<00:00, 10.80s/it]100%|██████████| 4/4 [00:43<00:00, 10.97s/it]
+{'loss': '11.96', 'grad_norm': '11.94', 'learning_rate': '0', 'l2l_steps': 1, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.2739', 'l2l_layer_loads': 158, 'l2l_large_loads': 2, 'l2l_weight_restores': 560, 'epoch': '0.25'}
+{'loss': '11.8', 'grad_norm': '9.875', 'learning_rate': '0.0002', 'l2l_steps': 2, 'l2l_captures': 8, 'l2l_capture_layer_loads': 8, 'l2l_capture_seconds': '0.4073', 'l2l_layer_loads': 315, 'l2l_large_loads': 4, 'l2l_weight_restores': 560, 'epoch': '0.5'}
+{'loss': '11.93', 'grad_norm': '12.69', 'learning_rate': '0.0001333', 'l2l_steps': 3, 'l2l_captures': 11, 'l2l_capture_layer_loads': 11, 'l2l_capture_seconds': '0.5072', 'l2l_layer_loads': 472, 'l2l_large_loads': 6, 'l2l_weight_restores': 560, 'epoch': '0.75'}
+{'loss': '11.99', 'grad_norm': '10.75', 'learning_rate': '6.667e-05', 'l2l_steps': 4, 'l2l_captures': 15, 'l2l_capture_layer_loads': 15, 'l2l_capture_seconds': '0.6409', 'l2l_layer_loads': 629, 'l2l_large_loads': 8, 'l2l_weight_restores': 560, 'epoch': '1'}
+{'train_runtime': '43.87', 'train_samples_per_second': '0.365', 'train_steps_per_second': '0.091', 'train_loss': '11.92', 'epoch': '1'}
+╭────────────────────── Soup Training: ./synth-llama-70b ──────────────────────╮
+│ Epoch 1.0/1   100%                                                           │
+│ Step:  4/4                                                                   │
+│ Loss:  11.9918    LR: 6.67e-05                                               │
+│ Speed: 0.09 it/s                                                             │
+│ GPU peak: 3.3/23.6 GB                                                        │
+│ Grad:  10.7500                                                               │
+╰────────────────────────── NVIDIA GeForce RTX 3090 ───────────────────────────╯╭───────────────────────────── Training Complete! ─────────────────────────────╮
+│ Loss: 11.9573 -> 11.9918                                                     │
+│ Duration: 0m                                                                 │
+│ Output: out/run                                                              │
+│ Run ID: run_20261027_212827_00dfab93                                         │
+│                                                                              │
+│ Quick test:  soup chat --model out/run                                       │
+│ Push to HF:  soup push --model out/run                                       │
+│ Merge LoRA:  soup merge --adapter out/run                                    │
+│ Export GGUF: soup export --model out/run                                     │
+│ Run details: soup runs show run_20261027_212827_00dfab93                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+l2l.yaml: 4 steps, failure=None
