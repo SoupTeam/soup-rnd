@@ -118,3 +118,18 @@ def test_a_model_with_dropout_keeps_the_full_forward_capture(tmp_path):
         state.close()
     finally:
         runtime.close()
+
+
+def test_a_state_that_does_not_know_its_dropout_finds_it_out(deep):
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, run_window
+
+    model, runtime = deep
+    model.train()
+    state = L2LState(runtime=runtime, dtype=torch.float32)
+    rows = _rows([3, 4])
+    run_window(state, model, rows, rows, 5, "cpu")
+    assert state.has_dropout is False
+    assert state.capture_loads <= 2 * 2
+    state.close()

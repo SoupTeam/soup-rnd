@@ -181,6 +181,8 @@ def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any
     """The window's L2L step and one captured ``LayerCall`` per micro-batch."""
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
+    if state.has_dropout is None:
+        state.has_dropout = _has_dropout(model)
     calls = []
     for ids in ids_list:
         shape = (int(ids.shape[0]), int(ids.shape[1]))
@@ -190,7 +192,7 @@ def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any
                 state.calls_by_shape.clear()
             # Only a model with dropout needs the full forward, to record the draws.
             with _timed_capture(state):
-                call = capture_layer_call(model, ids, draws=state.has_dropout is not False)
+                call = capture_layer_call(model, ids, draws=state.has_dropout)
             state.calls_by_shape[shape] = call
         calls.append(call)
     if state.stepper is None:
