@@ -124,6 +124,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     argv = [a for a in argv if a != "--profile"]
     out = argv[argv.index("--out") + 1]
 
+    import l2l_mistral_stand as stand
+
+    # Before any import that may start CUDA; the ticket-04 arm then finds it set.
+    stand.set_deterministic_env()
+
     import torch
 
     import soup_cli.utils.l2l_activations as store_module
