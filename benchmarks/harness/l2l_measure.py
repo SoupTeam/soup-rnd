@@ -29,8 +29,8 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import a4_box  # noqa: E402
 import arm_validity  # noqa: E402
+import host_box  # noqa: E402
 
 #: Fields that hold a peak: a run takes the largest step value.
 PEAK_FIELDS = (
@@ -308,7 +308,7 @@ def measure_step(
     if on_cuda:
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
-    rss_reset = a4_box.reset_peak_rss()
+    rss_reset = host_box.reset_peak_rss()
     before = dict(counters())
     os_before = (_total(read_bytes), _total(write_bytes), _total(device_read_bytes))
     started = time.perf_counter()
@@ -328,7 +328,7 @@ def measure_step(
         reasons["peak_vram_allocated_bytes"] = reasons["peak_vram_reserved_bytes"] = (
             "no CUDA device"
         )
-    peak_rss = a4_box.process_memory()["peak_rss"] if rss_reset else None
+    peak_rss = host_box.process_memory()["peak_rss"] if rss_reset else None
     if not rss_reset:
         reasons["peak_rss_bytes"] = "peak RSS is process-lifetime: VmHWM could not be reset"
     elif peak_rss is None:
@@ -536,7 +536,7 @@ def launch_passport(
     package_names: Sequence[str] = PACKAGES,
     packages: Callable[[Sequence[str]], Mapping[str, Optional[str]]] = package_versions,
     gpu: Callable[[], Optional[Mapping[str, Any]]] = gpu_facts,
-    container_ram: Callable[[], Optional[Mapping[str, Any]]] = a4_box.ram_limit,
+    container_ram: Callable[[], Optional[Mapping[str, Any]]] = host_box.ram_limit,
     commit: Callable[[], Optional[Mapping[str, Any]]] = git_commit,
 ) -> Dict[str, Any]:
     """What the run was started with: the whole command, package versions, GPU, container

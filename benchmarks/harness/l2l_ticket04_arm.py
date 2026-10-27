@@ -239,7 +239,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if not parsed.no_determinism:
         stand.set_deterministic_env()
-    import a4_box
+    import host_box
     import torch
     import transformers
     from torch.nn.attention import SDPBackend, sdpa_kernel
@@ -302,8 +302,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     meter = StepMeter({
         "counters": counters, "io": l2l_measure.process_io, "peaks": peaks,
-        "reset_peaks": reset_peaks, "reset_rss": a4_box.reset_peak_rss,
-        "rss": lambda: a4_box.process_memory()["peak_rss"], "clock": clock,
+        "reset_peaks": reset_peaks, "reset_rss": host_box.reset_peak_rss,
+        "rss": lambda: host_box.process_memory()["peak_rss"], "clock": clock,
         "tokens": lambda: box["window_tokens"], "t0": t0,
     })
 
@@ -358,7 +358,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "load": meter.load,
         "steps": meter.steps,
         "losses": meter.losses,
-        "process_peak_rss_bytes": a4_box.process_memory()["peak_rss"],
+        "process_peak_rss_bytes": host_box.process_memory()["peak_rss"],
         "process_peak_vram_allocated_bytes": None,
         "run": meter.run_record() if len(meter.steps) > 1 else None,
     }

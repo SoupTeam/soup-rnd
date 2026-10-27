@@ -186,11 +186,11 @@ def _counters():
 
 
 def test_the_rss_peak_is_the_steps_own_when_the_peak_can_be_reset(measure, monkeypatch):
-    import a4_box
+    import host_box
 
     calls = []
-    monkeypatch.setattr(a4_box, "reset_peak_rss", lambda: calls.append("reset") or True)
-    monkeypatch.setattr(a4_box, "process_memory", lambda: {"peak_rss": 123})
+    monkeypatch.setattr(host_box, "reset_peak_rss", lambda: calls.append("reset") or True)
+    monkeypatch.setattr(host_box, "process_memory", lambda: {"peak_rss": 123})
     record = measure.measure_step(lambda: calls.append("body"), attention_mask=[[1]],
                                   device="cpu", counters=_counters)
     assert calls == ["reset", "body"]
@@ -198,10 +198,10 @@ def test_the_rss_peak_is_the_steps_own_when_the_peak_can_be_reset(measure, monke
 
 
 def test_the_rss_peak_is_null_when_it_cannot_be_reset(measure, monkeypatch):
-    import a4_box
+    import host_box
 
-    monkeypatch.setattr(a4_box, "reset_peak_rss", lambda: False)
-    monkeypatch.setattr(a4_box, "process_memory", lambda: {"peak_rss": 123})
+    monkeypatch.setattr(host_box, "reset_peak_rss", lambda: False)
+    monkeypatch.setattr(host_box, "process_memory", lambda: {"peak_rss": 123})
     record = measure.measure_step(lambda: None, attention_mask=[[1]], device="cpu",
                                   counters=_counters)
     assert record["peak_rss_bytes"] is None
