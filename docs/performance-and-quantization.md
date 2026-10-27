@@ -1141,8 +1141,13 @@ The R&D [H3 first-stage report](../benchmarks/h3-fsdp-followup-20261027.md) reco
 matched one/two-GPU FP32 FSDP2 + LoRA training, separate-process adapter reload
 and per-rank memory. Four accepted RTX 3090 arms measured negative scaling for
 Qwen2.5-0.5B/global batch 8: speedup 0.4922, efficiency 0.2461. All eight reloads
-had zero output error. BF16's strict cross-world first-step control remains
-unresolved; resume, 4/8 GPUs and larger-model scaling are unmeasured.
+had zero output error. The separate
+[conservative BF16 follow-up](../benchmarks/h3-bf16-result-20261027.md) passed
+the unchanged strict first-step gate and eight reloads on two RTX 4090s:
+6932.17 → 7584.77 input tokens/s, speedup 1.0941, efficiency 0.5471.
+It uses deterministic math SDPA and FP32 intermediate reductions; ordinary
+Flash/efficient-SDPA BF16 remains outside that result. Resume, 4/8 GPUs and
+larger-model scaling are unmeasured.
 The harness records the
 actual FSDP plugin version: older preset option names do not establish which
 implementation a particular Transformers/Accelerate environment selected.

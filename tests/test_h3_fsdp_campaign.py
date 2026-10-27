@@ -274,13 +274,17 @@ def test_failed_reload_cannot_produce_a_sealed_archive(evidence):
         campaign.archive_completed_arm(root, prepared, "one")
 
 
-def test_collector_must_acknowledge_exact_archive_bytes(tmp_path):
+@pytest.mark.parametrize("corruption", [
+    {"bytes": 99, "sha256": "expected"},
+    {"bytes": 100, "sha256": "different"},
+])
+def test_collector_must_acknowledge_exact_archive_bytes(tmp_path, corruption):
     archive = tmp_path / "arm.tar.gz"
     expected = {"bytes": 100, "sha256": "expected"}
     receipt = archive.with_suffix(".receipt.json")
     campaign.write_json(receipt, expected)
     campaign.wait_for_archive_receipt(archive, expected, 1)
-    campaign.write_json(receipt, {"bytes": 99, "sha256": "expected"})
+    campaign.write_json(receipt, corruption)
     with pytest.raises(ValueError, match="does not match"):
         campaign.wait_for_archive_receipt(archive, expected, 1)
 

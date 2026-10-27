@@ -7,8 +7,10 @@ On this server, **two GPUs are slower**: median 4216.4633 → 2075.1697 input
 tokens/s; speedup(2) **0.492159**, efficiency(2)
 **0.246079**. No acceleration is claimed.
 
-This completes the selected first-stage FP32 experiment, not all H3. BF16's
-strict first-step comparison remains unresolved; resume, 4/8 GPUs, 70B, quality
+This completes the selected first-stage FP32 experiment, not all H3. The later
+[conservative BF16 follow-up](h3-bf16-result-20261027.md) passed the unchanged
+strict gate with retained references; its RTX 4090 timings are separate.
+Ordinary Flash/efficient-SDPA BF16 remains unresolved; resume, 4/8 GPUs, 70B, quality
 and the wider recipe/backend matrix remain unmeasured. Failed BF16 arms are
 preserved separately and never pooled with FP32 measurements.
 
@@ -164,7 +166,7 @@ with the same strict threshold; no tolerance was loosened or failed arm relabell
 | Actual local shards on every rank | measured via DTensor API |
 | Root/checkpoint adapter keys/values and separate-process output parity | measured; all eight passed, references retained |
 | Same-server 1→2 throughput, warmup separation, repeats, per-rank VRAM and host RAM | measured; negative scaling |
-| BF16 strict cross-world first-step control | failed/unresolved; BF16 scaling not accepted |
+| BF16 strict cross-world first-step control | ordinary BF16 failed; separate conservative follow-up passed, with its own report/timings |
 | Optimizer/scheduler resume | unmeasured |
 | 4/8 GPU, 70B, full #41 recipes, multi-node/pipeline, quality | unmeasured |
 | H1 authoritative card/dependency completion | unknown; pinned environment/pip check measured independently |

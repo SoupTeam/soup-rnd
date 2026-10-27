@@ -1,0 +1,26 @@
+import hashlib
+import json
+import os
+import sys
+import tarfile
+from pathlib import Path
+root = Path(sys.argv[1])
+status = int(sys.argv[2])
+files = [p for folder in (root/'live',root/'live/campaign') if folder.is_dir()
+         for p in folder.iterdir() if p.is_file() and p.suffix in ('.json','.txt','.log','.md')]
+files += [p for p in (root/'prepared').rglob('*') if p.is_file()]
+archive = root/'live/final-metadata.tar.gz'
+manifest = {}
+with tarfile.open(str(archive)+'.partial','w:gz',compresslevel=1) as output:
+    for path in sorted(set(files)):
+        assert not path.is_symlink()
+        assert os.path.commonpath([os.path.realpath(root),os.path.realpath(path)]) == os.path.realpath(root)
+        name = path.relative_to(root).as_posix()
+        manifest[name] = {'bytes':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+        output.add(path,arcname=name,recursive=False)
+os.replace(str(archive)+'.partial',archive)
+value = {'status':'sealed','archive':archive.name,'bytes':archive.stat().st_size,
+         'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'files':manifest,'experiment_exit':status}
+marker = root/'live/final-metadata.json'
+Path(str(marker)+'.partial').write_text(json.dumps(value,indent=2))
+os.replace(str(marker)+'.partial',marker)
