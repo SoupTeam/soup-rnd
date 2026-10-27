@@ -1137,10 +1137,12 @@ A candidate is refused when the step raises an out-of-memory error **or** when i
 
 ## Multi-GPU / DeepSpeed / FSDP
 
-The R&D [H3 pilot report](../benchmarks/h3-fsdp-lora-20261026.md) records a real
-two-GPU FSDP2 + LoRA training/save/reload smoke and per-rank memory readings.
-Its strict one/two-GPU first-step numeric control failed; matched scaling remains
-**unmeasured**, and the final reload reference has a documented retention gap.
+The R&D [H3 first-stage report](../benchmarks/h3-fsdp-followup-20261027.md) records
+matched one/two-GPU FP32 FSDP2 + LoRA training, separate-process adapter reload
+and per-rank memory. Four accepted RTX 3090 arms measured negative scaling for
+Qwen2.5-0.5B/global batch 8: speedup 0.4922, efficiency 0.2461. All eight reloads
+had zero output error. BF16's strict cross-world first-step control remains
+unresolved; resume, 4/8 GPUs and larger-model scaling are unmeasured.
 The harness records the
 actual FSDP plugin version: older preset option names do not establish which
 implementation a particular Transformers/Accelerate environment selected.

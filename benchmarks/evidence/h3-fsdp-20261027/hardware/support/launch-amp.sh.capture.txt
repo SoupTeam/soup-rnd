@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace/h3-soup
+test "$(git rev-parse HEAD)" = c6bd159ea1ea5a276ea4539fb17588fd764ae33e
+test -z "$(git status --porcelain)"
+source benchmarks/evidence/h3-fsdp-20261027/venv/bin/activate
+export PYTHONPATH="$PWD/src"
+export OMP_NUM_THREADS=4
+set +e
+python benchmarks/harness/h3_fsdp_campaign.py \
+  --prepared benchmarks/evidence/h3-fsdp-20261027/prepared \
+  --output benchmarks/evidence/h3-fsdp-20261027/live/campaign-amp \
+  --repeats 2 --measured-steps 10 --timeout-seconds 600 --campaign-seconds 2400
+status=$?
+printf '%s\n' "$status" > /tmp/h3-amp.exit
+exit "$status"
