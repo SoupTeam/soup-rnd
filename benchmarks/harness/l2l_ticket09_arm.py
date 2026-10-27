@@ -55,7 +55,7 @@ def merge_windows(record: Dict[str, Any], windows: Sequence[Dict[str, Any]]) -> 
     steps = record["steps"]
     for step, window in zip(steps, windows):
         step["l2l_window"] = window
-    warm = [w for w in windows[1:len(steps)]]
+    warm = windows[1:len(steps)]
     if record.get("run") and warm:
         n = len(warm)
         record["run"].update(

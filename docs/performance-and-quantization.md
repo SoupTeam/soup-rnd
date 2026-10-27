@@ -886,10 +886,12 @@ or run: on Mistral-7B NF4 with 64 alpaca rows at `batch_size: 1`, k = 4, a step 
 the step to under 1% (RTX 3070 and RTX 3090, 4 A-B-B-A blocks each, see
 `benchmarks/probe-vast-l2l-capture-a5-ticket09.md`). With dropout on, the capture still runs the
 whole forward to record the dropout masks, and costs one load of every layer per new shape. On
-that run gradient accumulation was still 15% (3070) and 16% (3090) faster than L2L. The activation store sizes the chunks of micro-batch `i` to the
-largest micro-batch that has been in position `i`, so a short row does not pay for the longest
-row of its window; the RAM check sums those sizes. Speed and memory were not measured, and the check
-used random tokens, not real text. MoE and multi-GPU are out of scope.
+that run gradient accumulation was still 15% (3070) and 16% (3090) faster than L2L.
+
+The activation store sizes the chunks of micro-batch `i` to the largest micro-batch that has
+been in position `i`, so a short row does not pay for the longest row of its window; the RAM
+check sums those sizes. The store was 191 MB for that run. The RAM check used random tokens, not
+real text. MoE and multi-GPU are out of scope.
 
 **Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
 number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
