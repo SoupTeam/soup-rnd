@@ -213,6 +213,7 @@ class Campaign:
         text = text.replace("gradient_accumulation_steps: 4", f"gradient_accumulation_steps: {k}")
         text = text.replace("batch_size: 1", f"batch_size: {batch}")
         text = text.replace("data/alpaca64.jsonl", "data/alpaca_large.jsonl")
+        text = text.replace("max_length: 256", "max_length: 512")
         (self.work / "overflow.yaml").write_text(text)
         done = self.run_arm("overflow-l2l", "overflow.yaml")
         log = (self.runs / "overflow-l2l.log").read_text()

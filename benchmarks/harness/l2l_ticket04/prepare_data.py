@@ -23,7 +23,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True)
     parser.add_argument("--rows", type=int, default=64)
-    parser.add_argument("--large", type=int, default=8192)
+    parser.add_argument("--large", type=int, default=20000)
     parsed = parser.parse_args()
 
     from datasets import load_dataset
