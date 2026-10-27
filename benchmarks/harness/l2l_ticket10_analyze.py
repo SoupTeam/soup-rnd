@@ -14,23 +14,18 @@ import json
 import statistics
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import l2l_ticket10_profile as prof  # noqa: E402
 
 
-def busy(samples: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Samples where the GPU was not idle (idle bit 0x1 clear)."""
-    return [s for s in samples if s.get("gpu") and not (s["gpu"].get("throttle") or 0) & 1]
-
-
 def run_row(path: Path) -> Dict[str, Any]:
     data = json.loads(path.read_text())
     samples = data.get("sensor_samples", [])
     verdict = prof.judge_run(samples)
-    gpu = [s["gpu"] for s in busy(samples)]
+    gpu = prof.busy_gpu(samples)
     power = [g["power_w"] for g in gpu if g.get("power_w") is not None]
     row: Dict[str, Any] = {
         "run": path.stem,

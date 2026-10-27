@@ -107,8 +107,8 @@ def test_judge_run_without_samples_is_not_sensed():
 
 def test_per_layer_seconds_and_spread():
     prof = _prof()
-    assert prof.per_layer_seconds({"layer_wait": 6.0, "layer_loads": 60}, 32) == pytest.approx(0.1)
-    assert prof.per_layer_seconds({"layer_wait": 6.0, "layer_loads": 0}, 32) is None
+    assert prof.per_layer_seconds({"layer_wait": 6.0, "layer_loads": 60}) == pytest.approx(0.1)
+    assert prof.per_layer_seconds({"layer_wait": 6.0, "layer_loads": 0}) is None
     assert prof.spread([72.3, 184.8])["ratio"] == pytest.approx(2.556, abs=1e-3)
 
 

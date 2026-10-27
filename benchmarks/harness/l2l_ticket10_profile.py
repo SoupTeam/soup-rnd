@@ -13,7 +13,7 @@ from __future__ import annotations
 import statistics
 import time
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterator, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Sequence
 
 #: Parts that are not compute. Everything left of the step's wall time is ``compute``.
 PARTS = ("activation_put", "activation_get", "layer_wait", "optimizer")
@@ -33,6 +33,8 @@ CLOCK_FLOOR = 0.90
 #: ``power_cap_share`` and does not flag a run.
 THROTTLE_MASK = 0x8 | 0x20 | 0x40 | 0x80
 POWER_CAP = 0x4
+#: NVML bit for a card with nothing to do (the model loading, not the run).
+IDLE = 0x1
 
 
 class Buckets:
@@ -54,8 +56,7 @@ class Buckets:
         finally:
             if self.sync:
                 self.sync()
-            self.seconds[name] = self.seconds.get(name, 0.0) + self.clock() - start
-            self.calls[name] = self.calls.get(name, 0) + 1
+            self.add(name, self.clock() - start)
 
     def add(self, name: str, seconds: float) -> None:
         """Add seconds measured elsewhere (CUDA events) to a bucket."""
@@ -131,6 +132,12 @@ def parse_gpu_query(line: str) -> Optional[Dict[str, Any]]:
             "temp_c": number(cells[2]), "power_w": number(cells[3]), "throttle": reasons}
 
 
+def busy_gpu(samples: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    """GPU readings of the samples where the card was not idle (idle bit clear)."""
+    gpus = [s["gpu"] for s in samples if s.get("gpu")]
+    return [g for g in gpus if not (g.get("throttle") or 0) & IDLE]
+
+
 def judge_run(samples: Sequence[Mapping[str, Any]], own_cpu_share: Optional[float] = None
               ) -> Dict[str, Any]:
     """Flags for one run from its sensor samples.
@@ -146,7 +153,7 @@ def judge_run(samples: Sequence[Mapping[str, Any]], own_cpu_share: Optional[floa
     cpu = [s["cpu"] for s in samples if s.get("cpu")]
     # A sample with the idle bit (0x1) is the model loading, not the run: its clock is low
     # because the card has nothing to do.
-    gpu = [s["gpu"] for s in samples if s.get("gpu") and not (s["gpu"].get("throttle") or 0) & 1]
+    gpu = busy_gpu(samples)
     if cpu:
         out["sensed"] = True
         steal = statistics.fmean(c["steal"] for c in cpu)
@@ -180,7 +187,7 @@ def judge_run(samples: Sequence[Mapping[str, Any]], own_cpu_share: Optional[floa
     return out
 
 
-def per_layer_seconds(step: Mapping[str, Any], layers: int) -> Optional[float]:
+def per_layer_seconds(step: Mapping[str, Any]) -> Optional[float]:
     """Wait for a layer per layer load of the step."""
     loads = step.get("layer_loads")
     return step["layer_wait"] / loads if loads else None
