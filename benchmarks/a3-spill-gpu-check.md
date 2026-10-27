@@ -1,7 +1,7 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
 **Status: protocol only, no GPU run yet. Criteria fixed by commit `2a05e15f` before any
-rental; the machine admission (§5) by commit <to fill>.** The rule is
+rental; the machine admission (§5) by commit `794c6827`.** The rule is
 `harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v1`, `rule_version` v1): the
 same text in machine form, copied into every session's `protocol.json`. The stand is
 `harness/a3_spill_stand.py`, the admission `harness/a3_admission.py`. CPU tests:
@@ -258,7 +258,7 @@ not U. The calibration measures U on the box.
 
 ```bash
 git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout <to fill>   # the commit that fixed the admission (on top of 2a05e15f)
+git checkout 794c6827   # the commit that fixed the admission (on top of 2a05e15f)
 A0_PYTHON=python3.12 bash benchmarks/a0-bootstrap.sh   # venv, CUDA torch, pinned deps
 .venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
   tests/test_a3_admission.py tests/test_l2l_spill*.py -q -o addopts=''
