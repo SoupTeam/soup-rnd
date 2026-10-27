@@ -31,12 +31,14 @@ Calibration under `e4-part2-calibration-rule.md`, on one vast.ai A100 PCIe 40 GB
 
 - The first two rows are from the attempt-1 journal in `e4-calibration-2026-10-25-attempt-1-stopped/attempts.jsonl`. Both are setup voids with no measurements. The journal for this series has 3 voids (T_fallback_gateup 2, N_4 1) and no failed runs. No provenance gaps.
 - T_fallback_gateup stopped after its second void. Calibration section 8: a second void of the same run stops calibration. The gate/up fallback cells have no measurement here.
+- Under §8 the two F_A_off voids of attempt 1 stop calibration. The restart is a disclosed infrastructure-only deviation, not a reset of the void count: both voids were a missing `verified.json`, no measurement was taken, and from `5ab78624` the harness refuses that case before any attempt (exit 6). Same basis as the pynvml restart disposition on #36. See #38 §9.17.
 
 **Report undercount.** `report.json` lists 1 void (N_4). It was generated before the void-scope fix (branch `e4-part2-report-void-scope`, commit `f47a859c`), which lists every run in the journal. The report's void list therefore omits the two T_fallback_gateup voids. Its values for F, T, W, N and P are not affected. Regenerate the report with `f47a859c` or later to get a void list that matches the journal; the records in this folder were not changed.
 
 ## Commit facts
 
 - F_A_off, F_A_on, F_A_bf16, T, W, N_1 to N_5, P and the one T_fallback_gateup record: harness and soup commit `5ab78624` (checked in each run record's `provenance`).
+- Attempt 1 (F_A_off x2, setup voids, `75034fef` and `cf497e3a`): harness and soup commit `5d3d61db`. All restart runs above are on `5ab78624`.
 - No recorded attempt ran on `bbe772db`, which carries the pool-based fallback targets.
 - The interrupted attempt `ca44d213` has no record file, and its journal entry has no commit, so its commit is not known.
 
