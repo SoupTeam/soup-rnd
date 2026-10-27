@@ -138,8 +138,9 @@ class Campaign:
         self.spans: List[List[arm_validity.Run]] = []
         self.floor_records: List[Dict[str, Any]] = []
         self.overflow: Optional[Dict[str, Any]] = None
-        for name in ARM_CONFIG.values():
-            shutil.copy(CONFIGS / name, work / name)
+        self.arm_config, self.configs, self.label = ARM_CONFIG, CONFIGS, f"A5-04 {card}"
+        for name in set(self.arm_config.values()):
+            shutil.copy(self.configs / name, work / name)
         self.model_path = os.environ.get("HF_HOME") or os.path.expanduser("~/.cache/huggingface")
 
     def run_arm(
@@ -165,10 +166,10 @@ class Campaign:
         for position, name in enumerate(arm_validity.BLOCK_ORDER):
             stem = f"b{round_no}-p{position}-{name}"
             with arm_validity.ArmWatch(
-                arm=name, round=round_no, run=position, label=f"A5-04 {self.card}",
+                arm=name, round=round_no, run=position, label=self.label,
                 model_path=self.model_path,
             ) as watch:
-                done = self.run_arm(stem, ARM_CONFIG[name])
+                done = self.run_arm(stem, self.arm_config[name])
             if done.returncode:
                 raise RuntimeError(f"{stem} exited {done.returncode}; see runs/{stem}.log")
             data = self.load(stem)

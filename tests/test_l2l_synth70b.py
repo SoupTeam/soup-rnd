@@ -426,3 +426,32 @@ def test_report_without_f1_checks_does_not_claim_no_spoiled_runs(synth):
     text = synth.render_report(_payload(f1_checked=False))
     assert "Испорченных по F1 замеров нет" not in text
     assert "F1 не проверялся" in text
+
+
+def test_campaign_runs_the_same_l2l_config_in_both_arms_and_watches_the_synthetic_base(tmp_path):
+    from tests.test_l2l_probe_harness import _load
+
+    camp = _load("l2l_synth70b_campaign")
+    work, out = tmp_path / "w", tmp_path / "o"
+    work.mkdir()
+    out.mkdir()
+    campaign = camp.Campaign(work, out, "24gb", str(tmp_path / "synth-llama-70b"))
+    assert set(campaign.arm_config.values()) == {"l2l.yaml"}
+    assert (work / "l2l.yaml").is_file() and not (work / "ga.yaml").exists()
+    assert campaign.model_path.endswith("synth-llama-70b")
+    assert "synthetic 70B" in campaign.label
+
+
+def test_campaign_summary_is_speed_and_memory_without_a_loss_verdict(tmp_path):
+    from tests.test_l2l_probe_harness import _load
+
+    camp = _load("l2l_synth70b_campaign")
+    work, out = tmp_path / "w", tmp_path / "o"
+    work.mkdir()
+    out.mkdir()
+    campaign = camp.Campaign(work, out, "24gb", str(tmp_path))
+    campaign.write_summary()
+    import json
+
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["model"] == "synthetic 70B" and "loss" not in summary
