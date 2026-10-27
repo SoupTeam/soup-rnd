@@ -159,24 +159,26 @@ def test_the_store_survives_short_windows_without_growing(streamed, tmp_path):  
     assert l2l.state.store is None
 
 
-def test_a_short_window_before_a_full_one_replaces_the_store(streamed, tmp_path, monkeypatch):  # noqa: F811
+def test_a_short_window_first_does_not_rebuild_the_store(streamed, tmp_path, monkeypatch):  # noqa: F811
     import torch
 
     from soup_cli.trainer.l2l_trainer import L2LState, _l2l_step_for, _store_for
 
     model, runtime = streamed
-    state = L2LState(runtime=runtime, dtype=torch.float32)
+    # what attach_l2l_state reads from the trainer: one row, k = 3
+    state = L2LState(runtime=runtime, dtype=torch.float32, max_rows=1, max_k=3)
     ids = torch.zeros((1, SEQ), dtype=torch.long)
     shape = (1, SEQ)
     stepper = _l2l_step_for(state, model, shape, ids)
 
-    small = _store_for(state, stepper, shape, 1, "cpu")
+    first = _store_for(state, stepper, shape, 1, "cpu")
+    assert first.k == 3  # sized for the full window although the first one is short
     closed = []
-    monkeypatch.setattr(small, "close", lambda *a, **kw: closed.append(small))
-    full = _store_for(state, stepper, shape, 3, "cpu")
-    assert full is not small and full.k == 3
-    assert closed == [small]  # the short-window store is released, not leaked
-    assert _store_for(state, stepper, shape, 1, "cpu") is full  # a later short window reuses it
+    monkeypatch.setattr(first, "close", lambda *a, **kw: closed.append(first))
+    assert _store_for(state, stepper, shape, 3, "cpu") is first
+    assert _store_for(state, stepper, shape, 1, "cpu") is first
+    assert closed == []  # never rebuilt, never released mid-run
+    monkeypatch.undo()
     state.close()
 
 

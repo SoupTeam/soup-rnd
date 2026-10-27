@@ -16,16 +16,26 @@ lengths is right-padded to the longest one (rounded up to ``SHAPE_ROUND`` tokens
 labels ``-100``: the causal mask keeps real tokens from seeing the padding and the loss
 ignores it, so the result equals gradient accumulation.
 
+The activation store is built once, for the largest window the run can produce
+(``per_device_train_batch_size`` rows of ``max_seq`` tokens, ``gradient_accumulation_steps``
+micro-batches), and serves every smaller window. When it does not fit the host-RAM budget,
+the lowest layers spill to one file (``soup_cli.utils.l2l_spill``); ``train`` removes it on
+every exit it sees and sweeps files of dead runs at start.
+
 torch is imported inside functions.
 """
 
 from __future__ import annotations
 
 import functools
+import logging
+import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters
+
+logger = logging.getLogger(__name__)
 
 #: Windows with mixed lengths pad to a multiple of this, so a run sees few distinct
 #: shapes. Each new shape costs one forward to capture the layer arguments.
@@ -70,6 +80,19 @@ class L2LState:
     totals: LoadCounters = field(default_factory=LoadCounters)
     store: Any = None
     steps_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
+    #: ``training.l2l_spill_dir``; None means ``<output_dir>/_l2l_spill``.
+    spill_dir: Optional[str] = None
+    #: Directories the weights stream from (layer cache and stripe folders).
+    weight_dirs: Tuple[str, ...] = ()
+    output_dir: Optional[str] = None
+    #: The largest window: rows, sequence length (None: unknown) and micro-batches.
+    max_rows: int = 0
+    max_seq: Optional[int] = None
+    max_k: int = 0
+    #: The plan of the current store (kept after it is closed); None before the first step.
+    spill_plan: Optional[Dict[str, Any]] = None
+    #: Files of dead runs the last ``train`` removed from the spill directory.
+    stale_removed: List[str] = field(default_factory=list)
 
     def log_fields(self) -> Dict[str, int]:
         return {
@@ -77,7 +100,16 @@ class L2LState:
             "l2l_layer_loads": self.totals.layer_loads,
             "l2l_large_loads": self.totals.large_loads,
             "l2l_weight_restores": self.totals.restores,
+            "l2l_spill_layers": int(self.spill_plan["spill_layers"]) if self.spill_plan else 0,
         }
+
+    def spill_directory(self) -> str:
+        """The configured spill directory, or the default one under the output directory."""
+        if self.spill_dir is not None:
+            return self.spill_dir
+        from soup_cli.utils.l2l_spill import SPILL_DIR_NAME
+
+        return os.path.join(self.output_dir or ".", SPILL_DIR_NAME)
 
     def close(self) -> None:
         if self.store is not None:
@@ -155,6 +187,26 @@ def _has_dropout(model: Any) -> bool:
     )
 
 
+def longest_row(dataset: Any) -> Optional[int]:
+    """The longest ``input_ids`` row of a map-style HF ``datasets.Dataset``, or None.
+
+    Read from the Arrow table under the dataset (no Python lists), so after a ``select`` or
+    ``shuffle`` it is still an upper bound. None for an iterable or streaming dataset, one
+    without an ``input_ids`` column, or anything that cannot be read that way.
+    """
+    try:
+        import pyarrow.compute as pc
+        from datasets import Dataset
+
+        if not isinstance(dataset, Dataset) or "input_ids" not in dataset.column_names:
+            return None
+        longest = pc.max(pc.list_value_length(dataset.data.column("input_ids"))).as_py()
+    except Exception:  # noqa: BLE001 - an unknown length falls back to data.max_length
+        logger.debug("could not read the longest input_ids row", exc_info=True)
+        return None
+    return int(longest) if longest else None
+
+
 def _l2l_step_for(
     state: L2LState, model: Any, shape: Tuple[int, int], ids: Any
 ) -> Any:
@@ -169,65 +221,105 @@ def _l2l_step_for(
     return stepper
 
 
-def check_activation_budget(
-    *, free_ram: Optional[int], n_layers: int, k: int, chunk_bytes: int, pinned: bool
-) -> None:
-    """Refuse an activation store that would not fit the free host RAM, before allocating it.
+def _capacity(state: L2LState, shape: Tuple[int, int], k: int) -> Tuple[int, int, int]:
+    """``(rows, seq, k)`` of the store for the largest window this run can produce.
 
-    The weight store and staging are already resident when this runs, so ``free_ram``
-    is what they left over. A pinned chunk is its own allocation, and torch's host
-    allocator rounds it up to the next power of two (#901). Without psutil
-    (``free_ram`` is None) nothing is checked.
+    A mixed-length window pads to a multiple of ``SHAPE_ROUND``, so a known ``max_seq`` is
+    rounded up to it. Without ``max_seq`` the store is sized to the largest shape seen so
+    far, and only a window larger than that rebuilds it.
     """
-    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
-    from soup_cli.utils.layer_stream_runtime import _next_power_of_two
+    rows = max(int(shape[0]), int(state.max_rows or 0))
+    seq = int(shape[1])
+    if state.max_seq:
+        seq = max(seq, -(-int(state.max_seq) // SHAPE_ROUND) * SHAPE_ROUND)
+    k = max(int(k), int(state.max_k or 0))
+    store = state.store
+    if store is not None:
+        rows, seq, k = max(rows, store.shape[0]), max(seq, store.shape[1]), max(k, store.k)
+    return rows, seq, k
 
-    block = _next_power_of_two(chunk_bytes) if pinned else chunk_bytes
-    nbytes = n_layers * k * block
-    if free_ram is None or nbytes < free_ram * RAM_TIER_HEADROOM:
-        return
-    kind = "pinned " if pinned else ""
-    rounding = (
-        f" (a {chunk_bytes / 1e6:.1f} MB chunk takes a {block / 1e6:.1f} MB pinned block)"
-        if block != chunk_bytes
-        else ""
-    )
-    raise ValueError(
-        f"training.l2l keeps {n_layers} layers x {k} micro-batches of activations in host "
-        f"RAM: {nbytes / 1e9:.2f} GB of {kind}blocks{rounding}, but only "
-        f"{free_ram / 1e9:.1f} GB is free and {RAM_TIER_HEADROOM:.0%} of that is usable. "
-        f"Lower gradient_accumulation_steps, data.max_length or batch_size, or free RAM."
+
+def _spill_line(plan: Dict[str, Any], budget: Any) -> str:
+    from soup_cli.utils.terminal import for_terminal
+
+    return (
+        f"[yellow]L2L:[/] activations do not fit host RAM; spilling "
+        f"{plan['spill_layers']} of {plan['n_layers']} layers "
+        f"({plan['spill_file_bytes'] / 1e9:.2f} GB) to {for_terminal(plan['spill_path'])}; "
+        f"{for_terminal(budget.describe())}"
     )
 
 
 def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, device: Any) -> Any:
+    """The activation store, built once for the largest window and reused for smaller ones.
+
+    The plan keeps as many layers resident as the RAM budget holds and spills the rest;
+    it is decided, and the spill directory checked, before anything is allocated.
+    """
     import torch
 
+    from soup_cli.utils import l2l_spill
     from soup_cli.utils.l2l_activations import ActivationStore
-    from soup_cli.utils.layer_stream import free_ram_bytes
 
     hidden = int(stepper.causal.config.hidden_size)
-    if state.store is None or state.store.shape[:2] != shape or state.store.k < k:
-        state.close()
-        n_layers = len(stepper.layers)
-        itemsize = torch.empty((), dtype=state.dtype).element_size()
-        chunk_bytes = shape[0] * shape[1] * hidden * itemsize
-        pin = str(device).startswith("cuda")
-        check_activation_budget(
-            free_ram=free_ram_bytes(),
-            n_layers=n_layers,
-            k=k,
-            chunk_bytes=chunk_bytes,
-            pinned=pin,
+    store = state.store
+    if store is not None and shape[0] * shape[1] * hidden <= store.capacity and k <= store.k:
+        return store
+    rows, seq, k_cap = _capacity(state, shape, k)
+    state.close()
+    n_layers = len(stepper.layers)
+    itemsize = torch.empty((), dtype=state.dtype).element_size()
+    pin = str(device).startswith("cuda")
+    budget = l2l_spill.ram_budget()
+    logger.info(
+        "training.l2l activation budget: %s [limiting level %s: %s]",
+        budget.describe(), budget.limiting_level, budget.limiting_numbers,
+    )
+    plan = l2l_spill.plan_spill(
+        budget.budget_bytes,
+        n_layers=n_layers,
+        k=k_cap,
+        chunk_bytes=rows * seq * hidden * itemsize,
+        ring=l2l_spill.TRAINER_RING,
+        pin=pin,
+        budget_source=budget.describe(),
+    )
+    record = {
+        **plan.as_dict(),
+        "available_bytes": budget.available_bytes,
+        "limiting_level": budget.limiting_level,
+        "limiting_numbers": dict(budget.limiting_numbers),
+        "spill_dir": state.spill_directory(),
+        "spill_path": None,
+        "explicit_dir": state.spill_dir is not None,
+    }
+    factory = None
+    if plan.spill_layers:
+        directory = l2l_spill.prepare_spill_dir(
+            record["spill_dir"],
+            explicit=record["explicit_dir"],
+            spill_layers=plan.spill_layers,
+            file_bytes=plan.spill_file_bytes,
+            tier=str(getattr(state.runtime, "tier", "ram")),
+            weight_dirs=state.weight_dirs,
         )
-        state.store = ActivationStore(
-            n_layers=n_layers,
-            k=k,
-            chunk_shape=(shape[0], shape[1], hidden),
-            dtype=state.dtype,
-            device=device,
-            pin=pin,
-        )
+        record["spill_dir"] = directory
+        record["spill_path"] = os.path.join(directory, l2l_spill.spill_file_name())
+        factory = functools.partial(l2l_spill.open_spill_file, record["spill_path"])
+    state.store = ActivationStore(
+        n_layers=n_layers,
+        k=k_cap,
+        chunk_shape=(rows, seq, hidden),
+        dtype=state.dtype,
+        device=device,
+        pin=pin,
+        spill_layers=plan.spill_layers,
+        spill_factory=factory,
+        ring=l2l_spill.TRAINER_RING,
+    )
+    state.spill_plan = record
+    if plan.spill_layers:
+        l2l_spill.say(_spill_line(record, budget))
     return state.store
 
 
@@ -242,6 +334,21 @@ def make_l2l_trainer_class(base_cls: type) -> type:
     class L2LTrainer(base_cls):  # type: ignore[misc, valid-type]
         soup_l2l: bool = True
         _soup_l2l: Optional[L2LState] = None
+
+        def train(self, *args, **kwargs):  # type: ignore[override]
+            """HF's ``train`` with the spill directory swept before it and the activation
+            store (and its spill file) closed after it, on a normal end, an exception or
+            Ctrl-C alike."""
+            state = self._soup_l2l
+            if state is None:
+                return super().train(*args, **kwargs)
+            from soup_cli.utils.l2l_spill import sweep_stale
+
+            state.stale_removed = sweep_stale(state.spill_directory())
+            try:
+                return super().train(*args, **kwargs)
+            finally:
+                state.close()
 
         def get_batch_samples(self, epoch_iterator, num_batches, device):  # type: ignore[override]
             samples, num_items = super().get_batch_samples(epoch_iterator, num_batches, device)
@@ -313,8 +420,34 @@ def make_l2l_trainer_class(base_cls: type) -> type:
     return L2LTrainer
 
 
-def attach_l2l_state(trainer: Any, runtime: Any, *, dtype: Any) -> L2LState:
-    """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime."""
-    state = L2LState(runtime=runtime, dtype=dtype)
+def attach_l2l_state(
+    trainer: Any,
+    runtime: Any,
+    *,
+    dtype: Any,
+    spill_dir: Optional[str] = None,
+    weight_dirs: Sequence[str] = (),
+    max_seq: Optional[int] = None,
+) -> L2LState:
+    """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
+
+    ``spill_dir`` is ``training.l2l_spill_dir`` (None: ``<output_dir>/_l2l_spill``),
+    ``weight_dirs`` the directories the weights stream from on the disk tier, and
+    ``max_seq`` the longest row (``data.max_length``; None: the trainer's ``max_length``
+    if it has one, else the longest window seen so far).
+    """
+    args = getattr(trainer, "args", None)
+    if max_seq is None:
+        max_seq = getattr(args, "max_length", None)
+    state = L2LState(
+        runtime=runtime,
+        dtype=dtype,
+        spill_dir=spill_dir,
+        weight_dirs=tuple(str(path) for path in weight_dirs),
+        output_dir=getattr(args, "output_dir", None),
+        max_rows=int(getattr(args, "per_device_train_batch_size", 0) or 0),
+        max_seq=int(max_seq) if max_seq else None,
+        max_k=int(getattr(args, "gradient_accumulation_steps", 0) or 0),
+    )
     trainer._soup_l2l = state
     return state

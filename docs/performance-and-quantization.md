@@ -850,7 +850,66 @@ Refused at launch:
 - `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the replayed draws would differ from accumulation. Use rows of one length or set the dropout to 0.
 - `neftune_alpha` together with `lora.dropout` or `attention_dropout` above 0.
 - `attention_dropout` above 0 with the `sdpa` attention implementation.
-- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+- Activations that do not fit host RAM even with every layer spilled to disk (see below).
+
+**Activations and the spill file.** L2L keeps one chunk of `batch x seq x hidden` per layer
+and micro-batch between the forward and the backward walk (80 layers, hidden 8192, seq 4096,
+k=16 in bf16 is 80 GiB). The store is sized once for the largest window the run can produce
+(`batch_size` rows of the longest tokenized row (at most `data.max_length`), rounded up to 64,
+times `gradient_accumulation_steps`) and serves every shorter window, so a run creates at most
+one spill file. Before the first step the run compares the store with the host-RAM budget:
+
+- **Budget.** The smaller of psutil's available memory and the smallest remainder over the
+  process's cgroup chain, from its own group up to the root of its namespace, times 0.7. A
+  level's remainder is `limit - (used - inactive file cache)`: on cgroup v2 the limit is
+  `memory.max`, or `memory.high` when that is lower, used is `memory.current` and the cache is
+  `inactive_file` from that level's `memory.stat`; on v1 they are `memory.limit_in_bytes`,
+  `memory.usage_in_bytes` and `total_inactive_file`. Page-locked memory is charged as shmem
+  and counts. Levels without a limit are skipped; a parent can limit a child whose own limit
+  is `max`. A level whose limit cannot be read, or whose `memory.stat` cannot be read (then
+  `limit - used` is used), is logged. Without psutil and without a cgroup limit no budget is
+  known and everything stays in RAM.
+- **Cost.** On CUDA each chunk is a separate pinned allocation that torch rounds up to a power
+  of two, so a 17 MiB chunk costs 32 MiB. Spilling needs two staging rings of 4 pinned buffers
+  of one chunk (rounded up to 4096 bytes) plus 4096 bytes each.
+- **Fits.** Nothing changes: no file, no checks of the spill directory.
+- **Does not fit.** The fewest layers spill, the lowest first, so that the rest plus the rings
+  fit. One console line before the first step names the number of layers, the file size, the
+  spill file's path, the budget and the level that limited it (`psutil`, or the cgroup
+  directory with its limit, use and inactive file cache). Each logged step carries
+  `l2l_spill_layers` (0 when nothing spills).
+- **Cannot fit.** When even every layer spilled does not fit, the run stops before allocating:
+  lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`, or free RAM.
+
+The file lives in `training.l2l_spill_dir`, by default `<output>/_l2l_spill`. Use a local drive
+with room; the path is not held to the working directory. The run stops with the directory,
+the reason and the fix when the directory is on tmpfs, ramfs, devtmpfs, overlay, aufs,
+squashfs or a network filesystem (read from `/proc/self/mountinfo` on Linux; network drives
+and RAM disks on Windows), when its drive has less free space than the file plus the larger
+of 1 GiB and 10% of the file, or when a 1 MiB unbuffered write and read there do not return
+the same bytes. When the weights stream from disk, the spill must not share their physical
+disk (read from `/sys/dev/block` on Linux; unknown on Windows and macOS): with the default
+directory, the same or an unknown disk stops the run; with `training.l2l_spill_dir` set, the
+run continues with a warning.
+
+```yaml
+training:
+  l2l: true
+  l2l_spill_dir: /mnt/nvme1/soup-spill   # optional; default <output>/_l2l_spill
+```
+
+The slowdown was measured only in the A4 v3 configuration (RTX 3090 on PCIe 3.0, Mistral-7B
+NF4, seq 512, k 2-4, ring 4, one virtual disk): +2.5% and +1.7% on average, with 95% upper
+bounds of +6.1% and +5.5%. On other machines and configurations it may be more. With the
+spill on the weights' drive the step was 13% slower. Record:
+`benchmarks/probe-a4-l2l-ram-budget-spill.md` (on the A4 branch).
+
+Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
+when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
+The next run with the same directory removes it at start if the process that created it is
+no longer alive. Otherwise remove it by hand; its path is in the console line. Files are named
+`soup-l2l-spill-<pid>-<8 hex>.bin`; the start-up sweep touches only those names (and its own
+`soup-l2l-probe-*` files) directly in that directory and never follows links.
 
 **Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
 attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch
@@ -918,10 +977,11 @@ cache = 32 layers x k x batch x seq x 4096 x 2 bytes
 ```
 
 with `seq` rounded up to a multiple of 64 and, on CUDA, each chunk rounded up to a power of
-two. The run needs free RAM of at least `cache / 0.7` after the weight store. For k = 4 the
-cache is 1 GiB at batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq
-2048, so the last one needs about 11.5 GiB free on top of the weights. These figures come
-from the formula, not from a measurement on a loaded host.
+two. The whole cache stays in RAM when it is at most 0.7 of the RAM left after the weight
+store; below that the lowest layers spill to disk (see above). For k = 4 the cache is 1 GiB at
+batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq 2048, so the last
+one stays in RAM with about 11.5 GiB free on top of the weights. These figures come from the
+formula, not from a measurement on a loaded host.
 
 **Bit-for-bit equality.** Equal bits against accumulation need all of:
 
@@ -936,7 +996,7 @@ On SmolLM2-135M this gave equal bits. On Mistral-7B NF4 in bf16 it did not (see 
 compare 7B runs with a tolerance. The stand is
 [`benchmarks/harness/l2l_mistral_stand.py`](../benchmarks/harness/l2l_mistral_stand.py).
 
-**Counters.** Each logged training step carries four cumulative fields:
+**Counters.** Each logged training step carries five fields; the first four are cumulative:
 
 | Log field | Meaning |
 |---|---|
@@ -944,6 +1004,7 @@ compare 7B runs with a tolerance. The stand is
 | `l2l_layer_loads` | decoder layers loaded into a streaming slot |
 | `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
 | `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
+| `l2l_spill_layers` | layers whose activations go to the spill file; 0 when everything stays in RAM |
 
 Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
 flat as k grows. With plain accumulation it grows roughly in proportion to k.

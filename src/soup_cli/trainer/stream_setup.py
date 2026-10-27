@@ -508,6 +508,9 @@ class StreamingSetupMixin:
 
     #: Set by :meth:`_setup_streaming_transformers`; absent on a resident run.
     _stream_runtime = None
+    #: The directories the streamed layers are read from (cache plus stripe folders), so
+    #: the L2L activation spill can stay off the weights' disk on the disk tier.
+    _stream_weight_dirs: tuple = ()
 
     @staticmethod
     def _stream_shape_config(model_config):
@@ -1076,6 +1079,9 @@ class StreamingSetupMixin:
         )
         self.model = model
         self._stream_runtime = runtime
+        self._stream_weight_dirs = tuple(
+            stripe_dirs(shard_dir, tuple(getattr(index, "stripe_roots", None) or ()))
+        )
         if probe_plan is not None:
             self._run_stream_vram_probe(model, probe_plan)
         stats = runtime.stats()

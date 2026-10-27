@@ -14,6 +14,11 @@ staging rings, by one writer and one reader thread. ``BufferedSpillFile``
 exists for the CPU tests only, and the probe refuses a backend whose ``direct``
 is False.
 
+``chunk_shape`` is a capacity. A tensor with fewer elements (a shorter window)
+is stored in the front of its slot and comes back from ``get`` in its own shape.
+Every slot of the spill file and every staging buffer is the chunk rounded up to
+the sector, so unbuffered I/O stays aligned for any chunk size.
+
 Top level imports the standard library only; torch is imported inside functions.
 """
 
@@ -34,6 +39,11 @@ DEFAULT_RING = 8
 _FILE_SHARE_READ = 0x00000001
 _FILE_SHARE_WRITE = 0x00000002
 _FILE_FLAG_NO_BUFFERING = 0x20000000
+
+
+def sector_round_up(nbytes: int) -> int:
+    """``nbytes`` rounded up to a whole number of sectors."""
+    return -(-int(nbytes) // SECTOR_BYTES) * SECTOR_BYTES
 
 
 def aligned_buffer(nbytes: int, *, pin: bool) -> Any:
@@ -176,7 +186,8 @@ class DirectSpillFile(SpillBackend):
 
     The file is filled with zeros once at construction: an unbuffered write past
     the valid-data length makes the filesystem zero-fill the gap synchronously,
-    which would land inside the first timed step instead of here.
+    which would land inside the first timed step instead of here. A construction
+    that fails (a full drive included) removes the file it created.
     """
 
     direct = True
@@ -189,9 +200,11 @@ class DirectSpillFile(SpillBackend):
         self.path = str(path)
         self._writer: Optional[io.FileIO] = None
         self._reader: Optional[io.FileIO] = None
-        with open(self.path, "wb") as handle:
-            handle.truncate(size)
+        created = False
         try:
+            with open(self.path, "wb") as handle:
+                created = True
+                handle.truncate(size)
             self._writer = _open_unbuffered(self.path)
             zeros = aligned_buffer(fill_chunk, pin=False)
             zeros.zero_()
@@ -199,7 +212,7 @@ class DirectSpillFile(SpillBackend):
                 _write_all(self._writer, offset, zeros[: min(fill_chunk, size - offset)])
             self._reader = _open_unbuffered(self.path)
         except BaseException:
-            self.close()
+            self.close(remove=created)
             raise
 
     def write(self, offset: int, buf: Any) -> None:
@@ -265,7 +278,11 @@ Key = Tuple[int, int]
 
 class ActivationStore:
     """``n_layers x k`` boundary activations: pinned chunks, plus the lowest
-    ``spill_layers`` layers through a spill backend."""
+    ``spill_layers`` layers through a spill backend.
+
+    ``chunk_shape`` is the capacity of one chunk. ``put`` takes any tensor with at
+    most that many elements; ``get`` returns it in the shape it was put with.
+    """
 
     def __init__(
         self,
@@ -295,9 +312,15 @@ class ActivationStore:
         self.device = torch.device(device)
         self.is_cuda = self.device.type == "cuda"
         self.spill_layers = int(spill_layers)
-        self.chunk_bytes = math.prod(self.shape) * torch.empty((), dtype=dtype).element_size()
+        self.capacity = math.prod(self.shape)
+        self._itemsize = torch.empty((), dtype=dtype).element_size()
+        self.chunk_bytes = self.capacity * self._itemsize
+        #: One spilled chunk's place in the file and in a staging buffer: unbuffered
+        #: I/O needs sector-aligned offsets and lengths whatever the chunk size.
+        self.slot_bytes = sector_round_up(self.chunk_bytes)
         self._error: Optional[BaseException] = None
         self._closing = False
+        self._shapes: Dict[Key, Tuple[int, ...]] = {}
         self._resident: Dict[Key, Any] = {}
         for layer in range(self.spill_layers, self.n_layers):
             for mb in range(self.k):
@@ -311,18 +334,32 @@ class ActivationStore:
             direct=None,
         )
         self._spill: Optional[SpillBackend] = None
+        self.spill_path: Optional[str] = None
         if not self.spill_layers:
             return
-        self._spill = spill_factory(self.spill_layers * self.k * self.chunk_bytes)
-        self.stats.direct = bool(self._spill.direct)
-        self._write_ring = _Ring([aligned_buffer(self.chunk_bytes, pin=pin) for _ in range(ring)])
-        self._read_ring = _Ring([aligned_buffer(self.chunk_bytes, pin=pin) for _ in range(ring)])
+        self._spill = spill_factory(self.spill_layers * self.k * self.slot_bytes)
+        self.spill_path = self._spill.path
+        try:
+            self.stats.direct = bool(self._spill.direct)
+            self._write_ring = _Ring(
+                [aligned_buffer(self.slot_bytes, pin=pin) for _ in range(ring)]
+            )
+            self._read_ring = _Ring(
+                [aligned_buffer(self.slot_bytes, pin=pin) for _ in range(ring)]
+            )
+        except BaseException:
+            # The file exists from here on; a ring that fails to allocate must not leave it.
+            self._spill.close(remove=True)
+            self.stats.spill_left_behind = self._spill.left_behind
+            self._spill = None
+            raise
         self._writes: "queue.Queue[Any]" = queue.Queue()
         self._reads: "queue.Queue[Any]" = queue.Queue()
         self._cond = threading.Condition()
         self._written: Set[Key] = set()
         self._requested: Set[Key] = set()
         self._ready: Dict[Key, Any] = {}
+        self._step_keys: Set[Key] = set()
         self._threads = [
             threading.Thread(target=self._write_loop, name="l2l-spill-writer", daemon=True),
             threading.Thread(target=self._read_loop, name="l2l-spill-reader", daemon=True),
@@ -336,10 +373,32 @@ class ActivationStore:
 
     def _offset(self, key: Key) -> int:
         layer, mb = key
-        return (layer * self.k + mb) * self.chunk_bytes
+        return (layer * self.k + mb) * self.slot_bytes
 
-    def _typed(self, buf: Any) -> Any:
-        return buf.view(self.dtype).view(self.shape)
+    def _fit(self, tensor: Any) -> Tuple[int, ...]:
+        """The shape ``tensor`` is stored with; refuses one larger than a chunk."""
+        shape = tuple(int(dim) for dim in tensor.shape)
+        if shape != self.shape and math.prod(shape) > self.capacity:
+            raise ValueError(
+                f"an activation of shape {shape} does not fit the store's {self.shape} chunks"
+            )
+        return shape
+
+    def _view(self, chunk: Any, shape: Tuple[int, ...]) -> Any:
+        """The front of a resident chunk, as a tensor of ``shape``."""
+        if shape == self.shape:
+            return chunk
+        return chunk.view(-1)[: math.prod(shape)].view(shape)
+
+    def _typed(self, buf: Any, shape: Tuple[int, ...]) -> Any:
+        flat = buf[: self.chunk_bytes].view(self.dtype)
+        if shape == self.shape:
+            return flat.view(self.shape)
+        return flat[: math.prod(shape)].view(shape)
+
+    def _io_bytes(self, shape: Tuple[int, ...]) -> int:
+        """Bytes one transfer of a ``shape`` chunk moves: its own size, sector-rounded."""
+        return sector_round_up(math.prod(shape) * self._itemsize)
 
     def _record(self) -> Any:
         if not self.is_cuda:
@@ -358,18 +417,35 @@ class ActivationStore:
             self._cond.notify_all()
 
     def _raise_if_failed(self) -> None:
-        if self._error is not None:
-            path = self._spill.path if self._spill is not None else "<none>"
-            raise RuntimeError(
-                f"activation spill to {path} failed: {self._error!r}"
+        if self._error is None:
+            return
+        from soup_cli.utils.l2l_spill import SpillDiskFullError, disk_full_message, is_disk_full
+
+        path = self.spill_path or "<none>"
+        full = is_disk_full(self._error)
+        if full is not None:
+            # The file is removed before the error leaves, so the message can say so.
+            self.close()
+            raise SpillDiskFullError(
+                disk_full_message(
+                    path,
+                    file_bytes=self.spill_layers * self.k * self.slot_bytes,
+                    during="writing",
+                    written=self.stats.bytes_written,
+                    left_behind=self.stats.spill_left_behind,
+                    error=full,
+                )
             ) from self._error
+        raise RuntimeError(f"activation spill to {path} failed: {self._error!r}") from self._error
 
     # -- the forward ---------------------------------------------------------
     def put(self, layer: int, mb: int, tensor: Any) -> None:
         self._raise_if_failed()
         key = (layer, mb)
+        shape = self._fit(tensor)
         if not self.is_spilled(layer):
-            self._resident[key].copy_(tensor, non_blocking=True)
+            self._view(self._resident[key], shape).copy_(tensor, non_blocking=True)
+            self._shapes[key] = shape
             return
         started = time.perf_counter()
         buf = self._write_ring.acquire(lambda: self._error is not None or self._closing)
@@ -377,11 +453,13 @@ class ActivationStore:
         self._raise_if_failed()
         if buf is None:
             raise RuntimeError("the activation store was closed during a put")
-        self._typed(buf).copy_(tensor, non_blocking=True)
+        self._typed(buf, shape).copy_(tensor, non_blocking=True)
         event = self._record()
         with self._cond:
             self._written.discard(key)
-        self._writes.put((key, buf, event))
+            self._shapes[key] = shape
+            self._step_keys.add(key)
+        self._writes.put((key, buf, event, self._io_bytes(shape)))
 
     def _write_loop(self) -> None:
         try:
@@ -389,12 +467,12 @@ class ActivationStore:
                 item = self._writes.get()
                 if item is None:
                     return
-                key, buf, event = item
+                key, buf, event, nbytes = item
                 if event is not None:
                     event.synchronize()
-                self._spill.write(self._offset(key), buf)
+                self._spill.write(self._offset(key), buf[:nbytes])
                 with self._cond:
-                    self.stats.bytes_written += self.chunk_bytes
+                    self.stats.bytes_written += nbytes
                     self._written.add(key)
                     self._cond.notify_all()
                 self._write_ring.release(buf, None)
@@ -410,10 +488,17 @@ class ActivationStore:
         self._reads.put(key)
 
     def begin_backward(self) -> None:
-        """Queue every spilled chunk's read in the order the backward consumes them."""
+        """Queue the read of every spilled chunk put this step, in the order the backward
+        consumes them. A shorter window than ``k`` puts fewer micro-batches; a chunk it did
+        not put is not read (it may never have been written)."""
+        if not self.spill_layers:
+            return
+        with self._cond:
+            put = set(self._step_keys)
         for layer in range(self.spill_layers - 1, -1, -1):
             for mb in range(self.k):
-                self._request((layer, mb))
+                if (layer, mb) in put:
+                    self._request((layer, mb))
 
     def _read_loop(self) -> None:
         try:
@@ -426,23 +511,27 @@ class ActivationStore:
                         if self._closing or self._error is not None:
                             return
                         self._cond.wait(0.5)
+                    nbytes = self._io_bytes(self._shapes.get(key, self.shape))
                 buf = self._read_ring.acquire(lambda: self._closing or self._error is not None)
                 if buf is None:
                     return
-                self._spill.read(self._offset(key), buf)
+                self._spill.read(self._offset(key), buf[:nbytes])
                 with self._cond:
-                    self.stats.bytes_read += self.chunk_bytes
+                    self.stats.bytes_read += nbytes
                     self._ready[key] = buf
                     self._cond.notify_all()
         except BaseException as exc:  # noqa: BLE001 — surfaced on the next put/get
             self._fail(exc)
 
     def get(self, layer: int, mb: int) -> Any:
-        """The stored activation as a NEW tensor on the store's device."""
+        """The stored activation as a NEW tensor on the store's device, in its put shape."""
         self._raise_if_failed()
         key = (layer, mb)
+        shape = self._shapes.get(key, self.shape)
         if not self.is_spilled(layer):
-            return self._resident[key].to(self.device, non_blocking=True, copy=True)
+            return self._view(self._resident[key], shape).to(
+                self.device, non_blocking=True, copy=True
+            )
         self._request(key)
         started = time.perf_counter()
         with self._cond:
@@ -454,7 +543,7 @@ class ActivationStore:
             self._requested.discard(key)
         self.stats.get_wait_s += time.perf_counter() - started
         self._raise_if_failed()
-        out = self._typed(buf).to(self.device, non_blocking=True, copy=True)
+        out = self._typed(buf, shape).to(self.device, non_blocking=True, copy=True)
         self._read_ring.release(buf, self._record())
         return out
 
@@ -465,6 +554,7 @@ class ActivationStore:
             return
         with self._cond:
             pending = sorted(self._requested | set(self._ready))
+            self._step_keys.clear()
         if pending:
             raise RuntimeError(
                 f"{len(pending)} spilled activation chunk(s) were not consumed this step, "
