@@ -337,3 +337,79 @@ def test_split_runs_drops_spoiled_runs_and_keeps_the_reason(synth):
     kept, excluded = synth.split_runs(entries)
     assert [e["name"] for e in kept] == ["r1", "r3"]
     assert excluded == [{"run": "r2", "reason": "suspend: machine slept"}]
+
+
+# --------------------------------------------------------------------------
+# physical RAM ceiling of the RAM tier (review finding)
+# --------------------------------------------------------------------------
+def test_ram_tier_refuses_weights_above_55_percent_of_physical_ram(synth):
+    plan = synth.resource_plan(k=4, batch=1, seq=256, tier="ram")
+    total = int(plan["ram"]["weights"] / 0.55) - 1
+    with pytest.raises(synth.SynthRefusedError) as err:
+        synth.check_resources(
+            plan, free_ram=10**13, free_disk=10**14, total_ram=total
+        )
+    assert "55%" in str(err.value)
+
+
+def test_ram_tier_passes_when_weights_are_within_the_ceiling(synth):
+    plan = synth.resource_plan(k=4, batch=1, seq=256, tier="ram")
+    total = int(plan["ram"]["weights"] / 0.55) + 1
+    synth.check_resources(plan, free_ram=10**13, free_disk=10**14, total_ram=total)
+
+
+def test_disk_tier_ignores_the_physical_ceiling(synth):
+    plan = synth.resource_plan(k=4, batch=1, seq=256, tier="disk")
+    synth.check_resources(plan, free_ram=10**13, free_disk=10**14, total_ram=1)
+
+
+# --------------------------------------------------------------------------
+# build_record: the arm's run.json into the report payload
+# --------------------------------------------------------------------------
+def _arm_json(**override):
+    arm = {
+        "failure": None,
+        "gpu": {"name": "RTX 3090"},
+        "run": _run(os_read_bytes=7_000_000_000_000),
+        "steps": [],
+    }
+    arm.update(override)
+    return arm
+
+
+def test_build_record_sets_the_model_and_reads_weights_from_the_run(synth):
+    record = synth.build_record(_arm_json(), plan=None, rental=None, logs=["a.log"], entries=[])
+    assert record["model"] == synth.MODEL_KIND
+    assert record["weight_read_bytes"] == 7_000_000_000_000
+    assert record["run"]["tokens_per_s"] == 24.1
+    assert record["logs"] == ["a.log"]
+
+
+def test_build_record_marks_spill_unavailable_with_a_reason(synth):
+    record = synth.build_record(_arm_json(), plan=None, rental=None, logs=[], entries=[])
+    assert record["spill_written_bytes"] is None and record["spill_read_bytes"] is None
+    assert "not wired" in record["unavailable"]["spill_written_bytes"]
+    synth.render_report(record)
+
+
+def test_build_record_takes_excluded_runs_from_f1_entries(synth):
+    entries = [{"name": "r2", "spoiled": True, "void_reasons": {"suspend": "slept"}}]
+    record = synth.build_record(_arm_json(), plan=None, rental=None, logs=[], entries=entries)
+    assert record["excluded"] == [{"run": "r2", "reason": "suspend: slept"}]
+
+
+def test_build_record_fills_the_cost_from_rate_and_hours(synth):
+    rental = {"instance": 1, "offer": 2, "rate_per_hour": 0.4, "hours": 2.5,
+              "budget_usd": 8.0, "destroyed": True}
+    record = synth.build_record(_arm_json(), plan=None, rental=rental, logs=[], entries=[])
+    assert record["rental"]["cost_usd"] == 1.0
+
+
+def test_build_record_refuses_a_failed_run(synth):
+    with pytest.raises(ValueError, match="failed"):
+        synth.build_record(_arm_json(failure="OOM"), plan=None, rental=None, logs=[], entries=[])
+
+
+def test_build_record_refuses_an_arm_without_a_run_record(synth):
+    with pytest.raises(ValueError, match="run"):
+        synth.build_record(_arm_json(run=None), plan=None, rental=None, logs=[], entries=[])

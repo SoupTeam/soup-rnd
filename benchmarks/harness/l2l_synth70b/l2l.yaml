@@ -3,6 +3,8 @@
 # Build the base first:
 #   python benchmarks/harness/synth_checkpoint.py --shape llama-70b --vocab 32768 --out $SYNTH
 # then copy the Mistral-7B-v0.1 tokenizer files (vocab 32000 fits the 32768-row head) into $SYNTH.
+# Data: python benchmarks/harness/l2l_ticket04/prepare_data.py (writes data/alpaca64.jsonl).
+# Plan with the same shape as this file: plan --k 4 --seq 256 (max_length 256, batch 1, k 4).
 # Run: python benchmarks/harness/l2l_ticket04_arm.py --config l2l.yaml --out run.json
 base: ./synth-llama-70b
 task: sft

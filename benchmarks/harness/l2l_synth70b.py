@@ -14,9 +14,10 @@ The run itself is ``l2l_ticket04_arm.py`` with ``l2l_synth70b/l2l.yaml``.
 
 Benchmark harness code, not shipped. torch is not imported here.
 
-``plan`` prints the plan and exits 3 when the machine is short; ``report`` renders a record::
+``plan`` prints the plan and exits 3 when the machine is short; ``build`` joins an arm record
+to the report payload; ``report`` renders it::
 
-    python benchmarks/harness/l2l_synth70b.py plan --k 4 --seq 512 --tier disk --path /root/work
+    python benchmarks/harness/l2l_synth70b.py plan --k 4 --seq 256 --tier disk --path /root/work
     python benchmarks/harness/l2l_synth70b.py report --record record.json --out report.md
 """
 
@@ -162,10 +163,31 @@ def resource_plan(
 
 
 def check_resources(
-    plan: Mapping[str, Any], *, free_ram: Optional[int], free_disk: Optional[int]
+    plan: Mapping[str, Any],
+    *,
+    free_ram: Optional[int],
+    free_disk: Optional[int],
+    total_ram: Optional[int] = None,
 ) -> None:
-    """Refuse when RAM or disk is below the plan. An unknown amount is a refusal too."""
+    """Refuse when RAM or disk is below the plan. An unknown amount is a refusal too.
+
+    On the ``ram`` tier the pinned NF4 weights must also stay under
+    ``PHYSICAL_RAM_TIER_HEADROOM`` of total RAM, as the trainer requires (#622).
+    """
+    from soup_cli.utils.layer_stream import (
+        PHYSICAL_RAM_TIER_HEADROOM,
+        PHYSICAL_RAM_TIER_HEADROOM_PERCENT,
+    )
+
     problems: List[str] = []
+    if plan["tier"] == "ram":
+        if total_ram is None:
+            problems.append("RAM: total physical RAM is unknown, the harness will not guess")
+        elif plan["ram"]["weights"] > total_ram * PHYSICAL_RAM_TIER_HEADROOM:
+            problems.append(
+                f"RAM: pinned weights of {plan['ram']['weights'] / GIB:.1f} GiB exceed "
+                f"{PHYSICAL_RAM_TIER_HEADROOM_PERCENT}% of {total_ram / GIB:.1f} GiB physical RAM"
+            )
     need_ram, need_disk = plan["ram"]["total"], plan["disk"]["total"]
     if free_ram is None:
         problems.append("RAM: the free amount is unknown, the harness will not guess")
@@ -210,6 +232,55 @@ def split_runs(
         else:
             kept.append(entry)
     return kept, excluded
+
+
+# --------------------------------------------------------------------------
+# record
+# --------------------------------------------------------------------------
+SPILL_NOT_WIRED = "spill is not wired into the trainer (A4 integration is outside A5)"
+
+
+def build_record(
+    arm: Mapping[str, Any],
+    *,
+    plan: Optional[Mapping[str, Any]],
+    rental: Optional[Mapping[str, Any]],
+    logs: Sequence[str],
+    entries: Sequence[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    """The report payload from one ``l2l_ticket04_arm.py`` record.
+
+    Weight reads are the process read counter of the run (the spill is not wired into the
+    trainer, so none of it is spill). The F1 ``entries`` name the runs to exclude.
+    """
+    if arm.get("failure"):
+        raise ValueError(f"the run failed ({arm['failure']}); a failed run has no record")
+    run = arm.get("run")
+    if not run:
+        raise ValueError("the arm has no run record (needs at least one step after step 0)")
+    _, excluded = split_runs(entries)
+    cost = None
+    if rental:
+        cost = rental_cost(rate_per_hour=rental["rate_per_hour"], hours=rental["hours"])
+    unavailable: Dict[str, str] = {
+        "spill_written_bytes": SPILL_NOT_WIRED,
+        "spill_read_bytes": SPILL_NOT_WIRED,
+    }
+    if run.get("os_read_bytes") is None:
+        unavailable["weight_read_bytes"] = "the process read counter is missing"
+    return {
+        "model": MODEL_KIND,
+        "run": dict(run),
+        "gpu": arm.get("gpu"),
+        "weight_read_bytes": run.get("os_read_bytes"),
+        "spill_written_bytes": None,
+        "spill_read_bytes": None,
+        "unavailable": unavailable,
+        "plan": plan,
+        "rental": None if rental is None else {**rental, "cost_usd": cost},
+        "excluded": excluded,
+        "logs": list(logs),
+    }
 
 
 # --------------------------------------------------------------------------
@@ -347,6 +418,14 @@ def _free_ram() -> Optional[int]:
     return int(psutil.virtual_memory().available)
 
 
+def _total_ram() -> Optional[int]:
+    try:
+        import psutil
+    except ImportError:
+        return None
+    return int(psutil.virtual_memory().total)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -357,6 +436,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     plan_cmd.add_argument("--tier", choices=("disk", "ram"), default="disk")
     plan_cmd.add_argument("--spill-layers", type=int, default=0)
     plan_cmd.add_argument("--path", default=".", help="directory whose free disk is checked")
+    build_cmd = sub.add_parser("build", help="turn an arm run.json into a report record")
+    build_cmd.add_argument("--arm", required=True, help="run.json of l2l_ticket04_arm.py")
+    build_cmd.add_argument("--plan", default=None, help="JSON printed by the plan command")
+    build_cmd.add_argument("--rental", default=None, help="JSON: instance, offer, rate_per_hour,"
+                           " hours, budget_usd, destroyed")
+    build_cmd.add_argument("--entries", default=None, help="JSON list of F1 run entries")
+    build_cmd.add_argument("--log", action="append", default=[])
+    build_cmd.add_argument("--out", required=True)
     report_cmd = sub.add_parser("report", help="render a record as the labelled report")
     report_cmd.add_argument("--record", required=True)
     report_cmd.add_argument("--out", required=True)
@@ -367,11 +454,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(json.dumps(plan, indent=1))
         try:
             check_resources(plan, free_ram=_free_ram(),
-                            free_disk=shutil.disk_usage(args.path).free)
+                            free_disk=shutil.disk_usage(args.path).free,
+                            total_ram=_total_ram())
         except SynthRefusedError as exc:
             print(f"REFUSED: {exc}")
             return 3
         print("the machine fits the plan")
+        return 0
+    if args.command == "build":
+        def load(path: Optional[str]) -> Any:
+            return None if path is None else json.loads(Path(path).read_text(encoding="utf-8"))
+
+        record = build_record(load(args.arm), plan=load(args.plan), rental=load(args.rental),
+                              logs=args.log, entries=load(args.entries) or [])
+        target = Path(args.out)
+        if target.exists():
+            print(f"{target} exists; a record is never overwritten")
+            return 2
+        target.write_text(json.dumps(record, indent=1, allow_nan=False) + "\n",
+                          encoding="utf-8")
+        print(f"wrote {target}")
         return 0
     payload = json.loads(Path(args.record).read_text(encoding="utf-8"))
     target = Path(args.out)
