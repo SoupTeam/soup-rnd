@@ -5,6 +5,8 @@ Added to ``l2l_ticket09_arm.main`` (behaviour unchanged):
 
 * a sampler thread reads ``/proc/stat``, ``/proc/loadavg`` and ``nvidia-smi`` once a second;
   the record gets ``sensors`` (``judge_run``) and the samples;
+* with ``--kernel-step N``, one step runs under ``torch.profiler`` and the record gets
+  ``kernel_time`` (seconds the GPU was busy against that step's wall time);
 * after the run, a copy-bandwidth probe of the host (pageable and pinned, both ways);
 * with ``--profile``, parts of a step are timed and ``steps[i]["parts"]`` holds seconds per
   part. ``--profile`` adds events and a synchronise per step, so the speed of a profiled run
@@ -124,7 +126,11 @@ def host_bandwidth(nbytes: int = 1 << 30) -> Dict[str, Any]:
 def main(argv: Optional[List[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     profile = "--profile" in argv
+    kernel_step = argv[argv.index("--kernel-step") + 1] if "--kernel-step" in argv else None
     argv = [a for a in argv if a != "--profile"]
+    if kernel_step is not None:
+        at = argv.index("--kernel-step")
+        del argv[at:at + 2]
     out = argv[argv.index("--out") + 1]
 
     import l2l_mistral_stand as stand
@@ -184,15 +190,40 @@ def main(argv: Optional[List[str]] = None) -> int:
     import transformers
 
     parts_per_step: List[Dict[str, float]] = []
+    kernel: Dict[str, Any] = {}
+
+    def start_kernel_profile() -> Any:
+        from torch.profiler import ProfilerActivity
+        from torch.profiler import profile as torch_profile
+
+        handle = torch_profile(activities=[ProfilerActivity.CUDA, ProfilerActivity.CPU])
+        handle.start()
+        return handle
+
+    def stop_kernel_profile(handle: Any, wall_s: float) -> Dict[str, Any]:
+        torch.cuda.synchronize()
+        handle.stop()
+        busy_us = 0.0
+        for event in handle.key_averages():
+            busy_us += float(getattr(event, "self_device_time_total", 0)
+                             or getattr(event, "self_cuda_time_total", 0) or 0)
+        return {"gpu_busy_s": busy_us / 1e6, "step_wall_s": wall_s}
 
     class Callback(transformers.TrainerCallback):
         def on_step_begin(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
             drain()
             buckets.take()
+            if kernel_step is not None and state.global_step == int(kernel_step):
+                torch.cuda.synchronize()
+                kernel["handle"] = start_kernel_profile()
+                kernel["t0"] = time.perf_counter()
 
         def on_step_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
             drain()
             parts_per_step.append(buckets.take())
+            if kernel.get("handle") is not None:
+                kernel["result"] = stop_kernel_profile(
+                    kernel.pop("handle"), time.perf_counter() - kernel["t0"])
 
     real_init = transformers.Trainer.__init__
 
@@ -212,6 +243,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     path = Path(out)
     record = json.loads(path.read_text())
     record["profile"] = profile
+    if "result" in kernel:
+        record["kernel_time"] = {"step": int(kernel_step), **kernel["result"]}
     record["host_bandwidth"] = bandwidth
     record["sensor_samples"] = samples
     record["sensors"] = prof.judge_run(samples, own_cpu_share=sampler.own_cpu_share())

@@ -34,10 +34,13 @@ def disturbed_runs(blocks: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
 
 class Campaign(camp09.Campaign):
     profile = False
+    kernel_step = None
 
     def run_arm(self, stem: str, spec: Dict[str, Any]):  # type: ignore[override]
         camp09.ARM_SCRIPT = ARM_SCRIPT
         extra = ["--profile"] if self.profile else []
+        if self.kernel_step is not None:
+            extra += ["--kernel-step", str(self.kernel_step)]
         real_run = camp09.subprocess.run
 
         def run(cmd: List[str], **kwargs: Any):
@@ -71,10 +74,13 @@ def main() -> int:
     parser.add_argument("--b", default="after", choices=sorted(camp09.ARMS))
     parser.add_argument("--max-blocks", type=int, default=4)
     parser.add_argument("--profile", action="store_true")
+    parser.add_argument("--kernel-step", type=int, default=None,
+                        help="run this step under torch.profiler (GPU busy time)")
     parsed = parser.parse_args()
     campaign = Campaign(Path(parsed.work), Path(parsed.out), parsed.card,
                         {"before": parsed.tree, "after": parsed.tree}, parsed.a, parsed.b)
     campaign.profile = parsed.profile
+    campaign.kernel_step = parsed.kernel_step
     campaign.abba(parsed.max_blocks)
     print(json.dumps(json.loads((campaign.out / "summary.json").read_text()), indent=1))
     return 0
