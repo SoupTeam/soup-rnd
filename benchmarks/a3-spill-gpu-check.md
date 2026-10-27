@@ -1,8 +1,9 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
-**Status: protocol v2 (§3.6), committed before its session; session 1 (protocol v1) stopped at
-calibration: `NO VERDICT: criterion 1, 2, 3 has no verdict` (§9).** v1's criteria were fixed by
-commit `2a05e15f` before any rental, the machine admission (§5) by commit `794c6827`. v2 adds
+**Status: protocol v2 (§3.6), committed at `6bdd0ec8` before its session; session 1 (protocol
+v1) stopped at calibration: `NO VERDICT: criterion 1, 2, 3 has no verdict` (§9).** v1's criteria
+were fixed by commit `2a05e15f` before any rental, the machine admission (§5) by commit
+`794c6827`. v2 adds
 the product's 512 MiB reserve, calibrates the tight limit to it, and fails criterion 2 on a
 kernel OOM kill of any child at the tight limit after its first training step (§3.6). The rule
 is `harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v2`, `rule_version` v2;
@@ -292,7 +293,7 @@ not U. The calibration measures U on the box.
 
 ```bash
 git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout V2_COMMIT   # protocol v2 (§3.6); session 1 ran v1 at bda4a00a
+git checkout 6bdd0ec8   # protocol v2 (§3.6); session 1 ran v1 at bda4a00a
 A0_PYTHON=python3.12 bash benchmarks/a0-bootstrap.sh   # venv, CUDA torch, pinned deps
 .venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
   tests/test_a3_admission.py tests/test_l2l_spill*.py -q -o addopts=''
