@@ -1,0 +1,43 @@
+{
+  "versions": {
+    "torch": "2.13.0+cu130",
+    "transformers": "5.17.0",
+    "accelerate": "1.14.0",
+    "peft": "0.20.0",
+    "trl": "0.29.1",
+    "datasets": "5.0.1",
+    "psutil": "7.2.2"
+  },
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "commit": "81b9a56a40999bf1cd64cb0a6b3fdee78233a001",
+  "git_status": "",
+  "cuda": "13.0",
+  "argv": [
+    "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py",
+    "train",
+    "--prepared",
+    "/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/prepared",
+    "--output",
+    "/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/live/campaign-deterministic/repeat-2-gpu-1",
+    "--measured-steps",
+    "10",
+    "--precision",
+    "bf16",
+    "--bf16-flash",
+    "--flash-deterministic"
+  ],
+  "device": "NVIDIA GeForce RTX 4090",
+  "pid": 3746,
+  "host": "1c84c4a41076",
+  "nccl": [
+    2,
+    29,
+    7
+  ],
+  "harness_sha256": {
+    "h3_fsdp_gate.py": "2203521703d1aaee736da029fbdc8a2330b7e7a83a2126b20be6685d4f86e169",
+    "h3_fsdp_run.py": "b6bdb6e1973534233427cc8a5e6e9a114bff85a22371a716708e3203694c3652",
+    "fsdp_sharding_probe.py": "10b6497ad083c16b5cdac85912e548802f52e9d86a69d5ed907ac8b9e5b585b5"
+  }
+}

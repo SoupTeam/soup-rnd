@@ -1,0 +1,48 @@
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  84%|████████▍ | 244/290 [00:00<00:00, 2403.69it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 2479.21it/s]
+Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/prepared/data
+Loading weights:  88%|████████▊ | 255/290 [00:00<00:00, 2511.19it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 2576.93it/s]
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/prepared/data
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+FSDP2: tied embeddings share one sharding group
+FSDP2: tied embeddings share one sharding group
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+  0%|          | 0/18 [00:00<?, ?it/s]/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+USDT:2026-10-27 18:30:14 2396:2396 SyncActivityProfilerHandler.cpp:52] profiler_start
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+USDT:2026-10-27 18:30:14 2397:2397 SyncActivityProfilerHandler.cpp:52] profiler_start
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+  6%|▌         | 1/18 [00:02<00:42,  2.48s/it]USDT:2026-10-27 18:30:16 2397:2397 SyncActivityProfilerHandler.cpp:59] profiler_stop
+USDT:2026-10-27 18:30:16 2396:2396 SyncActivityProfilerHandler.cpp:59] profiler_stop
+ 11%|█         | 2/18 [00:08<01:09,  4.33s/it] 17%|█▋        | 3/18 [00:08<00:38,  2.58s/it] 22%|██▏       | 4/18 [00:09<00:24,  1.74s/it] 28%|██▊       | 5/18 [00:09<00:16,  1.28s/it] 33%|███▎      | 6/18 [00:09<00:12,  1.00s/it] 39%|███▉      | 7/18 [00:10<00:09,  1.21it/s]/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
+ 44%|████▍     | 8/18 [00:10<00:07,  1.40it/s] 50%|█████     | 9/18 [00:11<00:05,  1.56it/s] 56%|█████▌    | 10/18 [00:11<00:04,  1.70it/s] 61%|██████    | 11/18 [00:12<00:03,  1.80it/s] 67%|██████▋   | 12/18 [00:12<00:03,  1.89it/s] 72%|███████▏  | 13/18 [00:13<00:02,  1.95it/s] 78%|███████▊  | 14/18 [00:13<00:01,  2.00it/s] 83%|████████▎ | 15/18 [00:14<00:01,  2.04it/s] 89%|████████▉ | 16/18 [00:14<00:00,  2.07it/s] 94%|█████████▍| 17/18 [00:15<00:00,  2.08it/s]100%|██████████| 18/18 [00:15<00:00,  2.05it/s]                                               {'train_runtime': '16.73', 'train_samples_per_second': '8.609', 'train_steps_per_second': '1.076', 'train_loss': '12.95', 'entropy': '10.6', 'num_tokens': '7.373e+04', 'mean_token_accuracy': '0', 'epoch': '0.2812'}
+100%|██████████| 18/18 [00:16<00:00,  2.05it/s]100%|██████████| 18/18 [00:16<00:00,  1.08it/s]
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)

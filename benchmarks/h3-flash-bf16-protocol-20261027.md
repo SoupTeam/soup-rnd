@@ -4,6 +4,12 @@
 experiments. No old arm is relabelled as Flash: the older ordinary BF16 run
 used automatic SDPA selection and did not retain executed backend operators.
 
+Subsequent outcome: the ordinary nondeterministic Flash case failed the first
+strict pair. The predeclared deterministic Flash control passed all four arms
+with zero first-step/reload errors. Both cases and all numeric references were
+retained; see [the result](h3-flash-bf16-result-20261027.md). The original protocol
+below is preserved, and failed timing is not admitted.
+
 ## Target and controls
 
 Use the same immutable Qwen2.5-0.5B base revision, dataset SHA256, sequence512,

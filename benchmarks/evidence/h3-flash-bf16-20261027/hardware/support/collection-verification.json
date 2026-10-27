@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "campaign": "campaign-deterministic",
+  "archives": [
+    "campaign-deterministic-repeat-1-gpu-1.tar.gz",
+    "campaign-deterministic-repeat-1-gpu-2.tar.gz",
+    "campaign-deterministic-repeat-2-gpu-2.tar.gz",
+    "campaign-deterministic-repeat-2-gpu-1.tar.gz",
+    "campaign-deterministic-metadata.tar.gz"
+  ],
+  "summary_replay_exact": true,
+  "adapter_checks": [
+    {
+      "arm": "repeat-1-gpu-1",
+      "root_and_checkpoint_exact": true,
+      "reference_retained": true
+    },
+    {
+      "arm": "repeat-1-gpu-2",
+      "root_and_checkpoint_exact": true,
+      "reference_retained": true
+    },
+    {
+      "arm": "repeat-2-gpu-2",
+      "root_and_checkpoint_exact": true,
+      "reference_retained": true
+    },
+    {
+      "arm": "repeat-2-gpu-1",
+      "root_and_checkpoint_exact": true,
+      "reference_retained": true
+    }
+  ],
+  "commit": "81b9a56a40999bf1cd64cb0a6b3fdee78233a001",
+  "speedup_2": 0.9907474268504152,
+  "scope": "CPU validation of captured real GPU records, not new hardware execution"
+}

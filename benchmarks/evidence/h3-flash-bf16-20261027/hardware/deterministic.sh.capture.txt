@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+H3_REPO=/workspace/h3-soup
+H3_ROOT="$H3_REPO/benchmarks/evidence/h3-flash-bf16-20261027"
+finish() {
+  H3_STATUS=$?
+  printf '%s\n' "$H3_STATUS" > /tmp/h3-deterministic.exit
+  /usr/bin/python3 /tmp/h3-metadata.py "$H3_ROOT" "$H3_STATUS" campaign-deterministic
+}
+trap finish EXIT
+cd "$H3_REPO"
+exec > >(tee "$H3_ROOT/live/deterministic-bootstrap.log") 2>&1
+cp "$0" "$H3_ROOT/live/deterministic.sh.capture.txt"
+test -z "$(git status --porcelain)"
+test -f /tmp/h3-transfer-preflight.ok
+source "$H3_ROOT/venv/bin/activate"
+export PYTHONPATH="$H3_REPO/src" OMP_NUM_THREADS=4 TOKENIZERS_PARALLELISM=false
+python -m pip check
+python benchmarks/harness/h3_fsdp_campaign.py \
+  --prepared "$H3_ROOT/prepared" --output "$H3_ROOT/live/campaign-deterministic" \
+  --precision bf16 --bf16-flash --flash-deterministic \
+  --archive-arms --archive-receipt-timeout 180 \
+  --repeats 2 --measured-steps 10 --timeout-seconds 600 --campaign-seconds "$1"

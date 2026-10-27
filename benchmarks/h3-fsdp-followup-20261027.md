@@ -10,7 +10,9 @@ tokens/s; speedup(2) **0.492159**, efficiency(2)
 This completes the selected first-stage FP32 experiment, not all H3. The later
 [conservative BF16 follow-up](h3-bf16-result-20261027.md) passed the unchanged
 strict gate with retained references; its RTX 4090 timings are separate.
-Ordinary Flash/efficient-SDPA BF16 remains unresolved; resume, 4/8 GPUs, 70B, quality
+The subsequent [native Flash study](h3-flash-bf16-result-20261027.md) passed with
+deterministic algorithms; nondeterministic defaults failed its strict gate.
+Efficient-SDPA, resume, 4/8 GPUs, 70B, quality
 and the wider recipe/backend matrix remain unmeasured. Failed BF16 arms are
 preserved separately and never pooled with FP32 measurements.
 
@@ -166,7 +168,7 @@ with the same strict threshold; no tolerance was loosened or failed arm relabell
 | Actual local shards on every rank | measured via DTensor API |
 | Root/checkpoint adapter keys/values and separate-process output parity | measured; all eight passed, references retained |
 | Same-server 1→2 throughput, warmup separation, repeats, per-rank VRAM and host RAM | measured; negative scaling |
-| BF16 strict cross-world first-step control | ordinary BF16 failed; separate conservative follow-up passed, with its own report/timings |
+| BF16 strict cross-world first-step control | separate conservative math and deterministic native Flash follow-ups passed; nondeterministic Flash failed and is excluded |
 | Optimizer/scheduler resume | unmeasured |
 | 4/8 GPU, 70B, full #41 recipes, multi-node/pipeline, quality | unmeasured |
 | H1 authoritative card/dependency completion | unknown; pinned environment/pip check measured independently |

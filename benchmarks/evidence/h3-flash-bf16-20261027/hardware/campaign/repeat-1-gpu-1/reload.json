@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "pid": 2234,
+  "adapter_path": "/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/live/campaign/repeat-1-gpu-1",
+  "atol": 0.015625,
+  "rtol": 0.0078125,
+  "max_abs_logit_error": 0.0,
+  "adapter_tensors": 96,
+  "precision": "bf16",
+  "bf16_conservative": false,
+  "bf16_flash": true,
+  "flash_deterministic": false,
+  "flash_operator_counts": {
+    "aten::scaled_dot_product_attention": 24,
+    "aten::_scaled_dot_product_flash_attention": 24,
+    "aten::_flash_attention_forward": 24
+  },
+  "backend_controls": {
+    "deterministic": false,
+    "workspace": null,
+    "float32_matmul_precision": "highest",
+    "bf16_reduced_precision_reduction": true,
+    "math_sdp_reduced_precision_reduction": false,
+    "math_sdp": false,
+    "flash_sdp": true,
+    "efficient_sdp": false,
+    "cudnn_sdp": false
+  },
+  "resume": "unmeasured"
+}

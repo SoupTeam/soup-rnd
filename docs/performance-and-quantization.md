@@ -1145,9 +1145,14 @@ had zero output error. The separate
 [conservative BF16 follow-up](../benchmarks/h3-bf16-result-20261027.md) passed
 the unchanged strict first-step gate and eight reloads on two RTX 4090s:
 6932.17 → 7584.77 input tokens/s, speedup 1.0941, efficiency 0.5471.
-It uses deterministic math SDPA and FP32 intermediate reductions; ordinary
-Flash/efficient-SDPA BF16 remains outside that result. Resume, 4/8 GPUs and
-larger-model scaling are unmeasured.
+It uses deterministic math SDPA and FP32 intermediate reductions. The later
+[native Flash BF16 validation](../benchmarks/h3-flash-bf16-result-20261027.md)
+passed with deterministic algorithms and ordinary BF16 GEMM reduction enabled:
+all first-step differences and eight reload errors were zero. Its matched
+throughput was 8178.13 → 8102.46 input tokens/s (speedup 0.9907). Actual Flash
+forward/backward operators were recorded on every rank. Nondeterministic Flash
+defaults failed the unchanged strict gate and remain excluded from scaling.
+Resume, 4/8 GPUs and larger-model scaling are unmeasured.
 The harness records the
 actual FSDP plugin version: older preset option names do not establish which
 implementation a particular Transformers/Accelerate environment selected.
