@@ -177,6 +177,19 @@ class L2LStep:
             out = module(hidden, *call.args, **call.kwargs)
         return out[0] if isinstance(out, tuple) else out
 
+    @staticmethod
+    def _backward_context(ids: Any) -> Any:
+        """Autocast off around a backward call, the state HF's accumulation runs it in.
+
+        The caller wraps the whole step in autocast, forward and recompute included, but HF
+        calls ``backward`` after the autocast block has exited. Autograd runs the gradient
+        kernels under the autocast state of the calling thread, so a backward inside the
+        block takes other dtype paths than accumulation's and the gradients differ in bf16.
+        """
+        import torch
+
+        return torch.autocast(device_type=ids.device.type, enabled=False)
+
     def run(
         self,
         micro_batches: Sequence[Any],
@@ -251,7 +264,8 @@ class L2LStep:
                 loss = self.causal.loss_function(
                     logits=logits, labels=labels[mb], vocab_size=vocab, num_items_in_batch=total
                 )
-            loss.backward()
+            with self._backward_context(micro_batches[mb]):
+                loss.backward()
             losses.append(loss.detach())
             grads.append(last.grad)
 
@@ -267,7 +281,8 @@ class L2LStep:
                         out = self._layer(
                             layer, inputs, states[mb][idx] if states else None, calls[mb]
                         )
-                    torch.autograd.backward(out, grad_tensors=grads[mb])
+                    with self._backward_context(micro_batches[mb]):
+                        torch.autograd.backward(out, grad_tensors=grads[mb])
                     grads[mb] = inputs.grad
             finally:
                 layer.use_checkpoint = saved
