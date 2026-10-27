@@ -130,6 +130,12 @@ def losses_of(record: Dict[str, Any]) -> List[Optional[float]]:
 
 
 class Campaign:
+    #: Overridden by a campaign of another ticket: arm to config file, the directory of the
+    #: files, and the F1 label of its runs (``{card}`` is filled in).
+    arm_config = ARM_CONFIG
+    configs = CONFIGS
+    label = "A5-04 {card}"
+
     def __init__(self, work: Path, out: Path, card: str):
         self.work, self.out, self.card = work, out, card
         self.runs = out / "runs"
@@ -138,7 +144,6 @@ class Campaign:
         self.spans: List[List[arm_validity.Run]] = []
         self.floor_records: List[Dict[str, Any]] = []
         self.overflow: Optional[Dict[str, Any]] = None
-        self.arm_config, self.configs, self.label = ARM_CONFIG, CONFIGS, f"A5-04 {card}"
         for name in set(self.arm_config.values()):
             shutil.copy(self.configs / name, work / name)
         self.model_path = os.environ.get("HF_HOME") or os.path.expanduser("~/.cache/huggingface")
@@ -166,7 +171,7 @@ class Campaign:
         for position, name in enumerate(arm_validity.BLOCK_ORDER):
             stem = f"b{round_no}-p{position}-{name}"
             with arm_validity.ArmWatch(
-                arm=name, round=round_no, run=position, label=self.label,
+                arm=name, round=round_no, run=position, label=self.label.format(card=self.card),
                 model_path=self.model_path,
             ) as watch:
                 done = self.run_arm(stem, self.arm_config[name])

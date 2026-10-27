@@ -28,12 +28,13 @@ MODEL = "synthetic 70B"
 
 
 class Campaign(camp04.Campaign):
+    arm_config = {"A": "l2l.yaml", "B": "l2l.yaml"}
+    configs = CONFIGS
+    label = f"A5-05 {MODEL} {{card}}"
+
     def __init__(self, work: Path, out: Path, card: str, base: str):
         super().__init__(work, out, card)
-        self.arm_config, self.configs = {"A": "l2l.yaml", "B": "l2l.yaml"}, CONFIGS
-        self.label, self.model_path = f"A5-05 {MODEL} {card}", base
-        (work / "ga.yaml").unlink(missing_ok=True)
-        (work / "l2l.yaml").write_text((CONFIGS / "l2l.yaml").read_text())
+        self.model_path = base  # the synthetic checkpoint F1 watches, not an HF cache
 
     def write_summary(self) -> None:
         kept = [b for b in self.blocks if not any(e["spoiled"] for e in b)]

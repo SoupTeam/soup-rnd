@@ -9,6 +9,7 @@ disk is short, and the report that must label every table and heading.
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 
@@ -429,8 +430,6 @@ def test_report_without_f1_checks_does_not_claim_no_spoiled_runs(synth):
 
 
 def test_campaign_runs_the_same_l2l_config_in_both_arms_and_watches_the_synthetic_base(tmp_path):
-    from tests.test_l2l_probe_harness import _load
-
     camp = _load("l2l_synth70b_campaign")
     work, out = tmp_path / "w", tmp_path / "o"
     work.mkdir()
@@ -443,15 +442,11 @@ def test_campaign_runs_the_same_l2l_config_in_both_arms_and_watches_the_syntheti
 
 
 def test_campaign_summary_is_speed_and_memory_without_a_loss_verdict(tmp_path):
-    from tests.test_l2l_probe_harness import _load
-
     camp = _load("l2l_synth70b_campaign")
     work, out = tmp_path / "w", tmp_path / "o"
     work.mkdir()
     out.mkdir()
     campaign = camp.Campaign(work, out, "24gb", str(tmp_path))
     campaign.write_summary()
-    import json
-
     summary = json.loads((out / "summary.json").read_text())
     assert summary["model"] == "synthetic 70B" and "loss" not in summary
