@@ -109,6 +109,7 @@ class StepMeter:
         self.losses: List[Dict[str, Any]] = []
         self.load: Optional[Dict[str, Any]] = None
         self._begin: Optional[Dict[str, Any]] = None
+        self._rss_reset = False
 
     def train_begin(self) -> None:
         io = self.s["io"]()

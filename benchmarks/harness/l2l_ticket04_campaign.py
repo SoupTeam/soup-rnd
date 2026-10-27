@@ -135,6 +135,7 @@ class Campaign:
         self.runs = out / "runs"
         self.runs.mkdir(parents=True, exist_ok=True)
         self.blocks: List[List[Dict[str, Any]]] = []
+        self.spans: List[List[arm_validity.Run]] = []
         self.floor_records: List[Dict[str, Any]] = []
         self.overflow: Optional[Dict[str, Any]] = None
         for name in ARM_CONFIG.values():
@@ -182,11 +183,10 @@ class Campaign:
             ))
             print(stem, f"{data['run']['tokens_per_s']:.1f} tokens/s", entry["outcome"], flush=True)
         self.blocks.append(entries)
-        self.spans = getattr(self, "spans", []) + [spans]
+        self.spans.append(spans)
         (self.out / "blocks.json").write_text(json.dumps(self.blocks, indent=1, default=str))
 
     def abba(self, max_blocks: int) -> None:
-        self.spans: List[List[arm_validity.Run]] = []
         while True:
             if len(self.blocks) >= arm_validity.MIN_BLOCKS and not arm_validity.blocks_to_add(
                 self.spans
@@ -210,10 +210,15 @@ class Campaign:
         """One L2L run with the window larger than the free RAM; records what happens."""
         k = overflow_k(free_ram, batch=batch, seq=seq)
         text = (CONFIGS / ARM_CONFIG["B"]).read_text()
-        text = text.replace("gradient_accumulation_steps: 4", f"gradient_accumulation_steps: {k}")
-        text = text.replace("batch_size: 1", f"batch_size: {batch}")
-        text = text.replace("data/alpaca64.jsonl", "data/alpaca_large.jsonl")
-        text = text.replace("max_length: 256", "max_length: 512")
+        for old, new in (
+            ("gradient_accumulation_steps: 4", f"gradient_accumulation_steps: {k}"),
+            ("  batch_size: 1\n", f"  batch_size: {batch}\n"),
+            ("data/alpaca64.jsonl", "data/alpaca_large.jsonl"),
+            ("max_length: 256", "max_length: 512"),
+        ):
+            if text.count(old) != 1:
+                raise ValueError(f"overflow config: {old!r} must occur once in l2l.yaml")
+            text = text.replace(old, new)
         (self.work / "overflow.yaml").write_text(text)
         done = self.run_arm("overflow-l2l", "overflow.yaml")
         log = (self.runs / "overflow-l2l.log").read_text()
