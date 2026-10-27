@@ -904,6 +904,13 @@ bounds of +6.1% and +5.5%. On other machines and configurations it may be more. 
 spill on the weights' drive the step was 13% slower. Record:
 `benchmarks/probe-a4-l2l-ram-budget-spill.md` (on the A4 branch).
 
+The trainer's spill path has been checked end to end on CPU only. One GPU check of it (RTX
+4090 VM, Mistral-7B NF4, k 4, seq 512) stopped before any scored run: in a cgroup set so that about
+half the layers spill, the run planned 18 of 32 layers and was then OOM-killed inside its
+first training step. The 0.3 headroom (about 130 MB there) did not cover what the first step
+allocates outside the store. Under a tight memory limit, leave room beyond the 70% budget.
+Record: `benchmarks/a3-spill-gpu-check.md` §9.
+
 Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
 when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
 The next run with the same directory removes it at start if the process that created it is

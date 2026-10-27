@@ -1,7 +1,8 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
-**Status: protocol only, no GPU run yet. Criteria fixed by commit `2a05e15f` before any
-rental; the machine admission (§5) by commit `794c6827`.** The rule is
+**Status: one GPU session, stopped at calibration: `NO VERDICT: criterion 1, 2, 3 has no
+verdict` (§9).** Criteria fixed by commit `2a05e15f` before any rental; the machine
+admission (§5) by commit `794c6827`. The rule is
 `harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v1`, `rule_version` v1): the
 same text in machine form, copied into every session's `protocol.json`. The stand is
 `harness/a3_spill_stand.py`, the admission `harness/a3_admission.py`. CPU tests:
@@ -348,3 +349,36 @@ command, limit, return code, spill directory after exit; the signals sent), `ver
   never removes a live process's file).
 - The cost on any other GPU, drive or step length; one box, one session. A PASS speaks for
   this box's class, not for slower drives.
+
+## 9. Session 1: RTX 4090 VM, 2026-10-27. Stopped at calibration, NO VERDICT
+
+Records: [`results/a3-spill-rtx4090-20261027/`](results/a3-spill-rtx4090-20261027/README.md).
+One vast.ai KVM VM (RTX 4090 24 GB, PCIe gen 4 x16, 49 GiB RAM, one virtio disk), code at
+`bda4a00a`. No PCIe 4.0 RTX 3090 / 3090 Ti VM passed the filters at rental time, so the 4090
+was taken as §5 allows. The box ran 0.57 h of GPU time and cost $0.27; it is destroyed.
+
+- **Admission: ADMITTED.** A.value 1.571 s, 180 of 180 cycles, largest lateness 0.312 s, 0
+  chunks wrong, no file left.
+- **Calibration** (24 GiB): exit 0. Working set 5,473,333,248 B; tight limit 5,965,348,864
+  B. Build margin +1,001,061,608 B, so no stop; training margin -15,995,576 B, a warning
+  only, as §3.4 fixed it.
+- **`calibration_check_1`** at the tight limit: the product planned 18 of 32 layers (in the
+  band), then the child's cgroup OOM-killed it inside its first `training_step` (kernel:
+  `CONSTRAINT_MEMCG`, usage = limit, swap 0). The session stopped (exit 3, `stopped`) as
+  §3.4 prescribes for a failed check child, before any scored child.
+- **Verdict, rule v1 unchanged:** `NO VERDICT: criterion 1, 2, 3 has no verdict`; criterion
+  4 refused. No equality, RAM, cleanup or cost result.
+
+§4 says an OOM in training at a tight limit is a criterion 2 FAIL. The rule scores criterion
+2 only on `l2l_spill` and the two no-spill arms, and §3.4 stops at a failed check child
+before they run, so the rule as committed returns NO VERDICT. It was not changed after the
+result. Read as a finding outside the rule: at this limit, with the product's 0.3 headroom
+(about 130 MB at its plan point), the first step's growth outside the store did not fit.
+In the generous child, about 499 MB of that growth came before the plan point (so it was
+already in the working set the limit was built on) and 183 MB after it. Which allocations
+these are is not established, nor whether other boxes show the same growth.
+
+What is needed before another session, for the owner to decide: whether the product's
+headroom or the calibration's margin should change (either changes the committed protocol
+or the product, and needs a new commit before any rental), and the budget for another box.
+Nothing has been rented since.

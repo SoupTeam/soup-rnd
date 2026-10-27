@@ -1,0 +1,155 @@
+{
+  "rule_version": "v1",
+  "rule": {
+    "profile": "a3-spill-gpu-check-v1",
+    "1": "l2l_spill (tight limit; spill_layers > 0) equals l2l_nospill_1 (generous limit; nothing spilled) bit for bit: SHA-256 of the raw bytes, dtype and shape of every LoRA gradient at every optimizer step, the logged losses, the number of optimizer steps and the lr at every step. l2l_nospill_1 and l2l_nospill_2 must be equal the same way, else NO VERDICT (not FAIL). Unequal spill: FAIL",
+    "1b": "reported, the A3 stand's own criterion: l2l_mistral_stand.decide on (ga_1, ga_2, l2l_spill) with ga_floor (GA on EFFICIENT_ATTENTION) in bf16, from the unpublished gradient tensors (compare.json). It does not change the spill verdict",
+    "2": "l2l_spill, l2l_nospill_1, l2l_nospill_2: child exit 0, no oom_kill increment in its scope's memory.events, scope memory.peak <= its MemoryMax; excess = CUDA host allocator allocated_bytes.current at the last optimizer step - at train begin - the plan's host_bytes; excess(l2l_spill) <= excess(l2l_nospill_1). A kill or an oom_kill is a FAIL wherever it happens; the detail says 'before first training_step (build)' (no first-step marker, or oom_kill already raised there) or 'after first training_step' (the product's own headroom did not cover training)",
+    "3": "normal: after train() and after the process exit of l2l_spill no spill file is left (spill_files); sigint: one SIGINT while optimizer step 2 runs, the child exits (any code) and no spill file is left; kill9: SIGKILL while step 2 runs leaves the spill file, the next child in the same directory removes it at start (stale_removed holds it, it is gone) and trains its optimizer steps. All three must hold",
+    "4": "A-B-B-A blocks of fresh processes, k 4, seq 512, rows all 512 tokens, 2 warm-up and 5 timed optimizer steps; A = L2L at the generous limit (no spill), B = L2L at the tight limit (spill); value = median timed step; per-block overhead (mean B - mean A) / mean A; two-sided 95% t interval. Upper < 10%: PASS (below 10% confirmed on a faster machine); lower >= 10%: FAIL (the fallback stays automatic; the console message and the docs state the measured overhead); else NO VERDICT. Blocks: arm_validity.blocks_to_add, at most 12",
+    "V1": "device cuda in every child; a CPU session never gets a verdict",
+    "V2": "correctness arms: CUBLAS_WORKSPACE_CONFIG=:4096:8 before CUDA, strict deterministic algorithms (warn_only off), SDPA pinned (MATH; ga_floor EFFICIENT_ATTENTION)",
+    "V3": "every child reads back from /proc/self/cgroup that its scope's memory.max is the limit the parent planned for it and memory.swap.max is 0 (cgroup v2); a mismatch removes every criterion that reads that child",
+    "V4": "spill arms spilled (spill_layers > 0, store bytes written > 0 and read > 0); no-spill arms spilled nothing",
+    "V5": "compared arms trained on the same rows (SHA-256 per row of ids and labels)",
+    "V6": "cost arms: F1 ArmWatch with suspend, power and foreign_reads required; a block with a void arm is replaced (METHOD.md), an unknown outcome removes criterion 4",
+    "V7": "cost: the repeats rule has no block left to add",
+    "V8": "trained arms: normal exit, finite losses and gradients, a nonzero LoRA gradient at every step, the expected number of optimizer steps",
+    "stop": "if criterion 1 FAILS the parent runs no cost block: no new rentals, find the cause. The cost blocks run only when criterion 1 PASSES",
+    "calibration": "a child at the generous limit reads its scope's memory.current - inactive_file before the first step (the product plans the store then) and sets limit = working set + target host_bytes / 0.7, the target being 16 of 32 layers spilled; one check child at that limit reads the product's own plan, and if spill_layers is outside [12, 20] the limit is recomputed once from the check's own plan-time numbers. Before any child runs at a tight limit: U = memory.current - (active_file + inactive_file - file_dirty - file_writeback) - slab_reclaimable (what reclaim cannot free, swap 0) of the calibration child, sampled every 50 ms and at build end, the first training_step entry and each step end; U0 at that entry; build transient = max(U before the entry) - U0; training transient = max(U after it - the store's pinned growth, at most the plan's host_bytes) - U0. Build margin = limit - U0 - build transient: below 0 (or unknown) the session stops (stopped_calibration_oom_risk). Training margin = limit - U0 - training transient - target host_bytes: description only. Either margin below 256 MiB: a warning, recorded, deciding nothing. The limit is never raised",
+    "order": "calibration, calibration_check, l2l_nospill_1, l2l_nospill_2, l2l_spill, ga_1, ga_2, ga_floor, compare, sigint, kill9, kill9_next, then the cost blocks"
+  },
+  "verdict": "NO VERDICT: criterion 1, 2, 3 has no verdict",
+  "criteria": {
+    "1": {
+      "status": "NO VERDICT",
+      "detail": "no record from ['l2l_nospill_1', 'l2l_nospill_2', 'l2l_spill']"
+    },
+    "1b": {
+      "status": "NO VERDICT",
+      "detail": "no record from ['ga_1', 'ga_2', 'ga_floor', 'l2l_spill']"
+    },
+    "2": {
+      "status": "NO VERDICT",
+      "detail": "l2l_spill: not run; l2l_nospill_1: not run; l2l_nospill_2: not run; excess: l2l_spill or l2l_nospill_1 has no record",
+      "parts": [
+        {
+          "status": "NO VERDICT",
+          "detail": "l2l_spill: not run"
+        },
+        {
+          "status": "NO VERDICT",
+          "detail": "l2l_nospill_1: not run"
+        },
+        {
+          "status": "NO VERDICT",
+          "detail": "l2l_nospill_2: not run"
+        },
+        {
+          "status": "NO VERDICT",
+          "detail": "excess: l2l_spill or l2l_nospill_1 has no record"
+        }
+      ],
+      "excess_bytes": {
+        "l2l_spill": null,
+        "l2l_nospill_1": null,
+        "l2l_nospill_2": null
+      }
+    },
+    "3": {
+      "status": "NO VERDICT",
+      "detail": "normal: l2l_spill did not run or left no record; sigint: not run; kill9: not run",
+      "parts": [
+        {
+          "status": "NO VERDICT",
+          "detail": "normal: l2l_spill did not run or left no record"
+        },
+        {
+          "status": "NO VERDICT",
+          "detail": "sigint: not run"
+        },
+        {
+          "status": "NO VERDICT",
+          "detail": "kill9: not run"
+        }
+      ]
+    },
+    "4": {
+      "status": "NO VERDICT",
+      "detail": "refused: the cost blocks run only after criterion 1 passes, and it has no verdict",
+      "refused": true
+    }
+  },
+  "session_state": "stopped",
+  "limits": {
+    "generous": 25769803776,
+    "tight": null,
+    "calibration": {
+      "working_set_bytes": 5473333248,
+      "per_layer_bytes": 16777216,
+      "minimum_bytes": 67108864,
+      "target_spill_layers": 16,
+      "target_host_bytes": 335544320,
+      "target_budget_bytes": 343932928,
+      "limit_bytes": 5965348864,
+      "predicted_spill_layers": 16,
+      "source": "the product's plan-time numbers of /sys/fs/cgroup/system.slice/run-rfa8ddf0f8ed647fa867374977222422d.scope"
+    },
+    "checks": [
+      {
+        "limit_bytes": 5965348864,
+        "action": "stop",
+        "why": "the check child at 5,965,348,864 B failed: None None"
+      }
+    ],
+    "oom_margin": [
+      {
+        "limit_bytes": 5965348864,
+        "target_host_bytes": 335544320,
+        "warn_below_bytes": 268435456,
+        "transient": {
+          "unreclaimable_at_first_step": 4964287256,
+          "build_transient_bytes": 0,
+          "train_transient_bytes": 681512864,
+          "transient_bytes": 681512864,
+          "plan_host_bytes": 536870912,
+          "store_taken_out": "torch pinned host allocator growth since the first step, up to the plan's host_bytes",
+          "anon_shmem_at_first_step": 4946853888,
+          "anon_shmem_transient_bytes": 678289408,
+          "vm_hwm_bytes": 6653845504,
+          "memory_peak_bytes": 6193917952,
+          "readings": 263
+        },
+        "build_margin_bytes": 1001061608,
+        "train_margin_bytes": -15995576,
+        "stop": false,
+        "warnings": [
+          "training margin -15,995,576 B < 268,435,456 B (description only)"
+        ],
+        "margin_over_working_bytes": -525041568
+      }
+    ]
+  },
+  "spill_layers": null,
+  "spill_layers_in_target": null,
+  "oom_margin": {
+    "limit_bytes": 5965348864,
+    "build_margin_bytes": 1001061608,
+    "train_margin_bytes": -15995576,
+    "warn_below_bytes": 268435456,
+    "warnings": [
+      "training margin -15,995,576 B < 268,435,456 B (description only)"
+    ],
+    "stop": false
+  },
+  "summary": {
+    "verdict": "NO VERDICT: criterion 1, 2, 3 has no verdict",
+    "rule_version": "v1",
+    "cpu_session": false,
+    "criterion_1": "NO VERDICT",
+    "criterion_1b": "NO VERDICT",
+    "criterion_2": "NO VERDICT",
+    "criterion_3": "NO VERDICT",
+    "criterion_4": "NO VERDICT"
+  }
+}
