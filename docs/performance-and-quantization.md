@@ -879,8 +879,14 @@ lengths together with dropout (rows of different lengths draw different masks).
 
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
 different lengths are not padded. Each micro-batch runs at its own length, as in gradient
-accumulation, and the first micro-batch of each new shape costs one extra forward pass to
-capture the layer arguments. The activation store sizes the chunks of micro-batch `i` to the
+accumulation. The first micro-batch of each new shape captures the layer arguments (position
+embeddings, mask) by running the forward up to layer 0 and stopping there, so no layer is loaded
+or run: on Mistral-7B NF4 with 64 alpaca rows at `batch_size: 1`, k = 4, a step loaded layers
+64.3 times (61 plus one per capture) instead of 165.5, and capture time fell from about 20% of
+the step to under 1% (RTX 3070 and RTX 3090, 4 A-B-B-A blocks each, see
+`benchmarks/probe-vast-l2l-capture-a5-ticket09.md`). With dropout on, the capture still runs the
+whole forward to record the dropout masks, and costs one load of every layer per new shape. On
+that run gradient accumulation was still 15% (3070) and 16% (3090) faster than L2L. The activation store sizes the chunks of micro-batch `i` to the
 largest micro-batch that has been in position `i`, so a short row does not pay for the longest
 row of its window; the RAM check sums those sizes. Speed and memory were not measured, and the check
 used random tokens, not real text. MoE and multi-GPU are out of scope.

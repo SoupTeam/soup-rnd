@@ -52,3 +52,18 @@ def test_consistency_disagrees_when_the_cause_is_not_the_capture():
     camp = _load("l2l_ticket09_campaign")
     out = camp.consistency([_step(0, 0, 62), _step(1, 2, 100), _step(2, 4, 190)])
     assert not out["agrees"]
+
+
+def test_own_loads_subtract_the_measured_capture_loads():
+    an = _load("l2l_ticket09_analyze")
+
+    def step(i, loads, cap_loads, new, secs):
+        return {"step": i, "layer_loads": loads, "step_s": 2.0, "l2l_window": {
+            "new_shapes": new, "captures": new, "capture_layer_loads": cap_loads,
+            "capture_seconds": secs}}
+
+    steps = [step(0, 99, 9, 1, 0.1), step(1, 125, 64, 2, 0.5), step(2, 189, 128, 4, 1.0)]
+    out = an.own_loads(steps)
+    assert out["own_loads"] == [61]
+    assert out["new_shapes_equal_captures"]
+    assert abs(out["capture_share_mean"] - (0.25 + 0.5) / 2) < 1e-9
