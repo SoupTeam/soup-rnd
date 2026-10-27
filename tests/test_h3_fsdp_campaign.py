@@ -97,6 +97,51 @@ def test_conservative_controls_cannot_disagree_across_ranks(evidence):
         campaign.summarize(root, prepared)
 
 
+def test_flash_selection_keeps_ordinary_arithmetic_and_restores_backend_flags():
+    from h3_fsdp_run import observed_backend_controls, pilot_attention
+
+    before = observed_backend_controls()
+    with pilot_attention(flash=True):
+        actual = observed_backend_controls()
+        assert actual == {**before, "math_sdp": False, "flash_sdp": True,
+                          "efficient_sdp": False, "cudnn_sdp": False}
+    assert observed_backend_controls() == before
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        pilot_attention(conservative=True, flash=True)
+
+
+@pytest.mark.parametrize("corruption", ["rank_mode", "missing_backward", "reload_fallback"])
+def test_flash_summary_requires_actual_execution_on_all_ranks_and_reloads(evidence, corruption):
+    root, prepared = evidence
+    controls = {"flash_sdp": True, "math_sdp": False}
+    counts = {"aten::_scaled_dot_product_flash_attention": 1,
+              "aten::_scaled_dot_product_flash_attention_backward": 1}
+    for arm, world in (("one", 1), ("two", 2)):
+        for rank in range(world):
+            path = root / arm / f"rank-{rank}.json"
+            value = campaign.read_json(path)
+            value.update(bf16_flash=True, flash_deterministic=False,
+                         forward_backend_controls=controls, flash_operator_counts=counts)
+            campaign.write_json(path, value)
+        for filename in ("reload.json", "reload-checkpoint.json"):
+            path = root / arm / filename
+            value = campaign.read_json(path)
+            value.update(bf16_flash=True, backend_controls=controls, flash_operator_counts=counts)
+            campaign.write_json(path, value)
+    assert campaign.summarize(root, prepared)["speedup_2"] == 2
+    path = root / "two" / ("reload.json" if corruption == "reload_fallback" else "rank-1.json")
+    value = campaign.read_json(path)
+    if corruption == "rank_mode":
+        value["bf16_flash"] = False
+    elif corruption == "missing_backward":
+        value["flash_operator_counts"] = {"aten::_scaled_dot_product_flash_attention": 1}
+    else:
+        value["backend_controls"] = {"math_sdp": True}
+    campaign.write_json(path, value)
+    with pytest.raises(ValueError, match="Flash"):
+        campaign.summarize(root, prepared)
+
+
 def test_timeout_terminates_the_entire_torchrun_group(monkeypatch, tmp_path):
     calls = []
 

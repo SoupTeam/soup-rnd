@@ -82,6 +82,18 @@ def assert_forward_precision(dtypes: dict[str, str], autocast_modes: dict[str, b
         raise ValueError("actual forward autocast differs from the pilot's declared precision")
 
 
+def assert_flash_operators(counts: dict[str, int], *, backward: bool = True) -> None:
+    """Backend enable flags alone do not prove that CUDA Flash actually ran."""
+    forward = "aten::_scaled_dot_product_flash_attention"
+    reverse = "aten::_scaled_dot_product_flash_attention_backward"
+    if counts.get(forward, 0) < 1 or (backward and counts.get(reverse, 0) < 1):
+        raise ValueError("missing executed CUDA Flash forward/backward operators")
+    forbidden = ("math", "efficient", "cudnn", "for_cpu")
+    if any(any(word in name for word in forbidden) and count > 0
+           for name, count in counts.items() if "attention" in name):
+        raise ValueError("another attention backend executed in the Flash-only probe")
+
+
 def throughput(rank_seconds: list[list[float]], rank_tokens: list[int]) -> dict:
     """Aggregate input tokens / slowest rank's sum of synchronized step durations."""
     if not rank_seconds or len(rank_tokens) != len(rank_seconds):

@@ -14,7 +14,7 @@ import tarfile
 import time
 from pathlib import Path
 
-from h3_fsdp_gate import scaling
+from h3_fsdp_gate import assert_flash_operators, scaling
 from h3_fsdp_run import read_json, write_json
 from rich.console import Console
 
@@ -96,7 +96,7 @@ def archive_completed_arm(root: Path, prepared: Path, name: str) -> dict:
             raise ValueError("cannot seal a failed adapter reload")
     required = ["first-gradients.pt", "first-adapter.pt", "reload-reference.pt",
                 "adapter_model.safetensors", f"checkpoint-{steps}/adapter_model.safetensors"]
-    if record.get("bf16_conservative"):
+    if record.get("bf16_conservative") or record.get("bf16_flash"):
         required += ["initial-adapter.pt", "first-preclip-gradients.pt"]
     if any(not (arm / filename).is_file() for filename in required):
         raise ValueError("cannot seal an arm with missing numeric references")
@@ -205,6 +205,24 @@ def summarize(root: Path, prepared_path: Path) -> dict:
             if any(r.get("forward_backend_controls") != rank0["forward_backend_controls"]
                    or not r.get("bf16_conservative") for r in ranks):
                 raise ValueError("rank conservative precision controls differ")
+        if any(bool(r.get("bf16_flash")) != bool(rank0.get("bf16_flash")) for r in ranks):
+            raise ValueError("rank Flash attention modes differ")
+        if rank0.get("bf16_flash"):
+            identity.update({"bf16_flash": True,
+                "flash_deterministic": rank0["flash_deterministic"],
+                "backend_controls": rank0["forward_backend_controls"]})
+            for item in ranks:
+                if (item.get("bf16_conservative")
+                        or item.get("flash_deterministic") != rank0["flash_deterministic"]
+                        or item.get("forward_backend_controls")
+                        != rank0["forward_backend_controls"]):
+                    raise ValueError("rank Flash precision controls differ")
+                assert_flash_operators(item.get("flash_operator_counts", {}))
+            for item in (reload, checkpoint_reload):
+                if (not item.get("bf16_flash")
+                        or item.get("backend_controls") != rank0["forward_backend_controls"]):
+                    raise ValueError("reload Flash precision controls differ")
+                assert_flash_operators(item.get("flash_operator_counts", {}), backward=False)
         runs.append({"status": "passed", "identity": identity, "world_size": world,
                      "tokens_per_second": rank0["tokens_per_second"], "arm": name,
                      "seconds_per_optimizer_step": rank0["seconds_per_optimizer_step"],
@@ -251,6 +269,8 @@ def main() -> None:
     parser.add_argument("--measured-steps", type=int, default=20)
     parser.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
     parser.add_argument("--bf16-conservative", action="store_true")
+    parser.add_argument("--bf16-flash", action="store_true")
+    parser.add_argument("--flash-deterministic", action="store_true")
     parser.add_argument("--archive-arms", action="store_true")
     parser.add_argument("--archive-receipt-timeout", type=float, default=0)
     parser.add_argument("--timeout-seconds", type=int, default=900)
@@ -259,6 +279,9 @@ def main() -> None:
     args = parser.parse_args()
     if args.bf16_conservative and args.precision != "bf16":
         parser.error("--bf16-conservative requires --precision bf16")
+    if (args.bf16_flash and (args.precision != "bf16" or args.bf16_conservative)
+            or args.flash_deterministic and not args.bf16_flash):
+        parser.error("Flash requires BF16, excludes conservative math, and owns determinism")
     if (args.archive_receipt_timeout < 0
             or (args.archive_receipt_timeout and not args.archive_arms)):
         parser.error("a positive archive receipt timeout requires --archive-arms")
@@ -307,6 +330,10 @@ def main() -> None:
                     "--precision", args.precision]
         if args.bf16_conservative:
             command.append("--bf16-conservative")
+        if args.bf16_flash:
+            command.append("--bf16-flash")
+        if args.flash_deterministic:
+            command.append("--flash-deterministic")
         for suffix, cmd in [("train", command), ("reload", [sys.executable, str(script),
                 "reload", "--prepared", str(prepared), "--output", str(root / name)]),
                 ("reload-checkpoint", [sys.executable, str(script), "reload", "--prepared",

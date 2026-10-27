@@ -106,6 +106,27 @@ def test_reload_rejects_missing_keys_and_changed_values():
         gate.assert_adapter_equal(expected, {"a": torch.zeros(2)})
 
 
+def test_flash_requires_executed_cuda_forward_and_backward_not_enabled_flags():
+    counts = {"aten::_scaled_dot_product_flash_attention": 192,
+              "aten::_scaled_dot_product_flash_attention_backward": 192}
+    gate.assert_flash_operators(counts)
+    forward = {"aten::_scaled_dot_product_flash_attention": 24}
+    gate.assert_flash_operators(forward, backward=False)
+    with pytest.raises(ValueError, match="missing executed"):
+        gate.assert_flash_operators(forward)
+    with pytest.raises(ValueError, match="missing executed"):
+        gate.assert_flash_operators({"flash_sdp_enabled": 1})
+
+
+@pytest.mark.parametrize("backend", ["math", "efficient", "cudnn", "flash_attention_for_cpu"])
+def test_flash_probe_rejects_silent_attention_fallback(backend):
+    counts = {"aten::_scaled_dot_product_flash_attention": 1,
+              "aten::_scaled_dot_product_flash_attention_backward": 1,
+              f"aten::_scaled_dot_product_{backend}_attention": 1}
+    with pytest.raises(ValueError, match="another attention backend"):
+        gate.assert_flash_operators(counts)
+
+
 def test_summary_refuses_failed_or_mismatched_arms():
     good = {"status": "passed", "identity": {"model": "abc"}, "world_size": 1,
             "tokens_per_second": 10}

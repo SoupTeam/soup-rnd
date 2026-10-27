@@ -26,6 +26,7 @@ from h3_fsdp_gate import (
     adapter_delta,
     assert_adapter_equal,
     assert_data_window,
+    assert_flash_operators,
     assert_forward_precision,
     assert_fsdp2_shards,
     assert_shards,
@@ -167,7 +168,13 @@ def configure_conservative_bf16() -> None:
     torch.use_deterministic_algorithms(True)
 
 
-def pilot_attention(conservative: bool = False) -> Any:
+def pilot_attention(conservative: bool = False, flash: bool = False) -> Any:
+    if conservative and flash:
+        raise ValueError("math and Flash attention modes are mutually exclusive")
+    if flash:
+        from torch.nn.attention import SDPBackend, sdpa_kernel
+
+        return sdpa_kernel([SDPBackend.FLASH_ATTENTION])
     if not conservative:
         return contextlib.nullcontext()
     from torch.nn.attention import SDPBackend, sdpa_kernel
@@ -191,9 +198,18 @@ def observed_backend_controls() -> dict:
             "cudnn_sdp": torch.backends.cuda.cudnn_sdp_enabled()}
 
 
+def attention_operator_counts(profiler: Any) -> dict[str, int]:
+    return {event.key: int(event.count) for event in profiler.key_averages()
+            if "attention" in event.key}
+
+
 def run(args: argparse.Namespace) -> None:
     conservative = bool(getattr(args, "bf16_conservative", False))
-    if conservative:
+    flash = bool(getattr(args, "bf16_flash", False))
+    flash_deterministic = bool(getattr(args, "flash_deterministic", False))
+    if conservative and flash or flash_deterministic and not flash:
+        raise ValueError("invalid Flash/conservative mode combination")
+    if conservative or flash_deterministic:
         os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     import torch
     import torch.distributed as dist
@@ -217,6 +233,12 @@ def run(args: argparse.Namespace) -> None:
         if cpu or precision != "bf16":
             raise ValueError("conservative BF16 requires the CUDA BF16 pilot")
         configure_conservative_bf16()
+    if flash:
+        if cpu or precision != "bf16":
+            raise ValueError("Flash BF16 requires the CUDA BF16 pilot")
+        # Keep ordinary BF16 GEMM reductions; only the optional control changes
+        # Flash's public deterministic-backward setting. Never switch to math.
+        torch.use_deterministic_algorithms(flash_deterministic)
     world = int(os.environ.get("WORLD_SIZE", "1"))
     rank = int(os.environ.get("RANK", "0"))
     if cpu and (not prepared["cpu_fixture"] or world != 1):
@@ -286,7 +308,7 @@ def run(args: argparse.Namespace) -> None:
     trainer.model.config.use_cache = False
     initial_adapter = {key: value.detach().cpu().clone()
                        for key, value in get_peft_model_state_dict(wrapper.model).items()}
-    if conservative and rank == 0:
+    if (conservative or flash) and rank == 0:
         torch.save(initial_adapter, output / "initial-adapter.pt")
     total = sum(p.numel() for p in wrapper.model.parameters())
     prewrap_shapes = {}
@@ -343,6 +365,7 @@ def run(args: argparse.Namespace) -> None:
     record: dict[str, Any] = {"status": "incomplete", "world_size": world, "rank": rank,
                               "cpu_fixture": cpu, "precision": precision,
                               "bf16_conservative": conservative,
+                              "bf16_flash": flash, "flash_deterministic": flash_deterministic,
                               "float32_matmul_precision": torch.get_float32_matmul_precision(),
                               "setup_seconds": setup_seconds,
                               "gradient_accumulation_steps": accum,
@@ -357,13 +380,14 @@ def run(args: argparse.Namespace) -> None:
     input_tokens: dict[int, int] = {}
     sampler = RamSampler()
     dtype_handles = []
+    flash_profiler = None
     original_step = trainer.training_step
     original_loss = trainer.compute_loss
 
     def controlled_loss(*loss_args: Any, **loss_kwargs: Any) -> Any:
         # Enter the same forward/loss autocast for both worlds; leave backward
         # and optimizer outside it, as with Accelerate's ordinary AMP wrapper.
-        with pilot_autocast(args.device, precision), pilot_attention(conservative):
+        with pilot_autocast(args.device, precision), pilot_attention(conservative, flash):
             return original_loss(*loss_args, **loss_kwargs)
 
     trainer.compute_loss = controlled_loss
@@ -386,7 +410,7 @@ def run(args: argparse.Namespace) -> None:
         return loss
 
     trainer.training_step = observed_step
-    if conservative:
+    if conservative or flash:
         original_clip = trainer.accelerator.clip_grad_norm_
 
         def observed_clip(*clip_args: Any, **clip_kwargs: Any) -> Any:
@@ -410,8 +434,8 @@ def run(args: argparse.Namespace) -> None:
             plugin = getattr(trainer.accelerator.state, "fsdp_plugin", None)
             record["fsdp_version"] = getattr(plugin, "fsdp_version", None)
             record["attention_implementation"] = trainer.model.config._attn_implementation
-            if conservative and record["attention_implementation"] != "sdpa":
-                raise ValueError("conservative protocol requires the observed SDPA route")
+            if (conservative or flash) and record["attention_implementation"] != "sdpa":
+                raise ValueError("explicit attention protocol requires the observed SDPA route")
             policy = getattr(plugin, "mixed_precision_policy", None)
             record["fsdp_policy"] = ({name: str(getattr(policy, name, None)) for name in
                                       ("param_dtype", "reduce_dtype", "output_dtype")}
@@ -482,6 +506,13 @@ def run(args: argparse.Namespace) -> None:
 
         def on_step_begin(self, callback_args: Any, state: Any, control: Any,
                           **kwargs: Any) -> None:
+            nonlocal flash_profiler
+            if flash and state.global_step == 0:
+                # CPU dispatcher events prove CUDA Flash selection, including
+                # backward; profiling ends before warmup and timing begin.
+                flash_profiler = torch.profiler.profile(
+                    activities=[torch.profiler.ProfilerActivity.CPU])
+                flash_profiler.__enter__()
             if state.global_step == start_measure:
                 if world > 1:
                     dist.barrier()
@@ -522,7 +553,13 @@ def run(args: argparse.Namespace) -> None:
 
         def on_step_end(self, callback_args: Any, state: Any, control: Any,
                         **kwargs: Any) -> None:
+            nonlocal flash_profiler
             completed = state.global_step - 1
+            if flash and completed == 0:
+                flash_profiler.__exit__(None, None, None)
+                record["flash_operator_counts"] = attention_operator_counts(flash_profiler)
+                flash_profiler = None
+                assert_flash_operators(record["flash_operator_counts"])
             if start_measure <= completed < end_measure:
                 sync()
                 times.append(time.perf_counter() - self.started)
@@ -546,6 +583,13 @@ def run(args: argparse.Namespace) -> None:
                         "flash_sdp": False, "efficient_sdp": False, "cudnn_sdp": False}
                     if record["forward_backend_controls"] != expected_controls:
                         raise ValueError("actual conservative BF16 backend controls differ")
+                if flash:
+                    controls = record["forward_backend_controls"]
+                    expected = {"deterministic": flash_deterministic, "math_sdp": False,
+                        "flash_sdp": True, "efficient_sdp": False, "cudnn_sdp": False,
+                        "bf16_reduced_precision_reduction": True}
+                    if any(controls.get(key) != value for key, value in expected.items()):
+                        raise ValueError("actual native Flash BF16 backend controls differ")
             if completed < args.correctness_steps:
                 rows = gathered(windows[completed])
                 assert_data_window(rows, args.global_batch)
@@ -579,7 +623,7 @@ def run(args: argparse.Namespace) -> None:
             record["final_update"] = adapter_delta(initial_adapter, adapted)
             trainer.model_wrapped.eval()
             with (torch.no_grad(), pilot_autocast(args.device, precision),
-                  pilot_attention(conservative)):
+                  pilot_attention(conservative, flash)):
                 logits = trainer.model_wrapped(input_ids=fixed_ids,
                                                attention_mask=torch.ones_like(fixed_ids)).logits
             if not torch.isfinite(logits).all().item():
@@ -631,6 +675,8 @@ def run(args: argparse.Namespace) -> None:
         record["error"] = f"{type(exc).__name__}: {exc}"
         raise
     finally:
+        if flash_profiler is not None:
+            flash_profiler.__exit__(None, None, None)
         for handle in dtype_handles:
             handle.remove()
         if sampler.thread.is_alive():
@@ -649,10 +695,17 @@ def reload_adapter(args: argparse.Namespace) -> None:
     root = Path(args.output)
     prepared = read_json(Path(args.prepared) / "prepared.json")
     cpu = args.device == "cpu"
-    precision = read_json(root / "rank-0.json").get("precision", "fp32" if cpu else "bf16")
-    conservative = read_json(root / "rank-0.json").get("bf16_conservative", False)
+    training = read_json(root / "rank-0.json")
+    precision = training.get("precision", "fp32" if cpu else "bf16")
+    conservative = training.get("bf16_conservative", False)
+    flash = training.get("bf16_flash", False)
+    flash_deterministic = training.get("flash_deterministic", False)
     if conservative:
         configure_conservative_bf16()
+    if flash_deterministic:
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    if flash:
+        torch.use_deterministic_algorithms(flash_deterministic)
     if precision == "fp32":
         torch.set_float32_matmul_precision("highest")
     reference = torch.load(root / "reload-reference.pt", map_location="cpu", weights_only=True)
@@ -667,8 +720,15 @@ def reload_adapter(args: argparse.Namespace) -> None:
     model = PeftModel.from_pretrained(base, adapter_dir, is_trainable=False).eval()
     assert_adapter_equal(saved, get_peft_model_state_dict(model))
     ids = reference["input_ids"].to(args.device)
-    with torch.no_grad(), pilot_autocast(args.device, precision), pilot_attention(conservative):
+    probe = (torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU])
+             if flash else contextlib.nullcontext())
+    with (probe, torch.no_grad(), pilot_autocast(args.device, precision),
+          pilot_attention(conservative, flash)):
         actual = model(input_ids=ids, attention_mask=torch.ones_like(ids)).logits.cpu()
+        reload_controls = observed_backend_controls()
+    flash_counts = attention_operator_counts(probe) if flash else {}
+    if flash:
+        assert_flash_operators(flash_counts, backward=False)
     # BF16: one relative ULP plus two absolute ULPs near one. Same dtype,
     # backend and input; exact adapter key/value equality is checked separately.
     atol, rtol = (1e-5, 1e-5) if precision == "fp32" else (1 / 64, 1 / 128)
@@ -682,6 +742,10 @@ def reload_adapter(args: argparse.Namespace) -> None:
                                       "adapter_tensors": len(saved),
                                         "precision": precision,
                                         "bf16_conservative": conservative,
+                                      "bf16_flash": flash,
+                                      "flash_deterministic": flash_deterministic,
+                                      "flash_operator_counts": flash_counts,
+                                      "backend_controls": reload_controls,
                                       "resume": "unmeasured"})
     console.print(f"Adapter reload passed: {root}")
 
@@ -704,6 +768,8 @@ def main() -> None:
         if command == "train":
             sub.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
             sub.add_argument("--bf16-conservative", action="store_true")
+            sub.add_argument("--bf16-flash", action="store_true")
+            sub.add_argument("--flash-deterministic", action="store_true")
             sub.add_argument("--global-batch", type=int, default=8)
             sub.add_argument("--micro-batch", type=int, default=1)
             sub.add_argument("--correctness-steps", type=int, default=2)
