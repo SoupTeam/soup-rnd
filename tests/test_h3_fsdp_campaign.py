@@ -210,3 +210,60 @@ def test_ranks_with_different_precision_policies_are_rejected(evidence):
     campaign.write_json(path, rank)
     with pytest.raises(ValueError, match="precision policies"):
         campaign.summarize(root, prepared)
+
+
+def test_rank_zero_cannot_hide_another_ranks_conservative_mode(evidence):
+    root, prepared = evidence
+    path = root / "two/rank-1.json"
+    value = campaign.read_json(path)
+    value["bf16_conservative"] = True
+    campaign.write_json(path, value)
+    with pytest.raises(ValueError, match="conservative precision controls"):
+        campaign.summarize(root, prepared)
+
+
+def complete_archive_fixture(evidence):
+    root, prepared = evidence
+    arm = root / "one"
+    for name in ("reload-reference.pt", "adapter_model.safetensors",
+                 "checkpoint-5/adapter_model.safetensors", "tokenizer.json",
+                 "checkpoint-5/optimizer.bin"):
+        path = arm / name
+        path.parent.mkdir(exist_ok=True)
+        path.write_bytes(b"synthetic archive fixture, not GPU evidence")
+    return root, prepared, arm
+
+
+def test_arm_archive_is_hash_verified_and_keeps_numeric_references(evidence):
+    import hashlib
+    import tarfile
+
+    root, prepared, arm = complete_archive_fixture(evidence)
+    result = campaign.archive_completed_arm(root, prepared, "one")
+    archive = root.parent / result["archive"]
+    assert hashlib.sha256(archive.read_bytes()).hexdigest() == result["sha256"]
+    assert campaign.read_json(archive.with_suffix(".json")) == result
+    with tarfile.open(archive) as source:
+        names = source.getnames()
+        assert "one/reload-reference.pt" in names
+        assert "one/checkpoint-5/adapter_model.safetensors" in names
+        assert "prepared/prepared.json" in names
+        assert "one/tokenizer.json" not in names
+        assert "one/checkpoint-5/optimizer.bin" not in names
+    with pytest.raises(ValueError, match="overwrite"):
+        campaign.archive_completed_arm(root, prepared, "one")
+
+
+def test_missing_numeric_reference_cannot_produce_a_sealed_archive(evidence):
+    root, prepared, arm = complete_archive_fixture(evidence)
+    (arm / "reload-reference.pt").unlink()
+    with pytest.raises(ValueError, match="missing numeric references"):
+        campaign.archive_completed_arm(root, prepared, "one")
+    assert not (root.parent / f"{root.name}-one.tar.json").exists()
+
+
+def test_failed_reload_cannot_produce_a_sealed_archive(evidence):
+    root, prepared, arm = complete_archive_fixture(evidence)
+    campaign.write_json(arm / "reload.json", {"status": "failed"})
+    with pytest.raises(ValueError, match="failed adapter reload"):
+        campaign.archive_completed_arm(root, prepared, "one")

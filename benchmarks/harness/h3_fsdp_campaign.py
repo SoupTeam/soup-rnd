@@ -10,6 +10,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tarfile
 import time
 from pathlib import Path
 
@@ -72,6 +73,71 @@ def compare_first_step(root: Path, reference: str, arm: str) -> list[dict]:
     return comparisons
 
 
+def archive_completed_arm(root: Path, prepared: Path, name: str) -> dict:
+    """Seal each arm before the next run; a ready marker follows the final hash.
+
+    Retain numeric references and all adapter saves. Optimizer/RNG and duplicate
+    tokenizers are outside this adapter-reload experiment's archive contract.
+    The caller must collect/verify these archives independently of a rental timer.
+    """
+    arm = root / name
+    if (os.path.commonpath([os.path.realpath(root), os.path.realpath(arm)])
+            != os.path.realpath(root) or arm.is_symlink()):
+        raise ValueError("arm must stay inside the campaign root")
+    record = read_json(arm / "rank-0.json")
+    if record["status"] != "training_passed_reload_pending":
+        raise ValueError("cannot seal failed training")
+    steps = record["steps"]
+    for rank in range(record["world_size"]):
+        if read_json(arm / f"rank-{rank}.json")["status"] != record["status"]:
+            raise ValueError("cannot seal an incomplete distributed arm")
+    for filename in ("reload.json", "reload-checkpoint.json"):
+        if read_json(arm / filename)["status"] != "passed":
+            raise ValueError("cannot seal a failed adapter reload")
+    required = ["first-gradients.pt", "first-adapter.pt", "reload-reference.pt",
+                "adapter_model.safetensors", f"checkpoint-{steps}/adapter_model.safetensors"]
+    if record.get("bf16_conservative"):
+        required += ["initial-adapter.pt", "first-preclip-gradients.pt"]
+    if any(not (arm / filename).is_file() for filename in required):
+        raise ValueError("cannot seal an arm with missing numeric references")
+    archive = root.parent / f"{root.name}-{name}.tar.gz"
+    marker = archive.with_suffix(".json")
+    if archive.exists() or marker.exists():
+        raise ValueError("refusing to overwrite a sealed arm")
+    excluded = {"tokenizer.json", "optimizer.bin", "pytorch_model_fsdp.bin",
+                "training_args.bin"}
+    files = [p for p in sorted(arm.rglob("*")) if p.is_file()
+             and p.name not in excluded and not p.name.startswith("rng_state")]
+    files += sorted(root.glob(f"{name}-*.log"))
+    files += sorted(root.glob(f"{name}-*.command.json"))
+    files += sorted(root.glob(f"{name}-*.exit.json"))
+    source = prepared / "prepared.json"
+    if source.is_symlink():
+        raise ValueError("prepared metadata must be a regular file")
+    manifest = {}
+    partial = archive.with_suffix(".partial")
+    with tarfile.open(partial, "w:gz", compresslevel=1) as output:
+        for path in files:
+            if (path.is_symlink() or os.path.commonpath([
+                    os.path.realpath(root), os.path.realpath(path)]) != os.path.realpath(root)):
+                raise ValueError("archive member escapes the campaign root")
+            relative = path.relative_to(root).as_posix()
+            manifest[relative] = {"bytes": path.stat().st_size,
+                                  "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+            output.add(path, arcname=relative, recursive=False)
+        output.add(source, arcname="prepared/prepared.json", recursive=False)
+    os.replace(partial, archive)
+    result = {"status": "sealed", "archive": archive.name,
+              "bytes": archive.stat().st_size,
+              "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+              "files": manifest, "resume": "unmeasured",
+              "excluded_duplicates_or_resume_state": sorted(excluded) + ["rng_state*"]}
+    temporary = marker.with_suffix(".partial")
+    write_json(temporary, result)
+    os.replace(temporary, marker)
+    return result
+
+
 def summarize(root: Path, prepared_path: Path) -> dict:
     write_json(root / "summary.json", {"status": "invalid_until_all_checks_complete"})
     (root / "summary.md").write_text("Validation pending; no scaling verdict.\n",
@@ -93,6 +159,9 @@ def summarize(root: Path, prepared_path: Path) -> dict:
             raise ValueError(f"invalid arm {name}")
         if any(r.get("fsdp_policy") != rank0.get("fsdp_policy") for r in ranks):
             raise ValueError("ranks have different FSDP precision policies")
+        if any(r.get("bf16_conservative", False) != rank0.get("bf16_conservative", False)
+               for r in ranks):
+            raise ValueError("rank conservative precision controls differ")
         environments = [read_json(arm / f"environment-rank-{rank}.json")
                         for rank in range(world)]
         if any(e["git_status"] for e in environments):
@@ -166,6 +235,7 @@ def main() -> None:
     parser.add_argument("--measured-steps", type=int, default=20)
     parser.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
     parser.add_argument("--bf16-conservative", action="store_true")
+    parser.add_argument("--archive-arms", action="store_true")
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--campaign-seconds", type=int, default=5400)
     parser.add_argument("--summarize-only", action="store_true")
@@ -227,6 +297,8 @@ def main() -> None:
                 raise TimeoutError("campaign wall-clock limit reached; stop the rented instance")
             run_logged(cmd, root / f"{name}-{suffix}.log", env,
                        timeout=min(args.timeout_seconds, remaining))
+        if args.archive_arms:
+            archive_completed_arm(root, prepared, name)
         if index == 1:
             verdict = root / "first-pair-control.json"
             write_json(verdict, {"status": "invalid_until_all_checks_complete"})
