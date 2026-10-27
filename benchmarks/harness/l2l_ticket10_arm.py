@@ -5,7 +5,7 @@ Added to ``l2l_ticket09_arm.main`` (behaviour unchanged):
 
 * a sampler thread reads ``/proc/stat``, ``/proc/loadavg`` and ``nvidia-smi`` once a second;
   the record gets ``sensors`` (``judge_run``) and the samples;
-* before the run, a copy-bandwidth probe of the host (pageable and pinned, both ways);
+* after the run, a copy-bandwidth probe of the host (pageable and pinned, both ways);
 * with ``--profile``, each part of a step is timed with the CUDA stream synchronised around
   it, and ``steps[i]["parts"]`` holds seconds per part. ``--profile`` slows the run, so the
   speed of a profiled run is not a speed result. Without it only the sensors run.
@@ -171,13 +171,13 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     transformers.Trainer.__init__ = init
 
-    bandwidth = host_bandwidth()
     sampler = Sampler()
     sampler.start()
     import l2l_ticket09_arm
 
     status = l2l_ticket09_arm.main(argv)
     samples = sampler.stop()
+    bandwidth = host_bandwidth()  # after the run: the stand needs CUDA uninitialised
     path = Path(out)
     record = json.loads(path.read_text())
     record["profile"] = profile
