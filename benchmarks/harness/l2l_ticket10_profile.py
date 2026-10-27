@@ -27,8 +27,12 @@ STEAL_LIMIT = 0.05
 OUTSIDE_CPU_LIMIT = 0.25
 CLOCK_FLOOR = 0.90
 
-#: NVML throttle bits that mean the card slowed down for power, heat or a sync boost.
-THROTTLE_MASK = 0x4 | 0x8 | 0x20 | 0x40 | 0x80
+#: NVML throttle bits that flag a run: hardware slowdown (0x8), software thermal (0x20),
+#: hardware thermal (0x40), power brake (0x80). The software power cap (0x4) is a property of
+#: the host (a rented card runs at its cap all the time), so it is reported as
+#: ``power_cap_share`` and does not flag a run.
+THROTTLE_MASK = 0x8 | 0x20 | 0x40 | 0x80
+POWER_CAP = 0x4
 
 
 class Buckets:
@@ -169,6 +173,7 @@ def judge_run(samples: Sequence[Mapping[str, Any]], own_cpu_share: Optional[floa
         for value in reasons:
             hit |= value & THROTTLE_MASK
         out["sensors"]["throttle_bits"] = hit
+        out["sensors"]["power_cap_share"] = sum(1 for v in reasons if v & POWER_CAP) / len(reasons)
         if hit:
             out["flags"].append(f"gpu throttle bits {hit:#x}")
     out["disturbed"] = bool(out["flags"])

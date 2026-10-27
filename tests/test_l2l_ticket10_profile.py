@@ -82,6 +82,7 @@ def test_judge_run_passes_a_quiet_host():
     (_sample(steal=0.2), "steal"),
     (_sample(sm=1000), "sm clock"),
     (_sample(throttle=0x20), "throttle"),
+    (_sample(throttle=0x40), "throttle"),
 ])
 def test_judge_run_flags_each_disturbance(sample, text):
     out = _prof().judge_run([sample] * 5, own_cpu_share=0.15)
@@ -181,3 +182,8 @@ def test_analyze_run_row_rejudges_the_saved_samples(tmp_path):
     row = an.run_row(path)
     assert row["arm"] == "GA" and row["flags"] == []
     assert row["power_w_mean"] == 200.0 and row["sm_clock_ratio"] == 1900 / 2100
+
+
+def test_judge_run_reports_the_power_cap_without_flagging_it():
+    out = _prof().judge_run([_sample(throttle=0x4)] * 4)
+    assert not out["disturbed"] and out["sensors"]["power_cap_share"] == 1.0
