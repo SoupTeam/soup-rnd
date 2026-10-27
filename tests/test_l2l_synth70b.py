@@ -413,3 +413,16 @@ def test_build_record_refuses_a_failed_run(synth):
 def test_build_record_refuses_an_arm_without_a_run_record(synth):
     with pytest.raises(ValueError, match="run"):
         synth.build_record(_arm_json(run=None), plan=None, rental=None, logs=[], entries=[])
+
+
+def test_report_prints_notes_under_a_labelled_heading(synth):
+    text = synth.render_report(_payload(notes=["F1 checks were not run"]))
+    assert "F1 checks were not run" in text
+    heading = [line for line in text.splitlines() if "Оговорки" in line]
+    assert heading and synth.LABEL in heading[0]
+
+
+def test_report_without_f1_checks_does_not_claim_no_spoiled_runs(synth):
+    text = synth.render_report(_payload(f1_checked=False))
+    assert "Испорченных по F1 замеров нет" not in text
+    assert "F1 не проверялся" in text

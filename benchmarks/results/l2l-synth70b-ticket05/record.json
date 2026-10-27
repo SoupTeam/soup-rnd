@@ -1,0 +1,90 @@
+{
+ "model": "synthetic-70b",
+ "run": {
+  "steps": 3,
+  "step_s_mean": 61.9434281399784,
+  "real_tokens": 947,
+  "tokens_per_s": 5.096047734932107,
+  "peak_vram_allocated_bytes": 3574966272,
+  "peak_vram_reserved_bytes": 3804233728,
+  "peak_rss_bytes": 4846350336,
+  "pinned_store_bytes": 650117120,
+  "os_read_bytes": 595054772224,
+  "os_write_bytes": 12288,
+  "layer_loads": 1351,
+  "nf4_restores": 0,
+  "large_loads": 28,
+  "layer_loads_per_step": 450.3333333333333
+ },
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 3090 Ti",
+  "memory_total_mib": 24564,
+  "driver": "595.80"
+ },
+ "weight_read_bytes": 595054772224,
+ "spill_written_bytes": null,
+ "spill_read_bytes": null,
+ "unavailable": {
+  "spill_written_bytes": "spill is not wired into the trainer (A4 integration is outside A5)",
+  "spill_read_bytes": "spill is not wired into the trainer (A4 integration is outside A5)"
+ },
+ "plan": {
+  "k": 4,
+  "batch": 1,
+  "seq": 256,
+  "tier": "disk",
+  "spill_layers": 0,
+  "store": {
+   "chunk_bytes": 4194304,
+   "block_bytes": 4194304,
+   "logical_bytes": 1342177280,
+   "pinned_bytes": 1342177280
+  },
+  "ram": {
+   "weights": 0,
+   "activation_need": 1917396114.2857144,
+   "workspace": 1000000000,
+   "total": 2917396114.285714
+  },
+  "disk": {
+   "source_bf16": 137978462208,
+   "nf4_cache": 36385521664,
+   "spill": 0,
+   "margin": 1.1,
+   "total": 191800382259.2
+  }
+ },
+ "rental": {
+  "instance": "57960221 (удалён через 15 мин, до записи чекпойнта) и 57970407",
+  "offer": 53518046,
+  "rate_per_hour": 0.3096,
+  "hours": 0.9,
+  "budget_usd": 8.0,
+  "destroyed": true,
+  "cost_usd": 0.27864
+ },
+ "excluded": [],
+ "logs": [
+  "benchmarks/results/l2l-synth70b-ticket05/run1.log",
+  "benchmarks/results/l2l-synth70b-ticket05/synth_checkpoint.log",
+  "benchmarks/results/l2l-synth70b-ticket05/plan.json",
+  "benchmarks/results/l2l-synth70b-ticket05/prepare_data.log",
+  "benchmarks/results/l2l-synth70b-ticket05/attempt1-extras-hash-mismatch/ (первая попытка: pip отказал по хешу, повтор прошёл)",
+  "benchmarks/results/l2l-synth70b-ticket05/packages.txt",
+  "benchmarks/results/l2l-synth70b-ticket05/nvidia-smi.txt",
+  "benchmarks/results/l2l-synth70b-ticket05/free.txt",
+  "benchmarks/results/l2l-synth70b-ticket05/df.txt"
+ ],
+ "f1_checked": false,
+ "notes": [
+  "Один прогон, 16 строк alpaca, 4 шага оптимизатора, шаг 0 исключён, измерены 3 шага. Блоков A-B-B-A нет, интервала нет: это одно число, не оценка разброса.",
+  "Проверки валидности F1 не вызывались (датчики недоступны в контейнере), прогон не подтверждён и не опровергнут.",
+  "Часы аренды 0,9 оценены по времени сессии (создание 14:0x, удаление 14:31Z), счёта vastai не снимал; цена в час 0,3096 с диском 260 GB.",
+  "Чтение весов это счётчик чтения процесса (os_read_bytes), сумма за 3 измеренных шага: 554 GiB, около 185 GiB на шаг при весах bf16 128,5 GiB. Перед прогоном шла команда сброса кэша страниц, но успех сброса в контейнере не проверялся. Причину превышения над размером весов не исследовал.",
+  "Загрузок слоя 450 за шаг при 80 слоях. Причину не исследовал; в тикете 04 такое число объяснялось дополнительным проходом захвата для строк новой длины, здесь это не проверялось.",
+  "Спилл не подключён к тренеру (решение пользователя от 2026-10-26), на отдельный диск не измерено.",
+  "SDPA MATH и жёсткая детерминированность, как в тикете 04; абсолютная скорость не равна скорости обычного запуска.",
+  "Токенайзер Mistral-7B-v0.1 (словарь 32000) на синтетической голове в 32768 строк; данные настоящие, веса случайные, потери ничего не значат.",
+  "В аккаунте во время работы шли чужие инстансы 57966848 и 57972449; они не мои, не тронуты."
+ ]
+}

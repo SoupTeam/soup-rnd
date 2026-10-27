@@ -353,15 +353,15 @@ def render_report(payload: Mapping[str, Any]) -> str:
         ("пик VRAM reserved", mem("peak_vram_reserved_bytes")),
         ("пик RSS процесса", mem("peak_rss_bytes")),
         ("закреплённая память хранилища активаций", mem("pinned_store_bytes")),
-        ("чтение весов с диска", _value(
+        ("чтение весов с диска, сумма за измеренные шаги", _value(
             payload, "weight_read_bytes",
             None if payload.get("weight_read_bytes") is None
             else _gib(payload["weight_read_bytes"]), unavailable)),
-        ("спилл записано", _value(
+        ("спилл записано, сумма за измеренные шаги", _value(
             payload, "spill_written_bytes",
             None if payload.get("spill_written_bytes") is None
             else _gib(payload["spill_written_bytes"]), unavailable)),
-        ("спилл прочитано", _value(
+        ("спилл прочитано, сумма за измеренные шаги", _value(
             payload, "spill_read_bytes",
             None if payload.get("spill_read_bytes") is None
             else _gib(payload["spill_read_bytes"]), unavailable)),
@@ -401,9 +401,14 @@ def render_report(payload: Mapping[str, Any]) -> str:
     excluded = payload.get("excluded") or []
     if excluded:
         lines += [f"- {item['run']}: {item['reason']}" for item in excluded]
-    else:
+    elif payload.get("f1_checked", True):
         lines += ["Испорченных по F1 замеров нет."]
+    else:
+        lines += ["F1 не проверялся: прогон не вызывал проверки валидности, замер не подтверждён."]
     lines += [""] + [f"- журнал: {path}" for path in payload.get("logs") or []]
+    notes = payload.get("notes") or []
+    if notes:
+        lines += ["", _heading(2, "Оговорки"), ""] + [f"- {note}" for note in notes]
     return "\n".join(lines).rstrip() + "\n"
 
 
