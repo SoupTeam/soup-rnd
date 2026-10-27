@@ -147,6 +147,15 @@ def configure_fsdp2_pilot_precision(trainer: Any) -> None:
             param_dtype=None, reduce_dtype=torch.float32, output_dtype=None)
 
 
+def pilot_autocast(device: str) -> Any:
+    """FSDP2 preparation bypasses Accelerate's ordinary forward AMP wrapper."""
+    if device == "cpu":
+        return contextlib.nullcontext()
+    import torch
+
+    return torch.autocast("cuda", dtype=torch.bfloat16)
+
+
 def run(args: argparse.Namespace) -> None:
     import torch
     import torch.distributed as dist
@@ -287,6 +296,15 @@ def run(args: argparse.Namespace) -> None:
     sampler = RamSampler()
     dtype_handles = []
     original_step = trainer.training_step
+    original_loss = trainer.compute_loss
+
+    def controlled_loss(*loss_args: Any, **loss_kwargs: Any) -> Any:
+        # Enter the same forward/loss autocast for both worlds; leave backward
+        # and optimizer outside it, as with Accelerate's ordinary AMP wrapper.
+        with pilot_autocast(args.device):
+            return original_loss(*loss_args, **loss_kwargs)
+
+    trainer.compute_loss = controlled_loss
 
     def observed_step(model: Any, inputs: dict, *rest: Any, **kwargs: Any) -> Any:
         step = trainer.state.global_step
@@ -358,8 +376,11 @@ def run(args: argparse.Namespace) -> None:
             def observe_dtype(module: Any, inputs: Any) -> None:
                 for name, parameter in module.named_parameters(recurse=False):
                     if parameter.requires_grad:
-                        record.setdefault("forward_trainable_dtypes", {})[
-                            f"{module_names[id(module)]}.{name}"] = str(parameter.dtype)
+                        key = f"{module_names[id(module)]}.{name}"
+                        record.setdefault("forward_trainable_dtypes", {})[key] = (
+                            str(parameter.dtype))
+                        record.setdefault("forward_autocast_enabled", {})[key] = (
+                            torch.is_autocast_enabled("cuda"))
 
             module_names = {id(module): name for name, module in
                             trainer.model_wrapped.named_modules()}
@@ -419,7 +440,8 @@ def run(args: argparse.Namespace) -> None:
                 for handle in dtype_handles:
                     handle.remove()
                 assert_forward_precision(record.get("forward_trainable_dtypes", {}),
-                                         len(initial_adapter))
+                                         record.get("forward_autocast_enabled", {}),
+                                         len(initial_adapter), not cpu)
             if completed < args.correctness_steps:
                 rows = gathered(windows[completed])
                 assert_data_window(rows, args.global_batch)
@@ -452,7 +474,7 @@ def run(args: argparse.Namespace) -> None:
             adapted = adapter_snapshot()
             record["final_update"] = adapter_delta(initial_adapter, adapted)
             trainer.model_wrapped.eval()
-            with torch.no_grad(), trainer.compute_loss_context_manager():
+            with torch.no_grad(), pilot_autocast(args.device):
                 logits = trainer.model_wrapped(input_ids=fixed_ids,
                                                attention_mask=torch.ones_like(fixed_ids)).logits
             if not torch.isfinite(logits).all().item():
@@ -534,8 +556,7 @@ def reload_adapter(args: argparse.Namespace) -> None:
     model = PeftModel.from_pretrained(base, adapter_dir, is_trainable=False).eval()
     assert_adapter_equal(saved, get_peft_model_state_dict(model))
     ids = reference["input_ids"].to(args.device)
-    context = contextlib.nullcontext() if cpu else torch.autocast("cuda", dtype=torch.bfloat16)
-    with torch.no_grad(), context:
+    with torch.no_grad(), pilot_autocast(args.device):
         actual = model(input_ids=ids, attention_mask=torch.ones_like(ids)).logits.cpu()
     # BF16: one relative ULP plus two absolute ULPs near one. Same dtype,
     # backend and input; exact adapter key/value equality is checked separately.

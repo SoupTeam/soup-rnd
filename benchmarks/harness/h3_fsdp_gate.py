@@ -73,10 +73,13 @@ def assert_data_window(rank_rows: list[list[str]], global_batch: int) -> None:
         raise ValueError("duplicate samples across ranks or within accumulation window")
 
 
-def assert_forward_precision(dtypes: dict[str, str], expected_tensors: int) -> None:
-    """Master-shard dtype does not establish the materialized forward dtype."""
+def assert_forward_precision(dtypes: dict[str, str], autocast_modes: dict[str, bool],
+                             expected_tensors: int, expected_autocast: bool) -> None:
+    """Master dtype and requested BF16 do not establish the actual forward policy."""
     if len(dtypes) != expected_tensors or set(dtypes.values()) != {"torch.float32"}:
         raise ValueError("pilot requires all materialized LoRA parameters to stay FP32")
+    if set(autocast_modes) != set(dtypes) or set(autocast_modes.values()) != {expected_autocast}:
+        raise ValueError("actual forward autocast differs from the pilot's declared precision")
 
 
 def throughput(rank_seconds: list[list[float]], rank_tokens: list[int]) -> dict:

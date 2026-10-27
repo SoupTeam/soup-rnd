@@ -21,11 +21,19 @@ def test_batch_plan_preserves_global_batch():
 
 
 def test_materialized_forward_precision_cannot_be_inferred_from_master_shards():
-    gate.assert_forward_precision({"A": "torch.float32", "B": "torch.float32"}, 2)
+    modes = {"A": True, "B": True}
+    gate.assert_forward_precision({"A": "torch.float32", "B": "torch.float32"}, modes, 2, True)
     for actual in ({"A": "torch.bfloat16", "B": "torch.bfloat16"},
                    {"A": "torch.float32"}, {}):
         with pytest.raises(ValueError, match="materialized LoRA"):
-            gate.assert_forward_precision(actual, 2)
+            gate.assert_forward_precision(actual, modes, 2, True)
+
+
+def test_fp32_lora_without_actual_autocast_cannot_pass_a_bf16_control():
+    dtypes = {"A": "torch.float32", "B": "torch.float32"}
+    for modes in ({"A": False, "B": False}, {"A": True}, {}):
+        with pytest.raises(ValueError, match="actual forward autocast"):
+            gate.assert_forward_precision(dtypes, modes, 2, True)
 
 
 @pytest.mark.parametrize("args", [(0, 1, 2), (8, 0, 2), (8, 1, 0), (True, 1, 2)])

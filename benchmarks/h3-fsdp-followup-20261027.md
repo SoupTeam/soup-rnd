@@ -22,6 +22,11 @@ Before any new measurement, the follow-up protocol is fixed:
 - Read actual trainable parameter dtypes in the first forward after FSDP unshard
   hooks. Every LoRA tensor must be observed FP32. Remove observation hooks before
   timing. Master dtype alone cannot pass this admission check.
+- Explicitly enter CUDA BF16 autocast around forward/loss in both arms and the
+  pre-save eval reference, leaving backward/optimizer outside. Accelerate's
+  FSDP2 preparation bypasses its ordinary `prepare_model` AMP forward wrapper;
+  a requested BF16 training flag does not prove actual autocast. Record and
+  require enabled autocast inside every observed trainable module's forward.
 - Keep the existing first-step comparison unchanged: `atol=1e-5, rtol=0.02`,
   all keys and elements, both gradients and updated adapter. Do not loosen it in
   response to the outcome. Two alternating pairs; 2 correctness, 5 warmup,
@@ -35,10 +40,22 @@ Before any new measurement, the follow-up protocol is fixed:
   tokens/s, speedup and efficiency definitions. Two pairs are budget-sized repeats,
   not evidence for a narrow confidence interval.
 
-Commands after the same pinned environment/model preparation:
+Reproduce on an already-approved idle Linux server from the repository root.
+Use the exact experiment commit recorded with the result, a fresh output path,
+Python 3.10–3.12, CUDA 13 compatible driver and at least 15 GiB free disk:
 
 ```bash
-PYTHONPATH="$PWD/src" OMP_NUM_THREADS=4 python benchmarks/harness/h3_fsdp_campaign.py \
+python3 -m venv benchmarks/evidence/h3-fsdp-20261027/venv
+source benchmarks/evidence/h3-fsdp-20261027/venv/bin/activate
+python -m pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu130
+python -m pip install -e '.[train]' psutil -c benchmarks/h3-fsdp-constraints.txt
+python -m pip check
+export PYTHONPATH="$PWD/src"
+export OMP_NUM_THREADS=4
+python benchmarks/harness/h3_fsdp_run.py prepare \
+  --prepared benchmarks/evidence/h3-fsdp-20261027/prepared \
+  --revision 7ae557604adf67be50417f59c2c2f167def9a775
+python benchmarks/harness/h3_fsdp_campaign.py \
   --prepared benchmarks/evidence/h3-fsdp-20261027/prepared \
   --output benchmarks/evidence/h3-fsdp-20261027/live/campaign \
   --repeats 2 --measured-steps 10 --timeout-seconds 600 --campaign-seconds 2400
@@ -55,4 +72,10 @@ offer must fit a 75-minute maximum and $0.20 traffic/adjustment reserve within t
 remaining ceiling. Existing instance/machine IDs are snapshotted read-only and
 excluded from all mutations. No budget increase is assumed.
 
-Hardware outcome: pending. H3 is not closed by a prepared protocol.
+The first follow-up at `c5ac8463` trained on both worlds but failed 2-GPU output
+reload (max absolute error 0.484375). It preserved FP32 LoRA yet did not explicitly
+establish the same autocast/eval contexts. This run is excluded from scaling.
+The correction above implements the declared common autocast control; numeric
+tolerances and matching/repeat rules remain unchanged.
+
+Hardware outcome of the corrected protocol: pending.
