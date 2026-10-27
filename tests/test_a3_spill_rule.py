@@ -430,6 +430,95 @@ def test_a_kill_without_a_planned_marker_says_the_phase_is_unknown(rule, tmp_pat
     assert part["status"] == "FAIL" and part["oom_phase"].startswith("unknown")
 
 
+
+# --------------------------------------------------------------------------
+# criterion 2, rule v2: any child at the tight limit, by the kernel's word
+# --------------------------------------------------------------------------
+def _tight_child(name: str, *, returncode: int, kernel: Optional[Dict[str, Any]],
+                 marker: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    entry = _entry(name, TIGHT, returncode=returncode)
+    entry["limit"] = "tight"  # the scope, as child_entry names it
+    if kernel is not None:
+        entry["kernel_oom"] = kernel
+    if marker is not None:
+        entry["marker_after_exit"] = marker
+    return entry
+
+
+KILLED_BY_KERNEL = {"read": True, "killed": True, "pids": [4204],
+                    "lines": ["Memory cgroup out of memory: Killed process 4204 (python)"]}
+FIRST_STEP = {"pid": 4204, "steps_done": 0, "in_step": True, "device": "cuda",
+              "expected_memory_max": TIGHT,
+              "cgroup_start": {"version": 2, "memory_max": TIGHT, "swap_max": 0}}
+
+
+def test_the_rule_is_v2(rule):
+    assert rule.RULE_VERSION == "v2" and rule.RULE["profile"] == "a3-spill-gpu-check-v2"
+
+
+@pytest.mark.parametrize("name", ["calibration_check_1", "sigint", "kill9_next",
+                                  "cost/b00_p1_B"])
+def test_a_kernel_oom_after_the_first_step_of_any_tight_child_fails_ram(rule, tmp_path, name):
+    session = Session()
+    session.entries[name] = _tight_child(name, returncode=-9, kernel=KILLED_BY_KERNEL,
+                                         marker=FIRST_STEP)
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["2"]["status"] == "FAIL"
+    part = _part(result, "2", name)
+    assert "after first training_step (marker at 0 optimizer steps done)" in part["detail"]
+    assert part["kernel_lines"] == KILLED_BY_KERNEL["lines"]
+    assert result["verdict"].startswith("SPILL NOT SAFE IN THE TRAINER: criterion 2")
+
+
+def test_session_1_shape_under_v2_is_spill_not_safe(rule, tmp_path):
+    """Only the calibration and its check ran; the check was OOM-killed in its first step."""
+    root = tmp_path / "s1"
+    root.mkdir()
+    children = [{**_entry("calibration", GENEROUS), "limit": "generous"},
+                _tight_child("calibration_check_1", returncode=-9, kernel=KILLED_BY_KERNEL,
+                             marker=FIRST_STEP)]
+    (root / "session.json").write_text(json.dumps({"state": "stopped_oom_in_training",
+                                                   "children": children, "limits": {}}))
+    result = rule.evaluate(str(root))
+    assert result["verdict"] == "SPILL NOT SAFE IN THE TRAINER: criterion 2 failed"
+    assert result["criteria"]["1"]["status"] == "NO VERDICT"
+
+
+def test_the_parents_sigkill_of_kill9_is_not_an_oom(rule, tmp_path):
+    session = Session()
+    session.entries["kill9"].update(limit="tight", signal_name="SIGKILL",
+                                    kernel_oom={"read": True, "killed": False, "lines": []})
+    assert _judge(rule, session, tmp_path)["criteria"]["2"]["status"] == "PASS"
+
+
+def test_a_kernel_oom_before_the_first_step_is_the_stands_limit_not_a_fail(rule, tmp_path):
+    session = Session()
+    session.entries["sigint"] = _tight_child("sigint", returncode=-9, kernel=KILLED_BY_KERNEL)
+    result = _judge(rule, session, tmp_path)
+    part = _part(result, "2", "sigint")
+    assert part["status"] == "NO VERDICT" and part["oom_phase"] == rule.BUILD_PHASE
+    assert result["criteria"]["2"]["status"] == "NO VERDICT"
+
+
+@pytest.mark.parametrize("kernel", [None, {"read": False, "killed": False,
+                                           "error": "journalctl exited 1"}])
+def test_a_minus_9_without_the_kernels_word_is_no_verdict_not_fail(rule, tmp_path, kernel):
+    session = Session()
+    session.entries["kill9_next"] = _tight_child("kill9_next", returncode=-9, kernel=kernel,
+                                                 marker=FIRST_STEP)
+    result = _judge(rule, session, tmp_path)
+    part = _part(result, "2", "kill9_next")
+    assert part["status"] == "NO VERDICT" and "cannot tell" in part["detail"]
+
+
+def test_a_tight_child_that_exited_0_adds_nothing(rule, tmp_path):
+    session = Session()
+    session.entries["calibration_check_1"] = _tight_child("calibration_check_1", returncode=0,
+                                                          kernel=None)
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["2"]["status"] == "PASS"
+    assert len(result["criteria"]["2"]["parts"]) == 4
+
 def test_a_peak_above_the_limit_fails_ram(rule, tmp_path):
     session = Session()
     session.arms["l2l_spill"]["cgroup_end"]["peak"] = TIGHT + 4096

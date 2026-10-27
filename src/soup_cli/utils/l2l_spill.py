@@ -4,11 +4,12 @@ L2L keeps ``n_layers x k`` boundary activations between the forward and the back
 walk (``l2l_activations.ActivationStore``). When they do not fit the host-RAM budget,
 the lowest layers go to an unbuffered file instead, as many as needed and no more.
 
-* **Budget.** The smaller of psutil's available memory and the smallest remainder over
-  the process's cgroup chain (own group up to the root of its namespace), times
-  ``RAM_TIER_HEADROOM``. A level's remainder is ``limit - (used - inactive_file)``:
-  inactive file cache is reclaimable and does not count, page-locked host memory is
-  shmem on the anon LRU and does. A level without a limit is skipped; a level whose
+* **Budget.** ``budget_of(available)``: the smaller of ``RAM_TIER_HEADROOM`` of the available
+  memory and the available memory less ``RAM_RESERVE_BYTES``, where available is the smaller
+  of psutil's available memory and the smallest remainder over the process's cgroup chain
+  (own group up to the root of its namespace). A level's remainder is ``limit - (used -
+  inactive_file)``: inactive file cache is reclaimable and does not count, page-locked host
+  memory is shmem on the anon LRU and does. A level without a limit is skipped; a level whose
   limit cannot be read is reported and the other levels decide.
 * **Plan.** Real host bytes, as A4's planner counts them: a pinned chunk is its own
   allocation and torch rounds it up to the next power of two; the two staging rings
@@ -70,6 +71,13 @@ SYS_ROOT = "/sys"
 #: A cgroup v1 limit at or above this is "no limit" (PAGE_COUNTER_MAX reads
 #: 9223372036854771712 on x86-64).
 UNLIMITED_BYTES = 1 << 60
+
+#: What the rest of a training step may still allocate after the store is planned: the
+#: budget never leaves less than this free. Chosen, not measured. A3's one GPU measurement
+#: (Mistral-7B NF4, LoRA r 8, k 4, seq 512) saw about 183 MB of growth outside the store after
+#: the budget was read; a 0.3 headroom alone left 130 MB there and the run was OOM-killed.
+#: Above ``RAM_RESERVE_BYTES / (1 - RAM_TIER_HEADROOM)`` (1.79 GB) the 0.7 share decides.
+RAM_RESERVE_BYTES = 512 << 20
 
 #: The unbuffered round trip the volume check makes.
 PROBE_BYTES = 1 << 20
@@ -186,21 +194,40 @@ class RamBudget:
         if self.budget_bytes is None:
             text = "no RAM budget is known (psutil is missing and no cgroup sets a limit)"
         else:
-            from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
-
             if self.limiting_level == "psutil":
                 source = f"psutil available {_size(self.psutil_available)}"
             else:
                 level = next(lv for lv in self.levels if lv.path == self.limiting_level)
                 source = level.describe()
             text = (
-                f"RAM budget {_size(self.budget_bytes)} = {RAM_TIER_HEADROOM:.0%} of "
-                f"{_size(self.available_bytes)} available, limited by {source}"
+                f"RAM budget {_size(self.budget_bytes)} = "
+                f"{budget_rule(int(self.available_bytes or 0))}, limited by {source}"
             )
         if self.failed_levels:
             failed = "; ".join(f"{row['level']} ({row['reason']})" for row in self.failed_levels)
             text += f"; cgroup level(s) not read: {failed}"
         return text
+
+
+def budget_of(available: int) -> int:
+    """The activations' share of ``available`` host bytes: the smaller of
+    ``RAM_TIER_HEADROOM`` of it and what is left after ``RAM_RESERVE_BYTES``, never below 0."""
+    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
+
+    return max(0, min(int(available * RAM_TIER_HEADROOM), int(available) - RAM_RESERVE_BYTES))
+
+
+def budget_rule(available: int) -> str:
+    """How ``budget_of`` reached its number at ``available``, in the console's words."""
+    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
+
+    if int(available * RAM_TIER_HEADROOM) <= int(available) - RAM_RESERVE_BYTES:
+        return f"{RAM_TIER_HEADROOM:.0%} of {_size(available)} available"
+    floor = ", floored at 0" if available < RAM_RESERVE_BYTES else ""
+    return (
+        f"{_size(available)} available less the {RAM_RESERVE_BYTES >> 20} MiB reserve kept for "
+        f"the rest of the training step{floor}"
+    )
 
 
 def _read(path: str) -> Tuple[Optional[str], Optional[str]]:
@@ -352,8 +379,8 @@ def ram_budget(
     *, proc_root: Optional[str] = None, v2_root: Optional[str] = None,
     v1_root: Optional[str] = None,
 ) -> RamBudget:
-    """The activations' host-RAM budget: ``min(psutil available, smallest cgroup
-    remainder) x RAM_TIER_HEADROOM``. Unknown (None) without psutil and without a limit."""
+    """The activations' host-RAM budget: ``budget_of(min(psutil available, smallest cgroup
+    remainder))``. Unknown (None) without psutil and without a limit."""
     from soup_cli.utils import layer_stream
 
     psutil_available = layer_stream.free_ram_bytes()
@@ -364,7 +391,7 @@ def ram_budget(
     tightest = min(levels, key=lambda lv: lv.remainder, default=None)
     if tightest is not None and (available is None or tightest.remainder < available):
         available, level_name, numbers = tightest.remainder, tightest.path, tightest.numbers()
-    budget = None if available is None else int(available * layer_stream.RAM_TIER_HEADROOM)
+    budget = None if available is None else budget_of(int(available))
     return RamBudget(
         available_bytes=None if available is None else int(available),
         budget_bytes=budget,

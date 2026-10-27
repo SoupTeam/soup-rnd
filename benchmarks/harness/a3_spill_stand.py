@@ -110,6 +110,13 @@ class OomRiskError(SessionStopError):
     state = "stopped_calibration_oom_risk"
 
 
+class OomInTrainingError(SessionStopError):
+    """The kernel OOM-killed a child at the tight limit after its first ``training_step``
+    entry (protocol §3.6, rule v2): criterion 2 fails and the session stops."""
+
+    state = "stopped_oom_in_training"
+
+
 def spec_of(arm: str) -> Dict[str, Any]:
     spec = dict(ARMS[arm])
     spec.setdefault("sdpa", base.PINNED_SDPA_BACKEND)
@@ -353,31 +360,38 @@ def _layout(plan: Dict[str, Any]) -> Any:
 def predicted_spill(limit: int, working: int, plan: Dict[str, Any]) -> int:
     """The spilled layers the product's planner gives at ``limit``, with the scope's
     remainder ``limit - working`` as the available memory, as ``ram_budget`` counts it."""
-    from soup_cli.utils.l2l_spill import plan_spill
-    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
+    from soup_cli.utils.l2l_spill import budget_of, plan_spill
 
     layout = _layout(plan)
-    budget = int(max(0, limit - working) * RAM_TIER_HEADROOM)
+    budget = budget_of(max(0, limit - working))
     return plan_spill(budget, n_layers=layout.n_layers, k=layout.k,
                       chunk_bytes=layout.chunk_bytes, ring=layout.ring, pin=layout.pin
                       ).spill_layers
 
 
+def available_for(budget: int) -> int:
+    """The least available memory whose product budget (``l2l_spill.budget_of``) is at least
+    ``budget``: the larger of budget / 0.7 and budget + the reserve."""
+    from soup_cli.utils.l2l_spill import RAM_RESERVE_BYTES
+    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
+
+    return max(math.ceil(budget / RAM_TIER_HEADROOM), int(budget) + RAM_RESERVE_BYTES)
+
+
 def tight_limit(working: int, plan: Dict[str, Any], *, target: int = TARGET_SPILL
                 ) -> Dict[str, Any]:
-    """limit = working set + (target host_bytes + half a layer) / 0.7, rounded up to a MiB.
+    """limit = working set + the available memory whose product budget is target host_bytes
+    + half a layer, rounded up to a MiB (``available_for``).
 
     target host_bytes is what the product's plan holds with ``target`` layers spilled: the
     resident layers' pinned blocks plus the two staging rings. Half a layer's cost puts the
     budget in the middle of the interval that gives exactly ``target`` spilled layers, so a
     working set that moves by a few MiB between children does not cross a layer boundary."""
-    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
-
     layout = _layout(plan)
     per_layer = layout.all_resident_bytes // layout.n_layers
     host = (layout.n_layers - target) * per_layer + layout.minimum_bytes
     budget = host + per_layer // 2
-    limit = -(-(int(working) + math.ceil(budget / RAM_TIER_HEADROOM)) // MIB) * MIB
+    limit = -(-(int(working) + available_for(budget)) // MIB) * MIB
     return {"working_set_bytes": int(working), "per_layer_bytes": per_layer,
             "minimum_bytes": layout.minimum_bytes, "target_spill_layers": target,
             "target_host_bytes": host, "target_budget_bytes": budget, "limit_bytes": limit,
@@ -486,8 +500,8 @@ def oom_margin(transient: Optional[Dict[str, Any]], *, limit: int, target_host: 
     The stand, not the product, puts this limit close to the steady state, and the product
     plans only after the build, so an OOM in the build would come from the stand's setup.
     The training margin, limit - (U0 + training transient + the store planned at this
-    limit), is description only. The product promises its own 0.3 headroom, so an OOM in
-    training is a product finding (criterion 2). Either margin below
+    limit), is description only. The product promises its own reserve (``budget_of``), so an
+    OOM in training is a product finding (criterion 2). Either margin below
     ``rule.OOM_MARGIN_WARN_BYTES`` adds a warning that decides nothing. An unknown baseline
     stops: unknown is not clean. The limit is never raised. ``margin_over_working_bytes``
     counts from the product's working set, which holds reclaimable active file cache:
@@ -543,6 +557,70 @@ def guard_oom(status: Dict[str, Any], calibration: Optional[Dict[str, Any]], lim
         f"{t['train_transient_bytes']:,} B, store {target_host:,} B, training margin "
         f"{margin['train_margin_bytes']:,} B). An OOM in the build would come from the stand's "
         f"limit, not the product. The limit is not raised: the owner decides")
+
+
+# ==========================================================================
+# the kernel's word on an OOM kill (protocol §3.6)
+# ==========================================================================
+#: After a killed child exits, the kernel log is read again after this long when it does not
+#: show the kill yet (journald reads /dev/kmsg asynchronously).
+KERNEL_LOG_RETRY_S = 3.0
+
+
+def oom_kill_lines(text: str, pids: Sequence[int], scopes: Sequence[str] = ()) -> List[str]:
+    """The kernel's memory-cgroup OOM lines about any of ``pids``, or about a task in one of
+    ``scopes`` (cgroup paths): the ``oom-kill:constraint=CONSTRAINT_MEMCG`` line names the
+    killed pid and its cgroup, the ``Memory cgroup out of memory: Killed process <pid>`` line
+    is the kill. A pid a matching ``CONSTRAINT_MEMCG`` line names counts as one of ``pids``."""
+    wanted = {int(pid) for pid in pids}
+    names = {scope.rstrip("/").rsplit("/", 1)[-1] for scope in scopes if scope}
+    lines = text.splitlines()
+    for line in lines:
+        if "CONSTRAINT_MEMCG" in line and any("task_memcg=" in line and f"/{name}," in line
+                                              for name in names):
+            pid = line.split(",pid=", 1)[-1].split(",", 1)[0]
+            if pid.isdigit():
+                wanted.add(int(pid))
+    return [line.strip() for line in lines
+            if any(f"Memory cgroup out of memory: Killed process {pid} (" in line
+                   or ("CONSTRAINT_MEMCG" in line and f",pid={pid}," in line)
+                   for pid in wanted)]
+
+
+def read_kernel_log(since: float, until: float) -> Tuple[Optional[str], Optional[str]]:
+    """``(text, None)`` of the kernel log between two unix times, or ``(None, why)``."""
+    command = ["journalctl", "-k", "--no-pager", "-o", "short-unix",
+               "--since", f"@{int(since) - 1}", "--until", f"@{int(until) + 5}"]
+    try:
+        done = subprocess.run(command, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return None, f"{type(exc).__name__}: {exc}"
+    if done.returncode != 0:
+        return None, f"journalctl exited {done.returncode}: {done.stderr.strip()[:300]}"
+    return done.stdout, None
+
+
+def kernel_oom(pids: Sequence[int], since: float, until: float, *, scopes: Sequence[str] = (),
+               read: Callable[[float, float], Tuple[Optional[str], Optional[str]]]
+               = read_kernel_log,
+               sleep: Callable[[float], None] = time.sleep) -> Dict[str, Any]:
+    """Whether the kernel logged a memory-cgroup OOM kill of any of ``pids``, or of a task in
+    one of ``scopes``, while the child ran: ``killed`` from the ``Killed process`` line, never
+    from a return code. Under ``systemd-run --scope`` the child's pid is not the one
+    ``Popen`` sees; the child's marker carries its own pid and cgroup path."""
+    pids = sorted({int(pid) for pid in pids if pid})
+    scopes = sorted({scope for scope in scopes if scope})
+    text, error = read(since, until)
+    lines = oom_kill_lines(text or "", pids, scopes)
+    if text is not None and not any("Killed process" in line for line in lines):
+        sleep(KERNEL_LOG_RETRY_S)
+        again, error_again = read(since, until + KERNEL_LOG_RETRY_S)
+        if again is not None:
+            text, lines = again, oom_kill_lines(again, pids, scopes)
+        error = error or error_again
+    return {"source": "journalctl -k", "pids": pids, "scopes": scopes,
+            "read": text is not None, "error": error,
+            "killed": any("Killed process" in line for line in lines), "lines": lines}
 
 
 # ==========================================================================
@@ -974,9 +1052,17 @@ def compare_main(args: argparse.Namespace) -> int:
 # ==========================================================================
 # the session (parent)
 # ==========================================================================
-def _scope(args: argparse.Namespace, memory_max: Any) -> List[str]:
+def _scope(args: argparse.Namespace, memory_max: Any, unit: str) -> List[str]:
     return [args.systemd_run, *(["--user"] if args.user_scope else []), "--scope", "--quiet",
-            "--collect", "-p", f"MemoryMax={memory_max}", "-p", "MemorySwapMax=0", "--"]
+            "--collect", f"--unit={unit}", "-p", f"MemoryMax={memory_max}", "-p",
+            "MemorySwapMax=0", "--"]
+
+
+def scope_unit(out: Path, name: str) -> str:
+    """The child's own scope unit: unique per session and child, so the kernel's OOM lines
+    (``task_memcg=.../<unit>``) name it even before the child writes its marker."""
+    session = hashlib.sha256(str(out).encode()).hexdigest()[:8]
+    return f"a3-{session}-{name.replace('/', '-').replace('_', '-')}.scope"
 
 
 def output_path(out: Path, arm: str, block: int = 0, position: int = 0) -> Path:
@@ -999,7 +1085,8 @@ def child_entry(args: argparse.Namespace, out: Path, arm: str, limits: Dict[str,
                  "--memory-max", str(memory_max), "--k", str(args.k), "--seq", str(args.seq),
                  "--rows", str(ROWS), "--out", str(target)]
     entry: Dict[str, Any] = {"name": name, "output": str(target), "spill_dir": spill_dir,
-                             "memory_max": memory_max, "limit": spec["limit"]}
+                             "memory_max": memory_max, "limit": spec["limit"],
+                             "scope_unit": scope_unit(out, name)}
     if spec["kind"] == "cost":
         arguments += ["--block", str(block), "--position", str(position)]
     if spec["kind"] == "correctness":
@@ -1010,7 +1097,7 @@ def child_entry(args: argparse.Namespace, out: Path, arm: str, limits: Dict[str,
     arguments += ["--marker", entry["marker"]]
     if spec.get("signal"):
         entry["signal_name"] = spec["signal"]
-    entry["command"] = _scope(args, memory_max) + arguments
+    entry["command"] = _scope(args, memory_max, entry["scope_unit"]) + arguments
     return entry
 
 
@@ -1109,8 +1196,10 @@ def drive_signal(child: Any, entry: Dict[str, Any], deadline: float, *,
             "returncode": code}
 
 
-def run_child(entry: Dict[str, Any], out: Path, env: Dict[str, str], deadline: float
-              ) -> Dict[str, Any]:
+def run_child(entry: Dict[str, Any], out: Path, env: Dict[str, str], deadline: float, *,
+              oom_reader: Callable[..., Dict[str, Any]] = kernel_oom) -> Dict[str, Any]:
+    """Run one child to its exit. A child that exits other than 0 gets the kernel's OOM-kill
+    lines about its pid (and the pid in its marker) read into ``kernel_oom``."""
     from soup_cli.utils.l2l_spill import spill_files
 
     target = Path(entry["output"])
@@ -1123,6 +1212,7 @@ def run_child(entry: Dict[str, Any], out: Path, env: Dict[str, str], deadline: f
     with log_path.open("xb") as log:
         child = subprocess.Popen(entry["command"], cwd=ROOT, env=env, stdout=log,
                                  stderr=subprocess.STDOUT)
+        result["pid"] = child.pid
         try:
             if entry.get("signal_name"):
                 result["signal"] = drive_signal(child, entry, deadline, list_files=spill_files,
@@ -1136,10 +1226,31 @@ def run_child(entry: Dict[str, Any], out: Path, env: Dict[str, str], deadline: f
                 child.wait()
             raise
     result.update(returncode=code, ended_unix=time.time())
+    if code != 0:
+        marker = result.get("marker_after_exit") or {}
+        result["kernel_oom"] = oom_reader(
+            [p for p in (child.pid, marker.get("pid")) if p], result["started_unix"],
+            result["ended_unix"],
+            scopes=[entry.get("scope_unit"), (marker.get("cgroup_start") or {}).get("path")])
     if entry.get("spill_dir"):
         result["spill_files_after_exit"] = spill_files(entry["spill_dir"])
-    print(f"{entry['name']:<26} exit {code}")
+    print(f"{entry['name']:<26} exit {code}"
+          + (" (kernel: memory cgroup OOM kill)"
+             if (result.get("kernel_oom") or {}).get("killed") else ""))
     return result
+
+
+def oom_in_training(result: Dict[str, Any]) -> Optional[str]:
+    """Why the session stops after this child (protocol §3.6), or None: the kernel OOM-killed
+    a child at the tight limit after its first-step marker."""
+    if not (result.get("kernel_oom") or {}).get("killed") or result.get("limit") != "tight":
+        return None
+    marker = result.get("marker_after_exit")
+    if not marker:
+        return None
+    return (f"{result['name']}: the kernel OOM-killed pid {result.get('pid')} at "
+            f"{result.get('memory_max'):,} B after its first training_step (marker at "
+            f"{marker.get('steps_done')} optimizer steps done): criterion 2 fails")
 
 
 def cost_runs(out: Path) -> List[List[arm_validity.Run]]:
@@ -1223,6 +1334,9 @@ def session_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
         result = run_child(entry, out, env, deadline)
         status["children"].append(result)
         write_json(out / "session.json", status)
+        why = oom_in_training(result)
+        if why:
+            raise OomInTrainingError(why)
         return result
 
     try:

@@ -23,10 +23,10 @@ from tests.test_l2l_trainer_labels import _MaskedRows
 N_LAYERS = 8
 #: The store is sized to this many tokens; the rows are SEQ (8) tokens or up to 64.
 MAX_SEQ = 64
-#: Free RAM that leaves a budget of 240,000 bytes. A chunk is 64 x 64 x 4 = 16 KiB and the
-#: rings 8 x 20 KiB = 160 KiB, so 6 of 8 layers spill at k=2 (all resident: 256 KiB) and
-#: 7 at k=4 (all resident: 512 KiB).
-SMALL = 342_858
+#: Free RAM that leaves a budget of 240,000 bytes (below 1.79 GB the budget is what the 512 MiB
+#: reserve leaves). A chunk is 64 x 64 x 4 = 16 KiB and the rings 8 x 20 KiB = 160 KiB, so 6
+#: of 8 layers spill at k=2 (all resident: 256 KiB) and 7 at k=4 (all resident: 512 KiB).
+SMALL = (512 << 20) + 240_000
 PLENTY = 10**12
 PLAN_KEYS = {
     "spill_layers", "n_layers", "k", "chunk_bytes", "slot_bytes", "ring", "pin", "host_bytes",
@@ -430,9 +430,9 @@ def test_without_max_seq_only_a_larger_window_rebuilds_and_makes_a_second_file(
         l2l_spill, "open_spill_file", lambda path, size: opened.append(path) or real_open(
             path, size)
     )
-    # budget 400,000 bytes at k=4: the 64-token store spills 5 layers, the 128-token one all 8
-    # (its rings alone are 8 x 36 KiB)
-    ram(571_429)
+    # budget 400,000 bytes at k=4 (what the 512 MiB reserve leaves): the 64-token store spills
+    # 5 layers, the 128-token one all 8 (its rings alone are 8 x 36 KiB)
+    ram((512 << 20) + 400_000)
     model, runtime = deep
     state = L2LState(runtime=runtime, dtype=torch.float32, output_dir=str(tmp_path / "out"),
                      max_rows=1, max_k=4)

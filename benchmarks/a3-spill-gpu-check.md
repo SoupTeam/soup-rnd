@@ -1,12 +1,15 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
-**Status: one GPU session, stopped at calibration: `NO VERDICT: criterion 1, 2, 3 has no
-verdict` (§9).** Criteria fixed by commit `2a05e15f` before any rental; the machine
-admission (§5) by commit `794c6827`. The rule is
-`harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v1`, `rule_version` v1): the
-same text in machine form, copied into every session's `protocol.json`. The stand is
-`harness/a3_spill_stand.py`, the admission `harness/a3_admission.py`. CPU tests:
-`tests/test_a3_spill_rule.py`, `tests/test_a3_spill_stand.py`, `tests/test_a3_admission.py`.
+**Status: protocol v2 (§3.6), committed before its session; session 1 (protocol v1) stopped at
+calibration: `NO VERDICT: criterion 1, 2, 3 has no verdict` (§9).** v1's criteria were fixed by
+commit `2a05e15f` before any rental, the machine admission (§5) by commit `794c6827`. v2 adds
+the product's 512 MiB reserve, calibrates the tight limit to it, and fails criterion 2 on a
+kernel OOM kill of any child at the tight limit after its first training step (§3.6). The rule
+is `harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v2`, `rule_version` v2;
+v1 is that file at `bda4a00a`): the same text in machine form, copied into every session's
+`protocol.json`. The stand is `harness/a3_spill_stand.py`, the admission
+`harness/a3_admission.py`. CPU tests: `tests/test_a3_spill_rule.py`,
+`tests/test_a3_spill_stand.py`, `tests/test_a3_admission.py`.
 
 ## 1. Question
 
@@ -151,7 +154,37 @@ A 1b FAIL is appended as a note and changes none of these. The verdict also repo
 `spill_layers` of `l2l_spill` and whether it is in the target band [12, 20] (description,
 not a criterion).
 
+### 3.6 Protocol v2 (fixed after session 1, before session 2)
+
+Session 1 (§9) stopped when the check child at the tight limit was OOM-killed by its cgroup
+inside its first training step. v2 changes the product and the protocol because of it. Session
+1 is not re-judged: its `verdict.json` is rule v1's output and stays NO VERDICT.
+
+| | v1 | v2 | why |
+|---|---|---|---|
+| product budget | 0.7 x available | min(0.7 x available, available - 512 MiB) (`l2l_spill.budget_of`, `RAM_RESERVE_BYTES`); below 576 MiB available Mistral's run stops with the numbers | in session 1 the 0.3 headroom was about 130 MB at the plan point and the first step grew about 183 MB outside the store after it. 512 MiB is chosen, not measured |
+| tight limit (§4) | working set + (target host_bytes + half a layer) / 0.7 = working set + 469 MiB | working set + `available_for`(target host_bytes + half a layer) = working set + max(328 MiB / 0.7, 328 MiB + 512 MiB) = **working set + 840 MiB** | the product's own budget, not the stand's guess, decides the spilled layers; target still 16 of 32, band still [12, 20] |
+| drift the band holds | exactly 16 at -10..+11 MiB, [12, 20] at -102..+103 MiB | exactly 16 at -7..+8 MiB, [12, 20] at -71..+72 MiB | below 1.79 GB a MiB of working set moves the budget by a MiB, not 0.7 of one. Session 1's check child sat about 37-61 MB above the calibration's working set |
+| criterion 2 | only `l2l_spill`, `l2l_nospill_1`, `l2l_nospill_2` | also every other child at the tight limit (calibration checks, `sigint`, `kill9`, `kill9_next`, cost B): a kernel memory-cgroup OOM kill of its pid after its first-step marker is a FAIL; before the marker (the build) no verdict; a kill the kernel log cannot tell about, no verdict | §4 already called an OOM in training a criterion 2 FAIL; v1's rule never read the check children, so session 1 came out NO VERDICT |
+| OOM evidence | return code and `memory.events` | the parent reads `journalctl -k` for the child's pids over its run after a non-zero exit (again after 3 s if the line is not there yet) and keeps the `Killed process <pid>` and `CONSTRAINT_MEMCG` lines in `session.json` as `kernel_oom`. A return code of -9 alone is not an OOM, and the SIGKILL the parent sends `kill9` is not one | `--collect` removes the scope with the child, so its `memory.events` cannot be read after an OOM kill |
+| stop | a failed check child stops (exit 3, `stopped`) | a kernel OOM kill of a child at the tight limit after its first step stops the session (exit 3, `stopped_oom_in_training`), and the verdict is `SPILL NOT SAFE IN THE TRAINER: criterion 2 failed` | |
+| rule version | `a3-spill-gpu-check-v1`, v1 | `a3-spill-gpu-check-v2`, v2 | |
+
+Unchanged: criteria 1, 1b, 3 and 4 and their thresholds (10%, the repeats rule, 12 blocks),
+V1-V8, the arms and their order, the admission (§5, `a3_admission.py`, whose demand comes from
+the A child at the generous limit and does not depend on the budget), `--max-hours 5`, the
+24 GiB generous limit, swap 0, the calibration's OOM margins (build below 0 stops; training
+describes), and that the limit is never raised. The training margin at v2's limit is (W - U0) +
+840 - 320 MiB - training transient: the 512 MiB reserve plus the reclaimable active cache.
+
+Any outcome of the v2 session (PASS, FAIL or NO VERDICT, cost included) ends the GPU work on
+A3. No other machine is taken without the owner's decision.
+
 ## 4. Calibration of the tight limit
+
+*This section is v1's text, kept as session 1 ran it. Protocol v2 (§3.6) replaces the 0.7
+share with the product's `budget_of` and the limit with working set + 840 MiB for the same
+16 of 32 layers; the margins below are computed the same way at that limit.*
 
 The product's budget is min(psutil available, min over the cgroup chain of limit - (used -
 inactive_file)) x 0.7, and it plans the store at the first `training_step`. The
@@ -259,7 +292,7 @@ not U. The calibration measures U on the box.
 
 ```bash
 git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout 794c6827   # the commit that fixed the admission (on top of 2a05e15f)
+git checkout V2_COMMIT   # protocol v2 (§3.6); session 1 ran v1 at bda4a00a
 A0_PYTHON=python3.12 bash benchmarks/a0-bootstrap.sh   # venv, CUDA torch, pinned deps
 .venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
   tests/test_a3_admission.py tests/test_l2l_spill*.py -q -o addopts=''
@@ -291,13 +324,13 @@ SPILL=/mnt/nvme/a3-spill        # local NVMe, not overlay, not tmpfs
 # 2. Plan: prints every child command in order with its scope, writes nothing.
 .venv/bin/python benchmarks/harness/a3_spill_stand.py session \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
-  --out .soup/results/a3-spill-01
+  --out .soup/results/a3-spill-02
 # 3. Run (as root; --user-scope in a user session). Each child gets its own scope:
 .venv/bin/python benchmarks/harness/a3_spill_stand.py session \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
-  --out .soup/results/a3-spill-01 --execute
+  --out .soup/results/a3-spill-02 --execute
 # 4. Verdict, recomputed from the raw JSON alone:
-.venv/bin/python benchmarks/harness/a3_spill_rule.py .soup/results/a3-spill-01 \
+.venv/bin/python benchmarks/harness/a3_spill_rule.py .soup/results/a3-spill-02 \
   --out verdict.json
 ```
 
@@ -382,3 +415,5 @@ What is needed before another session, for the owner to decide: whether the prod
 headroom or the calibration's margin should change (either changes the committed protocol
 or the product, and needs a new commit before any rental), and the budget for another box.
 Nothing has been rented since.
+
+The owner chose the product reserve; protocol v2 (§3.6) follows from that decision.

@@ -81,17 +81,20 @@ def test_the_tight_limit_spills_16_of_mistrals_32_layers(stand, rule, working):
 
 
 @pytest.mark.parametrize("drift_mib, layers", [
-    (-10, 16), (11, 16),  # the protocol's "exactly 16" edges
-    (-11, 15), (12, 17),  # one MiB past them
-    (-102, 12), (103, 20),  # the band's edges
-    (-103, 11), (104, 21),  # one MiB past the band
+    (-7, 16), (8, 16),  # the protocol's "exactly 16" edges
+    (-8, 15), (9, 17),  # one MiB past them
+    (-71, 12), (72, 20),  # the band's edges
+    (-72, 11), (73, 21),  # one MiB past the band
 ])
 def test_a_working_set_that_moves_between_children_moves_the_spill_as_documented(
     stand, drift_mib, layers
 ):
+    """Below 1.79 GB available the budget is available - 512 MiB, so a MiB of working set
+    moves the budget by a MiB (not 0.7 of one, as in v1): the band is +-72 MiB wide."""
     plan = _mistral_plan()
     working = 9 * GIB
     limit = stand.tight_limit(working, plan)["limit_bytes"]
+    assert limit - working == 840 * MIB  # (320 + 8) MiB budget + the 512 MiB reserve
     assert stand.predicted_spill(limit, working + drift_mib * MIB, plan) == layers
 
 
@@ -302,15 +305,15 @@ def test_margins_above_both_bounds_proceed_without_a_warning(stand):
 
 
 def test_a_build_margin_below_0_stops_with_the_numbers_and_never_raises_the_limit(stand):
-    # 469 MiB over the baseline (the stand's limit with nothing reclaimable), a build
-    # transient of 470 MiB: build margin -1 MiB
-    transient = _calibration_transient(stand, build_peak=470 * MIB, step_extra=0)
-    status, guard = _guard(stand, transient, 469 * MIB)
+    # 840 MiB over the baseline (the stand's limit with nothing reclaimable), a build
+    # transient of 841 MiB: build margin -1 MiB
+    transient = _calibration_transient(stand, build_peak=841 * MIB, step_extra=0)
+    status, guard = _guard(stand, transient, 840 * MIB)
     with pytest.raises(stand.OomRiskError) as caught:
         guard()
     margin = status["limits"]["oom_margin"][0]
     assert margin["stop"] is True and margin["build_margin_bytes"] == -MIB
-    assert margin["limit_bytes"] == 9 * GIB + 469 * MIB  # the limit tried, not raised
+    assert margin["limit_bytes"] == 9 * GIB + 840 * MIB  # the limit tried, not raised
     text = str(caught.value)
     assert f"build margin {-MIB:,} B < 0" in text and "not raised" in text
     assert caught.value.state == "stopped_calibration_oom_risk"
@@ -362,10 +365,10 @@ def test_the_calibration_record_carries_its_own_margin(stand):
                                        "cgroup_at_first_step": {"path": "/scope"},
                                        "memory_transient": transient})
     assert margin["limit_bytes"] == stand.tight_limit(9 * GIB, plan)["limit_bytes"]
-    assert margin["build_margin_bytes"] == 469 * MIB - 100 * MIB
-    assert margin["train_margin_bytes"] == 469 * MIB - 320 * MIB
-    assert margin["warnings"] == [f"training margin {149 * MIB:,} B < {256 * MIB:,} B "
-                                  f"(description only)"]
+    assert margin["build_margin_bytes"] == 840 * MIB - 100 * MIB
+    # session 1's v1 limit left 149 MiB here (a warning); the reserve leaves 520 MiB
+    assert margin["train_margin_bytes"] == 840 * MIB - 320 * MIB
+    assert margin["warnings"] == []
 
 
 def test_the_background_sampler_sees_a_transient_between_named_readings(stand):
@@ -528,12 +531,14 @@ def test_execute_without_systemd_run_refuses_and_writes_nothing(stand, tmp_path,
     assert not (tmp_path / "out").exists()
 
 
-def _fake_session(stand, tmp_path, monkeypatch, *, build_peak, step_extra, active_cache):
+def _fake_session(stand, tmp_path, monkeypatch, *, build_peak, step_extra, active_cache,
+                  killed=None, killed_after_marker=True):
     """``session --execute`` with every child faked: the calibration child reports Mistral's
     plan with nothing spilled, the product's working set (used - inactive_file) at 9 GiB +
     ``active_cache``, of which ``active_cache`` is reclaimable active file cache, and the
-    given transients; a check child reports 16 spilled layers. Everything the session decides
-    runs for real."""
+    given transients; a check child reports 16 spilled layers. ``killed`` names a child the
+    kernel OOM-kills after its first-step marker (no record, exit -9, the kernel's lines).
+    Everything the session decides runs for real."""
     used = 9 * GIB + active_cache + GIB
     plan = {**_mistral_plan(), "limiting_level": "/scope", "spill_path": None,
             "limiting_numbers": {"used": used, "inactive_file": GIB}}
@@ -542,6 +547,15 @@ def _fake_session(stand, tmp_path, monkeypatch, *, build_peak, step_extra, activ
 
     def run_child(entry, out, env, deadline):
         ran.append(entry["name"])
+        if entry["name"] == killed:
+            limit = entry["memory_max"]
+            marker = {"pid": 4204, "steps_done": 0, "in_step": True, "device": "cuda",
+                      "expected_memory_max": limit,
+                      "cgroup_start": {"version": 2, "memory_max": limit, "swap_max": 0}}
+            return {**entry, "pid": 4200, "returncode": -9,
+                    "marker_after_exit": marker if killed_after_marker else None,
+                    "kernel_oom": {"read": True, "killed": True, "pids": [4200, 4204],
+                                   "lines": [JOURNAL_KILL]}}
         record = {"exit": "normal", "device": "cuda", "spill_plan": dict(plan),
                   "cgroup_at_first_step": {"path": "/scope"}, "memory_transient": transient}
         if entry["name"].startswith("calibration_check"):
@@ -561,13 +575,13 @@ def _fake_session(stand, tmp_path, monkeypatch, *, build_peak, step_extra, activ
 def test_a_build_margin_below_0_stops_the_session_before_any_child_at_the_tight_limit(
     stand, tmp_path, monkeypatch, capsys
 ):
-    code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=500 * MIB,
+    code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=900 * MIB,
                                        step_extra=0, active_cache=0)
     assert code == 3
     assert session["state"] == "stopped_calibration_oom_risk"
     assert ran == ["calibration"]  # no check child, no correctness arm
     margin = session["limits"]["oom_margin"][0]
-    assert margin["stop"] is True and margin["build_margin_bytes"] == 469 * MIB - 500 * MIB
+    assert margin["stop"] is True and margin["build_margin_bytes"] == 840 * MIB - 900 * MIB
     assert margin["limit_bytes"] == session["limits"]["calibration"]["limit_bytes"]
     assert f"{margin['build_margin_bytes']:,} B" in session["reason"]
     assert "STOPPED (stopped_calibration_oom_risk)" in capsys.readouterr().out
@@ -579,14 +593,14 @@ def test_a_build_margin_below_0_stops_the_session_before_any_child_at_the_tight_
 def test_a_negative_training_margin_runs_the_correctness_arms_with_the_warning_recorded(
     stand, tmp_path, monkeypatch
 ):
-    # nothing reclaimable beyond inactive_file, a 300 MiB training transient: training
-    # margin 469 - 300 - 320 < 0 (a product finding if it OOMs), build margin 469 - 100 >= 0
+    # nothing reclaimable beyond inactive_file, a 700 MiB training transient: training
+    # margin 840 - 700 - 320 < 0 (a product finding if it OOMs), build margin 840 - 100 >= 0
     _code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=100 * MIB,
-                                        step_extra=300 * MIB, active_cache=0)
+                                        step_extra=700 * MIB, active_cache=0)
     margin = session["limits"]["oom_margin"][0]
     assert margin["stop"] is False
-    assert margin["build_margin_bytes"] == 469 * MIB - 100 * MIB
-    assert margin["train_margin_bytes"] == 469 * MIB - 300 * MIB - 320 * MIB
+    assert margin["build_margin_bytes"] == 840 * MIB - 100 * MIB
+    assert margin["train_margin_bytes"] == 840 * MIB - 700 * MIB - 320 * MIB
     assert [w.split(" margin")[0] for w in margin["warnings"]] == ["training"]
     assert ran[:3] == ["calibration", "calibration_check_1", "l2l_nospill_1"]
     assert session["limits"]["tight"] == session["limits"]["calibration"]["limit_bytes"]
@@ -596,12 +610,130 @@ def test_a_negative_training_margin_runs_the_correctness_arms_with_the_warning_r
 
 
 def test_reclaimable_active_cache_counts_toward_the_build_margin(stand, tmp_path, monkeypatch):
-    # a 600 MiB build transient fits only because 400 MiB of active file cache is reclaimable
-    _code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=600 * MIB,
+    # a 1000 MiB build transient fits only because 400 MiB of active file cache is reclaimable
+    _code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=1000 * MIB,
                                         step_extra=0, active_cache=400 * MIB)
     margin = session["limits"]["oom_margin"][0]
-    assert margin["build_margin_bytes"] == 400 * MIB + 469 * MIB - 600 * MIB
+    assert margin["build_margin_bytes"] == 400 * MIB + 840 * MIB - 1000 * MIB
     assert margin["stop"] is False and "l2l_nospill_1" in ran
+
+
+# --------------------------------------------------------------------------
+# the kernel's word on an OOM kill (protocol §3.6, rule v2)
+# --------------------------------------------------------------------------
+#: Session 1's lines (kernel journal, 2026-10-27 07:40:11), reduced to the two that matter.
+JOURNAL_KILL = ("1793086811.000000 ubuntu kernel: Memory cgroup out of memory: Killed process "
+                "4204 (python) total-vm:17949912kB, anon-rss:1288440kB, file-rss:480312kB, "
+                "shmem-rss:4507584kB, UID:0 pgtables:14252kB oom_score_adj:0")
+JOURNAL_MEMCG = ("1793086811.000000 ubuntu kernel: oom-kill:constraint=CONSTRAINT_MEMCG,"
+                 "nodemask=(null),cpuset=run-r1.scope,mems_allowed=0,oom_memcg=/system.slice/"
+                 "run-r1.scope,task_memcg=/system.slice/run-r1.scope,task=python,pid=4204,uid=0")
+
+
+def test_the_kernel_lines_name_the_pid_exactly(stand):
+    text = "\n".join(["boot noise", JOURNAL_MEMCG, JOURNAL_KILL,
+                      JOURNAL_KILL.replace("process 4204 (", "process 42045 (")])
+    assert stand.oom_kill_lines(text, [4204]) == [JOURNAL_MEMCG, JOURNAL_KILL]
+    assert stand.oom_kill_lines(text, [420]) == []
+
+
+def test_a_child_killed_before_its_marker_is_found_by_its_scope_unit(stand):
+    """systemd-run --scope runs the child under a pid Popen never sees; before the marker
+    exists only the scope's unit name ties the kernel's lines to the child."""
+    unit = stand.scope_unit(Path("/x/out"), "calibration_check_1")
+    memcg = JOURNAL_MEMCG.replace("run-r1.scope", unit)
+    text = "\n".join([memcg, JOURNAL_KILL, JOURNAL_KILL.replace("4204", "999")])
+    assert stand.oom_kill_lines(text, [77], [unit]) == [memcg, JOURNAL_KILL]
+    assert stand.oom_kill_lines(text, [77], ["a3-other.scope"]) == []
+    args = argparse.Namespace(spill_dir="/s", weights="w", shards="h", k=4, seq=512,
+                              tensors_dir="/t", systemd_run="systemd-run", user_scope=False)
+    entry = stand.child_entry(args, Path("/x/out"), "calibration_check_1", {"tight": 7 * GIB})
+    assert entry["scope_unit"] == unit and f"--unit={unit}" in entry["command"]
+
+
+def test_a_kill_shows_up_on_the_second_read_of_the_kernel_log(stand):
+    """journald reads /dev/kmsg on its own schedule: the first read may predate the line."""
+    reads = iter([("nothing yet\n", None), (JOURNAL_KILL + "\n", None)])
+    slept = []
+    out = stand.kernel_oom([4200, 4204], 10.0, 20.0, read=lambda a, b: next(reads),
+                           sleep=slept.append)
+    assert out["killed"] is True and out["lines"] == [JOURNAL_KILL]
+    assert slept == [stand.KERNEL_LOG_RETRY_S]
+
+
+def test_a_sigkill_from_the_parent_is_not_an_oom(stand):
+    """kill9's SIGKILL also exits -9; the kernel logs no OOM line for it."""
+    out = stand.kernel_oom([4242], 10.0, 20.0, read=lambda a, b: ("some line\n", None),
+                           sleep=lambda s: None)
+    assert out == {"source": "journalctl -k", "pids": [4242], "scopes": [], "read": True,
+                   "error": None, "killed": False, "lines": []}
+
+
+def test_an_unreadable_kernel_log_is_reported_not_guessed(stand):
+    out = stand.kernel_oom([7], 1.0, 2.0, read=lambda a, b: (None, "journalctl exited 1"),
+                           sleep=lambda s: None)
+    assert out["read"] is False and out["killed"] is False
+    assert out["error"] == "journalctl exited 1"
+
+
+def test_an_oom_in_the_check_child_stops_the_session_and_fails_ram(stand, tmp_path,
+                                                                  monkeypatch, capsys):
+    """Session 1's event under v2: the check child at the tight limit is OOM-killed after its
+    first training_step. v1 said NO VERDICT; v2 fails criterion 2 and stops."""
+    code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=100 * MIB,
+                                       step_extra=0, active_cache=0,
+                                       killed="calibration_check_1")
+    assert code == 3 and session["state"] == "stopped_oom_in_training"
+    assert ran == ["calibration", "calibration_check_1"]
+    assert "calibration_check_1: the kernel OOM-killed pid 4200" in session["reason"]
+    verdict = json.loads((tmp_path / "out" / "verdict.json").read_text())
+    assert verdict["verdict"] == "SPILL NOT SAFE IN THE TRAINER: criterion 2 failed"
+    failed = [p for p in verdict["criteria"]["2"]["parts"] if p["status"] == "FAIL"]
+    assert [p["detail"].split(":")[0] for p in failed] == ["calibration_check_1"]
+    assert "after first training_step (marker at 0 optimizer steps done)" in failed[0]["detail"]
+
+
+def test_an_oom_at_the_generous_limit_does_not_stop_the_session(stand, tmp_path, monkeypatch):
+    """Only the tight limit tests the product's reserve; a GA arm's OOM at 24 GiB is not
+    criterion 2's (its record is missing, so criterion 1b has no verdict)."""
+    code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=100 * MIB,
+                                       step_extra=0, active_cache=0, killed="ga_1")
+    assert session["state"] != "stopped_oom_in_training"
+    assert "ga_2" in ran
+
+
+def test_an_oom_in_the_build_at_the_tight_limit_is_not_called_training(stand, tmp_path,
+                                                                     monkeypatch):
+    """No first-step marker: the stand's limit, not the product's reserve. The check child
+    has failed, so the calibration stops as before (exit 3, stopped), with no criterion 2
+    FAIL."""
+    code, session, ran = _fake_session(stand, tmp_path, monkeypatch, build_peak=100 * MIB,
+                                       step_extra=0, active_cache=0,
+                                       killed="calibration_check_1", killed_after_marker=False)
+    assert code == 3 and session["state"] == "stopped"
+    verdict = json.loads((tmp_path / "out" / "verdict.json").read_text())
+    assert verdict["criteria"]["2"]["status"] == "NO VERDICT"
+    assert not verdict["verdict"].startswith("SPILL NOT SAFE")
+
+
+@pytest.mark.parametrize("limit, marker, stops", [
+    ("tight", {"steps_done": 0}, True),
+    ("tight", None, False),  # the build: the stand's limit
+    ("generous", {"steps_done": 1}, False),  # not the product's reserve under test
+])
+def test_only_a_tight_child_killed_after_its_marker_stops_the_session(stand, limit, marker,
+                                                                     stops):
+    result = {"name": "x", "pid": 1, "memory_max": 5 * GIB, "limit": limit,
+              "marker_after_exit": marker, "kernel_oom": {"killed": True}}
+    assert (stand.oom_in_training(result) is not None) is stops
+    assert stand.oom_in_training({**result, "kernel_oom": {"killed": False}}) is None
+
+
+def test_the_memcg_line_alone_is_not_a_kill(stand):
+    """The kernel names the victim before it kills it; only ``Killed process`` is the kill."""
+    out = stand.kernel_oom([4204], 10.0, 20.0, read=lambda a, b: (JOURNAL_MEMCG + "\n", None),
+                           sleep=lambda s: None)
+    assert out["lines"] == [JOURNAL_MEMCG] and out["killed"] is False
 
 
 def test_a_child_refuses_to_overwrite_its_output(stand, tmp_path, capsys, monkeypatch):
@@ -788,8 +920,9 @@ def test_a_tensor_file_that_does_not_match_its_record_is_flagged_with_max_abs(st
 #: A process id no OS hands out: above Linux's PID_MAX_LIMIT, and odd (Windows ids are
 #: multiples of 4). A spill file with it is a dead run's file.
 DEAD_PID = 4_206_649
-#: Free RAM whose budget spills most of 8 layers at k 4, seq 64 (as tests/test_l2l_spill_*).
-SMALL_FREE = 342_858
+#: Free RAM whose budget (240,000 B, what the 512 MiB reserve leaves) spills most of 8 layers
+#: at k 4, seq 64 (as tests/test_l2l_spill_*).
+SMALL_FREE = (512 << 20) + 240_000
 
 
 @pytest.fixture()

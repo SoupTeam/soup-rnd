@@ -859,8 +859,11 @@ k=16 in bf16 is 80 GiB). The store is sized once for the largest window the run 
 times `gradient_accumulation_steps`) and serves every shorter window, so a run creates at most
 one spill file. Before the first step the run compares the store with the host-RAM budget:
 
-- **Budget.** The smaller of psutil's available memory and the smallest remainder over the
-  process's cgroup chain, from its own group up to the root of its namespace, times 0.7. A
+- **Budget.** Take the smaller of psutil's available memory and the smallest remainder over
+  the process's cgroup chain, from its own group up to the root of its namespace. The budget
+  is the smaller of 0.7 of that and that less a 512 MiB reserve (`RAM_RESERVE_BYTES`) kept
+  for what the rest of the training step allocates. Above 1.79 GB available the 0.7 decides;
+  below it the reserve does, and below 512 MiB the budget is 0. A
   level's remainder is `limit - (used - inactive file cache)`: on cgroup v2 the limit is
   `memory.max`, or `memory.high` when that is lower, used is `memory.current` and the cache is
   `inactive_file` from that level's `memory.stat`; on v1 they are `memory.limit_in_bytes`,
@@ -878,8 +881,16 @@ one spill file. Before the first step the run compares the store with the host-R
   spill file's path, the budget and the level that limited it (`psutil`, or the cgroup
   directory with its limit, use and inactive file cache). Each logged step carries
   `l2l_spill_layers` (0 when nothing spills).
-- **Cannot fit.** When even every layer spilled does not fit, the run stops before allocating:
-  lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`, or free RAM.
+- **Cannot fit.** When even every layer spilled does not fit, the run stops before allocating
+  with the numbers, the reserve included: lower `gradient_accumulation_steps`,
+  `data.max_length` or `batch_size`, or free RAM. For Mistral-7B at k 4, seq 512 that is below
+  576 MiB available (the reserve plus 64 MiB of staging rings).
+
+The 512 MiB reserve is chosen, not measured. It comes from one GPU measurement, Mistral-7B NF4,
+LoRA r 8, k 4, seq 512: after the budget was read, the first training step allocated about
+183 MB outside the activation store. With the 0.7 share alone, the budget left 130 MB for that
+growth and the run was OOM-killed (`benchmarks/a3-spill-gpu-check.md` §9). Other models, ranks,
+sequence lengths and batch sizes may allocate more.
 
 The file lives in `training.l2l_spill_dir`, by default `<output>/_l2l_spill`. Use a local drive
 with room; the path is not held to the working directory. The run stops with the directory,
@@ -904,12 +915,10 @@ bounds of +6.1% and +5.5%. On other machines and configurations it may be more. 
 spill on the weights' drive the step was 13% slower. Record:
 `benchmarks/probe-a4-l2l-ram-budget-spill.md` (on the A4 branch).
 
-The trainer's spill path has been checked end to end on CPU only. One GPU check of it (RTX
-4090 VM, Mistral-7B NF4, k 4, seq 512) stopped before any scored run: in a cgroup set so that about
-half the layers spill, the run planned 18 of 32 layers and was then OOM-killed inside its
-first training step. The 0.3 headroom (about 130 MB there) did not cover what the first step
-allocates outside the store. Under a tight memory limit, leave room beyond the 70% budget.
-Record: `benchmarks/a3-spill-gpu-check.md` §9.
+The trainer's spill path has been checked end to end on CPU. Its first GPU check (RTX 4090 VM,
+Mistral-7B NF4, k 4, seq 512, before the reserve) stopped before any scored run: in a cgroup
+set so that about half the layers spill, the run planned 18 of 32 layers and was then
+OOM-killed inside its first training step. Record: `benchmarks/a3-spill-gpu-check.md` §9.
 
 Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
 when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.

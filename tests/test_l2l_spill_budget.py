@@ -67,6 +67,66 @@ def _budget():
 
 
 # --------------------------------------------------------------------------
+# the share: 70%, or what the reserve leaves, whichever is smaller
+# --------------------------------------------------------------------------
+MIB = 2**20
+#: Where 0.7 x available and available - reserve meet: reserve / 0.3, about 1.79 GB.
+SWITCH = 512 * MIB * 10 // 3
+
+
+@pytest.mark.parametrize("available, budget, rule", [
+    (4 * GIB, int(4 * GIB * 0.7), "70% of"),
+    (SWITCH + MIB, int((SWITCH + MIB) * 0.7), "70% of"),  # above it: the 70% side
+    (SWITCH - MIB, SWITCH - MIB - 512 * MIB, "reserve"),  # below it: the reserve side
+    (840 * MIB, 328 * MIB, "reserve"),  # A3's calibrated limit for 16 of Mistral's 32 layers
+    (512 * MIB, 0, "reserve"),
+    (100 * MIB, 0, "floored at 0"),
+])
+def test_the_budget_never_leaves_less_than_the_reserve(tmp_path, monkeypatch, available,
+                                                       budget, rule):
+    from soup_cli.utils.l2l_spill import RAM_RESERVE_BYTES
+
+    assert RAM_RESERVE_BYTES == 512 * MIB
+    cgroup_tree(tmp_path, monkeypatch, {}, psutil=available)
+    seen = _budget()
+    assert seen.available_bytes == available
+    assert seen.budget_bytes == budget
+    assert available - seen.budget_bytes >= min(available, RAM_RESERVE_BYTES)
+    assert rule in seen.describe()
+
+
+def test_the_refusal_threshold_is_the_reserve_plus_every_layer_spilled(tmp_path, monkeypatch):
+    """Mistral-7B at k 4, seq 512, pinned: every layer spilled still needs the 64 MiB of
+    staging rings, so below 512 + 64 MiB available the run stops and names the reserve."""
+    from soup_cli.utils.l2l_spill import SpillRefusedError, plan_spill
+
+    def plan(available):
+        cgroup_tree(tmp_path, monkeypatch, {}, psutil=available, name=f"t{available}")
+        budget = _budget()
+        return plan_spill(budget.budget_bytes, n_layers=32, k=4, chunk_bytes=4 * MIB,
+                          pin=True, budget_source=budget.describe())
+
+    assert plan(576 * MIB).spill_layers == 32
+    with pytest.raises(SpillRefusedError) as caught:
+        plan(576 * MIB - 1)
+    message = str(caught.value)
+    assert "512 MiB reserve" in message and "67.1 MB" in message
+    for fix in ("gradient_accumulation_steps", "data.max_length", "batch_size", "free RAM"):
+        assert fix in message
+
+
+def test_session_1s_check_child_is_refused_instead_of_spilling(tmp_path, monkeypatch):
+    """A3 stage 2 session 1: 0.43 GB available at the plan point. The 0.7 share planned 18
+    of 32 layers and the child was OOM-killed in its first step; now the run stops."""
+    from soup_cli.utils.l2l_spill import SpillRefusedError, plan_spill
+
+    cgroup_tree(tmp_path, monkeypatch, {}, psutil=430_000_000)
+    budget = _budget()
+    assert budget.budget_bytes == 0
+    with pytest.raises(SpillRefusedError):
+        plan_spill(budget.budget_bytes, n_layers=32, k=4, chunk_bytes=4 * MIB, pin=True)
+
+# --------------------------------------------------------------------------
 # v2
 # --------------------------------------------------------------------------
 def test_a_child_without_a_limit_is_limited_by_its_parent(tmp_path, monkeypatch):

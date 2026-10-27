@@ -7,11 +7,16 @@ that text in machine form and goes into every session's protocol.json. Usage::
 
     python benchmarks/harness/a3_spill_rule.py <session dir> [--out verdict.json]
 
-Files read: ``session.json`` (each child's return code and the parent's own observations of
-the spill directory and of the signals it sent), ``calibration.json``,
-``arms/<arm>.json``, ``compare.json``, ``cleanup/<arm>.json`` and
-``cost/b<NN>_p<P>_<A|B>.json``. Statuses are PASS, FAIL and NO VERDICT per criterion,
-each with its arithmetic. Standard library only (``arm_validity`` is too).
+Files read: ``session.json`` (each child's return code, the kernel's OOM-kill lines the
+parent read for it, and the parent's own observations of the spill directory and of the
+signals it sent), ``calibration.json``, ``arms/<arm>.json``, ``compare.json``,
+``cleanup/<arm>.json`` and ``cost/b<NN>_p<P>_<A|B>.json``. Statuses are PASS, FAIL and NO
+VERDICT per criterion, each with its arithmetic. Standard library only (``arm_validity`` is
+too).
+
+Rule v2 (protocol §3.6, after session 1): an OOM kill the kernel logs for any child at the
+tight limit after its first ``training_step`` entry, calibration checks included, fails
+criterion 2. Rule v1 is this file at ``bda4a00a``; session 1's ``verdict.json`` is its output.
 """
 
 from __future__ import annotations
@@ -29,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import arm_validity  # noqa: E402
 
 PASS, FAIL, NONE = "PASS", "FAIL", "NO VERDICT"
-RULE_VERSION = "v1"
+RULE_VERSION = "v2"
 COST_LIMIT = 0.10
 MAX_BLOCKS = 12
 #: Spilled layers the calibration aims at (of Mistral-7B's 32). Reported, not a criterion.
@@ -49,7 +54,7 @@ SDPA = {**{arm: "MATH" for arm in (*NOSPILL, SPILL, *GA)}, FLOOR: "EFFICIENT_ATT
 CLEANUP_ARMS = ("sigint", "kill9", "kill9_next")
 
 RULE = {
-    "profile": "a3-spill-gpu-check-v1",
+    "profile": "a3-spill-gpu-check-v2",
     "1": "l2l_spill (tight limit; spill_layers > 0) equals l2l_nospill_1 (generous limit; "
          "nothing spilled) bit for bit: SHA-256 of the raw bytes, dtype and shape of every "
          "LoRA gradient at every optimizer step, the logged losses, the number of optimizer "
@@ -64,7 +69,13 @@ RULE = {
          "plan's host_bytes; excess(l2l_spill) <= excess(l2l_nospill_1). A kill or an oom_kill "
          "is a FAIL wherever it happens; the detail says 'before first training_step (build)' "
          "(no first-step marker, or oom_kill already raised there) or 'after first "
-         "training_step' (the product's own headroom did not cover training)",
+         "training_step' (the product's own headroom did not cover training). v2: every other "
+         "child at the tight limit (calibration checks, sigint, kill9, kill9_next, cost B) "
+         "fails criterion 2 when the kernel log the parent read after its exit shows the "
+         "memory cgroup OOM-killing its pid after its first-step marker; a return code of -9 "
+         "alone is not that evidence, and the SIGKILL the parent sends kill9 is not an OOM. An "
+         "OOM kill before the marker is the stand's limit (build): no verdict. A child killed "
+         "with no kernel log to tell: no verdict",
     "3": "normal: after train() and after the process exit of l2l_spill no spill file is left "
          "(spill_files); sigint: one SIGINT while optimizer step 2 runs, the child exits (any "
          "code) and no spill file is left; kill9: SIGKILL while step 2 runs leaves the spill "
@@ -93,24 +104,28 @@ RULE = {
     "V8": "trained arms: normal exit, finite losses and gradients, a nonzero LoRA gradient at "
           "every step, the expected number of optimizer steps",
     "stop": "if criterion 1 FAILS the parent runs no cost block: no new rentals, find the "
-            "cause. The cost blocks run only when criterion 1 PASSES",
+            "cause. The cost blocks run only when criterion 1 PASSES. v2: a kernel OOM kill "
+            "of a child at the tight limit after its first training_step stops the session "
+            "(stopped_oom_in_training)",
     "calibration": "a child at the generous limit reads its scope's memory.current - "
                    "inactive_file before the first step (the product plans the store then) "
-                   "and sets limit = working set + target host_bytes / 0.7, the target being "
-                   "16 of 32 layers spilled; one check child at that limit reads the product's "
-                   "own plan, and if spill_layers is outside [12, 20] the limit is recomputed "
-                   "once from the check's own plan-time numbers. Before any child runs at a "
-                   "tight limit: U = memory.current - (active_file + inactive_file - file_dirty "
-                   "- file_writeback) - slab_reclaimable (what reclaim cannot free, swap 0) of "
-                   "the calibration child, sampled every 50 ms and at build end, the first "
-                   "training_step entry and each step end; U0 at that entry; build transient = "
-                   "max(U before the entry) - U0; training transient = max(U after it - the "
-                   "store's pinned growth, at most the plan's host_bytes) - U0. Build margin = "
-                   "limit - U0 - build transient: below 0 (or unknown) the session stops "
-                   "(stopped_calibration_oom_risk). Training margin = limit - U0 - training "
-                   "transient - target host_bytes: description only. Either margin below "
-                   f"{OOM_MARGIN_WARN_BYTES >> 20} MiB: a warning, recorded, deciding nothing. "
-                   "The limit is never raised",
+                   "and sets limit = working set + the least available memory whose product "
+                   "budget (l2l_spill.budget_of: min(0.7 x available, available - "
+                   "RAM_RESERVE_BYTES)) holds the target host_bytes plus half a layer, the "
+                   "target being 16 of 32 layers spilled; one check child at that limit reads "
+                   "the product's own plan, and if spill_layers is outside [12, 20] the limit "
+                   "is recomputed once from the check's own plan-time numbers. Before any child "
+                   "runs at a tight limit: U = memory.current - (active_file + inactive_file - "
+                   "file_dirty - file_writeback) - slab_reclaimable (what reclaim cannot free, "
+                   "swap 0) of the calibration child, sampled every 50 ms and at build end, the "
+                   "first training_step entry and each step end; U0 at that entry; build "
+                   "transient = max(U before the entry) - U0; training transient = max(U after "
+                   "it - the store's pinned growth, at most the plan's host_bytes) - U0. Build "
+                   "margin = limit - U0 - build transient: below 0 (or unknown) the session "
+                   "stops (stopped_calibration_oom_risk). Training margin = limit - U0 - "
+                   "training transient - target host_bytes: description only. Either margin "
+                   f"below {OOM_MARGIN_WARN_BYTES >> 20} MiB: a warning, recorded, deciding "
+                   "nothing. The limit is never raised",
     "order": "calibration, calibration_check, l2l_nospill_1, l2l_nospill_2, l2l_spill, ga_1, "
              "ga_2, ga_floor, compare, sigint, kill9, kill9_next, then the cost blocks",
 }
@@ -404,9 +419,44 @@ def _ram_part(name: str, rec: Optional[Dict[str, Any]],
                  f"{limit:,} B", peak_bytes=peak, limit_bytes=limit)
 
 
+def _tight_oom_part(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Rule v2: a child at the tight limit, other than the three scored arms. A FAIL when the
+    kernel log the parent read shows the memory cgroup OOM-killing it after its first-step
+    marker; NO VERDICT when it was killed and the evidence cannot tell; None otherwise (no
+    kill, or the SIGKILL the parent sent kill9, which the kernel does not log as an OOM)."""
+    name, code = entry.get("name"), entry.get("returncode")
+    if code in (0, None):
+        return None
+    oom = entry.get("kernel_oom")
+    if not isinstance(oom, dict) or not oom.get("read"):
+        if code == -9 and not entry.get("signal_name"):
+            why = (oom or {}).get("error") if isinstance(oom, dict) else "no kernel log read"
+            return _crit(NONE, f"{name}: killed (exit -9) and the kernel log cannot tell "
+                         f"whether it was an OOM kill ({why})")
+        return None
+    if not oom.get("killed"):
+        return None
+    marker = entry.get("marker_after_exit")
+    if not marker:
+        return _crit(NONE, f"{name}: the kernel OOM-killed it {BUILD_PHASE}: no first-step "
+                     f"marker, so the stand's limit, not the product", oom_phase=BUILD_PHASE)
+    problems = child_problems(marker, entry)
+    if problems:
+        return _crit(NONE, "; ".join(_named(name, problems)))
+    phase = f"{TRAIN_PHASE} (marker at {marker.get('steps_done')} optimizer steps done)"
+    return _crit(FAIL, f"{name}: the kernel OOM-killed pid {marker.get('pid')} in its scope at "
+                 f"MemoryMax {entry.get('memory_max'):,} B, {phase}: the product's reserve did "
+                 f"not cover training", oom_phase=phase, kernel_lines=oom.get("lines"))
+
+
 def criterion_2(arms: Dict[str, Optional[Dict[str, Any]]],
                 entries: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     parts = [_ram_part(name, arms.get(name), entries.get(name)) for name in (SPILL, *NOSPILL)]
+    for entry in entries.values():
+        if entry.get("limit") == "tight" and entry.get("name") != SPILL:
+            part = _tight_oom_part(entry)
+            if part is not None:
+                parts.append(part)
     spill, ref = arms.get(SPILL), arms.get(NOSPILL[0])
     excess = {name: excess_bytes(arms[name]) if arms.get(name) else None
               for name in (SPILL, *NOSPILL)}
