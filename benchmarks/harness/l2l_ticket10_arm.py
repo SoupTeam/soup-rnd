@@ -14,7 +14,8 @@ Parts on the GPU timeline (CUDA events): ``layer_wait`` (the compute stream stal
 asking for a layer and having it), ``activation_put`` and ``activation_get`` (L2L's copies to
 host RAM and back), ``optimizer`` (the accelerate optimizer step), ``compute`` (the rest of
 the step). CPU wall time, inside ``compute``: ``cpu_load_issue`` (``advance``, which issues the
-next layer's copy) and ``cpu_rebind`` (``_substituted_weights``, the NF4 weight rebuild). Benchmark harness code, not shipped.
+next layer's copy) and ``cpu_rebind`` (``_substituted_weights``, the NF4 weight rebuild).
+Benchmark harness code, not shipped.
 """
 
 from __future__ import annotations
