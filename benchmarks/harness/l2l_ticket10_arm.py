@@ -6,13 +6,15 @@ Added to ``l2l_ticket09_arm.main`` (behaviour unchanged):
 * a sampler thread reads ``/proc/stat``, ``/proc/loadavg`` and ``nvidia-smi`` once a second;
   the record gets ``sensors`` (``judge_run``) and the samples;
 * after the run, a copy-bandwidth probe of the host (pageable and pinned, both ways);
-* with ``--profile``, each part of a step is timed with the CUDA stream synchronised around
-  it, and ``steps[i]["parts"]`` holds seconds per part. ``--profile`` slows the run, so the
-  speed of a profiled run is not a speed result. Without it only the sensors run.
+* with ``--profile``, parts of a step are timed and ``steps[i]["parts"]`` holds seconds per
+  part. ``--profile`` adds events and a synchronise per step, so the speed of a profiled run
+  is not a speed result. Without it only the sensors run.
 
-Parts: ``layer_wait`` (``pool.wait``, the compute stream waiting for a layer), ``activation_put``
-and ``activation_get`` (L2L's copies to host RAM and back), ``optimizer`` (the accelerate
-optimizer step), ``compute`` (the rest of the step). Benchmark harness code, not shipped.
+Parts on the GPU timeline (CUDA events): ``layer_wait`` (the compute stream stalled between
+asking for a layer and having it), ``activation_put`` and ``activation_get`` (L2L's copies to
+host RAM and back), ``optimizer`` (the accelerate optimizer step), ``compute`` (the rest of
+the step). CPU wall time, inside ``compute``: ``cpu_load_issue`` (``advance``, which issues the
+next layer's copy) and ``cpu_rebind`` (``_substituted_weights``, the NF4 weight rebuild). Benchmark harness code, not shipped.
 """
 
 from __future__ import annotations
@@ -135,23 +137,44 @@ def main(argv: Optional[List[str]] = None) -> int:
     import soup_cli.utils.layer_stream_runtime as runtime_module
 
     cuda = torch.cuda.is_available()
-    buckets = prof.Buckets(sync=torch.cuda.synchronize if cuda and profile else None)
+    # Parts on the GPU timeline are timed with CUDA events (a synchronise would drain the
+    # very stall that ``layer_wait`` has to show); the CPU parts are wall time, no sync.
+    buckets = prof.Buckets()
+    pending: List[Any] = []
 
-    def wrap(cls: Any, name: str, bucket: str) -> None:
+    def wrap(cls: Any, name: str, bucket: str, *, gpu: bool = True) -> None:
         real = getattr(cls, name)
 
         def timed(self: Any, *args: Any, **kwargs: Any) -> Any:
             if not profile:
                 return real(self, *args, **kwargs)
+            if gpu and cuda:
+                begin = torch.cuda.Event(enable_timing=True)
+                end = torch.cuda.Event(enable_timing=True)
+                begin.record()
+                try:
+                    return real(self, *args, **kwargs)
+                finally:
+                    end.record()
+                    pending.append((bucket, begin, end))
             with buckets.timed(bucket):
                 return real(self, *args, **kwargs)
 
         setattr(cls, name, timed)
 
+    def drain() -> None:
+        if pending:
+            torch.cuda.synchronize()
+            for bucket, begin, end in pending:
+                buckets.add(bucket, begin.elapsed_time(end) / 1000)
+            pending.clear()
+
     wrap(runtime_module.LayerBufferPool, "wait", "layer_wait")
     wrap(runtime_module.LargeLayerBufferPool, "wait", "layer_wait")
     wrap(store_module.ActivationStore, "put", "activation_put")
     wrap(store_module.ActivationStore, "get", "activation_get")
+    wrap(runtime_module.StreamPrefetcher, "advance", "cpu_load_issue", gpu=False)
+    wrap(runtime_module._streamed_layer_class(), "_substituted_weights", "cpu_rebind", gpu=False)
 
     import accelerate.optimizer as accel_optimizer
 
@@ -163,9 +186,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     class Callback(transformers.TrainerCallback):
         def on_step_begin(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
+            drain()
             buckets.take()
 
         def on_step_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
+            drain()
             parts_per_step.append(buckets.take())
 
     real_init = transformers.Trainer.__init__

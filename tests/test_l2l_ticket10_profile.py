@@ -151,3 +151,17 @@ def test_judge_run_skips_samples_where_the_gpu_is_idle():
     idle = _sample(sm=210, throttle=0x1)
     out = _prof().judge_run([idle] * 10 + [_sample()] * 5)
     assert not out["disturbed"]
+
+
+def test_cpu_parts_are_reported_and_not_taken_off_the_step():
+    prof = _prof()
+    out = prof.decompose(10.0, {"layer_wait": 1.0, "cpu_rebind": 4.0, "cpu_load_issue": 2.0})
+    assert out["compute"] == 9.0 and out["cpu_rebind"] == 4.0 and out["cpu_load_issue"] == 2.0
+    assert prof.mean_parts([out, out])["cpu_rebind"] == 4.0
+
+
+def test_buckets_add_seconds_measured_elsewhere():
+    buckets = _prof().Buckets()
+    buckets.add("layer_wait", 0.25)
+    buckets.add("layer_wait", 0.5)
+    assert buckets.take()["layer_wait"] == 0.75

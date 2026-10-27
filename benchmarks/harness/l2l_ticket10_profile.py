@@ -18,6 +18,10 @@ from typing import Any, Callable, Dict, Iterator, Mapping, Optional, Sequence
 #: Parts that are not compute. Everything left of the step's wall time is ``compute``.
 PARTS = ("activation_put", "activation_get", "layer_wait", "optimizer")
 
+#: CPU wall seconds spent in a call, reported next to the parts and not taken off the step:
+#: the work is part of ``compute`` (the CPU issues it while the stream runs).
+CPU_PARTS = ("cpu_rebind", "cpu_load_issue")
+
 #: ``judge_run`` limits: a run is flagged when any of them is crossed.
 STEAL_LIMIT = 0.05
 OUTSIDE_CPU_LIMIT = 0.25
@@ -49,9 +53,14 @@ class Buckets:
             self.seconds[name] = self.seconds.get(name, 0.0) + self.clock() - start
             self.calls[name] = self.calls.get(name, 0) + 1
 
+    def add(self, name: str, seconds: float) -> None:
+        """Add seconds measured elsewhere (CUDA events) to a bucket."""
+        self.seconds[name] = self.seconds.get(name, 0.0) + seconds
+        self.calls[name] = self.calls.get(name, 0) + 1
+
     def take(self) -> Dict[str, float]:
         """The sums so far; the buckets start again from zero."""
-        out = {name: self.seconds.get(name, 0.0) for name in PARTS}
+        out = {name: self.seconds.get(name, 0.0) for name in (*PARTS, *CPU_PARTS)}
         out.update({k: v for k, v in self.seconds.items() if k not in out})
         self.seconds, self.calls = {}, {}
         return out
@@ -61,12 +70,14 @@ def decompose(step_s: float, parts: Mapping[str, float]) -> Dict[str, float]:
     """The step as seconds per part. ``compute`` is what the named parts leave of the step."""
     named = {name: float(parts.get(name, 0.0)) for name in PARTS}
     compute = step_s - sum(named.values())
-    return {"step_s": step_s, **named, "compute": compute, "overhead_negative": compute < 0}
+    cpu = {name: float(parts.get(name, 0.0)) for name in CPU_PARTS}
+    return {"step_s": step_s, **named, "compute": compute, **cpu,
+            "overhead_negative": compute < 0}
 
 
 def mean_parts(rows: Sequence[Mapping[str, Any]]) -> Dict[str, float]:
     """Mean seconds per step of each part over ``rows`` (the warm steps)."""
-    keys = ("step_s", *PARTS, "compute")
+    keys = ("step_s", *PARTS, "compute", *CPU_PARTS)
     return {k: statistics.fmean(r[k] for r in rows) for k in keys} if rows else {}
 
 
