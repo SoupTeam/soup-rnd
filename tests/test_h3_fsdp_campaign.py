@@ -45,6 +45,58 @@ def test_pilot_fsdp2_keeps_original_parameter_and_loss_dtypes():
     assert policy.reduce_dtype is torch.float32
 
 
+def test_conservative_bf16_sets_backend_controls_and_restores_attention(monkeypatch):
+    import torch
+    from h3_fsdp_run import (
+        configure_conservative_bf16,
+        observed_backend_controls,
+        pilot_attention,
+    )
+
+    before = observed_backend_controls()
+    warn_only = torch.is_deterministic_algorithms_warn_only_enabled()
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":16:8")
+    try:
+        configure_conservative_bf16()
+        with pilot_attention(True):
+            actual = observed_backend_controls()
+            assert actual == {
+                "deterministic": True, "workspace": ":4096:8",
+                "float32_matmul_precision": "highest",
+                "bf16_reduced_precision_reduction": False,
+                "math_sdp_reduced_precision_reduction": False,
+                "math_sdp": True, "flash_sdp": False,
+                "efficient_sdp": False, "cudnn_sdp": False,
+            }
+        restored = observed_backend_controls()
+        for name in ("math_sdp", "flash_sdp", "efficient_sdp", "cudnn_sdp"):
+            assert restored[name] == before[name]
+    finally:
+        torch.set_float32_matmul_precision(before["float32_matmul_precision"])
+        torch.use_deterministic_algorithms(before["deterministic"], warn_only=warn_only)
+        torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = (
+            before["bf16_reduced_precision_reduction"])
+        torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(
+            before["math_sdp_reduced_precision_reduction"])
+
+
+def test_conservative_controls_cannot_disagree_across_ranks(evidence):
+    root, prepared = evidence
+    for arm, world in (("one", 1), ("two", 2)):
+        for rank in range(world):
+            path = root / arm / f"rank-{rank}.json"
+            value = campaign.read_json(path)
+            value.update(bf16_conservative=True, forward_backend_controls={"math_sdp": True})
+            campaign.write_json(path, value)
+    assert campaign.summarize(root, prepared)["speedup_2"] == 2
+    path = root / "two/rank-1.json"
+    value = campaign.read_json(path)
+    value["forward_backend_controls"]["math_sdp"] = False
+    campaign.write_json(path, value)
+    with pytest.raises(ValueError, match="conservative precision controls"):
+        campaign.summarize(root, prepared)
+
+
 def test_timeout_terminates_the_entire_torchrun_group(monkeypatch, tmp_path):
     calls = []
 

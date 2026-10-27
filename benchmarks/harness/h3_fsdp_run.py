@@ -156,7 +156,45 @@ def pilot_autocast(device: str, precision: str = "bf16") -> Any:
     return torch.autocast("cuda", dtype=torch.bfloat16)
 
 
+def configure_conservative_bf16() -> None:
+    """Pin accumulation/algorithm controls without promoting BF16 GEMM inputs."""
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    import torch
+
+    torch.set_float32_matmul_precision("highest")
+    torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False
+    torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(False)
+    torch.use_deterministic_algorithms(True)
+
+
+def pilot_attention(conservative: bool = False) -> Any:
+    if not conservative:
+        return contextlib.nullcontext()
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    return sdpa_kernel([SDPBackend.MATH])
+
+
+def observed_backend_controls() -> dict:
+    import torch
+
+    return {"deterministic": torch.are_deterministic_algorithms_enabled(),
+            "workspace": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
+            "float32_matmul_precision": torch.get_float32_matmul_precision(),
+            "bf16_reduced_precision_reduction": (
+                torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction),
+            "math_sdp_reduced_precision_reduction": (
+                torch.backends.cuda.fp16_bf16_reduction_math_sdp_allowed()),
+            "math_sdp": torch.backends.cuda.math_sdp_enabled(),
+            "flash_sdp": torch.backends.cuda.flash_sdp_enabled(),
+            "efficient_sdp": torch.backends.cuda.mem_efficient_sdp_enabled(),
+            "cudnn_sdp": torch.backends.cuda.cudnn_sdp_enabled()}
+
+
 def run(args: argparse.Namespace) -> None:
+    conservative = bool(getattr(args, "bf16_conservative", False))
+    if conservative:
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     import torch
     import torch.distributed as dist
     from fsdp_sharding_probe import module_class_histogram
@@ -175,6 +213,10 @@ def run(args: argparse.Namespace) -> None:
             raise ValueError(f"base snapshot changed: {name}")
     cpu = args.device == "cpu"
     precision = "fp32" if cpu else args.precision
+    if conservative:
+        if cpu or precision != "bf16":
+            raise ValueError("conservative BF16 requires the CUDA BF16 pilot")
+        configure_conservative_bf16()
     world = int(os.environ.get("WORLD_SIZE", "1"))
     rank = int(os.environ.get("RANK", "0"))
     if cpu and (not prepared["cpu_fixture"] or world != 1):
@@ -244,6 +286,8 @@ def run(args: argparse.Namespace) -> None:
     trainer.model.config.use_cache = False
     initial_adapter = {key: value.detach().cpu().clone()
                        for key, value in get_peft_model_state_dict(wrapper.model).items()}
+    if conservative and rank == 0:
+        torch.save(initial_adapter, output / "initial-adapter.pt")
     total = sum(p.numel() for p in wrapper.model.parameters())
     prewrap_shapes = {}
     prewrap_aliases = {}
@@ -298,6 +342,7 @@ def run(args: argparse.Namespace) -> None:
 
     record: dict[str, Any] = {"status": "incomplete", "world_size": world, "rank": rank,
                               "cpu_fixture": cpu, "precision": precision,
+                              "bf16_conservative": conservative,
                               "float32_matmul_precision": torch.get_float32_matmul_precision(),
                               "setup_seconds": setup_seconds,
                               "gradient_accumulation_steps": accum,
@@ -318,7 +363,7 @@ def run(args: argparse.Namespace) -> None:
     def controlled_loss(*loss_args: Any, **loss_kwargs: Any) -> Any:
         # Enter the same forward/loss autocast for both worlds; leave backward
         # and optimizer outside it, as with Accelerate's ordinary AMP wrapper.
-        with pilot_autocast(args.device, precision):
+        with pilot_autocast(args.device, precision), pilot_attention(conservative):
             return original_loss(*loss_args, **loss_kwargs)
 
     trainer.compute_loss = controlled_loss
@@ -341,6 +386,21 @@ def run(args: argparse.Namespace) -> None:
         return loss
 
     trainer.training_step = observed_step
+    if conservative:
+        original_clip = trainer.accelerator.clip_grad_norm_
+
+        def observed_clip(*clip_args: Any, **clip_kwargs: Any) -> Any:
+            if trainer.state.global_step == 0:
+                gradients = adapter_snapshot(gradients=True)
+                hashes = gathered(state_digest(gradients))
+                if len(set(hashes)) != 1:
+                    raise ValueError("preclip reduced gradients disagree across ranks")
+                record["first_preclip_sha256_per_rank"] = hashes
+                if rank == 0:
+                    torch.save(gradients, output / "first-preclip-gradients.pt")
+            return original_clip(*clip_args, **clip_kwargs)
+
+        trainer.accelerator.clip_grad_norm_ = observed_clip
     start_measure = args.correctness_steps + args.warmup_steps
     end_measure = start_measure + args.measured_steps
 
@@ -349,6 +409,9 @@ def run(args: argparse.Namespace) -> None:
                            **kwargs: Any) -> None:
             plugin = getattr(trainer.accelerator.state, "fsdp_plugin", None)
             record["fsdp_version"] = getattr(plugin, "fsdp_version", None)
+            record["attention_implementation"] = trainer.model.config._attn_implementation
+            if conservative and record["attention_implementation"] != "sdpa":
+                raise ValueError("conservative protocol requires the observed SDPA route")
             policy = getattr(plugin, "mixed_precision_policy", None)
             record["fsdp_policy"] = ({name: str(getattr(policy, name, None)) for name in
                                       ("param_dtype", "reduce_dtype", "output_dtype")}
@@ -402,12 +465,20 @@ def run(args: argparse.Namespace) -> None:
                             str(parameter.dtype))
                         record.setdefault("forward_autocast_enabled", {})[key] = (
                             torch.is_autocast_enabled("cuda"))
+                        record["forward_backend_controls"] = observed_backend_controls()
+
+            def observe_output(module: Any, inputs: Any, result: Any) -> None:
+                for name, parameter in module.named_parameters(recurse=False):
+                    if parameter.requires_grad:
+                        key = f"{module_names[id(module)]}.{name}"
+                        record.setdefault("forward_output_dtypes", {})[key] = str(result.dtype)
 
             module_names = {id(module): name for name, module in
                             trainer.model_wrapped.named_modules()}
             for module in trainer.model_wrapped.modules():
                 if any(p.requires_grad for p in module.parameters(recurse=False)):
                     dtype_handles.append(module.register_forward_pre_hook(observe_dtype))
+                    dtype_handles.append(module.register_forward_hook(observe_output))
 
         def on_step_begin(self, callback_args: Any, state: Any, control: Any,
                           **kwargs: Any) -> None:
@@ -463,6 +534,18 @@ def run(args: argparse.Namespace) -> None:
                 assert_forward_precision(record.get("forward_trainable_dtypes", {}),
                                          record.get("forward_autocast_enabled", {}),
                                          len(initial_adapter), precision == "bf16")
+                expected_output = "torch.bfloat16" if precision == "bf16" else "torch.float32"
+                if (set(record["forward_output_dtypes"]) != set(record["forward_trainable_dtypes"])
+                        or set(record["forward_output_dtypes"].values()) != {expected_output}):
+                    raise ValueError("actual LoRA output precision differs from the protocol")
+                if conservative:
+                    expected_controls = {"deterministic": True, "workspace": ":4096:8",
+                        "float32_matmul_precision": "highest",
+                        "bf16_reduced_precision_reduction": False, "math_sdp": True,
+                        "math_sdp_reduced_precision_reduction": False,
+                        "flash_sdp": False, "efficient_sdp": False, "cudnn_sdp": False}
+                    if record["forward_backend_controls"] != expected_controls:
+                        raise ValueError("actual conservative BF16 backend controls differ")
             if completed < args.correctness_steps:
                 rows = gathered(windows[completed])
                 assert_data_window(rows, args.global_batch)
@@ -495,7 +578,8 @@ def run(args: argparse.Namespace) -> None:
             adapted = adapter_snapshot()
             record["final_update"] = adapter_delta(initial_adapter, adapted)
             trainer.model_wrapped.eval()
-            with torch.no_grad(), pilot_autocast(args.device, precision):
+            with (torch.no_grad(), pilot_autocast(args.device, precision),
+                  pilot_attention(conservative)):
                 logits = trainer.model_wrapped(input_ids=fixed_ids,
                                                attention_mask=torch.ones_like(fixed_ids)).logits
             if not torch.isfinite(logits).all().item():
@@ -566,6 +650,9 @@ def reload_adapter(args: argparse.Namespace) -> None:
     prepared = read_json(Path(args.prepared) / "prepared.json")
     cpu = args.device == "cpu"
     precision = read_json(root / "rank-0.json").get("precision", "fp32" if cpu else "bf16")
+    conservative = read_json(root / "rank-0.json").get("bf16_conservative", False)
+    if conservative:
+        configure_conservative_bf16()
     if precision == "fp32":
         torch.set_float32_matmul_precision("highest")
     reference = torch.load(root / "reload-reference.pt", map_location="cpu", weights_only=True)
@@ -580,7 +667,7 @@ def reload_adapter(args: argparse.Namespace) -> None:
     model = PeftModel.from_pretrained(base, adapter_dir, is_trainable=False).eval()
     assert_adapter_equal(saved, get_peft_model_state_dict(model))
     ids = reference["input_ids"].to(args.device)
-    with torch.no_grad(), pilot_autocast(args.device, precision):
+    with torch.no_grad(), pilot_autocast(args.device, precision), pilot_attention(conservative):
         actual = model(input_ids=ids, attention_mask=torch.ones_like(ids)).logits.cpu()
     # BF16: one relative ULP plus two absolute ULPs near one. Same dtype,
     # backend and input; exact adapter key/value equality is checked separately.
@@ -594,6 +681,7 @@ def reload_adapter(args: argparse.Namespace) -> None:
                                       "max_abs_logit_error": error,
                                       "adapter_tensors": len(saved),
                                         "precision": precision,
+                                        "bf16_conservative": conservative,
                                       "resume": "unmeasured"})
     console.print(f"Adapter reload passed: {root}")
 
@@ -615,6 +703,7 @@ def main() -> None:
         sub.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
         if command == "train":
             sub.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
+            sub.add_argument("--bf16-conservative", action="store_true")
             sub.add_argument("--global-batch", type=int, default=8)
             sub.add_argument("--micro-batch", type=int, default=1)
             sub.add_argument("--correctness-steps", type=int, default=2)

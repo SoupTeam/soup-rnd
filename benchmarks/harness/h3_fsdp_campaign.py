@@ -114,6 +114,12 @@ def summarize(root: Path, prepared_path: Path) -> dict:
                     "measured_steps": rank0["measured_steps"]}
         identity["precision"] = rank0.get("precision", "bf16")
         identity["float32_matmul_precision"] = rank0.get("float32_matmul_precision")
+        if rank0.get("bf16_conservative", False):
+            identity["bf16_conservative"] = True
+            identity["backend_controls"] = rank0["forward_backend_controls"]
+            if any(r.get("forward_backend_controls") != rank0["forward_backend_controls"]
+                   or not r.get("bf16_conservative") for r in ranks):
+                raise ValueError("rank conservative precision controls differ")
         runs.append({"status": "passed", "identity": identity, "world_size": world,
                      "tokens_per_second": rank0["tokens_per_second"], "arm": name,
                      "seconds_per_optimizer_step": rank0["seconds_per_optimizer_step"],
@@ -159,10 +165,13 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--measured-steps", type=int, default=20)
     parser.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
+    parser.add_argument("--bf16-conservative", action="store_true")
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--campaign-seconds", type=int, default=5400)
     parser.add_argument("--summarize-only", action="store_true")
     args = parser.parse_args()
+    if args.bf16_conservative and args.precision != "bf16":
+        parser.error("--bf16-conservative requires --precision bf16")
     root = Path(os.path.realpath(args.output))
     prepared = Path(os.path.realpath(args.prepared))
     if args.summarize_only:
@@ -206,6 +215,8 @@ def main() -> None:
         command += [str(script), "train", "--prepared", str(prepared),
                     "--output", str(root / name), "--measured-steps", str(args.measured_steps),
                     "--precision", args.precision]
+        if args.bf16_conservative:
+            command.append("--bf16-conservative")
         for suffix, cmd in [("train", command), ("reload", [sys.executable, str(script),
                 "reload", "--prepared", str(prepared), "--output", str(root / name)]),
                 ("reload-checkpoint", [sys.executable, str(script), "reload", "--prepared",
