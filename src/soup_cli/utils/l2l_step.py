@@ -110,11 +110,20 @@ def label_tokens(micro_batches: Sequence[Any]) -> int:
     return sum(int(ids.shape[0]) * (int(ids.shape[1]) - 1) for ids in micro_batches)
 
 
-def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
+class _CapturedError(Exception):
+    """Raised from layer 0's pre-hook to end a capture forward before any layer runs."""
+
+
+def capture_layer_call(model: Any, input_ids: Any, *, draws: bool = True) -> LayerCall:
     """Run one forward without grad and record what layer 0 receives.
 
-    The random state is restored afterwards, so the capture draws nothing from it. The same
-    forward records which dropouts each layer draws, for the replay in :meth:`L2LStep.run`.
+    The random state is restored afterwards, so the capture draws nothing from it.
+
+    With ``draws`` (the default) the forward runs through every layer and records which
+    dropouts each layer draws, for the replay in :meth:`L2LStep.run`; on a streamed model
+    that walk loads every layer once. With ``draws=False`` the forward stops at layer 0's
+    pre-hook, which already holds the arguments, so no layer loads or runs. Use it when the
+    model draws no dropout; the returned call has no draws.
     """
     import torch
 
@@ -126,14 +135,23 @@ def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
     def hook(_module: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         if "call" not in seen:
             seen["call"] = (tuple(args[1:]), dict(kwargs))
+            if not draws:
+                raise _CapturedError
 
     handle = owner.layers[0].register_forward_pre_hook(hook, with_kwargs=True)
     # The capture forward runs in training mode, so NEFTune would draw noise from it.
     cuda = [input_ids.device] if input_ids.device.type == "cuda" else []
+    plan: List[List[Any]] = []
     try:
         with torch.no_grad(), torch.random.fork_rng(devices=cuda):
-            with record_draws(list(owner.layers)) as plan:
-                model(input_ids=input_ids)
+            if draws:
+                with record_draws(list(owner.layers)) as plan:
+                    model(input_ids=input_ids)
+            else:
+                try:
+                    model(input_ids=input_ids)
+                except _CapturedError:
+                    pass
     finally:
         handle.remove()
     if "call" not in seen:

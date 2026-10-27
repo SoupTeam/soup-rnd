@@ -22,8 +22,9 @@ torch is imported inside functions.
 from __future__ import annotations
 
 import functools
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters
 
@@ -68,10 +69,17 @@ class L2LState:
     store: Any = None
     stepper: Any = None
     calls_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
+    #: Capture forwards run, the layer loads they cost and their wall time (running totals).
+    captures: int = 0
+    capture_loads: int = 0
+    capture_seconds: float = 0.0
 
-    def log_fields(self) -> Dict[str, int]:
+    def log_fields(self) -> Dict[str, Any]:
         return {
             "l2l_steps": self.steps,
+            "l2l_captures": self.captures,
+            "l2l_capture_layer_loads": self.capture_loads,
+            "l2l_capture_seconds": self.capture_seconds,
             "l2l_layer_loads": self.totals.layer_loads,
             "l2l_large_loads": self.totals.large_loads,
             "l2l_weight_restores": self.totals.restores,
@@ -144,6 +152,31 @@ def _has_dropout(model: Any) -> bool:
     )
 
 
+@contextmanager
+def _timed_capture(state: L2LState) -> Iterator[None]:
+    """Add one capture, its layer loads and its wall time to the state's totals."""
+    import time
+
+    import torch
+
+    from soup_cli.utils.l2l_step import count_loads
+
+    def sync() -> None:
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+    sync()
+    start = time.perf_counter()
+    with count_loads(state.runtime) as counters:
+        try:
+            yield
+        finally:
+            sync()
+            state.captures += 1
+            state.capture_seconds += time.perf_counter() - start
+    state.capture_loads += counters.layer_loads
+
+
 def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any, List[Any]]:
     """The window's L2L step and one captured ``LayerCall`` per micro-batch."""
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
@@ -155,7 +188,9 @@ def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any
         if call is None:
             if len(state.calls_by_shape) >= MAX_CACHED_SHAPES:
                 state.calls_by_shape.clear()
-            call = capture_layer_call(model, ids)
+            # Only a model with dropout needs the full forward, to record the draws.
+            with _timed_capture(state):
+                call = capture_layer_call(model, ids, draws=state.has_dropout is not False)
             state.calls_by_shape[shape] = call
         calls.append(call)
     if state.stepper is None:
