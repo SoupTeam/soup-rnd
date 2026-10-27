@@ -49,9 +49,30 @@ def run_logged(command: list[str], output: Path, env: dict, timeout: float) -> N
         raise RuntimeError(f"command failed ({returncode}); inspect {output}")
 
 
-def summarize(root: Path, prepared_path: Path) -> dict:
+def compare_first_step(root: Path, reference: str, arm: str) -> list[dict]:
+    """Use the unchanged gate before spending the budget on later pairs."""
     import torch
 
+    if (read_json(root / reference / "rank-0.json")["data_windows"]
+            != read_json(root / arm / "rank-0.json")["data_windows"]):
+        raise ValueError("actual first global data windows differ across arms")
+    comparisons = []
+    for filename in ("first-gradients.pt", "first-adapter.pt"):
+        expected = torch.load(root / reference / filename, map_location="cpu", weights_only=True)
+        actual = torch.load(root / arm / filename, map_location="cpu", weights_only=True)
+        if not expected or actual.keys() != expected.keys():
+            raise ValueError("cross-world first-step keys differ")
+        max_error = 0.0
+        for key in expected:
+            torch.testing.assert_close(actual[key].float(), expected[key].float(),
+                                       atol=1e-5, rtol=0.02)
+            max_error = max(max_error, float((actual[key] - expected[key]).abs().max()))
+        comparisons.append({"arm": arm, "file": filename, "max_abs_error": max_error,
+                            "atol": 1e-5, "rtol": 0.02})
+    return comparisons
+
+
+def summarize(root: Path, prepared_path: Path) -> dict:
     write_json(root / "summary.json", {"status": "invalid_until_all_checks_complete"})
     (root / "summary.md").write_text("Validation pending; no scaling verdict.\n",
                                      encoding="utf-8")
@@ -107,24 +128,7 @@ def summarize(root: Path, prepared_path: Path) -> dict:
     reference = next(run for run in runs if run["world_size"] == 1)
     comparisons = []
     for run in runs:
-        if run["data_windows"] != reference["data_windows"]:
-            raise ValueError("actual first global data windows differ across arms")
-        for filename in ("first-gradients.pt", "first-adapter.pt"):
-            expected = torch.load(root / reference["arm"] / filename,
-                                  map_location="cpu", weights_only=True)
-            actual = torch.load(root / run["arm"] / filename,
-                                map_location="cpu", weights_only=True)
-            if not expected or actual.keys() != expected.keys():
-                raise ValueError("cross-world first-step keys differ")
-            max_error = 0.0
-            for key in expected:
-                # BF16 reduce/scatter changes summation order. This is a narrow
-                # first-step plumbing tolerance, not trajectory/quality parity.
-                torch.testing.assert_close(actual[key].float(), expected[key].float(),
-                                           atol=1e-5, rtol=0.02)
-                max_error = max(max_error, float((actual[key] - expected[key]).abs().max()))
-            comparisons.append({"arm": run["arm"], "file": filename,
-                                "max_abs_error": max_error, "atol": 1e-5, "rtol": 0.02})
+        comparisons.extend(compare_first_step(root, reference["arm"], run["arm"]))
     result = scaling(runs)
     result.update({"status": "passed", "runs": runs, "first_step_comparisons": comparisons,
                    "resume": "unmeasured", "70b": "unmeasured",
@@ -186,7 +190,7 @@ def main() -> None:
     write_json(root / "campaign.json", {"status": "incomplete", "arms": arms,
                                         "args": vars(args), "argv": sys.argv})
     deadline = time.monotonic() + args.campaign_seconds
-    for name in arms:
+    for index, name in enumerate(arms):
         if shutil.disk_usage(root).free < 15 * 1024**3:
             raise RuntimeError("less than 15 GiB disk remains; stop before the next arm")
         world = int(name[-1])
@@ -208,6 +212,11 @@ def main() -> None:
                 raise TimeoutError("campaign wall-clock limit reached; stop the rented instance")
             run_logged(cmd, root / f"{name}-{suffix}.log", env,
                        timeout=min(args.timeout_seconds, remaining))
+        if index == 1:
+            verdict = root / "first-pair-control.json"
+            write_json(verdict, {"status": "invalid_until_all_checks_complete"})
+            comparison = compare_first_step(root, "repeat-1-gpu-1", "repeat-1-gpu-2")
+            write_json(verdict, {"status": "passed", "comparisons": comparison})
     result = summarize(root, prepared)
     write_json(root / "campaign.json", {"status": "passed", "arms": arms,
                                         "args": vars(args), "argv": sys.argv})

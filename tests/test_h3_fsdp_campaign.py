@@ -29,6 +29,22 @@ def test_failed_command_retains_log_and_exit_status(tmp_path):
     assert json.loads(output.with_suffix(".command.json").read_text())[0] == sys.executable
 
 
+def test_pilot_fsdp2_keeps_original_parameter_and_loss_dtypes():
+    from types import SimpleNamespace
+
+    import torch
+    from h3_fsdp_run import configure_fsdp2_pilot_precision
+
+    plugin = SimpleNamespace(fsdp_version=2)
+    state = SimpleNamespace(fsdp_plugin=plugin)
+    trainer = SimpleNamespace(accelerator=SimpleNamespace(state=state))
+    configure_fsdp2_pilot_precision(trainer)
+    policy = plugin.mixed_precision_policy
+    assert policy.param_dtype is None  # PEFT's FP32 adapters must not become BF16
+    assert policy.output_dtype is None  # retain FP32 loss alongside BF16 logits
+    assert policy.reduce_dtype is torch.float32
+
+
 def test_timeout_terminates_the_entire_torchrun_group(monkeypatch, tmp_path):
     calls = []
 

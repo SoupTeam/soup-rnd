@@ -1,7 +1,7 @@
 """H3: exercise Soup's SFT wrapper, then reload its adapter in another process.
 
-See benchmarks/h3-fsdp-lora-20261026.md. CUDA results are pending until rented
-hardware is approved. The offline CPU fixture is explicitly not a scaling arm.
+See benchmarks/h3-fsdp-lora-20261026.md for hardware evidence and its limits.
+The offline CPU fixture is explicitly not a scaling arm.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from h3_fsdp_gate import (
     adapter_delta,
     assert_adapter_equal,
     assert_data_window,
+    assert_forward_precision,
     assert_fsdp2_shards,
     assert_shards,
     parameter_local_numel,
@@ -130,12 +131,28 @@ class RamSampler:
         self.thread.join()
 
 
+def configure_fsdp2_pilot_precision(trainer: Any) -> None:
+    """Match ordinary PEFT autocast instead of also casting LoRA parameters.
+
+    The base is already BF16 and PEFT leaves trainable adapters FP32. Autocast
+    chooses compute dtypes in both arms. FSDP must preserve those original
+    parameter/output dtypes, including FP32 loss; reduction stays FP32.
+    """
+    plugin = getattr(trainer.accelerator.state, "fsdp_plugin", None)
+    if getattr(plugin, "fsdp_version", None) == 2:
+        import torch
+        from torch.distributed.fsdp import MixedPrecisionPolicy
+
+        plugin.mixed_precision_policy = MixedPrecisionPolicy(
+            param_dtype=None, reduce_dtype=torch.float32, output_dtype=None)
+
+
 def run(args: argparse.Namespace) -> None:
     import torch
     import torch.distributed as dist
     from fsdp_sharding_probe import module_class_histogram
     from peft import get_peft_model_state_dict
-    from torch.distributed.fsdp import FSDPModule, FullyShardedDataParallel, MixedPrecisionPolicy
+    from torch.distributed.fsdp import FSDPModule, FullyShardedDataParallel
     from transformers import TrainerCallback
 
     from soup_cli.config.schema import SoupConfig
@@ -187,12 +204,7 @@ def run(args: argparse.Namespace) -> None:
     setup_start = time.perf_counter()
     wrapper.setup({"train": []})
     trainer = wrapper.trainer
-    plugin = getattr(trainer.accelerator.state, "fsdp_plugin", None)
-    if world == 2 and getattr(plugin, "fsdp_version", None) == 2:
-        # Fixed pilot control, declared before the first distributed optimizer
-        # step: match the baseline's FP32 LoRA gradient accumulation/reduction.
-        plugin.mixed_precision_policy = MixedPrecisionPolicy(
-            param_dtype=torch.bfloat16, reduce_dtype=torch.float32, output_dtype=torch.bfloat16)
+    configure_fsdp2_pilot_precision(trainer)
     actual_rows = [{key: row[key] for key in ("input_ids", "labels", "attention_mask")}
                    for row in trainer.train_dataset]
     actual_hash = hashlib.sha256(json.dumps(actual_rows, separators=(",", ":")).encode())
@@ -273,6 +285,7 @@ def run(args: argparse.Namespace) -> None:
     counts: dict[int, int] = {}
     input_tokens: dict[int, int] = {}
     sampler = RamSampler()
+    dtype_handles = []
     original_step = trainer.training_step
 
     def observed_step(model: Any, inputs: dict, *rest: Any, **kwargs: Any) -> Any:
@@ -340,6 +353,19 @@ def run(args: argparse.Namespace) -> None:
                 raise ValueError("single-GPU control must hold full parameters without FSDP")
             record["base_before_sha256"] = base_digest()
             assert_adapter_equal(initial_adapter, adapter_snapshot())
+            # Inspect after FSDP's unshard hooks, rather than treating FP32
+            # master shards as proof of the dtype used during forward.
+            def observe_dtype(module: Any, inputs: Any) -> None:
+                for name, parameter in module.named_parameters(recurse=False):
+                    if parameter.requires_grad:
+                        record.setdefault("forward_trainable_dtypes", {})[
+                            f"{module_names[id(module)]}.{name}"] = str(parameter.dtype)
+
+            module_names = {id(module): name for name, module in
+                            trainer.model_wrapped.named_modules()}
+            for module in trainer.model_wrapped.modules():
+                if any(p.requires_grad for p in module.parameters(recurse=False)):
+                    dtype_handles.append(module.register_forward_pre_hook(observe_dtype))
 
         def on_step_begin(self, callback_args: Any, state: Any, control: Any,
                           **kwargs: Any) -> None:
@@ -389,6 +415,11 @@ def run(args: argparse.Namespace) -> None:
                 times.append(time.perf_counter() - self.started)
             if counts.get(completed) != accum:
                 raise ValueError(f"actual accumulation {counts.get(completed)} != {accum}")
+            if completed == 0:
+                for handle in dtype_handles:
+                    handle.remove()
+                assert_forward_precision(record.get("forward_trainable_dtypes", {}),
+                                         len(initial_adapter))
             if completed < args.correctness_steps:
                 rows = gathered(windows[completed])
                 assert_data_window(rows, args.global_batch)
@@ -473,6 +504,8 @@ def run(args: argparse.Namespace) -> None:
         record["error"] = f"{type(exc).__name__}: {exc}"
         raise
     finally:
+        for handle in dtype_handles:
+            handle.remove()
         if sampler.thread.is_alive():
             sampler.__exit__()
         write_json(output / f"rank-{rank}.json", record)

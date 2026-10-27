@@ -20,6 +20,14 @@ def test_batch_plan_preserves_global_batch():
         gate.accumulation(7, 1, 2)
 
 
+def test_materialized_forward_precision_cannot_be_inferred_from_master_shards():
+    gate.assert_forward_precision({"A": "torch.float32", "B": "torch.float32"}, 2)
+    for actual in ({"A": "torch.bfloat16", "B": "torch.bfloat16"},
+                   {"A": "torch.float32"}, {}):
+        with pytest.raises(ValueError, match="materialized LoRA"):
+            gate.assert_forward_precision(actual, 2)
+
+
 @pytest.mark.parametrize("args", [(0, 1, 2), (8, 0, 2), (8, 1, 0), (True, 1, 2)])
 def test_invalid_batch_plan(args):
     with pytest.raises(ValueError):
