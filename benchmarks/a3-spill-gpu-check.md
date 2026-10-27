@@ -1,10 +1,11 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
 **Status: protocol only, no GPU run yet. Criteria fixed by commit `2a05e15f` before any
-rental.** The rule is `harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v1`,
-`rule_version` v1): the same text in machine form, copied into every session's
-`protocol.json`. The stand is `harness/a3_spill_stand.py`. CPU tests:
-`tests/test_a3_spill_rule.py`, `tests/test_a3_spill_stand.py`.
+rental; the machine admission (§5) by commit <to fill>.** The rule is
+`harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v1`, `rule_version` v1): the
+same text in machine form, copied into every session's `protocol.json`. The stand is
+`harness/a3_spill_stand.py`, the admission `harness/a3_admission.py`. CPU tests:
+`tests/test_a3_spill_rule.py`, `tests/test_a3_spill_stand.py`, `tests/test_a3_admission.py`.
 
 ## 1. Question
 
@@ -210,11 +211,10 @@ not U. The calibration measures U on the box.
 
 ## 5. Machine
 
-- **GPU**: RTX 3090 or 3090 Ti in a **VM** (KVM, systemd as PID 1; a container has no
-  `systemd-run`), PCIe 4.0 preferred (A4's v3 3090 VM ran at gen 3 x16; gen and width are
-  recorded per child, not a gate). **RTX 4090 VM** only if no 3090-class VM is available,
-  as "the faster machine". The admission's demand must then be recomputed for that box
-  (below).
+- **GPU**: an RTX 3090 / 3090 Ti VM with PCIe 4.0 is preferred. An RTX 4090 VM only if
+  no 3090-class VM with PCIe 4.0 passes the admission (below). A VM, because a container
+  has no `systemd-run` (KVM, systemd as PID 1). Gen and width are recorded per child (A4's
+  v3 3090 VM ran at gen 3 x16).
 - **Linux, cgroup v2** with the memory controller, `memory.peak` (kernel >= 5.19) and swap
   accounting (`MemorySwapMax`). The children run as root (`systemd-run --scope`), or
   with `--user-scope` in a user session with memory delegation.
@@ -222,35 +222,46 @@ not U. The calibration measures U on the box.
 - **Spill drive**: a local NVMe directory, not tmpfs, not the container overlay, not a
   network volume (the product refuses those). One subdirectory per child group.
 - **Disk**: ~15 GB source, ~4.5 GB NF4 cache, <= 256 MiB spill file (16 layers x 4 x 4
-  MiB), 512 MiB admission file, and an estimated ~0.5 GB of unpublished gradient tensors
-  (6 arms x 3 steps of LoRA gradients). 40 GB free is ample.
-- **Admission** (not on this branch): `a4_admission.py` and `a4_box.py` are taken unchanged
-  from the A4 PR branch `a4-l2l-ram-budget-spill`, at `d6f7f733` (its tip when this was
-  written). Its v3 rule admits a spill volume that keeps up for 30 min with 2 x v1's
-  demand D = 0.2328 GB/s (an RTX 3090). A3 at 16 layers writes and reads 256 MiB per
-  optimizer step, so v1's D covers it while A3's B step takes at least 256 MiB / D =
-  1.15 s. That is not known before the run. Each B record carries `store_io` and
-  `step_s`, so the rate is checked after the session and reported, never judged. **On an
-  RTX 4090**, v1's demand is not this box's. Before the session, run one cost A child
-  outside the session (below). Set `DEMAND_BYTES_PER_S` in the copied `a4_admission.py`
-  to 268,435,456 B / its median timed step (`value`), write that number and its inputs
-  into the results README, then run the admission. A spills nothing, so if spill does
-  not shorten a step, this errs high. The rule reads nothing of the admission. It only
-  decides whether to keep the box.
+  MiB, also the admission's file), and an estimated ~0.5 GB of unpublished gradient
+  tensors (6 arms x 3 steps of LoRA gradients). 40 GB free is ample.
+- **Admission** (`harness/a3_admission.py`; copied from A4's `a4_admission.py` and
+  `a4_box.py` at `d6f7f733`, nothing of A4 imported or changed). Does the spill volume
+  keep up with this session's spill on this box? **Step 0 on any machine** measures the
+  two inputs outside the session, after the NF4 cache exists: the calibration child (its
+  `spill_plan`: n_layers, k, slot_bytes) and one no-spill cost A child (2 warm-up + 5
+  timed steps; its `value` is the median timed step). Then:
+  - cycle = one spill file of the session's step: spill_layers (16, the stand's
+    `TARGET_SPILL`) x k chunks of slot_bytes, written in the forward's order and read back
+    in the backward's (layers descending), through the store's own `DirectSpillFile`;
+  - D = cycle_bytes / A.value (spill bytes written per step / the no-spill step);
+  - V = cycle_bytes x (7 steps x 2 B arms x 12 blocks + 3 steps x 4 arms), the most the
+    session's spill arms write: the cost B arms at 2 warm-up + 5 timed steps, at most 12
+    blocks, and `l2l_spill`, `sigint`, `kill9`, `kill9_next` at the correctness rows' 3
+    optimizer steps each, so V = 180 cycles;
+  - period = cycle_bytes / (2 x D); N = max(20, ceil(V / cycle_bytes)); duration = N x
+    period. No fixed duration: exactly N cycles are scheduled, cycle i starting at max(t0
+    + i x period, the end of cycle i - 1).
+
+  Admitted iff all N cycles ran, the largest lateness (cycle end minus t0 + (i + 1) x
+  period) is <= 5 s, every chunk read back carries its cycle's per-sector stamp and its
+  bytes, and no file is left. For Mistral (k 4, slot 4 MiB): cycle 256 MiB, N 180,
+  period = A.value / 2, so the admission writes and reads the session's V in half its
+  steps' time. The record (`admission.json`) carries D, V, N, the period, the cycle bytes
+  and their inputs: the A record's value and SHA-256, the plan's numbers and the
+  calibration file's SHA-256. The decision reads only those numbers. Description only:
+  the per-second log, 10 s windows against their median, and the file's zero fill at
+  creation. Exit 0 admitted, 4 refused (take the next box), 3 the volume itself refused
+  (tmpfs, overlay, network, no direct I/O), 2 refused inputs. **The rule reads nothing of
+  the admission.** It only decides whether to keep the box.
 
 ## 6. Runbook
 
 ```bash
 git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout 2a05e15f   # the commit that fixed these criteria (or a later commit on top)
+git checkout <to fill>   # the commit that fixed the admission (on top of 2a05e15f)
 A0_PYTHON=python3.12 bash benchmarks/a0-bootstrap.sh   # venv, CUDA torch, pinned deps
 .venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
-  tests/test_l2l_spill*.py -q -o addopts=''
-# The admission, from the A4 PR branch, outside this tree (the session hashes the tree):
-git fetch origin a4-l2l-ram-budget-spill
-mkdir -p /root/a4-admission
-for f in a4_admission.py a4_box.py; do
-  git show d6f7f733:benchmarks/harness/$f > /root/a4-admission/$f; done
+  tests/test_a3_admission.py tests/test_l2l_spill*.py -q -o addopts=''
 export PYTHONPATH="$PWD/src:$PWD/benchmarks/harness" HF_HUB_OFFLINE=0
 .venv/bin/python - <<'EOF'
 from huggingface_hub import snapshot_download
@@ -261,20 +272,21 @@ snapshot_download("unsloth/mistral-7b-instruct-v0.3",
 EOF
 export HF_HUB_OFFLINE=1
 SPILL=/mnt/nvme/a3-spill        # local NVMe, not overlay, not tmpfs
-# 0. NF4 cache and CUDA check, outside the session (not evidence; writes .soup/f1-nf4):
+# 0. On ANY machine, outside the session (not evidence): the NF4 cache and the calibration
+#    child's plan (writes .soup/f1-nf4), then one no-spill cost A child (2 warm-up + 5
+#    timed steps) for the demand D. Both are the admission's inputs.
 .venv/bin/python benchmarks/harness/a3_spill_stand.py child --arm calibration \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL/prep" \
   --out .soup/a3-prep.json
-#    RTX 4090 only: the step for the admission's demand (§5), then edit the copied
-#    a4_admission.py:
-#    .venv/bin/python benchmarks/harness/a3_spill_stand.py child --arm A \
-#      --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL/prep" \
-#      --out .soup/a3-demand-A.json        # D = 268435456 / its "value"
-# 1. Admission (30 min); exit 4 = refused: delete the box, take the next one.
-PYTHONPATH="/root/a4-admission:$PYTHONPATH" .venv/bin/python \
-  /root/a4-admission/a4_admission.py --spill-dir "$SPILL/admission" \
-  --out .soup/a3-admission.json --log .soup/a3-admission-per-second.csv \
-  --cycles .soup/a3-admission-cycles.csv
+.venv/bin/python benchmarks/harness/a3_spill_stand.py child --arm A \
+  --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL/prep" \
+  --out .soup/a3-demand-A.json
+# 1. Admission: exactly N cycles (180 for Mistral) of N x A.value / 2 s in all.
+#    Exit 4 = refused: delete the box, take the next one; 3 = the volume itself refused.
+.venv/bin/python benchmarks/harness/a3_admission.py --spill-dir "$SPILL/admission" \
+  --plan .soup/a3-prep.json --a .soup/a3-demand-A.json \
+  --out .soup/a3-admission.json --cycles .soup/a3-admission-cycles.csv \
+  --log .soup/a3-admission-per-second.csv
 # 2. Plan: prints every child command in order with its scope, writes nothing.
 .venv/bin/python benchmarks/harness/a3_spill_stand.py session \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
@@ -316,8 +328,10 @@ versions, SHA-256 of every `src/soup_cli` and harness `.py`), `session.json` (ea
 command, limit, return code, spill directory after exit; the signals sent), `verdict.json`,
 `calibration.json`, `calibration_check_<n>.json`, `arms/<arm>.json`, `compare.json`,
 `cleanup/<arm>.json` (none for `kill9`: it is killed; its marker is in `session.json`),
-`cost/b<NN>_p<P>_<A|B>.json`, `markers/`, `logs/`. Beside it: `.soup/a3-admission*.{json,csv}`
-and `.soup/a3-prep.json`. **Not published**: `.soup/results/a3-spill-01.tensors/`.
+`cost/b<NN>_p<P>_<A|B>.json`, `markers/`, `logs/`. Beside it: the admission's inputs
+`.soup/a3-prep.json` and `.soup/a3-demand-A.json`, and its `.soup/a3-admission.json`,
+`.soup/a3-admission-cycles.csv` and `.soup/a3-admission-per-second.csv`. **Not published**:
+`.soup/results/a3-spill-01.tensors/`.
 
 ## 8. What it does not show
 
