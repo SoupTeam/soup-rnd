@@ -243,6 +243,11 @@ def test_arm_archive_is_hash_verified_and_keeps_numeric_references(evidence):
     archive = root.parent / result["archive"]
     assert hashlib.sha256(archive.read_bytes()).hexdigest() == result["sha256"]
     assert campaign.read_json(archive.with_suffix(".json")) == result
+    metadata = prepared / "prepared.json"
+    assert result["files"]["prepared/prepared.json"] == {
+        "bytes": metadata.stat().st_size,
+        "sha256": hashlib.sha256(metadata.read_bytes()).hexdigest(),
+    }
     with tarfile.open(archive) as source:
         names = source.getnames()
         assert "one/reload-reference.pt" in names
@@ -267,3 +272,21 @@ def test_failed_reload_cannot_produce_a_sealed_archive(evidence):
     campaign.write_json(arm / "reload.json", {"status": "failed"})
     with pytest.raises(ValueError, match="failed adapter reload"):
         campaign.archive_completed_arm(root, prepared, "one")
+
+
+def test_collector_must_acknowledge_exact_archive_bytes(tmp_path):
+    archive = tmp_path / "arm.tar.gz"
+    expected = {"bytes": 100, "sha256": "expected"}
+    receipt = archive.with_suffix(".receipt.json")
+    campaign.write_json(receipt, expected)
+    campaign.wait_for_archive_receipt(archive, expected, 1)
+    campaign.write_json(receipt, {"bytes": 99, "sha256": "expected"})
+    with pytest.raises(ValueError, match="does not match"):
+        campaign.wait_for_archive_receipt(archive, expected, 1)
+
+
+def test_missing_collection_receipt_stops_before_the_next_arm(monkeypatch, tmp_path):
+    times = iter([0, 2])
+    monkeypatch.setattr(campaign.time, "monotonic", lambda: next(times))
+    with pytest.raises(TimeoutError, match="not acknowledged"):
+        campaign.wait_for_archive_receipt(tmp_path / "arm.tar.gz", {"bytes": 1}, 1)

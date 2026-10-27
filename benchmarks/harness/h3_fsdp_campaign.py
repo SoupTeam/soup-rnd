@@ -125,6 +125,9 @@ def archive_completed_arm(root: Path, prepared: Path, name: str) -> dict:
             manifest[relative] = {"bytes": path.stat().st_size,
                                   "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
             output.add(path, arcname=relative, recursive=False)
+        manifest["prepared/prepared.json"] = {
+            "bytes": source.stat().st_size,
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
         output.add(source, arcname="prepared/prepared.json", recursive=False)
     os.replace(partial, archive)
     result = {"status": "sealed", "archive": archive.name,
@@ -136,6 +139,19 @@ def archive_completed_arm(root: Path, prepared: Path, name: str) -> dict:
     write_json(temporary, result)
     os.replace(temporary, marker)
     return result
+
+
+def wait_for_archive_receipt(archive: Path, expected: dict, timeout: float) -> None:
+    """Keep artifact traffic outside the next arm's training measurements."""
+    deadline = time.monotonic() + timeout
+    receipt = archive.with_suffix(".receipt.json")
+    while not receipt.exists():
+        if time.monotonic() >= deadline:
+            raise TimeoutError("numeric archive was not acknowledged by the collector")
+        time.sleep(0.2)
+    actual = read_json(receipt)
+    if any(actual.get(key) != expected[key] for key in ("sha256", "bytes")):
+        raise ValueError("collector receipt does not match the sealed numeric archive")
 
 
 def summarize(root: Path, prepared_path: Path) -> dict:
@@ -236,12 +252,16 @@ def main() -> None:
     parser.add_argument("--precision", choices=("bf16", "fp32"), default="bf16")
     parser.add_argument("--bf16-conservative", action="store_true")
     parser.add_argument("--archive-arms", action="store_true")
+    parser.add_argument("--archive-receipt-timeout", type=float, default=0)
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--campaign-seconds", type=int, default=5400)
     parser.add_argument("--summarize-only", action="store_true")
     args = parser.parse_args()
     if args.bf16_conservative and args.precision != "bf16":
         parser.error("--bf16-conservative requires --precision bf16")
+    if (args.archive_receipt_timeout < 0
+            or (args.archive_receipt_timeout and not args.archive_arms)):
+        parser.error("a positive archive receipt timeout requires --archive-arms")
     root = Path(os.path.realpath(args.output))
     prepared = Path(os.path.realpath(args.prepared))
     if args.summarize_only:
@@ -298,7 +318,11 @@ def main() -> None:
             run_logged(cmd, root / f"{name}-{suffix}.log", env,
                        timeout=min(args.timeout_seconds, remaining))
         if args.archive_arms:
-            archive_completed_arm(root, prepared, name)
+            sealed = archive_completed_arm(root, prepared, name)
+            if args.archive_receipt_timeout:
+                wait_for_archive_receipt(root.parent / sealed["archive"], sealed,
+                                         min(args.archive_receipt_timeout,
+                                             max(0, deadline - time.monotonic())))
         if index == 1:
             verdict = root / "first-pair-control.json"
             write_json(verdict, {"status": "invalid_until_all_checks_complete"})
