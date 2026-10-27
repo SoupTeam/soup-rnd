@@ -165,3 +165,19 @@ def test_buckets_add_seconds_measured_elsewhere():
     buckets.add("layer_wait", 0.25)
     buckets.add("layer_wait", 0.5)
     assert buckets.take()["layer_wait"] == 0.75
+
+
+def test_analyze_run_row_rejudges_the_saved_samples(tmp_path):
+    an = _load("l2l_ticket10_analyze")
+    idle = {"cpu": {"busy": 0.0, "steal": 0.0, "iowait": 0.0},
+            "gpu": {"sm_mhz": 210, "max_sm_mhz": 2100, "power_w": 40.0, "throttle": 1}}
+    busy_ = {"cpu": {"busy": 0.1, "steal": 0.0, "iowait": 0.0},
+             "gpu": {"sm_mhz": 1900, "max_sm_mhz": 2100, "power_w": 200.0, "throttle": 0}}
+    path = tmp_path / "b1-p0-A.json"
+    path.write_text(__import__("json").dumps({
+        "run": {"tokens_per_s": 130.0, "layer_loads_per_step": 244.0},
+        "sensor_samples": [idle, idle, busy_, busy_],
+    }))
+    row = an.run_row(path)
+    assert row["arm"] == "GA" and row["flags"] == []
+    assert row["power_w_mean"] == 200.0 and row["sm_clock_ratio"] == 1900 / 2100
