@@ -129,7 +129,9 @@ def judge_run(samples: Sequence[Mapping[str, Any]], own_cpu_share: Optional[floa
     out: Dict[str, Any] = {"samples": len(samples), "sensed": False, "flags": [],
                            "sensors": {}}
     cpu = [s["cpu"] for s in samples if s.get("cpu")]
-    gpu = [s["gpu"] for s in samples if s.get("gpu")]
+    # A sample with the idle bit (0x1) is the model loading, not the run: its clock is low
+    # because the card has nothing to do.
+    gpu = [s["gpu"] for s in samples if s.get("gpu") and not (s["gpu"].get("throttle") or 0) & 1]
     if cpu:
         out["sensed"] = True
         steal = statistics.fmean(c["steal"] for c in cpu)

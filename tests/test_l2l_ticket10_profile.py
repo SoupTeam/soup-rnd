@@ -145,3 +145,9 @@ def test_campaign_hands_the_ticket_10_arm_script_and_profile_flag_to_the_subproc
     finally:
         camp.camp09.subprocess.run = real
     assert seen[0][1].endswith("l2l_ticket10_arm.py") and seen[0][-1] == "--profile"
+
+
+def test_judge_run_skips_samples_where_the_gpu_is_idle():
+    idle = _sample(sm=210, throttle=0x1)
+    out = _prof().judge_run([idle] * 10 + [_sample()] * 5)
+    assert not out["disturbed"]
