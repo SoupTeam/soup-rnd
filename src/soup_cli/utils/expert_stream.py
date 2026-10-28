@@ -514,6 +514,17 @@ class ExpertFetcher:
         self._storage_bytes_read += reader.bytes_read - before
         return host
 
+    def _pending_matches(self, reader: ExpertShardReader, expert: int, key: Any) -> bool:
+        if self._pending is None or self._pending[0] is not reader or self._pending[1] != expert:
+            return False
+        saved = self._pending[2]
+        if saved is None or key is None:
+            return saved is key
+        # Code-table tensors are identity keys, never elementwise equality tests.
+        return (saved[:-1] == key[:-1] and len(saved[-1]) == len(key[-1]) and all(
+            old[0] == new[0] and old[1] is new[1] and old[2] == new[2]
+            for old, new in zip(saved[-1], key[-1])))
+
     def prefetch(self, reader: ExpertShardReader, expert: int) -> None:
         """Prepare exactly one next expert; no logical visit or cache admission."""
         if self._closed:
@@ -527,7 +538,7 @@ class ExpertFetcher:
         cached = bool(self._host_cache.stats()["budget_bytes"]
                       or self._device_cache.stats()["budget_bytes"])
         key = self._cache_key(reader, expert) if cached else None
-        if self._pending is not None and self._pending[:3] == (reader, expert, key):
+        if self._pending_matches(reader, expert, key):
             return
         self.cancel_prefetch()
         if self._device_cache.peek(key) is not None:
@@ -652,7 +663,7 @@ class ExpertFetcher:
         ticket = None
         if self._pending is not None:
             pending = self._pending
-            if pending[:3] == (reader, expert, cache_key):
+            if self._pending_matches(reader, expert, cache_key):
                 self._pending = None
                 host, ticket = pending[3:5]
                 if pending[5] is not None and pending[5] != self._host_generation:

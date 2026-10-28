@@ -148,12 +148,16 @@ def test_real_cuda_prefetch_mismatch_reset_identity_and_dense_ownership(tmp_path
     reader, _pairs, codes = _reader(tmp_path, nf4=True, device="cuda")
     reference = ExpertFetcher(device="cuda", dtype="float32", codes=codes)
     candidate = ExpertFetcher(device="cuda", dtype="float32", codes=codes,
+                              host_cache_bytes=2**20,
                               transfer_mode="prefetch")
     try:
         expected = [reference.fetch(reader, number) for number in range(3)]
         candidate.prefetch(reader, 0)
         held = candidate.fetch(reader, 2)  # discard a mismatched pending request.
         _same(expected[2], held)
+        candidate.prefetch(reader, 0)
+        candidate.codes = {name: value.clone() for name, value in codes.items()}
+        _same(expected[0], candidate.fetch(reader, 0))  # replacement invalidates identity keys.
         candidate.prefetch(reader, 1)
         candidate.configure_cache(host_cache_policy="static")  # drain unused lookahead.
         _same(expected[0], candidate.fetch(reader, 0))
