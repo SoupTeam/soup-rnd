@@ -20,7 +20,9 @@ def packing_layout(tensors: Mapping[str, Any]) -> tuple[list[tuple], int]:
         if tensor.device.type != "cpu" or not tensor.is_contiguous() or tensor.numel() == 0:
             raise ValueError("expert transfer requires nonempty contiguous CPU tensors")
         width = tensor.element_size()
-        cursor = -(-cursor // width) * width
+        # Match standalone CUDA allocator alignment, including vectorized NF4 loads.
+        alignment = max(256, width)
+        cursor = -(-cursor // alignment) * alignment
         count = tensor.numel() * width
         layout.append((name, cursor, count, tensor.dtype, tuple(tensor.shape)))
         cursor += count

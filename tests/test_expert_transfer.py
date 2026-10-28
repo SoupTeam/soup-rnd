@@ -18,6 +18,7 @@ def test_packing_preserves_scalar_sidecars_alignment_and_exact_bytes():
     storage = torch.empty(size, dtype=torch.uint8)
     for name, offset, count, dtype, shape in layout:
         assert offset % original[name].element_size() == 0
+        assert offset % 256 == 0
         storage[offset:offset + count].copy_(original[name].reshape(-1).view(torch.uint8))
         restored = storage[offset:offset + count].view(dtype).view(shape)
         assert restored.shape == original[name].shape
