@@ -1,0 +1,616 @@
+"""Frozen, provider-free replay of the six-arm streaming follow-up originals.
+
+Written before GPU data. Numerical tensors, plans, raw timings, archive bytes and
+cleanup are independently checked; runner verdict flags alone are insufficient.
+"""
+
+from __future__ import annotations
+
+import argparse
+import gc
+import hashlib
+import importlib.util
+import json
+import math
+import os
+import random
+import re
+import statistics
+import sys
+import xml.etree.ElementTree as ET
+from fractions import Fraction
+from pathlib import Path, PurePosixPath
+
+SOURCE = "9873f3239db47ee6c5539cea8b125261cdba82c1"
+CAP_USD = 4.39463027092143
+GIB = 2**30
+BIG_GPU_BYTES = 17 * GIB // 8
+PREFIX = "results/followup-probe/"
+POLICIES = {
+    "baseline": {"mode": "packed", "host_packing": False, "placement": False, "gpu": 2 * GIB},
+    "hostpacked": {"mode": "packed", "host_packing": True, "placement": False, "gpu": 2 * GIB},
+    "prefetch_after": {"mode": "prefetch_after", "host_packing": False,
+                       "placement": False, "gpu": 2 * GIB},
+    "usage2": {"mode": "packed", "host_packing": False, "placement": True, "gpu": 2 * GIB},
+    "larger": {"mode": "packed", "host_packing": False,
+               "placement": False, "gpu": BIG_GPU_BYTES},
+    "all": {"mode": "prefetch_after", "host_packing": True,
+            "placement": True, "gpu": BIG_GPU_BYTES},
+}
+ORDER = ["hostpacked", "baseline", "usage2", "prefetch_after", "larger", "all"]
+
+
+def require(value, message):
+    if not value:
+        raise ValueError(message)
+
+
+def read(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def sha(path):
+    hashed = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for data in iter(lambda: handle.read(8 * 2**20), b""):
+            hashed.update(data)
+    return hashed.hexdigest()
+
+
+def canonical(value):
+    raw = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def load(stage, manifest, name):
+    path = stage / name
+    require({"bytes": path.stat().st_size, "sha256": sha(path)} == manifest["files"][name],
+            "Frozen audit helper changed: " + name)
+    spec = importlib.util.spec_from_file_location("followup_audit_" + path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate_launch(protocol, rental, freeze, manifest_sha):
+    require(re.fullmatch("[0-9a-f]{40}", SOURCE or "")
+            and protocol["source_commit"] == SOURCE
+            and protocol["preparation_status"] == "READY_ROOT_APPROVED",
+            "Exact root source commit was not bound before launch")
+    require(protocol["financial"]["maximum_stage_usd"] == rental["maximum_usd"] == CAP_USD
+            and protocol["financial"]["maximum_seconds"] == rental["maximum_seconds"] == 9000,
+            "Authorized remaining budget/deadline differs")
+    require(freeze["manifest_sha256"] == manifest_sha
+            and freeze["unix"] <= rental["created_unix"], "No pre-data audit/launch freeze")
+    execution = protocol["execution_plan"]
+    require(execution["policies"] == POLICIES and execution["exploration_order"] == ORDER
+            and execution["accuracy_order"] == list(POLICIES), "Six-arm protocol changed")
+    for key, expected in {"accuracy_updates": 2, "accumulation": 2, "warmup_updates": 2,
+                          "timed_updates": 6, "confirmation_pairs": 4, "bootstrap_samples": 5000,
+                          "bootstrap_seed": 29, "practical_lower_bound_percent": 2.,
+                          "rtol": .01, "atol": 1e-5, "finite": True,
+                          "three_decimal_losses": True, "maximum_slot_bytes": 16 * 2**20,
+                          "slots": 2, "cuda_allocator_backend": "native",
+                          "cuda_launch_blocking": "0", "confirmation_order": "AB_BA_AB_BA",
+                          "old_timing_denominator_allowed": False}.items():
+        require(execution[key] == expected, "Original scientific gate changed: " + key)
+    require(execution["all_features"] == {"two_read": True, "grouped_expert_routes": True,
+            "host_cache_bytes": 8 * GIB, "host_cache_policy": "static"},
+            "Shared model/cache features changed")
+    diagnostic = execution["diagnostic"]
+    require(diagnostic["baseline_mode"] == "packed"
+            and diagnostic["usage_observed_warmup_updates"] == 2
+            and diagnostic["context_updates"] == diagnostic["profile_updates"] == 1
+            and diagnostic["plans_gpu_bytes"] == [2 * GIB, BIG_GPU_BYTES]
+            and diagnostic["maximum_profile_entries"] == 65536
+            and diagnostic["profile_is_timing_denominator"] is False
+            and diagnostic["cuda_window"] == {"phase": "forward", "microbatch": 0,
+                                              "skip_fetches": 1024, "fetches": 16},
+            "Preregistered diagnostic/learning scope changed")
+
+
+def recompute_usage(data):
+    require(data["observed_updates"] == 2 and 0 < len(data["records"]) <= 65536
+            and set(data["plans"]) == {str(2 * GIB), str(BIG_GPU_BYTES)},
+            "Invalid usage window/extent")
+    records, seen = [], set()
+    for row in data["records"]:
+        key = tuple(row["key"])
+        require(len(key) == 2 and isinstance(key[0], str)
+                and PurePosixPath(key[0]).is_absolute() and ".." not in key[0].split("/")
+                and type(key[1]) is int and key[1] >= 0 and key not in seen,
+                "Invalid/repeated portable logical expert key")
+        require(all(type(row[name]) is int and row[name] > 0
+                    for name in ("requests", "transfer_bytes", "dense_bytes")),
+                "Invalid real request count/byte metadata")
+        seen.add(key)
+        records.append(dict(row, key=key))
+    total = sum(row["requests"] for row in records)
+    require(type(data["observed_requests"]) is int and data["observed_requests"] == total,
+            "Usage request totals differ")
+    ranked = sorted(enumerate(records), key=lambda pair: (
+        -Fraction(pair[1]["requests"] * pair[1]["transfer_bytes"], pair[1]["dense_bytes"]),
+        pair[0]))
+    plans = {}
+    for budget in (2 * GIB, BIG_GPU_BYTES):
+        keys, used, requests, saved = [], 0, 0, 0
+        for _position, row in ranked:
+            if row["dense_bytes"] <= budget - used:
+                keys.append(row["key"])
+                used += row["dense_bytes"]
+                requests += row["requests"]
+                saved += row["requests"] * row["transfer_bytes"]
+        expected = {"keys": keys, "payload_bytes": used, "budget_bytes": budget,
+                    "candidate_count": len(records), "total_requests": total,
+                    "selected_requests": requests, "saved_transfer_bytes_proxy": saved,
+                    "policy": "frequency_transfer_bytes_per_dense_byte"}
+        require(used > 0 and data["plans"][str(budget)] == json.loads(json.dumps(expected)),
+                "Frozen placement does not independently reproduce from actual usage")
+        plans[budget] = tuple(keys)
+    return plans
+
+
+def cache_evidence(raw, phase, policy, *, observer_allowed=False):
+    settings = POLICIES[policy]
+    before, after = (raw[phase][name]["expert_cache"]
+                     for name in ("runtime_before", "runtime_after"))
+    delta = {name: after[name] - before[name] for name in
+             ("logical_fetches", "storage_reads", "storage_bytes_read", "materializations")}
+    for tier, ceiling in (("host", 8 * GIB), ("device", settings["gpu"])):
+        delta[tier + "_hits"] = after[tier]["hits"] - before[tier]["hits"]
+        require(all(point[tier]["budget_bytes"] == ceiling
+                    and 0 <= point[tier]["payload_bytes"] <= ceiling for point in (before, after)),
+                "Actual arm payload budget differs")
+    require(all(type(value) is int and value >= 0 for value in delta.values())
+            and delta["logical_fetches"] > 0 and min(delta["host_hits"], delta["device_hits"]) > 0
+            and delta["storage_reads"] + delta["host_hits"] + delta["device_hits"]
+            == delta["logical_fetches"]
+            and delta["materializations"] == delta["logical_fetches"] - delta["device_hits"],
+            "Expert cache conservation equations failed")
+    admission = raw["setup"]["cache_plan"]
+    require(admission["host_cache_bytes"] == 8 * GIB
+            and admission["device_cache_bytes"] == settings["gpu"]
+            and admission["host_cache_policy"] == before["host_cache_policy"]
+            == after["host_cache_policy"] == "static", "Actual cache admission differs")
+    for point in (before, after):
+        require(point.get("host_prepacked", False) is settings["host_packing"]
+                and ("device_placement" in point) is settings["placement"]
+                and point["transfer"]["mode"] == settings["mode"], "Actual arm policy differs")
+        require(observer_allowed or "usage_profile" not in point,
+                "Usage observer remained enabled in an unprofiled arm")
+        require(all(type(point["transfer"][name]) is int
+                    and 0 <= point["transfer"][name] <= 32 * 2**20
+                    for name in ("pinned_host_bytes", "device_staging_bytes")),
+                "Transfer staging exceeded its fixed bound")
+    require(after["transfer"]["h2d_copies"] - before["transfer"]["h2d_copies"]
+            == delta["materializations"], "Not exactly one H2D per materialized expert")
+    layouts = after["transfer"]["layout_builds"] - before["transfer"]["layout_builds"]
+    copies = after["transfer"]["host_copy_calls"] - before["transfer"]["host_copy_calls"]
+    require(type(layouts) is int and type(copies) is int
+            and 0 <= layouts <= delta["materializations"] <= copies,
+            "Invalid actual packing-layout work")
+    if settings["host_packing"]:
+        require(layouts < delta["materializations"],
+                "Prepacked host hits did not use their fast path")
+    else:
+        require(layouts == delta["materializations"], "Ordinary host arm used prepacked fast paths")
+    return delta
+
+
+def select(exploration):
+    require([row["policy"] for row in exploration] == ORDER, "Exploration order changed")
+    require(all(len(row["seconds"]) == 6 for row in exploration), "Incomplete raw timing arrays")
+    medians = {row["policy"]: statistics.median(row["seconds"]) for row in exploration}
+    require(all(type(value) in (int, float) and math.isfinite(value) and value > 0
+                for row in exploration for value in row["seconds"]), "Invalid raw timing")
+    winners = [name for name in POLICIES if name != "baseline"
+               and medians[name] < medians["baseline"]]
+    return {"candidate": min(winners, key=medians.get) if winners else None,
+            "medians_seconds": medians, "exploratory_only": True}
+
+
+def recorded_losses(left, right, count):
+    require(len(left) == len(right) == count and all(
+        math.isfinite(x) and math.isfinite(y) and abs(y - x) <= 1e-5 + .01 * abs(x)
+        and f"{x:.3f}" == f"{y:.3f}" for x, y in zip(left, right)),
+        "Original recorded loss gate failed")
+
+
+def confirm(rows, candidate):
+    pair = ("baseline", candidate)
+    orders, groups, pids = (pair, pair[::-1]) * 2, {}, set()
+    require(candidate in POLICIES and candidate != "baseline" and len(rows) == 8,
+            "Four independent confirmation pairs required")
+    for index, row in enumerate(rows):
+        number, position = divmod(index, 2)
+        raw = row["raw"]
+        require(row["round"] == number and row["position"] == position
+                and row["policy"] == orders[number][position] and raw["pid"] not in pids,
+                "Confirmation schedule/PIDs changed")
+        pids.add(raw["pid"])
+        groups.setdefault(number, {})[row["policy"]] = raw
+    logs = []
+    for group in groups.values():
+        left, right = group["baseline"], group[candidate]
+        for phase, count in (("warmup", 2), ("timing", 6)):
+            recorded_losses(left[phase]["losses"], right[phase]["losses"], count)
+        logs.append(math.log(statistics.median(right["timing"]["update_seconds"]) /
+                             statistics.median(left["timing"]["update_seconds"])))
+    rng = random.Random(29)
+    draws = sorted(100 * (1 - math.exp(statistics.mean(rng.choices(logs, k=4))))
+                   for _ in range(5000))
+    return {"candidate": candidate, "paired_rounds": 4,
+            "step_time_reduction_percent": 100 * (1 - math.exp(statistics.mean(logs))),
+            "throughput_increase_percent": 100 * (math.exp(-statistics.mean(logs)) - 1),
+            "paired_bootstrap_95_percent": [draws[124], draws[4874]],
+            "passes_practical_2_percent_gate": draws[124] >= 2.,
+            "selection_samples_excluded": True}
+
+
+def audit(stage, source_root):
+    import torch
+
+    manifest, protocol, rental = (read(stage / name) for name in (
+        "launch-manifest.json", "protocol.json", "vast-rental.json"))
+    validate_launch(protocol, rental, read(stage / "offline-freeze-verification.json"),
+                    sha(stage / "launch-manifest.json"))
+    require(sha(Path(__file__)) == manifest["files"]["audit_followup.py"]["sha256"],
+            "Standalone auditor changed after pre-data freeze")
+    for name, row in manifest["files"].items():
+        root = os.path.realpath(stage)
+        path = Path(os.path.realpath(stage / name))
+        require(os.path.normcase(os.path.commonpath((root, path))) == os.path.normcase(root),
+                "Frozen input escapes its stage")
+        require(path.stat().st_size == row["bytes"] and sha(path) == row["sha256"],
+                "Frozen launch member changed: " + name)
+    archive, infrastructure = (load(stage, manifest, name) for name in
+                                ("archive_audit.py", "audit_infrastructure.py"))
+    require(archive.SOURCE == SOURCE, "Archive audit belongs to another source")
+    originals = archive.Originals(stage)
+    require(originals.read("launch-manifest.json") == manifest
+            and originals.read("protocol.json") == protocol, "Remote launch bindings differ")
+    capacity = originals.read("results/capacity-preflight.json")
+    infrastructure.capacity(capacity, rental)
+    cases = ET.parse(originals.file("results/gpu-preflight.xml")).findall(".//testcase")
+    wanted = protocol["cuda_expected_case_names"]
+    require(wanted and len(set(wanted)) == len(wanted) == len(cases)
+            and {row.get("name") for row in cases} == set(wanted)
+            and all(not any(row.find(tag) is not None for tag in ("failure", "error", "skipped"))
+                    and float(row.get("time", 0)) > 0 for row in cases),
+            "Actual declared CUDA cases did not all pass")
+    runtime, cohort = (originals.read(name) for name in
+                       ("results/runtime-stack.json", "software-cohort.json"))
+    require(runtime["status"] == "passed_runtime_stack_admission"
+            and runtime["actual_versions"] == cohort["required_versions"]
+            and runtime["torch_actual_version"] == "2.10.0+cu130"
+            and runtime["bitsandbytes_actual_library_path"].endswith("libbitsandbytes_cuda130.so"),
+            "Actual CUDA13 runtime differs")
+    sys.path[:0] = [str(source_root / "src"), str(source_root)]
+    from benchmarks.harness import expert_cache_dispatch_qualification as q
+
+    _native, _worker, common, _module, identity = q.project(source_root, SOURCE)
+    require(common.RTOL == .01 and common.ATOL == 1e-5, "Original tensor tolerances changed")
+    spec = originals.read("results/prepared/spec.json")
+    q.validate_protocol(spec)
+    require(spec["git_head"] == SOURCE and spec["host_boundary"]["swap_disabled"] is True
+            and spec["host_boundary"]["effective_limit_bytes"]
+            == capacity["native_ram_limit_bytes"], "Source/RAM boundary changed")
+    source = originals.read("source-manifest.json")
+    require(source == read(stage / "source-manifest.json") and source["source_commit"] == SOURCE,
+            "Executed source manifest differs")
+    base_sha = sha(originals.file("results/prepared/spec.json"))
+    inputs_path = originals.file("results/prepared/inputs.pt")
+    require(sha(inputs_path) == spec["training_data_sha256"], "Frozen input bytes changed")
+    inputs = torch.load(inputs_path, map_location="cpu", weights_only=True)
+    require(inputs.dtype == torch.long and tuple(inputs.shape) == (4, 1, 512),
+            "Input shape changed")
+    pinned, downloaded = (originals.read("results/" + name) for name in
+                          ("model-pinned.json", "model-download.json"))
+    infrastructure.model_pin(pinned, downloaded)
+    integrity_path = originals.file("results/checkpoint-integrity.json")
+    prepared = originals.read("results/prepared-integrity.json")
+    helper_sha = sha(originals.file("checkpoint_integrity.py"))
+    checkpoint = infrastructure.checkpoint_input_integrity(read(integrity_path), pinned, spec,
+        originals.read("results/hub-force-download-control.json"), prepared, helper_sha)
+    start = originals.read("results/prepare-start.json")
+    require(start["all_thirteen_official_shards_verified"] is True
+            and start["helper_sha256"] == prepared["helper_sha256"] == helper_sha
+            and start["checkpoint_integrity_receipt_sha256"]
+            == downloaded["checkpoint_integrity_receipt_sha256"]
+            == prepared["checkpoint_integrity_receipt_sha256"] == sha(integrity_path)
+            and prepared["prepared_spec_sha256"] == base_sha,
+            "Before-NF4 checkpoint binding failed")
+    run = originals.read(PREFIX + "run.json")
+    require(run["status"] == "completed" and run["accuracy_passed"] is True
+            and run["identity"] == identity and run["execution_plan"] == protocol["execution_plan"]
+            and run["probe_sha256"] == manifest["files"]["followup_probe.py"]["sha256"]
+            and run["base_spec_sha256"] == base_sha
+            and run["protocol_sha256"] == sha(originals.file("protocol.json")),
+            "Completed study source/runner/spec bindings differ")
+    diagnostic, usage = (originals.read(PREFIX + "diagnostic/" + name) for name in
+                         ("diagnostic-envelope.json", "usage-profile.json"))
+    usage_sha = sha(originals.file(PREFIX + "diagnostic/usage-profile.json"))
+    require(usage["source_commit"] == SOURCE and usage["base_spec_sha256"] == base_sha
+            and usage["probe_sha256"] == run["probe_sha256"]
+            and usage["profiled_training_inputs_sha256"] == sha(inputs_path)
+            and usage["planner_source_sha256"]
+            == sha(source_root / "src/soup_cli/utils/expert_placement.py")
+            and run["usage_plan_sha256"] == usage_sha, "Usage/source/input identity differs")
+    plans = recompute_usage(usage)
+    q.validate_dispatch_evidence(diagnostic["dispatch"], "grouped")
+    q.validate_native_routes(originals.read(PREFIX + "diagnostic/profile-result.json"), "grouped")
+    diagnostic_info = diagnostic_audit(originals, manifest, diagnostic, run, identity, spec,
+                                     capacity, archive, infrastructure, usage)
+    pids, environments, logical = {diagnostic["pid"]}, [], {}
+
+    def worker(row):
+        policy, phase = row["policy"], row["phase"]
+        require(policy in POLICIES and phase in ("accuracy", "timing"), "Unknown worker role")
+        prefix = PREFIX + row["directory"] + "/"
+        raw, envelope = (originals.read(prefix + name) for name in
+                         ("result.json", "followup-envelope.json"))
+        derived_path = originals.file(PREFIX + "specs/" + policy + ".json")
+        derived = read(derived_path)
+        require(derived == dict(spec, device_cache_bytes=POLICIES[policy]["gpu"]),
+                "Arm changed fields beyond its GPU payload budget")
+        keys = plans[POLICIES[policy]["gpu"]] if POLICIES[policy]["placement"] else ()
+        require(raw == row["result"] and envelope == row["envelope"]
+                and raw["status"] == envelope["status"] == "passed"
+                and envelope["source"] == identity and raw["pid"] == envelope["pid"]
+                and type(raw["pid"]) is int and raw["pid"] > 0
+                and raw["pid"] not in pids and raw["arm"] == "two_read_cache"
+                and raw["phase"] == phase == envelope["phase"] and envelope["policy"] == policy
+                and envelope["raw_sha256"] == sha(originals.file(prefix + "result.json"))
+                and envelope["spec_sha256"] == raw["spec_sha256"] == sha(derived_path)
+                and envelope["base_spec_sha256"] == base_sha
+                and envelope["probe_sha256"] == run["probe_sha256"]
+                and envelope["protocol_sha256"] == run["protocol_sha256"]
+                and envelope["usage_plan_sha256"] == usage_sha
+                and envelope["settings"] == POLICIES[policy]
+                and envelope["actual_settings"] == POLICIES[policy]
+                and envelope["selected_keys"] == json.loads(json.dumps(keys))
+                and envelope["configure_calls"] == 1
+                and envelope["usage_observer_enabled"] is False
+                and envelope["cuda_allocator_backend"] == "native"
+                and envelope["cuda_launch_blocking"] == "0", "Actual worker bindings differ")
+        pids.add(raw["pid"])
+        environments.append(raw["environment"])
+        infrastructure.worker_boundary(raw, capacity, derived)
+        q.validate_dispatch_evidence(envelope["dispatch"], "grouped")
+        q.validate_native_routes(raw, "grouped")
+        for name in ("setup", "accuracy", "warmup", "timing", "lifecycle"):
+            if name in raw:
+                archive.resources(raw[name], derived)
+        for name, count in (("accuracy", 2),) if phase == "accuracy" else (
+                ("warmup", 2), ("timing", 6)):
+            if phase == "timing":
+                archive.timing_phase(raw, name, count)
+            delta = cache_evidence(raw, name, policy)
+            require(name not in logical or logical[name] == delta["logical_fetches"],
+                    "Arms performed different logical expert work")
+            logical[name] = delta["logical_fetches"]
+            if keys:
+                for point in ("runtime_before", "runtime_after"):
+                    require(raw[name][point]["expert_cache"]["device_placement"]
+                            == {"policy": "profile_allowlist", "keys": len(keys)},
+                            "Runtime placement extent differs from frozen plan")
+        return raw, prefix
+
+    reference, accuracy = None, {}
+    require(set(run["accuracy"]) == set(POLICIES), "All six complete captures required")
+    for policy in POLICIES:
+        cell = run["accuracy"][policy]
+        raw, prefix = worker(cell["worker"])
+        path = originals.file(prefix + "capture.pt")
+        require(sha(path) == raw["accuracy"]["capture_sha256"], "Full capture bytes changed")
+        capture = torch.load(path, map_location="cpu", weights_only=True)
+        controls = q.full_capture_controls(capture, inputs, common)
+        require(controls == cell["controls"], "Recorded full controls differ")
+        if reference is None:
+            reference = capture
+            require(tensor_index(capture["initial_adapters"])
+                    == originals.read(PREFIX + "diagnostic/profile-result.json")
+                    ["initial_adapters"],
+                    "Diagnostic initial adapters differ from accuracy baseline")
+        compared = common.compare_captures(reference, capture)
+        require(compared["passed"] is True and compared == cell["versus_baseline"],
+                "Original complete numerical comparison failed")
+        accuracy[policy] = compared
+        if policy != "baseline":
+            del capture
+            gc.collect()
+    del reference
+    gc.collect()
+    exploration, absolute, exploration_raw = [], {}, {}
+    for cell in run["exploration"]:
+        raw, _prefix = worker(cell["worker"])
+        policy = cell["policy"]
+        require(policy == cell["worker"]["policy"], "Exploration worker relabelled")
+        exploration_raw[policy] = raw
+        exploration.append({"policy": policy, "seconds": raw["timing"]["update_seconds"]})
+        absolute[policy] = {"median_step_seconds": statistics.median(exploration[-1]["seconds"]),
+            "updates_seconds": exploration[-1]["seconds"],
+            "whole_entry_seconds": cell["worker"]["fresh_process_wall_seconds"],
+            "setup_seconds": raw["setup"]["seconds"], "cuda": raw["timing"]["cuda"],
+            "sampled_peak_rss_bytes": raw["timing"]["resources"]["sampled_peak_rss_bytes"]}
+    for raw in exploration_raw.values():
+        for phase, count in (("warmup", 2), ("timing", 6)):
+            recorded_losses(exploration_raw["baseline"][phase]["losses"],
+                            raw[phase]["losses"], count)
+    selection = select(exploration)
+    require(selection == run["selection"], "Independent candidate selection differs")
+    chosen, confirmation = selection["candidate"], None
+    if chosen is None:
+        require(not run["confirmation"] and "confirmation_summary" not in run,
+                "Unselected candidate was confirmed")
+    else:
+        rows = []
+        for row in run["confirmation"]:
+            raw, _prefix = worker(row["worker"])
+            require(row["policy"] == row["worker"]["policy"], "Confirmation worker relabelled")
+            rows.append(dict(row, raw=raw))
+        confirmation = confirm(rows, chosen)
+        require(confirmation == run["confirmation_summary"], "Independent confirmation differs")
+    require(all(value == environments[0] for value in environments)
+            and diagnostic_info["environment"] == environments[0], "Runtime changed between phases")
+    absence = read(stage / "independent-vast-absence.json")
+    infrastructure.cleanup(rental, read(stage / "vast-deletion.json"),
+        read(stage / "vast-volume-deletion.json"), absence, originals.bundle)
+    ledger = read(stage / "stage-ledger.json")
+    require(len(ledger["completed_leases"]) == 1
+            and ledger["stage_id"] == protocol["stage_id"] == rental["stage_id"]
+            and ledger["maximum_stage_usd"] == CAP_USD, "Unexpected paid lease count/identity")
+    lease = ledger["completed_leases"][0]
+    require(lease["instance_id"] == rental["instance_id"]
+            and lease["volume_id"] == rental["volume_id"]
+            and lease["verified_absent"] is True and lease["volume_verified_absent"] is True,
+            "Completed ledger belongs to another resource pair")
+    cost = lease["conservative_usd"]
+    require(type(cost) in (int, float) and math.isfinite(cost) and 0 <= cost <= CAP_USD,
+            "Follow-up exceeded remaining authorized budget")
+    return {"status": "passed_standalone_followup_audit", "source_commit": SOURCE,
+        "stage_id": protocol["stage_id"], "audit_script_sha256": sha(Path(__file__)),
+        "launch_manifest_sha256": sha(stage / "launch-manifest.json"),
+        "archive_manifest_sha256": sha(stage / "archive-manifest.json"),
+        "qualification_run_sha256": sha(originals.file(PREFIX + "run.json")),
+        "bundle_verified_sha256": sha(stage / "bundle-verified.json"),
+        "retention": originals.summary, "checkpoint_integrity": checkpoint,
+        "workers_including_diagnostic": len(pids), "accuracy": accuracy,
+        "exploration": absolute, "selection": chosen, "confirmation": confirmation,
+        "diagnostic": diagnostic_info, "cleanup": absence,
+        "speed_verdict": "CONFIRMED_PRACTICAL_WIN" if confirmation and confirmation[
+            "passes_practical_2_percent_gate"] else "NO_CONFIRMED_WIN",
+        "budget": {"stage_cap_usd": CAP_USD, "stage_cost_usd": cost,
+                   "remaining_usd": CAP_USD - cost, "invoice_verified": False},
+        "limits": {"precision": "Six separate two-update/four-micro full captures",
+                   "timed_tensors": "NO VERDICT on unrecorded full final timed tensors",
+                   "quality": "No downstream quality/convergence claim",
+                   "placement": "Frequency/traffic proxy, no latency/global optimality claim",
+                   "profile": "Instrumented diagnostic; not an unprofiled speed denominator",
+                   "storage": "Physical NVMe unverified; logical reads are not physical I/O"}}
+
+
+def tensor_index(tensors):
+    import torch
+
+    rows = {}
+    for name, value in sorted(tensors.items()):
+        copied = value.detach().to("cpu", copy=True).contiguous()
+        raw = copied.reshape(-1).view(torch.uint8).numpy().tobytes()
+        rows[name] = {"dtype": str(copied.dtype), "shape": list(copied.shape),
+                      "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
+    return {"tensors": rows, "canonical_index_sha256": canonical(rows)}
+
+
+def diagnostic_audit(originals, manifest, envelope, run, identity, spec,
+                     capacity, archive, infrastructure, usage):
+    prefix = PREFIX + "diagnostic/"
+    raw = originals.read(prefix + "profile-result.json")
+    require(envelope == run["diagnostic"] and envelope["status"] == raw["status"] == "passed"
+            and type(raw["pid"]) is int and raw["pid"] > 0
+            and raw["phase"] == "profile" and raw["policy"] == "native"
+            and raw["arm"] == "two_read_cache"
+            and envelope["source"] == identity and envelope["actual_mode"] == "packed"
+            and envelope["pid"] == raw["pid"]
+            and envelope["base_spec_sha256"] == raw["spec_sha256"] == run["base_spec_sha256"]
+            and envelope["probe_sha256"] == run["probe_sha256"]
+            and envelope["protocol_sha256"] == run["protocol_sha256"]
+            and envelope["usage_plan_sha256"] == run["usage_plan_sha256"]
+            and envelope["legacy_profile_sha256"]
+            == sha(originals.file(prefix + "profile-result.json"))
+            and envelope["actual_calls"]["timed_calls"] == 2
+            and envelope["actual_calls"]["configure_calls"] == 1
+            and raw["unprofiled_speed_verdict"] == "NO VERDICT", "Diagnostic provenance differs")
+    infrastructure.worker_boundary(raw, capacity, spec)
+    for name in ("setup", "warmup", "context", "profile_update", "lifecycle"):
+        archive.resources(raw[name], spec)
+    for name, count in (("warmup", 2), ("context", 1)):
+        archive.timing_phase(raw, name, count)
+        cache_evidence(raw, name, "baseline", observer_allowed=name == "warmup")
+    require(cache_evidence(raw, "warmup", "baseline", observer_allowed=True)["logical_fetches"]
+            == usage["observed_requests"] and raw["profile_update"]["updates"] == 1
+            and raw["profile_update"]["microbatches"] == 2
+            and len(raw["profile_update"]["losses"]) == 2
+            and all(math.isfinite(value) for value in raw["profile_update"]["losses"]),
+            "Actual two-warmup observation/profile update differs")
+    cache_evidence(raw, "profile_update", "baseline")
+    window = raw["window"]
+    require(all(window[name] is True for name in ("started", "stopped", "restored"))
+            and (window["skip_fetches"], window["requested_fetches"], window["profiled_fetches"],
+                 window["microbatch"], window["phase"]) == (1024, 16, 16, 0, "forward"),
+            "Declared bounded forward CUDA window changed")
+    before, after = (window[name] for name in ("cache_before", "cache_after"))
+    delta = {name: after[name] - before[name] for name in
+             ("logical_fetches", "storage_reads", "storage_bytes_read", "materializations")}
+    delta.update({tier + "_hits": after[tier]["hits"] - before[tier]["hits"]
+                  for tier in ("host", "device")})
+    require(delta == window["cache_delta"] and delta["logical_fetches"] == 16
+            and delta["device_hits"] == 0 and delta["host_hits"] > 0
+            and delta["storage_reads"] + delta["host_hits"] == 16,
+            "Narrow window expert work differs")
+    spans = originals.read(prefix + "cpu-host-spans.json")
+    require(envelope["host_spans_sha256"] == sha(originals.file(prefix + "cpu-host-spans.json"))
+            and spans["actual_forward_and_backward"] is True
+            and all(spans["spans"]["profile_update/" + name]["calls"] > 0
+                    and math.isfinite(spans["spans"]["profile_update/" + name]["seconds"])
+                    and spans["spans"]["profile_update/" + name]["seconds"] >= 0
+                    for name in ("fetch", "storage_read", "packing_layout",
+                                 "transfer_stage", "nf4_dequant")), "Diagnostic CPU spans absent")
+    trace_path = originals.file(prefix + "trace.json.gz")
+    require(envelope["trace_sha256"] == sha(trace_path), "Actual trace bytes changed")
+    parser = load(originals.stage, manifest, "profile_timeline.py")
+    require(raw["trace"] == originals.read(prefix + "trace-retention.json")
+            and raw["trace"]["maximum_encoded_bytes"] == 128 * 2**20
+            and raw["trace"]["within_bound"] is True
+            and trace_path.stat().st_size <= 128 * 2**20,
+            "Fixed trace retention bound or proof changed")
+    parser.verify_gzip(trace_path, raw["trace"])
+    timeline = parser.analyze_trace(trace_path)
+    require(timeline == originals.read(prefix + "timeline.json") and timeline["status"] == "parsed"
+            and raw["timeline_sha256"] == sha(originals.file(prefix + "timeline.json"))
+            and raw["timeline_parser_sha256"] == manifest["files"]["profile_timeline.py"]["sha256"]
+            and timeline["event_category_counts"].get("kernel", 0) > 0
+            and timeline["event_category_counts"].get("gpu_memcpy", 0) > 0
+            and any(value["union_us_by_kind"]["h2d"] > 0 for value in timeline["devices"].values()),
+            "Original profile lacks independently parsed CUDA kernel/H2D activity")
+    names = set(raw["initial_adapters"]["tensors"])
+    expected = {prefix + name for prefix in ("adapter/", "gradient/") for name in names}
+    expected |= {f"adamw/{name}/{field}" for name in names
+                 for field in ("step", "exp_avg", "exp_avg_sq")}
+    require(len(names) == 288, "Diagnostic omitted attention adapters")
+    for state in ("state_before", "state_after"):
+        rows = raw[state]["tensors"]
+        require(set(rows) == expected and raw[state]["canonical_index_sha256"] == canonical(rows)
+                and all(row["dtype"] == "torch.float32" and row["bytes"] > 0
+                        and re.fullmatch("[0-9a-f]{64}", row["sha256"]) for row in rows.values()),
+                "Incomplete diagnostic optimizer/gradient hash manifests")
+    require(all(raw["state_before"]["tensors"][f"adamw/{name}/step"]["sha256"]
+                != raw["state_after"]["tensors"][f"adamw/{name}/step"]["sha256"] for name in names),
+            "Diagnostic did not advance every AdamW state")
+    return {"environment": raw["environment"],
+            "actual_observed_requests": usage["observed_requests"],
+            "window": window, "timeline": timeline, "cpu_spans": spans,
+            "scope": "Full CPU update spans and bounded CUDA forward window; not additive or speed",
+            "usage_limit": "Totals reconcile warmup; per-expert frequencies are observer records"}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ("stage", "source-root", "out"):
+        parser.add_argument("--" + name, type=Path, required=True)
+    args = parser.parse_args()
+    try:
+        result, status = audit(args.stage, args.source_root), 0
+    except Exception as error:  # noqa: BLE001 -- Failed audits retain an explicit failure artifact.
+        result, status = {"status": "failed_standalone_followup_audit",
+                          "error": f"{type(error).__name__}: {error}"}, 1
+    args.out.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    from rich.console import Console
+
+    Console().print({"status": result["status"], "output": str(args.out)})
+    return status
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
