@@ -121,11 +121,13 @@ class TestOpenNoFollow:
             st_ino = 99999
             st_dev = 88888
 
-        # fstat returns different ino/dev than lstat on existing file
-        monkeypatch.setattr(os, "fstat", lambda fd: MockSwappedFstat())
-
-        with pytest.raises(OSError) as exc_info:
-            open_no_follow(real_file, os.O_RDONLY)
+        # fstat returns different ino/dev than lstat on existing file. The patch is undone
+        # before the assertions: pytest 9.2 reads its captured output with os.fstat after the
+        # test body and before fixture teardown, so a patch kept to the end crashes pytest.
+        with monkeypatch.context() as scoped:
+            scoped.setattr(os, "fstat", lambda fd: MockSwappedFstat())
+            with pytest.raises(OSError) as exc_info:
+                open_no_follow(real_file, os.O_RDONLY)
         assert exc_info.value.errno == errno.ELOOP
         assert "File swapped during open" in str(exc_info.value)
 
