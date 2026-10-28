@@ -151,3 +151,48 @@ def test_ram_fit_is_not_claimed_after_failed_or_incomplete_run(defect):
     result = summarize_ram(samples, {"kind": "cgroup_v2", "hard_limit_bytes": 32 * 2**30},
                            code)
     assert result["ram_32gib_constrained_pilot_passed"] is (defect == "none")
+
+
+@pytest.mark.parametrize("defect", ["none", "wide_ram", "tokens", "late_before", "baseline"])
+def test_combined_verdict_requires_all_prospective_evidence(defect):
+    import hashlib
+    import json
+    from pathlib import Path
+
+    from benchmarks.harness.b6_acceptance_verdict import acceptance_verdict
+    from tests.test_b6_verdict import _fixture
+
+    root = Path(__file__).parents[1] / "benchmarks/protocols/b6-acceptance-20261029"
+    protocol_path, data_path = root / "protocol.json", root / "evaluation-data.json"
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    events, index = _fixture()
+    events[0]["unix"] = 1
+    events[3]["unix"], events[4]["unix"] = 20, 30
+    events[-1]["unix"] = 99
+    extra = [dict(event="evaluation_protocol", unix=2,
+                  protocol_sha256=hashlib.sha256(protocol_path.read_bytes()).hexdigest(),
+                  data_sha256=protocol["evaluation_data_sha256"]),
+             dict(event="unadapted_baseline", unix=3, zero_lora_b_tensors=305)]
+    for i, identity in enumerate(protocol["example_ids"]):
+        for stage, timestamp in (("before", 4 + i), ("after", 40 + i)):
+            extra.append(dict(event="evaluation_" + stage, unix=timestamp, id=identity,
+                              loss=2.0, predicted_tokens=63, token_sha256=str(i) * 64))
+    events = events[:-1] + extra + events[-1:]
+    phases = ["download", "preparation", "training", "evaluation_before",
+              "evaluation_after", "reload"]
+    samples = [dict(phase=phase, unix=i * 20, memory_current=10, memory_peak=20,
+                    swap_current=0, swap_peak=0, events={"oom_kill": 0},
+                    process_rss_bytes=8, memory_max=32 * 2**30, host_total=128 * 2**30)
+               for i, phase in enumerate(phases)]
+    if defect == "wide_ram":
+        for sample in samples:
+            sample["memory_max"] = 64 * 2**30
+    elif defect == "tokens":
+        next(row for row in events if row["event"] == "evaluation_after")["predicted_tokens"] = 62
+    elif defect == "late_before":
+        next(row for row in events if row["event"] == "evaluation_before")["unix"] = 31
+    elif defect == "baseline":
+        next(row for row in events if row["event"] == "unadapted_baseline")[
+            "zero_lora_b_tensors"] = 0
+    answer = acceptance_verdict(events, index, 8151, samples, 0, protocol_path, data_path)
+    assert answer["acceptance_measurements_complete"] is (defect == "none")
