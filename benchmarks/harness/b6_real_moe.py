@@ -108,10 +108,8 @@ def run(args: argparse.Namespace) -> None:
     props = torch.cuda.get_device_properties(0)
     if torch.cuda.device_count() != 1 or props.total_memory > 9 * 2**30:
         raise RuntimeError("B6 pilot requires one physical GPU of approximately 8 GB")
-    if props.major < 7:
-        dtype = "float32"  # Pascal consumer cards have very slow native FP16 arithmetic.
-    else:
-        dtype = "bfloat16" if torch.cuda.is_bf16_supported(including_emulation=False) else "float16"
+    # Use FP32 on older cards to avoid FP16 range/scaling ambiguity in the new pilot.
+    dtype = "bfloat16" if torch.cuda.is_bf16_supported(including_emulation=False) else "float32"
     config = json.loads((source / "config.json").read_text(encoding="utf-8"))
     if config.get("model_type") != "deepseek_v3":
         raise ValueError("this pilot accepts DeepSeek-V3 FP8 only")

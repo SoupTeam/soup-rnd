@@ -54,3 +54,13 @@ memory.oom_control; v2 uses memory.max, memory.peak, memory.swap.current/peak an
 memory.events. A host-root file is not substituted for the container controller.
 Docker memory/swap limits are requested at creation and verified before source
 download; the criterion remains a recorded hard limit of at most 32 GiB.
+
+## Final compute rule before any new giant losses
+
+After hardware-only probes (no full new checkpoint download and no new giant
+loss measured), available VM hardware includes Turing. The final rule is native
+BF16 when supported, otherwise FP32, avoiding FP16 range/scaling ambiguity.
+Both paired arms use the same actual dtype/cache. An owned VM may use a systemd
+scope with MemoryMax=32G and MemorySwapMax=0; the monitor must observe the actual
+scope and accounting throughout every model phase. Parent VM RAM is disclosed.
+The eight texts, token limit and result-reporting decision rule are unchanged.
