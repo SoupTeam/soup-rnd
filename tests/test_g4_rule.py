@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import copy
 import json
+import math
+import shutil
 from pathlib import Path
 
 import pytest
@@ -83,10 +85,28 @@ _SHARED_META = {
 }
 
 
-def _arm(codec, seed, *, task_loss=1.50, curve=None, per_example=None):
+#: The held-out panel every fixture arm scores, as (row id, response tokens): row ids are
+#: not positions, and two rows score no token (a prompt that fills the window), as in the
+#: GPU run.
+PANEL = [(1000 + 37 * index, 0 if index in (5, 13) else 6 + index % 5) for index in range(20)]
+
+
+def _task_loss(per_example):
+    """What g4_probe.task_loss records: summed NLL over summed scored tokens."""
+    tokens = sum(ex["tokens"] for ex in per_example)
+    return sum(ex["nll"] for ex in per_example) / tokens if tokens else None
+
+
+def _final(per_example):
+    """``final`` as g4_probe.mode_train writes it from the panel rows."""
+    return {"task_loss": _task_loss(per_example), "examples": len(per_example),
+            "tokens": sum(ex["tokens"] for ex in per_example), "per_example": per_example}
+
+
+def _arm(codec, seed, *, task_loss=1.50, curve=None, panel=PANEL):
     curve = curve or [2.0 - 0.05 * step for step in range(STEPS)]
-    per_example = per_example or [
-        {"row": row, "nll": task_loss * 10.0, "tokens": 10} for row in range(20)]
+    per_example = [{"row": row, "nll": task_loss * tokens, "tokens": tokens}
+                   for row, tokens in panel]
     log = [{"step": step, "loss": loss, "grad_norm": 0.5, "lr": 1e-4}
            for step, loss in enumerate(curve)]
     log[0]["mb_losses"] = [2.1, 1.9, 2.0, 2.0] if seed == 1 else [2.2, 1.8, 2.0, 2.0]
@@ -95,12 +115,14 @@ def _arm(codec, seed, *, task_loss=1.50, curve=None, per_example=None):
         "meta": {
             "device": "cuda", "verdict_eligible": True, "label": "box",
             **copy.deepcopy(_SHARED_META),
+            # As g4_probe.load_data records the panel it encoded.
+            "data": {**copy.deepcopy(_SHARED_META["data"]), "panel_examples": len(panel),
+                     "panel_response_tokens": sum(tokens for _row, tokens in panel)},
             "config": {"codec": codec, "seed": seed, "steps": STEPS, "lr": 2e-4, "k": 4,
                        "model_revision": "60b99dc"},
         },
         "log": log,
-        "final": {"task_loss": task_loss, "examples": len(per_example),
-                  "tokens": sum(ex["tokens"] for ex in per_example), "per_example": per_example},
+        "final": _final(per_example),
         "memory": {"store": {"measured_bytes_per_token_per_layer": 4100.0,
                              "arithmetic_bytes_per_token_per_layer": 4100.0}},
     }
@@ -114,31 +136,44 @@ TASK_LOSS = {("bf16", 1): 1.50, ("int8", 1): 1.503, ("fp8_e4m3", 1): 1.502, ("bf
 PARITY_ROWS = 4
 
 
-def _suites(codec, seed, *, parity_loss=None, **correct):
-    """A suites record. Its resident parity rows mirror rows 0-3 of its training arm's
+def _items(suite, n, correct):
+    """A suite's item table as g4_probe.score_suites writes it: the first ``correct`` of its
+    ``n`` questions answered right."""
+    return [{"question": f"{suite}: question {index}?", "answer": f"answer {index}",
+             "output": f"answer {index}" if index < correct else "no idea",
+             "correct": index < correct} for index in range(n)]
+
+
+def _suites(codec, seed, *, parity_loss=None, sizes=None, **correct):
+    """A suites record. Its resident parity rows mirror the first rows of its training arm's
     panel (filled in by ``_write`` from the arm actually written) unless ``parity_loss``
-    sets them explicitly."""
+    sets them explicitly. ``n`` and ``correct`` agree with the item tables."""
+    sizes = {**SUITE_N, **(sizes or {})}
     scores = {"mini_mmlu": 15, "mini_common_sense": 18, "mini_instruction": 12,
               "mini_arithmetic": 30, **correct}
     rows = None if parity_loss is None else [
-        {"row": row, "nll": parity_loss * 10.0, "tokens": 10} for row in range(PARITY_ROWS)]
+        {"row": row, "nll": parity_loss * tokens, "tokens": tokens}
+        for row, tokens in PANEL[:PARITY_ROWS]]
     return {
         "meta": {"device": "cuda", "verdict_eligible": True, "label": "box",
                  "adapter_sha256": {"adapter_model.safetensors": f"{codec}{seed}"},
                  "max_new_tokens": 64, "quant": "nf4"},
         "base_parity": {"adapter": {"tensors": 8, "mismatch": [], "mismatched": 0},
                         "per_example_resident": rows},
-        "suites": {name: {"n": SUITE_N[name], "correct": scores[name]} for name in SUITE_N},
+        "suites": {name: {"n": sizes[name], "correct": scores[name],
+                          "items": _items(name, sizes[name], scores[name])}
+                   for name in SUITE_N},
     }
 
 
-def _write(tmp_path: Path, error=None, arms=None, timing=None, drop=(), suites=None):
+def _write(tmp_path: Path, error=None, arms=None, timing=None, drop=(), suites=None,
+           panel=PANEL):
     files = {"error.json": error or _error()}
     default_arms = {
-        "train-bf16-seed1.json": _arm("bf16", 1, task_loss=1.50),
-        "train-int8-seed1.json": _arm("int8", 1, task_loss=1.503),
-        "train-fp8_e4m3-seed1.json": _arm("fp8_e4m3", 1, task_loss=1.502),
-        "train-bf16-seed2.json": _arm("bf16", 2, task_loss=1.51,
+        "train-bf16-seed1.json": _arm("bf16", 1, task_loss=1.50, panel=panel),
+        "train-int8-seed1.json": _arm("int8", 1, task_loss=1.503, panel=panel),
+        "train-fp8_e4m3-seed1.json": _arm("fp8_e4m3", 1, task_loss=1.502, panel=panel),
+        "train-bf16-seed2.json": _arm("bf16", 2, task_loss=1.51, panel=panel,
                                       curve=[2.01 - 0.05 * s for s in range(STEPS)]),
     }
     default_arms.update(arms or {})
@@ -701,6 +736,338 @@ def test_cli_on_a_malformed_directory_prints_no_verdict(rule, tmp_path, capsys):
     assert rule.main([str(results)]) == 0
     assert "Verdict: NO VERDICT" in capsys.readouterr().out
 
+
+# --------------------------------------------------------------------------
+# V16: Q1 and its noise floor read the whole recorded panel, recomputed
+# --------------------------------------------------------------------------
+ARMS = ("train-bf16-seed1.json", "train-int8-seed1.json", "train-fp8_e4m3-seed1.json",
+        "train-bf16-seed2.json")
+
+
+def _rows(arm):
+    return arm["final"]["per_example"]
+
+
+def _restate(arm):
+    """Rewrite ``final`` from the rows it holds: a self-consistent record of other rows."""
+    arm["final"] = _final(_rows(arm))
+
+
+def _keep_first(arm, rows=PARITY_ROWS):
+    """The review's first reproduction: only the parity rows survive, aggregates kept."""
+    arm["final"]["per_example"] = _rows(arm)[:rows]
+
+
+def _one_nat_per_token_more(arm, rows=PARITY_ROWS):
+    """The review's second reproduction: +1 nat per token outside the parity rows, the
+    recorded task loss kept."""
+    for ex in _rows(arm)[rows:]:
+        ex["nll"] += ex["tokens"]
+
+
+def _drop_row(arm):
+    _rows(arm).pop(10)
+    _restate(arm)
+
+
+def _repeat_row(arm):
+    rows = _rows(arm)
+    rows[19] = copy.deepcopy(rows[14])  # same token count: only the row id repeats
+    _restate(arm)
+
+
+def _foreign_row(arm):
+    _rows(arm)[10]["row"] = 99999
+
+
+def _move_a_token(arm):
+    """Rows 8 and 9 trade a token: the same total, but not the other arms' rows."""
+    rows = _rows(arm)
+    for ex, step in ((rows[8], 1), (rows[9], -1)):
+        ex["nll"] = ex["nll"] / ex["tokens"] * (ex["tokens"] + step)
+        ex["tokens"] += step
+    _restate(arm)
+
+
+def _field(key, value):
+    return lambda arm: _rows(arm)[10].__setitem__(key, value)
+
+
+def _final_field(key, change):
+    return lambda arm: arm["final"].__setitem__(key, change(arm["final"][key]))
+
+
+PANEL_CASES = {
+    "a missing row, aggregates restated": ("train-fp8_e4m3-seed1.json", _drop_row),
+    "a repeated row id, aggregates restated": ("train-bf16-seed2.json", _repeat_row),
+    "a row of another panel": ("train-int8-seed1.json", _foreign_row),
+    "a token moved between rows": ("train-bf16-seed2.json", _move_a_token),
+    "row id a string": ("train-bf16-seed1.json", _field("row", "1370")),
+    "row id a bool": ("train-fp8_e4m3-seed1.json", _field("row", True)),
+    "row id negative": ("train-int8-seed1.json", _field("row", -1)),
+    "token count a bool": ("train-bf16-seed2.json", _field("tokens", True)),
+    "token count a float": ("train-fp8_e4m3-seed1.json", _field("tokens", 6.0)),
+    "token count negative": ("train-bf16-seed1.json", _field("tokens", -6)),
+    "NaN NLL": ("train-bf16-seed2.json", _field("nll", float("nan"))),
+    "Inf NLL": ("train-fp8_e4m3-seed1.json", _field("nll", float("inf"))),
+    "NLL a string": ("train-int8-seed1.json", _field("nll", "9.0")),
+    "NLL negative": ("train-bf16-seed1.json", _field("nll", -9.0)),
+    "NLL on a row that scores no token": (
+        "train-bf16-seed2.json", lambda arm: _rows(arm)[5].__setitem__("nll", 0.5)),
+    "final.examples off its rows": (
+        "train-fp8_e4m3-seed1.json", _final_field("examples", lambda n: n + 1)),
+    "final.tokens off its rows": ("train-bf16-seed2.json", _final_field("tokens", lambda n: n - 1)),
+    "final.task_loss stale": (
+        "train-bf16-seed1.json", _final_field("task_loss", lambda t: t * 1.5)),
+    "final.task_loss missing": ("train-int8-seed1.json", _final_field("task_loss", lambda t: None)),
+    "panel protocol not recorded": (
+        "train-bf16-seed2.json", lambda arm: arm["meta"]["data"].pop("panel_examples")),
+    "no per-example table": (
+        "train-fp8_e4m3-seed1.json", lambda arm: arm["final"].__setitem__("per_example", {})),
+}
+
+
+def _panel_refused(out):
+    assert out["verdict"] == "NO VERDICT"
+    for codec in ("int8", "fp8_e4m3"):
+        assert out["codecs"][codec]["verdict"] == "no verdict"
+        assert _status(out, codec, "Q1") == "no verdict"
+    assert out["validity"]["V16_panel_complete"]["ok"] is False, out["validity"]
+
+
+@pytest.mark.parametrize("name", ARMS)
+@pytest.mark.parametrize("damage", [_keep_first, _one_nat_per_token_more],
+                         ids=["only the parity rows", "stale task loss"])
+def test_the_reviews_panel_reproductions_are_no_verdict_in_every_arm(rule, tmp_path, name,
+                                                                      damage):
+    results = _write(tmp_path)
+    _set(results / name, damage)
+    out = rule.evaluate(results)
+    _panel_refused(out)
+    # The noise floor is never computed from an exact arm's unverified rows.
+    assert (out["noise_floor"] is None) == name.startswith("train-bf16")
+
+
+@pytest.mark.parametrize("case", sorted(PANEL_CASES))
+def test_an_incomplete_or_inconsistent_panel_is_no_verdict(rule, tmp_path, case):
+    name, damage = PANEL_CASES[case]
+    results = _write(tmp_path)
+    _set(results / name, damage)
+    _panel_refused(rule.evaluate(results))
+
+
+@pytest.mark.parametrize("size", [1, 7, 64])
+def test_a_complete_panel_of_any_recorded_size_keeps_its_decision(rule, tmp_path, size):
+    """Completeness follows each arm's recorded protocol, not a fixed panel size; rows
+    that score no token are valid and weigh nothing."""
+    panel = [(5 * index, 0 if index % 6 == 5 else 3 + index % 4) for index in range(size)]
+    out = rule.evaluate(_write(tmp_path, panel=panel))
+    assert out["validity"]["V16_panel_complete"]["ok"] is True, out["validity"]
+    assert out["verdict"] == "PASS: int8, fp8_e4m3"
+    assert out["codecs"]["fp8_e4m3"]["gates"]["Q1"]["delta"] == pytest.approx(0.002)
+
+
+def test_a_panel_that_scores_no_token_is_no_verdict(rule, tmp_path):
+    _panel_refused(rule.evaluate(_write(tmp_path, panel=[(row, 0) for row in range(6)])))
+
+
+def test_the_task_loss_check_allows_rounding_and_nothing_more(rule, tmp_path):
+    """A recorded task loss one ulp off its recomputation is rounding; 1e-9 relative,
+    far inside the Q1 margin, is not."""
+    results = _write(tmp_path)
+    arm = results / "train-fp8_e4m3-seed1.json"
+    _set(arm, _final_field("task_loss", lambda t: math.nextafter(t, math.inf)))
+    assert rule.evaluate(results)["validity"]["V16_panel_complete"]["ok"] is True
+    _set(arm, _final_field("task_loss", lambda t: t * (1 + 1e-9)))
+    _panel_refused(rule.evaluate(results))
+
+
+def test_paired_bootstrap_never_pairs_a_repeated_row(rule):
+    exact = [{"row": r, "nll": 10.0 + (r % 3), "tokens": 10} for r in range(30)]
+    repeated = copy.deepcopy(exact)
+    repeated[-1] = copy.deepcopy(repeated[0])
+    assert rule.paired_bootstrap(exact, repeated) is None
+    assert rule.paired_bootstrap(repeated, exact) is None
+
+
+# --------------------------------------------------------------------------
+# V17: Q3 compares the same questions out of the same n
+# --------------------------------------------------------------------------
+SUITES_RECORDS = tuple(name.replace("train-", "suites-") for name in ARMS)
+
+
+def _mmlu(record):
+    return record["suites"]["mini_mmlu"]
+
+
+def _restate_counts(entry):
+    entry["n"] = len(entry["items"])
+    entry["correct"] = sum(item["correct"] for item in entry["items"])
+
+
+def _extra_wrong_items(record):
+    """The review's reproduction: 26 more mini_mmlu items, all wrong, n 26 -> 52, the
+    correct count unchanged and consistent."""
+    entry = _mmlu(record)
+    entry["items"] += [{"question": f"extra {index}?", "answer": "A", "output": "",
+                        "correct": False} for index in range(26)]
+    entry["n"] = len(entry["items"])
+
+
+def _items_twice(record):
+    """Every mini_mmlu item scored a second time, wrong; n doubled, correct unchanged."""
+    entry = _mmlu(record)
+    entry["items"] += [{**copy.deepcopy(item), "output": "", "correct": False}
+                       for item in entry["items"]]
+    entry["n"] = len(entry["items"])
+
+
+def _item(index, key, value):
+    return lambda record: _mmlu(record)["items"][index].__setitem__(key, value)
+
+
+def _entry(change):
+    def damage(record):
+        change(_mmlu(record))
+    return damage
+
+
+SUITE_CASES = {
+    "every item scored twice": ("suites-bf16-seed2.json", _items_twice),
+    "a missing item, counts restated": ("suites-fp8_e4m3-seed1.json", _entry(
+        lambda e: (e["items"].pop(20), _restate_counts(e)))),
+    "a missing item, n kept": ("suites-bf16-seed1.json", _entry(lambda e: e["items"].pop(20))),
+    "an extra item, counts restated": ("suites-int8-seed1.json", _entry(lambda e: (
+        e["items"].append({"question": "new?", "answer": "B", "output": "B", "correct": True}),
+        _restate_counts(e)))),
+    "an item replaced by a repeat": ("suites-bf16-seed2.json", _entry(
+        lambda e: e["items"].__setitem__(20, copy.deepcopy(e["items"][21])))),
+    "a substituted question, same n": ("suites-fp8_e4m3-seed1.json",
+                                       _item(20, "question", "another question?")),
+    "a substituted answer, same n": ("suites-bf16-seed2.json", _item(20, "answer", "another")),
+    "n off its table": ("suites-int8-seed1.json", _entry(lambda e: e.__setitem__("n", 27))),
+    "n a string": ("suites-bf16-seed1.json", _entry(lambda e: e.__setitem__("n", "26"))),
+    "correct off its table": ("suites-fp8_e4m3-seed1.json",
+                              _entry(lambda e: e.__setitem__("correct", e["correct"] - 1))),
+    "no item table": ("suites-bf16-seed2.json", _entry(lambda e: e.pop("items"))),
+    "an empty item table": ("suites-int8-seed1.json", _entry(
+        lambda e: e.update(items=[], n=0, correct=0))),
+    "items not a list": ("suites-fp8_e4m3-seed1.json",
+                         _entry(lambda e: e.__setitem__("items", {}))),
+    "an item's score not a bool": ("suites-bf16-seed1.json", _item(0, "correct", 1)),
+    "an item without its question": ("suites-bf16-seed2.json",
+                                     lambda r: _mmlu(r)["items"][0].pop("question")),
+    "a suite missing": ("suites-fp8_e4m3-seed1.json",
+                        lambda r: r["suites"].pop("mini_arithmetic")),
+}
+
+
+def _suites_refused(out):
+    assert out["verdict"] == "NO VERDICT"
+    for codec in ("int8", "fp8_e4m3"):
+        assert out["codecs"][codec]["verdict"] == "no verdict"
+        assert _status(out, codec, "Q3") == "no verdict"
+    assert out["validity"]["V17_suite_items"]["ok"] is False, out["validity"]
+
+
+@pytest.mark.parametrize("name", SUITES_RECORDS)
+def test_the_reviews_extra_suite_items_are_no_verdict_in_every_record(rule, tmp_path, name):
+    results = _write(tmp_path)
+    _set(results / name, _extra_wrong_items)
+    _suites_refused(rule.evaluate(results))
+
+
+@pytest.mark.parametrize("case", sorted(SUITE_CASES))
+def test_suite_tables_that_differ_or_disagree_with_their_counts_are_no_verdict(rule, tmp_path,
+                                                                               case):
+    name, damage = SUITE_CASES[case]
+    results = _write(tmp_path)
+    _set(results / name, damage)
+    _suites_refused(rule.evaluate(results))
+
+
+def test_outputs_scores_and_order_may_differ_between_arms(rule, tmp_path):
+    """An item is its recorded question and answer: the model's output and score differ
+    between arms by design."""
+    record = _suites("fp8_e4m3", 1, mini_mmlu=14)
+    _mmlu(record)["items"].reverse()
+    out = rule.evaluate(_write(tmp_path, suites={"suites-fp8_e4m3-seed1.json": record}))
+    assert out["validity"]["V17_suite_items"]["ok"] is True, out["validity"]
+    assert _status(out, "fp8_e4m3", "Q3") == "pass"
+    assert out["codecs"]["fp8_e4m3"]["gates"]["Q3"]["suites"]["mini_mmlu"]["drop"] == 1
+
+
+def test_suites_of_another_size_keep_their_decision(rule, tmp_path):
+    sizes = {"mini_mmlu": 5, "mini_common_sense": 3, "mini_instruction": 9, "mini_arithmetic": 7}
+    scores = {"mini_mmlu": 3, "mini_common_sense": 2, "mini_instruction": 4, "mini_arithmetic": 5}
+    suites = {name: _suites(*key, sizes=sizes, **scores) for name, key in (
+        ("suites-bf16-seed1.json", ("bf16", 1)), ("suites-int8-seed1.json", ("int8", 1)),
+        ("suites-fp8_e4m3-seed1.json", ("fp8_e4m3", 1)), ("suites-bf16-seed2.json", ("bf16", 2)))}
+    out = rule.evaluate(_write(tmp_path, suites=suites))
+    assert out["validity"]["V17_suite_items"]["ok"] is True, out["validity"]
+    assert out["verdict"] == "PASS: int8, fp8_e4m3"
+    rows = out["codecs"]["fp8_e4m3"]["gates"]["Q3"]["suites"]
+    assert {name: row["n"] for name, row in rows.items()} == sizes
+
+
+@pytest.mark.parametrize("record, damage", [
+    ("train-fp8_e4m3-seed1.json", _keep_first),
+    ("suites-fp8_e4m3-seed1.json", _extra_wrong_items),
+], ids=["panel", "suite items"])
+def test_a_proven_error_fail_survives_a_damaged_quality_record(rule, tmp_path, record, damage):
+    """int8 fails E2 on a complete error experiment: it stays FAIL whatever a damaged
+    quality record shows, and fp8, which needs that record, has no verdict."""
+    error = _error()
+    error["records"][-1]["codecs"]["int8"][3]["branch"]["rms_row_rel"] = 0.12
+    results = _write(tmp_path, error=error)
+    _set(results / record, damage)
+    out = rule.evaluate(results)
+    assert out["codecs"]["int8"]["verdict"] == "fail"
+    assert out["codecs"]["fp8_e4m3"]["verdict"] == "no verdict"
+    assert out["verdict"] == "NO VERDICT"
+
+
+# --------------------------------------------------------------------------
+# the published GPU run (benchmarks/results/g4-rtx3090-20261024)
+# --------------------------------------------------------------------------
+PUBLISHED = Path(__file__).resolve().parents[1] / "benchmarks" / "results" / "g4-rtx3090-20261024"
+#: The parity rows of the GPU run (g4_probe.py --parity-rows, default 16).
+RUN_PARITY_ROWS = 16
+
+
+def test_the_published_run_replays_with_every_number_unchanged(rule):
+    """V16 and V17 hold on the run's own inputs and change nothing else in the replay."""
+    out = json.loads(json.dumps(rule.evaluate(PUBLISHED / "inputs")))
+    added = {name: out["validity"].pop(name) for name in ("V16_panel_complete",
+                                                          "V17_suite_items")}
+    assert all(row["ok"] for row in added.values()), added
+    assert out["verdict"] == "PASS: fp8_e4m3"
+    replay = json.loads((PUBLISHED / "verdict-v15-replay.json").read_text(encoding="utf-8"))
+    assert out == replay
+
+
+PUBLISHED_CASES = {
+    "only the parity rows": ("train-fp8_e4m3-seed1.json",
+                             lambda arm: _keep_first(arm, RUN_PARITY_ROWS), "V16_panel_complete"),
+    "stale task loss": ("train-fp8_e4m3-seed1.json",
+                        lambda arm: _one_nat_per_token_more(arm, RUN_PARITY_ROWS),
+                        "V16_panel_complete"),
+    "26 extra wrong mini_mmlu items": ("suites-fp8_e4m3-seed1.json", _extra_wrong_items,
+                                       "V17_suite_items"),
+    "mini_mmlu scored twice": ("suites-fp8_e4m3-seed1.json", _items_twice, "V17_suite_items"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(PUBLISHED_CASES))
+def test_the_reviews_reproductions_on_the_published_run_are_no_verdict(rule, tmp_path, case):
+    name, damage, row = PUBLISHED_CASES[case]
+    results = Path(shutil.copytree(PUBLISHED / "inputs", tmp_path / "inputs"))
+    _set(results / name, damage)
+    out = rule.evaluate(results)
+    assert out["verdict"] == "NO VERDICT"
+    assert out["codecs"]["fp8_e4m3"]["verdict"] == "no verdict"
+    assert out["codecs"]["int8"]["verdict"] == "fail"  # E2 and E3 still fail it
+    assert out["validity"][row]["ok"] is False, out["validity"][row]
 
 # --------------------------------------------------------------------------
 # informational sections

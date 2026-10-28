@@ -5,8 +5,8 @@ point of it: a rule written after the numbers are in is not a rule.
 
 Measured at commit b195da29 of a local research branch (cut from origin/main fdf067fc; not
 published, kept locally with the raw run). This pull request carries the harness, the rule
-with its post-run V15 fix and the compact GPU record on current origin/main. src/ is
-unchanged; everything is under benchmarks/ and tests/.
+with its post-run V15, V16 and V17 fixes and the compact GPU record on current origin/main.
+src/ is unchanged; everything is under benchmarks/ and tests/.
 Harness: benchmarks/harness/g4_activation_codec.py (codecs, error metrics, the store),
 g4_data.py (pinned Dolly, C5's split, packing), g4_probe.py (error / train / suites / timing
 modes), g4_timing.py (A-B-B-A driver), g4_rule.py (the verdict from the JSON alone),
@@ -16,9 +16,11 @@ benchmarks/g4-run.sh (the GPU runbook).
 # Probe: G4, compressed L2L boundary activations (int8 / FP8 e4m3 with per-row scales)
 
 **Status: GPU run done 2026-10-24 (commit `b195da29`, one RTX 3090), verdict `PASS: fp8_e4m3`,
-int8 FAIL (§8).** The rule in §3 was fixed and committed before the first GPU arm. The
-2026-10-25 analyzer fix (§3.4 V15) adds completeness and finiteness checks and leaves the
-result unchanged. The CPU pilot in §9 is labelled SYNTHETIC/CPU PILOT and gives no verdict.
+int8 FAIL (§8).** The rule in §3 was fixed and committed before the first GPU arm. Two
+post-run analyzer fixes add input checks and leave the result unchanged: 2026-10-25 (§3.4 V15,
+completeness and finiteness of the error experiment) and 2026-10-29 (§3.4 V16 and V17, the
+held-out panel and the suite item tables behind Q1-Q3). The CPU pilot in §9 is labelled
+SYNTHETIC/CPU PILOT and gives no verdict.
 
 ---
 
@@ -279,7 +281,8 @@ CLI then prints `NO VERDICT`.
   exact L2L on the same micro-batches. global_rel_l2 = `||g_c - g||` over all tensors
   concatenated, divided by `||g||`; per-tensor cosine and relative L2.
 - **Task loss** TL(arm) = token-weighted response NLL over the 512-example panel after the
-  last step.
+  last step: the sum of the panel rows' NLL over the sum of their scored tokens. The rule
+  recomputes it from `final.per_example` (V16) and gates Q1 and the noise floor on that value.
 
 ### 3.2 Error gates (per candidate codec, from `error.json`)
 
@@ -327,12 +330,24 @@ Noise floor, from the two exact arms: noise = |TL(bf16 seed 2) − TL(bf16 seed 
 | V13 base parity | for every suites record: the live adapter equals its saved file (0 mismatched of > 0 tensors); its parity rows exist in the training arm's `final.per_example` with equal token counts; and \|TL_resident − TL_streamed\| / TL_streamed ≤ 0.0025 (= 0.005 / 2, half the Q1 floor) over those rows, both recomputed by the rule from per-example NLL |
 | V14 error linked | `error.json` records its experiment config, and it and every training arm share the harness hashes, git commit, package versions, GPU, model-file hashes, Dolly file and split digests, and the streamed setup (`k`, `seq`, LoRA rank/alpha/dropout/targets, `quant`, `tier`, `dtype`, `deterministic`, model revision, device); E1-E3 and Q1-Q3 are then about one experiment |
 | V15 error complete | (added 2026-10-25, after the GPU run, see below) the expected counts come from the run's own recorded protocol (`args.error_sets`, `n_layers`, `chunk_shape`, `config.k`), never from the arrays that survived: set ids exactly 0..sets-1; per codec (int8, fp8, int4) the layers exactly 0..n_layers-1, each merged over sets x k x tokens-per-chunk rows for restore, branch and output; per set, the three exact controls compare one tensor count and every codec's gradient agreement covers that many tensors (count and per-tensor table), with the same tensor names everywhere and a `min_cosine` equal to the smallest per-tensor cosine; every metric E1-E3 and V4 read is a finite number. Any failure: E1-E3 read no verdict with the reason, never pass |
+| V16 panel complete | (added 2026-10-29, after the GPU run, see below) in each of the four training arms, the held-out panel is the one the arm recorded encoding (`meta.data.panel_examples` rows scoring `panel_response_tokens` tokens), never the rows that survived: `final.per_example` has exactly that many rows, `final.examples` and `final.tokens` equal the protocol, every row has a non-negative integer row id (unique) and token count (a bool is not a count) and a finite non-negative NLL (0 on a row that scores no token: g4_data keeps a row whose prompt fills the window, four in the GPU run), the panel scores at least one token, and `final.task_loss` equals the rows' recomputed token-weighted NLL up to float summation order ((rows + 1) x eps relative, 1.1e-13 at 512 rows; not a quality margin). Every arm holds the same row ids with the same token counts. Only verified rows reach Q1, the noise floor and the paired bootstrap; any failure: Q1 and the verdict read no verdict, a record is never repaired |
+| V17 suite items | (added 2026-10-29, after the GPU run, see below) in each of the four suites records, every gating suite has a non-empty item table of scored items (question, expected answer and output strings, a bool `correct`), no (question, answer) twice, `n` = the number of items and `correct` = the items marked correct; and all four records, bf16 seed 2 included, score the same set of (question, answer) items, hence the same n. An item's identity is its recorded question and answer, never the output or its score; records are compared with each other, never with today's bundled suites. Any failure: Q3 and the verdict read no verdict |
 
 V15 closes a hole the post-run audit found: E1-E3 aggregated with `max`/`min`, which skip a NaN
 that is not the first value, so a NaN in the second error set could pass E3; a dropped set, a
 missing or duplicated layer or a partial gradient table also passed. No threshold changed.
 Replayed on the unchanged raw files of the GPU run, V15 holds and every gate number, gate
 status and the verdict are identical (§8).
+
+V16 and V17 close two holes in the quality inputs found in the review of this pull request
+(2026-10-28), after the GPU run. V7 only checked that `final.task_loss` was finite and Q1 and
+the noise floor read that scalar, so on the run's own files a training arm cut to its first 16
+panel rows, or one whose rows outside those 16 carry 1 nat per token more (recomputed loss
+2.394 against the recorded 1.4185), still gave `PASS: fp8_e4m3`; V13 only reads the 16 parity
+rows. V12 checked each record's counts on their own and Q3 compared raw correct counts, so 26
+wrong items added to fp8's `mini_mmlu` with `n` 52 also passed, shown as 25/26 against the
+exact arm's n. No threshold, margin, noise floor or bootstrap setting changed. Replayed on the
+unchanged raw files, V16 and V17 hold and everything else in the replay is identical (§8).
 
 ### 3.5 Informational (never changes a verdict)
 
@@ -502,15 +517,27 @@ that is not a GPU equivalence. From this branch on, each record also hashes the 
 `soup_cli/utils/l2l_step.py`, `l2l_rng.py` and `l2l_activations.py` (from the imported
 package), not only the harness wrappers. The GPU numbers below are those of `b195da29`.
 
-**Verdict: `PASS: fp8_e4m3`.** int8 FAILS on E2 and E3. V1-V15 all hold.
+**Verdict: `PASS: fp8_e4m3`.** int8 FAILS on E2 and E3. V1-V15 all hold; V16 and V17, added
+after the run, hold in the second replay below.
 
-**Reanalysis 2026-10-25** with the fixed analyzer (V15; local commit `4dd530da`, the same
-`g4_rule.py` as in this pull request), on
+**Reanalysis 2026-10-25** with the V15 analyzer (local commit `4dd530da`; its `g4_rule.py` is
+the one this pull request carried up to `7c822254`, before the 2026-10-29 fix), on
 the unchanged raw files (`sha256.txt` re-verified, 125 files), written to a new
 file beside the original, which is kept: V15 holds (2 error sets of 4 micro-batches, all 32
 decoder layers for int8, fp8 and int4, 4096 rows per layer, 256 gradient tensors in every
 comparison, every metric finite). Every validity row, every gate status, every gate number, the
 noise floor, memory and timing sections and the overall verdict are identical to the original.
+
+**Reanalysis 2026-10-29** with the V16/V17 analyzer (this pull request's current `g4_rule.py`),
+CPU only, on the published inputs (SHA-256 equal to `provenance.json` before and after),
+written to `verdict-v17-replay.json` / `.log` beside the two earlier verdicts, which are kept.
+V16 holds (4 arms x 512 panel rows, 41990 scored tokens, 4 rows that score none, the same rows
+in every arm, every recorded task loss equal to its recomputation) and V17 holds (the four
+records score the same 26 / 24 / 24 / 40 items, `n` and `correct` agree with every item
+table). Against `verdict-v15-replay.json` the only difference is the two added validity rows
+(`compare-v15-vs-v17.txt`): every other row, every gate status and number, the noise floor,
+bootstrap, memory, timing, bounds and the verdict are identical. No GPU session was run for it;
+the GPU numbers remain those measured at `b195da29`.
 
 | codec | E1 restore | E2 one recompute | E3 gradients | Q1 task loss | Q2 curve | Q3 suites | result |
 |---|---|---|---|---|---|---|---|
@@ -664,9 +691,10 @@ compress 0.24 ms, restore 0.14 ms; fp8 0.31 / 0.26 ms; int4 0.48 / 0.36 ms. Payl
 - `benchmarks/results/g4-rtx3090-20261024/`: the compact record of the GPU run (§8): the
   inputs `g4_rule.py` reads (absolute host paths replaced by `<work>` / `<hf-cache>`;
   `provenance.json` lists each file's original and published SHA-256, and the published
-  inputs reproduce the replay exactly), the run's own `verdict-b195da29.json` and log, the V15
-  replay and the comparison of the two. Timing run logs, step logs and the adapters stay with
-  the raw run.
+  inputs reproduce the replays exactly), the run's own `verdict-b195da29.json` and log, the
+  V15 replay and its comparison with the original, and the V16/V17 replay
+  (`verdict-v17-replay.*`) and its comparison with the V15 replay. Timing run logs, step logs
+  and the adapters stay with the raw run.
 - The CPU pilot and review evidence of §9 and §11 are not published; they are kept locally.
 
 ## 11. Acceptance review, 2026-10-22 (CPU only, SYNTHETIC/CPU PILOT)
@@ -754,3 +782,26 @@ not from its table, an unrecorded protocol), that counts follow the recorded pro
 than fixed 32 / 256, and that complete finite data keeps its decision. On the analyzer of
 `b195da29` the same cases gave `PASS` (fp8 or both), `fail` or raised. The replay of the GPU
 run is in §8.
+
+Post-run analyzer fix, 2026-10-29 (CPU only; no GPU session, nothing re-trained; the GPU
+numbers are those measured at `b195da29`, on the computation path of that commit). The review
+of this pull request at `7c822254` reproduced on copies of the run's own inputs that the
+quality gates trusted unverified aggregates: an fp8 arm cut to its first 16 panel rows, an
+fp8 arm whose NLL outside those rows was raised by 1 nat per token with `final.task_loss`
+kept, and an fp8 `mini_mmlu` table with 26 extra wrong items and `n` 52 each left
+`PASS: fp8_e4m3`. V16 and V17 (§3.4) now verify the panel and the suite item tables of all four
+arms, bf16 seed 2 included, before Q1, the noise floor, the paired bootstrap and Q3 read them;
+Q1 and the noise floor use the task loss recomputed from the verified rows. These checks did
+not exist when the run was made. No threshold, margin, noise floor rule or bootstrap setting
+changed. `tests/test_g4_rule.py` covers the three reproductions in every arm and on copies of
+the published inputs; a missing, repeated or foreign panel row, a token moved between rows,
+non-integer, bool or negative row ids and token counts, NaN, Inf, string or negative NLL, NLL on
+a row that scores no token, `final.examples` / `tokens` / `task_loss` off the rows, an
+unrecorded protocol; missing, extra, repeated and substituted suite items and answers,
+`n` / `correct` off their table, a missing or empty item table and a missing suite; that
+valid zero-token rows, other panel sizes (1, 7, 64 rows) and other suite sizes keep their
+decision; that a one-ulp task-loss difference is accepted and 1e-9 relative is not; and that
+int8's error-gate FAIL survives a damaged quality record while fp8 loses its PASS. On the
+analyzer of `7c822254`, 44 of these 49 damaged synthetic inputs kept `PASS`; the other five (a
+stale task loss of the exact arm, a missing task loss, no per-example table, a non-integer
+`n`, a missing suite) already gave NO VERDICT through V7, V11, V12 or V13.

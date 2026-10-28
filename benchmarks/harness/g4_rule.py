@@ -28,6 +28,7 @@ import math
 import random
 import statistics
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -153,6 +154,17 @@ def _finite(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
+def _count(value: Any) -> bool:
+    """A non-negative integer; a bool is not a count."""
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _listed(problems: Sequence[str]) -> str:
+    """The first eight problems, then how many more."""
+    shown = list(problems[:8]) + ([f"... {len(problems) - 8} more"] if len(problems) > 8 else [])
+    return "; ".join(shown)
+
+
 #: The per-layer metrics E1, E2 and V4 read, per codec and layer.
 LAYER_METRICS = (("restore", "rms_row_rel"), ("restore", "worst_row_rel"),
                  ("restore", "max_abs_over_absmax"), ("branch", "rms_row_rel"),
@@ -261,8 +273,7 @@ def completeness_row(error: Optional[Dict[str, Any]]) -> Dict[str, Any]:
                     problems.append(f"layers {codec} layer {row.get('layer')}: {part} merged "
                                     f"{count!r} rows, expected {want['rows_per_layer']}")
     if problems:
-        shown = problems[:8] + ([f"... {len(problems) - 8} more"] if len(problems) > 8 else [])
-        return _row(False, "; ".join(shown))
+        return _row(False, _listed(problems))
     return _row(True, f"{want['sets']} sets x {len(ERROR_CODECS)} codecs, {want['n_layers']} "
                       f"layers each, {want['rows_per_layer']} rows per layer, gradient tensor "
                       f"counts equal to the exact control, every metric finite")
@@ -503,13 +514,135 @@ def _tail(log: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return list(log[start:])
 
 
+# -- the held-out panel (V16; added 2026-10-29, after the GPU run) ---------------
+def _task_loss(per_example: Sequence[Dict[str, Any]]) -> Optional[float]:
+    tokens = sum(int(ex["tokens"]) for ex in per_example)
+    return sum(float(ex["nll"]) for ex in per_example) / tokens if tokens else None
+
+
+def _rounding_bound(rows: int) -> float:
+    """The relative difference allowed between a recorded task loss and the rule's
+    recomputation of it over ``rows`` examples. Float arithmetic, not a quality margin: in
+    any order, a recursive float64 sum of n non-negative terms has a relative error of at
+    most (n - 1) u to first order (u = eps / 2), and the division adds u, so two evaluations
+    that differ only in summation order differ by less than (n + 1) eps, relative. The rule
+    sums in the record's own order with the probe's own expression, so a faithful record
+    reproduces its value exactly; the bound only admits another order. 512 rows: 1.1e-13,
+    against the 5e-3 Q1 floor, which it never touches."""
+    return (rows + 1) * sys.float_info.epsilon
+
+
+def _panel_entry(ex: Any) -> bool:
+    """A panel row as panel_nll writes it: an integer row id, a non-negative integer token
+    count and a finite non-negative NLL, 0 when no token is scored (a prompt that fills the
+    window scores none, and g4_data keeps such rows)."""
+    return (isinstance(ex, dict) and _count(ex.get("row")) and _count(ex.get("tokens"))
+            and _finite(ex.get("nll")) and ex["nll"] >= 0
+            and (ex["tokens"] > 0 or ex["nll"] == 0))
+
+
+def _panel(name: str, payload: Optional[Dict[str, Any]]
+           ) -> Tuple[List[str], Optional[List[Dict[str, Any]]]]:
+    """One arm's held-out panel against the arm's own recorded protocol
+    (``meta.data.panel_examples`` and ``panel_response_tokens``, written when the panel was
+    encoded), never against the length of whatever rows survived: the problems, and the
+    rows when there are none."""
+    if payload is None or payload.get("unreadable"):
+        return [f"{name}: missing or unreadable"], None
+    data = (payload.get("meta") or {}).get("data")
+    data = data if isinstance(data, dict) else {}
+    examples, tokens = data.get("panel_examples"), data.get("panel_response_tokens")
+    if not (_count(examples) and examples > 0 and _count(tokens) and tokens > 0):
+        return [f"{name}: the panel protocol is not recorded or empty "
+                f"(meta.data.panel_examples {examples!r}, panel_response_tokens {tokens!r})"], None
+    final = payload.get("final")
+    rows = final.get("per_example") if isinstance(final, dict) else None
+    if not isinstance(rows, list):
+        return [f"{name}: no final.per_example table"], None
+    problems = []
+    if len(rows) != examples:
+        problems.append(f"{name}: {len(rows)} panel rows, the protocol has {examples}")
+    for key, want in (("examples", examples), ("tokens", tokens)):
+        if not (_count(final.get(key)) and final[key] == want):
+            problems.append(f"{name}: final.{key} {final.get(key)!r}, the protocol has {want}")
+    bad = [index for index, ex in enumerate(rows) if not _panel_entry(ex)]
+    if bad:
+        problems.append(f"{name}: {len(bad)} malformed panel rows, first {rows[bad[0]]!r:.80}")
+        return problems, None
+    repeated = sorted(row for row, seen in Counter(ex["row"] for ex in rows).items() if seen > 1)
+    if repeated:
+        problems.append(f"{name}: repeated panel row ids {repeated[:4]}")
+    scored = sum(ex["tokens"] for ex in rows)
+    if scored != tokens:
+        problems.append(f"{name}: the rows score {scored} tokens, the protocol has {tokens}")
+    if scored:
+        recomputed = _task_loss(rows)
+        recorded = final.get("task_loss")
+        if not (_finite(recorded)
+                and abs(recorded - recomputed) <= _rounding_bound(len(rows)) * recomputed):
+            problems.append(f"{name}: final.task_loss {recorded!r} is not its rows' "
+                            f"token-weighted NLL {recomputed!r}")
+    return problems, (None if problems else rows)
+
+
+def verified_panels(arms: Dict[str, Optional[Dict[str, Any]]]
+                    ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[str]]:
+    """Every training arm's panel checked on its own (``_panel``), then against the exact
+    arm's (or the first sound one's): the same row ids with the same token counts. Returns
+    the rows of each arm that passes both, and the problems. Only these rows reach the noise
+    floor, Q1 and the paired bootstrap, which therefore never pair a subset of rows or a
+    row a repeated id overwrote."""
+    own: Dict[str, List[Dict[str, Any]]] = {}
+    problems: List[str] = []
+    for name in ARM_IDENTITY:
+        found, rows = _panel(name, arms.get(name))
+        problems += found
+        if rows is not None:
+            own[name] = rows
+    verified: Dict[str, List[Dict[str, Any]]] = {}
+    reference = next(iter(own), None)
+    if reference is not None:
+        want = {ex["row"]: ex["tokens"] for ex in own[reference]}
+        for name, rows in own.items():
+            have = {ex["row"]: ex["tokens"] for ex in rows}
+            if have == want:
+                verified[name] = rows
+                continue
+            ids = len(set(have) ^ set(want))
+            counts = sum(1 for row in set(have) & set(want) if have[row] != want[row])
+            problems.append(f"{name}: panel differs from {reference} ({ids} row ids not in "
+                            f"both, {counts} rows with other token counts)")
+    return verified, problems
+
+
+def panel_row(arms: Dict[str, Optional[Dict[str, Any]]]) -> Dict[str, Any]:
+    """V16: every arm's held-out panel is complete and consistent (``verified_panels``), so
+    Q1 and its noise floor read the token-weighted NLL of the whole recorded panel. A row
+    count, row id, token count, NLL, ``final.examples`` / ``final.tokens`` or
+    ``final.task_loss`` that disagrees with the recorded protocol or with the other arms
+    fails the row: no verdict, never a pass, and never silently repaired."""
+    verified, problems = verified_panels(arms)
+    if problems:
+        return _row(False, _listed(problems))
+    rows = next(iter(verified.values()))
+    empty = sum(1 for ex in rows if not ex["tokens"])
+    return _row(True, f"{len(verified)} arms x {len(rows)} panel rows as recorded, unique ids, "
+                      f"the same rows and token counts in every arm "
+                      f"({sum(ex['tokens'] for ex in rows)} scored tokens; {empty} rows score "
+                      f"none); every final.task_loss is its rows' token-weighted NLL")
+
+
 def noise_floor(arms: Dict[str, Optional[Dict[str, Any]]]) -> Optional[Dict[str, float]]:
     exact = arms.get(_arm_name(EXACT, MAIN_SEED))
     noise = arms.get(_arm_name(EXACT, NOISE_SEED))
     if not exact or not noise:
         return None
-    tl_exact = exact["final"]["task_loss"]
-    tl_noise = noise["final"]["task_loss"]
+    panels, _problems = verified_panels(arms)
+    exact_rows = panels.get(_arm_name(EXACT, MAIN_SEED))
+    noise_rows = panels.get(_arm_name(EXACT, NOISE_SEED))
+    if exact_rows is None or noise_rows is None:
+        return None
+    tl_exact, tl_noise = _task_loss(exact_rows), _task_loss(noise_rows)
     tail_a, tail_b = _tail(exact["log"]), _tail(noise["log"])
     if not tail_a or len(tail_a) != len(tail_b):
         return None
@@ -529,8 +662,11 @@ def paired_bootstrap(exact: Sequence[Dict[str, Any]], other: Sequence[Dict[str, 
     """95% interval of task loss(other) - task loss(exact), resampling panel examples
     whole (seed 17, 2000 resamples). Informational: panel sampling, not training noise."""
     by_row = {ex["row"]: ex for ex in exact}
-    pairs = [(by_row[ex["row"]], ex) for ex in other if ex["row"] in by_row]
-    if not pairs or len(pairs) != len(exact):
+    if (len(by_row) != len(exact) or len(other) != len(exact)
+            or {ex["row"] for ex in other} != set(by_row)):
+        return None
+    pairs = [(by_row[ex["row"]], ex) for ex in other]
+    if not pairs:
         return None
     rng = random.Random(BOOTSTRAP_SEED)
     n = len(pairs)
@@ -550,18 +686,23 @@ def paired_bootstrap(exact: Sequence[Dict[str, Any]], other: Sequence[Dict[str, 
 
 def quality_gates(arms: Dict[str, Optional[Dict[str, Any]]], codec: str,
                   floor: Optional[Dict[str, float]]) -> Dict[str, Dict[str, Any]]:
-    exact = arms.get(_arm_name(EXACT, MAIN_SEED))
-    cand = arms.get(_arm_name(codec, MAIN_SEED))
+    exact_name, cand_name = _arm_name(EXACT, MAIN_SEED), _arm_name(codec, MAIN_SEED)
+    exact, cand = arms.get(exact_name), arms.get(cand_name)
     if not exact or not cand or floor is None:
         return {"Q1": _gate(NONE, "arm or noise floor missing"),
                 "Q2": _gate(NONE, "arm or noise floor missing")}
-    delta = cand["final"]["task_loss"] - exact["final"]["task_loss"]
-    interval = paired_bootstrap(exact["final"]["per_example"], cand["final"]["per_example"])
-    q1 = _gate(PASS if delta <= floor["task_loss_margin"] else FAIL,
-               f"task loss {cand['final']['task_loss']:.6f} vs exact "
-               f"{exact['final']['task_loss']:.6f}: delta {delta:+.6f}, margin "
-               f"{floor['task_loss_margin']:.6f}", delta=delta,
-               margin=floor["task_loss_margin"], panel_bootstrap_95=interval)
+    panels, _problems = verified_panels(arms)
+    unverified = [name for name in (exact_name, cand_name) if name not in panels]
+    if unverified:
+        q1 = _gate(NONE, f"V16: the panel of {unverified} is not verified")
+    else:
+        tl_exact, tl_cand = _task_loss(panels[exact_name]), _task_loss(panels[cand_name])
+        delta = tl_cand - tl_exact
+        interval = paired_bootstrap(panels[exact_name], panels[cand_name])
+        q1 = _gate(PASS if delta <= floor["task_loss_margin"] else FAIL,
+                   f"task loss {tl_cand:.6f} vs exact {tl_exact:.6f}: delta {delta:+.6f}, "
+                   f"margin {floor['task_loss_margin']:.6f}", delta=delta,
+                   margin=floor["task_loss_margin"], panel_bootstrap_95=interval)
     tail_e, tail_c = _tail(exact["log"]), _tail(cand["log"])
     if not tail_e or len(tail_e) != len(tail_c):
         q2 = _gate(NONE, "curves of different length")
@@ -610,9 +751,98 @@ def suites_validity(arms: Dict[str, Optional[Dict[str, Any]]],
     return _row(not problems, "; ".join(problems) or "four suites records, adapters match")
 
 
-def _task_loss(per_example: Sequence[Dict[str, Any]]) -> Optional[float]:
-    tokens = sum(int(ex["tokens"]) for ex in per_example)
-    return sum(float(ex["nll"]) for ex in per_example) / tokens if tokens else None
+# -- the suites' item tables (V17; added 2026-10-29, after the GPU run) -----------
+#: The four suites records, in the order of their training arms.
+SUITES_RECORDS = tuple(name.replace("train-", "suites-") for name in ARM_IDENTITY)
+
+
+def _suite_item(item: Any) -> bool:
+    """An item as score_suites writes it: the question and expected answer it scored, the
+    model's output, and Soup's ``score_answer`` verdict, a bool."""
+    return (isinstance(item, dict) and isinstance(item.get("question"), str)
+            and isinstance(item.get("answer"), str) and isinstance(item.get("output"), str)
+            and isinstance(item.get("correct"), bool))
+
+
+def _suite_table(where: str, entry: Any) -> Tuple[List[str], Optional[frozenset]]:
+    """One suite of one record against its own item table: the problems, and the item
+    identities (recorded question, expected answer) when there are none. ``n`` must be the
+    number of items and ``correct`` the number the items mark correct."""
+    items = entry.get("items") if isinstance(entry, dict) else None
+    if not isinstance(items, list) or not items:
+        return [f"{where}: no item table"], None
+    bad = [index for index, item in enumerate(items) if not _suite_item(item)]
+    if bad:
+        return [f"{where}: {len(bad)} malformed items, first {items[bad[0]]!r:.80}"], None
+    problems = []
+    keys = [(item["question"], item["answer"]) for item in items]
+    repeated = sum(1 for seen in Counter(keys).values() if seen > 1)
+    if repeated:
+        problems.append(f"{where}: {repeated} items scored more than once")
+    n, correct = entry.get("n"), entry.get("correct")
+    right = sum(item["correct"] for item in items)
+    if not (_count(n) and n == len(items)):
+        problems.append(f"{where}: n {n!r}, the table has {len(items)} items")
+    if not (_count(correct) and correct == right):
+        problems.append(f"{where}: correct {correct!r}, the table marks {right} correct")
+    return problems, (None if problems else frozenset(keys))
+
+
+def verified_suites(suites: Dict[str, Optional[Dict[str, Any]]]
+                    ) -> Tuple[Dict[str, Dict[str, Any]], List[str]]:
+    """Every suites record's four gating suites checked against their own item tables
+    (``_suite_table``), then against the exact arm's record (or the first sound one's): the
+    same questions with the same expected answers, hence the same sample counts. Item
+    identity is the recorded question and answer, never the output or its score, which may
+    differ between arms; the record is compared with the other arms, never with the
+    suites of today's code. Returns each record that passes both as {suite: entry}, and the
+    problems. Only these reach Q3."""
+    own: Dict[str, Dict[str, Any]] = {}
+    keys: Dict[str, Dict[str, frozenset]] = {}
+    problems: List[str] = []
+    for name in SUITES_RECORDS:
+        payload = suites.get(name)
+        if payload is None or payload.get("unreadable"):
+            problems.append(f"{name}: missing or unreadable")
+            continue
+        scored = payload.get("suites")
+        scored = scored if isinstance(scored, dict) else {}
+        found, tables = [], {}
+        for suite in SUITES:
+            more, table = _suite_table(f"{name} {suite}", scored.get(suite))
+            found += more
+            tables[suite] = table
+        problems += found
+        if not found:
+            own[name] = {suite: scored[suite] for suite in SUITES}
+            keys[name] = tables
+    verified: Dict[str, Dict[str, Any]] = {}
+    reference = next(iter(own), None)
+    for name in own:
+        differ = []
+        for suite in SUITES:
+            want, have = keys[reference][suite], keys[name][suite]
+            if have != want:
+                differ.append(f"{suite} ({len(have - want)} items not in {reference}, "
+                              f"{len(want - have)} of its items absent; n {len(have)} vs "
+                              f"{len(want)})")
+        if differ:
+            problems.append(f"{name}: other items than {reference}: " + ", ".join(differ))
+        else:
+            verified[name] = own[name]
+    return verified, problems
+
+
+def suite_items_row(suites: Dict[str, Optional[Dict[str, Any]]]) -> Dict[str, Any]:
+    """V17: every suites record scored the same complete item tables (``verified_suites``),
+    so Q3 compares correct counts of the same questions out of the same n."""
+    verified, problems = verified_suites(suites)
+    if problems:
+        return _row(False, _listed(problems))
+    sizes = ", ".join(f"{suite} {entry['n']}"
+                      for suite, entry in next(iter(verified.values())).items())
+    return _row(True, f"{len(verified)} records score the same questions and answers ({sizes}); "
+                      f"n and correct agree with every item table")
 
 
 def base_parity_validity(arms: Dict[str, Optional[Dict[str, Any]]],
@@ -662,17 +892,21 @@ def suite_gate(suites: Dict[str, Optional[Dict[str, Any]]], codec: str) -> Dict[
     items correctly than exact, with margin = max(SUITE_MIN_MARGIN, seed-to-seed
     difference of the exact arm in that suite). A suite the exact arm answers all
     right or all wrong is reported and not gated (C5, issue #1192)."""
-    exact = suites.get(_suites_name(EXACT, MAIN_SEED))
-    noise = suites.get(_suites_name(EXACT, NOISE_SEED))
-    cand = suites.get(_suites_name(codec, MAIN_SEED))
-    if not exact or not noise or not cand:
+    names = (_suites_name(EXACT, MAIN_SEED), _suites_name(EXACT, NOISE_SEED),
+             _suites_name(codec, MAIN_SEED))
+    if not all(suites.get(name) for name in names):
         return _gate(NONE, "suites record missing")
+    verified, _problems = verified_suites(suites)
+    unverified = [name for name in names if name not in verified]
+    if unverified:
+        return _gate(NONE, f"V17: the item tables of {unverified} are not verified")
     rows, failing = {}, []
     for name in SUITES:
-        e, n, c = (s["suites"][name] for s in (exact, noise, cand))
+        e, n, c = (verified[record][name] for record in names)
         margin = max(SUITE_MIN_MARGIN, abs(n["correct"] - e["correct"]))
         gating = 0 < e["correct"] < e["n"]
         drop = e["correct"] - c["correct"]
+        # V17: the three tables hold the same items, so one n is every arm's n.
         rows[name] = {"exact": e["correct"], "noise_seed": n["correct"], "codec": c["correct"],
                       "n": e["n"], "drop": drop, "margin": margin, "gating": gating}
         if gating and drop > margin:
@@ -767,6 +1001,10 @@ def evaluate(results: Path) -> Dict[str, Any]:
         ("V13",), lambda a, s: {"V13": base_parity_validity(a, s)}, arms, suites)["V13"]
     validity["V14_error_linked"] = _rows_or_fail(
         ("V14",), lambda e, a: {"V14": linkage_row(e, a)}, error, arms)["V14"]
+    validity["V16_panel_complete"] = _rows_or_fail(
+        ("V16",), lambda a: {"V16": panel_row(a)}, arms)["V16"]
+    validity["V17_suite_items"] = _rows_or_fail(
+        ("V17",), lambda s: {"V17": suite_items_row(s)}, suites)["V17"]
     all_ok = all(row["ok"] for row in validity.values())
     codecs_out: Dict[str, Any] = {}
     for codec in CANDIDATES:
