@@ -457,6 +457,7 @@ class ExpertFetcher:
         self, *, device: str, dtype: str, codes: Optional[Mapping[str, Any]] = None,
         host_cache_bytes: int = 0, device_cache_bytes: int = 0,
         host_cache_policy: str = "lru",
+        transfer_mode: str = "sync",
     ) -> None:
         import torch
 
@@ -473,10 +474,71 @@ class ExpertFetcher:
         self._storage_reads = 0
         self._storage_bytes_read = 0
         self._materializations = 0
+        self._host_generation = 0
+        self._pending: Any = None
+        self._transfer: Any = None
+        self.transfer_mode = "sync"
         self.configure_cache(
             host_cache_bytes=host_cache_bytes, device_cache_bytes=device_cache_bytes,
             host_cache_policy=host_cache_policy,
         )
+        self.configure_transfer(transfer_mode)
+
+    def configure_transfer(self, mode: str) -> None:
+        """Opt-in NF4 prototype; cache ceilings and model math remain unchanged."""
+        if self._closed:
+            raise RuntimeError("expert fetcher is closed")
+        if not isinstance(mode, str) or mode not in {"sync", "packed", "prefetch"}:
+            raise ValueError("transfer mode must be 'sync', 'packed' or 'prefetch'")
+        self.cancel_prefetch()
+        if self._transfer is not None:
+            self._transfer.close()
+            self._transfer = None
+        if mode != "sync":
+            from soup_cli.utils.expert_transfer import PackedExpertTransfer
+
+            self._transfer = PackedExpertTransfer(self.device)
+        self.transfer_mode = mode
+
+    def cancel_prefetch(self) -> None:
+        """Discard unused lookahead without changing logical cache statistics."""
+        if self._pending is not None:
+            self._transfer.release(self._pending[4], consumed=False)
+            self._pending = None
+
+    def _read_host(self, reader: ExpertShardReader, expert: int) -> Mapping[str, Any]:
+        before = reader.bytes_read
+        host = reader.read_host(expert, self._staging_for(reader))
+        self._host_generation += 1
+        self._storage_reads += 1
+        self._storage_bytes_read += reader.bytes_read - before
+        return host
+
+    def prefetch(self, reader: ExpertShardReader, expert: int) -> None:
+        """Prepare exactly one next expert; no logical visit or cache admission."""
+        if self._closed:
+            raise RuntimeError("expert fetcher is closed")
+        if self.transfer_mode != "prefetch":
+            return
+        if type(expert) is not int or not 0 <= expert < reader.count:
+            raise IndexError(f"expert {expert!r} outside [0, {reader.count})")
+        if any(part not in reader.quant_specs for part in EXPERT_PARTS):
+            raise ValueError("packed expert transfer requires both matrices to be NF4")
+        cached = bool(self._host_cache.stats()["budget_bytes"]
+                      or self._device_cache.stats()["budget_bytes"])
+        key = self._cache_key(reader, expert) if cached else None
+        if self._pending is not None and self._pending[:3] == (reader, expert, key):
+            return
+        self.cancel_prefetch()
+        if self._device_cache.peek(key) is not None:
+            return
+        host = self._host_cache.peek(key)
+        generation = None
+        if host is None:
+            host = self._read_host(reader, expert)
+            generation = self._host_generation
+        ticket = self._transfer.stage(host)
+        self._pending = reader, expert, key, host, ticket, generation
 
     def configure_cache(
         self, *, host_cache_bytes: int = 0, device_cache_bytes: int = 0,
@@ -503,24 +565,28 @@ class ExpertFetcher:
         host_type = TensorHotset if host_cache_policy == "static" else TensorLRU
         host = host_type(host_cache_bytes, copy_on_insert=True)
         device = TensorLRU(device_cache_bytes, copy_on_insert=False)
+        self.cancel_prefetch()
         self._host_cache = host
         self._device_cache = device
         self._host_cache_policy = host_cache_policy
 
     def clear_cache(self) -> None:
         """Drop immutable entries without changing configured payload ceilings."""
+        self.cancel_prefetch()
         self._host_cache.clear()
         self._device_cache.clear()
 
     def close(self) -> None:
         """Terminal, idempotent release of both caches and reusable staging."""
         self.clear_cache()
+        if self._transfer is not None:
+            self._transfer.close()
         self._staging = self._staging_owner = None
         self._closed = True
 
     def cache_stats(self) -> Dict[str, Any]:
         """Owned payload and physical I/O, distinct from logical expert visits."""
-        return {
+        result = {
             "logical_fetches": self._logical_fetches,
             "storage_reads": self._storage_reads,
             "storage_bytes_read": self._storage_bytes_read,
@@ -533,6 +599,9 @@ class ExpertFetcher:
                 if self._staging_owner is not None else 0
             ),
         }
+        if self._transfer is not None:
+            result["transfer"] = {"mode": self.transfer_mode, **self._transfer.stats()}
+        return result
 
     def _cache_key(self, reader: ExpertShardReader, expert: int) -> Tuple[Any, ...]:
         """A reader is a store/layer identity, never a rotating device slot."""
@@ -563,43 +632,64 @@ class ExpertFetcher:
             raise RuntimeError("expert fetcher is closed")
         if type(expert) is not int or not 0 <= expert < reader.count:
             raise IndexError(f"expert {expert!r} outside [0, {reader.count})")
+        if self._transfer is not None and any(
+                part not in reader.quant_specs for part in EXPERT_PARTS):
+            raise ValueError("packed expert transfer requires both matrices to be NF4")
         cached = bool(
             self._host_cache.stats()["budget_bytes"] or self._device_cache.stats()["budget_bytes"]
         )
         # Preserve the reader's close/reopen file-identity refusal on hits too.
-        if cached:
+        if cached or self._pending is not None:
             reader.validate_identity()
         self._logical_fetches += 1
         cache_key = self._cache_key(reader, expert) if cached else None
         device_entry = self._device_cache.get(cache_key)
         if device_entry is not None:
+            self.cancel_prefetch()
             return device_entry[GATE_UP], device_entry[DOWN]
         host = self._host_cache.get(cache_key)
         host_hit = host is not None
+        ticket = None
+        if self._pending is not None:
+            pending = self._pending
+            if pending[:3] == (reader, expert, cache_key):
+                self._pending = None
+                host, ticket = pending[3:5]
+                if pending[5] is not None and pending[5] != self._host_generation:
+                    self._transfer.release(ticket, consumed=False)
+                    raise RuntimeError("prefetched expert host staging was overwritten")
+            else:
+                self.cancel_prefetch()
         if host is None:
-            before = reader.bytes_read
-            host = reader.read_host(expert, self._staging_for(reader))
-            self._storage_reads += 1
-            self._storage_bytes_read += reader.bytes_read - before
+            host = self._read_host(reader, expert)
         target = _torch_dtype(self.dtype)
         dense = []
-        for part in EXPERT_PARTS:
-            key = expert_key(expert, part)
-            spec = reader.quant_specs.get(part)
-            if spec is None:
-                # copy=True: on a CPU target `.to` would hand back the staging
-                # view, which the next read overwrites.
-                dense.append(host[key].to(device=self.device, dtype=target, copy=True))
-                continue
-            from bitsandbytes.functional import dequantize_4bit
+        consumed = False
+        try:
+            packed = None
+            if self._transfer is not None:
+                ticket = ticket or self._transfer.stage(host)
+                packed = self._transfer.consume(ticket)
+                consumed = True
+            for part in EXPERT_PARTS:
+                key = expert_key(expert, part)
+                spec = reader.quant_specs.get(part)
+                if spec is None:
+                    # CPU outputs must own their bytes, not alias reusable staging.
+                    dense.append(host[key].to(device=self.device, dtype=target, copy=True))
+                    continue
+                from bitsandbytes.functional import dequantize_4bit
 
-            moved = {
-                name: tensor.to(self.device, copy=True)
-                for name, tensor in host.items()
-                if name == key or name.startswith(key + "::")
-            }
-            state = rebuild_quant_state(key, moved, spec, self.codes)
-            dense.append(dequantize_4bit(moved[key], quant_state=state).to(target))
+                moved = packed if packed is not None else {
+                    name: tensor.to(self.device, copy=True)
+                    for name, tensor in host.items()
+                    if name == key or name.startswith(key + "::")
+                }
+                state = rebuild_quant_state(key, moved, spec, self.codes)
+                dense.append(dequantize_4bit(moved[key], quant_state=state).to(target))
+        finally:
+            if ticket is not None:
+                self._transfer.release(ticket, consumed=consumed)
         self._materializations += 1
         if cached:
             payload = {GATE_UP: dense[0], DOWN: dense[1]}
@@ -935,9 +1025,13 @@ def _build_streamed_experts_class():
             self.num_experts = reader.count
             self.two_reads = bool(two_reads)
             self.grouped_expert_routes = grouped_expert_routes
+            self._next_expert = None
 
         def fetch(self, expert):
-            return self.fetcher.fetch(self.reader, expert)
+            weights = self.fetcher.fetch(self.reader, expert)
+            if self._next_expert is not None:
+                self.fetcher.prefetch(self.reader, self._next_expert)
+            return weights
 
         def forward(self, hidden_states, top_k_index, top_k_weights):
             final_hidden_states = torch.zeros_like(hidden_states)
@@ -952,17 +1046,28 @@ def _build_streamed_experts_class():
             # Inside a two-read checkpoint recompute no expert is read.
             scope = _active_scope() if self.two_reads else None
             replay = scope is not None and scope.replay
-            for expert_idx, top_k_pos, token_idx in routes:
-                current_state = hidden_states[token_idx]
-                if self.two_reads:
-                    current = _WeightedExpert.apply(
-                        current_state, top_k_weights[token_idx, top_k_pos, None], self,
-                        int(expert_idx), replay,
-                    )
-                else:
-                    current = _ExpertMLP.apply(current_state, self, int(expert_idx))
-                    current = current * top_k_weights[token_idx, top_k_pos, None]
-                final_hidden_states.index_add_(0, token_idx, current.to(final_hidden_states.dtype))
+            prefetch = self.fetcher.transfer_mode == "prefetch" and not replay
+            if prefetch:
+                routes = list(routes)
+            try:
+                for position, (expert_idx, top_k_pos, token_idx) in enumerate(routes):
+                    self._next_expert = (int(routes[position + 1][0])
+                                         if prefetch and position + 1 < len(routes) else None)
+                    current_state = hidden_states[token_idx]
+                    if self.two_reads:
+                        current = _WeightedExpert.apply(
+                            current_state, top_k_weights[token_idx, top_k_pos, None], self,
+                            int(expert_idx), replay,
+                        )
+                    else:
+                        current = _ExpertMLP.apply(current_state, self, int(expert_idx))
+                        current = current * top_k_weights[token_idx, top_k_pos, None]
+                    final_hidden_states.index_add_(
+                        0, token_idx, current.to(final_hidden_states.dtype))
+            finally:
+                self._next_expert = None
+                if prefetch:
+                    self.fetcher.cancel_prefetch()
             return final_hidden_states
 
     return StreamedExperts

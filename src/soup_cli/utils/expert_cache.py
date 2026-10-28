@@ -51,6 +51,11 @@ class TensorLRU:
         self._hits += 1
         return entry[0]
 
+    def peek(self, key: Any) -> Mapping[str, Any] | None:
+        """Inspect an entry without a logical lookup, recency change or counters."""
+        entry = self._entries.get(key)
+        return None if entry is None else entry[0]
+
     def put(self, key: Any, tensors: Mapping[str, Any]) -> bool:
         """Admit one complete entry, returning False when its payload cannot fit.
 
