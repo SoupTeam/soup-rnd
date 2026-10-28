@@ -77,6 +77,7 @@ def test_real_cuda_packed_ring_preserves_delayed_consumers_and_host_ownership():
 
     from soup_cli.utils.expert_transfer import PackedExpertTransfer
 
+    _assert_initial_allocation_ordering()
     transfer = PackedExpertTransfer("cuda:0", maximum_bytes=4096)
     consumer = torch.cuda.Stream()
     outputs = []
@@ -105,6 +106,8 @@ def test_real_cuda_packed_ring_preserves_delayed_consumers_and_host_ownership():
 
 @pytest.mark.gpu(reason="Prove the delayed-consumer test detects a missing CUDA reuse fence")
 def test_real_cuda_lifetime_control_rejects_missing_consumer_fence(monkeypatch):
+    import torch
+
     from soup_cli.utils.expert_transfer import PackedExpertTransfer
 
     release = PackedExpertTransfer.release
@@ -115,6 +118,52 @@ def test_real_cuda_lifetime_control_rejects_missing_consumer_fence(monkeypatch):
     monkeypatch.setattr(PackedExpertTransfer, "release", unsafe_release)
     with pytest.raises(AssertionError):
         test_real_cuda_packed_ring_preserves_delayed_consumers_and_host_ownership()
+    monkeypatch.setattr(PackedExpertTransfer, "release", release)
+    original_empty = torch.empty
+    default = torch.cuda.default_stream()
+
+    def wrong_allocation_stream(*args, **kwargs):
+        if str(kwargs.get("device", "")).startswith("cuda"):
+            with torch.cuda.stream(default):
+                return original_empty(*args, **kwargs)
+        return original_empty(*args, **kwargs)
+
+    monkeypatch.setattr(torch, "empty", wrong_allocation_stream)
+    with pytest.raises(AssertionError):
+        _assert_initial_allocation_ordering()
+
+
+def _assert_initial_allocation_ordering():
+    """A delayed default-stream fill must not race a side-stream H2D copy."""
+    import torch
+
+    from soup_cli.utils.expert_transfer import PackedExpertTransfer
+
+    previous = (torch.are_deterministic_algorithms_enabled(),
+                torch.is_deterministic_algorithms_warn_only_enabled(),
+                torch.utils.deterministic.fill_uninitialized_memory)
+    transfer = PackedExpertTransfer("cuda:0", maximum_bytes=4096)
+    consumer, default = torch.cuda.Stream(), torch.cuda.default_stream()
+    try:
+        torch.use_deterministic_algorithms(True)
+        torch.utils.deterministic.fill_uninitialized_memory = True
+        with torch.cuda.stream(default):
+            warm = [torch.empty(4096, dtype=torch.uint8, device="cuda") for _ in range(2)]
+        default.synchronize()
+        del warm  # ensure the wrong allocator stream has reusable cached blocks.
+        with torch.cuda.stream(default):
+            torch.cuda._sleep(50_000_000)
+        ticket = transfer.stage({"x": torch.ones(1024, dtype=torch.uint8)})
+        with torch.cuda.stream(consumer):
+            consumer.wait_stream(default)
+            output = transfer.consume(ticket)["x"].clone()
+            transfer.release(ticket, consumed=True)
+        consumer.synchronize()
+        assert torch.equal(output.cpu(), torch.ones(1024, dtype=torch.uint8))
+    finally:
+        transfer.close()
+        torch.utils.deterministic.fill_uninitialized_memory = previous[2]
+        torch.use_deterministic_algorithms(previous[0], warn_only=previous[1])
 
 
 @pytest.mark.gpu(reason="Outstanding ticket refusal requires actual CUDA slots")

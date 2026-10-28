@@ -81,7 +81,9 @@ class PackedExpertTransfer:
         self.slots.clear()
         for _ in range(2):
             host = torch.empty(size, dtype=torch.uint8, pin_memory=True)
-            device = torch.empty(size, dtype=torch.uint8, device=self.device)
+            # Allocator reuse / deterministic empty fills also have stream dependencies.
+            with torch.cuda.device(self.device), torch.cuda.stream(self.stream):
+                device = torch.empty(size, dtype=torch.uint8, device=self.device)
             device.record_stream(self.stream)
             self.slots.append({"host": host, "device": device, "ready": None,
                                "consumed": None, "leased": False})

@@ -12,6 +12,8 @@ All three modes use the same dequantization and expert arithmetic.
 Two slots have independent transfer-complete and post-dequantization consumer
 events. CPU storage is not overwritten until its transfer finishes; GPU packed
 storage is not overwritten until dequantization has finished reading it. Dense
+GPU arenas are allocated on the copy stream, including deterministic empty fills.
+This protects initial allocator reuse as well as later ring reuse.
 decoded weights have their own storage and retain the existing autograd lifetime.
 Lookahead is skipped during two-read checkpoint replay and cleared on exceptions.
 Backward uses packed demand transfers without changing the two-read graph.
