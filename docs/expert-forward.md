@@ -6,10 +6,18 @@ It reuses the [B1.1 cache codec](expert-shard-format.md), preserves the native
 eager arithmetic and loads one routed expert at a time. Experts without tokens
 are not read. Coverage can approach 100%, so reduced disk reads are not promised.
 
-This is forward-only. A gradient-bearing input or routing weight under enabled
-autograd is refused with a B1.3 message. The public training builder still refuses
-per-expert caches, including before materializing real weights/adapters. Backward
-is B1.3; planner, public YAML and CLI integration are B1.4. No defaults change.
+The original B1.2 gate measured forward only. This branch adds first-order
+backward by refetching each frozen expert inside a bounded lease. Training
+accepts only the validated stateless SiLU activation without hooks; higher-order
+gradients and routed-expert adapters are refused. Router-weight gradients flow
+through the ordinary autograd multiplication outside the custom expert function.
+
+CPU and CUDA tiny-model tests compare gradients with resident controls and
+exercise optimizer updates and adapter reload. The opt-in SFT configuration is
+`training.stream_expert_layout: per_expert`, with `stream_source: disk`. Its disk
+preflight currently requires a new single-disk NF4 cache without double quant.
+The default remains fused storage. Real giant results and limitations belong in
+[the B6 record](../benchmarks/b6-giant-moe-20261028.md).
 
 ## Memory and ownership
 

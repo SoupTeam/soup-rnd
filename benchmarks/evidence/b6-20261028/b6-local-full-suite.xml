@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="3" failures="0" skipped="0" tests="3" time="17.145" timestamp="2026-10-28T14:49:10.655848+05:00" hostname="koko"><testcase classname="" name="tests.test_e4_part2_calibrate" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\esenb\.codex\worktrees\b6-giant-moe\soup-rnd-d2\tests\test_e4_part2_calibrate.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests\test_e4_part2_calibrate.py:16: in &lt;module&gt;
+    import tests.e4_part2_support  # noqa: F401  (puts the harness on sys.path)
+tests\e4_part2_support.py:18: in &lt;module&gt;
+    from e4_part2_dryrun import (  # noqa: E402, F401
+benchmarks\harness\e4_part2_dryrun.py:31: in &lt;module&gt;
+    import e4_part2_quant as quant
+benchmarks\harness\e4_part2_quant.py:20: in &lt;module&gt;
+    import resource
+E   ModuleNotFoundError: No module named 'resource'</error></testcase><testcase classname="" name="tests.test_e4_part2_calibration" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\esenb\.codex\worktrees\b6-giant-moe\soup-rnd-d2\tests\test_e4_part2_calibration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests\test_e4_part2_calibration.py:14: in &lt;module&gt;
+    from tests.e4_part2_support import tiny_model, write_legacy_checkpoint
+tests\e4_part2_support.py:18: in &lt;module&gt;
+    from e4_part2_dryrun import (  # noqa: E402, F401
+benchmarks\harness\e4_part2_dryrun.py:31: in &lt;module&gt;
+    import e4_part2_quant as quant
+benchmarks\harness\e4_part2_quant.py:20: in &lt;module&gt;
+    import resource
+E   ModuleNotFoundError: No module named 'resource'</error></testcase><testcase classname="" name="tests.test_e4_part2_card_class" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\esenb\.codex\worktrees\b6-giant-moe\soup-rnd-d2\tests\test_e4_part2_card_class.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests\test_e4_part2_card_class.py:13: in &lt;module&gt;
+    from tests.test_e4_part2_calibration import GOOD_PROV, GOOD_STAMP
+tests\test_e4_part2_calibration.py:14: in &lt;module&gt;
+    from tests.e4_part2_support import tiny_model, write_legacy_checkpoint
+tests\e4_part2_support.py:18: in &lt;module&gt;
+    from e4_part2_dryrun import (  # noqa: E402, F401
+benchmarks\harness\e4_part2_dryrun.py:31: in &lt;module&gt;
+    import e4_part2_quant as quant
+benchmarks\harness\e4_part2_quant.py:20: in &lt;module&gt;
+    import resource
+E   ModuleNotFoundError: No module named 'resource'</error></testcase></testsuite></testsuites>

@@ -18,6 +18,11 @@ It currently admits the canonical `deepseek_v3` architecture with a B2
 zero, be contiguous and agree across projections. Fused-only source tensors and
 other architectures are refused. Existing/default calls keep the fused format.
 
+The writer collects one layer's stored expert tensors in host memory before
+writing its file. The expert execution arena does not bound this preparation
+peak. Peak RAM for preparing a real DeepSeek-V3 or Kimi K2 checkpoint has not
+been measured; a 32 GB host is not established to fit.
+
 For decoder layer N:
 
 | File | Contents |

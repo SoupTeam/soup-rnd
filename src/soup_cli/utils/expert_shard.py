@@ -86,6 +86,22 @@ def write_expert_shard(
             sidecars, spec, seen_code, seen_nested = _quantize_nf4(
                 tensor, double_quant=double_quant, device=device
             )
+            if spec.blocksize != 64 or spec.quant_type != "nf4":
+                raise ValueError(f"{key}: NF4 codec returned unexpected blocksize or format")
+            # Validate the codec contract before retaining or writing its output.
+            # A different bitsandbytes release must not silently grow the cache
+            # or produce a file the bounded reader cannot reconstruct.
+            from soup_cli.utils.layer_stream_runtime import quant_sidecar_keys
+
+            expected_keys = quant_sidecar_keys(key, spec)
+            expected = _expected_tensors(key, shape, spec)
+            actual = {key + suffix: value for suffix, value in sidecars.items()}
+            if set(actual) != set(expected_keys):
+                raise ValueError(f"{key}: NF4 codec returned unexpected sidecars")
+            for name, (wanted_shape, wanted_dtype) in zip(expected_keys, expected):
+                value = actual[name]
+                if tuple(value.shape) != tuple(wanted_shape) or value.dtype != wanted_dtype:
+                    raise ValueError(f"{name}: NF4 codec returned unexpected shape or dtype")
             prior_spec = specs.setdefault(part, spec)
             if prior_spec != spec:
                 raise ValueError(f"expert {expert} {part} has inconsistent NF4 metadata")

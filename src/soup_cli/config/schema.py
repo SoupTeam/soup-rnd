@@ -3525,6 +3525,15 @@ class TrainingConfig(BaseModel):
             "and the store plus resident extras fits the physical RAM ceiling."
         ),
     )
+    stream_expert_layout: Literal["fused", "per_expert"] = Field(
+        default="fused",
+        description=(
+            "Experimental: stream frozen routed experts individually from disk. "
+            "Requires streaming SFT and a DeepSeek-V3-family base; routed expert "
+            "adapters are not supported. Requires a new NF4 cache on one disk without "
+            "double quant. The default retains fused layer storage."
+        ),
+    )
     stream_ngram_source: Literal["auto", "ram", "disk"] = Field(
         default="auto",
         description=(
@@ -6395,6 +6404,7 @@ class SoupConfig(BaseModel):
                 or tcfg.stream_read_ahead != DEFAULT_STREAM_READ_AHEAD
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
+                or tcfg.stream_expert_layout != "fused"
                 or tcfg.stream_disk_kind is not None
                 or tcfg.stream_pin is not None
             ):
@@ -6402,11 +6412,23 @@ class SoupConfig(BaseModel):
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
-                    "/ training.stream_disk_kind / training.stream_pin set but "
+                    "/ training.stream_expert_layout / training.stream_disk_kind "
+                    "/ training.stream_pin set but "
                     "stream_layers is false; set stream_layers=true to stream the "
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_expert_layout == "per_expert":
+            if self.task != "sft":
+                raise ValueError("training.stream_expert_layout='per_expert' requires task='sft'")
+            if tcfg.stream_source != "disk":
+                raise ValueError(
+                    "training.stream_expert_layout='per_expert' requires stream_source='disk'"
+                )
+            if tcfg.moe_lora or tcfg.lora.target_parameters:
+                raise ValueError("per_expert streaming cannot train routed-expert adapters")
+            if tcfg.l2l:
+                raise ValueError("per_expert streaming does not support training.l2l")
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
         # read-ahead reader belongs to the NVMe disk tier, so a non-default
