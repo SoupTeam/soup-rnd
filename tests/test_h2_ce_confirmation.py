@@ -93,5 +93,49 @@ def test_child_uses_actual_patch_receipt_schema(tmp_path, arm):
                         'flags': patch_flags(arm),
                         'patch_calls': {'class': int(arm != 'baseline'),
                                         'instance': int(arm != 'baseline')}}}))
+    from tests.test_h2_ce_controls import good_record
+
+    controls = good_record()
+    controls['phase'] = phase
+    (tmp_path / 'controls.json').write_text(json.dumps(controls))
     runner.tree_seal(tmp_path)
     assert runner.read_child(tmp_path, phase)['status'] == 'COMPLETE_CE_CAPTURE'
+    # A self-consistent hash manifest must not make contaminated controls acceptable.
+    controls['f1']['checks']['foreign_reads']['outcome'] = 'void'
+    (tmp_path / 'controls.json').write_text(json.dumps(controls))
+    (tmp_path / 'files_sha256.json').unlink()
+    runner.tree_seal(tmp_path)
+    with pytest.raises(ValueError, match='F1'):
+        runner.read_child(tmp_path, phase)
+
+
+def test_control_start_failure_is_sealed_and_never_accepted(tmp_path, monkeypatch):
+    events = []
+
+    class FailedControls:
+        def __init__(self, phase, model_path):
+            self.record = {'phase': phase, 'status': 'FAILED'}
+
+        def start(self):
+            events.append('start')
+            raise ValueError('unresolved ownership')
+
+        def stop(self):
+            events.append('stop')
+            raise ValueError('incomplete controls')
+
+    monkeypatch.setattr(runner, '_USED', False)
+    monkeypatch.setattr(runner.platform, 'system', lambda: 'Linux')
+    monkeypatch.setattr(runner, 'committed_preflight', lambda contract: {})
+    monkeypatch.setattr(runner, 'CaptureControls', FailedControls)
+    monkeypatch.setattr(runner.signal, 'signal', lambda *args: None)
+    monkeypatch.setattr(runner.signal, 'alarm', lambda *args: None)
+    contract = {'evidence_root': str(tmp_path), 'model_path': '/model', 'max_seconds': 600}
+    out = tmp_path / 'baseline_probes/runner'
+    result = runner.run_child(contract, 'baseline_probes', out)
+    assert events == ['start', 'stop']
+    assert result['status'] == 'FAILED'
+    assert 'ownership' in result['error']
+    assert 'incomplete' in result['controls_error']
+    pins = json.loads((out / 'files_sha256.json').read_text())
+    assert pins['controls.json'] == sha_file(out / 'controls.json')

@@ -17,6 +17,7 @@ import sys
 import time
 from pathlib import Path
 
+from h2_ce_controls import CaptureControls, validate_controls
 from h2_ce_training import Recorder, compare_tensors, recording_trainer, review_training, write_json
 from h2_gpu_correctness import (
     SOURCES,
@@ -41,10 +42,12 @@ PHASES = ('baseline_probes', 'ce_only_probes', 'baseline_training', 'ce_only_tra
 ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
     'h2_ce_confirmation.py', 'h2_ce_training.py', 'h2_ce_workset.py',
     'h2_operator_patch.py', 'h2_operator_capture.py',
+    'h2_ce_controls.py', 'arm_validity.py', 'l2l_box.py',
 })) + tuple('benchmarks/h2/' + n for n in (
     'operator_study.json', 'numerical_policy.json', 'candidate_configs/baseline.json',
     'runtime_candidate.lock', 'synthetic_fixture.jsonl', 'prepared_fixture_candidate.jsonl',
     'CE_CONFIRMATION_PROTOCOL.txt', 'ce_confirmation_plan.json', 'ce_confirmation_workset.json',
+    'CE_CONTROLS_PROTOCOL.txt',
 ))
 _USED = False
 
@@ -110,6 +113,7 @@ def read_child(root: Path, phase: str) -> dict:
     arm = phase.removesuffix('_probes').removesuffix('_training')
     if data['status'] != 'COMPLETE_CE_CAPTURE' or data['phase'] != phase:
         raise ValueError('Incomplete/wrong child capture')
+    validate_controls(json.loads((root / 'controls.json').read_text()), phase)
     validate_counts(arm, data['patch_after']['patch_calls'])
     if (data['patch_after']['status'] != 'PASS_EXPLICIT_PATCH_BINDINGS'
             or data['patch_after']['arm'] != arm):
@@ -190,6 +194,7 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         raise ValueError('Unauthorized child evidence path')
     out.mkdir(parents=True, exist_ok=False)
     result = {'status': 'FAILED', 'phase': phase, 'performance_verdict': 'NO_VERDICT'}
+    controls = None
     try:
         if platform.system() != 'Linux':
             raise ValueError('Linux CUDA required')
@@ -199,6 +204,8 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         signal.signal(signal.SIGALRM, expired)
         signal.alarm(contract['max_seconds'])
         study = committed_preflight(contract)
+        controls = CaptureControls(phase, contract['model_path'])
+        controls.start()
         os.environ.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
                           TOKENIZERS_PARALLELISM='false')
         import torch
@@ -293,6 +300,13 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
     except Exception as error:
         result['error'] = type(error).__name__ + ': ' + str(error)
     finally:
+        if controls is not None:
+            try:
+                controls.stop()
+            except Exception as error:
+                result.update(status='FAILED',
+                              controls_error=type(error).__name__ + ': ' + str(error))
+            write_json(out / 'controls.json', controls.record)
         if hasattr(signal, 'SIGALRM'):
             signal.alarm(0)
         write_json(out / 'evidence.json', result)
