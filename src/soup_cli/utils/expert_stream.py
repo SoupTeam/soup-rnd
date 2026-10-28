@@ -477,6 +477,11 @@ class ExpertFetcher:
         self._host_generation = 0
         self._pending: Any = None
         self._transfer: Any = None
+        self._host_prepacked = False
+        self._usage_profile: Any = None
+        self._usage_sizes: dict[Any, tuple[int, int]] = {}
+        self._logical_paths: dict[Any, str] = {}
+        self._device_allowlist: Any = None
         self.transfer_mode = "sync"
         self.configure_cache(
             host_cache_bytes=host_cache_bytes, device_cache_bytes=device_cache_bytes,
@@ -488,8 +493,12 @@ class ExpertFetcher:
         """Opt-in NF4 prototype; cache ceilings and model math remain unchanged."""
         if self._closed:
             raise RuntimeError("expert fetcher is closed")
-        if not isinstance(mode, str) or mode not in {"sync", "packed", "prefetch"}:
-            raise ValueError("transfer mode must be 'sync', 'packed' or 'prefetch'")
+        if not isinstance(mode, str) or mode not in {
+            "sync", "packed", "prefetch", "prefetch_after"
+        }:
+            raise ValueError("transfer mode must be sync, packed, prefetch or prefetch_after")
+        if mode == "sync" and self._host_prepacked:
+            raise ValueError("prepacked host cache requires a packed transfer mode")
         self.cancel_prefetch()
         if self._transfer is not None:
             self._transfer.close()
@@ -499,6 +508,59 @@ class ExpertFetcher:
 
             self._transfer = PackedExpertTransfer(self.device)
         self.transfer_mode = mode
+
+    def configure_host_packing(self, enabled: bool) -> None:
+        """Opt-in owned prepacked static hotset, under the existing total RAM ceiling."""
+        if self._closed:
+            raise RuntimeError("expert fetcher is closed")
+        if type(enabled) is not bool:
+            raise TypeError("host packing must be a bool")
+        if enabled and (self.transfer_mode == "sync" or self._host_cache_policy != "static"):
+            raise ValueError("host packing requires packed transfers and a static host cache")
+        host_bytes = self._host_cache.stats()["budget_bytes"]
+        device_bytes = self._device_cache.stats()["budget_bytes"]
+        previous = self._host_prepacked
+        self._host_prepacked = enabled
+        try:
+            self.configure_cache(host_cache_bytes=host_bytes, device_cache_bytes=device_bytes,
+                                 host_cache_policy=self._host_cache_policy)
+        except BaseException:
+            self._host_prepacked = previous
+            raise
+
+    def configure_usage_profile(self, profile: Any = None) -> None:
+        """Record actual fetches only; observers are explicitly disabled for timed arms."""
+        from soup_cli.utils.expert_placement import ExpertUsageProfile
+
+        if self._closed:
+            raise RuntimeError("expert fetcher is closed")
+        if profile is not None and not isinstance(profile, ExpertUsageProfile):
+            raise TypeError("usage profile must be ExpertUsageProfile or None")
+        self._usage_profile = profile
+        self._usage_sizes.clear()
+
+    def configure_placement(self, keys: Any = None) -> None:
+        """Admit dense GPU entries only from a frozen logical-key set; None keeps first-fit."""
+        if self._closed:
+            raise RuntimeError("expert fetcher is closed")
+        allowed = None
+        if keys is not None:
+            allowed = set()
+            for index, key in enumerate(keys):
+                if index >= 65536:
+                    raise ValueError("placement exceeds the bounded expert plan")
+                if (not isinstance(key, tuple) or len(key) != 2
+                        or not isinstance(key[0], str) or not key[0]
+                        or type(key[1]) is not int or key[1] < 0):
+                    raise ValueError("placement keys must be (absolute shard path, expert index)")
+                if not os.path.isabs(key[0]):
+                    raise ValueError("placement shard path must be absolute")
+                allowed.add((os.path.realpath(key[0]), key[1]))
+                if len(allowed) > 65536:
+                    raise ValueError("placement exceeds the bounded expert plan")
+            allowed = frozenset(allowed)
+        self.clear_cache()
+        self._device_allowlist = allowed
 
     def cancel_prefetch(self) -> None:
         """Discard unused lookahead without changing logical cache statistics."""
@@ -529,7 +591,7 @@ class ExpertFetcher:
         """Prepare exactly one next expert; no logical visit or cache admission."""
         if self._closed:
             raise RuntimeError("expert fetcher is closed")
-        if self.transfer_mode != "prefetch":
+        if self.transfer_mode not in {"prefetch", "prefetch_after"}:
             return
         if type(expert) is not int or not 0 <= expert < reader.count:
             raise IndexError(f"expert {expert!r} outside [0, {reader.count})")
@@ -574,7 +636,14 @@ class ExpertFetcher:
         if not isinstance(host_cache_policy, str) or host_cache_policy not in {"lru", "static"}:
             raise ValueError("host_cache_policy must be 'lru' or 'static'")
         host_type = TensorHotset if host_cache_policy == "static" else TensorLRU
-        host = host_type(host_cache_bytes, copy_on_insert=True)
+        if self._host_prepacked:
+            from soup_cli.utils.expert_transfer import PackedHostHotset
+
+            if host_cache_policy != "static":
+                raise ValueError("prepacked host cache requires static cache policy")
+            host = PackedHostHotset(host_cache_bytes)
+        else:
+            host = host_type(host_cache_bytes, copy_on_insert=True)
         device = TensorLRU(device_cache_bytes, copy_on_insert=False)
         self.cancel_prefetch()
         self._host_cache = host
@@ -593,6 +662,9 @@ class ExpertFetcher:
         if self._transfer is not None:
             self._transfer.close()
         self._staging = self._staging_owner = None
+        self._usage_profile = None
+        self._usage_sizes.clear()
+        self._logical_paths.clear()
         self._closed = True
 
     def cache_stats(self) -> Dict[str, Any]:
@@ -612,6 +684,11 @@ class ExpertFetcher:
         }
         if self._transfer is not None:
             result["transfer"] = {"mode": self.transfer_mode, **self._transfer.stats()}
+        if self._host_prepacked:
+            result["host_prepacked"] = True
+        if self._device_allowlist is not None:
+            result["device_placement"] = {"policy": "profile_allowlist",
+                                           "keys": len(self._device_allowlist)}
         return result
 
     def _cache_key(self, reader: ExpertShardReader, expert: int) -> Tuple[Any, ...]:
@@ -653,6 +730,22 @@ class ExpertFetcher:
         if cached or self._pending is not None:
             reader.validate_identity()
         self._logical_fetches += 1
+        logical_key = None
+        if self._usage_profile is not None or self._device_allowlist is not None:
+            path = self._logical_paths.get(reader)
+            if path is None:
+                path = self._logical_paths[reader] = os.path.realpath(reader.path)
+            logical_key = (path, expert)
+        if self._usage_profile is not None:
+            size_key = reader, self.dtype
+            sizes = self._usage_sizes.get(size_key)
+            if sizes is None:
+                stored = sum(entry.nbytes for _name, entry in reader._entries[expert])
+                dense_bytes = expert_bytes(reader.shapes,
+                    dtype_bytes=_torch_dtype(self.dtype).itemsize, quantised=False)[1]
+                sizes = self._usage_sizes[size_key] = stored, dense_bytes
+            self._usage_profile.record_request(logical_key, transfer_bytes=sizes[0],
+                                                dense_bytes=sizes[1])
         cache_key = self._cache_key(reader, expert) if cached else None
         device_entry = self._device_cache.get(cache_key)
         if device_entry is not None:
@@ -706,7 +799,8 @@ class ExpertFetcher:
             payload = {GATE_UP: dense[0], DOWN: dense[1]}
             cost = sum(value.numel() * value.element_size() for value in payload.values())
             device_stats = self._device_cache.stats()
-            if cost <= device_stats["budget_bytes"] - device_stats["payload_bytes"]:
+            if ((self._device_allowlist is None or logical_key in self._device_allowlist)
+                    and cost <= device_stats["budget_bytes"] - device_stats["payload_bytes"]):
                 self._device_cache.put(cache_key, payload)
                 self._host_cache.discard(cache_key)
             elif not host_hit:
@@ -1057,13 +1151,16 @@ def _build_streamed_experts_class():
             # Inside a two-read checkpoint recompute no expert is read.
             scope = _active_scope() if self.two_reads else None
             replay = scope is not None and scope.replay
-            prefetch = self.fetcher.transfer_mode == "prefetch" and not replay
+            prefetch_before = self.fetcher.transfer_mode == "prefetch" and not replay
+            prefetch_after = self.fetcher.transfer_mode == "prefetch_after" and not replay
+            prefetch = prefetch_before or prefetch_after
             if prefetch:
                 routes = list(routes)
             try:
                 for position, (expert_idx, top_k_pos, token_idx) in enumerate(routes):
-                    self._next_expert = (int(routes[position + 1][0])
-                                         if prefetch and position + 1 < len(routes) else None)
+                    next_expert = (int(routes[position + 1][0])
+                                   if prefetch and position + 1 < len(routes) else None)
+                    self._next_expert = next_expert if prefetch_before else None
                     current_state = hidden_states[token_idx]
                     if self.two_reads:
                         current = _WeightedExpert.apply(
@@ -1075,6 +1172,10 @@ def _build_streamed_experts_class():
                         current = current * top_k_weights[token_idx, top_k_pos, None]
                     final_hidden_states.index_add_(
                         0, token_idx, current.to(final_hidden_states.dtype))
+                    if prefetch_after and next_expert is not None:
+                        # Enqueue the current expert and accumulation first. Its CUDA
+                        # work can then overlap host preparation of the next expert.
+                        self.fetcher.prefetch(self.reader, next_expert)
             finally:
                 self._next_expert = None
                 if prefetch:

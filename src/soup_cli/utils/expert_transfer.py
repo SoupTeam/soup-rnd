@@ -8,7 +8,10 @@ thread, model arithmetic, cache admission or routing decision lives here.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any, Mapping
+
+from soup_cli.utils.expert_cache import TensorHotset
 
 
 def packing_layout(tensors: Mapping[str, Any]) -> tuple[list[tuple], int]:
@@ -27,6 +30,66 @@ def packing_layout(tensors: Mapping[str, Any]) -> tuple[list[tuple], int]:
         layout.append((name, cursor, count, tensor.dtype, tuple(tensor.shape)))
         cursor += count
     return layout, cursor
+
+
+class PackedHostEntry(Mapping[str, Any]):
+    """Owned immutable CPU byte block and its typed views; padding counts toward RAM."""
+
+    def __init__(self, tensors: Mapping[str, Any], layout: Any, size: int) -> None:
+        import torch
+
+        self.layout = tuple(layout)
+        self.arena = torch.zeros(size, dtype=torch.uint8)
+        views = {}
+        for name, offset, count, dtype, shape in self.layout:
+            raw = self.arena[offset:offset + count]
+            raw.copy_(tensors[name].reshape(-1).view(torch.uint8))
+            views[name] = raw.view(dtype).view(shape)
+        self._views = MappingProxyType(views)
+
+    def __getitem__(self, name: str) -> Any:
+        return self._views[name]
+
+    def __iter__(self):
+        return iter(self._views)
+
+    def __len__(self) -> int:
+        return len(self._views)
+
+
+class PackedHostHotset(TensorHotset):
+    """First-fit static host cache, owning one prepacked pageable arena per entry.
+
+    The full aligned arena, including padding, is charged before allocation.
+    There is no second cache of the original component tensors. Readers and
+    callers must not mutate admitted entries, as for the existing tensor hotset.
+    ``copied_bytes`` counts component bytes of successfully published entries;
+    padding initialization and interrupted unpublished copies are not included.
+    """
+
+    def __init__(self, budget_bytes: int) -> None:
+        super().__init__(budget_bytes, copy_on_insert=False)
+
+    def put(self, key: Any, tensors: Mapping[str, Any]) -> bool:
+        import torch
+
+        hash(key)
+        if not isinstance(tensors, Mapping) or not tensors or any(
+            not isinstance(name, str) or not name or not isinstance(value, torch.Tensor)
+            or value.layout != torch.strided or value.is_quantized
+            for name, value in tensors.items()
+        ):
+            raise TypeError("a packed host entry must map names to nonempty CPU tensors")
+        layout, size = packing_layout(tensors)
+        if key in self._entries or size > self._budget_bytes - self._payload_bytes:
+            self._rejected_admissions += 1
+            return False
+        entry = PackedHostEntry(tensors, layout, size)
+        self._entries[key] = (entry, size)
+        self._payload_bytes += size
+        self._insertions += 1
+        self._copied_bytes += sum(row[2] for row in layout)
+        return True
 
 
 @dataclass
@@ -59,6 +122,8 @@ class PackedExpertTransfer:
         self.cursor = 0
         self.copies = 0
         self.bytes_copied = 0
+        self.host_copy_calls = 0
+        self.layout_builds = 0
         self.closed = False
 
     def _drain(self) -> None:
@@ -93,7 +158,11 @@ class PackedExpertTransfer:
 
         if self.closed:
             raise RuntimeError("packed expert transfer is closed")
-        layout, size = packing_layout(tensors)
+        if isinstance(tensors, PackedHostEntry):
+            layout, size = tensors.layout, tensors.arena.numel()
+        else:
+            layout, size = packing_layout(tensors)
+            self.layout_builds += 1
         self._allocate(size)
         slot = self.slots[self.cursor % 2]
         self.cursor += 1
@@ -101,8 +170,14 @@ class PackedExpertTransfer:
             raise RuntimeError("expert transfer slot still has an outstanding consumer")
         if slot["ready"] is not None and not slot["ready"].query():
             slot["ready"].synchronize()
-        for name, offset, count, _dtype, _shape in layout:
-            slot["host"][offset:offset + count].copy_(tensors[name].reshape(-1).view(torch.uint8))
+        if isinstance(tensors, PackedHostEntry):
+            slot["host"][:size].copy_(tensors.arena)
+            self.host_copy_calls += 1
+        else:
+            for name, offset, count, _dtype, _shape in layout:
+                source = tensors[name].reshape(-1).view(torch.uint8)
+                slot["host"][offset:offset + count].copy_(source)
+                self.host_copy_calls += 1
         with torch.cuda.device(self.device), torch.cuda.stream(self.stream):
             if slot["consumed"] is not None:
                 self.stream.wait_event(slot["consumed"])
@@ -144,7 +219,8 @@ class PackedExpertTransfer:
     def stats(self) -> dict[str, int]:
         size = sum(slot["host"].numel() for slot in self.slots)
         return {"pinned_host_bytes": size, "device_staging_bytes": size,
-                "h2d_copies": self.copies, "h2d_bytes": self.bytes_copied}
+                "h2d_copies": self.copies, "h2d_bytes": self.bytes_copied,
+                "host_copy_calls": self.host_copy_calls, "layout_builds": self.layout_builds}
 
     def close(self) -> None:
         if not self.closed:
