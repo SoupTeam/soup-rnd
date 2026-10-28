@@ -33,3 +33,13 @@ lists CC BY-SA 3.0 and GFDL in metadata and links CC BY-SA 4.0 in its licensing
 section; consult that source for the license notices. The selection preserves
 original row text; only selection and subsequent model-token truncation are new.
 Source parquet URL, dataset revision and checksum are retained in the JSON.
+
+## Hardware choice, fixed before the new measurement
+
+The initially observed Turing/32 GB offer disappeared before any lease was
+created. Pascal is permitted with PyTorch 2.8/CUDA 12.6 and float32 compute,
+subject to actual 8 GB/32 GiB guards and a tiny NF4 train/reload capability test.
+Other GPUs use native BF16 when available, otherwise FP16 with FP32 adapter
+parameters. Both paired arms always use the same actual dtype/cache. This is
+not a cross-hardware/dtype comparison with the original BF16 result. The data,
+selection, token limit and decision rule remain unchanged.
