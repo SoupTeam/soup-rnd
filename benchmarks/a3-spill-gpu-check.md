@@ -1,6 +1,6 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
-**Status: protocol v3 (§3.7), committed before its session; no v3 session has run. Session 2
+**Status: protocol v3 (§3.7), committed at `bc2ca550`; no v3 session has run. Session 2
 (protocol v2, §10) finished: `NO VERDICT: criterion 3 has no verdict`, with criteria 1, 2 and 4
 PASS and criterion 1b FAIL (reported apart). Session 1 (protocol v1) stopped at calibration:
 `NO VERDICT: criterion 1, 2, 3 has no verdict` (§9).** v1's criteria were fixed by commit
@@ -350,7 +350,7 @@ not U. The calibration measures U on the box.
 
 ```bash
 git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout <v3 commit>   # protocol v3 (§3.7); session 2 ran v2 at 667c4a1b, session 1 v1
+git checkout bc2ca550   # protocol v3 (§3.7); session 2 ran v2 at 667c4a1b, session 1 v1
 A0_PYTHON=python3.12 bash benchmarks/a0-bootstrap.sh   # venv, CUDA torch, pinned deps
 .venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
   tests/test_a3_admission.py tests/test_l2l_spill*.py -q -o addopts=''
