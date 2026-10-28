@@ -56,6 +56,7 @@ class PatchController:
         _INSTALLED = True
         self.arm = arm
         self.counts = {'class': 0, 'instance': 0}
+        self.capture_prepared = False
         import torch.nn.functional as functional
         import transformers.trainer as trainer
         from transformers.models.llama import modeling_llama
@@ -109,6 +110,29 @@ class PatchController:
             raise ValueError('Unexpected instance patch invocation/configuration')
         self.patch.apply_liger_kernel_to_llama(model=self.unwrap(model), **self.flags)
         self.counts['instance'] += 1
+
+    def prepare_capture(self, trainer: Any, model: Any) -> dict:
+        """Apply the instance stage explicitly for a probe that never calls train()."""
+        if self.capture_prepared:
+            raise ValueError('Capture lifecycle already prepared; no retry')
+        # Consume even a failed attempt: partial patching cannot be retried safely.
+        self.capture_prepared = True
+        enabled = self.arm != 'baseline'
+        if (trainer.model is not model or trainer.model_wrapped is not model
+                or trainer.args.use_liger_kernel is not enabled
+                or trainer.args.liger_kernel_config not in (None, {}, self.flags)
+                or trainer.optimizer is not None or trainer.lr_scheduler is not None
+                or trainer.state.global_step != 0 or trainer.is_in_train):
+            raise ValueError('Unexpected Trainer state before diagnostic patch')
+        if self.counts != {'class': int(enabled), 'instance': 0}:
+            raise ValueError('Unexpected patch lifecycle after setup')
+        if enabled:
+            self.instance_patch(model, trainer.args.liger_kernel_config)
+        validate_counts(self.arm, self.counts)
+        return {'status': 'PASS_EXPLICIT_CAPTURE_LIFECYCLE',
+                'instance_patch_owner': 'diagnostic' if enabled else 'none',
+                'patch_calls': dict(self.counts), 'trainer_train_called': False,
+                'optimizer_present': False, 'global_step': trainer.state.global_step}
 
     def verify(self, model: Any) -> dict:
         validate_counts(self.arm, self.counts)

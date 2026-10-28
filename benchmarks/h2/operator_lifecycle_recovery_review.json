@@ -1,0 +1,53 @@
+{
+  "status": "PASS_LOCAL_LIFECYCLE_RECOVERY_PENDING_PUBLICATION_AND_GPU",
+  "date": "2026-10-28",
+  "source_base_commit": "b9727b00f61c655a8461987032480712fab1272c",
+  "change": "Explicit one-shot instance patch after setup and before capture; preserve class/instance count and binding/kernel guards.",
+  "pinned_cpu_versions": {
+    "torch": "2.14.1",
+    "transformers": "5.17.0",
+    "peft": "0.21.2"
+  },
+  "tests": {
+    "focused": {
+      "passed": 77,
+      "skipped": 0,
+      "seconds": 5.18
+    },
+    "all_h2": {
+      "passed": 233,
+      "skipped": 0,
+      "seconds": 56.07,
+      "command": "PYTHONPATH=src HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 <h2_cpu_transformers_517>/bin/python -m pytest tests/test_h2*.py --no-cov -q"
+    }
+  },
+  "test_setup_note": "Initial all-H2 collection without PYTHONPATH failed to import soup_cli. Repeated with explicit local src; no test failures suppressed.",
+  "lint": "PASS: ruff check benchmarks/harness/h2*.py tests/test_h2*.py",
+  "diff_check": "PASS",
+  "unchanged_files_sha256": {
+    "benchmarks/h2/operator_study.json": "747482b78fae881208a5609429d7aba835ca1609794f10931a9974dcca07d1be",
+    "benchmarks/h2/numerical_policy.json": "e6a320f9bc8e706f722660f221a11d4c874d4d52815cd3ecc6e3271cf0f585ed",
+    "benchmarks/h2/candidate_configs/baseline.json": "61889eccb324eed59ca5688ef903722906e085883c824282ef0ada51238e4f4b",
+    "benchmarks/h2/synthetic_fixture.jsonl": "1d549ac99c544e492020f52a5fa1d9a063c361831cd2289af3dc5d378f253e2d",
+    "benchmarks/h2/runtime_candidate.lock": "0e80dd640e7ef177841acb29b932864aa6d3a63aff54a081d6724eb9e54c0d31",
+    "benchmarks/h2/OPERATOR_DIAGNOSTIC_PROTOCOL.txt": "4705dffa79e3ac9a79cadd66c7b651574f4b5765ec096c09169db54d48fc8910",
+    "benchmarks/harness/h2_operator_capture.py": "b2989e76aa6b7d61b7972bcd209b2b277f90ee27b8c22cddf4983fbd9a428841"
+  },
+  "files_sha256": {
+    "benchmarks/harness/h2_operator_patch.py": "9a3fd1724238ccebd4fd8675337f0e8d973eac632f675326331bc3056f119d14",
+    "benchmarks/harness/h2_operator_probe.py": "cdd286f81c4ba6056d13e055cf0142b6a54d7be8c66a385f42bdb8d2acae228c",
+    "tests/test_h2_operator_lifecycle.py": "3127e940009ca7d976469e0729c06874fb733731a6de808ae723a04e4813068e",
+    "benchmarks/h2/OPERATOR_LIFECYCLE_RECOVERY_PROTOCOL.txt": "6c3b2ed61b50b94973d143581511e64707785be202b10dc19a0f6577cf0a73b3",
+    "benchmarks/h2/OPERATOR_LIFECYCLE_RECOVERY_PROTOCOL.sha256": "4251d2f7528b9eee909a8989234379a1122e83609a4569f856e34c124aa4073a"
+  },
+  "limitations": [
+    "Real HF/PEFT CPU lifecycle and backward; external Liger patch calls are spies, not executed CUDA kernels.",
+    "No Liger/NF4 parity or throughput pass claimed.",
+    "No independent external audit claimed.",
+    "Attempt009 numerical FAIL and attempt010 blocked result remain unchanged.",
+    "New committed source SHA and concrete current-budget runtime authority required before another GPU attempt."
+  ],
+  "gpu_runs": 0,
+  "new_rentals": 0,
+  "performance_verdict": "NO_VERDICT"
+}

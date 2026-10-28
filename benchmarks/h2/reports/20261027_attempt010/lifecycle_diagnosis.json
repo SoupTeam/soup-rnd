@@ -1,0 +1,16 @@
+{
+  "status": "CONFIRMED_STATIC_LIFECYCLE_MISMATCH",
+  "installed_transformers_version": "5.17.0",
+  "trainer_source_sha256": "1bb62572e150a929b7738ea529fbd0e1decc9a08ea904387989b9a2434dbd162",
+  "apply_liger_kernel_call_sites": [
+    {
+      "method": "train",
+      "line": 1453
+    }
+  ],
+  "diagnostic_calls_train": false,
+  "diagnostic_requires_instance_patch_before_direct_forward": true,
+  "conclusion": "Diagnostic expects instance patch during setup, but pinned HF Trainer calls it in train(). The no-training diagnostic never invokes that lifecycle entry point. This explains the patch-count guard failure; it does not explain earlier numerical parity failure.",
+  "no_runtime_patch_or_retry": true,
+  "performance_verdict": "NO_VERDICT"
+}

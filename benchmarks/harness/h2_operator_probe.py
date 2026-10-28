@@ -29,6 +29,7 @@ ARTIFACTS = (
     'benchmarks/harness/h2_operator_probe.py', 'benchmarks/harness/h2_operator_patch.py',
     'benchmarks/harness/h2_operator_capture.py', 'benchmarks/h2/operator_study.json',
     'benchmarks/h2/OPERATOR_DIAGNOSTIC_PROTOCOL.txt',
+    'benchmarks/h2/OPERATOR_LIFECYCLE_RECOVERY_PROTOCOL.txt',
     'benchmarks/h2/candidate_configs/baseline.json', 'benchmarks/h2/synthetic_fixture.jsonl',
     'benchmarks/h2/runtime_candidate.lock',
 )
@@ -142,6 +143,7 @@ def run_child(contract: dict, arm: str, out: Path) -> dict:
             raise ValueError('Fixture row count differs')
         wrapper = SFTTrainerWrapper(config, device='cuda', report_to='none')
         wrapper.setup(data)
+        result['patch_lifecycle'] = control.prepare_capture(wrapper.trainer, wrapper.model)
         # CE-only / RoPE-only deliberately need not replace any module classes.
         result['loaded'] = validate_loaded(wrapper, 'operator_diagnostic')
         result['patch_before'] = control.verify(wrapper.model)
