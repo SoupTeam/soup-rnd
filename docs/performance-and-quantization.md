@@ -885,8 +885,9 @@ or run: on Mistral-7B NF4 with 64 alpaca rows at `batch_size: 1`, k = 4, a step 
 64.3 times (61 plus one per capture) instead of 165.5, and capture time fell from about 20% of
 the step to under 1% (RTX 3070 and RTX 3090, 4 A-B-B-A blocks each, see
 `benchmarks/probe-vast-l2l-capture-a5-ticket09.md`). With dropout on, the capture still runs the
-whole forward to record the dropout masks, and costs one load of every layer per new shape. On
-that run gradient accumulation was still 15% (3070) and 16% (3090) faster than L2L.
+whole forward to record the dropout masks, and costs one load of every layer per new shape. That
+15% (3070) and 16% (3090) lead of gradient accumulation over L2L belongs to the one host each card
+ran on: the sign of the speed gap changes with the host (see "Status after A5" below).
 
 The activation store sizes the chunks of micro-batch `i` to the largest micro-batch that has
 been in position `i`, so a short row does not pay for the longest row of its window; the RAM
@@ -910,8 +911,11 @@ quality was not measured. Report and raw logs:
 [`benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md`](../benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md).
 
 - Two accumulation runs equal each other bit for bit, so the stand itself is deterministic.
-- L2L and accumulation are **not** bit-identical in bf16. The relative L2 error of the LoRA
-  gradients is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
+- L2L and accumulation are **not** bit-identical in bf16 on this stand. (Superseded: the stand ran
+  `backward` inside `autocast`, the real trainer does not, and the gap came from that. With the
+  trainer fixed, LoRA gradients and parameters match accumulation bit for bit over 16 steps on an
+  RTX 3070, see the A5 status below.) The relative L2 error of the LoRA
+  gradients here is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
   the SDPA backend inside accumulation gives 1.4%, 1.5% and 4.5%, the same order.
 - In fp32 the two agree to 2.1e-6, 3.1e-6 and 8.3e-6 (rounding noise, not bit-equal). The bf16
   gap is bf16 rounding, not a different computation in the L2L step.
@@ -921,6 +925,32 @@ quality was not measured. Report and raw logs:
   loads in 3 steps (about 61 per step, two passes over 32 layers).
 - A tolerance in place of the bit criterion is set in ticket 07 and was not applied to these
   numbers yet.
+
+**Status after A5 (Mistral-7B v0.1 NF4, 2026-10-28): ready with limits.** The rule that gives the
+verdict is [`benchmarks/l2l-readiness-rule-a5.md`](../benchmarks/l2l-readiness-rule-a5.md), the
+evidence and the command that reproduces it are in
+[`benchmarks/probe-vast-l2l-a5-readiness-report.md`](../benchmarks/probe-vast-l2l-a5-readiness-report.md).
+
+- **Correct.** All 30 L2L runs of the SFT campaigns (RTX 3090, 3070 Ti and 3070, 16 steps each)
+  stay inside the A3-07 loss tolerance at every step, and windows of rows of different lengths
+  match gradient accumulation. The cause of the earlier loss gap (`backward` inside `autocast`)
+  is fixed. Report: `benchmarks/probe-vast-l2l-loss-divergence-a5-ticket08.md`.
+- **Memory.** Peak VRAM allocated is 1.13 GB with L2L and 1.15 GB with streamed accumulation.
+  Plain QLoRA with no streaming needs 7.10 GB, which fits an 8 GB card with 1.1 GB to spare. It
+  is faster than both (280 to 324 tokens/s against 70 to 184 for streamed accumulation, three
+  hosts), and a batch of 8 on a 24 GB card gives 546 to 654 tokens/s at 21.1 GB. Turn streaming
+  on when the model does not fit resident, not for speed
+  (`benchmarks/probe-vast-l2l-best-batch-a5-ticket11.md`).
+- **Speed against streamed accumulation depends on the host.** Over nine hosts the difference
+  (L2L minus accumulation) runs from -36 to +168 tokens/s, 0.79 to 2.6 times. L2L was slower on
+  hosts with fast host-to-GPU copies (about 20 GB/s and above) and faster on slow ones, but one
+  host does not fit that pattern, so treat it as a correlation. Measure on your own host before
+  expecting L2L to be faster.
+- **Not measured.** Weight reads from disk (page cache was warm), spilling activations to a
+  separate disk (the A4 spill is not wired into the trainer, the run stops on RAM first), models
+  other than Mistral-7B, and a real 70B or 1T. A run with random weights of 70B shape used
+  3.33 GiB of VRAM at the peak on a 24 GB card, which says nothing about the speed or quality of
+  a real 70B.
 
 **RAM for Mistral-7B NF4.** The NF4 weight store takes about 4.1 GB. The activation cache is
 
