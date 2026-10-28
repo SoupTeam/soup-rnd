@@ -2,11 +2,12 @@
 
 import argparse
 import json
+import os
+import posixpath
+import re
 import subprocess
 import time
 from pathlib import Path
-
-from rich.console import Console
 
 MAX_RAM = 32 * 2**30
 REQUIRED_PHASES = {"download", "preparation", "training", "evaluation_before",
@@ -16,7 +17,8 @@ REQUIRED_PHASES = {"download", "preparation", "training", "evaluation_before",
 def ram_constraint(sample):
     maximum = sample.get("memory_max")
     if type(maximum) is int and 0 < maximum <= MAX_RAM:
-        return {"kind": "cgroup_v2", "hard_limit_bytes": maximum}
+        return {"kind": "cgroup_v" + str(sample.get("cgroup_version", 2)),
+                "hard_limit_bytes": maximum}
     total = sample.get("host_total", 0)
     if 28_000_000_000 <= total <= MAX_RAM and sample.get("host_swap_total") == 0:
         return {"kind": "physical_host", "hard_limit_bytes": total}
@@ -34,7 +36,7 @@ def summarize_ram(samples, constraint, returncode):
     swap_peak = max((value for value in swap_values + swap_peaks if value is not None),
                     default=None)
     events_known = oom_delta is not None or constraint["kind"] == "physical_host"
-    if constraint["kind"] == "cgroup_v2":
+    if constraint["kind"].startswith("cgroup_v"):
         stable = all(r.get("memory_max") == constraint["hard_limit_bytes"] for r in samples)
     else:
         stable = all(r.get("host_total") == constraint["hard_limit_bytes"]
@@ -51,8 +53,51 @@ def summarize_ram(samples, constraint, returncode):
             "start_unix": samples[0].get("unix"), "end_unix": samples[-1].get("unix")}
 
 
-def snapshot(phase_file, *, cgroup=Path("/sys/fs/cgroup"), proc=Path("/proc")):
+def locate_memory_cgroup(proc):
+    """Resolve this process's controller membership against the mounted root."""
+    memberships = {}
+    for line in (proc / "self/cgroup").read_text(encoding="utf-8").splitlines():
+        hierarchy, controllers, member = line.split(":", 2)
+        if "memory" in controllers.split(","):
+            memberships[1] = member
+        elif hierarchy == "0" and not controllers:
+            memberships[2] = member
+
+    def unescape(value):
+        return re.sub(r"\\([0-7]{3})", lambda match: chr(int(match[1], 8)), value)
+
+    for line in (proc / "self/mountinfo").read_text(encoding="utf-8").splitlines():
+        left, right = line.split(" - ", 1)
+        fields, filesystem = left.split(), right.split()
+        version = 2 if filesystem[0] == "cgroup2" else 1
+        if filesystem[0] not in ("cgroup", "cgroup2") or version not in memberships:
+            continue
+        if version == 1 and "memory" not in filesystem[2].split(","):
+            continue
+        root, mount = unescape(fields[3]), unescape(fields[4])
+        member = memberships[version]
+        if posixpath.commonpath([member, root]) != root:
+            continue
+        relative = posixpath.relpath(member, root)
+        candidate = os.path.realpath(os.path.join(mount, *relative.split("/")))
+        mount = os.path.realpath(mount)
+        if os.path.commonpath([candidate, mount]) != mount:
+            raise ValueError("memory-controller path escapes its mounted root")
+        marker = "memory.max" if version == 2 else "memory.limit_in_bytes"
+        if (Path(candidate) / marker).is_file():
+            return Path(candidate), version
+    return None, None
+
+
+def snapshot(phase_file, *, cgroup=None, proc=Path("/proc")):
+    if cgroup is None:
+        cgroup, version = locate_memory_cgroup(proc)
+    else:
+        version = 2 if (cgroup / "memory.max").is_file() else 1
+
     def number(name):
+        if cgroup is None:
+            return None
         try:
             value = (cgroup / name).read_text(encoding="utf-8").strip()
             return None if value == "max" else int(value)
@@ -81,20 +126,40 @@ def snapshot(phase_file, *, cgroup=Path("/sys/fs/cgroup"), proc=Path("/proc")):
         except (FileNotFoundError, ProcessLookupError, PermissionError):
             continue
     phase = phase_file.read_text(encoding="utf-8").strip() if phase_file.is_file() else "setup"
-    swap = number("memory.swap.current")
+    memory_stat = counters(cgroup / "memory.stat") if cgroup is not None else {}
+    if version == 1:
+        maximum = number("memory.limit_in_bytes")
+        if maximum is not None and maximum >= 2**60:
+            maximum = None  # v1 uses a large integer to represent no limit.
+        combined = number("memory.memsw.limit_in_bytes")
+        swap_max = max(0, combined - maximum) if combined is not None and maximum else None
+        swap = memory_stat.get("total_swap", memory_stat.get("swap"))
+        peak = number("memory.max_usage_in_bytes")
+        current = number("memory.usage_in_bytes")
+        events = counters(cgroup / "memory.oom_control")
+        events["limit_hits"] = number("memory.failcnt")
+        swap_peak = None  # Subtracting two independently timed peaks is invalid.
+    else:
+        maximum = number("memory.max")
+        swap_max, swap = number("memory.swap.max"), number("memory.swap.current")
+        current, peak = number("memory.current"), number("memory.peak")
+        events = counters(cgroup / "memory.events") if cgroup is not None else {}
+        swap_peak = number("memory.swap.peak")
     if swap is None and meminfo["SwapTotal"] == 0:
         swap = 0
-    return {"unix": time.time(), "phase": phase, "memory_max": number("memory.max"),
-            "memory_current": number("memory.current"), "memory_peak": number("memory.peak"),
-            "swap_max": number("memory.swap.max"), "swap_current": swap,
-            "swap_peak": number("memory.swap.peak"), "events": counters(cgroup / "memory.events"),
-            "memory_stat": counters(cgroup / "memory.stat"),
+    return {"unix": time.time(), "phase": phase, "memory_max": maximum,
+            "cgroup_version": version, "cgroup_path": str(cgroup) if cgroup else None,
+            "memory_current": current, "memory_peak": peak,
+            "swap_max": swap_max, "swap_current": swap,
+            "swap_peak": swap_peak, "events": events, "memory_stat": memory_stat,
             "host_total": meminfo["MemTotal"], "host_swap_total": meminfo["SwapTotal"],
             "host_swap_used": meminfo["SwapTotal"] - meminfo["SwapFree"],
             "processes": processes, "process_rss_bytes": sum(r["VmRSS"] for r in processes)}
 
 
 def run(args):
+    from rich.console import Console
+
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
     phase = Path(args.phase_file)

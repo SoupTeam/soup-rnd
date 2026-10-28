@@ -126,6 +126,60 @@ def test_physical_small_host_requires_zero_host_swap():
                         "host_swap_total": 1})
 
 
+@pytest.mark.parametrize("mount_root", ["/", "/docker/owned"])
+def test_legacy_cgroup_reads_current_container_limit_and_accounting(tmp_path, mount_root):
+    from benchmarks.harness.b6_ram import ram_constraint, snapshot
+
+    proc, mount = tmp_path / "proc", tmp_path / "memory"
+    (proc / "self").mkdir(parents=True)
+    mount.mkdir()
+    owned = mount / "docker/owned" if mount_root == "/" else mount
+    owned.mkdir(parents=True, exist_ok=True)
+    (proc / "self/cgroup").write_text("13:memory:/docker/owned\n", encoding="utf-8")
+    (proc / "self/mountinfo").write_text(
+        f"1 0 0:1 {mount_root} {mount} ro - cgroup cgroup rw,memory\n", encoding="utf-8",
+    )
+    (proc / "meminfo").write_text(
+        "MemTotal: 134217728 kB\nSwapTotal: 8388608 kB\nSwapFree: 8388608 kB\n",
+        encoding="utf-8",
+    )
+    values = {"memory.limit_in_bytes": str(32 * 2**30),
+              "memory.usage_in_bytes": str(20 * 2**30),
+              "memory.max_usage_in_bytes": str(31 * 2**30),
+              "memory.memsw.limit_in_bytes": str(32 * 2**30),
+              "memory.failcnt": "4", "memory.stat": "total_swap 0\ntotal_rss 1024\n",
+              "memory.oom_control": "oom_kill_disable 0\nunder_oom 0\noom_kill 0\n"}
+    for name, value in values.items():
+        (owned / name).write_text(value, encoding="utf-8")
+    phase = tmp_path / "phase.txt"
+    phase.write_text("preparation", encoding="utf-8")
+    actual = snapshot(phase, proc=proc)
+    assert actual["cgroup_version"] == 1
+    assert actual["memory_max"] == 32 * 2**30
+    assert actual["memory_peak"] == 31 * 2**30
+    assert actual["swap_current"] == 0 and actual["swap_max"] == 0
+    assert actual["events"]["oom_kill"] == 0
+    assert actual["events"]["limit_hits"] == 4  # Limit hits are not OOM kills.
+    assert ram_constraint(actual)["kind"] == "cgroup_v1"
+
+
+def test_v2_host_namespace_resolves_membership_instead_of_host_root(tmp_path):
+    from benchmarks.harness.b6_ram import locate_memory_cgroup
+
+    proc, mount = tmp_path / "proc", tmp_path / "unified"
+    (proc / "self").mkdir(parents=True)
+    owned = mount / "docker/owned"
+    owned.mkdir(parents=True)
+    (mount / "memory.max").write_text("max", encoding="utf-8")
+    (owned / "memory.max").write_text(str(32 * 2**30), encoding="utf-8")
+    (proc / "self/cgroup").write_text("0::/docker/owned\n", encoding="utf-8")
+    (proc / "self/mountinfo").write_text(
+        f"1 0 0:1 / {mount} ro - cgroup2 cgroup rw\n", encoding="utf-8",
+    )
+    path, version = locate_memory_cgroup(proc)
+    assert path == owned and version == 2
+
+
 @pytest.mark.parametrize("defect", [
     "oom", "swap", "missing_phase", "failure", "limit_changed", "none",
 ])

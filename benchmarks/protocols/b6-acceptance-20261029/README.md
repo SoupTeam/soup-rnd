@@ -43,3 +43,14 @@ Other GPUs use native BF16 when available, otherwise FP16 with FP32 adapter
 parameters. Both paired arms always use the same actual dtype/cache. This is
 not a cross-hardware/dtype comparison with the original BF16 result. The data,
 selection, token limit and decision rule remain unchanged.
+
+## RAM-accounting compatibility
+
+Hardware probes encountered both unified cgroup v2 and legacy v1 hosts before
+any new giant evaluation. The monitor resolves the current process's controller
+membership against mountinfo, including a mount rooted at the container path.
+V1 uses memory.limit_in_bytes, max_usage_in_bytes, memory.stat swap counts and
+memory.oom_control; v2 uses memory.max, memory.peak, memory.swap.current/peak and
+memory.events. A host-root file is not substituted for the container controller.
+Docker memory/swap limits are requested at creation and verified before source
+download; the criterion remains a recorded hard limit of at most 32 GiB.

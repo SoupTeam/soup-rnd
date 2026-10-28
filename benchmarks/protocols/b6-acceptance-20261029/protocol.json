@@ -22,7 +22,7 @@
   "training": "same two developer-authored training strings and two optimizer updates as original pilot; no evaluation text used for training",
   "dtype_rule": "float32 on Pascal (CUDA compute capability major<7); otherwise bfloat16 when native, float16 otherwise with FP32 adapter parameters. Fixed before any new giant evaluation; report actual compute dtype and stack.",
   "quantization": "NF4, blocksize64, no double quant; source FP8 converted once for actual compute dtype",
-  "ram_rule": "before source download require recorded finite cgroup memory.max <=34359738368 (32 GiB), or physical MemTotal <=34359738368 with no host swap; all prep/train/eval/reload in that scope. Record memory.current/peak/events, swap usage and process RSS. Nonzero OOM-kill or swap-use makes no clean-fit claim.",
+  "ram_rule": "before source download require recorded finite cgroup v2 memory.max or v1 memory.limit_in_bytes <=34359738368 (32 GiB), or physical MemTotal <=34359738368 with no host swap; all prep/train/eval/reload in that scope. Record memory.current/peak/events (or v1 usage/max_usage/oom_control), swap usage and process RSS. Nonzero OOM-kill or swap-use makes no clean-fit claim.",
   "budget": "at most $5 new spend including all setup attempts, storage and traffic; aim below cap; automatic exact-owned deletion and independent absence verification",
   "attempt_policy": "retain every attempted phase, error and source revision; no changing evaluation selection/decision after observing losses; preserve original 2026-10-28 result as a separate trial",
   "optimizer_steps": 2,
