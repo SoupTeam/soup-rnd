@@ -1,0 +1,82 @@
+{
+  "schema": "h2-ce-confirmation-plan-v1",
+  "status": "LOCAL_RUNNER_TESTED_PENDING_PUBLICATION_AND_OPERATIONAL_PREFLIGHT",
+  "prior_diagnostic_commit": "2ba525130532d34004ead24c92037bb1ed763826",
+  "model_revision": "e9a141a2091ea561b96483212645a2a05e6f99fc",
+  "versions": {
+    "torch": "2.14.1",
+    "transformers": "5.17.0",
+    "trl": "0.29.1",
+    "peft": "0.21.2",
+    "bitsandbytes": "0.50.2",
+    "accelerate": "1.15.0",
+    "datasets": "4.8.5",
+    "liger-kernel": "0.8.5",
+    "unsloth": "2026.10.7",
+    "triton": "3.8.0"
+  },
+  "phases": [
+    "baseline_probes",
+    "ce_only_probes",
+    "paired_probe_review",
+    "baseline_training",
+    "ce_only_training",
+    "paired_training_review"
+  ],
+  "shared_deadline_seconds": 2400,
+  "process_max_seconds": 600,
+  "cleanup_reserve_seconds": 40,
+  "optimizer_updates_per_training_arm": 4,
+  "microbatches_per_training_arm": 16,
+  "gradient_accumulation": 4,
+  "useful_targets_per_training_arm": 96,
+  "processed_positions_per_training_arm": 384,
+  "probes": [
+    {
+      "shape": [
+        1,
+        24
+      ],
+      "useful_targets": 6,
+      "padding_positions": 0
+    },
+    {
+      "shape": [
+        1,
+        48
+      ],
+      "useful_targets": 12,
+      "padding_positions": 0
+    },
+    {
+      "shape": [
+        1,
+        96
+      ],
+      "useful_targets": 24,
+      "padding_positions": 0
+    },
+    {
+      "shape": [
+        2,
+        192
+      ],
+      "useful_targets": 54,
+      "padding_positions": 168
+    }
+  ],
+  "files_sha256": {
+    "operator_study.json": "747482b78fae881208a5609429d7aba835ca1609794f10931a9974dcca07d1be",
+    "numerical_policy.json": "e6a320f9bc8e706f722660f221a11d4c874d4d52815cd3ecc6e3271cf0f585ed",
+    "candidate_configs/baseline.json": "61889eccb324eed59ca5688ef903722906e085883c824282ef0ada51238e4f4b",
+    "runtime_candidate.lock": "0e80dd640e7ef177841acb29b932864aa6d3a63aff54a081d6724eb9e54c0d31",
+    "prepared_fixture_candidate.jsonl": "b8d9d98d01ee6bf9f45911db6f65a8045c32d6eecb6f6bfaa2693914e335c491",
+    "CE_CONFIRMATION_PROTOCOL.txt": "56f8245e3b2ce312eedfe3d66bf5c2f16ce7dbf0d84c0eceeaa4bab0f99834d2",
+    "ce_confirmation_workset.json": "538045440347884e076ad649bf596fb5304ba5d6a0899839fbd074891e28a08f"
+  },
+  "performance_verdict": "NO_VERDICT",
+  "gpu_run_performed": false,
+  "rental_started": false,
+  "executable_runner_ready": true,
+  "gpu_launch_ready": false
+}

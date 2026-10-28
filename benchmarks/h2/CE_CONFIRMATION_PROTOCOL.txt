@@ -1,0 +1,83 @@
+H2 CE-only prospective correctness confirmation — 2026-10-28
+Status: LOCAL_RUNNER; pending publication and operational preflight. Performance NO_VERDICT.
+
+Motivation: attempt013's CE-only matched one baseline microbatch exactly. This
+supports selecting CE-only for broader testing, not accepting all Liger operators.
+Historical source, reports and numerical_policy.json remain unchanged.
+
+Design and fixed work
+- Same pinned 8B mirror revision, model files, NF4 base values, BF16 compute,
+  SDPA, runtime versions and LoRA configuration as operator_study.json.
+- Four fresh supervised processes: baseline-probes, CE-only-probes, then
+  baseline-training, CE-only-training only after paired probe review passes.
+  No resume or retries. One model per process; no global patch restoration.
+- All five patch flags explicit; only cross_entropy enabled for CE-only.
+- Four independent pre-training probes from ce_confirmation_workset.json:
+  lengths24/48/96 and a padded two-row batch of lengths24/192. Repeated rows are
+  synthetic context extensions with existing labels/EOS boundaries preserved.
+  They test shapes/padding; they are not natural long-context evaluation data.
+- Same initial adapter and quantized-base hashes in both processes. Each probe
+  restores RNG and clears gradients; no optimizer, no changed model state.
+- Afterwards sixteen fixed microbatches, accumulation4, exactly four AdamW
+  updates. Use the saved order verbatim; do not shuffle, filter or truncate rows.
+  LR0.0002, constant schedule, zero weight decay/dropout, seed/data_seed42.
+  Training microbatches have one24-token row and6 useful shifted targets each.
+  Total per arm:384 processed/nonpadding positions,96 useful targets,0 padding.
+- Trainer owns the instance patch when train() executes; the probe process owns
+  its explicit diagnostic instance patch. Preserve the existing separate class
+  and instance interception points, exactly once per CE-only model and zero for
+  baseline. Never call prepare_capture followed by train on the same model.
+  Reload the pinned initial model/seed in each fresh process and verify identities.
+
+Numerical evidence and fixed acceptance
+- Save every probe input, loss, gradient and initial state. Reuse unchanged
+  numerical_policy.json for all probes and training gradient comparisons:
+  loss atol/rtol0.01/0.01, gradient atol/rtol0.0001/0.02,
+  relativeL2<=0.02 and cosine>=0.999; preserve exact zero-gradient semantics.
+- At each accumulation boundary save full named unscaled accumulated gradients
+  BEFORE clipping, then full adapters AFTER optimizer.step. Record all16 losses,
+  masks/IDs/labels, normalization denominators and optimizer events. Same clipping
+  policy/resolved optimizer settings in both arms; no missing/frozen trainables.
+- Compare accumulated gradients with the unchanged policy. Compare adapter DELTAS
+  relative to the identical initial adapter, rather than large final tensors that
+  could conceal divergent small updates. Delta thresholds are prospectively
+  identical to gradient thresholds, including elementwise tolerances and zeros.
+- Require finite losses/gradients/optimizer state, changed adapter each update,
+  frozen NF4 base, exactly16 backwards/4 updates and identical ordered work.
+  Save final optimizer moments for audit; no claim of optimizer-state equality
+  without an explicitly implemented comparison.
+- Record actual CE CUDA kernels plus absence of other Liger families on one
+  diagnostic probe and one training microbatch. Capture lifecycle, ownership,
+  F1 and clocks unchanged. Reject missing/unknown evidence; do not loosen gates.
+- Local reviewer recomputes all decisions from tensors and hashes. Any failed
+  probe, gradient/update/work/dispatch check blocks candidate acceptance.
+
+Operations and scope
+- Before execution: implement the dedicated runner and tensor reviewer, fault-test
+  them locally, publish/freeze source and contract hashes, validate snapshot and
+  source/boot/GPU/runtime, reconcile the remaining H2 budget. No rental authorized
+  by this document itself; existing budget authority remains separate.
+- External supervisor: one shared2400s deadline for all four processes,600s maximum per
+  process,40s cleanup reserve. No timeout resets between probes/training. Stop
+  on a failed process or review; never replace an excluded run.
+- Evidence estimate up to6GiB; require at least12GiB free local/export capacity
+  before renting, or a measured tighter bound including archive plus extraction.
+  Capture only this task's files/processes; preserve full evidence and verify
+  every SHA before deleting its instance/volume with applicable authorization.
+- Success means limited CE-only numerical confirmation. This short synthetic
+  fixture cannot establish useful throughput, convergence or general quality.
+  A separate representative performance protocol is required even after PASS.
+
+Implementation and launch boundary
+- h2_ce_confirmation.py supplies the four fresh processes and fail-closed paired
+  reviews. h2_ce_training.py captures full tensors and recomputes numerical gates.
+- CPU integration exercises the actual Soup/TRL trainer on a constructor-built
+  tiny model with Transformers5.17.0. It does not validate CUDA or Liger execution.
+- The launcher accepts only committed source and exact artifact/model/runtime
+  hashes, a single absolute deadline, and cumulative H2 cost authority <=$5.
+- Completion is COMPLETE_CE_NUMERICAL_SERIES, not task/performance acceptance.
+  The existing exclusive GPU ownership, F1, clocks and preservation envelope must
+  be prepared and verified separately before a paid run. These controls remain
+  required; external_controls_required stays true in the numerical series result.
+- Offline --review-only recomputes probe and training gates from the saved files.
+  It requires the same pinned source artifacts, but no live server or CUDA device.
