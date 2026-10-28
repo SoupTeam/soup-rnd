@@ -69,6 +69,12 @@ def resolve_repo_id(api, repo: str) -> str:
     return repo if "/" in repo else f"{api.whoami()['name']}/{repo}"
 
 
+def ensure_private_dataset(api, repo_id: str) -> bool:
+    """Create the dataset repo if it is missing; True only when it is private."""
+    api.create_repo(repo_id, repo_type="dataset", private=True, exist_ok=True)
+    return bool(api.repo_info(repo_id, repo_type="dataset").private)
+
+
 def push(out: Path, manifest: Path, repo: str, dry_run: bool, api: Optional[Any] = None,
          log=print) -> int:
     """Upload exactly the manifest's files (plus the manifest) and check the repo afterwards."""
@@ -88,8 +94,7 @@ def push(out: Path, manifest: Path, repo: str, dry_run: bool, api: Optional[Any]
     if dry_run:
         log("dry run: nothing uploaded")
         return 0
-    api.create_repo(repo_id, repo_type="dataset", private=True, exist_ok=True)
-    if not api.repo_info(repo_id, repo_type="dataset").private:
+    if not ensure_private_dataset(api, repo_id):
         log("the repo exists and is not private; refusing to upload")
         return 1
     api.upload_file(path_or_fileobj=str(manifest), path_in_repo=MANIFEST_NAME,
