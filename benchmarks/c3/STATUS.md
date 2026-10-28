@@ -3,7 +3,7 @@
 Status (2026-10-28): synthetic CUDA pilot **NUMERICAL_PASS**;
 **task acceptance incomplete / NO_VERDICT on performance**.
 Branch: `research/c3-partial-ram`. Pilot source commit:
-`2dafe69b4e550d1f8ceb4fe1241ff2208b7cea50`. Pilot report published in `7c061bc84`;
+`5bcd74b4792ec6b3580babf9aaf0266d30dff2c0` (attempt010). Earlier pilot report published in `7c061bc84`;
 no PR creation or merge is claimed here.
 
 ## Implemented
@@ -54,7 +54,7 @@ Card: https://trello.com/c/h3rVZVsO
 | Budget after buffers and L2L | Explicit static reservations and staging checks implemented; shared A4 contract unresolved. L2L combination is refused. |
 | Keep selected weights resident | Implemented and tested with real CPU tensors and safetensors. |
 | Free resources and enforce limits | Local failure/cleanup tests and two CUDA controls pass; full C3/A4 reservation and lifetime acceptance remains open. |
-| Compare training, disk bytes and speed | Synthetic CUDA numerical parity passes; application reads fall 25%. Physical SSD calibration and accepted throughput comparison remain open. |
+| Compare training, disk bytes and speed | Synthetic CUDA numerical parity, physical SSD counter calibration and injected foreign-reader rejection pass in attempt010. Representative-model throughput acceptance remains open. |
 
 Do not mark the entire card complete based on CPU evidence. No dynamic eviction,
 NF4 validation, accepted A4 integration or throughput claim is included.
@@ -79,7 +79,7 @@ integration; the public L2L combination remains refused.
 5. Review evidence before declaring speedup or updating the Trello checklist.
 
 User separately authorized USD5 for C3. The frozen `GPU_PROTOCOL.md` defines one
-bounded synthetic CUDA pilot; its outcome must be recorded separately. The 2026-10-26 series has separate task budgets; no live C3 resources remain. A changelog draft is provided separately; use an actual PR number when
+bounded synthetic CUDA pilot; its outcome must be recorded separately. The 2026-10-26 series has separate task budgets. Attempt010 instance58131635 and volume58131634 are deleted; provider absence is confirmed in report closure_status.json. A changelog draft is provided separately; use an actual PR number when
 creating the required release fragment, rather than inventing one now.
 
 ## Paid attempt 001
@@ -131,10 +131,27 @@ runs. Both attempts were preserved and their new resources were deleted. See the
 A prospective offline setup now has all 108 hash-pinned Linux wheels and the pinned
 CPython3.11.16 archive locally verified. Its 225 active dependency edges passed the
 metadata closure check. On 2026-10-28, a complete copy to the reconnected USB drive
-passed full per-file SHA readback. Linux installation and GPU execution of this
-offline setup remain untested; source publication and operational preflight are
-required before a separate paid attempt. See `OFFLINE_SETUP_PROTOCOL.txt` and
+passed full per-file SHA readback. Published offline setup installed successfully on Linux in attempt010, followed
+by two CUDA controls and the bounded measurement pilot. See `OFFLINE_SETUP_PROTOCOL.txt` and
 `offline_preparation_review.json`.
 
 Representative workload and shared A4 reservation/lifetime integration remain open.
-No new rental is started by this update.
+
+
+## Measurement pilot010, 2026-10-28
+
+The pinned offline Linux setup and two CUDA controls passed. Physical NVMe
+read-counter calibration and deliberate foreign-reader rejection passed before
+the workload. Five ABBA blocks ran in 20 isolated processes: 120 optimizer
+updates, 80 after warmup. Losses, gradients and final adapters matched exactly.
+All 20 arms passed exclusive GPU ownership, F1 and complete clock checks.
+Local archive/member/restored-file SHA verification and frozen numerical review
+passed. Full observations and measurement boundaries are in
+`reports/20261028_attempt010/REPORT_RU.txt` and `local_review.json`.
+
+This is a synthetic 122M FP32 pilot. Descriptive step times exclude numerical
+hashing, whereas I/O includes it; RSS includes model construction/cache fill.
+Do not generalize these observations to a representative model, claim an isolated
+RSS reduction, or declare the C3/A4 integration complete. Performance NO_VERDICT
+and the remaining representative-model/shared-reservation acceptance gates stay
+open. Resource deletion status is recorded separately in closure_status.json.
