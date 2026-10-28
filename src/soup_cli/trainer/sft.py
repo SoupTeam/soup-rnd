@@ -1309,7 +1309,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
         from soup_cli.utils.fsdp import prepare_fsdp2_tied_embeddings
 
         if prepare_fsdp2_tied_embeddings(self.trainer):
-            console.print("[green]FSDP2:[/] tied embeddings share one sharding group")
+            console.print("[green]FSDP2:[/] joint sharding configured for tied embeddings")
         if self._quest_metadata is not None:
             from soup_cli.utils.quest import QuestMetadataCallback
 

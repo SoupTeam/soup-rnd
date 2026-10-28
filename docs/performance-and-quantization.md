@@ -1162,6 +1162,14 @@ are placed jointly in one sharding group before the rest of the model is wrapped
 This prevents Torch 2.13's first-forward rejection when Accelerate 1.14 places
 the two uses of a shared parameter in separate groups. Untied embeddings,
 trainable embedding/head modules and FSDP1 are left to their existing paths.
+With `cpu_ram_efficient_loading=True`, joint placement is deferred until after
+Accelerate captures the full state and moves/re-ties the model on meta, before
+child wrapping. This preserves rank 0's full tensors for broadcast and avoids
+distributing an already-local shard as a full weight. The compatibility binding
+is local to this accelerator; an unsupported preparation API fails explicitly.
+The [review follow-up](../benchmarks/h3-fsdp-review-20261028.md) covers this
+loading contract with real two-rank CPU/Gloo tests, including BF16 master-weight
+upcasting and optimizer parameter remapping. This mode has no new GPU result.
 
 Train on multiple GPUs with DeepSpeed or PyTorch FSDP2:
 
