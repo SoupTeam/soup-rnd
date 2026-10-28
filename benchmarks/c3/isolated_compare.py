@@ -61,17 +61,33 @@ def compare_results(results: list[dict[str, Any]], order: list[str]) -> dict[str
             "failures": failures, "performance_verdict": "NO_VERDICT"}
 
 
-def run(output: Path, mode: str) -> dict[str, Any]:
+CLEANUP_RESERVE_SECONDS = 40
+
+
+def run(output: Path, mode: str, deadline_unix_s: float | None = None) -> dict[str, Any]:
     if mode not in ("cpu-smoke", "cuda-pilot"):
         raise ValueError("unknown mode")
     if os.name != "posix":
         raise RuntimeError("POSIX supervisor required")
+    now = time.time()
+    bound = 1800 if mode == "cuda-pilot" else 180
+    if deadline_unix_s is None:
+        if mode == "cuda-pilot":
+            raise ValueError("CUDA requires the outer supervisor's absolute deadline")
+        deadline_unix_s = now + bound
+    if (type(deadline_unix_s) not in (int, float)
+            or not math.isfinite(deadline_unix_s)
+            or deadline_unix_s <= now + CLEANUP_RESERVE_SECONDS):
+        raise ValueError("Unexpired finite deadline with 40s cleanup reserve required")
+    deadline = min(deadline_unix_s, now + bound) - CLEANUP_RESERVE_SECONDS
     output = Path(os.path.realpath(output))
     output.mkdir(parents=True, exist_ok=False)
     order = list("ABBA") * 5 if mode == "cuda-pilot" else list("AB")
     result: dict[str, Any] = {"status": "RUNNING", "order": order, "arms": [],
+                              "outer_deadline_unix_s": deadline_unix_s,
+                              "work_deadline_unix_s": deadline,
+                              "cleanup_reserve_seconds": CLEANUP_RESERVE_SECONDS,
                               "performance_verdict": "NO_VERDICT"}
-    deadline = time.time() + (1800 if mode == "cuda-pilot" else 180)
     try:
         if mode == "cuda-pilot":
             from benchmarks.c3.foreign_read_control import run as foreign_control
@@ -84,6 +100,8 @@ def run(output: Path, mode: str) -> dict[str, Any]:
             if control["status"] != "PASS_FOREIGN_READER_DETECTED":
                 raise RuntimeError("foreign-reader rejection not proven; no training arms")
         for index, arm in enumerate(order):
+            if time.time() >= deadline:
+                raise TimeoutError("shared work deadline expired; no new arm")
             directory = output / f"arm_{index:02d}_{arm}"
             command = [sys.executable, "-m", "benchmarks.c3.isolated_arm", "--output",
                        str(directory), "--mode", mode, "--arm", arm]
@@ -115,8 +133,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mode", choices=["cpu-smoke", "cuda-pilot"], default="cpu-smoke")
+    parser.add_argument("--deadline-unix-s", type=float,
+                        help="Same absolute deadline as outer supervisor; required for CUDA")
     args = parser.parse_args()
-    result = run(args.output, args.mode)
+    result = run(args.output, args.mode, args.deadline_unix_s)
     from rich.console import Console
 
     Console().print(result["status"])

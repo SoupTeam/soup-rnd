@@ -1,0 +1,25 @@
+{
+  "status": "PASS_FOCUSED_LOCAL_ONLY_AWAITING_OWNER_PUBLICATION",
+  "base_commit": "7c061bc84f3b22a0f5241640bbf8495952bdb6c0",
+  "tests_passed": 45,
+  "test_command": "PYTHONPATH=src:. /Users/nurseiitzhuzbay/Desktop/soup-rnd/.venv/bin/python -m pytest --no-cov -q tests/test_c3_isolated_compare.py tests/test_c3_setup_supervisor.py tests/test_c3_io_calibration.py tests/test_c3_foreign_read_control.py",
+  "ruff": "PASS",
+  "full_repository_ci_executed": false,
+  "initial_run": "45 tests passed, command exited 1 because whole-repository coverage threshold 77% was unmet; focused run repeated with --no-cov. No coverage configuration changed.",
+  "checks": [
+    "Real CPU arms preserve exact training and distinct process IDs",
+    "Both actual arm supervisors receive the same deadline with 40s reserve",
+    "Invalid CUDA deadlines rejected before output creation",
+    "Calibration consuming work window blocks first arm",
+    "Existing retained-leader timeout and cleanup regressions pass"
+  ],
+  "gpu_executed": false,
+  "performance_verdict": "NO_VERDICT",
+  "source_sha256": {
+    "benchmarks/c3/isolated_compare.py": "16ef6afe696cc2efb13c1e640b289ef8fdcdf5b06864ee0de22009335dc09367",
+    "tests/test_c3_isolated_compare.py": "68296e051e25272602a61573f7fa7c50a6036c56ff6361c5d92d20993645b64e",
+    "benchmarks/c3/DEADLINE_RECOVERY_PROTOCOL.txt": "8731247e24f7045aee6cc5e124cb16174452aab5b3ea1ea962b195a1beb0fbb0",
+    "benchmarks/c3/DEADLINE_RECOVERY_PROTOCOL.sha256": "4a2b1bce479a929024e7f7e194933d642e8749a59e944c20e9e3cd28742bc7e7",
+    "benchmarks/c3/STATUS.md": "b98f9067927fa652e208a4ac799a48c8ce33750ff7a600ce03e314d8b22a5f7b"
+  }
+}

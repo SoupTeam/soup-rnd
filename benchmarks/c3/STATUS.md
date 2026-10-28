@@ -3,7 +3,7 @@
 Status (2026-10-28): synthetic CUDA pilot **NUMERICAL_PASS**;
 **task acceptance incomplete / NO_VERDICT on performance**.
 Branch: `research/c3-partial-ram`. Pilot source commit:
-`2dafe69b4e550d1f8ceb4fe1241ff2208b7cea50`. Pilot report awaits owner publication;
+`2dafe69b4e550d1f8ceb4fe1241ff2208b7cea50`. Pilot report published in `7c061bc84`;
 no PR creation or merge is claimed here.
 
 ## Implemented
@@ -121,8 +121,9 @@ Prospective measurement instrumentation is now implemented in `isolated_compare.
 NVMe counters must pass direct-read calibration and controlled foreign-reader
 rejection before any CUDA arms. Setup/cache-fill counters are separate; RSS is
 explicitly the whole process lifetime. The local focused suite passes 72 tests
-with 2 CUDA skips. Linux physical controls have not run on this Mac. Source awaits
-owner publication; no new measurement GPU result or performance pass is claimed.
+with 2 CUDA skips. Linux physical controls have not run on this Mac. Measurement source published in `7c061bc84`. A prospective nested-deadline fix
+now awaits publication under `DEADLINE_RECOVERY_PROTOCOL.txt`; no new measurement
+GPU result or performance pass is claimed.
 
 Representative workload and shared A4 reservation/lifetime integration remain open.
 No new rental is started by this update.

@@ -1,0 +1,35 @@
+C3 prospective nested deadline recovery, 2026-10-28
+
+Base source: 7c061bc84f3b22a0f5241640bbf8495952bdb6c0.
+MEASUREMENT_PROTOCOL.txt and its original receipt remain historical and unchanged.
+This amendment changes process lifecycle only; workloads, F1, numerical checks,
+calibration tolerances and NO_VERDICT acceptance are unchanged.
+
+Problem: isolated_compare previously computed a fresh 1800s deadline after the
+outer 1800s supervisor had already started. The outer process group could be
+killed while an inner supervisor still owned a separate arm process group.
+
+Launch contract:
+- Compute D once BEFORE starting the outer supervisor. D must be no later than
+  launch_time + 1800s and must respect the remaining paid lease and export reserve.
+- Pass exactly D to both setup_supervisor --deadline-unix-s and the pinned script's
+  isolated_compare --deadline-unix-s. Retain outer --max-seconds 1800.
+- CUDA mode refuses a missing, nonfinite, expired or insufficient-reserve deadline
+  before creating output, importing calibration or spawning processes.
+- All inner arm supervisors receive W=min(D, controller_start+1800)-40 seconds.
+  The 40s gap reserves time for inner process-group cleanup and result persistence.
+  Per-arm 300s bound remains. Never recalculate or extend W after calibration.
+- Refuse another arm when W expires. Preserve BLOCKED/TIMEOUT evidence; no retry.
+- Calibration and its observer inherit the outer process group (no new session).
+  They remain covered by the outer deadline even if direct I/O stalls.
+- CPU smoke defaults to a 180s bound with the same 40s reserve, or accepts an
+  explicit outer deadline for nested local tests.
+
+The caller must implement the shared-D contract; the CLI cannot discover another
+process's deadline. This is bounded cleanup under normal scheduler/clock behavior,
+not a guarantee against host failure, clock discontinuity or uninterruptible I/O.
+Existing clocks/ownership controls and evidence review remain mandatory.
+
+Before any paid attempt: owner publishes the fix, exact source/hash verification,
+budget reconciliation, owned process/GPU/storage checks and original CUDA controls.
+No training or calibration result is claimed by local lifecycle tests.
