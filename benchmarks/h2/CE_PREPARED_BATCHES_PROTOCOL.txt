@@ -1,0 +1,29 @@
+H2 prospective prepared-batch audit recovery — 2026-10-29
+
+Attempt014 at source41dc9f076fa7fb278302d932425a4e1c60666800 is blocked,
+not resumed or reclassified. Baseline completed four probes; CE-only stopped
+before capture with KeyError: attention_mask. No optimizer updates ran.
+Both processes passed their unchanged GPU ownership/F1/clock controls.
+
+Pinned TRL0.29.1 prunes the Liger dataset to input_ids, seq_lengths,
+completion_mask and assistant_masks when present. Soup adds assistant_masks
+from its prepared labels. The installed collator then constructs attention_mask
+and labels. Requiring those output columns in the intermediate dataset was
+incorrect. This is a prospective audit correction, not a numerical acceptance.
+
+Before any probe or training capture, call the actual configured trainer collator
+on each actual prepared row in order. Require the exact row count and exactly
+input_ids, attention_mask and labels in each output; require int64 tensors of
+shape[1,L], and exact equality with every field in the frozen prepared fixture.
+Do not synthesize missing masks/labels from expected values, fill defaults, change
+inputs, normalize errors away, or ignore a mismatch. Reject missing/extra rows,
+changed order/tokens/loss masks, padding-free outputs and malformed tensors.
+Save a prepared_batch_audit receipt in the child evidence on success.
+
+The new audit applies identically to both arms. All frozen probe/training batches,
+model/revision/runtime, initial adapter identity, numerical tolerances, source
+publication gates, PID/F1/clock controls, shared2400s/child600s/cleanup40s limits
+and cumulativeUSD5 authority remain unchanged. Include this protocol in the
+committed artifact pin set. No additional GPU attempt is authorized by this file.
+Publish the correction and recheck cumulative budget and operational preflight
+before a separately recorded fresh attempt. Performance remains NO_VERDICT.

@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from h2_ce_controls import CaptureControls, validate_controls
 from h2_ce_training import Recorder, compare_tensors, recording_trainer, review_training, write_json
@@ -48,6 +49,7 @@ ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
     'runtime_candidate.lock', 'synthetic_fixture.jsonl', 'prepared_fixture_candidate.jsonl',
     'CE_CONFIRMATION_PROTOCOL.txt', 'ce_confirmation_plan.json', 'ce_confirmation_workset.json',
     'CE_CONTROLS_PROTOCOL.txt',
+    'CE_PREPARED_BATCHES_PROTOCOL.txt',
 ))
 _USED = False
 
@@ -184,6 +186,27 @@ def review_pair(root: Path, *, training: bool) -> dict:
     return {'status': 'PASS_CE_PROBES', 'probes': results, 'performance_verdict': 'NO_VERDICT'}
 
 
+def validate_prepared_batches(trainer: Any, expected: list[dict]) -> dict:
+    """Check actual collated tensors; TRL may prune raw columns for Liger."""
+    import torch
+
+    keys = {'input_ids', 'attention_mask', 'labels'}
+    if not expected or len(trainer.train_dataset) != len(expected):
+        raise ValueError('Actual prepared row count differs from frozen rows')
+    for index, reference in enumerate(expected):
+        batch = trainer.data_collator([trainer.train_dataset[index]])
+        if set(batch) != keys or set(reference) != keys:
+            raise ValueError('Actual prepared batch fields differ from frozen rows')
+        for key in sorted(keys):
+            value = batch[key]
+            if (not isinstance(value, torch.Tensor) or value.dtype != torch.int64
+                    or value.ndim != 2 or value.shape[0] != 1
+                    or value.detach().cpu().tolist() != [reference[key]]):
+                raise ValueError(f'Actual prepared batch {index} {key} differs from frozen row')
+    return {'status': 'PASS_EXACT_COLLATED_PREPARED_ROWS', 'rows': len(expected),
+            'fields': sorted(keys)}
+
+
 def run_child(contract: dict, phase: str, out: Path) -> dict:
     global _USED
     if _USED or phase not in PHASES:
@@ -253,10 +276,7 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
             raise ValueError('Unexpected Trainer/attention state')
         prepared = [json.loads(line) for line in
                     (SPEC / 'prepared_fixture_candidate.jsonl').read_text().splitlines()]
-        actual = [{k: row[k] for k in ('input_ids', 'attention_mask', 'labels')}
-                  for row in wrapper.trainer.train_dataset]
-        if actual != prepared:
-            raise ValueError('Actual prepared fixture differs from frozen rows')
+        result['prepared_batch_audit'] = validate_prepared_batches(wrapper.trainer, prepared)
         names = list(loaded['trainable_shapes'])
         before = snapshot(wrapper.model, names)
         identity = hashlib.sha256(json.dumps(before, sort_keys=True,
