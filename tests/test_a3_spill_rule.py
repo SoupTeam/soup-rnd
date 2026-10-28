@@ -116,16 +116,20 @@ class Session:
         self.calibration = {"device": "cuda", "aliasing": {"pass": True,
                                                            "status": "neutralized"}}
         sigint = _arm("sigint", TIGHT, layers=16)
-        sigint.update(exit="interrupted", at_interrupt={"in_step": True, "steps_done": 1},
-                      steps=1)
+        hold = {"layer": 15, "micro_batch": 0, "pass": "backward", "released": "interrupt"}
+        sigint.update(exit="interrupted", steps=1, hold=hold,
+                      at_interrupt={"in_step": True, "steps_done": 1, "hold": hold})
         kill9_next = _arm("kill9_next", TIGHT, layers=16)
         kill9_next["stale_removed"] = [KILLED_FILE]
         self.cleanup = {"sigint": sigint, "kill9_next": kill9_next}
-        marker = {"pid": 4242, "steps_done": 1, "in_step": True, "spill_path": KILLED_FILE,
-                  "device": "cuda", "expected_memory_max": TIGHT, "cgroup_start": _cgroup(TIGHT)}
+        marker = {"pid": 4242, "steps_done": 1, "in_step": True, "phase": "hold",
+                  "spill_path": KILLED_FILE, "device": "cuda", "expected_memory_max": TIGHT,
+                  "cgroup_start": _cgroup(TIGHT)}
         self.entries["sigint"] = _entry("sigint", TIGHT, returncode=130, signal={
             "signal": "SIGINT", "sent_unix": 1.0, "exited": True, "returncode": 130,
             "files_before_signal": [SIGINT_FILE], "files_after_exit": [],
+            "target_at_send": {"pending": False, "blocked": False, "ignored": False,
+                               "caught": True, "state": "S (sleeping)"},
             "marker": {**marker, "pid": 4343, "spill_path": SIGINT_FILE}})
         self.entries["kill9"] = _entry("kill9", TIGHT, returncode=-9, signal={
             "signal": "SIGKILL", "sent_unix": 1.0, "exited": True, "returncode": -9,
@@ -452,8 +456,8 @@ FIRST_STEP = {"pid": 4204, "steps_done": 0, "in_step": True, "device": "cuda",
               "cgroup_start": {"version": 2, "memory_max": TIGHT, "swap_max": 0}}
 
 
-def test_the_rule_is_v2(rule):
-    assert rule.RULE_VERSION == "v2" and rule.RULE["profile"] == "a3-spill-gpu-check-v2"
+def test_the_rule_is_v3(rule):
+    assert rule.RULE_VERSION == "v3" and rule.RULE["profile"] == "a3-spill-gpu-check-v3"
 
 
 @pytest.mark.parametrize("name", ["calibration_check_1", "sigint", "kill9_next",
@@ -598,18 +602,52 @@ def test_a_child_that_ignores_sigint_fails_cleanup(rule, tmp_path):
     assert _part(_judge(rule, session, tmp_path), "3", "sigint")["status"] == "FAIL"
 
 
-@pytest.mark.parametrize("damage", [
-    lambda s: s.entries["sigint"]["signal"].update(files_before_signal=[]),
-    lambda s: s.cleanup["sigint"].update(at_interrupt={"in_step": False, "steps_done": 1}),
-    lambda s: s.cleanup["sigint"].update(exit="normal"),
-    lambda s: s.entries["sigint"]["signal"].update(sent_unix=None, why="exited early"),
+@pytest.mark.parametrize("damage, why", [
+    (lambda s: s.entries["sigint"]["signal"].update(files_before_signal=[]),
+     "no spill file before the signal"),
+    (lambda s: s.entries["sigint"]["signal"].update(sent_unix=None, why="exited early"),
+     "no signal sent (exited early)"),
+    (lambda s: s.entries["sigint"]["signal"]["marker"].update(phase="enter"),
+     "not sent at the hold"),
+    (lambda s: s.cleanup["sigint"]["at_interrupt"].update(in_step=False),
+     "did not come from the hold"),
+    (lambda s: s.cleanup["sigint"]["at_interrupt"].update(steps_done=2),
+     "did not come from the hold"),
+    (lambda s: s.cleanup["sigint"]["at_interrupt"]["hold"].update(released="timeout"),
+     "did not come from the hold"),
 ])
-def test_a_sigint_that_missed_the_scenario_gives_no_verdict(rule, tmp_path, damage):
+def test_a_sigint_that_missed_the_scenario_gives_no_verdict(rule, tmp_path, damage, why):
     session = Session()
     damage(session)
     result = _judge(rule, session, tmp_path)
-    assert _part(result, "3", "sigint")["status"] == "NO VERDICT"
+    part = _part(result, "3", "sigint")
+    assert part["status"] == "NO VERDICT" and why in part["detail"]
     assert result["criteria"]["3"]["status"] == "NO VERDICT"
+
+
+@pytest.mark.parametrize("target, hold, why", [
+    ({"ignored": True, "blocked": False}, {"released": "timeout"},
+     "SIGINT was ignored in the child when it was sent (SigIgn)"),
+    ({"ignored": False, "blocked": True}, {"released": "timeout"},
+     "SIGINT was blocked in the child when it was sent (SigBlk)"),
+    ({"ignored": False, "blocked": False}, {"released": "timeout", "waited_s": 120.0},
+     "the hold ended by its timeout"),
+])
+def test_a_sigint_without_keyboardinterrupt_names_the_cause(rule, tmp_path, target, hold, why):
+    """Session 2's case (exit normal after the signal) and its look-alikes: no verdict, and
+    the detail tells an ignored or blocked signal from a hold that timed out."""
+    session = Session()
+    session.cleanup["sigint"].update(exit="normal", at_interrupt=None, hold=hold, steps=3)
+    session.entries["sigint"]["signal"].update(returncode=0, target_at_send=target)
+    part = _part(_judge(rule, session, tmp_path), "3", "sigint")
+    assert part["status"] == "NO VERDICT" and why in part["detail"]
+
+
+def test_kill9_away_from_the_hold_gives_no_verdict(rule, tmp_path):
+    session = Session()
+    session.entries["kill9"]["signal"]["marker"]["phase"] = "enter"
+    part = _part(_judge(rule, session, tmp_path), "3", "kill9")
+    assert part["status"] == "NO VERDICT" and "not sent at the hold" in part["detail"]
 
 
 def test_kill9_fails_when_the_killed_run_removed_its_own_file(rule, tmp_path):

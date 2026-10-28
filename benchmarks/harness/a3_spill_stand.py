@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import functools
 import hashlib
 import json
 import math
@@ -63,8 +64,13 @@ COST_STEPS = 5
 TARGET_SPILL = 16
 MAX_CALIBRATION_CHECKS = 2
 DEFAULT_GENEROUS = "24G"
-#: After optimizer step 2's first training_step entry, the parent waits this long, then signals.
-SIGNAL_DELAY_S = 0.5
+#: Protocol v3 (§3.7): the signal children hold inside optimizer step 2, at the backward
+#: recompute of the highest spilled layer (its first micro-batch), until a signal arrives or
+#: HOLD_TIMEOUT_S passes; the parent signals once it reads the hold marker. v2 instead waited
+#: 0.5 s after the step-2 entry marker, which did not show where the step was.
+HOLD_STEPS_DONE = 1
+HOLD_TIMEOUT_S = 120.0
+HOLD_POLL_S = 0.05
 SIGNAL_EXIT_TIMEOUT_S = 600.0
 MARKER_POLL_S = 0.05
 #: The calibration and check children sample their scope's memory this often (s).
@@ -672,34 +678,132 @@ def host_allocator(key: str = "current") -> Optional[int]:
     return None
 
 
+def sigint_status(pid: Any = "self", *, proc_root: str = "/proc") -> Optional[Dict[str, Any]]:
+    """SIGINT in ``/proc/<pid>/status``: pending (SigPnd or ShdPnd), blocked (SigBlk), ignored
+    (SigIgn), caught by a handler (SigCgt), and the process State. None where /proc does not
+    give them (not Linux, or the process is gone)."""
+    bit = 1 << (int(signal.SIGINT) - 1)
+    fields: Dict[str, str] = {}
+    try:
+        with open(os.path.join(proc_root, str(pid), "status"), encoding="ascii",
+                  errors="replace") as handle:
+            for line in handle:
+                key, _, value = line.partition(":")
+                fields[key] = value.strip()
+        masks = {key: int(fields[key], 16)
+                 for key in ("SigPnd", "ShdPnd", "SigBlk", "SigIgn", "SigCgt")}
+    except (OSError, KeyError, ValueError):
+        return None
+    return {"pending": bool((masks["SigPnd"] | masks["ShdPnd"]) & bit),
+            "blocked": bool(masks["SigBlk"] & bit), "ignored": bool(masks["SigIgn"] & bit),
+            "caught": bool(masks["SigCgt"] & bit), "state": fields.get("State")}
+
+
+def _handler_name(handler: Any) -> str:
+    if handler is signal.default_int_handler:
+        return "default_int_handler"
+    if isinstance(handler, signal.Handlers):
+        return handler.name
+    return repr(handler)
+
+
+def restore_sigint() -> Dict[str, Any]:
+    """Give this child Python's own SIGINT handler (KeyboardInterrupt), whatever it inherited,
+    and say what it inherited. A command a non-interactive shell starts in the background
+    (``&``) has SIGINT ignored; exec keeps an ignored signal ignored, neither Popen nor
+    ``systemd-run --scope`` resets it, and Python leaves an inherited SIG_IGN in place. Session
+    2's sigint child was started so and never saw its SIGINT (protocol §3.7)."""
+    inherited = {"handler": _handler_name(signal.getsignal(signal.SIGINT)),
+                 "proc": sigint_status()}
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    return {"inherited": inherited,
+            "installed": {"handler": _handler_name(signal.getsignal(signal.SIGINT)),
+                          "proc": sigint_status()}}
+
+
 class Hooks:
     """What the stand's trainer subclass and its callback share: the L2L state, the marker
-    the parent reads (at the first ``training_step`` entry; with ``every`` at each entry, for
-    the signal children), the memory sampler, and whether a KeyboardInterrupt came inside a
-    training_step."""
+    the parent reads (at the first ``training_step`` entry; for the signal children at each
+    entry and exit, and at the hold), the memory sampler, and whether a KeyboardInterrupt came
+    inside a training_step."""
 
     def __init__(self, marker: Optional[str], info: Dict[str, Any], *, every: bool = False,
-                 sampler: Optional[MemorySampler] = None):
+                 sampler: Optional[MemorySampler] = None,
+                 hold_timeout: float = HOLD_TIMEOUT_S):
         self.marker = marker
         self.info = info
         self.every = every
         self.sampler = sampler or MemorySampler()
         self.state: Any = None
+        self.trainer: Any = None
         self.calls = 0
         self.interrupted_in_step = False
         self.cgroup_at_first_step: Optional[Dict[str, Any]] = None
+        self.hold_timeout = hold_timeout
+        #: Where and how the signal child held (None until it does).
+        self.hold: Optional[Dict[str, Any]] = None
+
+    def _write(self, trainer: Any, **fields: Any) -> None:
+        plan = (self.state.spill_plan if self.state is not None else None) or {}
+        write_json(Path(self.marker), {
+            **self.info, "pid": os.getpid(), "unix": time.time(), "calls": self.calls,
+            "steps_done": int(trainer.state.global_step), "spill_path": plan.get("spill_path"),
+            **fields,
+        })
 
     def enter(self, trainer: Any) -> None:
         self.calls += 1
+        self.trainer = trainer
         if self.calls == 1:
             self.cgroup_at_first_step = self.sampler.first_step()["cgroup"]
         if self.marker and (self.every or self.calls == 1):
-            plan = (self.state.spill_plan if self.state is not None else None) or {}
-            write_json(Path(self.marker), {
-                **self.info, "pid": os.getpid(), "unix": time.time(), "calls": self.calls,
-                "steps_done": int(trainer.state.global_step), "in_step": True,
-                "spill_path": plan.get("spill_path"),
-            })
+            self._write(trainer, in_step=True, phase="enter")
+
+    def leave(self, trainer: Any) -> None:
+        if self.marker and self.every:
+            self._write(trainer, in_step=False, phase="leave")
+
+    def install_hold(self, model: Any) -> None:
+        """A forward pre-hook on every decoder layer; only ``_maybe_hold`` decides."""
+        from soup_cli.utils.l2l_step import model_parts
+
+        _causal, owner = model_parts(model)
+        for index, layer in enumerate(owner.layers):
+            layer.register_forward_pre_hook(functools.partial(self._maybe_hold, index))
+
+    def _maybe_hold(self, index: int, _module: Any, _args: Any) -> None:
+        """Hold at the first call of the highest spilled layer with grad on (the L2L step's
+        backward recompute: its forward and the shape capture run without grad) in optimizer
+        step 2. The spilled layers below it are still to be read back, so the store's reader
+        has the file open. A KeyboardInterrupt in the wait is raised here, inside the step."""
+        import torch
+
+        if self.hold is not None or self.trainer is None or not torch.is_grad_enabled():
+            return
+        if int(self.trainer.state.global_step) != HOLD_STEPS_DONE:
+            return
+        plan = (self.state.spill_plan if self.state is not None else None) or {}
+        spilled = int(plan.get("spill_layers") or 0)
+        if spilled < 1 or index != spilled - 1:
+            return
+        store = getattr(self.state, "store", None)
+        stats = getattr(store, "stats", None)
+        self.hold = {"layer": index, "micro_batch": 0, "pass": "backward",
+                     "spill_layers": spilled, "unix": time.time(),
+                     "store_io": None if stats is None else {
+                         "bytes_written": int(stats.bytes_written),
+                         "bytes_read": int(stats.bytes_read)}}
+        if self.marker:
+            self._write(self.trainer, in_step=True, phase="hold", hold=self.hold,
+                        sigint=sigint_status())
+        started = time.monotonic()
+        try:
+            while time.monotonic() - started < self.hold_timeout:
+                time.sleep(HOLD_POLL_S)
+        except KeyboardInterrupt:
+            self.hold.update(released="interrupt", waited_s=time.monotonic() - started)
+            raise
+        self.hold.update(released="timeout", waited_s=time.monotonic() - started)
 
 
 def trainer_class(l2l: bool, hooks: Hooks) -> type:
@@ -715,10 +819,12 @@ def trainer_class(l2l: bool, hooks: Hooks) -> type:
         def training_step(self, model, inputs, num_items_in_batch=None):  # type: ignore[override]
             hooks.enter(self)
             try:
-                return super().training_step(model, inputs, num_items_in_batch)
+                loss = super().training_step(model, inputs, num_items_in_batch)
             except KeyboardInterrupt:
                 hooks.interrupted_in_step = True
                 raise
+            hooks.leave(self)
+            return loss
 
     return StandTrainer
 
@@ -780,12 +886,14 @@ def train_recorded(record: Dict[str, Any], model: Any, runtime: Any, rows: Any, 
                    work_dir: Path, spill_dir: Optional[str], shard_dir: Optional[str],
                    seed: int = 1, record_grads: bool = True, tensor_dir: Optional[Path] = None,
                    marker: Optional[str] = None, marker_every: bool = False,
-                   sampler: Optional[MemorySampler] = None, watch: Any = None,
-                   trainer_options: Optional[Dict[str, Any]] = None) -> None:
+                   hold_timeout: Optional[float] = None, sampler: Optional[MemorySampler] = None,
+                   watch: Any = None, trainer_options: Optional[Dict[str, Any]] = None) -> None:
     """One run through the HF trainer, as the A3 stand's ``train_arm``, filling ``record``.
 
     A KeyboardInterrupt (the sigint child) is recorded, not re-raised; the spill directory is
-    listed after ``train()`` returns or raises, i.e. after the product's own cleanup."""
+    listed after ``train()`` returns or raises, i.e. after the product's own cleanup. With
+    ``hold_timeout`` the run waits up to that long for the parent's signal inside optimizer
+    step 2 (``Hooks``)."""
     import torch
     from transformers import TrainingArguments
 
@@ -798,7 +906,8 @@ def train_recorded(record: Dict[str, Any], model: Any, runtime: Any, rows: Any, 
                   spill_plan=None, stale_removed=[], exit="running")
     hooks = Hooks(marker, {key: record.get(key) for key in
                            ("arm", "device", "expected_memory_max", "cgroup_start")},
-                  every=marker_every, sampler=sampler)
+                  every=marker_every, sampler=sampler,
+                  hold_timeout=HOLD_TIMEOUT_S if hold_timeout is None else hold_timeout)
     options: Dict[str, Any] = dict(
         output_dir=str(Path(work_dir) / arm.replace("/", "_")), per_device_train_batch_size=1,
         gradient_accumulation_steps=k, learning_rate=1e-3, optim="sgd",
@@ -818,6 +927,8 @@ def train_recorded(record: Dict[str, Any], model: Any, runtime: Any, rows: Any, 
             trainer, runtime, dtype=dtype or torch.float32, spill_dir=spill_dir,
             weight_dirs=(shard_dir,) if shard_dir else (), max_seq=seq,
         )
+    if hold_timeout is not None:
+        hooks.install_hold(model)
     record["spill_files_before"] = spill_files(spill_dir) if spill_dir else []
     try:
         with base.pinned_sdpa(sdpa), (watch if watch is not None else contextlib.nullcontext()):
@@ -826,13 +937,15 @@ def train_recorded(record: Dict[str, Any], model: Any, runtime: Any, rows: Any, 
     except KeyboardInterrupt:
         record["exit"] = "interrupted"
         record["at_interrupt"] = {"in_step": hooks.interrupted_in_step,
-                                  "steps_done": int(trainer.state.global_step)}
+                                  "steps_done": int(trainer.state.global_step),
+                                  "hold": hooks.hold}
     finally:
         record["spill_files_after_train"] = spill_files(spill_dir) if spill_dir else []
         record["steps"] = int(trainer.state.global_step)
         record["log_history"] = list(trainer.state.log_history)
         record["logs"] = [row for row in trainer.state.log_history if "loss" in row]
         record["cgroup_at_first_step"] = hooks.cgroup_at_first_step
+        record["hold"] = hooks.hold
         state = hooks.state
         if state is not None:
             record["spill_plan"] = state.spill_plan
@@ -873,7 +986,8 @@ def deterministic_facts(sdpa: str) -> Dict[str, Any]:
 
 
 def child_main(args: argparse.Namespace) -> int:
-    base.set_deterministic_env()  # first, before torch and CUDA start
+    sigint = restore_sigint()  # first: the session's launch may have left SIGINT ignored
+    base.set_deterministic_env()  # before torch and CUDA start
     spec = spec_of(args.arm)
     out = Path(args.out)
     if out.exists():
@@ -886,7 +1000,7 @@ def child_main(args: argparse.Namespace) -> int:
         "argv": [sys.executable, *sys.argv], "device": args.device,
         "expected_memory_max": args.memory_max, "pid": os.getpid(), "k": args.k,
         "seq": args.seq, "spill_dir": args.spill_dir, "started_unix": time.time(),
-        "cgroup_start": cgroup_readback(), "exit": "starting",
+        "cgroup_start": cgroup_readback(), "exit": "starting", "sigint_handling": sigint,
     }
     if cost:
         record.update(role=args.arm, block=args.block, position=args.position)
@@ -940,6 +1054,7 @@ def child_main(args: argparse.Namespace) -> int:
                     work_dir=Path(work), spill_dir=args.spill_dir if spec["l2l"] else None,
                     shard_dir=built["shard_dir"], record_grads=not cost, tensor_dir=tensor_dir,
                     marker=args.marker, marker_every=bool(spec.get("signal")),
+                    hold_timeout=args.hold_timeout if spec.get("signal") else None,
                     sampler=sampler, watch=watch,
                     trainer_options={"bf16": built["dtype"] == "bfloat16",
                                      "use_cpu": args.device == "cpu"},
@@ -1127,8 +1242,9 @@ NOTES = {
     "calibration": "generous limit: the product's plan inputs, the working set, the limit",
     "calibration_check_2": "only if check 1 is outside [12, 20] spilled layers",
     "compare": "CPU: max |d| and the A3 stand's GA tolerance from the unpublished tensors",
-    "sigint": "ONE SIGINT inside optimizer step 2; no spill file may be left",
-    "kill9": "SIGKILL inside optimizer step 2; the spill file must stay",
+    "sigint": "ONE SIGINT while it holds inside optimizer step 2 (backward recompute of the "
+              "highest spilled layer); no spill file may be left",
+    "kill9": "SIGKILL while it holds inside optimizer step 2; the spill file must stay",
     "kill9_next": "same spill dir: must remove kill9's file at start and train",
 }
 
@@ -1149,51 +1265,47 @@ def print_plan(plan: Sequence[Dict[str, Any]], limits: Dict[str, Any]) -> None:
 
 def drive_signal(child: Any, entry: Dict[str, Any], deadline: float, *,
                  list_files: Callable[[str], List[str]], send: Callable[[int, int], None],
+                 read_status: Callable[[int], Optional[Dict[str, Any]]] = sigint_status,
                  sleep: Callable[[float], None] = time.sleep,
                  clock: Callable[[], float] = time.monotonic,
-                 delay: float = SIGNAL_DELAY_S, exit_timeout: float = SIGNAL_EXIT_TIMEOUT_S,
-                 ) -> Dict[str, Any]:
-    """Wait until the child enters optimizer step 2 (its marker says one step is done), wait
-    ``delay``, list the spill directory, send ONE signal to the pid in the marker, wait for
-    the exit, list the directory again."""
+                 exit_timeout: float = SIGNAL_EXIT_TIMEOUT_S) -> Dict[str, Any]:
+    """Wait until the child holds inside optimizer step 2 (its marker's phase is ``hold``),
+    list the spill directory, read the target's SIGINT disposition from /proc, send ONE
+    signal to the pid in the marker, wait for the exit, list the directory again."""
     marker_path = Path(entry["marker"])
     marker = None
     while True:
         code = child.poll()
         if code is not None:
             return {"signal": entry["signal_name"], "sent_unix": None, "returncode": code,
-                    "why": f"the child exited {code} before optimizer step 2", "marker": marker}
+                    "why": f"the child exited {code} before it held inside optimizer step 2",
+                    "marker": marker}
         marker = read_json(marker_path)
-        if marker and int(marker.get("steps_done") or 0) >= 1:
+        if marker and marker.get("phase") == "hold":
             break
         if clock() > deadline:
             return {"signal": entry["signal_name"], "sent_unix": None, "why": "session deadline",
                     "marker": marker}
         sleep(MARKER_POLL_S)
-    sleep(delay)
-    marker = read_json(marker_path) or marker
     before = list_files(entry["spill_dir"])
-    if child.poll() is not None:
-        return {"signal": entry["signal_name"], "sent_unix": None, "returncode": child.poll(),
-                "why": "the child exited before the signal", "marker": marker,
-                "files_before_signal": before}
+    pid = int(marker["pid"])
+    target = read_status(pid)
     try:
-        send(int(marker["pid"]), int(getattr(signal, entry["signal_name"])))
+        send(pid, int(getattr(signal, entry["signal_name"])))
     except ProcessLookupError:
         return {"signal": entry["signal_name"], "sent_unix": None, "returncode": child.wait(),
                 "why": "the child was gone when the signal was sent", "marker": marker,
-                "files_before_signal": before}
+                "files_before_signal": before, "target_at_send": target}
     sent = time.time()
     try:
         code, exited = child.wait(timeout=exit_timeout), True
     except subprocess.TimeoutExpired:
         child.kill()
         code, exited = child.wait(), False
-    return {"signal": entry["signal_name"], "sent_unix": sent, "delay_s": delay,
-            "marker": marker, "child_pid": getattr(child, "pid", None),
-            "files_before_signal": before,
-            "files_after_exit": list_files(entry["spill_dir"]), "exited": exited,
-            "returncode": code}
+    return {"signal": entry["signal_name"], "sent_unix": sent, "marker": marker,
+            "child_pid": getattr(child, "pid", None), "files_before_signal": before,
+            "target_at_send": target, "files_after_exit": list_files(entry["spill_dir"]),
+            "exited": exited, "returncode": code}
 
 
 def run_child(entry: Dict[str, Any], out: Path, env: Dict[str, str], deadline: float, *,
@@ -1418,6 +1530,9 @@ def child_parser(sub: Any) -> None:
     parser.add_argument("--block", type=int, default=0)
     parser.add_argument("--position", type=int, default=0)
     parser.add_argument("--marker", default=None)
+    parser.add_argument("--hold-timeout", type=float, default=HOLD_TIMEOUT_S,
+                        help="signal children: how long to hold inside optimizer step 2 for "
+                             "the parent's signal")
     parser.add_argument("--tensors-dir", default=None)
     parser.add_argument("--out", required=True)
 

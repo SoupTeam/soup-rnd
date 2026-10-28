@@ -13,6 +13,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -789,16 +790,15 @@ class FakeChild:
 SPILL = "/spill/sigint/soup-l2l-spill-4242-0badcafe.bin"
 
 
-def _drive(stand, tmp_path, child, *, send, progress=(0, 0, 1), clock=lambda: 0.0,
-           deadline=float("inf")):
+def _drive(stand, tmp_path, child, *, send, phases=("enter", "enter", "hold"),
+            clock=lambda: 0.0, deadline=float("inf")):
     marker = tmp_path / "marker.json"
-    events, files, steps = [], [SPILL], iter(progress)
+    events, files, steps = [], [SPILL], iter(phases)
 
     def sleep(seconds):
         events.append(("sleep", seconds))
-        if seconds == stand.MARKER_POLL_S:
-            stand.write_json(marker, {"pid": 4242, "steps_done": next(steps),
-                                      "spill_path": SPILL})
+        stand.write_json(marker, {"pid": 4242, "steps_done": 1, "phase": next(steps),
+                                  "spill_path": SPILL})
 
     def sender(pid, sig):
         events.append(("send", pid, sig))
@@ -806,12 +806,12 @@ def _drive(stand, tmp_path, child, *, send, progress=(0, 0, 1), clock=lambda: 0.
 
     entry = {"marker": str(marker), "signal_name": "SIGINT", "spill_dir": "/spill/sigint"}
     out = stand.drive_signal(child, entry, deadline, list_files=lambda d: list(files),
-                             send=sender, sleep=sleep, clock=clock, delay=0.5,
-                             exit_timeout=0.01)
+                             send=sender, read_status=lambda pid: {"pid": pid}, sleep=sleep,
+                             clock=clock, exit_timeout=0.01)
     return out, events
 
 
-def test_one_signal_goes_to_the_markers_pid_after_step_2_starts(stand, tmp_path):
+def test_one_signal_goes_to_the_markers_pid_once_it_holds(stand, tmp_path):
     child = FakeChild()
 
     def exits_clean(files):
@@ -819,31 +819,31 @@ def test_one_signal_goes_to_the_markers_pid_after_step_2_starts(stand, tmp_path)
         child.code = 130
 
     out, events = _drive(stand, tmp_path, child, send=exits_clean)
-    polls = [e for e in events if e == ("sleep", stand.MARKER_POLL_S)]
-    assert len(polls) == 3  # markers at steps_done 0, 0, then 1
-    assert events[-2:] == [("sleep", 0.5), ("send", 4242, int(signal.SIGINT))]
-    assert [e[0] for e in events].count("send") == 1
+    # Entry markers of step 2 are not enough: the signal waits for the hold marker.
+    assert [e[0] for e in events] == ["sleep", "sleep", "sleep", "send"]
+    assert events[-1] == ("send", 4242, int(signal.SIGINT))
     assert out["files_before_signal"] == [SPILL] and out["files_after_exit"] == []
+    assert out["target_at_send"] == {"pid": 4242}
     assert out["exited"] is True and out["returncode"] == 130
-    assert out["marker"]["steps_done"] == 1 and out["sent_unix"] is not None
+    assert out["marker"]["phase"] == "hold" and out["sent_unix"] is not None
 
 
-def test_a_child_that_ignores_the_signal_is_killed_and_reported(stand, tmp_path):
+def test_a_child_that_does_not_exit_after_the_signal_is_killed_and_reported(stand, tmp_path):
     child = FakeChild()
     out, _events = _drive(stand, tmp_path, child, send=lambda files: None)
     assert out["exited"] is False and out["returncode"] == -9
     assert out["files_after_exit"] == [SPILL]
 
 
-def test_no_signal_when_the_child_ends_before_step_2(stand, tmp_path):
+def test_no_signal_when_the_child_ends_before_it_holds(stand, tmp_path):
     out, events = _drive(stand, tmp_path, FakeChild(code=1), send=lambda files: None)
-    assert out["sent_unix"] is None and "before optimizer step 2" in out["why"]
+    assert out["sent_unix"] is None and "before it held" in out["why"]
     assert not [e for e in events if e[0] == "send"]
 
 
 def test_no_signal_after_the_session_deadline(stand, tmp_path):
     out, events = _drive(stand, tmp_path, FakeChild(), send=lambda files: None,
-                         progress=(0, 0, 0), clock=lambda: 10.0, deadline=5.0)
+                         phases=("enter",) * 3, clock=lambda: 10.0, deadline=5.0)
     assert out["sent_unix"] is None and out["why"] == "session deadline"
     assert not [e for e in events if e[0] == "send"]
 
@@ -1001,3 +1001,77 @@ def test_a_spill_child_equals_a_no_spill_child_and_cleans_up(stand, rule, tmp_pa
     compared = json.loads(out.read_text())
     assert compared["hashes_match"] == {"l2l_nospill_1": True, "l2l_spill": True}
     assert compared["spill_vs_nospill"]["equal"] is True
+
+
+# --------------------------------------------------------------------------
+# the signal through real processes: an inherited SIG_IGN and the cleanup children (CPU)
+# --------------------------------------------------------------------------
+def _ignore_sigint_and_exec(argv, env):
+    """Run ``argv`` with SIGINT ignored, the way a non-interactive shell's ``cmd &`` starts
+    it (session 2's launch): the child inherits SIG_IGN across exec."""
+    return subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN))
+
+
+_PROBE = """
+import os, signal, sys, time
+sys.path.insert(0, sys.argv[1])
+import a3_spill_stand as stand
+if sys.argv[2] == "restore":
+    stand.restore_sigint()
+print("ready", flush=True)
+try:
+    time.sleep(20)
+    print("exit normal", flush=True)
+except KeyboardInterrupt:
+    print("exit interrupted", flush=True)
+"""
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="POSIX signal inheritance")
+@pytest.mark.parametrize("mode", ["restore", "inherit"])
+def test_restore_sigint_undoes_an_inherited_ignore(stand, mode):
+    """A real child started with SIGINT ignored, a real SIGINT: only the stand's restore makes
+    it raise KeyboardInterrupt (``inherit`` is what session 2's sigint child did)."""
+    harness = str(Path(stand.__file__).resolve().parent)
+    child = _ignore_sigint_and_exec([sys.executable, "-c", _PROBE, harness, mode],
+                                    {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)})
+    assert child.stdout.readline().strip() == b"ready"
+    os.kill(child.pid, signal.SIGINT)
+    if mode == "inherit":
+        with pytest.raises(subprocess.TimeoutExpired):
+            child.wait(timeout=2)
+        child.kill()
+    child.wait(timeout=30)
+    expected = b"exit interrupted" if mode == "restore" else b""
+    assert child.stdout.read().strip() == expected
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="/proc and POSIX signals")
+def test_the_cleanup_children_through_the_stand_with_sigint_ignored(tmp_path):
+    """The preflight's three stand children of a tiny L2L spill model, started by a launcher
+    whose SIGINT is ignored as in session 2: one SIGINT at the hold in optimizer step 2 raises
+    KeyboardInterrupt there and the product removes its file; SIGKILL there leaves it; the
+    next start removes it and trains."""
+    pytest.importorskip("peft")
+    from soup_cli.utils import l2l_spill
+
+    problem = l2l_spill.filesystem_refusal(os.path.realpath(tmp_path))
+    if problem:
+        pytest.skip(f"the temp directory cannot hold an unbuffered spill: {problem}")
+    preflight = Path(__file__).resolve().parents[1] / "benchmarks/harness/a3_signal_preflight.py"
+    work = tmp_path / "preflight"
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
+    launcher = _ignore_sigint_and_exec([sys.executable, str(preflight), "run", "--work",
+                                        str(work), "--no-scope", "--hold-timeout", "20"], env)
+    output = launcher.communicate(timeout=600)[0].decode(errors="replace")
+    report = json.loads((work / "preflight.json").read_text())
+    assert report["launcher"]["proc"]["ignored"] is True, report["launcher"]
+    failed = [check for check in report["checks"] if not check["pass"]]
+    assert failed == [] and launcher.returncode == 0, output
+    inherited = report["children"]["sigint"]
+    sigint = json.loads((work / "out/cleanup/sigint.json").read_text())
+    assert sigint["sigint_handling"]["inherited"]["handler"] == "SIG_IGN"
+    assert sigint["sigint_handling"]["inherited"]["proc"]["ignored"] is True
+    assert inherited["signal"]["target_at_send"]["ignored"] is False
+    assert inherited["signal"]["target_at_send"]["caught"] is True

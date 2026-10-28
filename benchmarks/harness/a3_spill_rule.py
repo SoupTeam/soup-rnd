@@ -16,7 +16,10 @@ too).
 
 Rule v2 (protocol §3.6, after session 1): an OOM kill the kernel logs for any child at the
 tight limit after its first ``training_step`` entry, calibration checks included, fails
-criterion 2. Rule v1 is this file at ``bda4a00a``; session 1's ``verdict.json`` is its output.
+criterion 2. Rule v3 (§3.7, after session 2): the signal children are signalled while they
+hold inside optimizer step 2, and the sigint part passes only on a KeyboardInterrupt raised in
+that hold. Rule v1 is this file at ``bda4a00a`` (session 1's ``verdict.json``), rule v2 this
+file at ``667c4a1b`` (session 2's).
 """
 
 from __future__ import annotations
@@ -34,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import arm_validity  # noqa: E402
 
 PASS, FAIL, NONE = "PASS", "FAIL", "NO VERDICT"
-RULE_VERSION = "v2"
+RULE_VERSION = "v3"
 COST_LIMIT = 0.10
 MAX_BLOCKS = 12
 #: Spilled layers the calibration aims at (of Mistral-7B's 32). Reported, not a criterion.
@@ -54,7 +57,7 @@ SDPA = {**{arm: "MATH" for arm in (*NOSPILL, SPILL, *GA)}, FLOOR: "EFFICIENT_ATT
 CLEANUP_ARMS = ("sigint", "kill9", "kill9_next")
 
 RULE = {
-    "profile": "a3-spill-gpu-check-v2",
+    "profile": "a3-spill-gpu-check-v3",
     "1": "l2l_spill (tight limit; spill_layers > 0) equals l2l_nospill_1 (generous limit; "
          "nothing spilled) bit for bit: SHA-256 of the raw bytes, dtype and shape of every "
          "LoRA gradient at every optimizer step, the logged losses, the number of optimizer "
@@ -77,10 +80,17 @@ RULE = {
          "OOM kill before the marker is the stand's limit (build): no verdict. A child killed "
          "with no kernel log to tell: no verdict",
     "3": "normal: after train() and after the process exit of l2l_spill no spill file is left "
-         "(spill_files); sigint: one SIGINT while optimizer step 2 runs, the child exits (any "
-         "code) and no spill file is left; kill9: SIGKILL while step 2 runs leaves the spill "
-         "file, the next child in the same directory removes it at start (stale_removed holds "
-         "it, it is gone) and trains its optimizer steps. All three must hold",
+         "(spill_files); sigint: the child restores Python's SIGINT handler at start and holds "
+         "inside optimizer step 2, at the backward recompute of its highest spilled layer; the "
+         "parent sends ONE SIGINT once the hold marker is written; PASS needs a spill file "
+         "before the signal, a KeyboardInterrupt raised in that hold (record exit "
+         "'interrupted', in a training_step, 1 optimizer step done, hold released by the "
+         "interrupt) and no spill file after the exit; a child that does not exit, or a file "
+         "left, FAILS; otherwise no verdict, naming why (SIGINT ignored or blocked at the send, "
+         "the hold ended by its timeout, the interrupt outside the hold); kill9: SIGKILL while "
+         "it holds the same way leaves the spill file, the next child in the same directory "
+         "removes it at start (stale_removed holds it, it is gone) and trains its optimizer "
+         "steps. All three must hold",
     "4": f"A-B-B-A blocks of fresh processes, k 4, seq 512, rows all 512 tokens, 2 warm-up and "
          f"5 timed optimizer steps; A = L2L at the generous limit (no spill), B = L2L at the "
          f"tight limit (spill); value = median timed step; per-block overhead (mean B - mean "
@@ -510,6 +520,10 @@ def _sigint(rec: Optional[Dict[str, Any]], entry: Optional[Dict[str, Any]]) -> D
             return _crit(NONE, "sigint: " + "; ".join(problems))
     if sent.get("sent_unix") is None:
         return _crit(NONE, f"sigint: no signal sent ({sent.get('why')})")
+    marker = sent.get("marker") or {}
+    if marker.get("phase") != "hold":
+        return _crit(NONE, f"sigint: the signal was not sent at the hold inside optimizer step "
+                     f"2 (marker phase {marker.get('phase')!r})")
     if not sent.get("exited"):
         return _crit(FAIL, "sigint: the child did not exit after one SIGINT")
     before, after = sent.get("files_before_signal") or [], sent.get("files_after_exit")
@@ -517,13 +531,34 @@ def _sigint(rec: Optional[Dict[str, Any]], entry: Optional[Dict[str, Any]]) -> D
         return _crit(NONE, "sigint: the spill directory was not listed after the exit")
     if before and after:
         return _crit(FAIL, f"sigint: spill files left after Ctrl-C: {after}")
-    at = (rec or {}).get("at_interrupt") or {}
-    if not before or (rec or {}).get("exit") != "interrupted" or not at.get("in_step"):
-        return _crit(NONE, f"sigint: the scenario was not reached (spill file before the signal "
-                     f"{before}, child exit {(rec or {}).get('exit')!r}, inside a step "
-                     f"{at.get('in_step')})")
-    return _crit(PASS, f"sigint: one SIGINT inside optimizer step {at.get('steps_done', 0) + 1}, "
-                 f"exit {sent.get('returncode')}, {before} gone")
+    if rec is None:
+        return _crit(NONE, "sigint: the child left no record")
+    if not before:
+        return _crit(NONE, "sigint: the scenario was not reached: no spill file before the "
+                     "signal")
+    at = rec.get("at_interrupt") or {}
+    hold = at.get("hold") or rec.get("hold") or {}
+    target = sent.get("target_at_send") or {}
+    if rec.get("exit") != "interrupted":
+        if target.get("ignored"):
+            why = "SIGINT was ignored in the child when it was sent (SigIgn)"
+        elif target.get("blocked"):
+            why = "SIGINT was blocked in the child when it was sent (SigBlk)"
+        elif hold.get("released") == "timeout":
+            why = f"no KeyboardInterrupt: the hold ended by its timeout ({hold.get('waited_s')} s)"
+        else:
+            why = "no KeyboardInterrupt in the child"
+        return _crit(NONE, f"sigint: the scenario was not reached: {why} (child exit "
+                     f"{rec.get('exit')!r}, returncode {sent.get('returncode')}, at the send "
+                     f"{target or 'no /proc reading'})")
+    if (not at.get("in_step") or at.get("steps_done") != 1 or hold.get("released") != "interrupt"
+            or hold.get("pass") != "backward"):
+        return _crit(NONE, f"sigint: the KeyboardInterrupt did not come from the hold inside "
+                     f"optimizer step 2 (in a training_step {at.get('in_step')}, steps done "
+                     f"{at.get('steps_done')}, hold {hold or None})")
+    return _crit(PASS, f"sigint: one SIGINT while holding at the backward recompute of layer "
+                 f"{hold.get('layer')} in optimizer step 2; KeyboardInterrupt there, exit "
+                 f"{sent.get('returncode')}, {before} gone")
 
 
 def _kill9(entry: Optional[Dict[str, Any]], next_rec: Optional[Dict[str, Any]],
@@ -537,6 +572,9 @@ def _kill9(entry: Optional[Dict[str, Any]], next_rec: Optional[Dict[str, Any]],
     if sent.get("sent_unix") is None or not path or path not in before:
         return _crit(NONE, f"kill9: the scenario was not reached (spill file {path!r}, files "
                      f"before SIGKILL {before}, {sent.get('why')})")
+    if marker.get("phase") != "hold":
+        return _crit(NONE, f"kill9: SIGKILL was not sent at the hold inside optimizer step 2 "
+                     f"(marker phase {marker.get('phase')!r})")
     # A killed child writes no record; its marker carries the device and the cgroup readback.
     problems = child_problems(marker, entry)
     if problems:

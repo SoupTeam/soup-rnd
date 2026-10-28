@@ -1,15 +1,18 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
-**Status: protocol v2 (§3.6), committed at `6bdd0ec8` before its session; session 1 (protocol
-v1) stopped at calibration: `NO VERDICT: criterion 1, 2, 3 has no verdict` (§9).** v1's criteria
-were fixed by commit `2a05e15f` before any rental, the machine admission (§5) by commit
-`794c6827`. v2 adds
-the product's 512 MiB reserve, calibrates the tight limit to it, and fails criterion 2 on a
-kernel OOM kill of any child at the tight limit after its first training step (§3.6). The rule
-is `harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v2`, `rule_version` v2;
-v1 is that file at `bda4a00a`): the same text in machine form, copied into every session's
-`protocol.json`. The stand is `harness/a3_spill_stand.py`, the admission
-`harness/a3_admission.py`. CPU tests: `tests/test_a3_spill_rule.py`,
+**Status: protocol v3 (§3.7), committed before its session; no v3 session has run. Session 2
+(protocol v2, §10) finished: `NO VERDICT: criterion 3 has no verdict`, with criteria 1, 2 and 4
+PASS and criterion 1b FAIL (reported apart). Session 1 (protocol v1) stopped at calibration:
+`NO VERDICT: criterion 1, 2, 3 has no verdict` (§9).** v1's criteria were fixed by commit
+`2a05e15f` before any rental, the machine admission (§5) by commit `794c6827`; v2 (§3.6) by
+`6bdd0ec8` before session 2. v2 added the product's 512 MiB reserve, calibrated the tight limit
+to it, and fails criterion 2 on a kernel OOM kill of any child at the tight limit after its
+first training step. v3 makes the signal children's SIGINT reach Python and signals them while
+they hold inside optimizer step 2 (§3.7). The rule is `harness/a3_spill_rule.py` (`RULE`,
+profile `a3-spill-gpu-check-v3`, `rule_version` v3; v1 is that file at `bda4a00a`, v2 at
+`667c4a1b`): the same text in machine form, copied into every session's `protocol.json`. The
+stand is `harness/a3_spill_stand.py`, the admission `harness/a3_admission.py`, the signal
+preflight `harness/a3_signal_preflight.py`. CPU tests: `tests/test_a3_spill_rule.py`,
 `tests/test_a3_spill_stand.py`, `tests/test_a3_admission.py`.
 
 ## 1. Question
@@ -47,8 +50,8 @@ the calibration, §4).
 | 4 | `l2l_spill` | tight | L2L, spill_layers > 0 |
 | 5 | `ga_1`, `ga_2`, `ga_floor` | generous | plain Trainer, gradient accumulation; `ga_floor` on EFFICIENT_ATTENTION |
 | 6 | `compare` | none (CPU) | per-step gradient tensors: hash check, max \|d\|, A3 stand `decide` |
-| 7 | `sigint` | tight | ONE SIGINT inside optimizer step 2 |
-| 8 | `kill9`, then `kill9_next` | tight | SIGKILL inside step 2; a new child in the same spill directory |
+| 7 | `sigint` | tight | ONE SIGINT while it holds inside optimizer step 2 (v3, §3.7) |
+| 8 | `kill9`, then `kill9_next` | tight | SIGKILL while it holds inside step 2; a new child in the same spill directory |
 | 9 | cost blocks `A B B A` | A generous, B tight | only if criterion 1 PASSES (§3.4) |
 
 Correctness and cleanup rows: `make_rows(10, 512, vocab)` of the A3 stand, with mixed
@@ -61,9 +64,12 @@ strict `torch.use_deterministic_algorithms(True)` (no warn_only), SDPA pinned to
 Every child writes a marker (`markers/<child>.json`) at its first `training_step` entry,
 and the parent copies it into `session.json` after the exit. A child killed without one
 died in the build (§3.1, criterion 2). The signal children rewrite it at every
-`training_step` entry. The parent waits for the marker that says one optimizer step is
-done (step 2 has started), waits 0.5 s, lists the spill directory, and sends one signal to
-the PID in the marker. After the exit it lists the directory again.
+`training_step` entry and exit. v1 and v2: the parent waited for the marker that says one
+optimizer step is done (step 2 has started), waited 0.5 s, listed the spill directory, and
+sent one signal to the PID in the marker. v3 (§3.7): the child holds inside optimizer step 2
+and writes a `hold` marker; the parent lists the spill directory, reads the target's SIGINT
+masks from `/proc`, and sends the one signal then. After the exit it lists the directory
+again.
 
 Cost rows: 4 x (2 warm-up + 5 timed) rows, all 512 tokens, no masked label. The value of
 an arm is the median of its 5 timed optimizer steps. Each cost arm runs under an F1
@@ -181,6 +187,57 @@ describes), and that the limit is never raised. The training margin at v2's limi
 Any outcome of the v2 session (PASS, FAIL or NO VERDICT, cost included) ends the GPU work on
 A3. No other machine is taken without the owner's decision.
 
+### 3.7 Protocol v3 (fixed after session 2, before session 3)
+
+Session 2 (§10) ran every scenario, but its `sigint` child never saw its SIGINT: the child
+exited `normal` after 3 optimizer steps, and the rule returned NO VERDICT for criterion 3. The
+cause, reproduced on Linux after the session: the session was started as `setsid nohup bash -c
+'...' &` from a non-interactive shell. bash starts such a background job with SIGINT ignored,
+exec keeps an ignored signal ignored, neither `subprocess.Popen` nor `systemd-run --scope`
+resets it, and Python leaves an inherited SIG_IGN in place, so no KeyboardInterrupt was ever
+raised. Session 2 is not re-judged: its `verdict.json` is rule v2's output and stays NO
+VERDICT.
+
+| | v2 | v3 | why |
+|---|---|---|---|
+| SIGINT in the children | inherited from the launch | every child installs Python's own handler (`signal.default_int_handler`) first, and records what it inherited (handler and `/proc` SigIgn/SigBlk/SigCgt) as `sigint_handling` | session 2's children inherited SIG_IGN |
+| when the signal goes | 0.5 s after the step-2 entry marker | the signal child holds inside optimizer step 2 at the backward recompute of its highest spilled layer (first micro-batch; a forward pre-hook on the decoder layers, grad on) and writes a `hold` marker; the parent sends the one signal on reading it. The hold ends on the interrupt or after 120 s | the entry marker said nothing about where the step was |
+| at the send | the spill directory | also the target's SIGINT pending, blocked, ignored and caught bits from `/proc/<pid>/status` (`target_at_send`) | tells an ignored or blocked signal from a missed phase |
+| sigint PASS | exit `interrupted`, `in_step` true, file before, none after | also the marker at the send is the hold, 1 optimizer step done, and the hold was released by the interrupt (`at_interrupt.hold.released` = `interrupt`, backward pass) | a KeyboardInterrupt in the hold, not merely a step |
+| sigint NO VERDICT | "scenario not reached" | the detail names why: SIGINT ignored (SigIgn) or blocked (SigBlk) at the send, the hold ended by its timeout, or the interrupt outside the hold | |
+| kill9 | SIGKILL 0.5 s after the step-2 entry | SIGKILL at the same hold; a marker that is not the hold gives no verdict | |
+| before the model runs | — | on the session's box, launched exactly as the session is, `a3_signal_preflight.py` runs the stand's `sigint`, `kill9` and `kill9_next` children on a tiny 8-layer Llama with spill, each in its own scope; any failed check stops the session before the model is downloaded | the launch, not the stand alone, broke session 2 |
+| rule version | `a3-spill-gpu-check-v2`, v2 | `a3-spill-gpu-check-v3`, v3 | |
+
+Unchanged: criteria 1, 1b, 2 and 4 and every threshold (10%, 1.5 x the floor, the repeats rule,
+12 blocks), the 512 MiB reserve, the calibration of the tight limit and its OOM margins,
+V1-V8, the arms and their order, the admission, `--max-hours 5`, the 24 GiB generous limit and
+swap 0. The cost children do not hold and never get a signal. Criterion 3's FAIL conditions
+are the same: a file left after a normal end or after Ctrl-C, a child that does not exit
+after one SIGINT, the kill9 file gone after the kill, not removed at the next start, or the
+next child not training normally.
+
+Checked before the rental, on CPU (WSL 2, Ubuntu, cgroup v2, systemd 259; torch 2.14.1,
+transformers 5.19.0, peft 0.21.2):
+
+- a Python child started with SIGINT ignored and sent a real SIGINT keeps running without
+  `restore_sigint` and raises KeyboardInterrupt with it (`tests/test_a3_spill_stand.py`);
+- the three cleanup children of the tiny model, through the stand's own `run_child` and
+  `drive_signal`, started by a launcher whose SIGINT is ignored, pass every preflight check;
+  with the handler restore disabled the same test fails the sigint checks (exit `normal`,
+  `target_at_send.ignored` true) while kill9 and kill9_next still pass;
+- `a3_signal_preflight.py` launched as session 2 was (`setsid nohup bash -c '...' &` from a
+  non-interactive root shell), each child in its own `systemd-run --scope` at 8 GiB with swap
+  0: every check passes; the launcher's SIGINT read back ignored, the children's installed
+  handler caught it. The same launch with the handler restore disabled fails the three sigint
+  checks (exit `normal`, return code 0, `target_at_send.ignored` true, the hold released by its
+  timeout) while kill9, kill9_next and both scope checks pass.
+
+Not checked before the rental: the Mistral-7B NF4 children on CUDA.
+
+A v3 session is a new full session in a new directory. Its criteria are judged from its own
+records only; no result of session 2 is carried into it.
+
 ## 4. Calibration of the tight limit
 
 *This section is v1's text, kept as session 1 ran it. Protocol v2 (§3.6) replaces the 0.7
@@ -293,7 +350,7 @@ not U. The calibration measures U on the box.
 
 ```bash
 git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout 6bdd0ec8   # protocol v2 (§3.6); session 1 ran v1 at bda4a00a
+git checkout <v3 commit>   # protocol v3 (§3.7); session 2 ran v2 at 667c4a1b, session 1 v1
 A0_PYTHON=python3.12 bash benchmarks/a0-bootstrap.sh   # venv, CUDA torch, pinned deps
 .venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
   tests/test_a3_admission.py tests/test_l2l_spill*.py -q -o addopts=''
@@ -307,6 +364,10 @@ snapshot_download("unsloth/mistral-7b-instruct-v0.3",
 EOF
 export HF_HUB_OFFLINE=1
 SPILL=/mnt/nvme/a3-spill        # local NVMe, not overlay, not tmpfs
+# 0a. v3: the signal preflight, launched the way the session will be (here: as a background
+#     job of a non-interactive shell). Any failed check: stop, before the model download.
+setsid nohup bash -c '.venv/bin/python benchmarks/harness/a3_signal_preflight.py run \
+  --work /root/a3/sigpre > /root/a3/sigpre.out 2>&1' > /dev/null 2>&1 < /dev/null &
 # 0. On ANY machine, outside the session (not evidence): the NF4 cache and the calibration
 #    child's plan (writes .soup/f1-nf4), then one no-spill cost A child (2 warm-up + 5
 #    timed steps) for the demand D. Both are the admission's inputs.
@@ -325,13 +386,13 @@ SPILL=/mnt/nvme/a3-spill        # local NVMe, not overlay, not tmpfs
 # 2. Plan: prints every child command in order with its scope, writes nothing.
 .venv/bin/python benchmarks/harness/a3_spill_stand.py session \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
-  --out .soup/results/a3-spill-02
+  --out .soup/results/a3-spill-03
 # 3. Run (as root; --user-scope in a user session). Each child gets its own scope:
 .venv/bin/python benchmarks/harness/a3_spill_stand.py session \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
-  --out .soup/results/a3-spill-02 --execute
+  --out .soup/results/a3-spill-03 --execute
 # 4. Verdict, recomputed from the raw JSON alone:
-.venv/bin/python benchmarks/harness/a3_spill_rule.py .soup/results/a3-spill-02 \
+.venv/bin/python benchmarks/harness/a3_spill_rule.py .soup/results/a3-spill-03 \
   --out verdict.json
 ```
 
@@ -358,15 +419,16 @@ session never does.
 
 ## 7. Files that come back
 
-`.soup/results/a3-spill-01/`: `protocol.json` (written first: rule, args, plan, git HEAD,
+`.soup/results/a3-spill-<NN>/`: `protocol.json` (written first: rule, args, plan, git HEAD,
 versions, SHA-256 of every `src/soup_cli` and harness `.py`), `session.json` (each child's
 command, limit, return code, spill directory after exit; the signals sent), `verdict.json`,
 `calibration.json`, `calibration_check_<n>.json`, `arms/<arm>.json`, `compare.json`,
 `cleanup/<arm>.json` (none for `kill9`: it is killed; its marker is in `session.json`),
 `cost/b<NN>_p<P>_<A|B>.json`, `markers/`, `logs/`. Beside it: the admission's inputs
 `.soup/a3-prep.json` and `.soup/a3-demand-A.json`, and its `.soup/a3-admission.json`,
-`.soup/a3-admission-cycles.csv` and `.soup/a3-admission-per-second.csv`. **Not published**:
-`.soup/results/a3-spill-01.tensors/`.
+`.soup/a3-admission-cycles.csv` and `.soup/a3-admission-per-second.csv`. **Not published, but
+kept privately with the raw records** (for recomputing `compare.json` later):
+`.soup/results/a3-spill-<NN>.tensors/`.
 
 ## 8. What it does not show
 
@@ -418,3 +480,42 @@ or the product, and needs a new commit before any rental), and the budget for an
 Nothing has been rented since.
 
 The owner chose the product reserve; protocol v2 (§3.6) follows from that decision.
+
+## 10. Session 2: RTX 4090 VM, 2026-10-27 (protocol v2). NO VERDICT on cleanup
+
+Records: [`results/a3-spill-v2-rtx4090-20261027/`](results/a3-spill-v2-rtx4090-20261027/README.md).
+One vast.ai KVM VM (RTX 4090 24 GB, PCIe gen 4 x16, 47.4 GiB RAM, one virtio ext4 disk),
+code at `667c4a1b` (protocol v2 at `6bdd0ec8`); every one of the 663 source files hashed in
+`protocol.json` equals that commit. The only RTX 3090 VM offered was PCIe 3.0, so the PCIe 4.0
+4090 was taken as §5 allows. Admission: ADMITTED (180 of 180 cycles, largest lateness -0.043 s,
+0 of 11,520 chunks wrong, no file left). The session ran every child (33), exit 0, `state:
+finished`. GPU 0.994 h x $0.52 and storage $0.050: **$0.567** (invoices); the instance is
+destroyed and was confirmed gone through the API.
+
+**Verdict (rule v2, unchanged; re-running it on the raw records reproduces `verdict.json`
+byte for byte):** `NO VERDICT: criterion 3 has no verdict; L2L is outside the A3 stand's GA
+tolerance (criterion 1b, not a spill finding)`.
+
+| # | Criterion | Result | Numbers |
+|---|---|---|---|
+| 1 | spill == no spill | PASS | `l2l_spill` (16 of 32 layers spilled) bit-equal to `l2l_nospill_1` over 3 optimizer steps; the no-spill reference repeats |
+| 1b | L2L vs GA (reported) | FAIL | `l2l_out_of_tolerance` at 4 checks: gradient steps 0, 1, 2 (relative error 0.0181, 0.0213, 0.1772 against limits 0.0165, 0.0206, 0.0767) and loss step 0 (0.000222 against 0.0000103). GA repeats bit for bit; the floor arm judged. Not a spill finding: spill equals no spill bit for bit. Its cause is not established |
+| 2 | RAM | PASS | peaks 6,102,315,008 B (`l2l_spill`, MemoryMax 6,354,370,560 B), 6,300,880,896 and 6,400,360,448 B (no spill, 24 GiB); no OOM kill in any child; excess 36,877 B with and without spill |
+| 3 | cleanup | NO VERDICT | normal: no file after `train()` nor after the exit (PASS); kill9: the file stayed after SIGKILL, the next start removed it and trained 3 steps (PASS); sigint: the scenario was not reached (below) |
+| 4 | cost | PASS | overhead +0.03% [-0.02%, +0.09%] over 5 blocks (B spilled 16-22 layers) |
+
+Why the sigint part has no verdict. The parent sent one SIGINT 0.52 s after the step-2 entry
+marker (1 step done); the child wrote markers for 1.31 s after it, finished step 2 and step 3,
+and exited `normal` with return code 0, its spill file removed by the normal end. The launch
+(`setsid nohup bash -c '...' &` from a non-interactive shell) left SIGINT ignored in the
+session and in every child: reproduced afterwards on Linux with the same launch, where such a
+child stays running after a real SIGINT and raises KeyboardInterrupt only once the handler is
+restored. Session 2 recorded no SigIgn reading, so for session 2 itself this is the
+explanation the reproduction supports, not a reading from the box. Protocol v3 (§3.7) changes
+the stand, not the verdict.
+
+Memory after the plan point (description, no verdict): in each of 28 records with a cgroup
+plan, scope `memory.peak` minus the plan's `used` minus the plan's `host_bytes` (growth
+outside the store, over the run) was 183,582,720 to 297,558,016 B; the 15 children at the tight
+limit kept 252,055,552 to 366,022,656 B below MemoryMax. The largest is 55% of the 512 MiB
+reserve. One box, one model and shape; the reserve stays chosen, not measured.

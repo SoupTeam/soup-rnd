@@ -240,11 +240,12 @@ def test_neftune_noise_sequence_is_the_one_accumulation_draws(streamed, tmp_path
 
 
 @pytest.fixture()
-def dropout_model(tmp_path):
+def dropout_model(tmp_path, monkeypatch):
     """The ``streamed`` model with ``lora.dropout`` 0.05, closed after the test."""
-    from tests.test_l2l_probe_harness import build_streamed
+    from tests.test_l2l_probe_harness import build_streamed, hermetic_ram
 
     model, runtime = build_streamed(tmp_path, lora_dropout=0.05)
+    hermetic_ram(monkeypatch, tmp_path)
     yield model, runtime
     runtime.close()
 
@@ -510,10 +511,12 @@ def test_without_attached_state_the_subclass_is_the_base_trainer(streamed, tmp_p
 # --------------------------------------------------------------------------
 def _wrapper(tmp_path, monkeypatch, *, max_length=64, prompts=None, **training):
     from soup_cli.trainer.sft import SFTTrainerWrapper
+    from tests.test_l2l_probe_harness import hermetic_ram
     from tests.test_v07201 import _tiny_llama_dir, _write_tiny_tokenizer
 
     weights = _tiny_llama_dir(tmp_path, n_layers=2)
     _write_tiny_tokenizer(weights)
+    hermetic_ram(monkeypatch, tmp_path)
     monkeypatch.setenv("SOUP_LAYER_STREAM_CACHE_DIR", str(tmp_path / "cache"))
     # HF picks mps on an Apple GPU box while the streamed model sits on cpu
     monkeypatch.setenv("ACCELERATE_USE_CPU", "true")
