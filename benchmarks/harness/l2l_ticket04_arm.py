@@ -224,6 +224,19 @@ def _pinned_bytes(trainer: Any) -> int:
     return store.n_layers * sum(math.prod(shape) for shape in store.mb_shapes) * itemsize
 
 
+def read_counters(runtime: Any, trainer: Any) -> Dict[str, int]:
+    """Running totals of the streaming runtime; all zero for a resident run (no runtime)."""
+    if runtime is None:
+        return {"layer_loads": 0, "nf4_restores": 0, "large_loads": 0, "pinned_store_bytes": 0}
+    stats = runtime.stats()
+    return {
+        "layer_loads": int(stats["layer_loads"]),
+        "nf4_restores": int(stats["layer_restores"]),
+        "large_loads": int(stats["large_loads"]),
+        "pinned_store_bytes": _pinned_bytes(trainer),
+    }
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
@@ -274,13 +287,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     transformers.Trainer.get_batch_samples = samples
 
     def counters() -> Dict[str, int]:
-        stats = box["runtime"].stats()
-        return {
-            "layer_loads": int(stats["layer_loads"]),
-            "nf4_restores": int(stats["layer_restores"]),
-            "large_loads": int(stats["large_loads"]),
-            "pinned_store_bytes": _pinned_bytes(box["trainer"]),
-        }
+        return read_counters(box["runtime"], box["trainer"])
 
     cuda = torch.cuda.is_available()
 
