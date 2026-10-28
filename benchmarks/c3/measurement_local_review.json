@@ -1,0 +1,33 @@
+{
+  "status": "PASS_LOCAL_ONLY_AWAITING_PUBLICATION",
+  "base_commit": "2dafe69b4e550d1f8ceb4fe1241ff2208b7cea50",
+  "tests_passed": 72,
+  "tests_skipped": 2,
+  "skips": "CUDA unavailable on macOS",
+  "performance_verdict": "NO_VERDICT",
+  "physical_controls_executed": false,
+  "full_repository_ci_executed": false,
+  "source_sha256": {
+    "benchmarks/c3/MEASUREMENT_PROTOCOL.txt": "c2449a14f0f4b71d1cd9ef41a10ac55d3e162716f868275546d91e8c5ed0224f",
+    "benchmarks/c3/MEASUREMENT_PROTOCOL.sha256": "8919fb751414c8e82a3a0c5658cb0112111517df32eb27c8c2b12773756c4895",
+    "benchmarks/c3/io_calibration.py": "286c055cdc8e83d2a8a40f5b19cc57f844de9546acf7fc67dcb3bba7c127f6ff",
+    "benchmarks/c3/isolated_arm.py": "bd6249b95c119abdfb6aca0c3c994b817d33bf2eba0ef1626bf2772a769f15f8",
+    "benchmarks/c3/isolated_compare.py": "2cd50cc9093a51e376de335aa124598a7b4ee3650bfd4ee29a4a14a72df20075",
+    "benchmarks/c3/foreign_read_control.py": "ad403509065e6e53aaf51f8644f8f746ed30a38ce8c2cc1a57d45d99d1ce1009",
+    "benchmarks/c3/STATUS.md": "edbb6753da81f65595704ebc0dc0a4dfceb8f955b5e3f91d75712f754330c3a0",
+    "tests/test_c3_io_calibration.py": "9193f3c111ecd4acd3e1cedb1980bc538fea826879ded43e4d58060b805213b3",
+    "tests/test_c3_isolated_compare.py": "b2e7b6cd04344b21ee0e91e1bc7b2b256804e0f13bf525726ba34cef20f3c318",
+    "tests/test_c3_foreign_read_control.py": "51dc76aaf721f8d0aa75c97f81a9ff794ebcec8c9af0582416d0c23623b298f1",
+    "docs/performance-and-quantization.md": "3d7b8ecf88716343a67764c1388cb6d91be60f870ac4ded5c69fcca0b01f7fe1"
+  },
+  "open_requirements": [
+    "Linux physical calibration and foreign reader control",
+    "representative dense model study",
+    "A4 reservation ownership and lifetime integration"
+  ],
+  "additional_regression": {
+    "tests_passed": 4,
+    "selection": "tests/test_c3_isolated_compare.py",
+    "note": "Includes explicit non-POSIX refusal and guards POSIX-only overwrite test."
+  }
+}

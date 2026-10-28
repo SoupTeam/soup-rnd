@@ -1,7 +1,10 @@
 # C3: partial dense weights in RAM
 
-Status: local implementation tested; **task acceptance incomplete / NO_VERDICT on performance**.
-Branch: `research/c3-partial-ram`. No commit or PR has been created for this change.
+Status (2026-10-28): synthetic CUDA pilot **NUMERICAL_PASS**;
+**task acceptance incomplete / NO_VERDICT on performance**.
+Branch: `research/c3-partial-ram`. Pilot source commit:
+`2dafe69b4e550d1f8ceb4fe1241ff2208b7cea50`. Pilot report awaits owner publication;
+no PR creation or merge is claimed here.
 
 ## Implemented
 
@@ -50,11 +53,12 @@ Card: https://trello.com/c/h3rVZVsO
 | Choose a dense model | Synthetic dense Llama is the CPU control; representative model/run still needed. |
 | Budget after buffers and L2L | Explicit static reservations and staging checks implemented; shared A4 contract unresolved. L2L combination is refused. |
 | Keep selected weights resident | Implemented and tested with real CPU tensors and safetensors. |
-| Free resources and enforce limits | Allocation refusal, close and injected failures tested locally; actual CUDA transfer lifetime pending. |
-| Compare training, disk bytes and speed | CPU training parity passes; physical SSD accounting and paired GPU throughput not measured. |
+| Free resources and enforce limits | Local failure/cleanup tests and two CUDA controls pass; full C3/A4 reservation and lifetime acceptance remains open. |
+| Compare training, disk bytes and speed | Synthetic CUDA numerical parity passes; application reads fall 25%. Physical SSD calibration and accepted throughput comparison remain open. |
 
 Do not mark the entire card complete based on CPU evidence. No dynamic eviction,
-NF4 validation, accepted A4 integration, CUDA correctness or throughput claim is included.
+NF4 validation, accepted A4 integration or throughput claim is included.
+CUDA correctness evidence is limited to the synthetic pilot below.
 
 A proposed `HostMemoryBudget` now atomically leases bytes to actual weight and
 RAM-only activation consumers. Tests cover overbooking, concurrent requests and
@@ -94,3 +98,31 @@ before CUDA controls. The exact SIGPIPE trigger remains unresolved.
 `SETUP_RECOVERY.txt` describes the prospective bounded supervisor and its local
 process-lifecycle tests. Source freeze/review and a new attempt are required;
 no failed run is resumed. See `commit_review.json` for the latest local checks.
+
+## Completed synthetic CUDA pilot, 2026-10-26
+
+Attempt007 ran on RTX4090 with actual NVMe/XFS and O_DIRECT, without buffered
+fallback. Two CUDA controls passed without skips. Five ABBA blocks produced
+20 runs, 120 total optimizer updates and 80 measured steps. Losses, gradient
+hashes and final adapter hashes matched exactly; adapters actually changed.
+Keeping two of eight layers resident reduced successful application read bytes
+from 729917472 to 547438104 per measured step (25%). Initial RAM fill and headers
+are excluded. These are not physical device sector counts.
+
+Observed step medians were 0.1870s and 0.1582s. No accepted speedup or VRAM
+saving follows: physical-read calibration and foreign-reader injection are
+missing, and process-lifetime RSS is not an isolated per-arm peak. All 47 files
+were preserved and SHA-verified. Instance57853606 and volume57853605 were
+deleted with provider absence confirmed. See `reports/20261026_attempt007/`.
+
+Prospective measurement instrumentation is now implemented in `isolated_compare.py`,
+`isolated_arm.py`, `io_calibration.py` and `foreign_read_control.py`, under
+`MEASUREMENT_PROTOCOL.txt`. Each arm runs in a fresh supervised process. Physical
+NVMe counters must pass direct-read calibration and controlled foreign-reader
+rejection before any CUDA arms. Setup/cache-fill counters are separate; RSS is
+explicitly the whole process lifetime. The local focused suite passes 72 tests
+with 2 CUDA skips. Linux physical controls have not run on this Mac. Source awaits
+owner publication; no new measurement GPU result or performance pass is claimed.
+
+Representative workload and shared A4 reservation/lifetime integration remain open.
+No new rental is started by this update.

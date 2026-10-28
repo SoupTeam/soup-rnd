@@ -608,9 +608,11 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
 `training.stream_partial_ram` keeps a fixed subset of decoder layers in CPU RAM
 and sends only the remaining layers to the existing asynchronous disk reader.
 It is off by default. The first supported path is **dense Llama, unquantized
-Transformers SFT, explicit disk tier, without L2L**. CPU correctness tests pass;
-CUDA correctness, pinned-transfer lifetime and throughput still require hardware
-validation. This is not full C3 acceptance.
+Transformers SFT, explicit disk tier, without L2L**. CPU correctness tests and a
+bounded synthetic CUDA pilot pass. The pilot matched losses, gradients and final
+adapters exactly; it does not establish correctness for every model or an accepted
+throughput improvement. Representative hardware validation and shared A4 integration
+remain open. This is not full C3 acceptance.
 
 ```yaml
 training:
