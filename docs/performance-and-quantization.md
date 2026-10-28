@@ -1318,6 +1318,14 @@ training:
 Config validation ships in v0.27.0; live execution ships in v0.27.1. See
 `recipes/deepseek-v3-pipeline` for a full scaffold.
 
+The separate [H3 two-stage pipeline experiment](../benchmarks/h3-pipeline-protocol-20261029.md)
+uses an explicit native `torch.distributed.pipelining` harness for Qwen2 + LoRA.
+It checks microbatch/gradient accumulation against ordinary training and merges
+stage adapters for separate-process reload. This research recipe does not change
+the CLI route above. Its GPU pilot is pending budget approval; CPU fixture
+results and the [H3 acceptance map](../benchmarks/h3-acceptance-20261029.md)
+are labelled separately from earlier hardware measurements.
+
 
 ## Performance + Long-Context
 
