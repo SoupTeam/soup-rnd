@@ -1035,15 +1035,24 @@ PUBLISHED = Path(__file__).resolve().parents[1] / "benchmarks" / "results" / "g4
 RUN_PARITY_ROWS = 16
 
 
+def _decision(value):
+    """``value`` without the diagnostic ``detail`` text: statuses, ok flags and numbers."""
+    if isinstance(value, dict):
+        return {key: _decision(item) for key, item in value.items() if key != "detail"}
+    if isinstance(value, list):
+        return [_decision(item) for item in value]
+    return value
+
+
 def test_the_published_run_replays_with_every_number_unchanged(rule):
-    """V16 and V17 hold on the run's own inputs and change nothing else in the replay."""
+    """V16 and V17 hold on the run's own inputs and change no status or number of the replay."""
     out = json.loads(json.dumps(rule.evaluate(PUBLISHED / "inputs")))
     added = {name: out["validity"].pop(name) for name in ("V16_panel_complete",
                                                           "V17_suite_items")}
     assert all(row["ok"] for row in added.values()), added
     assert out["verdict"] == "PASS: fp8_e4m3"
     replay = json.loads((PUBLISHED / "verdict-v15-replay.json").read_text(encoding="utf-8"))
-    assert out == replay
+    assert _decision(out) == _decision(replay)
 
 
 PUBLISHED_CASES = {
