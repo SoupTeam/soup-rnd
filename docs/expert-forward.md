@@ -26,7 +26,10 @@ of expert count. `ExpertBufferPool` allocates one byte arena with aligned views
 for dense gate/up and down matrices, packed weights, statistics, shared NF4 code
 tables and explicit nested-statistics scratch. The budget includes padding.
 An insufficient budget fails before allocating the arena or reading an expert.
-On CUDA, allocator rounding is checked before the first expert read as well.
+On CUDA, the runtime and preflight use `expert_allocation_budget`: logical
+storage plus an explicit 32 MiB allocator reserve. Observed allocator growth is
+checked against that finite budget before the first expert read. Different
+allocator configurations can still exceed the reserve and fail explicitly.
 
 CUDA NF4 decoding uses bitsandbytes `out` kernels directly into this arena.
 Missing CUDA kernels fail explicitly; there is no allocating CUDA fallback.
@@ -74,9 +77,10 @@ Only the routed-experts submodule is replaced. Router, correction bias, shared
 experts and dense decoder layers remain with the original DeepSeek/Kimi block.
 The full block and shared-expert call count are tested separately.
 
-This helper is for forward validation, not installation into a training run or
-serialization of a complete streamed model. Device placement is fixed when the
-pool is created; moving an enclosing module does not move this caller-owned pool.
+The streamed runtime installs this helper for the opt-in SFT path and owns its
+readers and pool. Serialize the adapter rather than the streamed base structure.
+Device placement is fixed when the pool is created; moving an enclosing module
+does not move this caller-owned pool.
 
 ## Local checks
 
@@ -89,7 +93,8 @@ ruff check src/soup_cli/ scripts/ tests/ benchmarks/
 Tests cover dense and NF4 exactness, nested quantization on/off, varied top-k and
 seeds, empty/partial/all-hit routing, autocast, a same-process different-weight
 negative control, one-slot reuse, insufficient budget, exceptions, explicit
-autograd refusal and full native DeepSeek/Kimi MoE blocks. CUDA checks must be
+higher-order/unsupported-activation refusal and full native DeepSeek/Kimi MoE
+blocks. CUDA checks must be
 reported as skipped when CUDA is unavailable. Small gate-instrument fixtures
 are synthetic; they are not trained-checkpoint acceptance results.
 

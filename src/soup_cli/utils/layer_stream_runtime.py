@@ -3009,6 +3009,7 @@ def _prepare_expert_streaming(
     from soup_cli.utils.expert_shard import ExpertShardReader
     from soup_cli.utils.expert_stream import (
         ExpertBufferPool,
+        expert_allocation_budget,
         install_expert_forward,
         plan_expert_buffer,
     )
@@ -3033,7 +3034,7 @@ def _prepare_expert_streaming(
         plan = plan_expert_buffer(first, dtype=index.dtype)
         pool = ExpertBufferPool(
             first, device=device, dtype=index.dtype,
-            weight_budget_bytes=plan.weight_bytes, codes=codes,
+            weight_budget_bytes=expert_allocation_budget(plan, device=device), codes=codes,
         )
         install_expert_forward(layers, readers, pool)
         return pool, tuple(readers.values())

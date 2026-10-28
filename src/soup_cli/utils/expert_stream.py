@@ -94,6 +94,16 @@ def plan_expert_buffer(reader: ExpertShardReader, *, dtype: str) -> ExpertBuffer
     return _buffer_layout(reader, dtype)[0]
 
 
+def expert_allocation_budget(plan: ExpertBufferPlan, *, device: str) -> int:
+    """Include an explicit CUDA allocator allowance above logical tensor storage.
+
+    Reused allocator blocks can be larger than the requested arena. The pool
+    still checks the observed allocation against this finite budget; this is a
+    reserve, not an assumption that every allocator configuration fits it.
+    """
+    return plan.weight_bytes + (32 * 2**20 if str(device).startswith("cuda") else 0)
+
+
 class ExpertBufferPool:
     """One synchronous expert lease at a time, backed by one bounded arena.
 
@@ -174,7 +184,11 @@ class ExpertBufferPool:
                 if self.device.type == "cuda" else 0
             )
             if self.cuda_allocation_delta > weight_budget_bytes:
-                raise ValueError("CUDA allocator rounded the expert slot above the weight budget")
+                raise ValueError(
+                    "CUDA allocator rounded the expert slot above the weight budget: "
+                    f"observed {self.cuda_allocation_delta}, budget {weight_budget_bytes}, "
+                    f"logical storage {self.plan.weight_bytes} bytes"
+                )
         except BaseException:
             self._buffers.clear()
             self._arena = self._staging_owner = self._staging = None

@@ -261,10 +261,10 @@ def _validate_stream_staging_ram_fit(
     )
 
 
-def _expert_buffer_requirements(shard_dir, index):
+def _expert_buffer_requirements(shard_dir, index, *, device="cpu"):
     """Read headers only and budget the reusable expert arena and host staging."""
     from soup_cli.utils.expert_shard import ExpertShardReader
-    from soup_cli.utils.expert_stream import plan_expert_buffer
+    from soup_cli.utils.expert_stream import expert_allocation_budget, plan_expert_buffer
     from soup_cli.utils.layer_shard import expert_paths
 
     if getattr(index, "expert_layout", "") != "per_expert":
@@ -280,7 +280,7 @@ def _expert_buffer_requirements(shard_dir, index):
         )
         try:
             plan = plan_expert_buffer(reader, dtype=index.dtype)
-            weight_bytes = max(weight_bytes, plan.weight_bytes)
+            weight_bytes = max(weight_bytes, expert_allocation_budget(plan, device=device))
             staging_bytes = max(staging_bytes, plan.host_staging_bytes)
         finally:
             reader.close()
@@ -922,7 +922,9 @@ class StreamingSetupMixin:
             large_buffer_bytes, len(large_layer_specs(shard_dir, index))
         )
         ngram_bytes = external_tensor_bytes(getattr(index, "external_tensors", None) or {})
-        expert_weight_bytes, expert_staging_bytes = _expert_buffer_requirements(shard_dir, index)
+        expert_weight_bytes, expert_staging_bytes = _expert_buffer_requirements(
+            shard_dir, index, device=str(self.device)
+        )
 
         free_ram = free_ram_bytes()
         total_ram = total_ram_bytes()

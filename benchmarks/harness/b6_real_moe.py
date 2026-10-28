@@ -23,7 +23,13 @@ def run(args: argparse.Namespace) -> None:
     from transformers import AutoTokenizer
 
     from soup_cli.utils.expert_cache_budget import new_expert_cache_budget
-    from soup_cli.utils.layer_shard import shard_checkpoint
+    from soup_cli.utils.layer_shard import (
+        checkpoint_source_components,
+        fingerprint_source_files,
+        inspect_shard_cache,
+        shard_checkpoint,
+        source_identity_includes_config,
+    )
     from soup_cli.utils.layer_stream_runtime import (
         assert_streamed_adapter_saved,
         build_meta_skeleton,
@@ -83,7 +89,10 @@ def run(args: argparse.Namespace) -> None:
     existing_partial = (
         args.restart_incomplete_cache and cache.is_dir() and not (cache / "index.json").exists()
     )
-    if (cache.exists() and not existing_partial) or free < budget:
+    reuse = args.reuse_cache and (cache / "index.json").is_file()
+    if args.reuse_cache and not reuse:
+        raise ValueError("--reuse-cache requires a committed cache index")
+    if (cache.exists() and not existing_partial and not reuse) or (free < budget and not reuse):
         raise ValueError(f"new cache requires {budget} free bytes, available {free}")
     emit("environment", gpu=props.name, vram_bytes=props.total_memory, dtype=dtype,
          torch=torch.__version__, cuda=torch.version.cuda, cache_budget_bytes=budget,
@@ -97,16 +106,31 @@ def run(args: argparse.Namespace) -> None:
     previous_threads = torch.get_num_threads()
     try:
         torch.set_num_threads(args.shard_threads)
-        index = shard_checkpoint(
-            str(source), str(cache), dtype=dtype, arch="deepseek_v3", layout=layout,
-            quant="nf4", quant_suffixes=suffixes, quant_device="cuda",
-            double_quant=False, expert_layout="per_expert",
-        )
+        if reuse:
+            files = tuple((path.name, path.stat().st_size, path.stat().st_mtime_ns)
+                          for path in sorted(source.glob("*.safetensors")))
+            components = checkpoint_source_components(
+                str(source), files,
+                include_config=source_identity_includes_config(str(source), "deepseek_v3"),
+            )
+            index, reason = inspect_shard_cache(
+                str(cache), dtype, fingerprint_source_files(components), components,
+                "nf4", False, "cuda", layout=layout, expert_layout="per_expert",
+            )
+            if index is None:
+                raise ValueError(f"existing cache failed validation: {reason}")
+        else:
+            index = shard_checkpoint(
+                str(source), str(cache), dtype=dtype, arch="deepseek_v3", layout=layout,
+                quant="nf4", quant_suffixes=suffixes, quant_device="cuda",
+                double_quant=False, expert_layout="per_expert",
+            )
     finally:
         torch.set_num_threads(previous_threads)
     if index.total_params < 500_000_000_000:
         raise ValueError("B6 real giant pilot requires at least 500B source parameters")
     emit("sharded", seconds=time.perf_counter() - started,
+         cache_reused=reuse,
          shard_threads=args.shard_threads, training_threads=previous_threads,
          source_parameters=index.total_params,
          cache_bytes=sum(path.stat().st_size for path in cache.iterdir() if path.is_file()))
@@ -154,6 +178,8 @@ def run(args: argparse.Namespace) -> None:
         model.eval()
         with torch.no_grad():
             before = float(model(**validation).loss)
+        if not math.isfinite(before):
+            raise RuntimeError("non-finite heldout loss before training")
         emit("heldout_before", loss=before)
         for step in range(args.steps):
             model.train()
@@ -162,6 +188,8 @@ def run(args: argparse.Namespace) -> None:
             torch.cuda.synchronize()
             started = time.perf_counter()
             result = model(**inputs)
+            if not torch.isfinite(result.loss):
+                raise RuntimeError("non-finite training loss")
             result.loss.backward()
             gradients = [param.grad for param in parameters if param.grad is not None]
             if not gradients or not all(torch.isfinite(grad).all() for grad in gradients):
@@ -187,7 +215,12 @@ def run(args: argparse.Namespace) -> None:
         with torch.no_grad():
             result = model(**validation)
             logits = result.logits.cpu()
+            if not torch.isfinite(result.loss):
+                raise RuntimeError("non-finite heldout loss after training")
             emit("heldout_after", loss=float(result.loss))
+        from safetensors.torch import save_file
+
+        save_file({"logits": logits.contiguous()}, str(output / "reference-logits.safetensors"))
         adapter = output / "adapter"
         model.save_pretrained(adapter)
         assert_streamed_adapter_saved(model, str(adapter))
@@ -202,12 +235,16 @@ def run(args: argparse.Namespace) -> None:
     try:
         state = load_peft_weights(str(adapter), device="cpu")
         set_peft_model_state_dict(model, state)
+        reloaded_hash = adapter_hash([param for param in model.parameters() if param.requires_grad])
+        if reloaded_hash != new_hash:
+            raise RuntimeError("reloaded adapter parameters differ from the trained parameters")
         model.eval()
         with torch.no_grad():
             reloaded = model(**validation).logits.cpu()
         equal = torch.equal(logits, reloaded)
         error = float((logits.float() - reloaded.float()).abs().max())
-        emit("reload", equal=equal, max_abs_error=error)
+        emit("reload", equal=equal, max_abs_error=error,
+             parameter_digest_matches=True, parameter_sha256=reloaded_hash)
         if not equal:
             raise RuntimeError("reloaded logits differ")
     finally:
@@ -227,5 +264,7 @@ if __name__ == "__main__":
     parser.add_argument("--steps", type=int, default=2)
     parser.add_argument("--max-length", type=int, default=64)
     parser.add_argument("--shard-threads", type=int, default=8)
-    parser.add_argument("--restart-incomplete-cache", action="store_true")
+    cache_mode = parser.add_mutually_exclusive_group()
+    cache_mode.add_argument("--restart-incomplete-cache", action="store_true")
+    cache_mode.add_argument("--reuse-cache", action="store_true")
     run(parser.parse_args())

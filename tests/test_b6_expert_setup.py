@@ -58,6 +58,9 @@ def test_expert_memory_preflight_reads_real_cache_headers(tmp_path):
         assert _expert_buffer_requirements(str(cache), index) == (
             plan.weight_bytes, plan.host_staging_bytes,
         )
+        assert _expert_buffer_requirements(str(cache), index, device="cuda:0") == (
+            plan.weight_bytes + 32 * 2**20, plan.host_staging_bytes,
+        )
     finally:
         reader.close()
 
