@@ -70,7 +70,36 @@ def run(args: argparse.Namespace) -> None:
                     row["peak_rss_bytes"] = int(line.split()[1]) * 1024
         with events.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(row) + "\n")
+        phase_file = getattr(args, "ram_phase_file", None)
+        phase_map = {"environment": "preparation", "training_start": "training",
+                     "evaluation_before_start": "evaluation_before",
+                     "evaluation_after_start": "evaluation_after", "reload_start": "reload"}
+        if phase_file and kind in phase_map:
+            Path(phase_file).write_text(phase_map[kind], encoding="utf-8")
         console.print(row)
+
+    evaluation_protocol = None
+    evaluation_examples = []
+    if args.evaluation_protocol or args.evaluation_data:
+        from benchmarks.harness.b6_evaluation import load_evaluation
+
+        if not args.evaluation_protocol or not args.evaluation_data:
+            raise ValueError("both evaluation protocol and frozen data are required")
+        evaluation_protocol, evaluation_examples = load_evaluation(
+            args.evaluation_protocol, args.evaluation_data,
+        )
+        if (evaluation_protocol["model_revision"] != args.revision
+                or evaluation_protocol["max_length"] != args.max_length or args.steps != 2):
+            raise ValueError("model revision or token limit differs from the protocol")
+
+    texts = json.loads(Path(args.data).read_text(encoding="utf-8"))
+    if not texts.get("train") or not texts.get("heldout"):
+        raise ValueError("data JSON requires separate train and heldout strings")
+    if evaluation_protocol:
+        canonical = json.dumps(texts, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        if (hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+                != evaluation_protocol["training_data_canonical_sha256"]):
+            raise ValueError("training data differ from the frozen protocol")
 
     if not torch.cuda.is_available():
         raise RuntimeError("B6 requires a real CUDA device")
@@ -80,7 +109,7 @@ def run(args: argparse.Namespace) -> None:
     if torch.cuda.device_count() != 1 or props.total_memory > 9 * 2**30:
         raise RuntimeError("B6 pilot requires one physical GPU of approximately 8 GB")
     dtype = "bfloat16" if torch.cuda.is_bf16_supported(including_emulation=False) else "float16"
-    config = json.loads((source / "config.json").read_text())
+    config = json.loads((source / "config.json").read_text(encoding="utf-8"))
     if config.get("model_type") != "deepseek_v3":
         raise ValueError("this pilot accepts DeepSeek-V3 FP8 only")
     budget = new_expert_cache_budget([str(path) for path in source.glob("*.safetensors")])
@@ -97,6 +126,12 @@ def run(args: argparse.Namespace) -> None:
     emit("environment", gpu=props.name, vram_bytes=props.total_memory, dtype=dtype,
          torch=torch.__version__, cuda=torch.version.cuda, cache_budget_bytes=budget,
          disk_free_bytes=free, source_revision=args.revision)
+    if evaluation_protocol:
+        emit("evaluation_protocol",
+             protocol_sha256=hashlib.sha256(Path(args.evaluation_protocol).read_bytes()).hexdigest(),
+             data_sha256=hashlib.sha256(Path(args.evaluation_data).read_bytes()).hexdigest(),
+             example_ids=evaluation_protocol["example_ids"])
+
     with meta_construction():
         skeleton = build_meta_skeleton(str(source), dtype=dtype, quant="nf4", double_quant=False)
     suffixes, layout = quantised_layer_suffixes(skeleton), shard_layout_of(skeleton)
@@ -152,9 +187,6 @@ def run(args: argparse.Namespace) -> None:
         return model, runtime
 
     tokenizer = AutoTokenizer.from_pretrained(str(source), trust_remote_code=False)
-    texts = json.loads(Path(args.data).read_text(encoding="utf-8"))
-    if not texts.get("train") or not texts.get("heldout"):
-        raise ValueError("data JSON requires separate train and heldout strings")
     emit("data", sha256=hashlib.sha256(Path(args.data).read_bytes()).hexdigest(),
          max_length=args.max_length)
 
@@ -181,6 +213,18 @@ def run(args: argparse.Namespace) -> None:
         if not math.isfinite(before):
             raise RuntimeError("non-finite heldout loss before training")
         emit("heldout_before", loss=before)
+        evaluation_before = []
+        if evaluation_examples:
+            from benchmarks.harness.b6_evaluation import evaluate_examples
+
+            zero_b = [param for name, param in model.named_parameters()
+                      if param.requires_grad and ".lora_B." in name]
+            if not zero_b or any(torch.count_nonzero(param).item() for param in zero_b):
+                raise RuntimeError("baseline requires zero-initialized adapter B matrices")
+            emit("unadapted_baseline", zero_lora_b_tensors=len(zero_b))
+            del zero_b
+            evaluation_before = evaluate_examples(model, evaluation_examples, batch, emit, "before")
+        emit("training_start")
         for step in range(args.steps):
             model.train()
             inputs = batch(texts["train"][step % len(texts["train"])])
@@ -218,6 +262,18 @@ def run(args: argparse.Namespace) -> None:
             if not torch.isfinite(result.loss):
                 raise RuntimeError("non-finite heldout loss after training")
             emit("heldout_after", loss=float(result.loss))
+        if evaluation_examples:
+            from benchmarks.harness.b6_evaluation import paired_summary
+
+            evaluation_after = evaluate_examples(model, evaluation_examples, batch, emit, "after")
+            quality = paired_summary(
+                evaluation_before, evaluation_after,
+                expected_ids=evaluation_protocol["example_ids"],
+            )
+            (output / "evaluation-summary.json").write_text(
+                json.dumps(quality, indent=2), encoding="utf-8",
+            )
+            emit("evaluation_summary", **quality)
         from safetensors.torch import save_file
 
         save_file({"logits": logits.contiguous()}, str(output / "reference-logits.safetensors"))
@@ -231,6 +287,7 @@ def run(args: argparse.Namespace) -> None:
     del model, runtime, optimizer, parameters, gradients, result
     gc.collect()
     torch.cuda.empty_cache()
+    emit("reload_start")
     model, runtime = build()
     try:
         state = load_peft_weights(str(adapter), device="cpu")
@@ -264,6 +321,9 @@ if __name__ == "__main__":
     parser.add_argument("--steps", type=int, default=2)
     parser.add_argument("--max-length", type=int, default=64)
     parser.add_argument("--shard-threads", type=int, default=8)
+    parser.add_argument("--evaluation-protocol")
+    parser.add_argument("--evaluation-data")
+    parser.add_argument("--ram-phase-file")
     cache_mode = parser.add_mutually_exclusive_group()
     cache_mode.add_argument("--restart-incomplete-cache", action="store_true")
     cache_mode.add_argument("--reuse-cache", action="store_true")
