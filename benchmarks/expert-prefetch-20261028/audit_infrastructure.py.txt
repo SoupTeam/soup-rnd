@@ -1,0 +1,573 @@
+"""Fail-closed local audit of final-cohort infrastructure, retention and cleanup.
+
+Read-only: never queries a GPU or provider. Version 5 covers an unprofiled
+cohort with unchanged CUDA/input gates and an exact per-filesystem disk plan.
+F10's earlier five-case preflight remains FAILED, never relabelled as passed.
+Success requires complete raw retention and cleanup. Billing is an estimate.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import re
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Any
+
+GIB = 2**30
+SOURCE = "43cf0b34afe0d8850d76bf86d60663ab5c85cdb2"
+MODEL = "kakaocorp/kanana-2-30b-a3b-base-2601"
+REVISION = "0d31365acf656e5f9a593cacc4913e9c0d36cb1c"
+WRAPPER = "de941d3b016b5941a3c36f01e49df5d1bffd8f1c68a9fe740e2b86ad4c34fe6f"
+AUDIT_VERSION = 5
+OFFICIAL_PIN_MAP_SHA256 = "5271df2196b8ebe206cfcaed8e839cb6fa8943997aa4fd1c9ff2caa72582f74a"
+ROOT_FREE_BYTES = 16 * GIB
+DATA_FREE_BYTES = 100 * GIB
+ROOT_COMPONENTS = {"raw_outputs_reserve": 12 * GIB, "encoded_archive_reserve": 1500000000,
+                   "transfer_probe": 100000000, "scratch": 2 * GIB}
+DATA_COMPONENTS = {"official_bf16_weights": 61343935088, "observed_nf4_store": 16624721373,
+                   "conservative_uv_cache": 7763013632,
+                   "one_fresh_bad_shard_temporary": 4999552848}
+PROFILER_DIAGNOSTIC = "test_real_cuda_profiler_collects_kernel_and_h2d_events"
+CUDA_NAMES = {
+    "test_real_cuda_nf4_bf16_kanana_worker_trajectories",
+    "test_real_cuda_nf4_expert_cache_preserves_complete_optimizer_trajectories[lru]",
+    "test_real_cuda_nf4_expert_cache_preserves_complete_optimizer_trajectories[static]",
+    "test_real_cuda_nf4_bf16_grouped_route_worker_trajectories",
+}
+
+
+def require(condition: Any, message: str) -> None:
+    if not condition:
+        raise ValueError(message)
+
+
+def digest(path: Path) -> str:
+    value = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(8 * 2**20), b""):
+            value.update(chunk)
+    return value.hexdigest()
+
+
+def read(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def contained(root: Path, relative: str) -> Path:
+    require(relative and not Path(relative).is_absolute(), "Absolute/empty manifest path")
+    parent = os.path.realpath(root)
+    child = os.path.realpath(root / relative)
+    require(os.path.normcase(os.path.commonpath((parent, child))) == os.path.normcase(parent),
+            "Manifest path escapes the retained directory")
+    return Path(child)
+
+
+def capacity(proof: dict[str, Any], rental: dict[str, Any]) -> None:
+    require(proof["passed"] is True
+            and str(proof["container_id"]) == str(rental["instance_id"]),
+            "Capacity preflight did not verify the exact owned container")
+    require(7500 <= proof["gpu_memory_mib"] <= 8300
+            and proof["gpu_name"] and proof["gpu_uuid"], "Physical GPU is not the native 8GB class")
+    require(type(proof["native_ram_limit_bytes"]) is int
+            and 28 * GIB <= proof["native_ram_limit_bytes"] <= 32 * GIB,
+            "Native RAM capacity is not 28..32 GiB")
+    constraints = proof["memory_constraints"]
+    require(constraints and all(row["memory.swap.current"] == 0 for row in constraints),
+            "Cgroup swap was used or not observed")
+    require(proof["host_meminfo"].get("SwapTotal", 0) == 0
+            or any(row["memory.swap.max"] == 0 for row in constraints),
+            "Workload swap was not disabled")
+    limits = [row["memory.max"] for row in constraints
+              if type(row["memory.max"]) is int and row["memory.max"] > 0]
+    limits.append(proof["host_meminfo"]["MemTotal"])
+    require(min(limits) == proof["native_ram_limit_bytes"], "Native RAM bound was relabelled")
+    require(proof["data_free_bytes"] >= DATA_FREE_BYTES
+            and proof["root_free_bytes"] >= ROOT_FREE_BYTES,
+            "Initial data/root capacity admission failed")
+
+
+def storage_capacity(plan: dict[str, Any], pre_download: dict[str, Any],
+                     pre_prepare: dict[str, Any]) -> dict[str, Any]:
+    """Accept only the preregistered32/112 provider layout and actual16/100GiB floors."""
+    require(plan["schema_version"] == 1 and plan["root_provider_gb"] == 32
+            and plan["volume_provider_gb"] == 112
+            and plan["advertised_combined_pool_required"] == 144
+            and plan["minimum_pre_download_root_free_bytes"] == ROOT_FREE_BYTES
+            and plan["minimum_pre_prepare_root_free_bytes"] == ROOT_FREE_BYTES
+            and plan["minimum_pre_download_data_free_bytes"] == DATA_FREE_BYTES
+            and plan["root_components_bytes"] == ROOT_COMPONENTS
+            and plan["data_components_bytes"] == DATA_COMPONENTS
+            and plan["root_worst_case_output_bytes"] == sum(ROOT_COMPONENTS.values())
+            and plan["data_worst_case_bytes"] == sum(DATA_COMPONENTS.values())
+            and plan["minimum_pre_prepare_data_free_bytes"]
+            == sum(DATA_COMPONENTS.values()) - DATA_COMPONENTS["official_bf16_weights"]
+            and plan["output_filesystem"] == "root"
+            and plan["model_and_uv_cache_filesystem"] == "data"
+            and plan["actual_statvfs_is_authoritative"] is True
+            and plan["provider_gb_to_gib_conversion_assumed"] is False
+            and plan["raw_outputs_reserve_is_unchanged"] is True,
+            "Exact per-filesystem layout, capacities or raw-retention reserve changed")
+    require(sum(ROOT_COMPONENTS.values()) < ROOT_FREE_BYTES
+            and sum(DATA_COMPONENTS.values()) < DATA_FREE_BYTES,
+            "Per-filesystem worst-case allocations exceed their independent actual free floors")
+    plan_sha = hashlib.sha256(json.dumps(plan, sort_keys=True,
+                                        separators=(",", ":")).encode()).hexdigest()
+    for proof, data_floor in ((pre_download, DATA_FREE_BYTES),
+                              (pre_prepare, plan["minimum_pre_prepare_data_free_bytes"])):
+        require(proof["passed"] is True and proof["minimum_root_bytes"] == ROOT_FREE_BYTES
+                and proof["minimum_data_bytes"] == data_floor
+                and proof["root_free_bytes"] >= ROOT_FREE_BYTES
+                and proof["data_free_bytes"] >= data_floor,
+                "Actual root/data free bytes failed the preregistered admission floor")
+    require(pre_prepare["capacity_plan_sha256"] == plan_sha
+            and pre_prepare["unix"] >= pre_download["unix"],
+            "Before-NF4 remaining-space check is not bound to the preregistered plan")
+    return {"root_provider_gb": 32, "volume_provider_gb": 112,
+            "advertised_pool_required": 144, "root_floor_bytes": ROOT_FREE_BYTES,
+            "data_floor_bytes": DATA_FREE_BYTES,
+            "root_worst_case_bytes": sum(ROOT_COMPONENTS.values()),
+            "data_worst_case_bytes": sum(DATA_COMPONENTS.values()),
+            "minimum_remaining_before_nf4_bytes": plan["minimum_pre_prepare_data_free_bytes"],
+            "plan_sha256": plan_sha, "provider_gb_to_gib_conversion_assumed": False,
+            "scope": "Operational disk capacities only; RAM/VRAM/no-swap/precision gates unchanged"}
+
+
+def cuda_xml(path: Path) -> None:
+    cases = ET.parse(path).getroot().findall(".//testcase")
+    require(len(cases) == 4 and {case.get("name") for case in cases} == CUDA_NAMES,
+            "All four exact numerical CUDA cases must actually execute")
+    require(all(not list(case.iter("skipped")) and not list(case.iter("failure"))
+                and not list(case.iter("error")) for case in cases),
+            "CUDA case failed, errored or was skipped")
+    require(all(float(case.get("time", "0")) > 0 for case in cases),
+            "CUDA execution duration was not recorded")
+
+
+def model_pin(pinned: dict[str, Any], downloaded: dict[str, Any]) -> None:
+    require(pinned["repo_id"] == MODEL and pinned["revision"] == REVISION
+            and pinned["weights_bytes"] == 61343935088, "Official model/revision changed")
+    files = pinned["files"]
+    require(len(files) == 13 and sum(row["bytes"] for row in files.values()) == 61343935088
+            and all(re.fullmatch(r"model-\d{5}-of-00013\.safetensors", name)
+                    and re.fullmatch("[0-9a-f]{64}", row["lfs"]["sha256"])
+                    and row["bytes"] == row["lfs"]["size"]
+                    for name, row in files.items()), "Official model shard identity is incomplete")
+    require(downloaded["revision"] == REVISION
+            and downloaded["source_bytes"] == 61343935088
+            and downloaded["seconds"] > 0, "Download receipt differs from the pin")
+
+
+def phase_order(value: dict[str, Any], spec_sha: str) -> None:
+    require(value["source_commit"] == SOURCE and value["spec_sha256"] == spec_sha,
+            "Phase receipts use another source/spec")
+    rows = value["records"]
+    require([(row["phase"], row["status"]) for row in rows] == [
+        ("dispatch_qualification", "started"), ("dispatch_qualification", "completed")],
+        "Only the declared standalone accuracy-first qualification may run")
+    require(rows[0]["monotonic"] < rows[1]["monotonic"]
+            and rows[0]["unix"] < rows[1]["unix"], "Phase timestamps did not advance")
+    command = rows[0]["command"]
+    require(command[1:3] == ["/root/liger/final_comparison.py", "run"]
+            and command[command.index("--source-commit") + 1] == SOURCE,
+            "Phase runner is not the frozen private final qualifier")
+
+
+def cleanup(rental: dict[str, Any], deletion: dict[str, Any], volume: dict[str, Any],
+            absence: dict[str, Any], bundle: dict[str, Any]) -> None:
+    instance_id, volume_id = rental["instance_id"], rental["volume_id"]
+    require(type(instance_id) is int and type(volume_id) is int
+            and rental["creation_state"] == "reconciled", "No exact reconciled owned resource IDs")
+    require(instance_id not in rental["preexisting_instance_ids"]
+            and volume_id not in rental["preexisting_volume_ids"],
+            "Resource belongs to a colleague")
+    require(deletion["instance_id"] == instance_id and deletion["volume_id"] == volume_id
+            and deletion["verified_absent"] is True and deletion["volume_verified_absent"] is True,
+            "Exact instance/disk deletion was not verified")
+    require(volume["volume_id"] == volume_id and volume["verified_absent"] is True,
+            "Exact disk deletion was not independently recorded")
+    require(absence["instance_id"] == instance_id and absence["volume_id"] == volume_id
+            and absence["label"] == rental["label"] and absence["verified_absent"] is True
+            and absence["instance_verified_absent"] is True
+            and absence["volume_verified_absent"] is True
+            and absence["label_verified_absent"] is True,
+            "Fresh final account listings did not confirm exact owned absence")
+    require(absence["unix"] >= deletion["unix"] >= bundle["unix"],
+            "Deletion/absence was not recorded after full local retention")
+
+
+def worker_boundary(raw: dict[str, Any], proof: dict[str, Any], spec: dict[str, Any]) -> None:
+    env = raw["environment"]
+    require(env["gpu_name"] == proof["gpu_name"]
+            and env["gpu_total_bytes"] == spec["hardware"]["physical_vram_bytes"]
+            and 7 * GIB <= env["gpu_total_bytes"] <= 8 * GIB,
+            "Worker GPU differs from the admitted native 8GB device")
+    require(env["deterministic_algorithms"] is True and env["allow_tf32"] is False,
+            "Worker deterministic/TF32 policy changed")
+    snapshots = [raw["resources_before"], raw["resources_after"]]
+    for phase in ("accuracy", "warmup", "timing"):
+        if phase not in raw:
+            continue
+        resources = raw[phase].get("resources")
+        if resources:
+            snapshots += [resources["before"], resources["after"]]
+            require(resources["sampled_peak_cgroup_swap_bytes"] == 0
+                    and resources["sampled_peak_process_swap_bytes"] == 0,
+                    "Swap was observed during the worker phase")
+    for snapshot in snapshots:
+        require(snapshot["process_swap_bytes"] == 0, "Worker process swapped")
+        rows = snapshot["cgroup"]["constraints"]
+        require(rows and all(row["memory.swap.current"] == 0 for row in rows)
+                and any(row["memory.max"] == proof["native_ram_limit_bytes"] for row in rows)
+                and (proof["host_meminfo"].get("SwapTotal", 0) == 0
+                     or any(row["memory.swap.max"] == 0 for row in rows)),
+                "Worker native RAM/swap scope changed")
+
+
+def checkpoint_input_integrity(receipt: dict[str, Any], pinned: dict[str, Any],
+                               spec: dict[str, Any], control: dict[str, Any],
+                               binding: dict[str, Any], helper_sha: str) -> dict[str, Any]:
+    """Audit captured full SHA evidence; deleted checkpoint weights are not rehashed here."""
+    expected = {name: {"bytes": row["bytes"], "sha256": row["lfs"]["sha256"]}
+                for name, row in pinned["files"].items()}
+    require(len(expected) == 13 and sum(row["bytes"] for row in expected.values()) == 61343935088,
+            "Checkpoint evidence does not cover all official weight shards")
+    require(hashlib.sha256(json.dumps(expected, sort_keys=True,
+                                     separators=(",", ":")).encode()).hexdigest()
+            == OFFICIAL_PIN_MAP_SHA256, "Official pinned SHA/size map was replaced")
+    require(receipt["schema_version"] == 1 and receipt["status"] == "passed"
+            and receipt["all_shards_verified"] is True
+            and receipt["repo_id"] == MODEL and receipt["revision"] == REVISION
+            and receipt["helper_path"] == "/root/liger/checkpoint_integrity.py"
+            and receipt["helper_sha256"] == helper_sha
+            and receipt["expected_files"] == 13
+            and receipt["expected_total_bytes"] == 61343935088
+            and receipt["expected_pins"] == expected
+            and receipt["expected_pins_sha256"] == OFFICIAL_PIN_MAP_SHA256
+            and receipt["final_verified_files"] == expected
+            and receipt["max_forced_redownloads"] == 2
+            and type(receipt["forced_redownloads_used"]) is int
+            and 0 <= receipt["forced_redownloads_used"] <= 2,
+            "Official input SHA/size, helper identity or bounded repair policy changed")
+    require(control["passed"] is True and control["hub_version"] == "1.33.0"
+            and control["cached_destination_replaced"] is True
+            and control["fresh_stream_position"] == 0 and control["resume_size"] == 0
+            and control["real_network_invoked"] is False
+            and control["http_function_restored"] is True
+            and re.fullmatch("[0-9a-f]{64}", control["source_sha256"]),
+            "Installed Hub primitive did not prove fresh force-download semantics")
+    events = receipt["events"]
+    require(events and all(type(row["timestamp"]) in (int, float)
+                           and math.isfinite(row["timestamp"]) for row in events),
+            "Checkpoint verification lacks ordered raw event receipts")
+    latest, hashes, initial, forced, finished, pending = {}, [], {}, [], [], None
+    for row in events:
+        name, event = row["filename"], row["event"]
+        require(name in expected and row["expected_bytes"] == expected[name]["bytes"]
+                and row["expected_sha256"] == expected[name]["sha256"],
+                "An expected filename/hash/size was replaced during repair")
+        require(type(row["global_forced_redownloads_used"]) is int
+                and 0 <= row["global_forced_redownloads_used"] <= 2,
+                "Per-file retries bypassed the global two-download budget")
+        require(row["global_forced_redownloads_used"]
+                == len(forced) + (1 if event == "forced_download_started" else 0),
+                "Checkpoint events reset or fabricate the global repair counter")
+        if event == "hash_started":
+            require(pending is None
+                    and row["phase"] in {"initial", "post_redownload", "final_recheck"},
+                    "Concurrent/unpaired checkpoint hash start")
+            pending = (name, row["phase"], row["attempt"])
+        elif event == "hash_completed":
+            require(pending == (name, row["phase"], row["attempt"]),
+                    "Checkpoint hash lacks its exact started receipt")
+            pending = None
+            passed = row["passed"]
+            require(type(passed) is bool, "Checkpoint hash verdict is not explicit")
+            if passed:
+                require(row["observed_sha256"] == expected[name]["sha256"]
+                        and row["observed_bytes"] == expected[name]["bytes"]
+                        and row["error_category"] is None,
+                        "A mismatching observed SHA/size was accepted")
+            else:
+                require(row["error_category"] in {"file_changed_during_hash", "size_mismatch",
+                        "sha256_mismatch", "missing_file", "hash_io_error"},
+                        "Failed input hash lacks its preserved cause")
+                if row["error_category"] in {"size_mismatch", "sha256_mismatch"}:
+                    require(type(row["observed_bytes"]) is int
+                            and re.fullmatch("[0-9a-f]{64}", row["observed_sha256"]),
+                            "Actual bad checkpoint SHA/size was not retained before repair")
+            if row["phase"] == "initial":
+                require(name not in initial and not forced, "Initial full hash pass was incomplete")
+                initial[name] = row
+            latest[name] = row
+            hashes.append(row)
+        elif event == "forced_download_started":
+            require(pending is None and set(initial) == set(expected)
+                    and len(finished) == len(forced)
+                    and name in latest and latest[name]["passed"] is False,
+                    "A healthy/unverified shard was downloaded before a complete failed inspection")
+            forced.append(row)
+            require(len(forced) == row["global_forced_redownloads_used"] <= 2,
+                    "Global forced-download accounting changed")
+        elif event == "forced_download_completed":
+            require(len(finished) < len(forced)
+                    and forced[len(finished)]["filename"] == name,
+                    "Forced-download completion has no exact started repair")
+            finished.append(row)
+        else:
+            raise ValueError("A failed/unknown repair event cannot occur in a successful receipt")
+    require(pending is None and set(initial) == set(expected)
+            and len(forced) == len(finished) == receipt["forced_redownloads_used"],
+            "Full checkpoint/forced-download evidence is incomplete")
+    final = hashes[-13:]
+    require(len(final) == 13 and {row["filename"] for row in final} == set(expected)
+            and all(row["phase"] == "final_recheck" and row["passed"] is True for row in final)
+            and receipt["passed_unix"] >= final[-1]["timestamp"],
+            "Every weight shard must pass a complete final rehash")
+    actual = {name: value for name, value in spec["model_fingerprint"].items()
+              if name.endswith(".safetensors")}
+    require(actual == {name: row["sha256"] for name, row in expected.items()}
+            and binding["passed"] is True and binding["files"] == 13
+            and binding["model_fingerprint"] == actual
+            and binding["unix"] >= receipt["passed_unix"],
+            "Native NF4 preparation fingerprint differs from official verified checkpoint SHA")
+    return {"verified_files": 13, "expected_total_bytes": 61343935088,
+            "forced_redownloads_used": len(forced), "helper_sha256": helper_sha,
+            "initial_failed_files": [{key: row[key] for key in (
+                "filename", "expected_bytes", "expected_sha256", "observed_bytes",
+                "observed_sha256", "error_category")} for row in initial.values()
+                if row["passed"] is False],
+            "scope": ("Captured official SHA/size checks and native prepare fingerprints agree. "
+                      "Checkpoint payloads are not retained/rehashed by this local audit; "
+                      "bad full payloads are not retained.")}
+
+
+def audit(stage: Path) -> dict[str, Any]:
+    checks = []
+    archive = read(stage / "archive-manifest.json")
+    bundle = read(stage / "bundle-verified.json")
+    require(archive["source_commit"] == SOURCE
+            and bundle["expected_source_commit"] == bundle["export_source_commit"] == SOURCE,
+            "Retained source changed")
+    require(bundle["all_manifested_raw_files_retained"] is True
+            and bundle["whole_archive_verified"] is True
+            and bundle["per_range_hashes_verified"] is True,
+            "Complete raw retention was not verified")
+    encoded = stage / "result.lossless.tar"
+    require(encoded.stat().st_size == archive["archive_bytes"] == bundle["bytes"]
+            and digest(encoded) == archive["sha256"] == bundle["sha256"],
+            "Full encoded archive differs from the verified export")
+    root = stage / "retained"
+    for name, row in archive["files"].items():
+        path = contained(root, name)
+        require(path.stat().st_size == row["bytes"] and digest(path) == row["sha256"],
+                "Retained original differs: " + name)
+    require(len(archive["files"]) == bundle["verified_files"]
+            and sum(row["bytes"] for row in archive["files"].values())
+            == archive["original_bytes"] == bundle["original_bytes"], "Retention totals differ")
+    checks.append("full encoded archive and every manifested original independently hash-verified")
+
+    def retained(name: str) -> Path:
+        require(name in archive["files"],
+                "Required artifact is absent from full retention: " + name)
+        return contained(root, name)
+
+    launch = read(retained("launch-manifest.json"))
+    require(launch == read(stage / "launch-manifest.json") and launch["source_commit"] == SOURCE,
+            "Executed launch manifest differs from frozen local launch")
+    for name, row in launch["files"].items():
+        path = contained(stage, name)
+        require(path.stat().st_size == row["bytes"] and digest(path) == row["sha256"],
+                "Frozen launch input changed: " + name)
+        if name in archive["files"]:
+            require(archive["files"][name] == row, "Retained launched input changed: " + name)
+    require(digest(retained("final_comparison.py")) == WRAPPER
+            and launch["files"]["final_comparison.py"]["sha256"] == WRAPPER,
+            "Executed final qualifier is not the reviewed frozen wrapper")
+    require("checkpoint_integrity.py" in launch["files"]
+            and archive["files"]["checkpoint_integrity.py"]
+            == launch["files"]["checkpoint_integrity.py"],
+            "Checkpoint helper was not uploaded/retained as an exact frozen launch input")
+    require("storage-capacity-plan.json" in launch["files"]
+            and archive["files"]["storage-capacity-plan.json"]
+            == launch["files"]["storage-capacity-plan.json"],
+            "Preregistered storage plan was not uploaded/retained as an exact launch input")
+    checks.append("raw private wrapper and controller/protocol bound to original launch manifest")
+    source = read(retained("source-manifest.json"))
+    require(source["source_commit"] == SOURCE
+            and digest(stage / "source.tar.gz") == source["archive_sha256"],
+            "Production archive/source identity differs")
+    protocol = read(retained("protocol.json"))
+    require(protocol["source_commit"] == SOURCE and protocol["accuracy_first"] is True
+            and protocol["admission_fallback_allowed"] is False,
+            "Protocol weakened source, accuracy order or memory admission")
+    financial, boundary = protocol["financial"], protocol["native_boundary"]
+    require(financial["root_provider_gb"] == 32 and financial["volume_provider_gb"] == 112
+            and financial["maximum_stage_usd"] == 3.
+            and financial["maximum_seconds"] == 14400
+            and financial["download_allowance_decimal_gb"] == 90
+            and boundary["minimum_root_free_bytes"] == ROOT_FREE_BYTES
+            and boundary["minimum_data_free_bytes"] == DATA_FREE_BYTES
+            and boundary["physical_gpu_gib_class"] == 8
+            and boundary["max_ram_bytes"] == 32 * GIB
+            and boundary["swap_must_be_disabled"] is True,
+            "Preregistered financial/disk layout or native memory gates changed")
+    execution = protocol["execution_plan"]
+    require(execution["large_profiles_in_this_lease"] is False
+            and execution["native_accuracy_phase_in_this_lease"] is False
+            and execution["dispatch_qualification"] is True
+            and execution["timing_reference"] == "ordinary_legacy"
+            and execution["timing_candidate"] == "grouped", "Execution plan changed")
+    declared = protocol["performance"]["dispatch_qualification"]
+    require(declared["accuracy_variants"] == ["ordinary_legacy", "legacy", "grouped"]
+            and declared["timing_variants"] == ["ordinary_legacy", "grouped"]
+            and declared["rounds"] == 4 and declared["warmup_updates"] == 2
+            and declared["timed_updates"] == 6 and declared["accuracy_updates"] == 2
+            and declared["timing_workers"] == 8
+            and declared["grouped_expert_routes_default"] is False
+            and declared["practical_lower_bound_percent"] == 2.,
+            "Timing/numerical protocol changed")
+    require(not any(name.startswith("results/profiles/") for name in archive["files"]),
+            "Unexpected diagnostic profile cohort; no passed-profile claim is permitted")
+    checks.append("standalone two-arm contrast with three accuracy captures and original gates")
+    rental = read(stage / "vast-rental.json")
+    require(rental["allocated_disk_gb"] == 32 and rental["volume_size_gb"] == 112
+            and rental["maximum_usd"] == 3. and rental["maximum_seconds"] == 14400,
+            "Actual rented disks or time/money cap differ from the preregistered plan")
+    proof = read(retained("results/capacity-preflight.json"))
+    capacity(proof, rental)
+    spec_path = retained("results/prepared/spec.json")
+    spec = read(spec_path)
+    require(spec["git_head"] == SOURCE
+            and spec["host_boundary"]["effective_limit_bytes"] == proof["native_ram_limit_bytes"]
+            and spec["host_boundary"]["swap_disabled"] is True,
+            "Prepared source/native RAM boundary differs")
+    checks.append("physical 8GB GPU, native 28..32GiB RAM and disabled workload swap")
+    cuda_xml(retained("results/gpu-preflight.xml"))
+    for phase in ("gpu-preflight", "prepare", "dispatch-qualification"):
+        require(read(retained("results/" + phase + "-exit.json"))["returncode"] == 0,
+                "Remote phase failed: " + phase)
+    require(set(protocol["cuda_expected_case_names"]) == CUDA_NAMES,
+            "Declared CUDA cases changed")
+    checks.append("four actual numerical CUDA controls passed without skips; profiling unclaimed")
+    pinned = read(retained("results/model-pinned.json"))
+    downloaded = read(retained("results/model-download.json"))
+    model_pin(pinned, downloaded)
+    require(protocol["model"]["repo_id"] == MODEL
+            and protocol["model"]["revision"] == REVISION, "Protocol model pin changed")
+    checks.append("official Kanana30B revision and all thirteen official shard SHA/size pins")
+    integrity_path = retained("results/checkpoint-integrity.json")
+    integrity = read(integrity_path)
+    helper_sha = digest(retained("checkpoint_integrity.py"))
+    prepared_integrity = read(retained("results/prepared-integrity.json"))
+    checkpoint = checkpoint_input_integrity(
+        integrity, pinned, spec, read(retained("results/hub-force-download-control.json")),
+        prepared_integrity, helper_sha)
+    prepare_start = read(retained("results/prepare-start.json"))
+    storage_proof = read(retained("storage-capacity-plan.json"))
+    require(storage_proof["plan"] == protocol["storage_capacity_plan"],
+            "Executed disk plan differs from the preregistered protocol")
+    pre_prepare = read(retained("results/pre-prepare-disk.json"))
+    storage = storage_capacity(protocol["storage_capacity_plan"],
+                               read(retained("results/pre-download-disk.json")), pre_prepare)
+    require(integrity["passed_unix"] <= pre_prepare["unix"] <= prepare_start["unix"],
+            "Remaining-space admission did not occur after verified input and before native NF4")
+    require(prepare_start["all_thirteen_official_shards_verified"] is True
+            and prepare_start["checkpoint_integrity_status"] == "passed"
+            and prepare_start["helper_sha256"] == prepared_integrity["helper_sha256"] == helper_sha
+            and prepare_start["checkpoint_integrity_receipt_sha256"]
+            == downloaded["checkpoint_integrity_receipt_sha256"]
+            == prepared_integrity["checkpoint_integrity_receipt_sha256"] == digest(integrity_path)
+            and prepared_integrity["prepared_spec_sha256"] == digest(spec_path)
+            and integrity["passed_unix"] <= prepare_start["unix"]
+            <= read(retained("results/prepare-exit.json"))["unix"] <= prepared_integrity["unix"],
+            "Official checkpoint integrity was not bound before native NF4 preparation")
+    checks.append("official SHA/size checks and bounded fresh repairs precede "
+                  "native NF4 preparation")
+    phase = read(retained("results/phase-order.json"))
+    phase_order(phase, digest(spec_path))
+    require(proof["unix"] < read(retained("results/gpu-preflight-exit.json"))["unix"]
+            < read(retained("results/prepare-exit.json"))["unix"]
+            < phase["records"][0]["unix"], "Preflight/preparation/qualification order changed")
+    status = read(retained("results/stage-status.json"))
+    require(status["status"] == bundle["stage_status"]["status"] == "completed"
+            and status["unix"] >= phase["records"][-1]["unix"],
+            "Stage did not finish qualification")
+    checks.append("phase receipts and frozen sequential runner place accuracy before timing")
+    run = read(retained("results/dispatch-qualification/run.json"))
+    environments = set()
+    for cell in list(run["accuracy"].values()) + [row for row in run["timing_blocks"]]:
+        result = cell["result"]
+        worker_boundary(result["worker"], proof, spec)
+        env = result["envelope"]
+        require(env["source_commit"] == SOURCE and env["wrapper_sha256"] == WRAPPER
+                and env["expert_module_sha256"] == source["files"][
+                    "src/soup_cli/utils/expert_stream.py"]["sha256"]
+                and env["runtime_module_sha256"] == source["files"][
+                    "src/soup_cli/utils/layer_stream_runtime.py"]["sha256"],
+                "Executed worker modules differ from frozen production source")
+        environments.add(json.dumps(result["worker"]["environment"], sort_keys=True))
+    require(len(environments) == 1, "Worker software/hardware environment changed across arms")
+    checks.append("all eleven workers retain the same GPU/software and RAM/no-swap bounds")
+    deletion = read(stage / "vast-deletion.json")
+    volume = read(stage / "vast-volume-deletion.json")
+    absence = read(stage / "independent-vast-absence.json")
+    cleanup(rental, deletion, volume, absence, bundle)
+    ledger = read(stage / "stage-ledger.json")
+    entries = [row for row in ledger["completed_leases"]
+               if row["instance_id"] == rental["instance_id"]
+               and row["volume_id"] == rental["volume_id"]]
+    require(len(entries) == 1 and entries[0]["verified_absent"] is True
+            and entries[0]["volume_verified_absent"] is True
+            and math.isfinite(entries[0]["conservative_usd"])
+            and 0 <= entries[0]["conservative_usd"] <= 3., "Stage budget/cleanup ledger changed")
+    checks.append("exact owned instance and disk absent after full local retention; peers excluded")
+    return {"schema_version": 1, "audit_version": AUDIT_VERSION,
+            "status": "passed_final_infrastructure_retention_cleanup_audit",
+            "source_commit": SOURCE, "stage_id": rental["stage_id"], "checks": checks,
+            "audit_script_sha256": digest(Path(__file__)),
+            "archive_manifest_sha256": digest(stage / "archive-manifest.json"),
+            "bundle_verified_sha256": digest(stage / "bundle-verified.json"),
+            "qualification_run_sha256": digest(retained("results/dispatch-qualification/run.json")),
+            "retention": {"verified_files": len(archive["files"]),
+                          "original_bytes": archive["original_bytes"],
+                          "archive_bytes": archive["archive_bytes"],
+                          "archive_sha256": archive["sha256"]},
+            "hardware": {key: proof[key] for key in (
+                "gpu_name", "gpu_memory_mib", "gpu_uuid", "native_ram_limit_bytes")},
+            "checkpoint_integrity": checkpoint,
+            "storage_capacity": storage,
+            "cleanup": absence,
+            "budget": {"conservative_stage_usd": entries[0]["conservative_usd"],
+                       "provider_invoice_verified": False},
+            "cuda_readiness_scope": {
+                "required_numerical_cases": sorted(CUDA_NAMES),
+                "profiler_readiness_required": False,
+                "profiler_verdict": "NO VERDICT; unprofiled cohort",
+                "prior_f10_profiler_preflight": "FAILED and retained separately, not relabelled"},
+            "scope": ("Infrastructure/retention/cleanup only; numerical and timing audit separate. "
+                      "NVMe backing unverified; no downstream quality/convergence verdict.")}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--stage", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    try:
+        report = audit(args.stage)
+    except Exception as error:
+        report = {"schema_version": 1, "status": "failed", "error": repr(error)}
+    args.out.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    from rich.console import Console
+
+    Console().print({"status": report["status"], "out": str(args.out)})
+    return 0 if report["status"] == "passed_final_infrastructure_retention_cleanup_audit" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
