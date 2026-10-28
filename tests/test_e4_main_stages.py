@@ -9,9 +9,11 @@ processes that use the real journal; Hugging Face is replaced by an in-memory hu
 
 # ruff: noqa: I001 (the support import must run before the harness imports)
 
+import json
 import shutil
 import types
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
@@ -70,13 +72,15 @@ class FakeHub:
         self.out = out
         self.objects: dict = {}
         self.fail_remaining: dict = {}
+        self.fail_if: Callable[[str], bool] = lambda name: False
         self.upload_calls: list = []  # (name, journal lines at the time of the call)
         self.sleeps: list = []
 
     def upload(self, local: Path, name: str) -> None:
         self.upload_calls.append((name, journal_lines(self.out)))
-        if self.fail_remaining.get(name, 0) > 0:
-            self.fail_remaining[name] -= 1
+        if self.fail_remaining.get(name, 0) > 0 or self.fail_if(name):
+            if self.fail_remaining.get(name, 0) > 0:
+                self.fail_remaining[name] -= 1
             raise OSError(f"network down while sending {name}")
         self.objects[name] = Path(local).read_bytes()
 
@@ -259,6 +263,66 @@ def test_persistent_upload_failure_keeps_the_stage_complete_and_blocks_new_work(
     stage(ws, store, "S2")
     assert store.pending() == []
     assert ws.hub.objects[adapter] == b"weights"
+    assert spawned(ws) == ["S1", "S2"]
+
+
+def remote_journal_problems(hub: FakeHub) -> list:
+    """Files the remote journal marks ok that are missing remotely. Must always be empty."""
+    raw = hub.objects.get("attempts.jsonl")
+    if raw is None:
+        return []
+    events = [json.loads(line) for line in raw.decode().splitlines()]
+    run_of = {e["attempt_id"]: e["run_id"] for e in events if e["event"] == "start"}
+    missing = []
+    for event in events:
+        if event["event"] == "end" and event["outcome"] == common.OUTCOME_OK:
+            for name in (f"runs/{event['attempt_id']}.json",
+                         f"adapters/{run_of[event['attempt_id']]}/adapter_model.safetensors"):
+                if name not in hub.objects:
+                    missing.append(name)
+    return missing
+
+
+@pytest.mark.parametrize("failing_prefix", ["adapters/", "runs/"])
+def test_remote_journal_is_not_sent_while_a_stage_file_is_missing(ws, failing_prefix):
+    ws.hub.fail_if = lambda name: name.startswith(failing_prefix)
+    plan(ws.out, "S1", "ok")
+    store = ws.hub.store(ws.out)
+
+    stage(ws, store, "S1")  # the stage finished; its failed file stays pending
+
+    assert "attempts.jsonl" not in ws.hub.objects
+    assert all(name != "attempts.jsonl" for name, _ in ws.hub.upload_calls)
+    assert "attempts.jsonl" in store.pending()
+    assert remote_journal_problems(ws.hub) == []
+
+    ws.hub.fail_if = lambda name: False
+    assert store.send_pending() == []
+    assert ws.hub.objects["attempts.jsonl"] == (ws.out / "attempts.jsonl").read_bytes()
+    assert remote_journal_problems(ws.hub) == []
+
+
+def test_journal_upload_failing_after_the_records_leaves_the_remote_journal_stale(ws):
+    ws.hub.fail_if = lambda name: name == "attempts.jsonl"
+    plan(ws.out, "S1", "ok")
+    plan(ws.out, "S2", "ok")
+    store = ws.hub.store(ws.out)
+
+    stage(ws, store, "S1")  # records and adapter sent; the journal send failed
+
+    assert "runs/" in " ".join(ws.hub.objects)
+    assert "attempts.jsonl" not in ws.hub.objects
+    assert remote_journal_problems(ws.hub) == []  # no remote journal, so nothing is marked ok
+    assert cal.completed(store.journal, "S1")  # complete locally; the journal is pending
+
+    with pytest.raises(stages.UploadPendingError):
+        stage(ws, store, "S2")
+    assert spawned(ws) == ["S1"]
+
+    ws.hub.fail_if = lambda name: False
+    stage(ws, store, "S2")
+    assert remote_journal_problems(ws.hub) == []
+    assert ws.hub.objects["attempts.jsonl"] == (ws.out / "attempts.jsonl").read_bytes()
     assert spawned(ws) == ["S1", "S2"]
 
 

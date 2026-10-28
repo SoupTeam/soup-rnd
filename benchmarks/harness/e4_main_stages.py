@@ -89,10 +89,16 @@ class StageStore:
         self._save(state)
 
     def send_pending(self) -> List[str]:
-        """Try every pending name once, with retries. Returns the names still not sent."""
+        """Try every pending name once, with retries. Returns the names still not sent.
+
+        The journal goes last and only when every other pending file is in the repo. A journal
+        sent ahead of a missing record or adapter would make the remote mark that stage complete.
+        """
         still = []
         for name in _journal_last(self.pending()):
-            if self._send(name):
+            if name == JOURNAL_NAME and still:
+                still.append(name)  # withheld: a file of this pass is not in the repo yet
+            elif self._send(name):
                 self._mark_sent(name)
             else:
                 still.append(name)
