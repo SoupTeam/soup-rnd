@@ -23,7 +23,7 @@
   "dtype_rule": "bfloat16 when natively supported, otherwise float32. Finalized before any new giant loss measurement; both paired arms use the same actual dtype/cache. No FP16 range or gradient-scaling ambiguity on the available Turing VM hardware.",
   "quantization": "NF4, blocksize64, no double quant; source FP8 converted once for actual compute dtype",
   "ram_rule": "before source download require recorded finite cgroup v2 memory.max or v1 memory.limit_in_bytes <=34359738368 (32 GiB), or physical MemTotal <=34359738368 with no host swap; all prep/train/eval/reload in that scope. Record memory.current/peak/events (or v1 usage/max_usage/oom_control), swap usage and process RSS. Nonzero OOM-kill or swap-use makes no clean-fit claim.",
-  "budget": "at most $5 new spend including all setup attempts, storage and traffic; aim below cap; automatic exact-owned deletion and independent absence verification",
+  "budget": "at most $5 cumulative spend including the original $3.707 pilot, all setup attempts, storage and traffic; aim below cap; automatic exact-owned deletion and independent absence verification",
   "attempt_policy": "retain every attempted phase, error and source revision; no changing evaluation selection/decision after observing losses; preserve original 2026-10-28 result as a separate trial",
   "optimizer_steps": 2,
   "adapter_rank": 2,

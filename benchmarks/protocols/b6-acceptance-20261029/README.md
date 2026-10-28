@@ -1,8 +1,9 @@
 # Prospective B6 acceptance follow-up
 
 The user approved this eight-fragment paired evaluation before measurement on
-2026-10-29 (Asia/Qyzylorda), with a new maximum spend of $5 and an instruction to
-spend only what is needed. Final reviewer/owner acceptance is separate.
+2026-10-29 (Asia/Qyzylorda), with a $5 spending ceiling and an instruction to
+spend only what is needed. Conservatively, the ceiling includes the original
+$3.707 pilot as well as follow-up probes. Final reviewer/owner acceptance is separate.
 
 Data: Salesforce/WikiText, wikitext-2-raw-v1 test split, pinned dataset commit
 b08601e04326c79dfdd32d625aee71d232d685c3. Eight eligible row positions are selected
@@ -39,8 +40,8 @@ Source parquet URL, dataset revision and checksum are retained in the JSON.
 The initially observed Turing/32 GB offer disappeared before any lease was
 created. Pascal is permitted with PyTorch 2.8/CUDA 12.6 and float32 compute,
 subject to actual 8 GB/32 GiB guards and a tiny NF4 train/reload capability test.
-Other GPUs use native BF16 when available, otherwise FP16 with FP32 adapter
-parameters. Both paired arms always use the same actual dtype/cache. This is
+The final compute rule below supersedes the initial FP16 fallback proposal.
+Both paired arms always use the same actual dtype/cache. This is
 not a cross-hardware/dtype comparison with the original BF16 result. The data,
 selection, token limit and decision rule remain unchanged.
 
@@ -52,8 +53,9 @@ membership against mountinfo, including a mount rooted at the container path.
 V1 uses memory.limit_in_bytes, max_usage_in_bytes, memory.stat swap counts and
 memory.oom_control; v2 uses memory.max, memory.peak, memory.swap.current/peak and
 memory.events. A host-root file is not substituted for the container controller.
-Docker memory/swap limits are requested at creation and verified before source
-download; the criterion remains a recorded hard limit of at most 32 GiB.
+Docker memory/swap limits were requested at creation, but the actual probes did
+not observe a 32 GiB limit. Source download was refused; the criterion remains
+a recorded hard limit of at most 32 GiB.
 
 ## Final compute rule before any new giant losses
 
@@ -64,3 +66,9 @@ Both paired arms use the same actual dtype/cache. An owned VM may use a systemd
 scope with MemoryMax=32G and MemorySwapMax=0; the monitor must observe the actual
 scope and accounting throughout every model phase. Parent VM RAM is disclosed.
 The eight texts, token limit and result-reporting decision rule are unchanged.
+
+## Execution status
+
+No new giant evaluation loss has been measured. See
+[the follow-up report](../../b6-acceptance-20261029.md) for rejected hardware
+probes, the VM creation failure, cumulative billing and remaining acceptance work.
