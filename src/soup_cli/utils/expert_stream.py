@@ -420,7 +420,7 @@ def _find_experts(layer: Any) -> Optional[Tuple[Any, str, Any]]:
     return found[0] if found else None
 
 
-def install_expert_forward(
+def install_streamed_experts(
     layers: Sequence[Any], readers: Mapping[int, ExpertShardReader], pool: ExpertBufferPool
 ) -> int:
     """Replace only routed experts after validating ALL layers, without enabling training.

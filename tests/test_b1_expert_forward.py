@@ -359,7 +359,7 @@ def test_full_moe_block_preserves_router_shared_and_dense_parts(tmp_path, kimi, 
     import torch
     from transformers.models.deepseek_v3.modeling_deepseek_v3 import DeepseekV3MoE
 
-    from soup_cli.utils.expert_stream import install_expert_forward
+    from soup_cli.utils.expert_stream import install_streamed_experts
 
     module, config = _experts()
     if kimi:
@@ -388,7 +388,7 @@ def test_full_moe_block_preserves_router_shared_and_dense_parts(tmp_path, kimi, 
     calls = []
     hook = shared.register_forward_hook(lambda *args: calls.append(True))
     try:
-        assert install_expert_forward([dense_layer, holder], {1: reader}, pool) == 1
+        assert install_streamed_experts([dense_layer, holder], {1: reader}, pool) == 1
         assert block.gate is router and block.shared_experts is shared
         args = _inputs(device=device)[0].reshape(2, 12, 32)
         with torch.no_grad():
@@ -403,7 +403,7 @@ def test_full_moe_block_preserves_router_shared_and_dense_parts(tmp_path, kimi, 
 def test_invalid_later_layer_does_not_partially_install(tmp_path):
     import torch
 
-    from soup_cli.utils.expert_stream import install_expert_forward
+    from soup_cli.utils.expert_stream import install_streamed_experts
 
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
@@ -413,11 +413,11 @@ def test_invalid_later_layer_does_not_partially_install(tmp_path):
     invalid = torch.nn.Linear(32, 32)
     try:
         with pytest.raises(ValueError, match="model/cache"):
-            install_expert_forward([holder, invalid], {0: reader, 1: reader}, pool)
+            install_streamed_experts([holder, invalid], {0: reader, 1: reader}, pool)
         assert holder.mlp.experts is module
         module.requires_grad_(True)
         with pytest.raises(ValueError, match="frozen"):
-            install_expert_forward([holder], {0: reader}, pool)
+            install_streamed_experts([holder], {0: reader}, pool)
         assert holder.mlp.experts is module
     finally:
         reader.close()

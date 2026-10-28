@@ -58,7 +58,7 @@ allocation delta, cumulative fetches and logical bytes. Logical read bytes are
 not a measurement of physical-host disk I/O. The gate records complete routing
 indices and weights separately.
 
-`install_expert_forward(layers, readers, pool)` validates every layer before
+`install_streamed_experts(layers, readers, pool)` validates every layer before
 replacing anything. It requires the native fused `gate_up_proj`/`down_proj`
 contract and frozen routed weights; extra parameters/adapters, mismatched
 readers/shapes, duplicate destinations and missing expert modules are refused.
