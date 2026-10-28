@@ -1,0 +1,23 @@
+{
+ "note": "temporary set until the dataset protocol",
+ "source": {
+  "dataset": "databricks/databricks-dolly-15k",
+  "revision": "bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a",
+  "file": "databricks-dolly-15k.jsonl",
+  "sha256": "2df9083338b4abd6bceb5635764dab5d833b393b55759dffb0959b6fcbf794ec",
+  "rows": 15011,
+  "license": "CC BY-SA 3.0"
+ },
+ "order": "sha256(f'{row}\\n{instruction}'.encode('utf-8')).hexdigest(), ties by row",
+ "harness_sha256": "f6fa50442cae84ceabf8fc1507717f0f606f64d2b2c72644c9405f34f44710fc",
+ "splits": {
+  "heldout": {
+   "rows": 512,
+   "sha256": "b4b2ab938ca72a52c660d810045e3f31f842e3107e00738f827abb3f932d2a37"
+  },
+  "train": {
+   "rows": 4000,
+   "sha256": "a915bbbf18ebd1fae1dd869bdc8e2a0efbd2ab522d3a0c733cc05b212befa0b7"
+  }
+ }
+}

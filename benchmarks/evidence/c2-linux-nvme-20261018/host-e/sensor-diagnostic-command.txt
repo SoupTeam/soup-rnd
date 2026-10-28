@@ -1,0 +1,40 @@
+import importlib.metadata as m,importlib.util,json,os,pathlib,platform,subprocess,sys,time
+p=pathlib.Path
+sys.path.insert(0,'/workspace/c2/benchmarks/harness')
+os.chdir('/workspace/c2')
+from arm_validity import ArmWatch
+from c2_linux_depth_probe import counters,quiet,memory
+from c2_depth_probe import save
+names=['torch','transformers','peft','bitsandbytes','numpy','pytest','ruff','trl','datasets','safetensors','accelerate']
+def cmd(*args):
+ r=subprocess.run(args,capture_output=True,text=True,timeout=40)
+ return {'exit':r.returncode,'stdout':r.stdout,'stderr':r.stderr}
+env={'python':sys.version,'platform':platform.platform(),'executable':sys.executable,'source':importlib.util.find_spec('soup_cli').origin,'git':cmd('git','rev-parse','HEAD'),'status':cmd('git','status','--porcelain'),'packages':{name:m.version(name) for name in names},'pip_freeze':cmd(sys.executable,'-m','pip','freeze'),'gpu':cmd('nvidia-smi','--query-gpu=name,driver_version,pcie.link.gen.current,pcie.link.width.current,temperature.gpu,power.limit','--format=csv,noheader'),'cpuinfo':p('/proc/cpuinfo').read_text(),'context':'Preparation only; all model generation, cache building and correctness tests finished before manual sensor check.'}
+save(p('/workspace/c2-environment-e2.json'),env)
+record={'diagnostic_writes':True,'uid':os.getuid(),'git_sha':env['git']['stdout'].strip(),'records':[],'start_unix':time.time()}
+def watch(name):
+ return ArmWatch(arm=name,round=0,run=0,label='host E manual sensor admission only',required=['suspend','power','foreign_reads'],model_path='/workspace/c2-fixture.bin',disk_device=lambda _:'nvme0n1',disk_reads=lambda device:counters()[device]['read'])
+try:
+ record['quiet_before']=quiet(True)
+ with watch('clean idle') as w:time.sleep(2)
+ record['records'].append(w.record)
+ command=[sys.executable,'benchmarks/harness/c2_linux_depth_probe.py','--fixture','/workspace/c2-fixture.bin','--admit-only','--diagnostic-writes','--out','/workspace/c2-admission-e2.json']
+ with watch('waited-for direct-I/O child') as w:
+  with p('/workspace/c2-admission-e2.log').open('w') as log:
+   child=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,env=dict(os.environ,OMP_NUM_THREADS='8',TOKENIZERS_PARALLELISM='false'),timeout=300)
+ record['records'].append(w.record)
+ record['command']=command
+ record['child_exit']=child.returncode
+ record['ok']=child.returncode==0 and all(row['outcome']=='ok' for row in record['records'])
+ record['memory']=memory()
+ record['assets']={}
+ for folder in ['/workspace/c2-weights','/workspace/c2/c2-cache']:
+  rows={str(path):{'size':path.stat().st_size,'allocated':path.stat().st_blocks*512,'mtime_ns':path.stat().st_mtime_ns} for path in sorted(p(folder).glob('*')) if path.is_file()}
+  record['assets'][folder]={'files':rows,'total_bytes':sum(row['size'] for row in rows.values()),'allocated_bytes':sum(row['allocated'] for row in rows.values())}
+except BaseException as error:
+ record['error']=repr(error)
+ record['ok']=False
+finally:save(p('/workspace/c2-sensor-manual-e2.json'),record)
+if not record['ok']:sys.exit(1)
+
+sys.stdout.write(json.dumps({'ok':record['ok'],'cache_bytes':record['assets']['/workspace/c2/c2-cache']['total_bytes']}))

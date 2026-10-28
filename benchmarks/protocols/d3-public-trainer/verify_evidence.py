@@ -1,0 +1,90 @@
+"""Read-only verification of prospective preparation; never run a model."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import io
+import json
+import sys
+import zipfile
+from pathlib import Path
+
+
+def digest(path):
+    result = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(8 * 2**20), b""):
+            result.update(block)
+    return result.hexdigest()
+
+
+def check_archive(path):
+    count, nested = 0, 0
+    with zipfile.ZipFile(path) as archive:
+        manifest = json.loads(archive.read("MANIFEST.json"))
+        if set(archive.namelist()) != set(manifest) | {"MANIFEST.json"}:
+            raise ValueError("archive payload set differs: " + str(path))
+        for name, expected in manifest.items():
+            data = archive.read(name)
+            if hashlib.sha256(data).hexdigest() != expected:
+                raise ValueError("archive hash differs: " + name)
+            count += 1
+            if name.endswith(".zip"):
+                with zipfile.ZipFile(io.BytesIO(data)) as child:
+                    if child.testzip() is not None:
+                        raise ValueError("nested archive CRC failed: " + name)
+                nested += 1
+        if archive.testzip() is not None:
+            raise ValueError("archive CRC failed: " + str(path))
+    return {"payload_hashes": count, "nested_crcs": nested, "crc": "passed"}
+
+
+def verify(folder, backup_directory=None):
+    root = folder.parents[2]
+    sys.path.insert(0, str(root))
+    from benchmarks.harness.d3_trainer_protocol import contained, launch_blockers, read_rule
+
+    manifest = json.loads((folder / "SHA256SUMS.json").read_text(encoding="utf-8"))
+    for name, expected in manifest.items():
+        if digest(contained(folder, name)) != expected:
+            raise ValueError("published hash differs: " + name)
+    blockers = launch_blockers(read_rule(root), root, check_git=False)
+    if blockers:
+        raise ValueError("preparation/runtime no longer matches: " + "; ".join(blockers))
+    host = json.loads((folder / "final-host-check.json").read_text())
+    if host["status"] != "prepared_data_and_host_identities_verified" or (
+        host["prepared_sha256"] != read_rule(root)["preparation"]["shards"]["sha256"]
+    ):
+        raise ValueError("final host/preparation receipt differs")
+    result = {
+        "published_hashes": len(manifest),
+        "setup": check_archive(folder / "setup-evidence.zip"),
+        "cpu": check_archive(folder / "cpu-evidence.zip"),
+        "preparation_runtime_bindings": "passed",
+        "formal_execution_started": False,
+        "pretrained_trainer_verdict": "not measured",
+        "full_task_accepted": False,
+    }
+    if backup_directory is not None:
+        with zipfile.ZipFile(folder / "setup-evidence.zip") as archive:
+            full = json.loads(archive.read("FULL-ARCHIVE-RETENTION.json"))["retained_full_archive"]
+        native = json.loads((folder / "native-supplement.json").read_text())
+        result["local_backups"] = {}
+        for receipt in (full, native):
+            path = contained(backup_directory, receipt["filename"])
+            if digest(path) != receipt["sha256"]:
+                raise ValueError("local backup hash differs: " + str(path))
+            result["local_backups"][path.name] = check_archive(path)
+    return result
+
+
+if __name__ == "__main__":
+    from rich.console import Console
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--backup-directory", type=Path)
+    args = parser.parse_args()
+    Console().print_json(
+        json.dumps(verify(Path(__file__).resolve().parent, args.backup_directory), indent=2)
+    )

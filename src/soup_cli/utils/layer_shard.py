@@ -1348,8 +1348,8 @@ def shard_checkpoint(
     """
     if expert_layout not in ("", "per_expert"):
         raise ValueError(f"unsupported expert_layout {expert_layout!r}")
-    if expert_layout and arch != "deepseek_v3":
-        raise ValueError("per_expert storage is admitted only for the DeepSeek-V3 architecture")
+    if expert_layout and arch not in ("deepseek_v3", "olmoe"):
+        raise ValueError("per_expert storage supports DeepSeek-V3 and native OLMoE only")
     if dtype not in _SUPPORTED_DTYPES:
         raise ValueError(
             f"unsupported dtype {dtype!r} for layer streaming; "
@@ -1659,7 +1659,9 @@ def shard_checkpoint(
         _LARGE_HEAD_ROLE,
     }.issubset(large_roles_present)
 
-    if expert_layout and not any(_EXPERT_RE.match(key) for key in where):
+    if expert_layout and not any(
+        _EXPERT_RE.match(key) or key.endswith(".mlp.experts.gate_up_proj") for key in where
+    ):
         raise ValueError("per_expert storage found no separate routed-expert source weights")
     tables = _CodeTables()
     expert_layers: List[int] = []
@@ -1701,6 +1703,7 @@ def shard_checkpoint(
             prefix = f"model.layers.{idx}."
             blob = {}
             experts: Dict[str, Dict[int, Tuple[str, str]]] = {}
+            fused_experts: Dict[str, Tuple[str, str]] = {}
             oq_experts: Dict[str, str] = {}
             for key, location in where.items():
                 if not key.startswith(prefix):
@@ -1724,6 +1727,11 @@ def shard_checkpoint(
                     projection = expert_match.group("projection")
                     expert = int(expert_match.group("expert"))
                     experts.setdefault(projection, {})[expert] = location
+                    continue
+                if expert_layout and key[len(prefix):] in (
+                    "mlp.experts.gate_up_proj", "mlp.experts.down_proj",
+                ):
+                    fused_experts[key.rsplit(".", 1)[1]] = location
                     continue
                 path, source_key = location
                 short = key[len(prefix):]
@@ -1771,13 +1779,19 @@ def shard_checkpoint(
                     handles, where, key, block=fp8_config.block, dtype=dtype
                 )
 
-            if expert_layout and experts:
+            if expert_layout and (experts or fused_experts):
                 from soup_cli.utils.expert_shard import expert_shard_name, write_expert_shard
 
                 root = layer_roots[idx] if layer_roots else 0
+                if experts and fused_experts:
+                    raise ValueError("mixed separate/fused expert source weights")
+                pairs = (
+                    _fused_expert_pairs(fused_experts, handles, dtype) if fused_experts
+                    else _expert_pairs(idx, experts, blob, handles, dtype, _decode_fp8)
+                )
                 info = write_expert_shard(
                     os.path.join(shard_dirs[root], expert_shard_name(idx)),
-                    _expert_pairs(idx, experts, blob, handles, dtype, _decode_fp8),
+                    pairs,
                     quantise=quantise, double_quant=double_quant, device=device,
                 )
                 meta = (info.count, info.shapes, info.quant_specs)
@@ -2232,6 +2246,27 @@ def _read_raw_tensor(handle: Any, key: str) -> "Any":
         )
     view = handle.get_tensor(key)
     return _own(view, view.contiguous())
+
+
+def _fused_expert_pairs(locations, handles, dtype):
+    """Split a fused checkpoint one expert at a time, never a dense MoE stack."""
+    import torch
+
+    if set(locations) != {"gate_up_proj", "down_proj"}:
+        raise ValueError("fused expert source needs gate_up_proj and down_proj")
+    slices = {}
+    for key, (path, name) in locations.items():
+        slices[key] = handles[path].get_slice(name)
+    gate_shape = tuple(slices["gate_up_proj"].get_shape())
+    down_shape = tuple(slices["down_proj"].get_shape())
+    if (len(gate_shape) != 3 or len(down_shape) != 3 or gate_shape[0] != down_shape[0]
+            or gate_shape[1] != 2 * down_shape[2] or gate_shape[2] != down_shape[1]):
+        raise ValueError("incompatible fused expert source shapes")
+    for expert in range(gate_shape[0]):
+        yield (
+            slices["gate_up_proj"][expert].to(dtype=getattr(torch, dtype)),
+            slices["down_proj"][expert].to(dtype=getattr(torch, dtype)),
+        )
 
 
 def _expert_pairs(

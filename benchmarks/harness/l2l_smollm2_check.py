@@ -1,0 +1,366 @@
+#!/usr/bin/env python3
+"""Tickets A1-04 and A2-03: L2L equals gradient accumulation on a small real model, k=1/2/4.
+
+For each k the driver runs gradient accumulation twice (A-vs-A, to show the run is
+repeatable) and one shipped L2L step, compares losses and LoRA gradients bit for bit,
+and records the layer loads and NF4 restores of the accumulation and L2L steps.
+``--dropout 0`` (the default) reproduces A1: plain accumulation, no state hooks.
+With ``--dropout`` > 0 the reference is the same plain accumulation, run after
+``torch.manual_seed(seed)``, and the L2L step starts from the same seed: it replays the
+accumulation's random stream (``utils/l2l_rng.py``), so losses, gradients and the
+generator state left after the step must all equal the reference's. Two controls run the
+wrong way round and must disagree: an L2L step whose layer calls share one stream, and an
+L2L step seeded differently. Each record carries a digest of the L2L losses and gradients
+so two runs can be compared. Raw records are rewritten after
+every k. Benchmark code, not shipped. torch is imported inside functions.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import os
+import sys
+import time
+from contextlib import contextmanager, nullcontext
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import l2l_schedule  # noqa: E402
+import stream_probe  # noqa: E402
+
+DEFAULT_WEIGHTS = "HuggingFaceTB/SmolLM2-135M"
+
+
+def _loads(counters: Any) -> Dict[str, int]:
+    return {
+        "layer_loads": int(counters.layer_loads),
+        "large_loads": int(counters.large_loads),
+        "restores": int(counters.restores),
+    }
+
+
+def _digest(losses: Sequence[Any], grads: Dict[str, Any]) -> str:
+    """SHA-256 over the losses and the LoRA gradients, to compare two runs."""
+    h = hashlib.sha256()
+    for loss in losses:
+        h.update(loss.detach().cpu().float().numpy().tobytes())
+    for name in sorted(grads):
+        h.update(name.encode())
+        h.update(grads[name].float().numpy().tobytes())
+    return h.hexdigest()
+
+
+def _stream_digest() -> str:
+    """SHA-256 of the CPU and CUDA generator states, to compare the stream two runs leave."""
+    from soup_cli.utils import l2l_rng
+
+    state = l2l_rng.snapshot()
+    h = hashlib.sha256(state.cpu.numpy().tobytes())
+    for card, cuda_state in state.cuda:
+        h.update(str(card).encode())
+        h.update(cuda_state.numpy().tobytes())
+    return h.hexdigest()
+
+
+@contextmanager
+def _one_shared_stream() -> Iterator[None]:
+    """Control: the L2L step's layer calls draw from one stream, with no replay."""
+    from soup_cli.utils import l2l_rng
+
+    real = l2l_rng.state_at
+    l2l_rng.state_at = lambda state: nullcontext()
+    try:
+        yield
+    finally:
+        l2l_rng.state_at = real
+
+
+#: Record keys of the wrong-order controls; ``_controls`` writes them, ``verdict`` reads them.
+CONTROL_KEYS = ("control_shared_stream_equal", "control_other_seed_equal")
+
+
+@dataclass(frozen=True)
+class Case:
+    """What one k runs on: the model, its runtime, the micro-batches and the step's seed."""
+
+    model: Any
+    runtime: Any
+    mbs: List[Any]
+    store_factory: Callable[[], Any]
+    seed: int
+
+
+def _run_l2l(case: Case, call: Any) -> Any:
+    """One shipped L2L step on a fresh activation store; returns (stepper, losses, grads).
+
+    With a seed, the generators are seeded first, as the reference's are.
+    """
+    import torch
+
+    from soup_cli.utils.l2l_step import L2LStep
+
+    stepper = L2LStep(case.model, case.runtime, call)
+    store = case.store_factory()
+    if case.seed is not None:
+        torch.manual_seed(case.seed)
+    try:
+        losses = stepper.run(case.mbs, store)
+    finally:
+        store.close()
+    return stepper, losses, l2l_schedule.collect_grads(case.model)
+
+
+def measure_k(
+    model: Any,
+    runtime: Any,
+    micro_batches: Sequence[Any],
+    store_factory: Callable[[], Any],
+    cold: Optional[Callable[[Any], None]] = None,
+    *,
+    dropout: float = 0.0,
+    seed: int = 0,
+) -> Dict[str, Any]:
+    """One k: GA twice, one L2L step, equality flags and load counters.
+
+    ``dropout`` is the model's LoRA dropout. At 0 the reference is plain accumulation. Above
+    0 it is the same plain accumulation after ``torch.manual_seed(seed)``, the L2L step is
+    seeded the same way, the generator states after both are compared, and the two
+    wrong-order controls are added to the record.
+    """
+    import torch
+
+    from soup_cli.utils.l2l_step import capture_layer_call, count_loads
+
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+    mbs = list(micro_batches)
+    k = len(mbs)
+    case = Case(model, runtime, mbs, store_factory, seed if dropout > 0 else None)
+    if dropout > 0:
+        model.train()
+
+    def accumulate() -> List[Any]:
+        if dropout > 0:
+            torch.manual_seed(seed)
+        return l2l_schedule.ga_step(model, mbs)
+
+    def prepare() -> None:
+        # Loads depend on what the previous walk left in the slots: every counted
+        # span starts after the same forward-only walk.
+        l2l_schedule.zero_grads(model)
+        capture_layer_call(model, mbs[0])
+        if cold is not None:
+            cold(model)
+
+    l2l_schedule.zero_grads(model)
+    ga1 = accumulate()
+    g1 = l2l_schedule.collect_grads(model)
+    ga_stream = _stream_digest()
+
+    prepare()
+    with count_loads(runtime) as ga_counters:
+        ga2 = accumulate()
+    g2 = l2l_schedule.collect_grads(model)
+
+    call = capture_layer_call(model, mbs[0])
+    prepare()
+    stepper, losses, g3 = _run_l2l(case, call)
+    l2l_stream = _stream_digest()
+
+    a_vs_a = l2l_schedule.compare(g1, g2)
+    l2l = l2l_schedule.compare(g1, g3)
+    out = {
+        "k": k,
+        "tensors": l2l["tensors"],
+        "grads_equal": bool(l2l["equal"]),
+        "max_abs": l2l["max_abs"],
+        "worst": l2l["worst"],
+        "all_zero": l2l["all_zero"],
+        "losses_equal": bool(l2l_schedule.losses_equal(ga1, losses)),
+        "a_vs_a_equal": bool(a_vs_a["equal"] and l2l_schedule.losses_equal(ga1, ga2)),
+        "losses_ga": [float(x) for x in ga1],
+        "losses_l2l": [float(x) for x in losses],
+        "ga": _loads(ga_counters),
+        "l2l": _loads(stepper.counters),
+        "dropout": float(dropout),
+        "seed": int(seed),
+        "stream_equal": ga_stream == l2l_stream,
+        "digest": _digest(losses, g3),
+        # Allocator peak over the whole k (accumulation, L2L and any controls), CUDA only.
+        "peak_gpu_bytes": None,
+    }
+    if dropout > 0:
+        out.update(_controls(case, g3, losses))
+    if torch.cuda.is_available():
+        out["peak_gpu_bytes"] = int(torch.cuda.max_memory_allocated())
+    return out
+
+
+def _controls(case: Case, l2l_grads: Dict[str, Any], l2l_losses: Sequence[Any]) -> Dict[str, Any]:
+    """Wrong runs against the L2L result; each should differ at dropout > 0."""
+    from dataclasses import replace
+
+    from soup_cli.utils.l2l_step import capture_layer_call
+
+    model = case.model
+    call = capture_layer_call(model, case.mbs[0])
+    l2l_schedule.zero_grads(model)
+    with _one_shared_stream():
+        _, shared_losses, shared_grads = _run_l2l(case, call)
+    l2l_schedule.zero_grads(model)
+    _, other_losses, other_grads = _run_l2l(replace(case, seed=case.seed + 1), call)
+
+    def matches_l2l(losses: Sequence[Any], grads: Dict[str, Any]) -> bool:
+        return bool(
+            l2l_schedule.losses_equal(l2l_losses, losses)
+            and l2l_schedule.compare(l2l_grads, grads)["equal"]
+        )
+
+    return dict(zip(CONTROL_KEYS, (
+        matches_l2l(shared_losses, shared_grads), matches_l2l(other_losses, other_grads),
+    )))
+
+
+def verdict(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Pass when every k is bit-equal, no gradient is vacuous, L2L loads do not
+    grow k-fold against k=1, and any wrong-order control disagrees."""
+    by_k = {rec["k"]: rec for rec in records}
+    base = by_k.get(1)
+    equal = bool(records) and all(
+        rec["grads_equal"]
+        and rec["losses_equal"]
+        and rec.get("stream_equal", True)
+        and not rec["all_zero"]
+        for rec in records
+    )
+    loads_flat = base is not None and all(
+        rec["l2l"]["layer_loads"] < rec["k"] * base["l2l"]["layer_loads"]
+        for rec in records
+        if rec["k"] > 1
+    )
+    # The controls exist only at dropout > 0, where the wrong order must show a difference.
+    controls_differ = all(
+        not rec[key]
+        for rec in records
+        for key in CONTROL_KEYS
+        if key in rec
+    )
+    return {
+        "equal": equal,
+        "loads_flat": loads_flat,
+        "controls_differ": controls_differ,
+        "has_k1_baseline": base is not None,
+        "l2l_layer_loads": {k: rec["l2l"]["layer_loads"] for k, rec in sorted(by_k.items())},
+        "ga_layer_loads": {k: rec["ga"]["layer_loads"] for k, rec in sorted(by_k.items())},
+        "pass": equal and loads_flat and controls_differ,
+    }
+
+
+def _cold_views(model: Any) -> None:
+    """Drop the cached rebuilt NF4 views so a step's restores are counted (#841)."""
+    from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+    for layer in decoder_owner(model).layers:
+        layer._cached_substitution_buffers = None
+        layer._cached_substitution_weights = None
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--weights", default=DEFAULT_WEIGHTS)
+    parser.add_argument("--quant", choices=("none", "nf4"), required=True)
+    parser.add_argument("--ks", default="1,2,4")
+    parser.add_argument("--seq", type=int, default=128)
+    parser.add_argument("--dropout", type=float, default=0.0, help="LoRA dropout")
+    parser.add_argument("--rng-seed", type=int, default=0, help="seed set before each step")
+    parser.add_argument("--deterministic", action="store_true")
+    parser.add_argument("--out", required=True)
+    parsed = parser.parse_args(argv)
+
+    if parsed.deterministic:
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    if not stream_probe.cuda_available():
+        print("SKIP: CUDA is required for l2l_smollm2_check.py")
+        return 0
+    import l2l_activations
+    import l2l_probe
+    import torch
+
+    from soup_cli.utils.layer_stream import resolve_stream_dtype
+
+    if parsed.deterministic:
+        torch.use_deterministic_algorithms(True)
+    out = Path(parsed.out)
+    if out.exists():
+        print(f"REFUSED: {out} exists; attempts are never overwritten")
+        return 2
+    args = l2l_probe.parse_args([
+        "--mode", "correctness", "--weights", parsed.weights, "--quant", parsed.quant,
+        "--seq", str(parsed.seq), "--tier", "ram", "--out", str(out / "unused.json"),
+    ])
+    args.lora_dropout = parsed.dropout
+    device = "cuda"
+    dtype = resolve_stream_dtype(device)
+    torch_dtype = getattr(torch, dtype)
+    facts = stream_probe.gpu_facts(device)
+    print("RUN: L2L vs gradient accumulation,", parsed.weights, parsed.quant,
+          "dropout", parsed.dropout)
+    for key, value in facts.items():
+        print(f"{key:<16}{value}")
+    model, runtime, config, *_ = stream_probe.build(args, device, dtype)
+    l2l_schedule.make_non_vacuous(model)
+    vocab = int(config.vocab_size)
+    meta = {
+        **facts, "weights": parsed.weights, "quant": parsed.quant, "dtype": dtype,
+        "seq": parsed.seq, "dropout": parsed.dropout, "rng_seed": parsed.rng_seed,
+        "deterministic": bool(parsed.deterministic),
+        "arch": str(config.model_type), "n_layers": int(config.num_hidden_layers),
+        "tie_word_embeddings": bool(getattr(config, "tie_word_embeddings", False)),
+        "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    sink = stream_probe.Sink(str(out / "records.json"), meta)
+    records: List[Dict[str, Any]] = []
+    cold = _cold_views if parsed.quant == "nf4" else None
+    try:
+        for k in [int(part) for part in parsed.ks.split(",") if part.strip()]:
+            gen = torch.Generator(device="cuda").manual_seed(args.input_seed)
+            mbs = [torch.randint(0, vocab, (1, parsed.seq), generator=gen, device="cuda")
+                   for _ in range(k)]
+
+            def make_store(k=k) -> Any:
+                return l2l_activations.ActivationStore(
+                    n_layers=int(config.num_hidden_layers), k=k,
+                    chunk_shape=(1, parsed.seq, int(config.hidden_size)),
+                    dtype=torch_dtype, device="cuda", pin=True,
+                )
+
+            try:
+                record = measure_k(
+                    model, runtime, mbs, make_store, cold=cold, dropout=parsed.dropout,
+                    seed=parsed.rng_seed,
+                )
+            except RuntimeError as exc:
+                if not parsed.deterministic:
+                    raise
+                sink.add("error", {"k": k, "deterministic_error": str(exc)})
+                continue
+            records.append(record)
+            sink.add("k", record)
+            print(f"k={k}: grads_equal {record['grads_equal']} losses_equal "
+                  f"{record['losses_equal']} (max |d| {record['max_abs']:.3e}) "
+                  f"loads l2l {record['l2l']} ga {record['ga']}")
+    finally:
+        sink.payload["verdict"] = verdict(records)
+        sink.flush()
+        runtime.close()
+    print(f"verdict {sink.payload['verdict']}\nwrote {out / 'records.json'}")
+    return 0 if sink.payload["verdict"]["pass"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

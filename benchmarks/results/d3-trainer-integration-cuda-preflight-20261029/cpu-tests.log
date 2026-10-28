@@ -1,0 +1,49 @@
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 22%]
+........................................................................ [ 30%]
+........................................................................ [ 38%]
+........................................................................ [ 45%]
+................s....................................................... [ 53%]
+...........................s.................................s.......... [ 61%]
+........................................................................ [ 68%]
+........................................................................ [ 76%]
+........................................................................ [ 84%]
+.sss....ss.............................................................. [ 91%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+============================== warnings summary ===============================
+tests/test_d3_trainer_integration.py: 2 warnings
+tests/test_l2l_ordinary_mode.py: 2 warnings
+tests/test_l2l_trainer_mode.py: 1 warning
+tests/test_v07200.py: 1 warning
+tests/test_v07204.py: 17 warnings
+  C:\ml\soup\work\d3-trainer-env\Lib\site-packages\torch\utils\data\dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+    super().__init__(loader)
+
+tests/test_v07200.py::TestStreamingResumeAccepted::test_train_accepts_resume_with_streaming
+  C:\ml\soup\work\d3-trainer-env\Lib\site-packages\typer\__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+tests/test_v07200.py::TestStreamingResumeAccepted::test_train_accepts_resume_with_streaming
+  C:\ml\soup\work\d3-trainer-env\Lib\site-packages\typer\__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+tests/test_v07204.py: 15 warnings
+  C:\ml\soup\soup-rnd-d3\src\soup_cli\trainer\kto.py:168: FutureWarning: The `KTOConfig` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOConfig`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOConfig`) will remain, but API changes may occur.
+    kto_config = KTOConfig(
+
+tests/test_v07204.py: 15 warnings
+  C:\ml\soup\soup-rnd-d3\src\soup_cli\trainer\kto.py:212: FutureWarning: The `KTOTrainer` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOTrainer`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOTrainer`) will remain, but API changes may occur.
+    self.trainer = KTOTrainer(
+
+tests/test_v07204.py::TestKtoBatchIsRefusedEarly::test_trl_itself_still_refuses_batch_one
+  C:\ml\soup\soup-rnd-d3\tests\test_v07204.py:1204: FutureWarning: The `KTOConfig` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOConfig`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOConfig`) will remain, but API changes may occur.
+    args = KTOConfig(
+
+tests/test_v07204.py::TestKtoBatchIsRefusedEarly::test_trl_itself_still_refuses_batch_one
+  C:\ml\soup\soup-rnd-d3\tests\test_v07204.py:1220: FutureWarning: The `KTOTrainer` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOTrainer`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOTrainer`) will remain, but API changes may occur.
+    KTOTrainer(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+933 passed, 8 skipped, 116 deselected, 57 warnings in 321.71s (0:05:21)

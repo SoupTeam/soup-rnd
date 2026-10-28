@@ -1,0 +1,149 @@
+{
+ "meta": {
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "torch": "2.14.1+cu130",
+  "vram_total_gb": 12.49,
+  "soup_cli_file": "/root/soup/src/soup_cli/__init__.py",
+  "driver": "595.104.02",
+  "pcie_gen": "3",
+  "pcie_width": "16",
+  "weights": "HuggingFaceTB/SmolLM2-135M",
+  "quant": "none",
+  "dtype": "bfloat16",
+  "seq": 128,
+  "dropout": 0.05,
+  "rng_seed": 1234,
+  "rng_step": 7,
+  "deterministic": false,
+  "arch": "llama",
+  "n_layers": 30,
+  "tie_word_embeddings": true,
+  "started": "2026-10-22T15:18:15"
+ },
+ "records": [
+  {
+   "kind": "k",
+   "k": 1,
+   "tensors": 240,
+   "grads_equal": true,
+   "max_abs": 0.0,
+   "worst": [],
+   "all_zero": [],
+   "losses_equal": true,
+   "a_vs_a_equal": true,
+   "losses_ga": [
+    13.1310396194458
+   ],
+   "losses_l2l": [
+    13.1310396194458
+   ],
+   "ga": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 0
+   },
+   "l2l": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 0
+   },
+   "dropout": 0.05,
+   "seed": 1234,
+   "step": 7,
+   "digest": "6631bdbafc90a7ae7fb7ffb53ea1c334d777c329f5ff2a6e6c53710b545afb44",
+   "control_stock_stream_equal": false,
+   "control_shared_stream_equal": false
+  },
+  {
+   "kind": "k",
+   "k": 2,
+   "tensors": 240,
+   "grads_equal": true,
+   "max_abs": 0.0,
+   "worst": [],
+   "all_zero": [],
+   "losses_equal": true,
+   "a_vs_a_equal": true,
+   "losses_ga": [
+    6.5655198097229,
+    6.60946798324585
+   ],
+   "losses_l2l": [
+    6.5655198097229,
+    6.60946798324585
+   ],
+   "ga": {
+    "layer_loads": 115,
+    "large_loads": 0,
+    "restores": 0
+   },
+   "l2l": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 0
+   },
+   "dropout": 0.05,
+   "seed": 1234,
+   "step": 7,
+   "digest": "a9091ec947966c0d2573122f1b7569c609b414de7ce2f30130e4bf8674974ea7",
+   "control_stock_stream_equal": false,
+   "control_shared_stream_equal": false
+  },
+  {
+   "kind": "k",
+   "k": 4,
+   "tensors": 240,
+   "grads_equal": true,
+   "max_abs": 0.0,
+   "worst": [],
+   "all_zero": [],
+   "losses_equal": true,
+   "a_vs_a_equal": true,
+   "losses_ga": [
+    3.28275990486145,
+    3.304733991622925,
+    3.1966822147369385,
+    3.2447152137756348
+   ],
+   "losses_l2l": [
+    3.28275990486145,
+    3.304733991622925,
+    3.1966822147369385,
+    3.2447152137756348
+   ],
+   "ga": {
+    "layer_loads": 229,
+    "large_loads": 0,
+    "restores": 0
+   },
+   "l2l": {
+    "layer_loads": 58,
+    "large_loads": 0,
+    "restores": 0
+   },
+   "dropout": 0.05,
+   "seed": 1234,
+   "step": 7,
+   "digest": "19fc6a2ae7c7f1c5a930e3abd38c6872eedab397d1b50aac5da9ca875cc1d413",
+   "control_stock_stream_equal": false,
+   "control_shared_stream_equal": false
+  }
+ ],
+ "verdict": {
+  "equal": true,
+  "loads_flat": true,
+  "controls_differ": true,
+  "has_k1_baseline": true,
+  "l2l_layer_loads": {
+   "1": 58,
+   "2": 58,
+   "4": 58
+  },
+  "ga_layer_loads": {
+   "1": 58,
+   "2": 115,
+   "4": 229
+  },
+  "pass": true
+ }
+}

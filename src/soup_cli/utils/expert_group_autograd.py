@@ -1,10 +1,10 @@
-"""Development D3 frozen-expert derivatives; not installed in the public trainer.
+"""First-order D3 frozen-expert derivatives, shared by tests and opt-in SFT.
 
 Reuses original Soup's reload/recompute design from expert_stream._ExpertMLP at
 4a78a7ba74d1b52c820fb156647ef1e78f3105a6. Forward groups weight restoration and,
 when supplied, uses the explicit D3 GEMM backend. Backward currently recomputes
 one expert at a time with native eager autograd. Only SiLU and first derivatives
-are supported. No training, CUDA qualification or performance claim follows.
+are supported. GPU qualification is specific to the caller's source and recipe.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ _CLASS = None
 
 
 def grouped_autograd_experts_class() -> Any:
-    """Build a separate development module; do not relax B1.2's forward guards."""
+    """Build the backward module without relaxing B1.2's forward-only API."""
     global _CLASS
     if _CLASS is not None:
         return _CLASS
@@ -93,7 +93,8 @@ def grouped_autograd_experts_class() -> Any:
         Pool/reader/backend must outlive every graph. Closing them before backward
         produces a refusal. Routed expert adapters and stochastic expert activations
         are not supported. Routing weights remain in native autograd outside the
-        expert function. This is not a B1.3/L2L or public CLI integration.
+        expert function. The opt-in SFT installer owns the pool/reader lifetime;
+        the ordinary B1.2 forward-only installer remains unchanged.
         """
 
         def __init__(self, reader, pool, act_fn, *, activation_budget_bytes, gemm=None,

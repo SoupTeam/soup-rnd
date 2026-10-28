@@ -1,0 +1,24 @@
+........................................................................ [ 25%]
+........................................................................ [ 51%]
+.............................................F.......................... [ 77%]
+..............sF................................................         [100%]
+=================================== FAILURES ===================================
+_ TestOnRealHardware.test_every_region_is_a_pinned_sector_aligned_view_of_a_power_of_two_arena _
+tests/test_issue974_direct_range_reads.py:738: in test_every_region_is_a_pinned_sector_aligned_view_of_a_power_of_two_arena
+    assert region.data_ptr() % SECTOR == 0
+E   assert (139376713540096 % 4096) == 0
+E    +  where 139376713540096 = <built-in method data_ptr of Tensor object at 0x7ec394da3390>()
+E    +    where <built-in method data_ptr of Tensor object at 0x7ec394da3390> = tensor([88,  1,  0,  ...,  0,  0,  0], dtype=torch.uint8).data_ptr
+------------------------------ Captured log call -------------------------------
+WARNING  soup_cli.utils.async_disk_source:async_disk_source.py:561 layer streaming's staging is not sector-aligned on this box; the disk tier reads through the page cache instead of direct I/O
+_________ test_unreaped_child_makes_foreign_reads_unknown_with_reason __________
+tests/test_f1_arm_validity.py:571: in test_unreaped_child_makes_foreign_reads_unknown_with_reason
+    assert foreign["outcome"] == "unknown"
+E   AssertionError: assert 'ok' == 'unknown'
+E     
+E     - unknown
+E     + ok
+=========================== short test summary info ============================
+FAILED tests/test_issue974_direct_range_reads.py::TestOnRealHardware::test_every_region_is_a_pinned_sector_aligned_view_of_a_power_of_two_arena
+FAILED tests/test_f1_arm_validity.py::test_unreaped_child_makes_foreign_reads_unknown_with_reason
+2 failed, 277 passed, 1 skipped in 24.01s

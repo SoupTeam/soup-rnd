@@ -585,3 +585,21 @@ share one dispatch profile. Paired median timing changes were -1.3891% /
 peaks were unchanged. This establishes the bounded numerical comparison,
 not a general speedup, model-quality result, full-weight fine-tuning, public
 trainer integration or final D3 acceptance. Independent review remains required.
+
+### Regular SFT/L2L integration follow-up, 2026-10-29
+
+The opt-in [trainer integration](d3-trainer-integration.md) connects B1.1 expert
+shards and D3's first-order runtime to the regular meta-model/PEFT/SFT setup.
+It also extends the merged A3 L2L path to native OLMoE without router auxiliary
+loss. Routed weights remain frozen; attention LoRA is trained. The common
+runtime owns the readers, arena and optional CUDA backend, with failure cleanup.
+This is new code after the historical measured commits, not a retrospective
+change to their protocols/results. Synthetic CPU integration and regressions do
+not establish a new pretrained CUDA trainer verdict. The source and that
+separate qualification protocol must be committed before its formal measurement.
+
+The [current acceptance audit](d3-task-acceptance.md) and
+[public-trainer protocol](../benchmarks/protocols/d3-public-trainer/README.md)
+record the remaining source/review distinctions and the prepared follow-up.
+The final synthetic launcher controls/profile checks do not relabel the earlier
+trained-step fixture as a public SFT/L2L result.
