@@ -8,30 +8,26 @@ Source: gap table from an earlier session, plus one ticket from nurik (fault tol
 
 | # | Ticket | Hours | Blocked by |
 |---|---|---|---|
-| 1 | Foundation: 256-update training + stage auto-upload + journal resume | 9 | none |
-| 2 | DECISION NLL (M0, M1), token-weighted, fp64 sums | 5 | 1 |
-| 3 | Strong control S (forward, absmax x 1.5) | 5 | 1 |
-| 4 | Wrapper controls X1-X5 (expert ParamWrapper) | 5 | 1 |
-| 5 | Controls E1-E5 and per-cell reporting | 4 | 1 |
-| 6 | Suite scoring, 6 scorings (A_on and A_off x seeds 42, 7, 123) | 2 | 1 |
+| 1a | Per-stage upload to private HF (incl. adapters) + journal resume | 6 | none |
+| 1b | 256-update training via a main-series recipe object (calibration default stays 16) | 3 | 1a |
+| 2 | DECISION NLL (M0, M1), token-weighted, fp64 sums | 5 | 1a, 1b |
+| 3 | Strong control S (forward, absmax x 1.5) | 5 | 1a |
+| 4 | Wrapper controls X1-X5 (expert ParamWrapper) | 5 | 1a |
+| 5 | Controls E1-E5 and per-cell reporting | 4 | 1a |
+| 6 | Suite scoring, 6 scorings (A_on and A_off x seeds 42, 7, 123) | 2 | 1a, 1b |
 | 7 | Paired bootstrap, D, CI, D_s, M3, L, outcome table with sub-labels | 6 | 2, 6 |
-| 8 | Orchestration, journal and report for the 10-run plan with controls and NLL | 4 | 1, 2, 3, 4, 5, 6, 7 |
+| 8 | Orchestration, journal and report for the 10-run plan with controls and NLL | 4 | 1a, 1b, 2, 3, 4, 5, 6, 7 |
 | 9 | Tests, CPU dry run, review | 5 | 8 |
 | | **Total** | **45** | |
 
 Order is topological: each ticket's blockers come earlier in the list.
 
-Dependency graph:
-
-```
-1 ──┬── 2 ──────────────┐
-    ├── 3 ──────────────┤
-    ├── 4 ──────────────┤
-    ├── 5 ──────────────┤
-    └── 6 ──┬── 7 ──────┤
-            │           └── 8 ── 9
-    (2 also feeds 7)
-```
+Dependency edges:
+- 1a → 1b, 3, 4, 5
+- 1b → 2, 6
+- 2, 6 → 7
+- 1a, 1b, 2 through 7 → 8
+- 8 → 9
 
 Hard rules that apply to every ticket:
 - Calibration behaviour does not change. Calibration record hashes must still reproduce after each ticket.
@@ -40,40 +36,49 @@ Hard rules that apply to every ticket:
 
 ---
 
-## Ticket 1: Foundation. 256-update training, stage auto-upload, journal resume
+## Ticket 1a: Per-stage upload to private HF, journal resume
 
-**Hours:** 9 (training 3, fault tolerance 6)
+**Hours:** 6 (nurik request, fault tolerance)
 **Blocked by:** none. Calibration record and `[CAL]` tau values are already committed.
 
 **Scope**
-
-Part A, 256-update training (3 h):
-- Add a main-series recipe object with `f_updates=256`. Recipe values otherwise as draft §6 (one pass over TRAIN 4,096, microbatch 1 x accumulation 16, lr 1e-4, warmup 16, clip 1.0, gradient checkpointing).
-- Do not change the `Recipe.f_updates` default (16, `e4_part2_calibration.py:52`). `run_f` reads `recipe.f_updates` (`:411`, `:426`), so the main series passes the 256 recipe explicitly. The calibration record must still reproduce.
-- Run arms A_off, A_on, A_bf16 for seeds 42, 7, 123, plus the A_on/42 rerun. Each run is one process and one journaled attempt.
-- Record `updates_requested` and the number of updates actually performed.
-
-Part B, fault tolerance (nurik request, 6 h):
 - After each finished stage (its attempt record is written and its journal entry closed), upload immediately to a private HF repo: the attempt record JSON, the full `attempts.jsonl`, and the adapter safetensors. The adapter upload is my choice, not in the source: suite scoring (ticket 6) needs the adapter after a box loss.
 - Reuse `transfer.push`/`pull` (`benchmarks/harness/e4_part2_transfer.py`). Upload refuses a non-private repo, as it does now.
-- On restart, read the journal. Stages with a completed attempt are skipped via the existing `completed()` (`e4_part2_calibration.py:1389`). Nothing is re-run or re-journaled.
+- Reuse the existing journal (`AttemptsJournal`), `drive_run`, and `completed()` (`e4_part2_calibration.py:1389`).
+- On restart, read the journal. Stages with a completed attempt are skipped. Nothing is re-run or re-journaled.
 - If the local journal is missing, pull it from the private repo before any attempt. Void counts come from the pulled journal, so a restart cannot reset the §8 void count.
 - A stage interrupted mid-run is closed as a void by `close_interrupted`, counted, and re-run in the same position with the same seed.
+- A failed upload retries. It never marks the stage incomplete: the stage stays complete in the journal, and the upload is retried later.
 
 **Acceptance test**
-- A 256-update run logs `updates_requested == 256` and performs 256 updates. Calibration's default recipe still gives 16, and the calibration record hash is unchanged.
 - Kill the process after stage 3 finishes but before stage 4 starts. On restart: stages 1-3 are skipped with no new journal lines; stage 4 starts; the void count for every run equals its pre-kill value.
+- A crash mid-stage resumes that stage without adding a new §8 void. A real void still counts toward the second-void stop.
 - Delete the local output directory and restart. The journal is pulled from the private repo, and the void count matches the pre-delete value. The uploaded attempt record's SHA-256 matches the local file.
-- Kill the process after a stage's journal close but before its upload. On restart, that stage's record is uploaded before any new work begins.
+- Upload runs after each finished stage, including adapters (mock HF).
+- A failed upload retries and never marks the stage incomplete.
 - A push to a non-private repo is refused with no upload.
-- Dry-run with `--inject` (`kill`, `oom`, `void`) on one stage: the journal shows the expected event sequence, and a second void of the same run stops the study.
+
+## Ticket 1b: 256-update training via a main-series recipe
+
+**Hours:** 3
+**Blocked by:** Ticket 1a.
+
+**Scope**
+- Add a main-series recipe object with `f_updates=256`. Recipe values otherwise as draft §6 (one pass over TRAIN 4,096, microbatch 1 x accumulation 16, lr 1e-4, warmup 16, clip 1.0, gradient checkpointing).
+- Do not change the `Recipe.f_updates` default (16, `e4_part2_calibration.py:52`). `run_f` reads `recipe.f_updates` (`:411`, `:426`), so the main series passes the 256 recipe explicitly. The calibration record must still reproduce.
+- Run arms A_off, A_on for seeds 42, 7, 123, plus the A_on/42 rerun. A_bf16 is the unquantized reference for M3 only (draft §7); it is trained, but not scored by suite. Each run is one process and one journaled attempt.
+- Record `updates_requested` and the number of updates actually performed.
+
+**Acceptance test**
+- A 256-update run logs `updates_requested == 256` and performs 256 updates.
+- Calibration's default recipe still gives 16, and the calibration record hash is unchanged.
 
 ---
 
 ## Ticket 2: DECISION NLL (M0, M1)
 
 **Hours:** 5
-**Blocked by:** Ticket 1 (adapters and stage records).
+**Blocked by:** Tickets 1a (stage records), 1b (trained adapters).
 
 **Scope**
 - M0: NLL of each arm's base (no adapter) on the 2,048 DECISION rows. Computed after this rule's commit and the §3 checks, before run 1.
@@ -93,7 +98,7 @@ Part B, fault tolerance (nurik request, 6 h):
 ## Ticket 3: Strong control S (forward)
 
 **Hours:** 5
-**Blocked by:** Ticket 1 (stage runner and records).
+**Blocked by:** Ticket 1a (stage runner and records).
 
 **Scope**
 - Draft §3d. Build a `Linear4bit` from R's packed codes with a plain (non-nested) QuantState whose per-block absmax is R's decoded absmax times **1.5**. With DQ on, decode as `dequantize_blockwise(absmax, state2) + offset` (`functional.py:746-748`).
@@ -112,7 +117,7 @@ Part B, fault tolerance (nurik request, 6 h):
 ## Ticket 4: Wrapper controls X1-X5 (expert ParamWrapper)
 
 **Hours:** 5
-**Blocked by:** Ticket 1.
+**Blocked by:** Ticket 1a.
 
 **Scope**
 - Draft §3b. Layers 0 and 8, A_off and A_on weights, calibration W inputs (first 32 SMOKE rows), fp32 factors, seed 20261016.
@@ -130,7 +135,7 @@ Part B, fault tolerance (nurik request, 6 h):
 ## Ticket 5: Controls E1-E5 and per-cell reporting
 
 **Hours:** 4
-**Blocked by:** Ticket 1.
+**Blocked by:** Ticket 1a.
 
 **Scope**
 - E0-E4 (draft §3a): CUDA `dequantize_4bit` byte-identical check, forward, input gradient, LoRA gradients, one AdamW update, per cell (kind, needs_grad, kernel).
@@ -148,12 +153,12 @@ Part B, fault tolerance (nurik request, 6 h):
 ## Ticket 6: Suite scoring, 6 scorings
 
 **Hours:** 2
-**Blocked by:** Ticket 1 (adapters from every seed).
+**Blocked by:** Tickets 1a (upload) and 1b (adapters from every seed).
 
 **Scope**
 - Today N scores only seed 42. Extend to A_on and A_off for seeds 42, 7 and 123: 6 scorings.
 - Scoring: `DEFAULT_GENERAL_SUITE` through `score_bundled_suite` (`commands/ship.py:782-802, :973-977`), scorer revision 4, greedy, 256 new tokens, no chat template, MCQ cue kept.
-- A_bf16 suite scores are not in the 6. Flagged as an open question below.
+- A_bf16 is not suite-scored. It is the bf16 reference only (draft §7, M3), so it is outside the 6.
 
 **Acceptance test**
 - Exactly 6 suite result files are produced, one per (arm, seed) pair, with scorer revision 4 recorded.
@@ -184,7 +189,7 @@ Part B, fault tolerance (nurik request, 6 h):
 ## Ticket 8: Orchestration, journal and report
 
 **Hours:** 4
-**Blocked by:** Tickets 1-7.
+**Blocked by:** Tickets 1a, 1b, 2-7.
 
 **Scope**
 - Run plan from draft §5, positions 1-10 with the 3 x 3 Latin square, each run in a fresh process. Run 10 (A_on/42 rerun) is recorded and excluded from decision statistics.
@@ -220,7 +225,7 @@ Part B, fault tolerance (nurik request, 6 h):
 
 ## Open items (need an owner decision)
 
-1. **Adapter upload size.** Ticket 1 uploads adapter safetensors per stage (about 0.5 GB fp32 per run, about 5 GB for 10 runs). Chosen so suite scoring survives a box loss. Confirm, or limit upload to records only.
-2. **A_bf16 suite scores.** The 6 scorings in ticket 6 leave out A_bf16. Include or exclude?
-3. **Ticket 1 is two things.** Per the request, the foundation ticket includes both 256-update training and fault tolerance, so it is 9 h. Splitting it would let training start before the upload path exists.
-4. **Hours are estimates.** Ticket 1 fault tolerance (6 h) reuses the existing journal, `drive_run`, `completed()` and `transfer.push`. If that reuse holds, it may be lower.
+1. **Adapter upload size.** Ticket 1a uploads adapter safetensors per stage (about 0.5 GB fp32 per run, about 5 GB for 10 runs). Chosen so suite scoring survives a box loss. Confirm, or limit upload to records only.
+2. **Hours are estimates.** Ticket 1a (6 h) reuses the existing journal, `drive_run`, `completed()` and `transfer.push`. If that reuse holds, it may be lower.
+
+Resolved: A_bf16 is not suite-scored (bf16 is the M3 reference only, draft §7). Ticket 1 is split into 1a (upload + resume) and 1b (256-update training).
