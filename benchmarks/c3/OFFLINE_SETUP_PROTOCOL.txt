@@ -1,0 +1,43 @@
+C3 prospective offline setup — 2026-10-28
+
+Attempt009 failed before CUDA: pip reported no matching uv==0.13.5, following
+an NVIDIA apt-index timeout. Root cause of the package-index failure is unknown.
+PyPI independently lists a Linux x86_64 wheel for the exact uv version. Do not
+change the version or rewrite the historical failure as a successful run.
+
+offline_artifacts.json pins one compatible binary wheel per locked package,
+plus uv0.13.5, with official PyPI URLs, byte counts and SHA256. Each runtime/test
+wheel digest must already occur in the unchanged runtime.lock/test_runtime.lock.
+The bootstrap digest is pinned separately in bootstrap_uv.json/bootstrap_uv.lock.
+CPython3.11.16 matches the previous successful setup, and its release archive is
+pinned to the digest from Astral's official release metadata. No floating Python
+patch version remains. Target: Ubuntu24.04/glibc>=2.39, Linux x86_64.
+
+Stage verified files in a fresh owned /data/c3/offline/wheels, with the Python
+archive directly in /data/c3/offline. Source lives in /data/c3/repo. Before install,
+offline_setup.sh checks target platform, fresh output paths, lock hashes, every
+wheel size/SHA, Python archive size/SHA, then extracts using tarfile's data filter.
+System Python must already provide venv; otherwise fail before any CUDA work.
+Install uv with pip --isolated --no-index --no-deps --require-hashes. Create the
+environment from the pinned Python archive, sync runtime/test locks with uv
+--no-index/--find-links/--require-hashes and run uv pip check. Network and Python
+auto-downloads remain disabled. No apt update, unpinned fallback, TLS exception,
+retry or optimizer resume is added.
+
+Invoke the script ONLY under the existing bounded setup_supervisor and fresh
+attempt authority, after source publication/hash verification and budget review.
+The script's SHA must be frozen in that new attempt. The prior setup script and
+source commits remain historical evidence; do not replace an old attempt's files.
+No GPU rental is performed by local preparation.
+
+The local wheel readback and offline wheel-metadata closure establish artifact
+availability/integrity, not that Linux native libraries import or CUDA works.
+Before measurement require setup PASS/cleanup, exact installed version readback,
+two CUDA controls without skips, source/boot/GPU ownership, corrected owned cwd,
+physical calibration/F1/clocks and unchanged shared measurement deadline.
+
+Preserve cache files outside Git. Commit only source, protocols, hashes and compact
+receipts. Keep all previous experiment archives. Local free space must cover the
+next result archive AND verified extraction; dependency-cache success alone does
+not make a rental ready. Performance remains NO_VERDICT; representative model
+and A4 reservation integration remain open.

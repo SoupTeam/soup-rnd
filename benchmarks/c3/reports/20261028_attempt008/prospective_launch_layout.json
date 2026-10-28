@@ -1,0 +1,20 @@
+{
+  "status": "PROSPECTIVE_NOT_EXECUTED",
+  "cause": "Launcher cwd was /data/c3/repo but evidence was sibling /data/c3/evidence; _validate_out_dir correctly refused outside HOME/CWD/TMPDIR. CPU tests used a system temporary output root and did not exercise this deployment layout.",
+  "change_for_separate_attempt": {
+    "cwd": "/data/c3",
+    "PYTHONPATH": "/data/c3/repo/src:/data/c3/repo",
+    "output": "/data/c3/evidence/measurement_001",
+    "preflight": "Before CUDA initialization or model construction validate the selected shard output resolves below the owned working directory; keep original path validator enabled."
+  },
+  "unchanged": [
+    "source 238577099577113744c6f4d345bd426f7d689f6c",
+    "original path containment validator",
+    "numerical criteria",
+    "F1 and clocks",
+    "shared absolute deadline and cleanup reserve",
+    "no retry or resume of attempt008"
+  ],
+  "requires": "Separate attempt identity and preflight review; no automatic rerun of failed arm",
+  "performance_verdict": "NO_VERDICT"
+}

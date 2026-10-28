@@ -121,9 +121,20 @@ Prospective measurement instrumentation is now implemented in `isolated_compare.
 NVMe counters must pass direct-read calibration and controlled foreign-reader
 rejection before any CUDA arms. Setup/cache-fill counters are separate; RSS is
 explicitly the whole process lifetime. The local focused suite passes 72 tests
-with 2 CUDA skips. Linux physical controls have not run on this Mac. Measurement source published in `7c061bc84`. A prospective nested-deadline fix
-now awaits publication under `DEADLINE_RECOVERY_PROTOCOL.txt`; no new measurement
-GPU result or performance pass is claimed.
+with 2 CUDA skips. Measurement source was published in `7c061bc84`; the nested-deadline
+fix was published in `238577099`. Attempt008 passed remote physical-read calibration
+and foreign-reader rejection but blocked before measurement updates on the launch
+layout. Attempt009 failed during setup while installing uv; zero GPU measurement
+runs. Both attempts were preserved and their new resources were deleted. See the
+20261028 attempt008/attempt009 report packets. No performance pass is claimed.
+
+A prospective offline setup now has all 108 hash-pinned Linux wheels and the pinned
+CPython3.11.16 archive locally verified. Its 225 active dependency edges passed the
+metadata closure check. On 2026-10-28, a complete copy to the reconnected USB drive
+passed full per-file SHA readback. Linux installation and GPU execution of this
+offline setup remain untested; source publication and operational preflight are
+required before a separate paid attempt. See `OFFLINE_SETUP_PROTOCOL.txt` and
+`offline_preparation_review.json`.
 
 Representative workload and shared A4 reservation/lifetime integration remain open.
 No new rental is started by this update.
