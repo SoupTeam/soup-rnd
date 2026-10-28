@@ -1,0 +1,40 @@
+# A5 ticket 11, arm C2: ordinary batch 8, 2 epochs, no layer streaming.
+# ga.yaml of ticket 04 is this file with `stream_layers: true` and `stream_source: ram`; the
+# schema refuses stream_source while streaming is off, so both lines go (diff the two files).
+base: mistralai/Mistral-7B-v0.1
+task: sft
+backend: transformers
+
+data:
+  train: data/alpaca64.jsonl
+  format: alpaca
+  max_length: 256
+  chat_template: mistral
+  val_split: 0.0
+
+training:
+  epochs: 2
+  lr: 2e-4
+  batch_size: 8
+  gradient_accumulation_steps: 1
+  quantization: 4bit
+  scheduler: linear
+  warmup_ratio: 0.1
+  weight_decay: 0.0
+  logging_steps: 1
+  seed: 42
+  data_seed: 42
+  rewind_log: false
+  save_steps: 1000
+  l2l: false
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+
+output: ./out/run/
