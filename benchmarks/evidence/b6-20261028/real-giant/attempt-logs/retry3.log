@@ -1,0 +1,177 @@
+{
+    'event': 'environment',
+    'unix': 1793180229.0158432,
+    'rss_bytes': 704991232,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 793180999680,
+    'gpu': 'NVIDIA GeForce RTX 5060',
+    'vram_bytes': 8122859520,
+    'dtype': 'bfloat16',
+    'torch': '2.8.0+cu128',
+    'cuda': '12.8',
+    'cache_budget_bytes': 519579082752,
+    'disk_free_bytes': 793180999680,
+    'source_revision': 'e815299b0bcbac849fa540c768ef21845365c9eb',
+    'peak_rss_bytes': 714760192
+}
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+{
+    'event': 'sharded',
+    'unix': 1793182798.4199677,
+    'rss_bytes': 8405737472,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426840158208,
+    'seconds': 2568.938381357002,
+    'shard_threads': 8,
+    'training_threads': 1,
+    'source_parameters': 671026419200,
+    'cache_bytes': 380276447824,
+    'peak_rss_bytes': 17249882112
+}
+{
+    'event': 'data',
+    'unix': 1793182799.2262814,
+    'rss_bytes': 8411271168,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426840158208,
+    'sha256': 
+'0fc5d9740230def5280506044cabfe355b2f9228a38e256ade1973b4b16cd1f5',
+    'max_length': 64,
+    'peak_rss_bytes': 17249882112
+}
+{
+    'event': 'heldout_before',
+    'unix': 1793183064.3294125,
+    'rss_bytes': 8518574080,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426840129536,
+    'loss': 4.560102462768555,
+    'peak_rss_bytes': 17249882112
+}
+/root/b6/repo/benchmarks/harness/b6_real_moe.py:179: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:835.)
+  emit("step", step=step, loss=float(result.loss), gradient_norm=norm,
+{
+    'event': 'step',
+    'unix': 1793183456.8444076,
+    'rss_bytes': 8681623552,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426840121344,
+    'step': 0,
+    'loss': 4.2203898429870605,
+    'gradient_norm': 0.5682253837585449,
+    'adapter_sha256_before': 
+'1292b58795b18a07ce9588cfc98ddb192aa951218403f39ce4a62e651f2a5c62',
+    'adapter_sha256_after': 
+'15b6513c96d04f42172b7629e3b4de90429ea7ddbc558617ae523165fa1073ef',
+    'gradient_tensors': 610,
+    'seconds': 392.4890338710975,
+    'tokens': 64,
+    'tokens_per_second': 0.16306188065631175,
+    'peak_allocated': 3178213888,
+    'peak_reserved': 3670016000,
+    'peak_rss_bytes': 17249882112
+}
+{
+    'event': 'step',
+    'unix': 1793183833.8192112,
+    'rss_bytes': 8685473792,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426840121344,
+    'step': 1,
+    'loss': 3.833080291748047,
+    'gradient_norm': 0.4828065037727356,
+    'adapter_sha256_before': 
+'15b6513c96d04f42172b7629e3b4de90429ea7ddbc558617ae523165fa1073ef',
+    'adapter_sha256_after': 
+'576a002279bb146e8dd24845f21a89b1db392a88d850fa9ad30ea13ae3797ed8',
+    'gradient_tensors': 610,
+    'seconds': 376.962316508987,
+    'tokens': 62,
+    'tokens_per_second': 0.16447267348677247,
+    'peak_allocated': 3320700416,
+    'peak_reserved': 3703570432,
+    'peak_rss_bytes': 17249882112
+}
+{
+    'event': 'heldout_after',
+    'unix': 1793183955.5617025,
+    'rss_bytes': 8685477888,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426840121344,
+    'loss': 4.566525936126709,
+    'peak_rss_bytes': 17249882112
+}
+{
+    'event': 'runtime',
+    'unix': 1793183955.6512926,
+    'rss_bytes': 8685527040,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426791518208,
+    'stats': {
+        'n_layers': 61,
+        'buffers': 2,
+        'buffer_bytes': 2679562752,
+        'large_buffer_bytes': 1853358080,
+        'expert_buffer_bytes': 112853504,
+        'store_bytes': 4168671232,
+        'pinned': False,
+        'pinned_bytes': 0,
+        'tier': 'disk',
+        'read_ahead': 1,
+        'disk_bytes': 12447297536,
+        'layer_loads': 360,
+        'layer_restores': 488,
+        'large_loads': 8,
+        'device': 'cuda',
+        'total_params': 671026419200
+    },
+    'peak_rss_bytes': 17249882112
+}
+{
+    'event': 'expert_io',
+    'unix': 1793183955.6533785,
+    'rss_bytes': 8685527040,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 426791514112,
+    'stats': {
+        'slot_count': 1,
+        'weight_budget_bytes': 112853504,
+        'plan': {
+            'dense_bytes': 88080384,
+            'packed_and_stats_bytes': 24772608,
+            'code_bytes': 64,
+            'scratch_bytes': 0,
+            'padding_bytes': 448,
+            'weight_bytes': 112853504,
+            'host_staging_bytes': 24793088
+        },
+        'cuda_allocation_delta': 112853504,
+        'fetches': 66267,
+        'logical_bytes_read': 1641606414336,
+        'closed': False,
+        'cpu_nf4_temporaries': False
+    },
+    'peak_rss_bytes': 17249882112
+}
+Traceback (most recent call last):
+  File "/root/b6/repo/benchmarks/harness/b6_real_moe.py", line 231, in <module>
+    run(parser.parse_args())
+  File "/root/b6/repo/benchmarks/harness/b6_real_moe.py", line 201, in run
+    model, runtime = build()
+                     ^^^^^^^
+  File "/root/b6/repo/benchmarks/harness/b6_real_moe.py", line 119, in build
+    model, runtime = build_streamed_model(
+                     ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/b6/repo/src/soup_cli/utils/layer_stream_runtime.py", line 3822, in build_streamed_model
+    runtime = install_streaming(
+              ^^^^^^^^^^^^^^^^^^
+  File "/root/b6/repo/src/soup_cli/utils/layer_stream_runtime.py", line 3203, in install_streaming
+    expert_pool, expert_readers = _prepare_expert_streaming(
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/b6/repo/src/soup_cli/utils/layer_stream_runtime.py", line 3034, in _prepare_expert_streaming
+    pool = ExpertBufferPool(
+           ^^^^^^^^^^^^^^^^^
+  File "/root/b6/repo/src/soup_cli/utils/expert_stream.py", line 177, in __init__
+    raise ValueError("CUDA allocator rounded the expert slot above the weight budget")
+ValueError: CUDA allocator rounded the expert slot above the weight budget
