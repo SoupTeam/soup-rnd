@@ -926,26 +926,30 @@ quality was not measured. Report and raw logs:
 - A tolerance in place of the bit criterion is set in ticket 07 and was not applied to these
   numbers yet.
 
-**Status after A5 (Mistral-7B v0.1 NF4, 2026-10-28): no verdict.** The required `foreign_reads` validity check came back `unknown` in all 60 arms of the SFT campaigns, so under `benchmarks/METHOD.md` the readiness gate cannot give a verdict (that is not "not ready"). The numbers below are what the records show. The rule that gives the
+**Status after A5 (Mistral-7B v0.1 NF4, 2026-10-29): ready with limits, for one card and one host (RTX 5070 Ti 16 GB).** The rule that gives the
 verdict is [`benchmarks/l2l-readiness-rule-a5.md`](../benchmarks/l2l-readiness-rule-a5.md), the
 evidence and the command that reproduces it are in
 [`benchmarks/probe-vast-l2l-a5-readiness-report.md`](../benchmarks/probe-vast-l2l-a5-readiness-report.md).
+The required `foreign_reads` validity check was `unknown` on the 3090, 3070 Ti and 3070 runs (the cache sits on a
+container overlay), so those runs give no verdict. On a vast local volume the check answers, and the 5070 Ti set has 27 arms `ok` and 1 `void` (excluded).
 
 - **Correct.** All 30 L2L runs of the SFT campaigns (RTX 3090, 3070 Ti and 3070, 16 steps each)
-  stay inside the A3-07 loss tolerance at every step, and windows of rows of different lengths
+  and the 12 runs on the RTX 5070 Ti stay inside the A3-07 loss tolerance at every step, and windows of rows of different lengths
   match gradient accumulation. The cause of the earlier loss gap (`backward` inside `autocast`)
   is fixed. Report: `benchmarks/probe-vast-l2l-loss-divergence-a5-ticket08.md`.
-- **Memory.** Peak VRAM allocated is 1.13 GB with L2L and 1.15 GB with streamed accumulation.
-  Plain QLoRA with no streaming needs 7.10 GB, which fits an 8 GB card with 1.1 GB to spare. It
+- **Memory.** Peak VRAM allocated is 1.13 GB with L2L and 1.15 GB with streamed accumulation
+  (0.89 and 0.92 GB on the 5070 Ti). Plain QLoRA with no streaming needs 7.10 GB, which fits an 8 GB card with 1.1 GB to spare. It
   is faster than both (280 to 324 tokens/s against 70 to 184 for streamed accumulation, three
-  hosts), and a batch of 8 on a 24 GB card gives 546 to 654 tokens/s at 21.1 GB. Turn streaming
+  hosts; 367 on the 5070 Ti), and a batch of 8 on a 24 GB card gives 546 to 654 tokens/s at 21.1 GB
+  (batch 4 on the 16 GB 5070 Ti: 893 tokens/s at 13.1 GB). Its loss does not pass the A3-07 tolerance against accumulation,
+  so these are speed and memory figures, not equivalent training. Turn streaming
   on when the model does not fit resident, not for speed
   (`benchmarks/probe-vast-l2l-best-batch-a5-ticket11.md`).
-- **Speed against streamed accumulation depends on the host.** Over nine hosts the difference
+- **Speed against streamed accumulation depends on the host.** Over ten hosts the difference
   (L2L minus accumulation) runs from -36 to +168 tokens/s, 0.79 to 2.6 times. L2L was slower on
   hosts with fast host-to-GPU copies (about 20 GB/s and above) and faster on slow ones, but one
   host does not fit that pattern, so treat it as a correlation. Measure on your own host before
-  expecting L2L to be faster.
+  expecting L2L to be faster. On the one host where the validity check answers (RTX 5070 Ti), the difference cannot be told from zero and the repeats rule was not met, so no sign is claimed.
 - **Not measured.** Weight reads from disk (page cache was warm), spilling activations to a
   separate disk (the A4 spill is not wired into the trainer, the run stops on RAM first), models
   other than Mistral-7B, and a real 70B or 1T. A run with random weights of 70B shape used
