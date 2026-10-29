@@ -1,0 +1,710 @@
+{
+ "pass": true,
+ "checks": [
+  {
+   "check": "sigint: sent once, at the hold inside optimizer step 2",
+   "pass": true,
+   "detail": {
+    "phase": "hold",
+    "steps_done": 1,
+    "why": null
+   }
+  },
+  {
+   "check": "sigint: the spill file existed before the signal",
+   "pass": true,
+   "detail": {
+    "spill_path": "<box>/sigpre-20261028T202043Z/spill/sigint/soup-l2l-spill-2551-0055cb60.bin",
+    "before": [
+     "<box>/sigpre-20261028T202043Z/spill/sigint/soup-l2l-spill-2551-0055cb60.bin"
+    ]
+   }
+  },
+  {
+   "check": "sigint: KeyboardInterrupt in the hold",
+   "pass": true,
+   "detail": {
+    "exit": "interrupted",
+    "at_interrupt": {
+     "in_step": true,
+     "steps_done": 1,
+     "hold": {
+      "layer": 6,
+      "micro_batch": 0,
+      "pass": "backward",
+      "spill_layers": 7,
+      "unix": 1793218855.6351087,
+      "store_io": {
+       "bytes_written": 917504,
+       "bytes_read": 524288
+      },
+      "released": "interrupt",
+      "waited_s": 0.04005986999993638
+     }
+    },
+    "target_at_send": {
+     "pending": false,
+     "blocked": false,
+     "ignored": false,
+     "caught": true,
+     "state": "S (sleeping)"
+    }
+   }
+  },
+  {
+   "check": "sigint: the child exited 130 and no spill file is left",
+   "pass": true,
+   "detail": {
+    "returncode": 130,
+    "after_exit": [],
+    "after_train": []
+   }
+  },
+  {
+   "check": "sigint: the child runs Python's own SIGINT handler",
+   "pass": true,
+   "detail": {
+    "inherited": {
+     "handler": "SIG_IGN",
+     "proc": {
+      "pending": false,
+      "blocked": false,
+      "ignored": true,
+      "caught": false,
+      "state": "R (running)"
+     }
+    },
+    "installed": {
+     "handler": "default_int_handler",
+     "proc": {
+      "pending": false,
+      "blocked": false,
+      "ignored": false,
+      "caught": true,
+      "state": "R (running)"
+     }
+    }
+   }
+  },
+  {
+   "check": "kill9: SIGKILL at the hold inside optimizer step 2 left the spill file",
+   "pass": true,
+   "detail": {
+    "phase": "hold",
+    "spill_path": "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin",
+    "after_exit": [
+     "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin"
+    ],
+    "returncode": -9
+   }
+  },
+  {
+   "check": "kill9_next: removed the killed run's file at start and trained every step",
+   "pass": true,
+   "detail": {
+    "stale_removed": [
+     "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin"
+    ],
+    "steps": 3,
+    "expected_steps": 3,
+    "exit": "normal"
+   }
+  },
+  {
+   "check": "sigint: ran in its own systemd scope at the planned limit, swap 0",
+   "pass": true,
+   "detail": {
+    "version": 2,
+    "path": "/sys/fs/cgroup/system.slice/a3-1415070c-sigint.scope",
+    "memory_max": 8589934592,
+    "swap_max": 0,
+    "current": 16945152,
+    "peak": 16949248,
+    "inactive_file": 0,
+    "stat": {
+     "anon": 16748544,
+     "shmem": 0,
+     "file_dirty": 0,
+     "file_writeback": 0,
+     "inactive_file": 0,
+     "active_file": 0,
+     "slab_reclaimable": 6504
+    },
+    "events": {
+     "low": 0,
+     "high": 0,
+     "max": 0,
+     "oom": 0,
+     "oom_kill": 0,
+     "oom_group_kill": 0
+    },
+    "working_set": 16945152,
+    "anon_shmem": 16748544,
+    "unreclaimable": 16938648
+   }
+  },
+  {
+   "check": "kill9_next: ran in its own systemd scope at the planned limit, swap 0",
+   "pass": true,
+   "detail": {
+    "version": 2,
+    "path": "/sys/fs/cgroup/system.slice/a3-1415070c-kill9-next.scope",
+    "memory_max": 8589934592,
+    "swap_max": 0,
+    "current": 17186816,
+    "peak": 17186816,
+    "inactive_file": 0,
+    "stat": {
+     "anon": 16744448,
+     "shmem": 0,
+     "file_dirty": 0,
+     "file_writeback": 0,
+     "inactive_file": 0,
+     "active_file": 0,
+     "slab_reclaimable": 6504
+    },
+    "events": {
+     "low": 0,
+     "high": 0,
+     "max": 0,
+     "oom": 0,
+     "oom_kill": 0,
+     "oom_group_kill": 0
+    },
+    "working_set": 17186816,
+    "anon_shmem": 16744448,
+    "unreclaimable": 17180312
+   }
+  }
+ ],
+ "launcher": {
+  "pid": 2526,
+  "handler": "SIG_IGN",
+  "proc": {
+   "pending": false,
+   "blocked": false,
+   "ignored": true,
+   "caught": false,
+   "state": "R (running)"
+  }
+ },
+ "children": {
+  "sigint": {
+   "name": "sigint",
+   "output": "<box>/sigpre-20261028T202043Z/out/cleanup/sigint.json",
+   "spill_dir": "<box>/sigpre-20261028T202043Z/spill/sigint",
+   "memory_max": 8589934592,
+   "limit": "tight",
+   "scope_unit": "a3-1415070c-sigint.scope",
+   "marker": "<box>/sigpre-20261028T202043Z/out/markers/sigint.json",
+   "signal_name": "SIGINT",
+   "command": [
+    "systemd-run",
+    "--scope",
+    "--quiet",
+    "--collect",
+    "--unit=a3-1415070c-sigint.scope",
+    "-p",
+    "MemoryMax=8589934592",
+    "-p",
+    "MemorySwapMax=0",
+    "--",
+    "<work>/.venv/bin/python",
+    "<work>/benchmarks/harness/a3_signal_preflight.py",
+    "child",
+    "537110912",
+    "--arm",
+    "sigint",
+    "--weights",
+    "<box>/sigpre-20261028T202043Z/tiny",
+    "--shards",
+    "<box>/sigpre-20261028T202043Z/shards",
+    "--quant",
+    "none",
+    "--device",
+    "cpu",
+    "--spill-dir",
+    "<box>/sigpre-20261028T202043Z/spill/sigint",
+    "--memory-max",
+    "8589934592",
+    "--k",
+    "4",
+    "--seq",
+    "64",
+    "--rows",
+    "10",
+    "--marker",
+    "<box>/sigpre-20261028T202043Z/out/markers/sigint.json",
+    "--hold-timeout",
+    "60.0",
+    "--out",
+    "<box>/sigpre-20261028T202043Z/out/cleanup/sigint.json"
+   ],
+   "started_unix": 1793218847.8526182,
+   "pid": 2551,
+   "signal": {
+    "signal": "SIGINT",
+    "sent_unix": 1793218855.675775,
+    "marker": {
+     "arm": "sigint",
+     "device": "cpu",
+     "expected_memory_max": 8589934592,
+     "cgroup_start": {
+      "version": 2,
+      "path": "/sys/fs/cgroup/system.slice/a3-1415070c-sigint.scope",
+      "memory_max": 8589934592,
+      "swap_max": 0,
+      "current": 16945152,
+      "peak": 16949248,
+      "inactive_file": 0,
+      "stat": {
+       "anon": 16748544,
+       "shmem": 0,
+       "file_dirty": 0,
+       "file_writeback": 0,
+       "inactive_file": 0,
+       "active_file": 0,
+       "slab_reclaimable": 6504
+      },
+      "events": {
+       "low": 0,
+       "high": 0,
+       "max": 0,
+       "oom": 0,
+       "oom_kill": 0,
+       "oom_group_kill": 0
+      },
+      "working_set": 16945152,
+      "anon_shmem": 16748544,
+      "unreclaimable": 16938648
+     },
+     "pid": 2551,
+     "unix": 1793218855.6354024,
+     "calls": 5,
+     "steps_done": 1,
+     "spill_path": "<box>/sigpre-20261028T202043Z/spill/sigint/soup-l2l-spill-2551-0055cb60.bin",
+     "in_step": true,
+     "phase": "hold",
+     "hold": {
+      "layer": 6,
+      "micro_batch": 0,
+      "pass": "backward",
+      "spill_layers": 7,
+      "unix": 1793218855.6351087,
+      "store_io": {
+       "bytes_written": 917504,
+       "bytes_read": 524288
+      }
+     },
+     "sigint": {
+      "pending": false,
+      "blocked": false,
+      "ignored": false,
+      "caught": true,
+      "state": "R (running)"
+     }
+    },
+    "child_pid": 2551,
+    "files_before_signal": [
+     "<box>/sigpre-20261028T202043Z/spill/sigint/soup-l2l-spill-2551-0055cb60.bin"
+    ],
+    "target_at_send": {
+     "pending": false,
+     "blocked": false,
+     "ignored": false,
+     "caught": true,
+     "state": "S (sleeping)"
+    },
+    "files_after_exit": [],
+    "exited": true,
+    "returncode": 130
+   },
+   "marker_after_exit": {
+    "arm": "sigint",
+    "device": "cpu",
+    "expected_memory_max": 8589934592,
+    "cgroup_start": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-1415070c-sigint.scope",
+     "memory_max": 8589934592,
+     "swap_max": 0,
+     "current": 16945152,
+     "peak": 16949248,
+     "inactive_file": 0,
+     "stat": {
+      "anon": 16748544,
+      "shmem": 0,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 0,
+      "active_file": 0,
+      "slab_reclaimable": 6504
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 16945152,
+     "anon_shmem": 16748544,
+     "unreclaimable": 16938648
+    },
+    "pid": 2551,
+    "unix": 1793218855.6354024,
+    "calls": 5,
+    "steps_done": 1,
+    "spill_path": "<box>/sigpre-20261028T202043Z/spill/sigint/soup-l2l-spill-2551-0055cb60.bin",
+    "in_step": true,
+    "phase": "hold",
+    "hold": {
+     "layer": 6,
+     "micro_batch": 0,
+     "pass": "backward",
+     "spill_layers": 7,
+     "unix": 1793218855.6351087,
+     "store_io": {
+      "bytes_written": 917504,
+      "bytes_read": 524288
+     }
+    },
+    "sigint": {
+     "pending": false,
+     "blocked": false,
+     "ignored": false,
+     "caught": true,
+     "state": "R (running)"
+    }
+   },
+   "returncode": 130,
+   "ended_unix": 1793218857.0416145,
+   "kernel_oom": {
+    "source": "journalctl -k",
+    "pids": [
+     2551
+    ],
+    "scopes": [
+     "/sys/fs/cgroup/system.slice/a3-1415070c-sigint.scope",
+     "a3-1415070c-sigint.scope"
+    ],
+    "read": true,
+    "error": null,
+    "killed": false,
+    "lines": []
+   },
+   "spill_files_after_exit": []
+  },
+  "kill9": {
+   "name": "kill9",
+   "output": "<box>/sigpre-20261028T202043Z/out/cleanup/kill9.json",
+   "spill_dir": "<box>/sigpre-20261028T202043Z/spill/kill9",
+   "memory_max": 8589934592,
+   "limit": "tight",
+   "scope_unit": "a3-1415070c-kill9.scope",
+   "marker": "<box>/sigpre-20261028T202043Z/out/markers/kill9.json",
+   "signal_name": "SIGKILL",
+   "command": [
+    "systemd-run",
+    "--scope",
+    "--quiet",
+    "--collect",
+    "--unit=a3-1415070c-kill9.scope",
+    "-p",
+    "MemoryMax=8589934592",
+    "-p",
+    "MemorySwapMax=0",
+    "--",
+    "<work>/.venv/bin/python",
+    "<work>/benchmarks/harness/a3_signal_preflight.py",
+    "child",
+    "537110912",
+    "--arm",
+    "kill9",
+    "--weights",
+    "<box>/sigpre-20261028T202043Z/tiny",
+    "--shards",
+    "<box>/sigpre-20261028T202043Z/shards",
+    "--quant",
+    "none",
+    "--device",
+    "cpu",
+    "--spill-dir",
+    "<box>/sigpre-20261028T202043Z/spill/kill9",
+    "--memory-max",
+    "8589934592",
+    "--k",
+    "4",
+    "--seq",
+    "64",
+    "--rows",
+    "10",
+    "--marker",
+    "<box>/sigpre-20261028T202043Z/out/markers/kill9.json",
+    "--hold-timeout",
+    "60.0",
+    "--out",
+    "<box>/sigpre-20261028T202043Z/out/cleanup/kill9.json"
+   ],
+   "started_unix": 1793218860.0511804,
+   "pid": 2610,
+   "signal": {
+    "signal": "SIGKILL",
+    "sent_unix": 1793218867.9278662,
+    "marker": {
+     "arm": "kill9",
+     "device": "cpu",
+     "expected_memory_max": 8589934592,
+     "cgroup_start": {
+      "version": 2,
+      "path": "/sys/fs/cgroup/system.slice/a3-1415070c-kill9.scope",
+      "memory_max": 8589934592,
+      "swap_max": 0,
+      "current": 17022976,
+      "peak": 17027072,
+      "inactive_file": 0,
+      "stat": {
+       "anon": 16740352,
+       "shmem": 0,
+       "file_dirty": 0,
+       "file_writeback": 0,
+       "inactive_file": 0,
+       "active_file": 0,
+       "slab_reclaimable": 6392
+      },
+      "events": {
+       "low": 0,
+       "high": 0,
+       "max": 0,
+       "oom": 0,
+       "oom_kill": 0,
+       "oom_group_kill": 0
+      },
+      "working_set": 17022976,
+      "anon_shmem": 16740352,
+      "unreclaimable": 17016584
+     },
+     "pid": 2610,
+     "unix": 1793218867.8775396,
+     "calls": 5,
+     "steps_done": 1,
+     "spill_path": "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin",
+     "in_step": true,
+     "phase": "hold",
+     "hold": {
+      "layer": 6,
+      "micro_batch": 0,
+      "pass": "backward",
+      "spill_layers": 7,
+      "unix": 1793218867.877335,
+      "store_io": {
+       "bytes_written": 917504,
+       "bytes_read": 524288
+      }
+     },
+     "sigint": {
+      "pending": false,
+      "blocked": false,
+      "ignored": false,
+      "caught": true,
+      "state": "R (running)"
+     }
+    },
+    "child_pid": 2610,
+    "files_before_signal": [
+     "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin"
+    ],
+    "target_at_send": {
+     "pending": false,
+     "blocked": false,
+     "ignored": false,
+     "caught": true,
+     "state": "S (sleeping)"
+    },
+    "files_after_exit": [
+     "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin"
+    ],
+    "exited": true,
+    "returncode": -9
+   },
+   "marker_after_exit": {
+    "arm": "kill9",
+    "device": "cpu",
+    "expected_memory_max": 8589934592,
+    "cgroup_start": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-1415070c-kill9.scope",
+     "memory_max": 8589934592,
+     "swap_max": 0,
+     "current": 17022976,
+     "peak": 17027072,
+     "inactive_file": 0,
+     "stat": {
+      "anon": 16740352,
+      "shmem": 0,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 0,
+      "active_file": 0,
+      "slab_reclaimable": 6392
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 17022976,
+     "anon_shmem": 16740352,
+     "unreclaimable": 17016584
+    },
+    "pid": 2610,
+    "unix": 1793218867.8775396,
+    "calls": 5,
+    "steps_done": 1,
+    "spill_path": "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin",
+    "in_step": true,
+    "phase": "hold",
+    "hold": {
+     "layer": 6,
+     "micro_batch": 0,
+     "pass": "backward",
+     "spill_layers": 7,
+     "unix": 1793218867.877335,
+     "store_io": {
+      "bytes_written": 917504,
+      "bytes_read": 524288
+     }
+    },
+    "sigint": {
+     "pending": false,
+     "blocked": false,
+     "ignored": false,
+     "caught": true,
+     "state": "R (running)"
+    }
+   },
+   "returncode": -9,
+   "ended_unix": 1793218868.1418476,
+   "kernel_oom": {
+    "source": "journalctl -k",
+    "pids": [
+     2610
+    ],
+    "scopes": [
+     "/sys/fs/cgroup/system.slice/a3-1415070c-kill9.scope",
+     "a3-1415070c-kill9.scope"
+    ],
+    "read": true,
+    "error": null,
+    "killed": false,
+    "lines": []
+   },
+   "spill_files_after_exit": [
+    "<box>/sigpre-20261028T202043Z/spill/kill9/soup-l2l-spill-2610-34f4cebb.bin"
+   ]
+  },
+  "kill9_next": {
+   "name": "kill9_next",
+   "output": "<box>/sigpre-20261028T202043Z/out/cleanup/kill9_next.json",
+   "spill_dir": "<box>/sigpre-20261028T202043Z/spill/kill9",
+   "memory_max": 8589934592,
+   "limit": "tight",
+   "scope_unit": "a3-1415070c-kill9-next.scope",
+   "marker": "<box>/sigpre-20261028T202043Z/out/markers/kill9_next.json",
+   "command": [
+    "systemd-run",
+    "--scope",
+    "--quiet",
+    "--collect",
+    "--unit=a3-1415070c-kill9-next.scope",
+    "-p",
+    "MemoryMax=8589934592",
+    "-p",
+    "MemorySwapMax=0",
+    "--",
+    "<work>/.venv/bin/python",
+    "<work>/benchmarks/harness/a3_signal_preflight.py",
+    "child",
+    "537110912",
+    "--arm",
+    "kill9_next",
+    "--weights",
+    "<box>/sigpre-20261028T202043Z/tiny",
+    "--shards",
+    "<box>/sigpre-20261028T202043Z/shards",
+    "--quant",
+    "none",
+    "--device",
+    "cpu",
+    "--spill-dir",
+    "<box>/sigpre-20261028T202043Z/spill/kill9",
+    "--memory-max",
+    "8589934592",
+    "--k",
+    "4",
+    "--seq",
+    "64",
+    "--rows",
+    "10",
+    "--marker",
+    "<box>/sigpre-20261028T202043Z/out/markers/kill9_next.json",
+    "--hold-timeout",
+    "60.0",
+    "--out",
+    "<box>/sigpre-20261028T202043Z/out/cleanup/kill9_next.json"
+   ],
+   "started_unix": 1793218871.1500108,
+   "pid": 2668,
+   "marker_after_exit": {
+    "arm": "kill9_next",
+    "device": "cpu",
+    "expected_memory_max": 8589934592,
+    "cgroup_start": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-1415070c-kill9-next.scope",
+     "memory_max": 8589934592,
+     "swap_max": 0,
+     "current": 17186816,
+     "peak": 17186816,
+     "inactive_file": 0,
+     "stat": {
+      "anon": 16744448,
+      "shmem": 0,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 0,
+      "active_file": 0,
+      "slab_reclaimable": 6504
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 17186816,
+     "anon_shmem": 16744448,
+     "unreclaimable": 17180312
+    },
+    "pid": 2668,
+    "unix": 1793218878.6362824,
+    "calls": 1,
+    "steps_done": 0,
+    "spill_path": null,
+    "in_step": true,
+    "phase": "enter"
+   },
+   "returncode": 0,
+   "ended_unix": 1793218880.0351691,
+   "spill_files_after_exit": []
+  }
+ },
+ "scope": true,
+ "hold_timeout_s": 60.0
+}

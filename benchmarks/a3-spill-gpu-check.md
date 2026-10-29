@@ -1,18 +1,23 @@
 # A3 stage 2 - GPU check of activation spill in `training.l2l`
 
-**Status: protocol v3 (§3.7), committed at `bc2ca550`; no v3 session has run. Session 2
-(protocol v2, §10) finished: `NO VERDICT: criterion 3 has no verdict`, with criteria 1, 2 and 4
-PASS and criterion 1b FAIL (reported apart). Session 1 (protocol v1) stopped at calibration:
-`NO VERDICT: criterion 1, 2, 3 has no verdict` (§9).** v1's criteria were fixed by commit
-`2a05e15f` before any rental, the machine admission (§5) by commit `794c6827`; v2 (§3.6) by
-`6bdd0ec8` before session 2. v2 added the product's 512 MiB reserve, calibrated the tight limit
-to it, and fails criterion 2 on a kernel OOM kill of any child at the tight limit after its
-first training step. v3 makes the signal children's SIGINT reach Python and signals them while
-they hold inside optimizer step 2 (§3.7). The rule is `harness/a3_spill_rule.py` (`RULE`,
-profile `a3-spill-gpu-check-v3`, `rule_version` v3; v1 is that file at `bda4a00a`, v2 at
-`667c4a1b`): the same text in machine form, copied into every session's `protocol.json`. The
-stand is `harness/a3_spill_stand.py`, the admission `harness/a3_admission.py`, the signal
-preflight `harness/a3_signal_preflight.py`. CPU tests: `tests/test_a3_spill_rule.py`,
+**Status: session 3 (protocol v3, §11), RTX 4090 VM, 2026-10-28: `SPILL CONFIRMED: equal,
+within its RAM, cleaned up; overhead below 10% confirmed on a faster machine; L2L is outside
+the A3 stand's GA tolerance (criterion 1b, not a spill finding)`. Criteria 1, 2, 3 and 4 PASS;
+criterion 1b FAIL, reported apart, cause unestablished.** Session 2 (v2, §10) keeps its
+`NO VERDICT: criterion 3 has no verdict`; session 1 (v1, §9) stopped at calibration with
+`NO VERDICT: criterion 1, 2, 3 has no verdict`. Neither historical result is re-judged.
+
+v1's criteria were fixed by commit `2a05e15f` before any rental, the machine admission (§5)
+by `794c6827`; v2 (§3.6) by `6bdd0ec8` before session 2; v3 (§3.7) by
+`bc2ca55038a2d85950356cfdd38d556333519ad1` before session 3, measured at
+`ec795ef175c222b60ff91b9ba44f7f2bfad55dd5`. v2 added the product's chosen 512 MiB reserve,
+calibrated the tight limit to it, and fails criterion 2 on a kernel OOM kill of any child at
+the tight limit after its first training step. v3 restores Python's SIGINT handler in signal
+children and signals them in a hold inside optimizer step 2. The rule is
+`harness/a3_spill_rule.py` (`RULE`, profile `a3-spill-gpu-check-v3`, `rule_version` v3;
+v1 at `bda4a00a`, v2 at `667c4a1b`), copied into every `protocol.json`. The stand is
+`harness/a3_spill_stand.py`, the admission `harness/a3_admission.py`, the signal preflight
+`harness/a3_signal_preflight.py`. CPU tests: `tests/test_a3_spill_rule.py`,
 `tests/test_a3_spill_stand.py`, `tests/test_a3_admission.py`.
 
 ## 1. Question
@@ -349,12 +354,29 @@ not U. The calibration measures U on the box.
 ## 6. Runbook
 
 ```bash
-git clone https://github.com/SoupTeam/soup-rnd && cd soup-rnd
-git checkout bc2ca550   # protocol v3 (§3.7); session 2 ran v2 at 667c4a1b, session 1 v1
+set -e
+mkdir -p /root/a3
+git clone https://github.com/SoupTeam/soup-rnd /root/a3/soup-rnd
+cd /root/a3/soup-rnd
+git checkout ec795ef175c222b60ff91b9ba44f7f2bfad55dd5  # measured session-3 code; v3 fixed at bc2ca550
 A0_PYTHON=python3.12 bash benchmarks/a0-bootstrap.sh   # venv, CUDA torch, pinned deps
-.venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
-  tests/test_a3_admission.py tests/test_l2l_spill*.py -q -o addopts=''
 export PYTHONPATH="$PWD/src:$PWD/benchmarks/harness" HF_HUB_OFFLINE=0
+# CPU-fixture resume checks run with CUDA hidden, as declared before session 2.
+RESUME='test_resume_with_spill_equals_resume_without or test_resume_does_not_shift_the_windows'
+.venv/bin/python -m pytest tests/test_a3_spill_rule.py tests/test_a3_spill_stand.py \
+  tests/test_a3_admission.py tests/test_l2l_spill.py tests/test_l2l_spill_budget.py \
+  tests/test_l2l_spill_trainer.py tests/test_l2l_trainer_window.py \
+  -q -o addopts='' -k "not ($RESUME)"
+CUDA_VISIBLE_DEVICES= .venv/bin/python -m pytest tests/test_l2l_spill_trainer.py \
+  tests/test_l2l_trainer_window.py -q -o addopts='' -k "$RESUME"
+SPILL=/root/a3/spill            # session 3 used the VM's local ext4 /dev/vda1
+# 0a. Before the model download, run the tiny CPU signal preflight through the session's
+#     background launch. Wait for its exit: a failed check stops this runbook (set -e).
+#     The work directory must be new; its preflight.json is the retained report.
+setsid --wait nohup bash -c 'exec .venv/bin/python benchmarks/harness/a3_signal_preflight.py run \
+  --work /root/a3/sigpre-reproduction' > /root/a3/sigpre-reproduction.out 2>&1 < /dev/null &
+sigpre_pid=$!
+wait "$sigpre_pid"
 .venv/bin/python - <<'EOF'
 from huggingface_hub import snapshot_download
 snapshot_download("unsloth/mistral-7b-instruct-v0.3",
@@ -363,11 +385,6 @@ snapshot_download("unsloth/mistral-7b-instruct-v0.3",
                   allow_patterns=["config.json", "*.safetensors", "*.safetensors.index.json"])
 EOF
 export HF_HUB_OFFLINE=1
-SPILL=/mnt/nvme/a3-spill        # local NVMe, not overlay, not tmpfs
-# 0a. v3: the signal preflight, launched the way the session will be (here: as a background
-#     job of a non-interactive shell). Any failed check: stop, before the model download.
-setsid nohup bash -c '.venv/bin/python benchmarks/harness/a3_signal_preflight.py run \
-  --work /root/a3/sigpre > /root/a3/sigpre.out 2>&1' > /dev/null 2>&1 < /dev/null &
 # 0. On ANY machine, outside the session (not evidence): the NF4 cache and the calibration
 #    child's plan (writes .soup/f1-nf4), then one no-spill cost A child (2 warm-up + 5
 #    timed steps) for the demand D. Both are the admission's inputs.
@@ -387,35 +404,27 @@ setsid nohup bash -c '.venv/bin/python benchmarks/harness/a3_signal_preflight.py
 .venv/bin/python benchmarks/harness/a3_spill_stand.py session \
   --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
   --out .soup/results/a3-spill-03
-# 3. Run (as root; --user-scope in a user session). Each child gets its own scope:
-.venv/bin/python benchmarks/harness/a3_spill_stand.py session \
-  --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir "$SPILL" \
-  --out .soup/results/a3-spill-03 --execute
+# 3. Run through the same background launch as the preflight (as root); wait for its exit.
+#    Every child gets its own scope; --wait also propagates a detached setsid child's status.
+setsid --wait nohup bash -c 'exec .venv/bin/python benchmarks/harness/a3_spill_stand.py session \
+  --weights .soup/models/mistral-7b --shards .soup/f1-nf4 --spill-dir /root/a3/spill \
+  --out .soup/results/a3-spill-03 --execute' > /root/a3/session-reproduction.out 2>&1 < /dev/null &
+session_pid=$!
+wait "$session_pid"
 # 4. Verdict, recomputed from the raw JSON alone:
 .venv/bin/python benchmarks/harness/a3_spill_rule.py .soup/results/a3-spill-03 \
   --out verdict.json
 ```
 
-The scopes the session runs (as printed by step 2), calibration first, then the session's
-children:
-
-```bash
-systemd-run --scope --quiet --collect -p MemoryMax=25769803776 -p MemorySwapMax=0 -- \
-  <python> a3_spill_stand.py child --arm calibration ... --memory-max 25769803776
-systemd-run --scope --quiet --collect -p MemoryMax=<TIGHT> -p MemorySwapMax=0 -- \
-  <python> a3_spill_stand.py child --arm calibration_check_1 ... --memory-max <TIGHT>
-systemd-run --scope --quiet --collect -p MemoryMax=25769803776 -p MemorySwapMax=0 -- \
-  <python> a3_spill_stand.py child --arm l2l_nospill_1 ... --tensors-dir <out>.tensors
-systemd-run --scope --quiet --collect -p MemoryMax=<TIGHT> -p MemorySwapMax=0 -- \
-  <python> a3_spill_stand.py child --arm l2l_spill ... --tensors-dir <out>.tensors
-```
-
-`<TIGHT>` is the calibrated limit in bytes, recorded under `limits` in `session.json`.
-Exit codes: 0 finished, 4 stopped before the cost blocks (§3.4), 3 stopped otherwise, 2
-refused arguments (an existing `--out` or `<out>.tensors`, k or seq other than 4/512, no
-`systemd-run`, MemAvailable below the generous limit). After the run, copy the results,
-then destroy the instance yourself. The
-session never does.
+Step 2 prints the complete commands with their actual paths and scope names; it is the
+runbook's scope plan, not a template to fill in. Every child has its own transient scope,
+with `MemoryMax` equal to its recorded limit and `MemorySwapMax=0`. The generous limit is
+25,769,803,776 B (24 GiB); the tight limit is calibrated and recorded under `limits` in
+`session.json`. Exit codes: 0 finished, 4 stopped before the cost blocks (§3.4), 3 stopped
+otherwise, 2 refused arguments (an existing `--out` or sibling tensor directory, k or seq
+other than 4/512, no `systemd-run`, MemAvailable below the generous limit). After the run,
+copy the records and the sibling tensor directory privately, then destroy the instance
+yourself. The session never does.
 
 ## 7. Files that come back
 
@@ -519,3 +528,72 @@ plan, scope `memory.peak` minus the plan's `used` minus the plan's `host_bytes` 
 outside the store, over the run) was 183,582,720 to 297,558,016 B; the 15 children at the tight
 limit kept 252,055,552 to 366,022,656 B below MemoryMax. The largest is 55% of the 512 MiB
 reserve. One box, one model and shape; the reserve stays chosen, not measured.
+
+## 11. Session 3: RTX 4090 VM, 2026-10-28 (protocol v3). SPILL CONFIRMED; 1b FAIL
+
+Records: [`results/a3-spill-v3-rtx4090-20261028/`](results/a3-spill-v3-rtx4090-20261028/README.md).
+Measured at `ec795ef175c222b60ff91b9ba44f7f2bfad55dd5`, protocol v3 fixed before the rental
+at `bc2ca55038a2d85950356cfdd38d556333519ad1`. All 664 `source_sha256` entries in
+`protocol.json` match the measured commit (checked against `git cat-file` bytes). The
+retained private gradient tensors let the integration owner replay the measured commit's
+CLI comparison on CPU; `compare.json` and the raw-JSON rule's `verdict.json` each reproduce
+byte for byte, with all six tensor hash checks passing (`verification.json`).
+
+**Verdict (rule v3, unchanged):** `SPILL CONFIRMED: equal, within its RAM, cleaned up;
+overhead below 10% confirmed on a faster machine; L2L is outside the A3 stand's GA tolerance
+(criterion 1b, not a spill finding)`.
+
+| # | Criterion | Result | Numbers |
+|---|---|---|---|
+| 1 | spill == no spill | PASS | 13 of 32 layers spilled; bit-equal gradients, losses, learning rates and 3 optimizer steps; the no-spill reference repeats bit for bit |
+| 1b | L2L vs GA (reported) | FAIL | `l2l_out_of_tolerance`: the same four failing checks as session 2 (gradient steps 0/1/2 and loss step 0). GA repeats bit for bit; the floor arm judged. Cause unestablished, not a spill finding |
+| 2 | RAM | PASS | spill peak 6,154,133,504 B at MemoryMax 6,409,945,088 B; no-spill peaks 6,354,161,664 and 6,374,264,832 B at 24 GiB; no OOM kill; allocator excess 36,877 B in all three arms |
+| 3 | cleanup | PASS | no file after normal `train()` or process exit; one SIGINT in the backward-recompute hold at zero-based layer 16 in optimizer step 2 raised KeyboardInterrupt, exit 130, file gone; SIGKILL left the file, the next start removed it and trained 3 steps |
+| 4 | cost | PASS | +2.39% per step, 95% interval [-1.80%, +6.57%], 5 valid A-B-B-A blocks, no void blocks; B children spilled 12-18 layers |
+
+One vast.ai KVM VM, instance 58144303, Quebec host 655981 / machine 154269 (the same host
+as session 1): RTX 4090 24 GB, PCIe gen 4 x16, driver 580.95.05, 49.35 GiB RAM, local
+ext4 `/dev/vda1` for weights and spill. No fitting PCIe 4.0 3090-class VM was offered, so
+the 4090 was used as §5 allows. The offer rate was $0.562962962962963/h including storage;
+this is not an invoice total. `gpu_frac` 0.125 is the provider's ratio, not proof of
+isolation or a separate physical drive. VM checks recorded 323 passed, 1 skipped,
+2 deselected; the separately CPU-run resume checks recorded 2 passed. Fixture hashes match
+A4 v3 and both prior sessions.
+
+The tiny CPU signal preflight passed **before the model download**, through the session's
+background launch: the launcher read SIG_IGN, children installed `default_int_handler`,
+SIGINT interrupted the hold, and kill9/restart cleanup held. Only its sanitized JSON report
+is public. Admission: ADMITTED, 180/180 cycles in 139.646 s, maximum lateness 0.034849073 s,
+0/11,520 mismatched chunks, no file left; D 172,318,018.5355 B/s and period 0.778895493 s.
+Calibration's working set 5,528,711,168 B gave the tight limit above; its one check spilled
+14 layers (in band). Build margin +1,290,664,024 B, training margin +373,282,520 B, no
+warning. These margins describe this calibration; the product's 512 MiB reserve remains
+chosen, not a measured guarantee for other runs.
+
+Descriptive growth (not a new criterion): across 27 records limited by their own scope,
+`memory.peak - plan.used - plan.host_bytes` was 186,515,456 to 297,218,048 B (at most 55.36%
+of the chosen reserve). Fourteen tight-limit records ended 255,811,584 to 362,397,696 B below
+MemoryMax. No spill files remained at session end. The sigint scenario's own plan spilled
+17 layers and held at zero-based layer 16; this is distinct from the equality arm's 13.
+
+The session ran from **20:31:59Z to 20:46:26Z** (`session-start.txt`, `session-exit.txt`),
+32 children, session exit 0, `state: finished`; 30 children exited 0, sigint exited 130,
+kill9 -9 as intended. The cost result is scoped to this faster 4090 VM, this model and
+shape, this admitted virtual disk and these step lengths, not slower GPUs or drives.
+Cleanup remains best-effort after an uncatchable termination: it depends on the next run
+using the same directory and the old process no longer being alive (§8).
+
+Invoices: GPU 0.803 h at $0.5333/h, charged $0.428; storage 0.832 h at $0.0296/h, charged
+$0.025; **session 3 $0.453**. A3 total: $0.270 + $0.567 + $0.453 = **$1.290**, leaving
+$8.710 of the $10 budget. The API returned `instances: null` at
+2026-10-29T13:19:26.272356+00:00. Exact deletion time and mechanism were not retained; the
+deleter log records only arming for 2026-10-29T08:09Z, not a deletion action. No exact
+deletion-time or self-deletion claim follows from that deadline.
+
+Publication replaces `/root/a3/soup-rnd` with `<work>`, then `/root/a3` with `<box>`.
+`provenance.json` records raw and published SHA-256 for every whitelisted record and the
+private archive `m3-final.tar` (212 entries, SHA-256
+`19c3ada65e89ad0adaf805dbc3c530e8a5a3de5cd38984f5e7c3d8c9554819c2`). Logs, tensors,
+operational tooling and private API/billing snapshots are not published. The private
+archive and sibling tensors remain available for recomputation; the LF `SHA256SUMS` covers
+the public evidence and provenance, and `.gitattributes` preserves their bytes.

@@ -911,20 +911,29 @@ training:
   l2l_spill_dir: /mnt/nvme1/soup-spill   # optional; default <output>/_l2l_spill
 ```
 
-The slowdown was measured only in the A4 v3 configuration (RTX 3090 on PCIe 3.0, Mistral-7B
-NF4, seq 512, k 2-4, ring 4, one virtual disk): +2.5% and +1.7% on average, with 95% upper
-bounds of +6.1% and +5.5%. On other machines and configurations it may be more. With the
-spill on the weights' drive the step was 13% slower. Record:
-`benchmarks/probe-a4-l2l-ram-budget-spill.md` (on the A4 branch).
+In the earlier A4 v3 configuration (RTX 3090 on PCIe 3.0, Mistral-7B NF4, seq 512, k 2-4,
+ring 4, one virtual disk), slowdown averaged +2.5% and +1.7%, with 95% upper bounds +6.1%
+and +5.5%. With spill on the weights' drive that experiment saw a 13% slower step. Record:
+`benchmarks/probe-a4-l2l-ram-budget-spill.md` (on the A4 branch). These are scoped measurements,
+not a speed guarantee on other machines or configurations.
 
-The trainer's spill path has been checked end to end on CPU. On a GPU (RTX 4090 VM,
-Mistral-7B NF4, k 4, seq 512, with the reserve, 16 of 32 layers spilled) the spill gave the
-same gradients, losses and learning rates bit for bit as no spill, stayed within its cgroup
-limit with no OOM kill, and slowed the step by +0.03% (95% interval -0.02% to +0.09%, 5
-blocks, that box only). Cleanup after a normal end and after kill -9 with the next start was
-confirmed there; cleanup after Ctrl-C has no GPU result yet, because the check's signal never
-reached the process. Records: `benchmarks/a3-spill-gpu-check.md` §9 and §10,
-`benchmarks/results/a3-spill-v2-rtx4090-20261027/`.
+The trainer's spill path has been checked end to end on CPU. GPU session 3 (RTX 4090 VM,
+Mistral-7B NF4, LoRA r 8, k 4, seq 512, the chosen reserve, 13 of 32 layers spilled) gave
+gradients, losses and learning rates bit-equal to no spill over 3 optimizer steps; the
+no-spill reference repeated. The spill arm peaked at 6,154,133,504 B within its
+6,409,945,088 B cgroup limit, with no OOM kill. Normal-end cleanup, Ctrl-C during a backward
+recompute in step 2 (KeyboardInterrupt, exit 130, file gone), and kill -9 followed by stale
+removal at the next start and 3 normal training steps all passed. Cost was +2.39% per step
+(95% interval -1.80% to +6.57%, 5 blocks, cost children spilling 12-18 layers): **below 10%
+confirmed on this faster machine**, not a promise for other GPUs, drives or step lengths.
+**L2L versus GA still FAILS criterion 1b** with the same four tolerance failures as session 2;
+their cause is unestablished and they are not a spill finding, because spill equals no spill
+bit for bit. The retained private tensors enabled byte-identical CPU replay of the measured
+comparison, and the rule's verdict also replayed byte for byte. Records:
+[`benchmarks/a3-spill-gpu-check.md` §11](../benchmarks/a3-spill-gpu-check.md#11-session-3-rtx-4090-vm-2026-10-28-protocol-v3-spill-confirmed-1b-fail),
+[`session 3 evidence`](../benchmarks/results/a3-spill-v3-rtx4090-20261028/README.md).
+Sessions 1 and 2 keep their historical NO VERDICT results (§9 and §10); the 512 MiB reserve
+remains chosen, not measured.
 
 Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
 when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
