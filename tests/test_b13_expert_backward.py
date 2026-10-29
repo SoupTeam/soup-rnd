@@ -17,7 +17,10 @@ from __future__ import annotations
 
 import copy
 from collections import Counter, namedtuple
-from contextlib import contextmanager, nullcontext
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager, nullcontext
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -28,6 +31,9 @@ from tests.test_b1_expert_forward import (
     _store,
     _streamed,
 )
+
+if TYPE_CHECKING:
+    import torch
 
 _Run = namedtuple("_Run", "out hidden_grad weights_grad")
 _EXPERTS = 8
@@ -43,7 +49,7 @@ _ROUTINGS = {
 _ALL_HIT = ("top2-all-hit", "top4", "top8")
 
 
-def _upstream(like):
+def _upstream(like: torch.Tensor) -> torch.Tensor:
     """A fixed dense upstream gradient: every output element carries signal."""
     import torch
 
@@ -51,7 +57,7 @@ def _upstream(like):
     return torch.randn(like.shape, generator=gen).to(device=like.device, dtype=like.dtype)
 
 
-def _region(device_type, active):
+def _region(device_type: str, active: bool) -> AbstractContextManager[None]:
     import torch
 
     if not active:
@@ -59,7 +65,14 @@ def _region(device_type, active):
     return torch.autocast(device_type, dtype=torch.bfloat16)
 
 
-def _run(module, args, *, amp=None, needs=("hidden", "weights"), checkpoint=None):
+def _run(
+    module: torch.nn.Module,
+    args: tuple[torch.Tensor, ...],
+    *,
+    amp: str | None = None,
+    needs: tuple[str, ...] = ("hidden", "weights"),
+    checkpoint: str | None = None,
+) -> _Run:
     """Forward and backward of ``module`` on clones of ``args``.
 
     ``amp``: None, ``"forward"`` (autocast around the forward only, the shape of a training
@@ -86,7 +99,7 @@ def _run(module, args, *, amp=None, needs=("hidden", "weights"), checkpoint=None
     return _Run(out.detach(), hidden.grad, weights.grad)
 
 
-def _same(a, b):
+def _same(a: torch.Tensor | None, b: torch.Tensor | None) -> bool:
     import torch
 
     if a is None or b is None:
@@ -94,7 +107,7 @@ def _same(a, b):
     return a.dtype == b.dtype and a.shape == b.shape and torch.equal(a, b)
 
 
-def _parts(want, got):
+def _parts(want: _Run, got: _Run) -> dict[str, bool]:
     """Which of output / hidden grad / routing-weight grad are bitwise equal."""
     return {
         "output": _same(want.out, got.out),
@@ -103,23 +116,23 @@ def _parts(want, got):
     }
 
 
-def _assert_exact(want, got):
+def _assert_exact(want: _Run, got: _Run) -> None:
     parts = _parts(want, got)
     assert all(parts.values()), f"not bitwise equal to the resident eager module: {parts}"
 
 
-def _assert_signal(run):
+def _assert_signal(run: _Run) -> None:
     """The reference is dense signal, so equality is not a statement about zeros."""
     for name, tensor in zip(run._fields, run):
         if tensor is not None:
             assert (tensor.float() != 0).float().mean().item() > 0.9, f"{name} is mostly zero"
 
 
-def _hit(args):
+def _hit(args: tuple[torch.Tensor, ...]) -> list[int]:
     return sorted(set(args[1].flatten().tolist()))
 
 
-def _close(*resources):
+def _close(*resources: Any) -> None:
     for resource in resources:
         resource.close()
 
@@ -131,7 +144,7 @@ class _Loads:
     checkpoint recompute that backward triggered), and can perturb or fail the loads that do.
     """
 
-    def __init__(self, monkeypatch, reader):
+    def __init__(self, monkeypatch: pytest.MonkeyPatch, reader: Any) -> None:
         import torch
 
         self.records = []  # (expert, ran inside the engine)
@@ -140,7 +153,7 @@ class _Loads:
         self.fail = None  # exception raised by loads inside the engine
         original = reader.read_host
 
-        def read_host(expert, staging):
+        def read_host(expert: int, staging: Any) -> dict[str, torch.Tensor]:
             inside = torch._C._current_autograd_node() is not None
             if inside and self.fail is not None:
                 raise self.fail
@@ -153,14 +166,14 @@ class _Loads:
 
         monkeypatch.setattr(reader, "read_host", read_host)
 
-    def outside(self):
+    def outside(self) -> list[int]:
         return [expert for expert, inside in self.records if not inside]
 
-    def inside(self):
+    def inside(self) -> list[int]:
         return [expert for expert, inside in self.records if inside]
 
 
-def _perturb_down(expert, host):
+def _perturb_down(expert: int, host: dict[str, torch.Tensor]) -> None:
     """Change what this load returns for the expert's down matrix (in the host staging only)."""
     from soup_cli.utils.expert_shard import DOWN, expert_key
 
@@ -172,7 +185,15 @@ def _perturb_down(expert, host):
 
 
 @contextmanager
-def exact_backward_case(tmp_path, *, device, dtype, nf4=False, nested=False, **routing):
+def exact_backward_case(
+    tmp_path: Path,
+    *,
+    device: str,
+    dtype: str,
+    nf4: bool = False,
+    nested: bool = False,
+    **routing: int | bool,
+) -> Iterator[tuple[_Run, _Run, Any, Any, tuple[torch.Tensor, ...]]]:
     """Resident eager vs streamed on ``device``: yields ``(want, got, reader, pool, args)``.
 
     Shared with the CUDA file. ``nf4`` compares against the independently dequantised resident
@@ -201,7 +222,9 @@ def exact_backward_case(tmp_path, *, device, dtype, nf4=False, nested=False, **r
 
 @pytest.mark.parametrize("routing", _ROUTINGS)
 @pytest.mark.parametrize("dtype", ["float32", "bfloat16"])
-def test_gradients_equal_the_resident_eager_module(tmp_path, dtype, routing):
+def test_gradients_equal_the_resident_eager_module(
+    tmp_path: Path, dtype: str, routing: str
+) -> None:
     with exact_backward_case(tmp_path, device="cpu", dtype=dtype, **_ROUTINGS[routing]) as case:
         want, got, reader, pool, args = case
         hit = _hit(args)
@@ -218,7 +241,9 @@ def test_gradients_equal_the_resident_eager_module(tmp_path, dtype, routing):
 
 @pytest.mark.parametrize("amp", ["forward", "both", "backward"])
 @pytest.mark.parametrize("routing", ["top2-all-hit", "top1", "partial"])
-def test_fp32_experts_under_cpu_bf16_autocast_equal_eager(tmp_path, routing, amp):
+def test_fp32_experts_under_cpu_bf16_autocast_equal_eager(
+    tmp_path: Path, routing: str, amp: str
+) -> None:
     """``forward`` is the training-loop shape: the node rebuilds the expert under the forward's
     autocast state while backward itself runs outside the region. ``both`` and ``backward`` pin
     that the node follows eager wherever the region sits, including a forward that was NOT
@@ -238,7 +263,7 @@ def test_fp32_experts_under_cpu_bf16_autocast_equal_eager(tmp_path, routing, amp
 
 
 @pytest.mark.parametrize("needs", [("hidden",), ("weights",)])
-def test_only_the_inputs_that_need_grad_get_one(tmp_path, needs):
+def test_only_the_inputs_that_need_grad_get_one(tmp_path: Path, needs: tuple[str, ...]) -> None:
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
     args = _inputs()
@@ -255,7 +280,7 @@ def test_only_the_inputs_that_need_grad_get_one(tmp_path, needs):
         _close(reader, pool)
 
 
-def test_empty_routing_matches_eager_and_reads_nothing(tmp_path):
+def test_empty_routing_matches_eager_and_reads_nothing(tmp_path: Path) -> None:
     import torch
 
     module, _ = _experts()
@@ -282,7 +307,9 @@ def test_empty_routing_matches_eager_and_reads_nothing(tmp_path):
 
 @pytest.mark.parametrize("nested", [False, True])
 @pytest.mark.parametrize("dtype", ["float32", "bfloat16"])
-def test_nf4_backward_equals_the_independently_dequantized_reference(tmp_path, nested, dtype):
+def test_nf4_backward_equals_the_independently_dequantized_reference(
+    tmp_path: Path, nested: bool, dtype: str
+) -> None:
     pytest.importorskip("bitsandbytes")
     with exact_backward_case(
         tmp_path, device="cpu", dtype=dtype, nf4=True, nested=nested, count=24
@@ -307,7 +334,9 @@ _BLOCK_GRADS = {
 _BIAS = "gate.e_score_correction_bias"
 
 
-def _run_block(block, hidden, *, amp):
+def _run_block(
+    block: torch.nn.Module, hidden: torch.Tensor, *, amp: bool
+) -> tuple[torch.Tensor, torch.Tensor | None, dict[str, torch.Tensor | None]]:
     block.zero_grad(set_to_none=True)
     hidden = hidden.clone().requires_grad_(True)
     with _region(hidden.device.type, amp):
@@ -317,7 +346,7 @@ def _run_block(block, hidden, *, amp):
     return out.detach(), hidden.grad, grads
 
 
-def _moe_block(device, dtype):
+def _moe_block(device: str, dtype: str) -> torch.nn.Module:
     """A DeepSeek-V3 MoE block with non-degenerate weights; the routed experts stay frozen."""
     import torch
     from transformers.models.deepseek_v3.modeling_deepseek_v3 import DeepseekV3MoE
@@ -340,7 +369,10 @@ def _moe_block(device, dtype):
     return block
 
 
-def check_block_backward(tmp_path, *, device, dtype, nf4=False, nested=False, amp=False):
+def check_block_backward(
+    tmp_path: Path, *, device: str, dtype: str,
+    nf4: bool = False, nested: bool = False, amp: bool = False,
+) -> None:
     """Router weight and shared-expert gradients of the whole block equal the resident block's.
 
     Shared with the CUDA file. The router (with its correction bias) and the shared experts are
@@ -385,7 +417,9 @@ def check_block_backward(tmp_path, *, device, dtype, nf4=False, nested=False, am
 
 
 @pytest.mark.parametrize("mode", ["fp32", "bf16", "fp32-autocast", "nf4", "nf4-nested"])
-def test_full_moe_block_input_router_and_shared_expert_grads_equal_eager(tmp_path, mode):
+def test_full_moe_block_input_router_and_shared_expert_grads_equal_eager(
+    tmp_path: Path, mode: str
+) -> None:
     nf4 = mode.startswith("nf4")
     if nf4:
         pytest.importorskip("bitsandbytes")
@@ -395,7 +429,7 @@ def test_full_moe_block_input_router_and_shared_expert_grads_equal_eager(tmp_pat
     )
 
 
-def test_lora_on_shared_experts_beside_streamed_routed_experts_equals_eager(tmp_path):
+def test_lora_on_shared_experts_beside_streamed_routed_experts_equals_eager(tmp_path: Path) -> None:
     """An adapter outside the routed experts is the supported training surface: its A/B
     gradients through the streamed block equal the resident block's, bit for bit."""
     import torch
@@ -426,7 +460,9 @@ def test_lora_on_shared_experts_beside_streamed_routed_experts_equals_eager(tmp_
     reader, pool = _store(tmp_path, holder.mlp.experts)
     hidden = _inputs(24)[0].reshape(2, 12, 32)
 
-    def grads_of(model):
+    def grads_of(
+        model: torch.nn.Module,
+    ) -> tuple[torch.Tensor, torch.Tensor | None, dict[str, torch.Tensor | None]]:
         model.zero_grad(set_to_none=True)
         h = hidden.clone().requires_grad_(True)
         out = model.mlp(h)
@@ -457,8 +493,8 @@ def test_lora_on_shared_experts_beside_streamed_routed_experts_equals_eager(tmp_
 
 @pytest.mark.parametrize("routing", ["top2-all-hit", "partial", "sparse-top1"])
 def test_backward_reads_each_hit_expert_again_and_never_an_unused_one(
-    tmp_path, monkeypatch, routing
-):
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, routing: str
+) -> None:
     import torch
 
     module, _ = _experts()
@@ -491,8 +527,8 @@ def test_backward_reads_each_hit_expert_again_and_never_an_unused_one(
 @pytest.mark.parametrize("amp", [None, "forward"])
 @pytest.mark.parametrize("checkpoint", ["non-reentrant", "reentrant"])
 def test_checkpointed_run_equals_eager_and_reads_forward_recompute_and_backward(
-    tmp_path, monkeypatch, checkpoint, amp
-):
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, checkpoint: str, amp: str | None
+) -> None:
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
     streamed = _streamed(module, reader, pool)
@@ -516,14 +552,16 @@ def test_checkpointed_run_equals_eager_and_reads_forward_recompute_and_backward(
         _close(reader, pool)
 
 
-def test_a_retained_graph_reloads_again_for_every_backward(tmp_path, monkeypatch):
+def test_a_retained_graph_reloads_again_for_every_backward(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
     streamed = _streamed(module, reader, pool)
     args = _inputs()
     hit = _hit(args)
 
-    def twice(target):
+    def twice(target: torch.nn.Module) -> _Run:
         hidden, index, weights = (t.clone() for t in args)
         hidden.requires_grad_(True)
         weights.requires_grad_(True)
@@ -545,7 +583,7 @@ def test_a_retained_graph_reloads_again_for_every_backward(tmp_path, monkeypatch
         _close(reader, pool)
 
 
-def test_second_order_differentiation_is_refused_and_frees_the_pool(tmp_path):
+def test_second_order_differentiation_is_refused_and_frees_the_pool(tmp_path: Path) -> None:
     """Backward is first-order only: its gradients are computed against arena weights that the
     next lease overwrites, so no graph over them may be handed back. (The resident eager module
     does support second order; that is a documented difference, not a parity claim.)"""
@@ -575,7 +613,7 @@ def test_second_order_differentiation_is_refused_and_frees_the_pool(tmp_path):
         _close(reader, pool)
 
 
-def test_two_layers_sharing_one_pool_reload_each_from_its_own_reader(tmp_path):
+def test_two_layers_sharing_one_pool_reload_each_from_its_own_reader(tmp_path: Path) -> None:
     first, _ = _experts(seed=5)
     second, _ = _experts(seed=11)
     (tmp_path / "a").mkdir()
@@ -587,7 +625,9 @@ def test_two_layers_sharing_one_pool_reload_each_from_its_own_reader(tmp_path):
     hidden, index_a, weights_a = _inputs(24, top_k=2)
     _, index_b, weights_b = _inputs(24, top_k=1)
 
-    def chain(one, two):
+    def chain(
+        one: torch.nn.Module, two: torch.nn.Module
+    ) -> tuple[torch.Tensor | None, ...]:
         h = hidden.clone().requires_grad_(True)
         wa = weights_a.clone().requires_grad_(True)
         wb = weights_b.clone().requires_grad_(True)
@@ -610,7 +650,7 @@ def test_two_layers_sharing_one_pool_reload_each_from_its_own_reader(tmp_path):
 # --------------------------------------------------------------------------
 
 
-def check_arena_churn(tmp_path, *, device, dtype):
+def check_arena_churn(tmp_path: Path, *, device: str, dtype: str) -> None:
     """Other leases and another forward between forward and backward leave the grads alone.
 
     Shared with the CUDA file.
@@ -642,11 +682,13 @@ def check_arena_churn(tmp_path, *, device, dtype):
         _close(reader, pool)
 
 
-def test_arena_churn_between_forward_and_backward_does_not_change_the_gradients(tmp_path):
+def test_arena_churn_between_forward_and_backward_does_not_change_the_gradients(
+    tmp_path: Path,
+) -> None:
     check_arena_churn(tmp_path, device="cpu", dtype="float32")
 
 
-def test_nothing_saved_for_backward_aliases_the_arena_or_the_staging(tmp_path):
+def test_nothing_saved_for_backward_aliases_the_arena_or_the_staging(tmp_path: Path) -> None:
     import torch
 
     module, _ = _experts()
@@ -657,7 +699,7 @@ def test_nothing_saved_for_backward_aliases_the_arena_or_the_staging(tmp_path):
     weights.requires_grad_(True)
     saved = []
 
-    def pack(tensor):
+    def pack(tensor: torch.Tensor) -> torch.Tensor:
         saved.append(tensor)
         return tensor
 
@@ -677,7 +719,7 @@ def test_nothing_saved_for_backward_aliases_the_arena_or_the_staging(tmp_path):
         _close(reader, pool)
 
 
-def test_saved_tensors_are_unpacked_before_the_backward_lease(tmp_path):
+def test_saved_tensors_are_unpacked_before_the_backward_lease(tmp_path: Path) -> None:
     """A checkpoint recompute runs inside the unpack and leases experts itself, so the node
     must have unpacked before it holds the one slot. This unpack hook leases an expert like a
     recompute does; it would hit 'active lease' if the node leased first."""
@@ -690,7 +732,7 @@ def test_saved_tensors_are_unpacked_before_the_backward_lease(tmp_path):
     hit = _hit(args)
     unpacks = []
 
-    def unpack(tensor):
+    def unpack(tensor: torch.Tensor) -> torch.Tensor:
         with pool.lease(reader, 0):
             unpacks.append(torch._C._current_autograd_node() is not None)
         return tensor
@@ -710,7 +752,7 @@ def test_saved_tensors_are_unpacked_before_the_backward_lease(tmp_path):
         _close(reader, pool)
 
 
-def test_a_backward_lease_while_another_lease_is_active_fails_loudly(tmp_path):
+def test_a_backward_lease_while_another_lease_is_active_fails_loudly(tmp_path: Path) -> None:
     import torch
 
     module, _ = _experts()
@@ -736,7 +778,9 @@ def test_a_backward_lease_while_another_lease_is_active_fails_loudly(tmp_path):
         _close(reader, pool)
 
 
-def test_no_lease_is_left_active_after_backward_and_frozen_weights_get_no_grad(tmp_path):
+def test_no_lease_is_left_active_after_backward_and_frozen_weights_get_no_grad(
+    tmp_path: Path,
+) -> None:
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
     streamed = _streamed(module, reader, pool)
@@ -752,7 +796,7 @@ def test_no_lease_is_left_active_after_backward_and_frozen_weights_get_no_grad(t
         _close(reader, pool)
 
 
-def test_backward_after_the_pool_was_closed_fails_loudly(tmp_path):
+def test_backward_after_the_pool_was_closed_fails_loudly(tmp_path: Path) -> None:
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
     streamed = _streamed(module, reader, pool)
@@ -769,8 +813,8 @@ def test_backward_after_the_pool_was_closed_fails_loudly(tmp_path):
 
 
 def test_load_failure_inside_backward_propagates_and_leaves_the_pool_usable(
-    tmp_path, monkeypatch
-):
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
     streamed = _streamed(module, reader, pool)
@@ -800,7 +844,10 @@ def test_load_failure_inside_backward_propagates_and_leaves_the_pool_usable(
 # --------------------------------------------------------------------------
 
 
-def check_negative_control(tmp_path, monkeypatch, *, device, dtype, nf4=False, nested=False):
+def check_negative_control(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *,
+    device: str, dtype: str, nf4: bool = False, nested: bool = False,
+) -> None:
     """Expert weights perturbed only on loads inside autograd's engine: the output stays equal
     and both gradients differ; unperturbed on the same inputs everything is equal.
 
@@ -837,8 +884,8 @@ def check_negative_control(tmp_path, monkeypatch, *, device, dtype, nf4=False, n
 
 @pytest.mark.parametrize("quant", ["dense", "nf4-nested"])
 def test_perturbing_only_backward_reloads_changes_gradients_not_outputs(
-    tmp_path, monkeypatch, quant
-):
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quant: str
+) -> None:
     nf4 = quant != "dense"
     if nf4:
         pytest.importorskip("bitsandbytes")
@@ -853,7 +900,7 @@ def test_perturbing_only_backward_reloads_changes_gradients_not_outputs(
 # --------------------------------------------------------------------------
 
 
-def _routed_holder(module):
+def _routed_holder(module: torch.nn.Module) -> torch.nn.Module:
     import torch
 
     holder = torch.nn.Module()
@@ -864,8 +911,8 @@ def _routed_holder(module):
 
 @pytest.mark.parametrize("kind", ["peft-target-parameters", "extra-parameter"])
 def test_adapters_and_extra_parameters_on_routed_experts_are_refused_before_a_read(
-    tmp_path, kind
-):
+    tmp_path: Path, kind: str
+) -> None:
     import torch
 
     from soup_cli.utils.expert_stream import install_streamed_experts
@@ -896,7 +943,7 @@ def test_adapters_and_extra_parameters_on_routed_experts_are_refused_before_a_re
         _close(reader, pool)
 
 
-def test_a_reader_that_does_not_match_the_pool_is_refused_before_a_read(tmp_path):
+def test_a_reader_that_does_not_match_the_pool_is_refused_before_a_read(tmp_path: Path) -> None:
     import torch
 
     from soup_cli.utils.expert_stream import install_streamed_experts
@@ -923,7 +970,9 @@ def test_a_reader_that_does_not_match_the_pool_is_refused_before_a_read(tmp_path
 
 
 @pytest.mark.parametrize("trainable", ["gate_up_proj", "down_proj", "both"])
-def test_trainable_routed_expert_weights_are_refused_before_a_read(tmp_path, trainable):
+def test_trainable_routed_expert_weights_are_refused_before_a_read(
+    tmp_path: Path, trainable: str
+) -> None:
     from soup_cli.utils.expert_stream import install_streamed_experts
 
     module, _ = _experts()
@@ -943,7 +992,9 @@ def test_trainable_routed_expert_weights_are_refused_before_a_read(tmp_path, tra
 
 
 @pytest.mark.parametrize("bad", ["negative", "large", "dtype", "shape", "nan"])
-def test_malformed_routing_with_grad_bearing_inputs_still_fails_before_a_read(tmp_path, bad):
+def test_malformed_routing_with_grad_bearing_inputs_still_fails_before_a_read(
+    tmp_path: Path, bad: str
+) -> None:
     import torch
 
     module, _ = _experts()
@@ -972,7 +1023,7 @@ def test_malformed_routing_with_grad_bearing_inputs_still_fails_before_a_read(tm
 # --------------------------------------------------------------------------
 # accepted callable activations: stochastic replay and explicit mutable-state refusal
 # --------------------------------------------------------------------------
-def _rng_equal(left, right):
+def _rng_equal(left: Any, right: Any) -> bool:
     import torch
 
     return torch.equal(left.cpu, right.cpu) and len(left.cuda) == len(right.cuda) and all(
@@ -981,7 +1032,9 @@ def _rng_equal(left, right):
     )
 
 
-def check_activation_rng_replay(tmp_path, *, device, stochastic, checkpoint=None):
+def check_activation_rng_replay(
+    tmp_path: Path, *, device: str, stochastic: bool, checkpoint: str | None = None
+) -> dict[str, Any]:
     """Actual installer/reader/pool with an admitted parameterless activation.
 
     Churn the outer RNG after forward, then backpropagate: local replay must use each
@@ -1001,7 +1054,7 @@ def check_activation_rng_replay(tmp_path, *, device, stochastic, checkpoint=None
     holder = _routed_holder(module)
     args = _inputs(device=device, partial=True)
 
-    def exercise(target):
+    def exercise(target: torch.nn.Module) -> tuple[_Run, Any, Any]:
         hidden, index, weights = (tensor.clone() for tensor in args)
         hidden.requires_grad_(True)
         weights.requires_grad_(True)
@@ -1050,8 +1103,9 @@ def check_activation_rng_replay(tmp_path, *, device, stochastic, checkpoint=None
 @pytest.mark.parametrize("stochastic", [False, True], ids=["silu", "dropout"])
 @pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
 def test_installed_parameterless_activation_replays_rng_without_consuming_the_outer_stream(
-    tmp_path, stochastic, checkpoint, record_property
-):
+    tmp_path: Path, stochastic: bool, checkpoint: str | None,
+    record_property: Callable[[str, Any], None],
+) -> None:
     evidence = check_activation_rng_replay(
         tmp_path, device="cpu", stochastic=stochastic, checkpoint=checkpoint
     )
@@ -1059,7 +1113,9 @@ def test_installed_parameterless_activation_replays_rng_without_consuming_the_ou
         record_property(key, value)
 
 
-def test_activation_buffers_are_refused_before_backward_reads_but_no_grad_stays_supported(tmp_path):
+def test_activation_buffers_are_refused_before_backward_reads_but_no_grad_stays_supported(
+    tmp_path: Path,
+) -> None:
     import torch
 
     from soup_cli.utils.expert_stream import install_streamed_experts

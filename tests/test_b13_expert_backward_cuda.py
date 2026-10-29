@@ -17,6 +17,9 @@ conftest hook skips them without a card.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable, Iterator
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -33,8 +36,6 @@ from tests.test_b13_expert_backward import (  # noqa: E402
     exact_backward_case,
 )
 
-torch = pytest.importorskip("torch")
-
 pytestmark = pytest.mark.gpu
 
 DEVICE = "cuda"
@@ -47,7 +48,9 @@ _STORAGE = {
 
 
 @pytest.fixture(autouse=True)
-def deterministic_kernels():
+def deterministic_kernels() -> Iterator[None]:
+    import torch
+
     previous = torch.are_deterministic_algorithms_enabled()
     torch.use_deterministic_algorithms(True)
     yield
@@ -55,7 +58,7 @@ def deterministic_kernels():
 
 
 @pytest.mark.parametrize("storage", _STORAGE)
-def test_cuda_backward_equals_the_resident_eager_module(tmp_path, storage):
+def test_cuda_backward_equals_the_resident_eager_module(tmp_path: Path, storage: str) -> None:
     if _STORAGE[storage]["nf4"]:
         pytest.importorskip("bitsandbytes")
     with exact_backward_case(
@@ -70,20 +73,20 @@ def test_cuda_backward_equals_the_resident_eager_module(tmp_path, storage):
 
 
 @pytest.mark.parametrize("storage", _STORAGE)
-def test_cuda_full_moe_block_grads_equal_eager(tmp_path, storage):
+def test_cuda_full_moe_block_grads_equal_eager(tmp_path: Path, storage: str) -> None:
     if _STORAGE[storage]["nf4"]:
         pytest.importorskip("bitsandbytes")
     check_block_backward(tmp_path, device=DEVICE, dtype="bfloat16", **_STORAGE[storage])
 
 
-def test_cuda_arena_churn_between_forward_and_backward_keeps_the_gradients(tmp_path):
+def test_cuda_arena_churn_between_forward_and_backward_keeps_the_gradients(tmp_path: Path) -> None:
     check_arena_churn(tmp_path, device=DEVICE, dtype="bfloat16")
 
 
 @pytest.mark.parametrize("storage", ["bf16", "nf4-nested"])
 def test_cuda_perturbing_only_backward_reloads_changes_gradients_not_outputs(
-    tmp_path, monkeypatch, storage
-):
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, storage: str
+) -> None:
     if _STORAGE[storage]["nf4"]:
         pytest.importorskip("bitsandbytes")
     check_negative_control(
@@ -94,8 +97,9 @@ def test_cuda_perturbing_only_backward_reloads_changes_gradients_not_outputs(
 @pytest.mark.parametrize("stochastic", [False, True], ids=["silu", "dropout"])
 @pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
 def test_cuda_installed_activation_replays_rng_and_preserves_the_outer_stream(
-    tmp_path, stochastic, checkpoint, record_property
-):
+    tmp_path: Path, stochastic: bool, checkpoint: str | None,
+    record_property: Callable[[str, Any], None],
+) -> None:
     evidence = check_activation_rng_replay(
         tmp_path, device=DEVICE, stochastic=stochastic, checkpoint=checkpoint
     )
@@ -103,5 +107,7 @@ def test_cuda_installed_activation_replays_rng_and_preserves_the_outer_stream(
         record_property(key, value)
 
 
-def test_cuda_fp32_block_forward_under_bf16_amp_backward_outside_amp_equals_eager(tmp_path):
+def test_cuda_fp32_block_forward_under_bf16_amp_backward_outside_amp_equals_eager(
+    tmp_path: Path,
+) -> None:
     check_block_backward(tmp_path, device=DEVICE, dtype="float32", amp=True)
