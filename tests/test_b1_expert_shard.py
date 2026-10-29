@@ -1,6 +1,6 @@
 """B1.1 storage acceptance: independent bytes, B2/B3 compatibility and refusals.
 
-These tests do not claim B1.2/B1.3 training support or a throughput improvement.
+Streaming a per-expert cache is covered by tests/test_b13_moe_runtime.py.
 """
 
 from __future__ import annotations
@@ -437,43 +437,51 @@ def test_fp8_to_nf4_expert_storage_matches_b3_reference(tmp_path):
     assert owner.numel() > 0
 
 
-def test_training_explicitly_refuses_storage_only_cache():
+@pytest.mark.parametrize("layout", ["sharded_by_hand", "PER_EXPERT", "per_expert "])
+def test_runtime_refuses_an_expert_layout_it_cannot_stream_before_touching_the_model(
+    layout: str,
+) -> None:
+    """The boundary is the layout, not "anything with an expert layout": ``per_expert`` and the
+    fused default are streamed (tests/test_b13_moe_runtime.py); an unfamiliar one is refused."""
     from types import SimpleNamespace
 
     from soup_cli.utils.layer_stream_runtime import install_streaming
 
-    with pytest.raises(ValueError, match="B1.2/B1.3"):
+    with pytest.raises(ValueError, match="unsupported expert layout"):
         install_streaming(
             None,
             shard_dir="unused",
-            index=SimpleNamespace(expert_layout="per_expert"),
+            index=SimpleNamespace(expert_layout=layout),
             device="cpu",
         )
 
 
-def test_model_builder_refuses_before_materializing_weights(monkeypatch):
+@pytest.mark.parametrize("layout", ["sharded_by_hand", "PER_EXPERT"])
+def test_model_builder_refuses_an_unknown_expert_layout_before_materializing_weights(
+    monkeypatch: pytest.MonkeyPatch, layout: str
+) -> None:
     from types import SimpleNamespace
 
     from soup_cli.utils import layer_stream_runtime
 
-    def unexpected(*args, **kwargs):
-        pytest.fail("a B1.1 storage-only cache must be refused before weight materialization")
+    def unexpected(*args: object, **kwargs: object) -> None:
+        pytest.fail("an unsupported expert layout must be refused before weight materialization")
 
     built = []
 
-    def meta_skeleton(*args, **kwargs):
+    def meta_skeleton(*args: object, **kwargs: object) -> object:
         built.append(True)
         return object()
 
     monkeypatch.setattr(layer_stream_runtime, "build_meta_skeleton", meta_skeleton)
     monkeypatch.setattr(layer_stream_runtime, "materialize_extras", unexpected)
     monkeypatch.setattr(layer_stream_runtime, "materialize_layer_buffers", unexpected)
-    with pytest.raises(ValueError, match="B1.2/B1.3"):
+    with pytest.raises(ValueError, match="unsupported expert layout"):
         layer_stream_runtime.build_streamed_model(
             model_id="unused",
             shard_dir="unused",
             lora_config=None,
-            index=SimpleNamespace(expert_layout="per_expert"),
+            index=SimpleNamespace(expert_layout=layout),
             device="cpu",
         )
     assert built == [True]
