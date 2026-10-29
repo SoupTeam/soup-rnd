@@ -6,9 +6,10 @@ within the A3-07 tolerance in every ticket-04 rerun campaign. R2: the mixed-leng
 backward checks of ticket 07, rerun on the final code (GA backward outside autocast), all
 pass. R3: L2L peak VRAM at most the GA peak in every campaign.
 A criterion with no records fails. R1 and R3 read arms, so every arm they read needs each
-required validity check ``ok`` (``benchmarks/METHOD.md``): a required check that is ``unknown`` or
-``void`` gives "no verdict" ("нет вердикта"), which is not "not ready". With all three met the
-verdict is "ready with limits" while ``LIMITS`` is not empty. The script reads files and runs
+required validity check ``ok`` (``benchmarks/METHOD.md``): a required check that is ``unknown``
+gives "no verdict" ("нет вердикта"), which is not "not ready". A ``void`` arm is excluded and
+counted (the campaign leaves its block out of the summary and the repeats rule adds one).
+With all three met the verdict is "ready with limits" while ``LIMITS`` is not empty. The script reads files and runs
 nothing on a GPU. Benchmark harness code, not shipped.
 """
 
@@ -44,10 +45,11 @@ def decide(evidence: Dict[str, List[Dict[str, Any]]], limits: Optional[List[str]
            ) -> Dict[str, Any]:
     """Apply the rule to ``evidence`` (lists of records per criterion)."""
     limits = LIMITS if limits is None else limits
-    arms = evidence.get("arms", [])
+    all_arms = evidence.get("arms", [])
+    arms = [arm for arm in all_arms if arm["outcome"] != "void"]
     blocked = _blocked(arms)
     if not arms:
-        blocked = {"no arm records": 1}
+        blocked = {"no usable arm records": 1}
     criteria = {
         "R1": bool(evidence["r1"]) and all(item["pass"] for item in evidence["r1"]),
         "R2": bool(evidence["r2"]) and all(item["pass"] for item in evidence["r2"]),
@@ -62,7 +64,8 @@ def decide(evidence: Dict[str, List[Dict[str, Any]]], limits: Optional[List[str]
     else:
         verdict = "готов"
     return {"verdict": verdict, "criteria": criteria, "limits": limits, "blocked_by": blocked,
-            "arm_outcomes": dict(Counter(arm["outcome"] for arm in arms)), "evidence": evidence}
+            "arm_outcomes": dict(Counter(arm["outcome"] for arm in all_arms)),
+            "excluded_void_arms": len(all_arms) - len(arms), "evidence": evidence}
 
 
 def _blocked(arms: List[Dict[str, Any]]) -> Dict[str, int]:
@@ -73,8 +76,6 @@ def _blocked(arms: List[Dict[str, Any]]) -> Dict[str, int]:
             outcome = arm["checks"].get(name, "unknown")
             if outcome != "ok":
                 count[f"{name}:{outcome}"] += 1
-        if arm["outcome"] == "void":
-            count["arm:void"] += 1
     return dict(count)
 
 

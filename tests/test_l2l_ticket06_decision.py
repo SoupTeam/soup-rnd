@@ -64,11 +64,20 @@ def test_a_required_check_that_is_unknown_gives_no_verdict_even_when_criteria_pa
     assert out["arm_outcomes"] == {"ok": 1, "unknown": 1}
 
 
-def test_a_void_check_gives_no_verdict_and_a_failed_criterion_does_not_override_it():
+def test_a_void_arm_is_excluded_and_counted_not_blocking():
     dec = _load("l2l_ticket06_decision")
-    arms = [_arm(power="void")]
-    out = dec.decide(_evidence(arms=arms, r1=[{"source": "a", "pass": False}]))
-    assert out["verdict"] == "нет вердикта" and out["blocked_by"] == {"power:void": 1}
+    void = _arm(power="void")
+    void["outcome"] = "void"
+    out = dec.decide(_evidence(arms=[_arm(), void]))
+    assert out["verdict"] == "готов с ограничениями"
+    assert out["excluded_void_arms"] == 1 and out["blocked_by"] == {}
+
+
+def test_only_void_arms_leave_nothing_to_read_so_no_verdict():
+    dec = _load("l2l_ticket06_decision")
+    void = _arm(power="void")
+    void["outcome"] = "void"
+    assert dec.decide(_evidence(arms=[void]))["verdict"] == "нет вердикта"
 
 
 def test_a_required_check_missing_from_the_record_counts_as_unknown():
@@ -81,17 +90,21 @@ def test_a_required_check_missing_from_the_record_counts_as_unknown():
 def test_no_arm_records_in_the_valid_set_gives_no_verdict():
     dec = _load("l2l_ticket06_decision")
     out = dec.decide(_evidence(arms=[]))
-    assert out["verdict"] == "нет вердикта" and out["blocked_by"] == {"no arm records": 1}
+    assert out["verdict"] == "нет вердикта" and out["blocked_by"] == {"no usable arm records": 1}
 
 
-def test_command_reads_only_the_valid_set_and_the_rerun_gate_records(tmp_path):
+def test_command_reads_only_the_valid_set_and_the_rerun_gate_records():
     done = subprocess.run(
         [sys.executable, str(HARNESS / "l2l_ticket06_decision.py")],
         capture_output=True, text=True, check=False,
     )
     assert done.returncode == 0, done.stderr
     out = json.loads(done.stdout)
-    # earlier sets have the required foreign_reads check unknown, so the gate does not read them
-    assert out["verdict"] == "нет вердикта"
+    # the earlier sets have the required foreign_reads check unknown, so the gate does not read them
     assert all("rerun-sft" not in item["source"] for item in out["evidence"]["r1"])
-    assert len(out["evidence"]["r2"]) == 4
+    assert len(out["evidence"]["r1"]) == 1 and len(out["evidence"]["r2"]) == 4
+    # the valid set: every required check ok, one void arm (foreign reads) left out
+    assert out["blocked_by"] == {}
+    assert out["arm_outcomes"] == {"ok": 27, "void": 1} and out["excluded_void_arms"] == 1
+    assert out["criteria"] == {"R1": True, "R2": True, "R3": True}
+    assert out["verdict"] == "готов с ограничениями"

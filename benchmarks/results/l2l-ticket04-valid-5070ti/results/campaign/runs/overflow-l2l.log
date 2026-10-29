@@ -1,0 +1,69 @@
+Loading config from overflow.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 5070 Ti                                          │
+│ Memory:  15.5 GB                                                             │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 20000 train samples
+Run ID: run_20261029_162702_33354219
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 6,815,744 parameters; weights=27262976, 
+gradients=27262976, optimizer=54525952 CUDA bytes; CPU tensors=1024 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 1147.62it/s]
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 14.48 GB                                                    │
+│ Soup materialized copy: 14.48 GB (no write required)                         │
+│ Layer-shard cache: 3.74 GB (reusable)                                        │
+│ Projected total on disk: 32.70 GB                                            │
+│ Additional writes before training: 0.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> /root/.soup/layer-stream/mistralai__Mistral-7B-v0.1
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch mistral, tier ram                                │
+│   base store   4.13 GB across 32 layers (pinned)                             │
+│   VRAM buffers 2 x 113 MB + 1 x 262 MB large-layer slot = 487 MB             │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~2.22 GB at batch 4 x seq 512 (logits 0.92 GB)                │
+│   free VRAM    16.32 GB                                                      │
+│   forecast     1559-2293 tok/s — a compute-bound bound, not a promise        │
+│                (from 99.61 TFLOPS measured on this card now using bfloat16 @ │
+│ 2542 MHz)                                                                    │
+│   ! accumulating 2531x at batch 4: the base is re-read once per micro-batch. │
+│ Per token that is free, but reaching effective batch 10124 by raising        │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 32 layers, 4.13 GB pinned RAM store (4.29 GB 
+page-locked), 2 x 113 MB decoder buffers + 1 x 262 MB large-layer slot
+LoRA applied: 6,815,744 trainable / 7,241,732,096 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/20000 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map:   1%|          | 156/20000 [00:00<00:12, 1543.41 examples/s]Map:   2%|▏         | 318/20000 [00:00<00:12, 1577.78 examples/s]Map:   3%|▎         | 550/20000 [00:00<00:12, 1557.28 examples/s]Map:   4%|▍         | 791/20000 [00:00<00:12, 1572.65 examples/s]Map:   5%|▌         | 1000/20000 [00:00<00:13, 1398.79 examples/s]Map:   6%|▌         | 1169/20000 [00:00<00:12, 1470.28 examples/s]Map:   7%|▋         | 1325/20000 [00:00<00:12, 1492.51 examples/s]Map:   7%|▋         | 1486/20000 [00:00<00:12, 1519.25 examples/s]Map:   9%|▊         | 1711/20000 [00:01<00:12, 1506.12 examples/s]Map:   9%|▉         | 1867/20000 [00:01<00:11, 1518.79 examples/s]Map:  10%|█         | 2086/20000 [00:01<00:11, 1496.50 examples/s]Map:  11%|█▏        | 2252/20000 [00:01<00:11, 1535.59 examples/s]Map:  12%|█▏        | 2483/20000 [00:01<00:11, 1533.29 examples/s]Map:  13%|█▎        | 2648/20000 [00:01<00:11, 1559.10 examples/s]Map:  14%|█▍        | 2882/20000 [00:01<00:10, 1557.20 examples/s]Map:  16%|█▌        | 3104/20000 [00:02<00:11, 1522.89 examples/s]Map:  17%|█▋        | 3328/20000 [00:02<00:11, 1510.62 examples/s]Map:  18%|█▊        | 3541/20000 [00:02<00:11, 1476.96 examples/s]Map:  19%|█▉        | 3769/20000 [00:02<00:10, 1486.04 examples/s]Map:  20%|█▉        | 3988/20000 [00:02<00:10, 1475.03 examples/s]Map:  21%|██        | 4215/20000 [00:02<00:10, 1485.08 examples/s]Map:  22%|██▏       | 4367/20000 [00:02<00:10, 1490.67 examples/s]Map:  23%|██▎       | 4601/20000 [00:03<00:10, 1508.79 examples/s]Map:  24%|██▍       | 4753/20000 [00:03<00:10, 1509.21 examples/s]Map:  25%|██▍       | 4905/20000 [00:03<00:10, 1507.36 examples/s]Map:  26%|██▌       | 5109/20000 [00:03<00:10, 1452.69 examples/s]Map:  26%|██▋       | 5261/20000 [00:03<00:10, 1469.10 examples/s]Map:  27%|██▋       | 5422/20000 [00:03<00:09, 1504.43 examples/s]Map:  28%|██▊       | 5626/20000 [00:03<00:09, 1448.86 examples/s]Map:  29%|██▉       | 5827/20000 [00:03<00:10, 1407.77 examples/s]Map:  30%|███       | 6004/20000 [00:04<00:10, 1330.15 examples/s]Map:  31%|███       | 6206/20000 [00:04<00:10, 1332.16 examples/s]Map:  32%|███▏      | 6352/20000 [00:04<00:10, 1361.16 examples/s]Map:  33%|███▎      | 6501/20000 [00:04<00:09, 1391.04 examples/s]Map:  33%|███▎      | 6653/20000 [00:04<00:09, 1421.92 examples/s]Map:  34%|███▍      | 6869/20000 [00:04<00:09, 1426.22 examples/s]Map:  35%|███▌      | 7076/20000 [00:04<00:09, 1407.39 examples/s]Map:  36%|███▌      | 7218/20000 [00:04<00:09, 1407.15 examples/s]Map:  37%|███▋      | 7376/20000 [00:05<00:08, 1447.91 examples/s]Map:  38%|███▊      | 7530/20000 [00:05<00:08, 1469.18 examples/s]Map:  38%|███▊      | 7682/20000 [00:05<00:08, 1480.20 examples/s]Map:  39%|███▉      | 7837/20000 [00:05<00:08, 1496.48 examples/s]Map:  40%|████      | 8034/20000 [00:05<00:08, 1424.80 examples/s]Map:  41%|████      | 8187/20000 [00:05<00:08, 1447.85 examples/s]Map:  42%|████▏     | 8348/20000 [00:05<00:07, 1488.95 examples/s]Map:  43%|████▎     | 8565/20000 [00:05<00:07, 1469.49 examples/s]Map:  44%|████▍     | 8752/20000 [00:05<00:08, 1389.89 examples/s]Map:  45%|████▍     | 8944/20000 [00:06<00:08, 1349.23 examples/s]Map:  46%|████▌     | 9127/20000 [00:06<00:08, 1289.65 examples/s]Map:  46%|████▋     | 9293/20000 [00:06<00:08, 1230.23 examples/s]Map:  47%|████▋     | 9458/20000 [00:06<00:08, 1185.68 examples/s]Map:  48%|████▊     | 9638/20000 [00:06<00:08, 1187.65 examples/s]Map:  49%|████▉     | 9765/20000 [00:06<00:08, 1202.32 examples/s]Map:  49%|████▉     | 9890/20000 [00:06<00:08, 1210.79 examples/s]Map:  50%|█████     | 10059/20000 [00:07<00:08, 1167.21 examples/s]Map:  51%|█████     | 10204/20000 [00:07<00:07, 1232.51 examples/s]Map:  52%|█████▏    | 10334/20000 [00:07<00:07, 1245.96 examples/s]Map:  53%|█████▎    | 10517/20000 [00:07<00:07, 1232.36 examples/s]Map:  53%|█████▎    | 10643/20000 [00:07<00:07, 1236.86 examples/s]Map:  54%|█████▍    | 10823/20000 [00:07<00:07, 1217.91 examples/s]Map:  55%|█████▍    | 10953/20000 [00:07<00:07, 1235.32 examples/s]Map:  56%|█████▌    | 11120/20000 [00:07<00:07, 1186.70 examples/s]Map:  56%|█████▌    | 11247/20000 [00:08<00:07, 1205.60 examples/s]Map:  57%|█████▋    | 11371/20000 [00:08<00:07, 1210.61 examples/s]Map:  58%|█████▊    | 11554/20000 [00:08<00:06, 1210.47 examples/s]Map:  58%|█████▊    | 11679/20000 [00:08<00:06, 1217.02 examples/s]Map:  59%|█████▉    | 11818/20000 [00:08<00:06, 1261.98 examples/s]Map:  60%|█████▉    | 11959/20000 [00:08<00:06, 1301.29 examples/s]Map:  61%|██████    | 12158/20000 [00:08<00:06, 1306.46 examples/s]Map:  62%|██████▏   | 12337/20000 [00:08<00:06, 1263.52 examples/s]Map:  63%|██████▎   | 12520/20000 [00:09<00:06, 1246.18 examples/s]Map:  63%|██████▎   | 12655/20000 [00:09<00:05, 1268.25 examples/s]Map:  64%|██████▍   | 12836/20000 [00:09<00:05, 1240.93 examples/s]Map:  65%|██████▍   | 12977/20000 [00:09<00:05, 1277.27 examples/s]Map:  66%|██████▌   | 13163/20000 [00:09<00:05, 1260.71 examples/s]Map:  67%|██████▋   | 13309/20000 [00:09<00:05, 1308.78 examples/s]Map:  67%|██████▋   | 13455/20000 [00:09<00:04, 1345.34 examples/s]Map:  68%|██████▊   | 13595/20000 [00:09<00:04, 1358.40 examples/s]Map:  69%|██████▊   | 13741/20000 [00:09<00:04, 1381.61 examples/s]Map:  69%|██████▉   | 13896/20000 [00:10<00:04, 1426.41 examples/s]Map:  70%|███████   | 14075/20000 [00:10<00:04, 1336.20 examples/s]Map:  71%|███████▏  | 14251/20000 [00:10<00:04, 1274.01 examples/s]Map:  72%|███████▏  | 14451/20000 [00:10<00:04, 1290.82 examples/s]Map:  73%|███████▎  | 14635/20000 [00:10<00:04, 1267.16 examples/s]Map:  74%|███████▍  | 14817/20000 [00:10<00:04, 1245.77 examples/s]Map:  75%|███████▍  | 14957/20000 [00:10<00:03, 1280.37 examples/s]Map:  76%|███████▌  | 15150/20000 [00:11<00:03, 1277.91 examples/s]Map:  76%|███████▋  | 15289/20000 [00:11<00:03, 1302.43 examples/s]Map:  77%|███████▋  | 15438/20000 [00:11<00:03, 1347.92 examples/s]Map:  78%|███████▊  | 15587/20000 [00:11<00:03, 1383.64 examples/s]Map:  79%|███████▊  | 15733/20000 [00:11<00:03, 1398.97 examples/s]Map:  79%|███████▉  | 15876/20000 [00:11<00:02, 1402.05 examples/s]Map:  80%|████████  | 16063/20000 [00:11<00:03, 1283.53 examples/s]Map:  81%|████████  | 16247/20000 [00:11<00:02, 1260.23 examples/s]Map:  82%|████████▏ | 16377/20000 [00:12<00:02, 1265.77 examples/s]Map:  83%|████████▎ | 16506/20000 [00:12<00:02, 1270.86 examples/s]Map:  83%|████████▎ | 16653/20000 [00:12<00:02, 1322.59 examples/s]Map:  84%|████████▍ | 16837/20000 [00:12<00:02, 1284.12 examples/s]Map:  85%|████████▌ | 17021/20000 [00:12<00:02, 1260.63 examples/s]Map:  86%|████████▌ | 17166/20000 [00:12<00:02, 1304.89 examples/s]Map:  87%|████████▋ | 17363/20000 [00:12<00:02, 1303.12 examples/s]Map:  87%|████████▋ | 17499/20000 [00:12<00:01, 1316.93 examples/s]Map:  88%|████████▊ | 17640/20000 [00:12<00:01, 1338.14 examples/s]Map:  89%|████████▉ | 17827/20000 [00:13<00:01, 1301.67 examples/s]Map:  90%|█████████ | 18000/20000 [00:13<00:01, 1247.27 examples/s]Map:  91%|█████████ | 18127/20000 [00:13<00:01, 1251.24 examples/s]Map:  91%|█████████▏| 18268/20000 [00:13<00:01, 1289.18 examples/s]Map:  92%|█████████▏| 18418/20000 [00:13<00:01, 1343.29 examples/s]Map:  93%|█████████▎| 18560/20000 [00:13<00:01, 1362.34 examples/s]Map:  94%|█████████▎| 18700/20000 [00:13<00:00, 1369.44 examples/s]Map:  95%|█████████▍| 18904/20000 [00:13<00:00, 1364.39 examples/s]Map:  95%|█████████▌| 19096/20000 [00:14<00:00, 1332.72 examples/s]Map:  96%|█████████▌| 19232/20000 [00:14<00:00, 1338.55 examples/s]Map:  97%|█████████▋| 19378/20000 [00:14<00:00, 1367.06 examples/s]Map:  98%|█████████▊| 19529/20000 [00:14<00:00, 1403.87 examples/s]Map:  98%|█████████▊| 19675/20000 [00:14<00:00, 1417.67 examples/s]Map:  99%|█████████▉| 19879/20000 [00:14<00:00, 1393.93 examples/s]Map: 100%|██████████| 20000/20000 [00:14<00:00, 1357.99 examples/s]
+Map:   0%|          | 0/20000 [00:00<?, ? examples/s]Map:  10%|█         | 2092/20000 [00:00<00:00, 19203.71 examples/s]Map:  22%|██▏       | 4343/20000 [00:00<00:00, 21076.63 examples/s]Map:  33%|███▎      | 6551/20000 [00:00<00:00, 21522.80 examples/s]Map:  44%|████▍     | 8802/20000 [00:00<00:00, 21901.29 examples/s]Map:  60%|█████▉    | 11966/20000 [00:00<00:00, 21530.10 examples/s]Map:  75%|███████▌  | 15000/20000 [00:01<00:00, 11524.46 examples/s]Map:  88%|████████▊ | 17644/20000 [00:01<00:00, 14069.23 examples/s]Map: 100%|██████████| 20000/20000 [00:01<00:00, 15730.81 examples/s]Map: 100%|██████████| 20000/20000 [00:01<00:00, 16235.81 examples/s]
+Truncating train dataset:   0%|          | 0/20000 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 20000/20000 [00:00<00:00, 466106.28 examples/s]
+L2L: each streamed layer loads once per optimizer step and runs 2531 
+micro-batch(es)
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 2}.
+  0%|          | 0/2 [00:00<?, ?it/s]Crash bundle written: 
+/root/volume/work/.soup-crashes/crash_20261029T162740Z_d0a4e322.crash
+Attach this file when reporting the failure.
+overflow.yaml: 0 steps, failure=ValueError: training.l2l keeps 32 layers x 2531 micro-batches of activations in host RAM: 518.85 GB of pinned blocks, but only 516.3 GB is free and 70% of that is usable. Lower gradient_accumulation_steps, data.max_length or batch_size, or free RAM.
