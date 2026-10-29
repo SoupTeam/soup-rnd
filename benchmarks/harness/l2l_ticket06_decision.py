@@ -9,8 +9,8 @@ A criterion with no records fails. R1 and R3 read arms, so every arm they read n
 required validity check ``ok`` (``benchmarks/METHOD.md``): a required check that is ``unknown``
 gives "no verdict" ("нет вердикта"), which is not "not ready". A ``void`` arm is excluded and
 counted (the campaign leaves its block out of the summary and the repeats rule adds one).
-With all three met the verdict is "ready with limits" while ``LIMITS`` is not empty. The script reads files and runs
-nothing on a GPU. Benchmark harness code, not shipped.
+With all three met the verdict is "ready with limits" while ``LIMITS`` is not
+empty. The script reads files and runs nothing on a GPU. Benchmark harness code, not shipped.
 """
 
 from __future__ import annotations
