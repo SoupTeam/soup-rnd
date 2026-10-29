@@ -306,20 +306,41 @@ def test_load_error_is_recorded_and_lease_can_be_reused(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("which", ["hidden", "weights"])
-def test_forward_refuses_autograd_before_reading(tmp_path, which):
+def test_forward_accepts_a_grad_bearing_input_and_reads_only_hit_experts(tmp_path, which):
     import torch
 
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
-    hidden, index, weights = _inputs()
+    hidden, index, weights = _inputs(partial=True)
     (hidden if which == "hidden" else weights).requires_grad_(True)
     streamed = _streamed(module, reader, pool)
     try:
-        with pytest.raises(RuntimeError, match="B1.3"):
-            streamed(hidden, index, weights)
-        assert reader.fetches == 0
+        out = streamed(hidden, index, weights)
+        assert out.requires_grad and out.grad_fn is not None
+        assert reader.fetches == len(set(index.flatten().tolist()))  # hit experts only
         with torch.no_grad():
-            assert torch.equal(streamed(hidden, index, weights), module(hidden, index, weights))
+            assert torch.equal(out.detach(), module(hidden, index, weights))
+    finally:
+        reader.close()
+        pool.close()
+
+
+def test_forward_builds_no_graph_under_no_grad_or_without_a_grad_bearing_input(tmp_path):
+    import torch
+
+    module, _ = _experts()
+    reader, pool = _store(tmp_path, module)
+    streamed = _streamed(module, reader, pool)
+    hidden, index, weights = _inputs()
+    try:
+        plain = streamed(hidden, index, weights)  # grad enabled, but nothing requires grad
+        assert plain.grad_fn is None and not plain.requires_grad
+        with torch.no_grad():
+            quiet = streamed(hidden.clone().requires_grad_(True), index, weights)
+            want = module(hidden, index, weights)
+        assert quiet.grad_fn is None and not quiet.requires_grad
+        assert torch.equal(plain, want) and torch.equal(quiet, want)
+        assert reader.fetches == 2 * len(set(index.flatten().tolist()))
     finally:
         reader.close()
         pool.close()
