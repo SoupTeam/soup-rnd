@@ -30,6 +30,9 @@ def summarize_ram(samples, constraint, returncode):
     first = samples[0].get("events", {}).get("oom_kill")
     last = samples[-1].get("events", {}).get("oom_kill")
     oom_delta = last - first if first is not None and last is not None else None
+    host_first, host_last = samples[0].get("host_oom_kills"), samples[-1].get("host_oom_kills")
+    host_oom_delta = (host_last - host_first
+                      if host_first is not None and host_last is not None else None)
     swap_values = [row.get("swap_current") for row in samples]
     swap_peaks = [row.get("swap_peak") for row in samples]
     swap_known = all(value is not None for value in swap_values)
@@ -42,13 +45,15 @@ def summarize_ram(samples, constraint, returncode):
         stable = all(r.get("host_total") == constraint["hard_limit_bytes"]
                      and r.get("host_swap_total") == 0 for r in samples)
     passed = (stable and returncode == 0 and REQUIRED_PHASES.issubset(phases) and events_known
-              and (oom_delta in (0, None)) and swap_known and swap_peak == 0)
+              and (oom_delta in (0, None)) and host_oom_delta in (0, None)
+              and swap_known and swap_peak == 0)
     currents = [r["memory_current"] for r in samples if r.get("memory_current") is not None]
     peaks = [r["memory_peak"] for r in samples if r.get("memory_peak") is not None]
     return {"ram_32gib_constrained_pilot_passed": passed, "constraint": constraint,
             "returncode": returncode, "constraint_stable": stable,
             "observed_phases": phases, "samples": len(samples),
             "oom_kill_delta": oom_delta, "swap_peak_observed_bytes": swap_peak,
+            "host_oom_kill_delta": host_oom_delta,
             "max_sampled_cgroup_bytes": max(currents, default=None),
             "kernel_cgroup_peak_bytes": max(peaks, default=None),
             "max_sampled_process_rss_bytes": max(r["process_rss_bytes"] for r in samples),
@@ -155,6 +160,7 @@ def snapshot(phase_file, *, cgroup=None, proc=Path("/proc")):
             "swap_max": swap_max, "swap_current": swap,
             "swap_peak": swap_peak, "events": events, "memory_stat": memory_stat,
             "host_total": meminfo["MemTotal"], "host_swap_total": meminfo["SwapTotal"],
+            "host_oom_kills": counters(proc / "vmstat").get("oom_kill"),
             "host_swap_used": meminfo["SwapTotal"] - meminfo["SwapFree"],
             "processes": processes, "process_rss_bytes": sum(r["VmRSS"] for r in processes)}
 

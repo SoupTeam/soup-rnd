@@ -20,7 +20,9 @@ import logging
 import math
 import os
 import sys
+import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -2372,6 +2374,47 @@ def _refuse_deepseek_v3_hub_code(config: Any, trust_remote_code: bool) -> None:
     )
 
 
+_META_EXPERT_INIT_LOCK = threading.RLock()
+
+
+@contextmanager
+def _meta_fused_expert_initialization(config: Any) -> Iterator[None]:
+    """Avoid a giant temporary CPU allocation before accelerate registers it.
+
+    Native DeepSeek fused experts contain only parameters and an activation.
+    Keep their factories on meta, while normal model buffers retain their CPU
+    constructor values. Refuse a future expert constructor that adds buffers.
+    """
+    if getattr(config, "model_type", None) not in ("deepseek_v3", "kimi_k2"):
+        yield
+        return
+    import torch
+    from transformers.models.deepseek_v3 import modeling_deepseek_v3
+
+    expert_type = getattr(modeling_deepseek_v3, "DeepseekV3Experts", None)
+    if expert_type is None:  # Older transformers stores separate, small experts.
+        yield
+        return
+    owner = threading.get_ident()
+    with _META_EXPERT_INIT_LOCK:
+        original_init = expert_type.__init__
+
+        def meta_init(instance: Any, *args: Any, **kwargs: Any) -> None:
+            if threading.get_ident() != owner:
+                original_init(instance, *args, **kwargs)
+                return
+            with torch.device("meta"):
+                original_init(instance, *args, **kwargs)
+            if any(buf is not None for _name, buf in instance.named_buffers()):
+                raise ValueError("native fused expert constructor added unmaterialized buffers")
+
+        expert_type.__init__ = meta_init
+        try:
+            yield
+        finally:
+            expert_type.__init__ = original_init
+
+
 def build_meta_skeleton(
     model_id: str,
     *,
@@ -2380,7 +2423,11 @@ def build_meta_skeleton(
     double_quant: bool = True,
     trust_remote_code: bool = False,
 ):
-    """Build the model structure on ``meta``: no weight storage is allocated.
+    """Build meta parameters without materializing checkpoint values.
+
+    Native fused expert factories also stay on meta, avoiding a giant temporary
+    CPU reservation before accelerate redirects the registered parameter.
+    Ordinary model buffers retain their config-derived constructor values.
 
     Under ``quant='nf4'`` the decoder linears are replaced with
     ``bnb.nn.Linear4bit`` (still on ``meta``) so the streamed ``Params4bit``
@@ -2405,7 +2452,7 @@ def build_meta_skeleton(
     quant_config = None
     if quant == QUANT_NF4:
         quant_config = build_nf4_config(dtype, double_quant=double_quant)
-    with init_empty_weights():
+    with _meta_fused_expert_initialization(config), init_empty_weights():
         # Keep the model-construction spelling aligned with the load-site
         # compatibility guard in tests/test_transformers_floor_compat.py.
         model = AutoModelForCausalLM.from_config(

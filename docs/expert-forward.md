@@ -19,6 +19,11 @@ preflight currently requires a new single-disk NF4 cache without double quant.
 The default remains fused storage. Real giant results and limitations belong in
 [the B6 record](../benchmarks/b6-giant-moe-20261028.md).
 
+Meta construction keeps native fused expert factories on the meta device,
+avoiding a temporary giant CPU reservation before parameter registration.
+Normal model buffers keep their constructor values; a changed expert
+constructor that introduces buffers is refused instead of losing those values.
+
 ## Memory and ownership
 
 `plan_expert_buffer(reader, dtype=...)` computes a single weight slot independent

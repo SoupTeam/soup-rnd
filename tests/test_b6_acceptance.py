@@ -181,7 +181,7 @@ def test_v2_host_namespace_resolves_membership_instead_of_host_root(tmp_path):
 
 
 @pytest.mark.parametrize("defect", [
-    "oom", "swap", "missing_phase", "failure", "limit_changed", "none",
+    "oom", "host_oom", "swap", "missing_phase", "failure", "limit_changed", "none",
 ])
 def test_ram_fit_is_not_claimed_after_failed_or_incomplete_run(defect):
     from benchmarks.harness.b6_ram import summarize_ram
@@ -194,6 +194,9 @@ def test_ram_fit_is_not_claimed_after_failed_or_incomplete_run(defect):
     code = 0
     if defect == "oom":
         samples[-1]["events"]["oom_kill"] = 1
+    elif defect == "host_oom":
+        samples[0]["host_oom_kills"] = 0
+        samples[-1]["host_oom_kills"] = 1
     elif defect == "swap":
         samples[-1]["swap_peak"] = 1
     elif defect == "missing_phase":
