@@ -1,0 +1,269 @@
+{
+  "kind": "admission",
+  "protocol": "a3-admission-v1",
+  "inputs": {
+    "plan": {
+      "n_layers": 32,
+      "k": 4,
+      "slot_bytes": 4194304,
+      "chunk_bytes": 4194304,
+      "pin": true,
+      "file": "<box>/step0/a3-prep.json",
+      "sha256": "babb86e510a31bafc59c5f134ceebab62031772ffb4014af654f0b1f2bec04a9"
+    },
+    "a": {
+      "value_s": 1.5577909859999863,
+      "timed_step_s": [
+        1.5447757839999667,
+        1.884153543000025,
+        1.5797933650000004,
+        1.5577909859999863,
+        1.5511607989999447
+      ],
+      "k": 4,
+      "slot_bytes": 4194304,
+      "file": "<box>/step0/a3-demand-A.json",
+      "sha256": "9fa101497e2217c3c9c207eac820e5b3c8f47a06866c5f168f1978e6b6565cd2",
+      "gpu": "NVIDIA GeForce RTX 4090"
+    }
+  },
+  "schedule": {
+    "spill_layers": 16,
+    "k": 4,
+    "slot_bytes": 4194304,
+    "cycle_bytes": 268435456,
+    "volume": {
+      "formula": "cycle_bytes x (7 steps x 2 B arms x 12 blocks + 3 steps x 4 arms ['l2l_spill', 'sigint', 'kill9', 'kill9_next'])",
+      "cost_cycles": 168,
+      "other_cycles": 12,
+      "bytes": 48318382080
+    },
+    "demand_bytes_per_s": 172318018.53551254,
+    "period_s": 0.7788954929999932,
+    "n_cycles": 180,
+    "duration_s": 140.20118873999877,
+    "margin": 2.0,
+    "min_cycles": 20,
+    "formulas": {
+      "cycle_bytes": "spill_layers x k x slot_bytes",
+      "demand_bytes_per_s": "cycle_bytes / A.value",
+      "volume_bytes": "cycle_bytes x (7 steps x 2 B arms x 12 blocks + 3 steps x 4 arms ['l2l_spill', 'sigint', 'kill9', 'kill9_next'])",
+      "period_s": "cycle_bytes / (2 x D)",
+      "n_cycles": "max(20, ceil(V / cycle_bytes))",
+      "duration_s": "n_cycles x period_s"
+    }
+  },
+  "max_lateness_limit_s": 5.0,
+  "judgement": {
+    "admitted": true,
+    "limit_s": 5.0,
+    "max_lateness_s": 0.034849073000941644,
+    "late_cycles": 0,
+    "first_late_cycle": null,
+    "problems": []
+  },
+  "cycles": 180,
+  "scheduled_cycles": 180,
+  "bytes": {
+    "write": 48318382080,
+    "read": 48318382080
+  },
+  "elapsed_s": 139.64602681799988,
+  "wall_gb_per_s": {
+    "write": 0.3460061355198681,
+    "read": 0.3460061355198681
+  },
+  "mismatched_chunks": 0,
+  "chunks_read": 11520,
+  "file_bytes": 268435456,
+  "left_behind": false,
+  "description_only": {
+    "windows": [
+      {
+        "index": 0,
+        "t0": 0.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 2.387138088001848,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0581816019995358,
+        "write_gb_per_s": 1.4618596827471417,
+        "read_gb_per_s": 3.297790210495014
+      },
+      {
+        "index": 1,
+        "t0": 10.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 2.310046789000694,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0436139770008594,
+        "write_gb_per_s": 1.5106451283220963,
+        "read_gb_per_s": 3.343823487328712
+      },
+      {
+        "index": 2,
+        "t0": 20.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 1.9699235310021095,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0972675760008315,
+        "write_gb_per_s": 1.7714702490125558,
+        "read_gb_per_s": 3.180319007254941
+      },
+      {
+        "index": 3,
+        "t0": 30.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 1.7798776619996488,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0685031580007944,
+        "write_gb_per_s": 1.9606184191780078,
+        "read_gb_per_s": 3.265934126511403
+      },
+      {
+        "index": 4,
+        "t0": 40.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 2.4946950389997937,
+        "read_bytes": 3372348468.7903514,
+        "read_busy_s": 1.0085459530010894,
+        "write_gb_per_s": 1.3988326723089655,
+        "read_gb_per_s": 3.343772744073178
+      },
+      {
+        "index": 5,
+        "t0": 50.0,
+        "write_bytes": 3290559950.08207,
+        "write_busy_s": 1.9520567530005337,
+        "read_bytes": 3338537931.209648,
+        "read_busy_s": 1.0085136059981323,
+        "write_gb_per_s": 1.6856886691558042,
+        "read_gb_per_s": 3.3103548740975843
+      },
+      {
+        "index": 6,
+        "t0": 60.0,
+        "write_bytes": 3420326449.9179306,
+        "write_busy_s": 2.2765536159995463,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0812263390005228,
+        "write_gb_per_s": 1.5024141869007543,
+        "read_gb_per_s": 3.2275026995973994
+      },
+      {
+        "index": 7,
+        "t0": 70.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 2.304584244997841,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0606794709963197,
+        "write_gb_per_s": 1.5142258025821353,
+        "read_gb_per_s": 3.290024011421739
+      },
+      {
+        "index": 8,
+        "t0": 80.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 1.8001298270005464,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.1068088050005827,
+        "write_gb_per_s": 1.9385606947109049,
+        "read_gb_per_s": 3.1529031141003285
+      },
+      {
+        "index": 9,
+        "t0": 90.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 1.792851040002688,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0925914350032144,
+        "write_gb_per_s": 1.9464310476093807,
+        "read_gb_per_s": 3.1939303349835733
+      },
+      {
+        "index": 10,
+        "t0": 100.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 1.709818845000882,
+        "read_bytes": 3400041139.429528,
+        "read_busy_s": 1.0688918939968062,
+        "write_gb_per_s": 2.0409536005542153,
+        "read_gb_per_s": 3.180902726014767
+      },
+      {
+        "index": 11,
+        "t0": 110.0,
+        "write_bytes": 3350856799.7674623,
+        "write_busy_s": 1.419474284003627,
+        "read_bytes": 3310845260.570472,
+        "read_busy_s": 1.0371566790036013,
+        "write_gb_per_s": 2.3606322689526795,
+        "read_gb_per_s": 3.1922325021820313
+      },
+      {
+        "index": 12,
+        "t0": 120.0,
+        "write_bytes": 3360029600.2325377,
+        "write_busy_s": 1.988478064998617,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0557582720036862,
+        "write_gb_per_s": 1.689749391444695,
+        "read_gb_per_s": 3.3053597784056157
+      },
+      {
+        "index": 13,
+        "t0": 130.0,
+        "write_bytes": 3489660928.0,
+        "write_busy_s": 2.033144456001537,
+        "read_bytes": 3489660928.0,
+        "read_busy_s": 1.0173960970003009,
+        "write_gb_per_s": 1.716386121851325,
+        "read_gb_per_s": 3.429992446687131
+      }
+    ],
+    "stability": {
+      "description_only": true,
+      "fraction": 0.5,
+      "write": {
+        "median_gb_per_s": 1.70306775664801,
+        "min_gb_per_s": 1.3988326723089655,
+        "max_gb_per_s": 2.3606322689526795,
+        "low": []
+      },
+      "read": {
+        "median_gb_per_s": 3.277979068966571,
+        "min_gb_per_s": 3.1529031141003285,
+        "max_gb_per_s": 3.429992446687131,
+        "low": []
+      }
+    },
+    "zero_fill_bytes": 268435456
+  },
+  "admitted": true,
+  "reason": "admitted",
+  "volume": {
+    "path": "<box>/spill/admission",
+    "platform": "linux",
+    "mount_point": "/",
+    "fstype": "ext4",
+    "source": "/dev/vda1",
+    "drive": {
+      "device": "vda",
+      "model": null,
+      "vendor": "0x1af4",
+      "rotational": "1",
+      "logical_block_size": "512"
+    },
+    "total_bytes": 135084687360,
+    "free_bytes": 101198200832,
+    "scope": "local",
+    "scope_reason": "ext4 on an unnamed drive",
+    "direct_io": true,
+    "direct_io_reason": "aligned 1 MiB unbuffered write and read returned the same bytes",
+    "refusals": [],
+    "ok": true
+  },
+  "started_unix": 1793219256.509425,
+  "ended_unix": 1793219396.681758,
+  "per_second_log": "<box>/admission/admission-per-second.csv",
+  "cycle_log": "<box>/admission/admission-cycles.csv"
+}

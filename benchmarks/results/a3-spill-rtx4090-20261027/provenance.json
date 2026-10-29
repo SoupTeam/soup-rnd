@@ -1,0 +1,84 @@
+{
+ "session": "a3-spill-01 (A3 stage 2, machine 1)",
+ "path_placeholders": {
+  "<work>": "/root/a3/soup-rnd",
+  "<box>": "/root/a3"
+ },
+ "files": [
+  {
+   "file": "protocol.json",
+   "raw_sha256": "fc5ae4b85e8044a6b67f2dc88a48007797b52fbd7f405911dcb680c4ea4611de",
+   "published_sha256": "1aa5d291f63ce8778e76914f84ed472a2bc03535f923d879c1299fdc81aba66a"
+  },
+  {
+   "file": "calibration.json",
+   "raw_sha256": "00b2e6384f07032b0763e942754f5d9b285540a804841dd01573dd8cbf0b7aff",
+   "published_sha256": "254b60ea08c2d4ca7786437890ad4e51084505ce5a6402efdb76f17f1202c36e"
+  },
+  {
+   "file": "session.json",
+   "raw_sha256": "ad229080407a8a366acd792e52b841bc0fbf282dd8c52559dd8bd7e06981f4ea",
+   "published_sha256": "edd2bdc9034d5045a509eba6d8f9d6590133333684200edffedf0a83383ba938"
+  },
+  {
+   "file": "verdict.json",
+   "raw_sha256": "41bca8d83da3a46e6c687ccbf8ba766895b4f563478674858602bff9a11f1473",
+   "published_sha256": "41bca8d83da3a46e6c687ccbf8ba766895b4f563478674858602bff9a11f1473"
+  },
+  {
+   "file": "markers/calibration.json",
+   "raw_sha256": "c35ab916667870bfd2ced4beab6ac4e099516b01735d591534fd05b5ce65738f",
+   "published_sha256": "c35ab916667870bfd2ced4beab6ac4e099516b01735d591534fd05b5ce65738f"
+  },
+  {
+   "file": "markers/calibration_check_1.json",
+   "raw_sha256": "047831d99f773f7be745f58a203f985053301dc306ba1421c59f235ed58dba79",
+   "published_sha256": "047831d99f773f7be745f58a203f985053301dc306ba1421c59f235ed58dba79"
+  },
+  {
+   "file": "step0/a3-prep.json",
+   "raw_sha256": "3c05ebcb6500d68963ddc1c73580672eaa4151c3c01f79ed89df1b3ce42f5cba",
+   "published_sha256": "2be67c1de649a797873490677d1f8620fbafaec48d96999950f12c4a142b1336"
+  },
+  {
+   "file": "step0/a3-demand-A.json",
+   "raw_sha256": "ff0849859c7213360f8e3f78bb863cd3a3a805e511771307a0b475903e03ac53",
+   "published_sha256": "edc721ae94e11ae486a08052520edcefe78ae7f4ae1059675d5b0d0098f22497"
+  },
+  {
+   "file": "admission/admission.json",
+   "raw_sha256": "d26a81112ff6db35eb00f6e10d4d68538cccb4adef2be8dd69413da68ffbd7d6",
+   "published_sha256": "24e597ae0fac48a3128cc156bd47b7faf014bb5404cce2ca260b23712c5fdd0b"
+  },
+  {
+   "file": "admission/admission-cycles.csv",
+   "raw_sha256": "036d9c99a3762840a55165dc0d6e13020dd4dc19db171ed6354ea812869d2b74",
+   "published_sha256": "036d9c99a3762840a55165dc0d6e13020dd4dc19db171ed6354ea812869d2b74"
+  },
+  {
+   "file": "admission/admission-per-second.csv",
+   "raw_sha256": "7986f74d9550da3b9ca8a23ce4bb03b435f85043226e0556e5d87fd971f2bc35",
+   "published_sha256": "7986f74d9550da3b9ca8a23ce4bb03b435f85043226e0556e5d87fd971f2bc35"
+  },
+  {
+   "file": "admission/cgroup-readback.txt",
+   "raw_sha256": "522275ff6042f6cec9f03ab1040d208dfc01318b3094239ee79b36ee24e49be9",
+   "published_sha256": "522275ff6042f6cec9f03ab1040d208dfc01318b3094239ee79b36ee24e49be9"
+  },
+  {
+   "file": "admission/cuda.txt",
+   "raw_sha256": "a05a0d824efd8001af08166395aa326ab45075f5522a61f4f3843eef8aa30a75",
+   "published_sha256": "a05a0d824efd8001af08166395aa326ab45075f5522a61f4f3843eef8aa30a75"
+  }
+ ],
+ "measured_commit": "bda4a00ade7d9ef9c358118fc88ecacd483bb68c (criteria 2a05e15f, admission 794c6827; a3_spill_rule.py rule v1)",
+ "verdict_rule": "a3-spill-gpu-check-v1 (a3_spill_rule.py at bda4a00a); verdict.json is that rule's output, unchanged",
+ "archive": "m1-final.tar sha256 7e89dd21ab612501ec9f983e4dac7f0d15ba11073176a0da701babe2a58a1a42 (51 entries, kept outside the repository with the logs and the kernel journal)",
+ "kernel_journal": "runlog/kernel-journal.txt sha256 e70aa292079629eed727ca8163180a2e149b20be8850b92936d8361e48bffc4c (not published; the OOM lines are quoted in README.md)",
+ "not_published": [
+  "logs/ (child stdout/stderr)",
+  "runlog/ (setup, tests, kernel journal)",
+  "guard/ (deleter)",
+  "rental tooling"
+ ]
+}

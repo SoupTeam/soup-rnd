@@ -721,6 +721,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
 
         from soup_cli.trainer.l2l_trainer import (
             attach_l2l_state,
+            longest_row,
             make_l2l_trainer_class,
             refuse_unsupported_l2l,
         )
@@ -731,10 +732,20 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             base.config, n_gpu=int(training_args.n_gpu), fp16=bool(training_args.fp16)
         )
         trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
+        # The activation store is sized for the longest window this dataset can produce:
+        # SFTTrainer has tokenized and truncated it to data.max_length already, so a dataset
+        # of short rows does not pay for max_length tokens per chunk.
+        max_seq = self.config.data.max_length
+        longest = longest_row(trainer.train_dataset)
+        if longest is not None:
+            max_seq = min(max_seq, longest)
         attach_l2l_state(
             trainer,
             self._stream_runtime,
             dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
+            spill_dir=self.config.training.l2l_spill_dir,
+            weight_dirs=self._stream_weight_dirs,
+            max_seq=max_seq,
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "

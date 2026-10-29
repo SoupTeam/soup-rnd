@@ -339,15 +339,28 @@ def sched():
     return _load("l2l_schedule")
 
 
+def hermetic_ram(monkeypatch, tmp_path, free=10**12):
+    """The L2L trainer's RAM budget sees ``free`` bytes of free RAM and no cgroup limit, so a
+    test does not depend on the host's free memory (the budget keeps a 512 MiB reserve)."""
+    from soup_cli.utils import l2l_spill
+
+    empty = tmp_path / "no-cgroup"
+    empty.mkdir(exist_ok=True)
+    for name in ("PROC_ROOT", "CGROUP_V2_ROOT", "CGROUP_V1_ROOT"):
+        monkeypatch.setattr(l2l_spill, name, str(empty))
+    monkeypatch.setattr("soup_cli.utils.layer_stream.free_ram_bytes", lambda: free)
+
+
 @pytest.fixture()
-def streamed(tmp_path):
+def streamed(tmp_path, monkeypatch):
     """A tiny untied Llama through shard_checkpoint + build_streamed_model on CPU.
 
     Untied, so the embed/head share the streamed large slot exactly as the 70B
     fixture's do; three layers, so the zig-zag turnaround and the backward
-    prefetch both run.
+    prefetch both run. The activations always fit the L2L budget (``hermetic_ram``).
     """
     model, runtime = build_streamed(tmp_path)
+    hermetic_ram(monkeypatch, tmp_path)
     yield model, runtime
     runtime.close()
 

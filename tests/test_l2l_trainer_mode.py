@@ -240,11 +240,12 @@ def test_neftune_noise_sequence_is_the_one_accumulation_draws(streamed, tmp_path
 
 
 @pytest.fixture()
-def dropout_model(tmp_path):
+def dropout_model(tmp_path, monkeypatch):
     """The ``streamed`` model with ``lora.dropout`` 0.05, closed after the test."""
-    from tests.test_l2l_probe_harness import build_streamed
+    from tests.test_l2l_probe_harness import build_streamed, hermetic_ram
 
     model, runtime = build_streamed(tmp_path, lora_dropout=0.05)
+    hermetic_ram(monkeypatch, tmp_path)
     yield model, runtime
     runtime.close()
 
@@ -401,26 +402,29 @@ def test_activation_store_is_refused_before_it_is_allocated(streamed, tmp_path, 
         _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)
 
 
-def test_activation_budget_accepts_what_fits_and_skips_without_psutil():
-    from soup_cli.trainer.l2l_trainer import check_activation_budget
+def test_activation_plan_keeps_what_fits_and_spills_nothing_without_a_budget():
+    from soup_cli.utils.l2l_spill import SpillRefusedError, plan_spill
 
-    kw = dict(n_layers=2, k=3, chunk_bytes=100, pinned=False)
-    check_activation_budget(free_ram=1000, **kw)
-    check_activation_budget(free_ram=None, **{**kw, "chunk_bytes": 10**15})
-    with pytest.raises(ValueError, match="activation"):
-        check_activation_budget(free_ram=1000, **{**kw, "k": 4, "chunk_bytes": 100})
+    kw = dict(n_layers=2, k=3, chunk_bytes=100, pin=False)
+    assert plan_spill(700, **kw).spill_layers == 0
+    assert plan_spill(None, **{**kw, "chunk_bytes": 10**15}).spill_layers == 0
+    # 2 x 4 x 100 bytes do not fit 700, and neither do the staging rings of a spill
+    with pytest.raises(SpillRefusedError, match="activation"):
+        plan_spill(700, **{**kw, "k": 4})
 
 
-def test_activation_budget_charges_pinned_chunks_at_the_next_power_of_two():
-    from soup_cli.trainer.l2l_trainer import check_activation_budget
+def test_activation_plan_charges_pinned_chunks_at_the_next_power_of_two():
+    from soup_cli.utils.l2l_spill import plan_spill
 
     mib, gib = 2**20, 2**30
     # bf16, 80 layers, hidden 8192, seq 1088, k=16: a 17 MiB chunk occupies a 32 MiB
     # pinned block, so the store needs 40 GiB, not the 21.25 GiB of its logical bytes.
-    kw = dict(free_ram=32 * gib, n_layers=80, k=16, chunk_bytes=17 * mib)
-    check_activation_budget(pinned=False, **kw)
-    with pytest.raises(ValueError, match="pinned"):
-        check_activation_budget(pinned=True, **kw)
+    kw = dict(n_layers=80, k=16, chunk_bytes=17 * mib)
+    budget = int(32 * gib * 0.7)
+    assert plan_spill(budget, pin=False, **kw).spill_layers == 0
+    pinned = plan_spill(budget, pin=True, **kw)
+    assert pinned.all_resident_bytes == 40 * gib
+    assert pinned.spill_layers > 0
 
 
 def test_neftune_with_mixed_length_windows_is_refused(streamed, tmp_path):  # noqa: F811
@@ -505,12 +509,14 @@ def test_without_attached_state_the_subclass_is_the_base_trainer(streamed, tmp_p
 # --------------------------------------------------------------------------
 # the production path: SFTTrainerWrapper -> TRL SFTTrainer
 # --------------------------------------------------------------------------
-def _wrapper(tmp_path, monkeypatch, **training):
+def _wrapper(tmp_path, monkeypatch, *, max_length=64, prompts=None, **training):
     from soup_cli.trainer.sft import SFTTrainerWrapper
+    from tests.test_l2l_probe_harness import hermetic_ram
     from tests.test_v07201 import _tiny_llama_dir, _write_tiny_tokenizer
 
     weights = _tiny_llama_dir(tmp_path, n_layers=2)
     _write_tiny_tokenizer(weights)
+    hermetic_ram(monkeypatch, tmp_path)
     monkeypatch.setenv("SOUP_LAYER_STREAM_CACHE_DIR", str(tmp_path / "cache"))
     # HF picks mps on an Apple GPU box while the streamed model sits on cpu
     monkeypatch.setenv("ACCELERATE_USE_CPU", "true")
@@ -535,7 +541,9 @@ def _wrapper(tmp_path, monkeypatch, **training):
                 "task": "sft",
                 "backend": "transformers",
                 "modality": "text",
-                "data": {"train": "train.jsonl", "max_length": 64, "chat_template": "chatml"},
+                "data": {
+                    "train": "train.jsonl", "max_length": max_length, "chat_template": "chatml"
+                },
                 "training": fields,
                 "output": str(tmp_path / "out"),
             }
@@ -545,11 +553,11 @@ def _wrapper(tmp_path, monkeypatch, **training):
         "train": [
             {
                 "messages": [
-                    {"role": "user", "content": "hi" * (i + 1)},
+                    {"role": "user", "content": prompts[i] if prompts else "hi" * (i + 1)},
                     {"role": "assistant", "content": "hello world"},
                 ]
             }
-            for i in range(4)
+            for i in range(len(prompts) if prompts else 4)
         ]
     }
     wrapper = SFTTrainerWrapper(cfg, device="cpu")
@@ -581,3 +589,59 @@ def test_sft_wrapper_refuses_an_unsupported_model_at_launch(tmp_path, monkeypatc
     monkeypatch.setattr(l2l_trainer, "refuse_unsupported_l2l", refuse)
     with pytest.raises(ValueError, match="qwen2"):
         _wrapper(tmp_path, monkeypatch)
+
+
+# --------------------------------------------------------------------------
+# the store is sized to the longest tokenized row, not to data.max_length
+# --------------------------------------------------------------------------
+def test_longest_row_reads_the_arrow_table_and_skips_what_it_cannot_read():
+    from datasets import Dataset, IterableDataset
+
+    from soup_cli.trainer.l2l_trainer import longest_row
+
+    rows = {"input_ids": [[1] * 5, [1] * 97, [1] * 12]}
+    data = Dataset.from_dict(rows)
+    assert longest_row(data) == 97
+    # an upper bound after select/shuffle: the table under the view still holds the 97
+    assert longest_row(data.select([0, 2]).shuffle(seed=1)) in (12, 97)
+    assert longest_row(Dataset.from_dict({"text": ["a", "b"]})) is None
+    streaming = IterableDataset.from_generator(lambda: iter([{"input_ids": [1, 2]}]))
+    assert longest_row(streaming) is None
+    assert longest_row([{"input_ids": [1, 2, 3]}]) is None
+
+
+def _store_seq(wrapper):
+    """The sequence length of the activation store the wrapper's trainer builds."""
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import _l2l_step_for, _store_for
+
+    state = wrapper.trainer._soup_l2l
+    ids = torch.zeros((1, 8), dtype=torch.long)
+    stepper = _l2l_step_for(state, wrapper.model, (1, 8), ids)
+    try:
+        return _store_for(state, stepper, (1, 8), 1, "cpu").shape[1], state.max_seq
+    finally:
+        state.close()
+
+
+def test_short_rows_get_a_store_for_their_length_not_max_length(tmp_path, monkeypatch):
+    from soup_cli.trainer.l2l_trainer import longest_row
+
+    # chatml adds 16 tokens around the words: the longest row is 96 tokens
+    prompts = [" ".join(["hello"] * n) for n in (3, 40, 80, 7)]
+    wrapper = _wrapper(tmp_path, monkeypatch, max_length=2048, prompts=prompts)
+    longest = longest_row(wrapper.trainer.train_dataset)
+    assert longest is not None and 80 < longest <= 100
+    seq, max_seq = _store_seq(wrapper)
+    assert max_seq == longest
+    assert seq == 128  # rounded up to SHAPE_ROUND, far below 2048
+
+
+def test_without_a_readable_length_the_store_falls_back_to_max_length(tmp_path, monkeypatch):
+    from soup_cli.trainer import l2l_trainer
+
+    # an iterable dataset, or anything else longest_row cannot read, reports None
+    monkeypatch.setattr(l2l_trainer, "longest_row", lambda dataset: None)
+    wrapper = _wrapper(tmp_path, monkeypatch, max_length=256, prompts=["hello world"] * 4)
+    assert _store_seq(wrapper) == (256, 256)

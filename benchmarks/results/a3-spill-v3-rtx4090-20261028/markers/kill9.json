@@ -1,0 +1,59 @@
+{
+ "arm": "kill9",
+ "device": "cuda",
+ "expected_memory_max": 6409945088,
+ "cgroup_start": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-kill9.scope",
+  "memory_max": 6409945088,
+  "swap_max": 0,
+  "current": 17022976,
+  "peak": 17022976,
+  "inactive_file": 0,
+  "stat": {
+   "anon": 16740352,
+   "shmem": 0,
+   "file_dirty": 0,
+   "file_writeback": 0,
+   "inactive_file": 0,
+   "active_file": 0,
+   "slab_reclaimable": 1840
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 17022976,
+  "anon_shmem": 16740352,
+  "unreclaimable": 17021136
+ },
+ "pid": 4434,
+ "unix": 1793219737.7499433,
+ "calls": 5,
+ "steps_done": 1,
+ "spill_path": "<box>/spill/kill9/soup-l2l-spill-4434-609a4d2b.bin",
+ "in_step": true,
+ "phase": "hold",
+ "hold": {
+  "layer": 12,
+  "micro_batch": 0,
+  "pass": "backward",
+  "spill_layers": 13,
+  "unix": 1793219737.7496157,
+  "store_io": {
+   "bytes_written": 436207616,
+   "bytes_read": 234881024
+  }
+ },
+ "sigint": {
+  "pending": false,
+  "blocked": false,
+  "ignored": false,
+  "caught": true,
+  "state": "R (running)"
+ }
+}

@@ -1,0 +1,7203 @@
+{
+ "arm": "calibration",
+ "kind": "calibrate",
+ "l2l": true,
+ "sdpa": "MATH",
+ "argv": [
+  "<work>/.venv/bin/python",
+  "benchmarks/harness/a3_spill_stand.py",
+  "child",
+  "--arm",
+  "calibration",
+  "--weights",
+  ".soup/models/mistral-7b",
+  "--shards",
+  ".soup/f1-nf4",
+  "--spill-dir",
+  "<box>/spill/prep",
+  "--out",
+  "<box>/step0/a3-prep.json"
+ ],
+ "device": "cuda",
+ "expected_memory_max": null,
+ "pid": 3070,
+ "k": 4,
+ "seq": 512,
+ "spill_dir": "<box>/spill/prep",
+ "started_unix": 1793219119.9696193,
+ "cgroup_start": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/user.slice/user-0.slice/session-12.scope",
+  "memory_max": "max",
+  "swap_max": "max",
+  "current": 20983808,
+  "peak": 20983808,
+  "inactive_file": 8192,
+  "stat": {
+   "anon": 17776640,
+   "shmem": 4096,
+   "file_dirty": 4096,
+   "file_writeback": 0,
+   "inactive_file": 8192,
+   "active_file": 0,
+   "slab_reclaimable": 6304
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 20975616,
+  "anon_shmem": 17780736,
+  "unreclaimable": 20973408
+ },
+ "exit": "normal",
+ "sigint_handling": {
+  "inherited": {
+   "handler": "SIG_IGN",
+   "proc": {
+    "pending": false,
+    "blocked": false,
+    "ignored": true,
+    "caught": false,
+    "state": "R (running)"
+   }
+  },
+  "installed": {
+   "handler": "default_int_handler",
+   "proc": {
+    "pending": false,
+    "blocked": false,
+    "ignored": false,
+    "caught": true,
+    "state": "R (running)"
+   }
+  }
+ },
+ "deterministic": {
+  "CUBLAS_WORKSPACE_CONFIG": ":4096:8",
+  "algorithms": true,
+  "warn_only": false,
+  "sdpa": "MATH"
+ },
+ "env": {
+  "packages": {
+   "torch": "2.14.1+cu130",
+   "transformers": "5.19.0",
+   "peft": "0.21.2",
+   "trl": null,
+   "accelerate": "1.15.0",
+   "bitsandbytes": "0.50.2",
+   "numpy": "2.4.6",
+   "psutil": "7.2.2"
+  },
+  "python": "3.12.16",
+  "platform": "Linux-6.8.0-59-generic-x86_64-with-glibc2.35",
+  "gpu_facts": {
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "torch": "2.14.1+cu130",
+   "vram_total_gb": 25.251,
+   "soup_cli_file": "<work>/src/soup_cli/__init__.py",
+   "driver": "580.95.05",
+   "pcie_gen": "4",
+   "pcie_width": "16"
+  }
+ },
+ "dtype": "bfloat16",
+ "build_seconds": 24.577579333000017,
+ "shard_dir": ".soup/f1-nf4",
+ "cgroup_after_build": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/user.slice/user-0.slice/session-12.scope",
+  "memory_max": "max",
+  "swap_max": "max",
+  "current": 9612005376,
+  "peak": 9613455360,
+  "inactive_file": 4138049536,
+  "stat": {
+   "anon": 1010991104,
+   "shmem": 4311748608,
+   "file_dirty": 12288,
+   "file_writeback": 0,
+   "inactive_file": 4138049536,
+   "active_file": 0,
+   "slab_reclaimable": 132665248
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 5473955840,
+  "anon_shmem": 5322739712,
+  "unreclaimable": 5341302880
+ },
+ "rows": {
+  "count": 4,
+  "lengths": [
+   512,
+   512,
+   512,
+   512
+  ],
+  "row_sha256": [
+   "0d3892f90193f200e56c434b8d256516ba21f813888f1cd3656251b44dfe1c1f",
+   "31dd2a38ab0ff3d0be2df8369f52de707d1b11808969fd93911f91d8e1c6b93f",
+   "cb8064255265297227eca392f7d039bbc5b9e6c8333ebf394fa342690d7d0a07",
+   "40caf656602e44e66175751b637ba63a3621df19474817ce983d5b0020707bfc"
+  ]
+ },
+ "expected_steps": 1,
+ "logs": [
+  {
+   "loss": 12.887847900390625,
+   "grad_norm": 104.80770874023438,
+   "learning_rate": 0.0,
+   "l2l_steps": 1,
+   "l2l_layer_loads": 62,
+   "l2l_large_loads": 3,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 0,
+   "epoch": 1.0,
+   "step": 1
+  }
+ ],
+ "rates": [
+  0.0
+ ],
+ "grads": [
+  {
+   "base_model.model.model.layers.0.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "368a1f8b99f8acf322e43cb859240fb74632b3529eec38b6a29c69899ebb540e",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.0.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "dd18b8739efe3ed413aec40c2c999c610c5b8d3f67051f6b4870f95ecc0f8960",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.0.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "cd924f0c15d35e00511a1426b87624c63fcc6a6d4dd5fe14acc6da03b06036ed",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.0.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "6052222dc0ac2145d3a8b2bcd3562c89b0a2a768302083ea90c9779e147c25f7",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "995287ff3a9b9fce62b94d077e92f0e9c349622009c4bd31091f7a4f8bddeff7",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "d476df0decc2317b1da7442623078f6adc437a716706aef84b4834e93497a039",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "3ff18fb8484ce2b87ba75a28cc056ad28086d94b72676f49c12c69ec11f1d417",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "0709c92f680addf7a9b76a82f55092087f91e943c2c075039842397993e4235f",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "a37cb3814885fedd1ca6cb20a57a59e5505643d19d0cae771042a3fd2ef379a1",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "ee937ea3684149422eab77878dc0e96a3503b9763a6d7971203af4053c367684",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "9d284f5d59683d4e1fa6c24accce2511cf10188c3434860a16e2623cd8c0c475",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "65128d1f06fca203cb49547b1ab30f3dab23a0f737d3502939f41eed12c37491",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "e718891197eb0a33de48369afa640b5222c6a05f14a6535a78100e670d0e9da0",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "865ddf881a0273e8ef3c6363fc025b798148608a1610a3b8682a9b50e516b684",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "0d83a7afc5095042cced89962e27a01931403c85319972ade6c574dedbbb3090",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "490173959eb33f13bde675e9b57027ecbaa92e05ec7936a4b78a7023c9612e69",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "c25242912323eea93d304a3bc3695e7da81f95c1d0f5ab9a3ef46efc4287163b",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "5f163065d8ce98c455eb535b58fc6fd70fdd174d9d088483ea9b3f6cbba46786",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "7424dd54f69f86939c656c90ae6a8eb2a54c1b86ccc8da74a3f7bd454dcf2301",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "82c27f3597a5a8bd642be568ddab07258f3c8af10b3721456c0fbf6e75fda2d0",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "70608765b1c3cfd3783383c6184ac6b093b7f4a6c2392b13455bcac62b0c988c",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "c0809bf6c80d0ff7b7b3cd81a4e83e45ef31aac634d2dc046cbb2130d11d5968",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "9fdd5a3c2ada50ec1a978483f367aa3508c28dc681403a940654cca0bf956661",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.10.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "71cb0b8b1ad339ea691a88e3c60029ce48b7acc400152f3943de6a16deee1c91",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "86c41038bfa6c5038477d30a8cf2d3d1061584e7422634eb3ab2c4afb9915523",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "dd5030f1bae2d05e219861ea58ea3d24a356bef117a476123b435fd639c0a276",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "b43c29278d98a71cd76ea9f263af3792cd1f18d73195e0194d4d14d1c7575c0d",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "712e8362d3c0d8e05fecd2e554c84bf184e3d66b8b178362006e86b01dc85c73",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "96f46e8ca9515b72ed4689e053421bd45c1467d716c572a2cdec0af33c9939ca",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "d9629495d5dffab78dbd3c8e40f0d03a129f020b47e7e40406f9b81fca646d47",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "d53d6cdba37b545d1a9ae999aefb0f6ab3d7a9084015db3c91ab18b79af9ef2a",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.11.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "aa0495262e7da58e79efbcc07ae4e9fd1a92331f3b1ffd532e35a255ff8ea6d8",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "130ae50f124c3fd8e6485c27a8cb23de4ace0e92ef6a1076e31ec2c7aa7cccc0",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "b138d82725066565a71ad48f1202d56c1e6670f87c1db68ce85565c0cdb1f312",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "97b714aebacf80ce61a0c857d40fcaad6f273433718333c5e35e0219f6ecbac7",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "1ba6ec98bcba0c3eb4ac562b86505664a7594b9f9799e792b927a0c6494b88c6",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "744fefdeb8e9c26a8e7c2e2acb78c8fb268446ad587b8a7047109d7d0ca175f7",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "10f207f5163f2a4a370c2d1158e65de243eeb70fc5d4af49ca81d14ada127433",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "c56cb0f134ad11c1e541b71359786286377fbc4ae45702a294b75abe4861cb15",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.12.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "7a4f9f49071c88f748d4a070ac6415c3f80aca8fc3aa2f0a3a642e9d30ea76a8",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "f45abe2d1e7a12720f78904ff1fc8b0cc43917a875f4eb7b3a3ab4188354c449",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "c04ff182972cb3e98f551abf1de9db2ca750db705a4bd52f7fe77a40660c6045",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "dacebe822ce887af18921289b9cce20580a26e9197c2fb6c94a7b2c9981d6128",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "ed2f6540d3379dab59e78e78693ab93233c7f0d901ad36b700e825a1477f7295",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "4c07c0181456bfa115ffe31480e684be221dc9456d5939cffb1bca25e8ccfbc7",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "e477f5e30435abca84844d2c24dfaa3a2a510ce388971a58e30e3578bcf49407",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "fd20091ff47b72189a12bc9709e756c1fdf797c0db3ecb605a6f78953252fe82",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.13.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "8311a69e3ff59bb3d82252eb1ac76170cbe5dcc18d16e987ff9ab4105112f776",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "8ee96da1c3756e6f690c28967170eddde53ebf17149e6f9b39a8d1c254e55516",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "068a28864034870d401345985f45f89abfd39dca2a8f77b74061c4e99c1b8d27",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "23208f51d4e2b530b3920bd26cc12e7829ece2a25912651e259bd097ae703a3a",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "95b63d9bf389f23dc90e28a95e12183aa2307597a08a456f8c691503b128aac4",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "590f0d79b1b9bf4d796f7cb71ce16fb9b80bddf392958efdb87c157075ffbf5b",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "aefd60948224340b5748e20403078bae32ba12e5ea183923ccff6d95788f68f8",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "c5a5b98ad129c56fc9f6d377799d02b7272163dd89c38da40e5806460e0d1feb",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.14.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "917c39411cfbf0cd0e99724078ad99db0d96789566850b2e3445b8372d6840e6",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "3fb6ab5434093ecf2619ce86b48e144b728b5ead9baf0208a845790117ec2132",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "a47e0d84f73b9be2dc4290111bf9f112a89a15a5110a1ab82f89b69aeb6aced8",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "01db84eb9d7a188f6934a7fbc54bde81a26b9d254da93c9155bca258677e86e5",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "bca7cd29184761f0c121d8812d5fd2ac3a18525dbc66ab3bf08368c4b597d4d2",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "97bd7fe72faddd1a849a80ff7427baa4d6e07f80476a3ae3a10fdc7e8e7e6cf3",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "2113d394e7c8967c16b1084e45d2aded4466d901499cb3c2cc42a15d8c9154c4",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "e022c70faf143ecb72954f5c954303aed633926111a8d6229fca2b27f3a88942",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.15.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "82e38c853fd78e87b4ca917c05b486a3e32b431dbb85d5b1a102f0398a72e066",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "f072d933d7f22a2e8cbc22232c639a0159dc066ee2168bf530a8a501978bee33",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "4bcc07c493219a3ca640844c6eaf89f9f2fac4b85e956661fca65565b04cde66",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "d12813e964be808796056805564b17ee8edcc9d78f32bdfc5f2f184178f9122f",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "b9da2d0458a25d71debfed6686eb84f90886caddb90f9e9281301d72a3bde01d",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "b4eee3fc0f880dfb448c46826e2a1803f3e12f808dac44313ebe4e68ad3df41f",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "6d476480430c04a0004a8a6464f696bdbc84c7cdfb207a733452206661457fbe",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "51abe8cae646cbb271a464df7eb86c3f8745ae48a4956325bd4ddcae7cc99afe",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.16.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "81c8dde94298649ce947fab19e278fcf3967246a44148c0b213aaf1c20e687d3",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "633a6074e8bd39897f97ccfa72c8f6f18189edca7c28eb27ec30654f0dc3c371",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "eb9056cfdce915617e57c38b4a6e289a6b61d5a7bc0d55053f81fbb5561c766f",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "1f92d9a6a468e3ce155b963ff836296358e4b6768ae622e35ef1e6300bd608da",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "68a38c87b91a912a5168ff8bf3bbdff5b0e7c1b0991ff86a224e1b87c480eac2",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "48b4efac5c37f4d87c7312144c4a3a33cc3e04c089015236c400c152fba55665",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "00a39c4973d95aeb6bab53665cf73a3c1ff895c7249c4e209ff9d8bc872814ca",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "cb2da5ce851d830bad05effed642d2ee745f3c052c9034705863698ae7b4099b",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.17.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "09100c8f3e785a939387ac85d4c69f350506784e15284cd60991821bced64b8e",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "d91fd78c0f863ea93ddd29164fd87241cd5fa88bde1bf7830f6cc9b66ee17068",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "34d2e7fff4f47d4ddb192241f9fcdb9ce44c2eb45080ad7d0753f96f3aaf30a2",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "842b67681654d4dfdbe6233c9da7fa54cba642622eba64b171b0ec2b47fed156",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "c09cfa9ae928f244f7465bb589c3ee9b2ff2c13539745a6bad13a5f09f63206e",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "26509bbf7b11796d9078829fb9776a69dd7af306b090286b4f44a05f563a2bc8",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "02e945e22e7519b6d1ef8a5d31efccf14752c227e12da30e80748cd153de6b3e",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "0e73bdfd245bc249a28f8f52fa3ec663ff552f16b43f3c85373cc5cb2ec80b04",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.18.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "0932a8cf22caf211a089d1f8b73c66c01f6f449b9802f85d4b53e15047e5f5f8",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "ba15a3fcbafc2928e0c54327a503c21dff432fe002e2b808a12cb7f99a48e5d8",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "cdeb6205e3cd9a7b35da490c0361c38309ec0317a482922b38ebb40b08c7d92d",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "34121dc8b265427e432ebc1f68e4b2e3eb0012f1bf189fc6a34efb8de0bcf0f4",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "60dd3a0d5b644abaa6b6697e9bd4d4bf0f52eb7a50ff3e147af994c82a2ec1e5",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "3014279d4b550444b083a50589b43708f18f1cf20222280e25035d7e55f55017",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "75a348990fb9b231d28c18cabfd188d106509c0710b40cc621294392ff0bbe52",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "79f745c70a96d59741c7352b3e1d4d8159594fde76f8ffc12ff3920cf96393ce",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.19.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "129c364375869c21dcdf6fb421c5cb01501c03f8728a115814c21cc2b8df8b37",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "d799bf93edb675c314411fced5b06d01890e051eb0974db301811249c7711b55",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "b972534d0f37c255c3103464223a37ebca5a9125e6c4843f548b91653bdbbb6a",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "6a2bca3788c5fbc9e5cd563c5f7a05d5cd26cd1d0fc7695563ced6b508050307",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "e407aabcee49e18af29c01044be428a0dbc9ce97fb560521e915b8f9adf3543c",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "624000e42df9348297cd4d19c3ac884ab730badb8402462934b22bd794f6e006",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "1fd78efd75d20fd32c971c65f8dd802ea1c4586bc52e8efdcc2021dd40fadda1",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "4ab36af9cf0ffea5777d97a92c5b1ee9f06afc41268b6b9c97460fe9a13ab80e",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "5a015c9aa8bd60f547c76c317cadade360cd6734bba0a8b36753cbafa40bccb5",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "b26fe486c0b75cacbd5fbca43d1d9899670a5e950fcf4d481400fb34cec12f1e",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "12bb46747e48fe8b40e3f8b3959b1e928cd8f1ae7c0e8e6bc4aea9baf2721f2c",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "84051d1e84007f795aaef769f12c58f3047c94a2d49b5545005b904b46b83a72",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "07b4934fa174384a17a79d25e3a70a708379dfe8498aff5f26d8991f18fc956e",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "c2f53e96de719962d47cd0af440e87bd71115e0d4c36059c12f920be6189b0c8",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "c92e7a6cdbdee5211ecf2a6bbf1cdabadd0a4d428fd63ac0837d5f019f80d58e",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "e0e1991a43d88658a77a26eaf2d0850f755eb20634c4b24f84556735a7e85090",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.20.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "4ec827906dc2af5fe18094246e7cd345f8c910e5b7f63e9219847b8490671b25",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "ea434f333f3727d850be8c0abb34365369c842d3ab5c11702e8b057b138375b8",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "f286e92323102894063f92efb8294fcc097d7773021e2a159371e77711e3149f",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "f581b10da762dbf17de6865b1cd250f9eaa21fdb424ef5599f21a37f83597b77",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "b5129149d105597f809faad14467b264ee5462ae1929aac3612f2bdc839e5dc7",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "11ce6d8d0350157fb40c139ab7348471a4a16e2737540b9619303093432208c1",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "fe19c18e16e00b6a6dbc2921cb6211b413ba4d6f06e6bee3446561b646a3362e",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "42af0ff9427934dc3a13fdf368d70f287eb7f5d8fe9c7f700f95f508fa0bc28b",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.21.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "ebae1ff0937ed7d75e65df707d8aa57dc4abf22780f0d509432d325bf00399d1",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "82bbd518f2452360f657734ad876017694ccc733711033f9915ec01b97b9ff0b",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "e6fbd53cad08be5f2c44e99116d9ff7e570a59e9132371b57733fcf900140331",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "1d8d6f559dde54c53c919a72652802f5f2f12aa60120013293bf56b106040e07",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "3b7c59679e6ba3e09e6db94525949e8f6952f7df86ed862f6c2cb681abfa0c83",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "e8bf94563c5d3605e3aee28381c247af25ebdf0096c26862a9478c706cab4fc0",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "a5d19acb9e1c09c4c513152ad92d71b3720c2cc1f084746ad4816ca0058ee303",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "22572819dd3630d623d11dd776247fb0fc31d230dbb1e1a03cf9a7b1f4520daf",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.22.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "6c904d96c42c6f802493be7be6f3a35b9efcde7e993b40f29b3773febfc71099",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "e39c648f8e2de00aab17fcac271f15aad0726a44221d857fc078172820592c79",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "6e542304eb0e09857324afe2566fc6da6e7cfb5d1b5e103f58753b909671b28f",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "c751c4429936d81d83eea56f1fc34bec7d9ab0a6913be3660c70c32bf3a1acef",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "921ea0cf515ecf9f952aa3f8e22ff6c5057b774a29e12149719f1de32caf169d",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "fafb8a2cd37ca7fb0883facafd52d5a086642139b9e36f7b6891afa238457d05",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "962482cc2fc3fe3b1638f0726c5b594decdf9f0b1cd7fd37a3380cad70352725",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "cb6c0c6d669d149a5e4cbda76756e7f3c1ae94fb2cef8b38bcd724dd060e2857",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.23.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "d98050693e2880d10f3382dc8077752f94c138a939304a90bb8c97583317375b",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "43e12ae86e9d63cc765b7644ee50d245ba6e48c985b2a15b3978144681076a5a",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "1ad403c82e6f1ac0880806f9a1e5c958a4fcbff89c2de2646a2db97d34ba0f39",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "bc8147e75c9cb5c6c86cdcc4958daa499daa8bb3c8d4cb73cabe569c3d139163",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "20015caca97fcf75a52bc965c25d19eb204efebe8b37499138a60c47d4b240f8",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "39d06520ca8d574b14dc8efbe46db87cfad1838aa006385f72ff2a384587e2a9",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "9e7fd6aa050c82504310008ae151f322420e7d1055c8368376a621ef32765691",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "39bee0d465b71e25c2290c6b852e3601f42c1bfe9b4f08b2c2fe31402e90fd4d",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.24.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "954c89e37144f581a0debf84f4e1847d6cf582012917599450d16acc42c2086d",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "6744a7f54d7afc893adf86aa944f955b2f4eeb6f6f09a3bd45c2b47da8bf8908",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "a193d157bc0507136c08a8f7e87bf541faaf07eb9cfd38389e07b157d32536cf",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "44b2a96c645ad941dc18bb74a7b4643a48febef42e62bc099b8d358be89a4f91",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "1cdf4ba87c566ab05b844a2ba77941ae7a3746309561099bb14eb56dd64581d6",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "82109335e778bc1a87398fc1e7d21e6cf9dc93a8d54cbf99ed2b799609e5f769",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "42d961651db726575528b3c6681537f73dee7bc577701dbc34883aa2928b67c0",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "07ceebbdc4ce9614c55aa4250eae40785ba5ea8e9b04c4990b0f531fc95cd246",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.25.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "5510b2b4fec2963228a30e2810994948ef98ab69721fdca4f084443e74b5ac87",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "92903d2a44048aa5501dc2083d9de5397201a7eef37049bd1cbbb1e940270931",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "0dc3a316f8da38a006109c605e3fa9a2132a222388f0fb979ff6b61d53103a9a",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "b5a12803a6790c4bd36a3ff2f45fd06e3546d5b109b579134682b4c0de40acda",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "f5db2d89154f384f5c8eaa8254e6555258a0f1b50f8fcea15c7eac7817c1bbf0",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "7dedba8568ec5c62135bfe1e605e7674b8cfa70ce2353aa440df77339fe50ab1",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "5aeb5909b9bd4e58d53a540518b4f3fd806949c2744725c9e72002d4ffd32a29",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "18ed839532a87e143ff88398052f434f72cff6c25f1141cdbc7e5ac1aed029b4",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.26.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "79f67f5ba88cda9681a2ea230d38dccffc255b63c4a11420568af5c19dfd1bdb",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "e3013dc9f216b992b48470eb167c730f3512a57e6b064a8f302487539e6aee76",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "5bf6d42429d5f2cd2c245aed075b16e2cbdfe7836de4d419227526a5afd747ad",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "efa21346e0e19163b97f200c84610d4dd743c2377fb4cc19cc81a726ed4ff793",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "79ef51b602049a763711d2e8cebf300b966082c482fb4af7c18c5e89b54a735e",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "acda7079d90e7cebecd0baef8e424d61c4b7488b0aa5b791e89f2c8466f716eb",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "98bf9a5a2840a8403d4c812f64eb022f3ffe358d78496791a36af8c786b49485",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "c3680291c8ec27dd6ce4aa53c603a174646eae1f52fe39b7c6587e3555607717",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.27.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "e2d3afec5f9b10b2dd7f9ef087d2df05ed6dc2be653a544341516b4da60ba05b",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "410f09a7019a6037c05b67f0c4a989b03621261d4a393e6be76bf9a71cbb324f",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "9882032b14bdc1858b72a04157c447696e6ee2709be00aca5c14c983cb0690b6",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "81689fd2b5486d163c76b5b8e9dff4f354c643b760b9fc01e1408480b5c3cbbb",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "59f4955593bbd216c87eea9822e4c769a665085c96c92dc9ddd73ccaef0819ca",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "7b48f953d3e92bd1efb615f5ec0d13bcb6168594ea9a534638e9730d87fd898d",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "cdd907cbecdd9391a9ce67c4c364850b6c14ee672c4984f772f72f7bb8a1a8ce",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "f94923837fab678d27c6f85b26cde1d262a053b8af779f45fff9a79b28775bd1",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.28.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "5adf4c0abd994a8ce9f060d95856e5f6ca800e755792d7f718aad5b535bfe998",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "7aad48d13f20d60236d0cea1bb03e22bc770827942b26dc4f56a82eeb8a10886",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "47c15a63822d438357e9e8249b0fa784bf989e3500b50c0e8cc0677dc39cf35c",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "a4d6c88e9c93ac5e5a825162b53e65f0709422b7300df0b241528cf5738cab18",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "9a520dac47bf430e4ec20a272d5fd1e553987a48e7016c37a451c1ba13569d86",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "44c0bdf35cf2bf030c087bf3d62140c590bf703e9989e5c1eb6ee59a5cfac6b3",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "242898d7c631a58808bfbd439346cf00e8efa43e5bd3d726e3b48553d5d614d9",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "98682c025ff9f255c5ceeaa69450f7f205ba76b15bff0f410c4f4ceb2216d7d6",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.29.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "b3c8f638f37edf904647d941825f0453c1d3df2f1dc1df92d9c55e578c50a5a4",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "890286317e05fb23905870418e491227cd0dd7d7193ef74c1d43c560a1fc837f",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "ae9eb107734bb8c385a3831b76662a6448331d256549c32cd5b268f0464edd15",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "ffbc4e59c49c47dbac5f4d109e5eda6892761aaed55c0570f7a2d538bdd505c3",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "2bf66cc400cbc181099f3ce97b281060852bbbe722fe6697c609aa58b42929f0",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "f957cc6a17d91ca15a5dff9bc5d6b3b1c9835c61101fe9077c3244daa3c0f52c",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "4da30d7c3de4ca40d9c3599b6d886f137f63402d2be0a8e2cf8994930a5f9948",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "0a335e56e19bbedbaa2ff5e3123fa15c17779b13585b52547be892fb6106a6d2",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.3.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "d5189be679d0f87639b066d0db4c264c67a4bb9ee7f63827effb17c6407849fd",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "03c6945868ee310a9dd99dbc7ff5edf4d5de0ae478013b7ff107aeec2941f198",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "1291434db02d9dbe6c35de3df7878efcf0c5f7a853591c6fc3a600d6ebd47f21",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "81010f6f4dd569963f21d0253f0b10bf6d765681568403a8fcc94c4068456e02",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "e484369f068e09e275394947763148478b373fd94e713d3d8ec1fef6ebfaab28",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "f870b02825402314fb486825e02b4ebeb6c2ca180b70d0c42dfb1d609237e4f8",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "58794edbe461cc3e9783e35ef122b85bad1cc614abca92eb7bde05e02ea9ee7f",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "8dfd44ca343ebe5dbbd8419bd397b50eba3b77bb1dce43289c52819d7fd1cec8",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.30.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "61f16cc22efe8eb2e5a020aba04bb8f7d8b65b415e2b90727346eff3455328da",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "ece8fa115991a3fee41572925085c1ca43221b23d3297644eb0d896a9d8534dd",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "5b55148a4f8cf75b767631c389017ac34b8b9f0190b2fb7660cc4077558115e1",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "cafbbc48340e377aa51a41b79ab5dd392a59993d3ef4ef64607301d34217f8fc",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "c34b2cfc86131b79de618f4530e5877a59748d9c6a1cbef9b84f9aba82292336",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "caa42def392298912ca7ddd458a8f5434e1355dcb47f9b185764e34db87a00d0",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "6ead4e9d166a3218adb96dc07943ff96e6f6cff71776651c0eac1a241240be78",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "797e12bb964dd3f4d14c2bce096f9c081fcdfc3db9c11f9bc7e2727f0e8e3f6b",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.31.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "e37f514a9abb2454015318857b0b53fd84b90e8da502ffd6ee5b8a5e6f500c33",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "4a81c7adfd83cd027b760314473d340a0c687d83f9c6b5e1c651e6483e69e79e",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "5409d5f26bbcef3002dfe3910e7ae3e915e8ea6019a63d14a76c6179e13d676d",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "6d39aacc64a013142108d3a84786fa25af118425b2ad407fe922493c4b2f6715",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "5f802d89e2ea632b4195404ddde314f472e2aa876c2eb8ea539c4b8d79c7103f",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "cdf3943c01d9d9ef9f0f6a4b53d60a2c4d7635d988566dd90d9a0faa3074e6d5",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "0b6672c23216dbbb8f4c4c0bab88bbed2315eba53264d9d164bcf7d0db3e55e2",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "7f61fdd8ca28f35477ffad2d4480ea9b9a19e45a55ff949e0ec174fa9f150168",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.4.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "23214b56580e08c825f66232de1ac693c18ce6026a1b1ee04d46c6142da46fa4",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "9a9138dc460f7ee05580bc7bedcf4f2e78a3d02d170a5284411baae12a9c3717",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "b33f433190055acbf985c199551ae2b566b36a99e79b647e4ba64ab317a62fa1",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "81e0d4641b9d61c901cb41fc259da63d97ca2fb72a9ec61179ffdd902b61e04b",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "cc92318ce525ba27c789b21debd33031dde8103a870d619f40f2f68320c17240",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "432498253d6ace997bf31d041acab44d0facc590228608b034568bdb001c2700",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "5596801c74029741e80ddbedbc5b6c0877a31f058cadd16effe7d2ab041f604a",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "8472b26c1df1a133bab4912ccd944f7e694aeb0ffa3f913c87666e43bf27f17e",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.5.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "a1f33388fba6fa014d75c3e9a35c09102a51e90f84198d546bbed699046ec0dd",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "de859b31352cb1bbdc3bd07ea35edc241c81c631b31da908073eacef2e4716a3",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "f7631ea87047be04fa533924863efb151f2e4c2ee2bfa0864dfa9da55ea9d439",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "8e5de903c4c7b5ec49fa0c5edbb6c8c7085d305104c066e95f73d703d8753259",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "29f861d4450e02ef53430c89a1a6c0914ae32303174abe77726c44f9b4566f38",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "3f8d2e8206c48b9cf07ef092b7f7b9b7dbbceec97ec1c4b967b424fb45a701a8",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "5e849a7df6b44271e1e64c525a76c2a0ad77d8c0a005ef7cd2b862587d0c4c11",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "144e2d9e49b55d5d7265a22d94d6b15bda3d42084a44176d1bf2cb4a8ef0eec5",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.6.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "d2a2394fcd135c22325c9868a7a701f342590350542e0014457fde3bd7bc429e",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "f5c42c40f2f6e9c2af1bbad475ef828dc7b0f7ccdb5219a0e291198817809fed",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "757f806d1588c596d7f49861a0677342972e49568890d5bcb002ed28ff345aee",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "c30f74f6b4d8d07eb84bcfe3c49cd6d9d474427251e4de0cab62d23bafc55516",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "453302dc443a67b18df7ab40cbacefe1f7860a96402164ef1f80c7a64015c7b7",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "99c81749f5cde37349364fa018964899bfd2d602d9a0ac00a759905f30f8f2f6",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "819a33dcd473ae019faa7da418b69789b04174ee8b9c31b7fd9ba489f865fc73",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "f556ffeac78f11d2a84e258a470ac6661b9cc57fc5170e1497d2a16f3404cd9d",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.7.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "5a9b908cfae8745c8e15466eb44d46a9b8612d5e7d512e5914c6e895a5e236c0",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "82c91910c809a05bdb37a3ac0dba8542d09f794123a58d74a5ac684fbd0cf9d6",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "33530416f290d7020b908db6d9747412b94e67e6ed7f9f0fd8caca7b1f19a0ba",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "97ada20e129871d1fc1a2556583430bd7c5a817fe8c566d0421595312b50c893",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "fb7cad3a7a5a742fb43e18826beb98850f51998aa501055d7d61bf3bba54be2b",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "29d156c254fd47b61fdb79b4a867deb56ffc30b31ec9dcf6001d9f84924843e3",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "9499f9e15a76ea6a3a61d9490907ef1f097182665507403fe50f223ab40e9ced",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "611b776014fd68ee340f532ba14e870eaa0439647d8ed7ca9ee2d0ef1ca9d911",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.8.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "0d12796b5def42040e3d2eb86628514d0f07f2a6f0bc1a316a3d606b7bc6bb1e",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.k_proj.lora_A.default.weight": {
+    "sha256": "a8903566bac98853832b9f24c0ede434429c890b6fbef5c6f482972c6539b74c",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.k_proj.lora_B.default.weight": {
+    "sha256": "d0bf45535b38896ffe0ea4a74362d15f99543e024dcca617c90e05e60051755b",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.o_proj.lora_A.default.weight": {
+    "sha256": "23e97584ce703d3bd401d5a061221494dad3029c127e25da60b85f0a647119d0",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.o_proj.lora_B.default.weight": {
+    "sha256": "f58b43ca77c7b28a61e0ea975499e0c9c76d0f5a8cb3ce52b7728647422313ec",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.q_proj.lora_A.default.weight": {
+    "sha256": "b22e088dba1c6965339425a8f42e3dbfcf4a8ebd848cf8a708a3a9f189b8bb77",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.q_proj.lora_B.default.weight": {
+    "sha256": "ec939790234cb655646543677425f2629901efc086feb2f70413b71af8c88c33",
+    "dtype": "float32",
+    "shape": [
+     4096,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.v_proj.lora_A.default.weight": {
+    "sha256": "01c44c53616900c15c3a52f0bd25b7fb2a56857e4c878a79940f1f6419c8f661",
+    "dtype": "float32",
+    "shape": [
+     8,
+     4096
+    ],
+    "finite": true,
+    "nonzero": true
+   },
+   "base_model.model.model.layers.9.self_attn.v_proj.lora_B.default.weight": {
+    "sha256": "111c587da8e70192884b4329e712a2954234e12c0e2eed5da6a5b82cf3e4854d",
+    "dtype": "float32",
+    "shape": [
+     1024,
+     8
+    ],
+    "finite": true,
+    "nonzero": true
+   }
+  }
+ ],
+ "step_s": [
+  2.4043096010000227
+ ],
+ "store_io": {
+  "bytes_written": 0,
+  "bytes_read": 0
+ },
+ "store_io_by_step": [
+  {
+   "bytes_written": 0,
+   "bytes_read": 0
+  }
+ ],
+ "host_allocator": {
+  "baseline_bytes": 4294967296,
+  "at_last_step_bytes": 4831862793,
+  "peak_bytes": 4831862793
+ },
+ "spill_plan": {
+  "spill_layers": 0,
+  "n_layers": 32,
+  "k": 4,
+  "chunk_bytes": 4194304,
+  "slot_bytes": 4194304,
+  "ring": 4,
+  "pin": true,
+  "host_bytes": 536870912,
+  "all_resident_bytes": 536870912,
+  "minimum_bytes": 67108864,
+  "budget_bytes": 31864070963,
+  "spill_file_bytes": 0,
+  "available_bytes": 45520101376,
+  "limiting_level": "psutil",
+  "limiting_numbers": {
+   "psutil_available": 45520101376
+  },
+  "spill_dir": "<box>/spill/prep",
+  "spill_path": null,
+  "explicit_dir": true
+ },
+ "stale_removed": [],
+ "spill_files_before": [],
+ "spill_files_after_train": [],
+ "steps": 1,
+ "log_history": [
+  {
+   "loss": 12.887847900390625,
+   "grad_norm": 104.80770874023438,
+   "learning_rate": 0.0,
+   "l2l_steps": 1,
+   "l2l_layer_loads": 62,
+   "l2l_large_loads": 3,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 0,
+   "epoch": 1.0,
+   "step": 1
+  },
+  {
+   "train_runtime": 2.4409,
+   "train_samples_per_second": 1.639,
+   "train_steps_per_second": 0.41,
+   "total_flos": 687831546593280.0,
+   "train_loss": 12.887847900390625,
+   "epoch": 1.0,
+   "step": 1
+  }
+ ],
+ "cgroup_at_first_step": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/user.slice/user-0.slice/session-12.scope",
+  "memory_max": "max",
+  "swap_max": "max",
+  "current": 9616891904,
+  "peak": 9630048256,
+  "inactive_file": 4138049536,
+  "stat": {
+   "anon": 1013944320,
+   "shmem": 4313845760,
+   "file_dirty": 12288,
+   "file_writeback": 0,
+   "inactive_file": 4138049536,
+   "active_file": 0,
+   "slab_reclaimable": 132677064
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 5478842368,
+  "anon_shmem": 5327790080,
+  "unreclaimable": 5346177592
+ },
+ "hold": null,
+ "memory_transient": {
+  "unreclaimable_at_first_step": 5346177592,
+  "build_transient_bytes": 0,
+  "train_transient_bytes": 381526400,
+  "transient_bytes": 381526400,
+  "plan_host_bytes": 536870912,
+  "store_taken_out": "torch pinned host allocator growth since the first step, up to the plan's host_bytes",
+  "anon_shmem_at_first_step": 5327790080,
+  "anon_shmem_transient_bytes": 378773504,
+  "vm_hwm_bytes": 10783457280,
+  "memory_peak_bytes": 10536714240,
+  "readings": 515
+ },
+ "oom_margin": {
+  "limit_bytes": 6360662016,
+  "target_host_bytes": 335544320,
+  "warn_below_bytes": 268435456,
+  "transient": {
+   "unreclaimable_at_first_step": 5346177592,
+   "build_transient_bytes": 0,
+   "train_transient_bytes": 381526400,
+   "transient_bytes": 381526400,
+   "plan_host_bytes": 536870912,
+   "store_taken_out": "torch pinned host allocator growth since the first step, up to the plan's host_bytes",
+   "anon_shmem_at_first_step": 5327790080,
+   "anon_shmem_transient_bytes": 378773504,
+   "vm_hwm_bytes": 10783457280,
+   "memory_peak_bytes": 10536714240,
+   "readings": 515
+  },
+  "build_margin_bytes": 1014484424,
+  "train_margin_bytes": 297413704,
+  "stop": false,
+  "warnings": [],
+  "margin_over_working_bytes": 164748928
+ },
+ "aliasing": {
+  "pass": true,
+  "status": "neutralized",
+  "by_m": {
+   "128": {
+    "shipped_max_abs": 0.0,
+    "raw_max_abs": 74.8125,
+    "status": "neutralized",
+    "pass": true,
+    "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"
+   },
+   "512": {
+    "shipped_max_abs": 0.0,
+    "raw_max_abs": 59.125,
+    "status": "neutralized",
+    "pass": true,
+    "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"
+   }
+  },
+  "dim": 4096,
+  "n_layers": 8,
+  "slots": 2
+ },
+ "sdpa_probe": {
+  "MATH": {
+   "ok": true,
+   "backward_repeatable": true,
+   "error": null
+  },
+  "FLASH_ATTENTION": {
+   "ok": false,
+   "backward_repeatable": null,
+   "error": "RuntimeError: No available kernel. Aborting execution."
+  },
+  "EFFICIENT_ATTENTION": {
+   "ok": true,
+   "backward_repeatable": true,
+   "error": null
+  },
+  "CUDNN_ATTENTION": {
+   "ok": false,
+   "backward_repeatable": null,
+   "error": "RuntimeError: No available kernel. Aborting execution."
+  }
+ },
+ "memory": {
+  "interval_s": 0.05,
+  "labeled": [
+   {
+    "t": 873.095612089,
+    "phase": "build",
+    "unreclaimable": 5341302880,
+    "anon_shmem": 5322739712,
+    "current": 9612005376,
+    "pinned": 4294967296,
+    "label": "build_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/user.slice/user-0.slice/session-12.scope",
+     "memory_max": "max",
+     "swap_max": "max",
+     "current": 9612005376,
+     "peak": 9613455360,
+     "inactive_file": 4138049536,
+     "stat": {
+      "anon": 1010991104,
+      "shmem": 4311748608,
+      "file_dirty": 12288,
+      "file_writeback": 0,
+      "inactive_file": 4138049536,
+      "active_file": 0,
+      "slab_reclaimable": 132665248
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 5473955840,
+     "anon_shmem": 5322739712,
+     "unreclaimable": 5341302880
+    },
+    "process": {
+     "rss": 5727043584,
+     "hwm": 10783457280
+    }
+   },
+   {
+    "t": 873.435493417,
+    "phase": "train",
+    "unreclaimable": 5346177592,
+    "anon_shmem": 5327790080,
+    "current": 9616891904,
+    "pinned": 4294991872,
+    "label": "first_step",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/user.slice/user-0.slice/session-12.scope",
+     "memory_max": "max",
+     "swap_max": "max",
+     "current": 9616891904,
+     "peak": 9630048256,
+     "inactive_file": 4138049536,
+     "stat": {
+      "anon": 1013944320,
+      "shmem": 4313845760,
+      "file_dirty": 12288,
+      "file_writeback": 0,
+      "inactive_file": 4138049536,
+      "active_file": 0,
+      "slab_reclaimable": 132677064
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 5478842368,
+     "anon_shmem": 5327790080,
+     "unreclaimable": 5346177592
+    },
+    "process": {
+     "rss": 5736652800,
+     "hwm": 10783457280
+    }
+   },
+   {
+    "t": 875.839868608,
+    "phase": "train",
+    "unreclaimable": 6264574904,
+    "anon_shmem": 6243434496,
+    "current": 10536714240,
+    "pinned": 4831862793,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/user.slice/user-0.slice/session-12.scope",
+     "memory_max": "max",
+     "swap_max": "max",
+     "current": 10536714240,
+     "peak": 10536714240,
+     "inactive_file": 4138049536,
+     "stat": {
+      "anon": 1392717824,
+      "shmem": 4850716672,
+      "file_dirty": 8192,
+      "file_writeback": 0,
+      "inactive_file": 4138049536,
+      "active_file": 106496,
+      "slab_reclaimable": 133991496
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6398664704,
+     "anon_shmem": 6243434496,
+     "unreclaimable": 6264574904
+    },
+    "process": {
+     "rss": 6736986112,
+     "hwm": 10783457280
+    }
+   }
+  ],
+  "series": [
+   {
+    "t": 848.563812948,
+    "phase": "build",
+    "unreclaimable": 408221328,
+    "anon_shmem": 401338368,
+    "current": 408293376,
+    "pinned": 0
+   },
+   {
+    "t": 848.62076017,
+    "phase": "build",
+    "unreclaimable": 412206736,
+    "anon_shmem": 405250048,
+    "current": 412278784,
+    "pinned": 0
+   },
+   {
+    "t": 848.701825604,
+    "phase": "build",
+    "unreclaimable": 416425616,
+    "anon_shmem": 409600000,
+    "current": 416497664,
+    "pinned": 0
+   },
+   {
+    "t": 848.912307464,
+    "phase": "build",
+    "unreclaimable": 422454928,
+    "anon_shmem": 414687232,
+    "current": 422526976,
+    "pinned": 0
+   },
+   {
+    "t": 848.976491619,
+    "phase": "build",
+    "unreclaimable": 420419216,
+    "anon_shmem": 413663232,
+    "current": 420491264,
+    "pinned": 0
+   },
+   {
+    "t": 849.042180918,
+    "phase": "build",
+    "unreclaimable": 420591248,
+    "anon_shmem": 413663232,
+    "current": 420663296,
+    "pinned": 0
+   },
+   {
+    "t": 849.095715136,
+    "phase": "build",
+    "unreclaimable": 421115536,
+    "anon_shmem": 413663232,
+    "current": 421187584,
+    "pinned": 0
+   },
+   {
+    "t": 849.234443943,
+    "phase": "build",
+    "unreclaimable": 421592512,
+    "anon_shmem": 414629888,
+    "current": 421650432,
+    "pinned": 0
+   },
+   {
+    "t": 849.286600327,
+    "phase": "build",
+    "unreclaimable": 423300544,
+    "anon_shmem": 416391168,
+    "current": 423358464,
+    "pinned": 0
+   },
+   {
+    "t": 849.3442487,
+    "phase": "build",
+    "unreclaimable": 423562688,
+    "anon_shmem": 416391168,
+    "current": 423620608,
+    "pinned": 0
+   },
+   {
+    "t": 849.396389454,
+    "phase": "build",
+    "unreclaimable": 424349120,
+    "anon_shmem": 417480704,
+    "current": 424407040,
+    "pinned": 0
+   },
+   {
+    "t": 849.447911115,
+    "phase": "build",
+    "unreclaimable": 424349120,
+    "anon_shmem": 417480704,
+    "current": 424407040,
+    "pinned": 0
+   },
+   {
+    "t": 849.501204973,
+    "phase": "build",
+    "unreclaimable": 424873408,
+    "anon_shmem": 417480704,
+    "current": 424931328,
+    "pinned": 0
+   },
+   {
+    "t": 849.552555816,
+    "phase": "build",
+    "unreclaimable": 424873408,
+    "anon_shmem": 417480704,
+    "current": 424931328,
+    "pinned": 0
+   },
+   {
+    "t": 849.603896051,
+    "phase": "build",
+    "unreclaimable": 424873408,
+    "anon_shmem": 417480704,
+    "current": 424931328,
+    "pinned": 0
+   },
+   {
+    "t": 849.655197744,
+    "phase": "build",
+    "unreclaimable": 424873408,
+    "anon_shmem": 417480704,
+    "current": 424931328,
+    "pinned": 0
+   },
+   {
+    "t": 849.719057748,
+    "phase": "build",
+    "unreclaimable": 425624712,
+    "anon_shmem": 418660352,
+    "current": 425713664,
+    "pinned": 0
+   },
+   {
+    "t": 849.77101406,
+    "phase": "build",
+    "unreclaimable": 426149000,
+    "anon_shmem": 418660352,
+    "current": 426237952,
+    "pinned": 0
+   },
+   {
+    "t": 849.822661286,
+    "phase": "build",
+    "unreclaimable": 426411144,
+    "anon_shmem": 418660352,
+    "current": 426500096,
+    "pinned": 0
+   },
+   {
+    "t": 849.8748292,
+    "phase": "build",
+    "unreclaimable": 426935432,
+    "anon_shmem": 420040704,
+    "current": 427024384,
+    "pinned": 0
+   },
+   {
+    "t": 849.926484385,
+    "phase": "build",
+    "unreclaimable": 426935432,
+    "anon_shmem": 420040704,
+    "current": 427024384,
+    "pinned": 0
+   },
+   {
+    "t": 849.978289955,
+    "phase": "build",
+    "unreclaimable": 426935432,
+    "anon_shmem": 420040704,
+    "current": 427024384,
+    "pinned": 0
+   },
+   {
+    "t": 850.029742049,
+    "phase": "build",
+    "unreclaimable": 426935432,
+    "anon_shmem": 420040704,
+    "current": 427024384,
+    "pinned": 0
+   },
+   {
+    "t": 850.08319424,
+    "phase": "build",
+    "unreclaimable": 427197576,
+    "anon_shmem": 420040704,
+    "current": 427286528,
+    "pinned": 0
+   },
+   {
+    "t": 850.133978216,
+    "phase": "build",
+    "unreclaimable": 429294728,
+    "anon_shmem": 422289408,
+    "current": 429383680,
+    "pinned": 0
+   },
+   {
+    "t": 850.188033532,
+    "phase": "build",
+    "unreclaimable": 433534088,
+    "anon_shmem": 426708992,
+    "current": 433623040,
+    "pinned": 0
+   },
+   {
+    "t": 850.247134094,
+    "phase": "build",
+    "unreclaimable": 438252680,
+    "anon_shmem": 431411200,
+    "current": 438341632,
+    "pinned": 0
+   },
+   {
+    "t": 850.297698691,
+    "phase": "build",
+    "unreclaimable": 442709128,
+    "anon_shmem": 435826688,
+    "current": 442798080,
+    "pinned": 0
+   },
+   {
+    "t": 850.350259391,
+    "phase": "build",
+    "unreclaimable": 538911880,
+    "anon_shmem": 528527360,
+    "current": 539000832,
+    "pinned": 0
+   },
+   {
+    "t": 850.400691072,
+    "phase": "build",
+    "unreclaimable": 542401672,
+    "anon_shmem": 531730432,
+    "current": 542490624,
+    "pinned": 0
+   },
+   {
+    "t": 850.451105982,
+    "phase": "build",
+    "unreclaimable": 521933960,
+    "anon_shmem": 483160064,
+    "current": 522022912,
+    "pinned": 0
+   },
+   {
+    "t": 850.501566208,
+    "phase": "build",
+    "unreclaimable": 517637256,
+    "anon_shmem": 507445248,
+    "current": 517726208,
+    "pinned": 0
+   },
+   {
+    "t": 850.552082897,
+    "phase": "build",
+    "unreclaimable": 572089480,
+    "anon_shmem": 562515968,
+    "current": 572178432,
+    "pinned": 0
+   },
+   {
+    "t": 850.602479016,
+    "phase": "build",
+    "unreclaimable": 467420296,
+    "anon_shmem": 445161472,
+    "current": 467509248,
+    "pinned": 0
+   },
+   {
+    "t": 850.653271847,
+    "phase": "build",
+    "unreclaimable": 456234120,
+    "anon_shmem": 445165568,
+    "current": 456323072,
+    "pinned": 0
+   },
+   {
+    "t": 850.703684488,
+    "phase": "build",
+    "unreclaimable": 492565640,
+    "anon_shmem": 449216512,
+    "current": 492654592,
+    "pinned": 0
+   },
+   {
+    "t": 850.756691944,
+    "phase": "build",
+    "unreclaimable": 460108936,
+    "anon_shmem": 445190144,
+    "current": 460197888,
+    "pinned": 0
+   },
+   {
+    "t": 850.808294324,
+    "phase": "build",
+    "unreclaimable": 462427272,
+    "anon_shmem": 445210624,
+    "current": 462516224,
+    "pinned": 0
+   },
+   {
+    "t": 850.858968786,
+    "phase": "build",
+    "unreclaimable": 455533704,
+    "anon_shmem": 445255680,
+    "current": 455622656,
+    "pinned": 0
+   },
+   {
+    "t": 850.909403664,
+    "phase": "build",
+    "unreclaimable": 473506952,
+    "anon_shmem": 445272064,
+    "current": 473595904,
+    "pinned": 0
+   },
+   {
+    "t": 850.961834189,
+    "phase": "build",
+    "unreclaimable": 454759560,
+    "anon_shmem": 445296640,
+    "current": 454848512,
+    "pinned": 0
+   },
+   {
+    "t": 851.013735968,
+    "phase": "build",
+    "unreclaimable": 455574664,
+    "anon_shmem": 445329408,
+    "current": 455663616,
+    "pinned": 0
+   },
+   {
+    "t": 851.06736039,
+    "phase": "build",
+    "unreclaimable": 514102408,
+    "anon_shmem": 502947840,
+    "current": 514191360,
+    "pinned": 0
+   },
+   {
+    "t": 851.117890938,
+    "phase": "build",
+    "unreclaimable": 569795720,
+    "anon_shmem": 560308224,
+    "current": 569884672,
+    "pinned": 0
+   },
+   {
+    "t": 851.168283972,
+    "phase": "build",
+    "unreclaimable": 571888776,
+    "anon_shmem": 562626560,
+    "current": 571977728,
+    "pinned": 0
+   },
+   {
+    "t": 851.218708079,
+    "phase": "build",
+    "unreclaimable": 529409160,
+    "anon_shmem": 483446784,
+    "current": 529498112,
+    "pinned": 0
+   },
+   {
+    "t": 851.269171509,
+    "phase": "build",
+    "unreclaimable": 460780680,
+    "anon_shmem": 450592768,
+    "current": 460869632,
+    "pinned": 0
+   },
+   {
+    "t": 851.31958118,
+    "phase": "build",
+    "unreclaimable": 535655560,
+    "anon_shmem": 523223040,
+    "current": 535744512,
+    "pinned": 0
+   },
+   {
+    "t": 851.370040442,
+    "phase": "build",
+    "unreclaimable": 526386312,
+    "anon_shmem": 516657152,
+    "current": 526475264,
+    "pinned": 0
+   },
+   {
+    "t": 851.420457349,
+    "phase": "build",
+    "unreclaimable": 481748104,
+    "anon_shmem": 445562880,
+    "current": 481837056,
+    "pinned": 0
+   },
+   {
+    "t": 851.473319817,
+    "phase": "build",
+    "unreclaimable": 460457096,
+    "anon_shmem": 450084864,
+    "current": 460546048,
+    "pinned": 0
+   },
+   {
+    "t": 851.523757497,
+    "phase": "build",
+    "unreclaimable": 549340296,
+    "anon_shmem": 523362304,
+    "current": 549429248,
+    "pinned": 0
+   },
+   {
+    "t": 851.574238435,
+    "phase": "build",
+    "unreclaimable": 510264456,
+    "anon_shmem": 500178944,
+    "current": 510353408,
+    "pinned": 0
+   },
+   {
+    "t": 851.624652725,
+    "phase": "build",
+    "unreclaimable": 493536392,
+    "anon_shmem": 458350592,
+    "current": 493625344,
+    "pinned": 0
+   },
+   {
+    "t": 851.675148988,
+    "phase": "build",
+    "unreclaimable": 569783432,
+    "anon_shmem": 559288320,
+    "current": 569872384,
+    "pinned": 0
+   },
+   {
+    "t": 851.725659451,
+    "phase": "build",
+    "unreclaimable": 460461192,
+    "anon_shmem": 449617920,
+    "current": 460550144,
+    "pinned": 0
+   },
+   {
+    "t": 851.781657315,
+    "phase": "build",
+    "unreclaimable": 454935688,
+    "anon_shmem": 445874176,
+    "current": 455024640,
+    "pinned": 0
+   },
+   {
+    "t": 851.832782086,
+    "phase": "build",
+    "unreclaimable": 454935688,
+    "anon_shmem": 445874176,
+    "current": 455024640,
+    "pinned": 0
+   },
+   {
+    "t": 851.883216098,
+    "phase": "build",
+    "unreclaimable": 605443208,
+    "anon_shmem": 578584576,
+    "current": 605532160,
+    "pinned": 0
+   },
+   {
+    "t": 851.936826273,
+    "phase": "build",
+    "unreclaimable": 456459400,
+    "anon_shmem": 446496768,
+    "current": 456548352,
+    "pinned": 0
+   },
+   {
+    "t": 852.004187705,
+    "phase": "build",
+    "unreclaimable": 456201352,
+    "anon_shmem": 446156800,
+    "current": 456290304,
+    "pinned": 0
+   },
+   {
+    "t": 852.068910634,
+    "phase": "build",
+    "unreclaimable": 458347656,
+    "anon_shmem": 448344064,
+    "current": 458436608,
+    "pinned": 0
+   },
+   {
+    "t": 852.216355175,
+    "phase": "build",
+    "unreclaimable": 461005960,
+    "anon_shmem": 451092480,
+    "current": 461094912,
+    "pinned": 0
+   },
+   {
+    "t": 852.26971405,
+    "phase": "build",
+    "unreclaimable": 467248264,
+    "anon_shmem": 457048064,
+    "current": 467349504,
+    "pinned": 0
+   },
+   {
+    "t": 852.361184587,
+    "phase": "build",
+    "unreclaimable": 474092680,
+    "anon_shmem": 463794176,
+    "current": 474193920,
+    "pinned": 0
+   },
+   {
+    "t": 852.416970891,
+    "phase": "build",
+    "unreclaimable": 478549128,
+    "anon_shmem": 468267008,
+    "current": 478650368,
+    "pinned": 0
+   },
+   {
+    "t": 852.47522809,
+    "phase": "build",
+    "unreclaimable": 482546824,
+    "anon_shmem": 472162304,
+    "current": 482648064,
+    "pinned": 0
+   },
+   {
+    "t": 852.561480139,
+    "phase": "build",
+    "unreclaimable": 485676168,
+    "anon_shmem": 475267072,
+    "current": 485777408,
+    "pinned": 0
+   },
+   {
+    "t": 852.629159407,
+    "phase": "build",
+    "unreclaimable": 489469064,
+    "anon_shmem": 478781440,
+    "current": 489570304,
+    "pinned": 0
+   },
+   {
+    "t": 852.721335528,
+    "phase": "build",
+    "unreclaimable": 490775688,
+    "anon_shmem": 480579584,
+    "current": 490876928,
+    "pinned": 0
+   },
+   {
+    "t": 852.788326806,
+    "phase": "build",
+    "unreclaimable": 492524680,
+    "anon_shmem": 482246656,
+    "current": 492625920,
+    "pinned": 0
+   },
+   {
+    "t": 852.854795979,
+    "phase": "build",
+    "unreclaimable": 493171848,
+    "anon_shmem": 482828288,
+    "current": 493273088,
+    "pinned": 0
+   },
+   {
+    "t": 852.942611228,
+    "phase": "build",
+    "unreclaimable": 495891592,
+    "anon_shmem": 485515264,
+    "current": 495992832,
+    "pinned": 0
+   },
+   {
+    "t": 852.993836118,
+    "phase": "build",
+    "unreclaimable": 497554568,
+    "anon_shmem": 487309312,
+    "current": 497655808,
+    "pinned": 0
+   },
+   {
+    "t": 853.050668622,
+    "phase": "build",
+    "unreclaimable": 498341000,
+    "anon_shmem": 487309312,
+    "current": 498442240,
+    "pinned": 0
+   },
+   {
+    "t": 853.101229197,
+    "phase": "build",
+    "unreclaimable": 501306504,
+    "anon_shmem": 490553344,
+    "current": 501407744,
+    "pinned": 0
+   },
+   {
+    "t": 853.155329454,
+    "phase": "build",
+    "unreclaimable": 587711624,
+    "anon_shmem": 576987136,
+    "current": 587812864,
+    "pinned": 0
+   },
+   {
+    "t": 853.205751772,
+    "phase": "build",
+    "unreclaimable": 564950152,
+    "anon_shmem": 530173952,
+    "current": 565051392,
+    "pinned": 0
+   },
+   {
+    "t": 853.256164612,
+    "phase": "build",
+    "unreclaimable": 659338376,
+    "anon_shmem": 624672768,
+    "current": 659439616,
+    "pinned": 0
+   },
+   {
+    "t": 853.306618364,
+    "phase": "build",
+    "unreclaimable": 596255880,
+    "anon_shmem": 585420800,
+    "current": 596357120,
+    "pinned": 0
+   },
+   {
+    "t": 853.357044906,
+    "phase": "build",
+    "unreclaimable": 656852104,
+    "anon_shmem": 618504192,
+    "current": 656953344,
+    "pinned": 0
+   },
+   {
+    "t": 853.407479468,
+    "phase": "build",
+    "unreclaimable": 623158408,
+    "anon_shmem": 612335616,
+    "current": 623259648,
+    "pinned": 0
+   },
+   {
+    "t": 853.457970388,
+    "phase": "build",
+    "unreclaimable": 736617608,
+    "anon_shmem": 725979136,
+    "current": 736718848,
+    "pinned": 0
+   },
+   {
+    "t": 853.508472536,
+    "phase": "build",
+    "unreclaimable": 663311496,
+    "anon_shmem": 652873728,
+    "current": 663412736,
+    "pinned": 0
+   },
+   {
+    "t": 853.558901069,
+    "phase": "build",
+    "unreclaimable": 692438152,
+    "anon_shmem": 664403968,
+    "current": 692539392,
+    "pinned": 0
+   },
+   {
+    "t": 853.612275095,
+    "phase": "build",
+    "unreclaimable": 774435976,
+    "anon_shmem": 758902784,
+    "current": 774537216,
+    "pinned": 0
+   },
+   {
+    "t": 853.662734159,
+    "phase": "build",
+    "unreclaimable": 787846280,
+    "anon_shmem": 776617984,
+    "current": 787947520,
+    "pinned": 0
+   },
+   {
+    "t": 853.713395035,
+    "phase": "build",
+    "unreclaimable": 726234248,
+    "anon_shmem": 715481088,
+    "current": 726335488,
+    "pinned": 0
+   },
+   {
+    "t": 853.766340408,
+    "phase": "build",
+    "unreclaimable": 823657608,
+    "anon_shmem": 811872256,
+    "current": 823758848,
+    "pinned": 0
+   },
+   {
+    "t": 853.816761843,
+    "phase": "build",
+    "unreclaimable": 777389192,
+    "anon_shmem": 765075456,
+    "current": 777490432,
+    "pinned": 0
+   },
+   {
+    "t": 853.867218767,
+    "phase": "build",
+    "unreclaimable": 869291144,
+    "anon_shmem": 859574272,
+    "current": 869392384,
+    "pinned": 0
+   },
+   {
+    "t": 853.917702594,
+    "phase": "build",
+    "unreclaimable": 910083208,
+    "anon_shmem": 898572288,
+    "current": 910184448,
+    "pinned": 0
+   },
+   {
+    "t": 853.968158329,
+    "phase": "build",
+    "unreclaimable": 858391688,
+    "anon_shmem": 848703488,
+    "current": 858492928,
+    "pinned": 0
+   },
+   {
+    "t": 854.018606489,
+    "phase": "build",
+    "unreclaimable": 908932232,
+    "anon_shmem": 897728512,
+    "current": 909033472,
+    "pinned": 0
+   },
+   {
+    "t": 854.069686219,
+    "phase": "build",
+    "unreclaimable": 877036680,
+    "anon_shmem": 865824768,
+    "current": 877137920,
+    "pinned": 0
+   },
+   {
+    "t": 854.122293717,
+    "phase": "build",
+    "unreclaimable": 895550600,
+    "anon_shmem": 882515968,
+    "current": 895651840,
+    "pinned": 0
+   },
+   {
+    "t": 854.17272801,
+    "phase": "build",
+    "unreclaimable": 968746120,
+    "anon_shmem": 937291776,
+    "current": 968847360,
+    "pinned": 0
+   },
+   {
+    "t": 854.223204735,
+    "phase": "build",
+    "unreclaimable": 964113544,
+    "anon_shmem": 952758272,
+    "current": 964214784,
+    "pinned": 0
+   },
+   {
+    "t": 854.273643038,
+    "phase": "build",
+    "unreclaimable": 1056380040,
+    "anon_shmem": 1027354624,
+    "current": 1056481280,
+    "pinned": 0
+   },
+   {
+    "t": 854.324120205,
+    "phase": "build",
+    "unreclaimable": 1048327304,
+    "anon_shmem": 1036918784,
+    "current": 1048428544,
+    "pinned": 0
+   },
+   {
+    "t": 854.377325301,
+    "phase": "build",
+    "unreclaimable": 1073869960,
+    "anon_shmem": 1061924864,
+    "current": 1073971200,
+    "pinned": 0
+   },
+   {
+    "t": 854.427795244,
+    "phase": "build",
+    "unreclaimable": 1037149320,
+    "anon_shmem": 1025220608,
+    "current": 1037250560,
+    "pinned": 0
+   },
+   {
+    "t": 854.482100735,
+    "phase": "build",
+    "unreclaimable": 1026774152,
+    "anon_shmem": 1016770560,
+    "current": 1026875392,
+    "pinned": 0
+   },
+   {
+    "t": 854.538525593,
+    "phase": "build",
+    "unreclaimable": 1026774152,
+    "anon_shmem": 1016770560,
+    "current": 1026875392,
+    "pinned": 0
+   },
+   {
+    "t": 854.58896419,
+    "phase": "build",
+    "unreclaimable": 1098069128,
+    "anon_shmem": 1054638080,
+    "current": 1098170368,
+    "pinned": 0
+   },
+   {
+    "t": 854.655026017,
+    "phase": "build",
+    "unreclaimable": 498435208,
+    "anon_shmem": 488460288,
+    "current": 498536448,
+    "pinned": 0
+   },
+   {
+    "t": 854.705445039,
+    "phase": "build",
+    "unreclaimable": 640574112,
+    "anon_shmem": 630984704,
+    "current": 640684032,
+    "pinned": 0
+   },
+   {
+    "t": 854.757238235,
+    "phase": "build",
+    "unreclaimable": 729690440,
+    "anon_shmem": 694251520,
+    "current": 729812992,
+    "pinned": 0
+   },
+   {
+    "t": 854.807982494,
+    "phase": "build",
+    "unreclaimable": 760643912,
+    "anon_shmem": 749883392,
+    "current": 760766464,
+    "pinned": 0
+   },
+   {
+    "t": 854.858527769,
+    "phase": "build",
+    "unreclaimable": 729448776,
+    "anon_shmem": 717312000,
+    "current": 729571328,
+    "pinned": 0
+   },
+   {
+    "t": 854.908959838,
+    "phase": "build",
+    "unreclaimable": 793247384,
+    "anon_shmem": 698474496,
+    "current": 795824128,
+    "pinned": 0
+   },
+   {
+    "t": 854.959324767,
+    "phase": "build",
+    "unreclaimable": 758205704,
+    "anon_shmem": 698474496,
+    "current": 825446400,
+    "pinned": 0
+   },
+   {
+    "t": 855.010205102,
+    "phase": "build",
+    "unreclaimable": 694893832,
+    "anon_shmem": 622964736,
+    "current": 782241792,
+    "pinned": 0
+   },
+   {
+    "t": 855.063334015,
+    "phase": "build",
+    "unreclaimable": 809258248,
+    "anon_shmem": 769769472,
+    "current": 896606208,
+    "pinned": 0
+   },
+   {
+    "t": 855.113766782,
+    "phase": "build",
+    "unreclaimable": 751108712,
+    "anon_shmem": 706850816,
+    "current": 838549504,
+    "pinned": 0
+   },
+   {
+    "t": 855.16417769,
+    "phase": "build",
+    "unreclaimable": 851176760,
+    "anon_shmem": 706850816,
+    "current": 941572096,
+    "pinned": 0
+   },
+   {
+    "t": 855.218299252,
+    "phase": "build",
+    "unreclaimable": 871971192,
+    "anon_shmem": 744849408,
+    "current": 1021378560,
+    "pinned": 0
+   },
+   {
+    "t": 855.268756137,
+    "phase": "build",
+    "unreclaimable": 744823160,
+    "anon_shmem": 731172864,
+    "current": 976691200,
+    "pinned": 0
+   },
+   {
+    "t": 855.319208862,
+    "phase": "build",
+    "unreclaimable": 735435128,
+    "anon_shmem": 723632128,
+    "current": 967303168,
+    "pinned": 0
+   },
+   {
+    "t": 855.36966437,
+    "phase": "build",
+    "unreclaimable": 803854424,
+    "anon_shmem": 706850816,
+    "current": 1038200832,
+    "pinned": 0
+   },
+   {
+    "t": 855.420145738,
+    "phase": "build",
+    "unreclaimable": 915716376,
+    "anon_shmem": 824295424,
+    "current": 1184477184,
+    "pinned": 0
+   },
+   {
+    "t": 855.470835453,
+    "phase": "build",
+    "unreclaimable": 720263448,
+    "anon_shmem": 706850816,
+    "current": 1068003328,
+    "pinned": 0
+   },
+   {
+    "t": 855.524337445,
+    "phase": "build",
+    "unreclaimable": 753637656,
+    "anon_shmem": 740409344,
+    "current": 1101377536,
+    "pinned": 0
+   },
+   {
+    "t": 855.57478758,
+    "phase": "build",
+    "unreclaimable": 804105160,
+    "anon_shmem": 706850816,
+    "current": 1154301952,
+    "pinned": 0
+   },
+   {
+    "t": 855.625269246,
+    "phase": "build",
+    "unreclaimable": 902686904,
+    "anon_shmem": 824295424,
+    "current": 1301843968,
+    "pinned": 0
+   },
+   {
+    "t": 855.678354783,
+    "phase": "build",
+    "unreclaimable": 802072760,
+    "anon_shmem": 786612224,
+    "current": 1265688576,
+    "pinned": 0
+   },
+   {
+    "t": 855.728948299,
+    "phase": "build",
+    "unreclaimable": 754604216,
+    "anon_shmem": 740413440,
+    "current": 1218220032,
+    "pinned": 0
+   },
+   {
+    "t": 855.779409935,
+    "phase": "build",
+    "unreclaimable": 805374168,
+    "anon_shmem": 706854912,
+    "current": 1271468032,
+    "pinned": 0
+   },
+   {
+    "t": 855.829884498,
+    "phase": "build",
+    "unreclaimable": 905779144,
+    "anon_shmem": 824299520,
+    "current": 1417637888,
+    "pinned": 0
+   },
+   {
+    "t": 855.880277467,
+    "phase": "build",
+    "unreclaimable": 734668744,
+    "anon_shmem": 706854912,
+    "current": 1314156544,
+    "pinned": 0
+   },
+   {
+    "t": 855.934292496,
+    "phase": "build",
+    "unreclaimable": 755120072,
+    "anon_shmem": 740413440,
+    "current": 1334607872,
+    "pinned": 0
+   },
+   {
+    "t": 855.984728517,
+    "phase": "build",
+    "unreclaimable": 811371976,
+    "anon_shmem": 706854912,
+    "current": 1393455104,
+    "pinned": 0
+   },
+   {
+    "t": 856.037299373,
+    "phase": "build",
+    "unreclaimable": 952440680,
+    "anon_shmem": 824299520,
+    "current": 1535266816,
+    "pinned": 0
+   },
+   {
+    "t": 856.088094456,
+    "phase": "build",
+    "unreclaimable": 952461160,
+    "anon_shmem": 824299520,
+    "current": 1535287296,
+    "pinned": 0
+   },
+   {
+    "t": 856.138844059,
+    "phase": "build",
+    "unreclaimable": 835827560,
+    "anon_shmem": 706854912,
+    "current": 1418653696,
+    "pinned": 0
+   },
+   {
+    "t": 856.189335386,
+    "phase": "build",
+    "unreclaimable": 927897096,
+    "anon_shmem": 706854912,
+    "current": 1513422848,
+    "pinned": 0
+   },
+   {
+    "t": 856.239828343,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.290219568,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.340527374,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.390814674,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.441111611,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.491380459,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.541644869,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.59191256,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.642172609,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.692452335,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.74289979,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.793250478,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.843541154,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.893813259,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.944169578,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 856.994471131,
+    "phase": "build",
+    "unreclaimable": 948496216,
+    "anon_shmem": 706854912,
+    "current": 1534656512,
+    "pinned": 0
+   },
+   {
+    "t": 857.044771383,
+    "phase": "build",
+    "unreclaimable": 881243992,
+    "anon_shmem": 706859008,
+    "current": 1534513152,
+    "pinned": 0
+   },
+   {
+    "t": 857.097317287,
+    "phase": "build",
+    "unreclaimable": 885634848,
+    "anon_shmem": 800841728,
+    "current": 1651441664,
+    "pinned": 0
+   },
+   {
+    "t": 857.14810081,
+    "phase": "build",
+    "unreclaimable": 840521504,
+    "anon_shmem": 824303616,
+    "current": 1651752960,
+    "pinned": 0
+   },
+   {
+    "t": 857.198662736,
+    "phase": "build",
+    "unreclaimable": 723781408,
+    "anon_shmem": 706859008,
+    "current": 1535012864,
+    "pinned": 0
+   },
+   {
+    "t": 857.249135677,
+    "phase": "build",
+    "unreclaimable": 822785384,
+    "anon_shmem": 706859008,
+    "current": 1636917248,
+    "pinned": 0
+   },
+   {
+    "t": 857.299603126,
+    "phase": "build",
+    "unreclaimable": 886609656,
+    "anon_shmem": 824303616,
+    "current": 1768284160,
+    "pinned": 0
+   },
+   {
+    "t": 857.353313752,
+    "phase": "build",
+    "unreclaimable": 841496312,
+    "anon_shmem": 824303616,
+    "current": 1768595456,
+    "pinned": 0
+   },
+   {
+    "t": 857.403779158,
+    "phase": "build",
+    "unreclaimable": 728410680,
+    "anon_shmem": 706859008,
+    "current": 1655635968,
+    "pinned": 0
+   },
+   {
+    "t": 857.454227443,
+    "phase": "build",
+    "unreclaimable": 828720568,
+    "anon_shmem": 706859008,
+    "current": 1758920704,
+    "pinned": 0
+   },
+   {
+    "t": 857.50471972,
+    "phase": "build",
+    "unreclaimable": 826667768,
+    "anon_shmem": 744857600,
+    "current": 1824219136,
+    "pinned": 0
+   },
+   {
+    "t": 857.555482254,
+    "phase": "build",
+    "unreclaimable": 787878648,
+    "anon_shmem": 769777664,
+    "current": 1830854656,
+    "pinned": 0
+   },
+   {
+    "t": 857.606054861,
+    "phase": "build",
+    "unreclaimable": 744071928,
+    "anon_shmem": 698470400,
+    "current": 1787047936,
+    "pinned": 0
+   },
+   {
+    "t": 857.65649967,
+    "phase": "build",
+    "unreclaimable": 817299784,
+    "anon_shmem": 706859008,
+    "current": 1863004160,
+    "pinned": 0
+   },
+   {
+    "t": 857.709318988,
+    "phase": "build",
+    "unreclaimable": 905032344,
+    "anon_shmem": 824303616,
+    "current": 2001678336,
+    "pinned": 0
+   },
+   {
+    "t": 857.759780138,
+    "phase": "build",
+    "unreclaimable": 726180504,
+    "anon_shmem": 706859008,
+    "current": 1885028352,
+    "pinned": 0
+   },
+   {
+    "t": 857.81025635,
+    "phase": "build",
+    "unreclaimable": 743125656,
+    "anon_shmem": 723640320,
+    "current": 1901973504,
+    "pinned": 0
+   },
+   {
+    "t": 857.860708136,
+    "phase": "build",
+    "unreclaimable": 841712216,
+    "anon_shmem": 723640320,
+    "current": 2003451904,
+    "pinned": 0
+   },
+   {
+    "t": 857.911189234,
+    "phase": "build",
+    "unreclaimable": 914199096,
+    "anon_shmem": 841084928,
+    "current": 2135105536,
+    "pinned": 0
+   },
+   {
+    "t": 857.963455212,
+    "phase": "build",
+    "unreclaimable": 861221432,
+    "anon_shmem": 841089024,
+    "current": 2135941120,
+    "pinned": 0
+   },
+   {
+    "t": 858.013887489,
+    "phase": "build",
+    "unreclaimable": 752992520,
+    "anon_shmem": 723644416,
+    "current": 2027892736,
+    "pinned": 0
+   },
+   {
+    "t": 858.064300451,
+    "phase": "build",
+    "unreclaimable": 854505304,
+    "anon_shmem": 723644416,
+    "current": 2132488192,
+    "pinned": 0
+   },
+   {
+    "t": 858.114790191,
+    "phase": "build",
+    "unreclaimable": 895840728,
+    "anon_shmem": 769998848,
+    "current": 2182287360,
+    "pinned": 0
+   },
+   {
+    "t": 858.16527584,
+    "phase": "build",
+    "unreclaimable": 966148568,
+    "anon_shmem": 841089024,
+    "current": 2252595200,
+    "pinned": 0
+   },
+   {
+    "t": 858.216357089,
+    "phase": "build",
+    "unreclaimable": 866413544,
+    "anon_shmem": 723644416,
+    "current": 2153365504,
+    "pinned": 0
+   },
+   {
+    "t": 858.266737882,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.317047891,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.367313928,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.417586838,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.467847527,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.518126596,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.568383509,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.618639646,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.668891406,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.719168809,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.769436498,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.819693381,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.869946942,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.920197698,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 858.970452305,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.020709288,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.070979483,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.1212765,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.171532273,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.221786822,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.272064236,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.322331443,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.372589503,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.422848986,
+    "phase": "build",
+    "unreclaimable": 961364424,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.473136152,
+    "phase": "build",
+    "unreclaimable": 849912264,
+    "anon_shmem": 723644416,
+    "current": 2251145216,
+    "pinned": 0
+   },
+   {
+    "t": 859.523605142,
+    "phase": "build",
+    "unreclaimable": 835915784,
+    "anon_shmem": 813498368,
+    "current": 2342383616,
+    "pinned": 0
+   },
+   {
+    "t": 859.574110879,
+    "phase": "build",
+    "unreclaimable": 862445576,
+    "anon_shmem": 841089024,
+    "current": 2368913408,
+    "pinned": 0
+   },
+   {
+    "t": 859.624525595,
+    "phase": "build",
+    "unreclaimable": 764077944,
+    "anon_shmem": 723644416,
+    "current": 2271035392,
+    "pinned": 0
+   },
+   {
+    "t": 859.674887405,
+    "phase": "build",
+    "unreclaimable": 857964200,
+    "anon_shmem": 723644416,
+    "current": 2367766528,
+    "pinned": 0
+   },
+   {
+    "t": 859.726336161,
+    "phase": "build",
+    "unreclaimable": 859241952,
+    "anon_shmem": 723451904,
+    "current": 2369052672,
+    "pinned": 0
+   },
+   {
+    "t": 859.776809592,
+    "phase": "build",
+    "unreclaimable": 896228832,
+    "anon_shmem": 761397248,
+    "current": 2406039552,
+    "pinned": 0
+   },
+   {
+    "t": 859.827246651,
+    "phase": "build",
+    "unreclaimable": 833191392,
+    "anon_shmem": 698478592,
+    "current": 2343002112,
+    "pinned": 0
+   },
+   {
+    "t": 859.877554946,
+    "phase": "build",
+    "unreclaimable": 833191392,
+    "anon_shmem": 698478592,
+    "current": 2343002112,
+    "pinned": 0
+   },
+   {
+    "t": 859.92782235,
+    "phase": "build",
+    "unreclaimable": 833191392,
+    "anon_shmem": 698478592,
+    "current": 2343002112,
+    "pinned": 0
+   },
+   {
+    "t": 859.978106624,
+    "phase": "build",
+    "unreclaimable": 833191392,
+    "anon_shmem": 698478592,
+    "current": 2343002112,
+    "pinned": 0
+   },
+   {
+    "t": 860.028368389,
+    "phase": "build",
+    "unreclaimable": 833191392,
+    "anon_shmem": 698478592,
+    "current": 2343002112,
+    "pinned": 0
+   },
+   {
+    "t": 860.078631672,
+    "phase": "build",
+    "unreclaimable": 833191392,
+    "anon_shmem": 698478592,
+    "current": 2343002112,
+    "pinned": 0
+   },
+   {
+    "t": 860.12890224,
+    "phase": "build",
+    "unreclaimable": 833191392,
+    "anon_shmem": 698478592,
+    "current": 2343002112,
+    "pinned": 0
+   },
+   {
+    "t": 860.179206471,
+    "phase": "build",
+    "unreclaimable": 869688504,
+    "anon_shmem": 698482688,
+    "current": 2441043968,
+    "pinned": 0
+   },
+   {
+    "t": 860.22951498,
+    "phase": "build",
+    "unreclaimable": 887000504,
+    "anon_shmem": 698482688,
+    "current": 2458869760,
+    "pinned": 0
+   },
+   {
+    "t": 860.279807966,
+    "phase": "build",
+    "unreclaimable": 824798648,
+    "anon_shmem": 698482688,
+    "current": 2458869760,
+    "pinned": 0
+   },
+   {
+    "t": 860.33009975,
+    "phase": "build",
+    "unreclaimable": 824798648,
+    "anon_shmem": 698482688,
+    "current": 2458869760,
+    "pinned": 0
+   },
+   {
+    "t": 860.380358681,
+    "phase": "build",
+    "unreclaimable": 824798648,
+    "anon_shmem": 698482688,
+    "current": 2458869760,
+    "pinned": 0
+   },
+   {
+    "t": 860.432306885,
+    "phase": "build",
+    "unreclaimable": 838880696,
+    "anon_shmem": 815927296,
+    "current": 2577096704,
+    "pinned": 0
+   },
+   {
+    "t": 860.482715653,
+    "phase": "build",
+    "unreclaimable": 799559096,
+    "anon_shmem": 764715008,
+    "current": 2537775104,
+    "pinned": 0
+   },
+   {
+    "t": 860.533138296,
+    "phase": "build",
+    "unreclaimable": 734694840,
+    "anon_shmem": 698482688,
+    "current": 2472910848,
+    "pinned": 0
+   },
+   {
+    "t": 860.583554904,
+    "phase": "build",
+    "unreclaimable": 797508200,
+    "anon_shmem": 698482688,
+    "current": 2537897984,
+    "pinned": 0
+   },
+   {
+    "t": 860.63404131,
+    "phase": "build",
+    "unreclaimable": 910440888,
+    "anon_shmem": 815927296,
+    "current": 2693939200,
+    "pinned": 0
+   },
+   {
+    "t": 860.687282279,
+    "phase": "build",
+    "unreclaimable": 772491704,
+    "anon_shmem": 721678336,
+    "current": 2626580480,
+    "pinned": 0
+   },
+   {
+    "t": 860.737703704,
+    "phase": "build",
+    "unreclaimable": 739756472,
+    "anon_shmem": 715264000,
+    "current": 2593845248,
+    "pinned": 0
+   },
+   {
+    "t": 860.788144985,
+    "phase": "build",
+    "unreclaimable": 792353640,
+    "anon_shmem": 698482688,
+    "current": 2648485888,
+    "pinned": 0
+   },
+   {
+    "t": 860.840321448,
+    "phase": "build",
+    "unreclaimable": 910596440,
+    "anon_shmem": 815927296,
+    "current": 2809966592,
+    "pinned": 0
+   },
+   {
+    "t": 860.89074463,
+    "phase": "build",
+    "unreclaimable": 799033688,
+    "anon_shmem": 736481280,
+    "current": 2768994304,
+    "pinned": 0
+   },
+   {
+    "t": 860.941176687,
+    "phase": "build",
+    "unreclaimable": 739936600,
+    "anon_shmem": 713547776,
+    "current": 2709897216,
+    "pinned": 0
+   },
+   {
+    "t": 860.991624963,
+    "phase": "build",
+    "unreclaimable": 799497288,
+    "anon_shmem": 698482688,
+    "current": 2771726336,
+    "pinned": 0
+   },
+   {
+    "t": 861.042105629,
+    "phase": "build",
+    "unreclaimable": 903964920,
+    "anon_shmem": 815927296,
+    "current": 2927595520,
+    "pinned": 0
+   },
+   {
+    "t": 861.093272053,
+    "phase": "build",
+    "unreclaimable": 743209208,
+    "anon_shmem": 698482688,
+    "current": 2829041664,
+    "pinned": 0
+   },
+   {
+    "t": 861.143700805,
+    "phase": "build",
+    "unreclaimable": 758208760,
+    "anon_shmem": 732041216,
+    "current": 2844041216,
+    "pinned": 0
+   },
+   {
+    "t": 861.194147371,
+    "phase": "build",
+    "unreclaimable": 808062168,
+    "anon_shmem": 698482688,
+    "current": 2896334848,
+    "pinned": 0
+   },
+   {
+    "t": 861.244610117,
+    "phase": "build",
+    "unreclaimable": 953956504,
+    "anon_shmem": 815927296,
+    "current": 3043127296,
+    "pinned": 0
+   },
+   {
+    "t": 861.295089718,
+    "phase": "build",
+    "unreclaimable": 929073304,
+    "anon_shmem": 788176896,
+    "current": 3018244096,
+    "pinned": 0
+   },
+   {
+    "t": 861.347277157,
+    "phase": "build",
+    "unreclaimable": 850110616,
+    "anon_shmem": 698482688,
+    "current": 2939281408,
+    "pinned": 0
+   },
+   {
+    "t": 861.397669101,
+    "phase": "build",
+    "unreclaimable": 932855816,
+    "anon_shmem": 698482688,
+    "current": 3024830464,
+    "pinned": 0
+   },
+   {
+    "t": 861.447971289,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.49827137,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.548530442,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.598788147,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.64911421,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.699418452,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.749718376,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.799984219,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.850282923,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.900560093,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 861.950824007,
+    "phase": "build",
+    "unreclaimable": 950151304,
+    "anon_shmem": 698482688,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 862.001131604,
+    "phase": "build",
+    "unreclaimable": 924985480,
+    "anon_shmem": 698486784,
+    "current": 3042656256,
+    "pinned": 0
+   },
+   {
+    "t": 862.05178022,
+    "phase": "build",
+    "unreclaimable": 922159184,
+    "anon_shmem": 815931392,
+    "current": 3160756224,
+    "pinned": 0
+   },
+   {
+    "t": 862.103127266,
+    "phase": "build",
+    "unreclaimable": 758765648,
+    "anon_shmem": 732176384,
+    "current": 3076341760,
+    "pinned": 0
+   },
+   {
+    "t": 862.154276128,
+    "phase": "build",
+    "unreclaimable": 807557200,
+    "anon_shmem": 751042560,
+    "current": 3125133312,
+    "pinned": 0
+   },
+   {
+    "t": 862.204722496,
+    "phase": "build",
+    "unreclaimable": 762374104,
+    "anon_shmem": 698486784,
+    "current": 3080962048,
+    "pinned": 0
+   },
+   {
+    "t": 862.255123225,
+    "phase": "build",
+    "unreclaimable": 830564392,
+    "anon_shmem": 698486784,
+    "current": 3159867392,
+    "pinned": 0
+   },
+   {
+    "t": 862.309353586,
+    "phase": "build",
+    "unreclaimable": 844412968,
+    "anon_shmem": 815935488,
+    "current": 3277856768,
+    "pinned": 0
+   },
+   {
+    "t": 862.35982849,
+    "phase": "build",
+    "unreclaimable": 843913256,
+    "anon_shmem": 815935488,
+    "current": 3277357056,
+    "pinned": 0
+   },
+   {
+    "t": 862.410304577,
+    "phase": "build",
+    "unreclaimable": 762234568,
+    "anon_shmem": 698494976,
+    "current": 3196665856,
+    "pinned": 0
+   },
+   {
+    "t": 862.460649934,
+    "phase": "build",
+    "unreclaimable": 831706264,
+    "anon_shmem": 698494976,
+    "current": 3276881920,
+    "pinned": 0
+   },
+   {
+    "t": 862.583129012,
+    "phase": "build",
+    "unreclaimable": 728077464,
+    "anon_shmem": 698503168,
+    "current": 3277393920,
+    "pinned": 0
+   },
+   {
+    "t": 862.634746033,
+    "phase": "build",
+    "unreclaimable": 836207768,
+    "anon_shmem": 815939584,
+    "current": 3385524224,
+    "pinned": 0
+   },
+   {
+    "t": 862.686277409,
+    "phase": "build",
+    "unreclaimable": 786408600,
+    "anon_shmem": 748236800,
+    "current": 3335725056,
+    "pinned": 0
+   },
+   {
+    "t": 862.736652406,
+    "phase": "build",
+    "unreclaimable": 843946760,
+    "anon_shmem": 727859200,
+    "current": 3396059136,
+    "pinned": 0
+   },
+   {
+    "t": 862.788437546,
+    "phase": "build",
+    "unreclaimable": 869749816,
+    "anon_shmem": 744771584,
+    "current": 3430793216,
+    "pinned": 0
+   },
+   {
+    "t": 862.838911907,
+    "phase": "build",
+    "unreclaimable": 875611192,
+    "anon_shmem": 749522944,
+    "current": 3436654592,
+    "pinned": 0
+   },
+   {
+    "t": 862.89128848,
+    "phase": "build",
+    "unreclaimable": 852825144,
+    "anon_shmem": 727441408,
+    "current": 3413868544,
+    "pinned": 0
+   },
+   {
+    "t": 862.941727697,
+    "phase": "build",
+    "unreclaimable": 899885496,
+    "anon_shmem": 719470592,
+    "current": 3462508544,
+    "pinned": 0
+   },
+   {
+    "t": 862.992092822,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.042372516,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.092649828,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.142918794,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.193186923,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.243477172,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.293752215,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.344058047,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719470592,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.394369644,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.444660114,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.494946067,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.545235216,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.595518627,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.645790683,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.696101555,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.746371835,
+    "phase": "build",
+    "unreclaimable": 956847064,
+    "anon_shmem": 719474688,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.796694016,
+    "phase": "build",
+    "unreclaimable": 898126808,
+    "anon_shmem": 719478784,
+    "current": 3521228800,
+    "pinned": 0
+   },
+   {
+    "t": 863.847234132,
+    "phase": "build",
+    "unreclaimable": 903558104,
+    "anon_shmem": 836923392,
+    "current": 3639193600,
+    "pinned": 0
+   },
+   {
+    "t": 863.90138773,
+    "phase": "build",
+    "unreclaimable": 690652120,
+    "anon_shmem": 656564224,
+    "current": 3471712256,
+    "pinned": 0
+   },
+   {
+    "t": 863.952160429,
+    "phase": "build",
+    "unreclaimable": 726823896,
+    "anon_shmem": 703340544,
+    "current": 3507884032,
+    "pinned": 0
+   },
+   {
+    "t": 864.002640455,
+    "phase": "build",
+    "unreclaimable": 813428840,
+    "anon_shmem": 719478784,
+    "current": 3596607488,
+    "pinned": 0
+   },
+   {
+    "t": 864.053688275,
+    "phase": "build",
+    "unreclaimable": 938033928,
+    "anon_shmem": 836923392,
+    "current": 3755991040,
+    "pinned": 0
+   },
+   {
+    "t": 864.106310311,
+    "phase": "build",
+    "unreclaimable": 773894920,
+    "anon_shmem": 734285824,
+    "current": 3670831104,
+    "pinned": 0
+   },
+   {
+    "t": 864.156756678,
+    "phase": "build",
+    "unreclaimable": 758420232,
+    "anon_shmem": 736260096,
+    "current": 3655356416,
+    "pinned": 0
+   },
+   {
+    "t": 864.207223849,
+    "phase": "build",
+    "unreclaimable": 813838552,
+    "anon_shmem": 719482880,
+    "current": 3712880640,
+    "pinned": 0
+   },
+   {
+    "t": 864.259405609,
+    "phase": "build",
+    "unreclaimable": 846639808,
+    "anon_shmem": 744783872,
+    "current": 3780468736,
+    "pinned": 0
+   },
+   {
+    "t": 864.309950394,
+    "phase": "build",
+    "unreclaimable": 797045440,
+    "anon_shmem": 774012928,
+    "current": 3809853440,
+    "pinned": 0
+   },
+   {
+    "t": 864.360663487,
+    "phase": "build",
+    "unreclaimable": 753054400,
+    "anon_shmem": 727896064,
+    "current": 3765862400,
+    "pinned": 0
+   },
+   {
+    "t": 864.411207006,
+    "phase": "build",
+    "unreclaimable": 811947432,
+    "anon_shmem": 719482880,
+    "current": 3826794496,
+    "pinned": 0
+   },
+   {
+    "t": 864.463395838,
+    "phase": "build",
+    "unreclaimable": 939627160,
+    "anon_shmem": 836927488,
+    "current": 3989323776,
+    "pinned": 0
+   },
+   {
+    "t": 864.515445486,
+    "phase": "build",
+    "unreclaimable": 747205272,
+    "anon_shmem": 720961536,
+    "current": 3875880960,
+    "pinned": 0
+   },
+   {
+    "t": 864.56599457,
+    "phase": "build",
+    "unreclaimable": 777286296,
+    "anon_shmem": 753045504,
+    "current": 3905961984,
+    "pinned": 0
+   },
+   {
+    "t": 864.616538707,
+    "phase": "build",
+    "unreclaimable": 832174024,
+    "anon_shmem": 719486976,
+    "current": 3963453440,
+    "pinned": 0
+   },
+   {
+    "t": 864.6703775,
+    "phase": "build",
+    "unreclaimable": 924077832,
+    "anon_shmem": 836931584,
+    "current": 4106428416,
+    "pinned": 0
+   },
+   {
+    "t": 864.721171341,
+    "phase": "build",
+    "unreclaimable": 862449416,
+    "anon_shmem": 836931584,
+    "current": 4107001856,
+    "pinned": 0
+   },
+   {
+    "t": 864.771786535,
+    "phase": "build",
+    "unreclaimable": 746212664,
+    "anon_shmem": 719486976,
+    "current": 3990753280,
+    "pinned": 0
+   },
+   {
+    "t": 864.8221656,
+    "phase": "build",
+    "unreclaimable": 848237784,
+    "anon_shmem": 719486976,
+    "current": 4095803392,
+    "pinned": 0
+   },
+   {
+    "t": 864.876382159,
+    "phase": "build",
+    "unreclaimable": 951254584,
+    "anon_shmem": 811024384,
+    "current": 4199149568,
+    "pinned": 0
+   },
+   {
+    "t": 864.927012169,
+    "phase": "build",
+    "unreclaimable": 974900792,
+    "anon_shmem": 836931584,
+    "current": 4222795776,
+    "pinned": 0
+   },
+   {
+    "t": 864.977552,
+    "phase": "build",
+    "unreclaimable": 886419496,
+    "anon_shmem": 719486976,
+    "current": 4135104512,
+    "pinned": 0
+   },
+   {
+    "t": 865.027924796,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.078203793,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.128476942,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.178747465,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.22906408,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.279353882,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.329621677,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.379894535,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.43015958,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.480422596,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.530716093,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.580996939,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.631290627,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.681758098,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.732164664,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.782459333,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.832734526,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.883044745,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.93332996,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 865.983596728,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 866.033861636,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 866.084156915,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 866.134422556,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719486976,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 866.184701033,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719495168,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 866.234959379,
+    "phase": "build",
+    "unreclaimable": 971427176,
+    "anon_shmem": 719495168,
+    "current": 4222660608,
+    "pinned": 0
+   },
+   {
+    "t": 866.285230562,
+    "phase": "build",
+    "unreclaimable": 850460008,
+    "anon_shmem": 719495168,
+    "current": 4222615552,
+    "pinned": 0
+   },
+   {
+    "t": 866.335769126,
+    "phase": "build",
+    "unreclaimable": 863837544,
+    "anon_shmem": 836939776,
+    "current": 4340137984,
+    "pinned": 0
+   },
+   {
+    "t": 866.389238798,
+    "phase": "build",
+    "unreclaimable": 832351592,
+    "anon_shmem": 797216768,
+    "current": 4308652032,
+    "pinned": 0
+   },
+   {
+    "t": 866.439597842,
+    "phase": "build",
+    "unreclaimable": 791697048,
+    "anon_shmem": 719495168,
+    "current": 4269330432,
+    "pinned": 0
+   },
+   {
+    "t": 866.493270591,
+    "phase": "build",
+    "unreclaimable": 853978376,
+    "anon_shmem": 720707584,
+    "current": 4342005760,
+    "pinned": 0
+   },
+   {
+    "t": 866.543645943,
+    "phase": "build",
+    "unreclaimable": 876109064,
+    "anon_shmem": 744800256,
+    "current": 4364136448,
+    "pinned": 0
+   },
+   {
+    "t": 866.596242409,
+    "phase": "build",
+    "unreclaimable": 849915144,
+    "anon_shmem": 716185600,
+    "current": 4337942528,
+    "pinned": 0
+   },
+   {
+    "t": 866.646592578,
+    "phase": "build",
+    "unreclaimable": 908417832,
+    "anon_shmem": 719503360,
+    "current": 4398116864,
+    "pinned": 0
+   },
+   {
+    "t": 866.696890247,
+    "phase": "build",
+    "unreclaimable": 963640568,
+    "anon_shmem": 719503360,
+    "current": 4455002112,
+    "pinned": 0
+   },
+   {
+    "t": 866.747168439,
+    "phase": "build",
+    "unreclaimable": 963640568,
+    "anon_shmem": 719503360,
+    "current": 4455002112,
+    "pinned": 0
+   },
+   {
+    "t": 866.797426585,
+    "phase": "build",
+    "unreclaimable": 963640568,
+    "anon_shmem": 719503360,
+    "current": 4455002112,
+    "pinned": 0
+   },
+   {
+    "t": 866.847684084,
+    "phase": "build",
+    "unreclaimable": 963640568,
+    "anon_shmem": 719503360,
+    "current": 4455002112,
+    "pinned": 0
+   },
+   {
+    "t": 866.897953611,
+    "phase": "build",
+    "unreclaimable": 844922104,
+    "anon_shmem": 719503360,
+    "current": 4455002112,
+    "pinned": 0
+   },
+   {
+    "t": 867.025900039,
+    "phase": "build",
+    "unreclaimable": 746958016,
+    "anon_shmem": 719507456,
+    "current": 4455002112,
+    "pinned": 0
+   },
+   {
+    "t": 867.076268628,
+    "phase": "build",
+    "unreclaimable": 1055559464,
+    "anon_shmem": 987942912,
+    "current": 4765024256,
+    "pinned": 0
+   },
+   {
+    "t": 867.126573267,
+    "phase": "build",
+    "unreclaimable": 1152062376,
+    "anon_shmem": 987942912,
+    "current": 4864376832,
+    "pinned": 0
+   },
+   {
+    "t": 867.176847113,
+    "phase": "build",
+    "unreclaimable": 1247025880,
+    "anon_shmem": 987942912,
+    "current": 4962156544,
+    "pinned": 0
+   },
+   {
+    "t": 867.22714461,
+    "phase": "build",
+    "unreclaimable": 1133389880,
+    "anon_shmem": 895799296,
+    "current": 4899721216,
+    "pinned": 0
+   },
+   {
+    "t": 867.28712727,
+    "phase": "build",
+    "unreclaimable": 731162680,
+    "anon_shmem": 627359744,
+    "current": 4631711744,
+    "pinned": 0
+   },
+   {
+    "t": 867.337503011,
+    "phase": "build",
+    "unreclaimable": 946380616,
+    "anon_shmem": 895799296,
+    "current": 4931694592,
+    "pinned": 0
+   },
+   {
+    "t": 867.387799166,
+    "phase": "build",
+    "unreclaimable": 1043346120,
+    "anon_shmem": 895799296,
+    "current": 5031571456,
+    "pinned": 0
+   },
+   {
+    "t": 867.438107297,
+    "phase": "build",
+    "unreclaimable": 1140352024,
+    "anon_shmem": 895803392,
+    "current": 5131448320,
+    "pinned": 0
+   },
+   {
+    "t": 867.488384058,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.53865653,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.588927682,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.639187794,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.689450112,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.739709318,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.78997326,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.840272901,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.890539104,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.940799984,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 867.991091437,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.041367747,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.091631338,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.141894563,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.192355304,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.242706303,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.292980355,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.343298693,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.393588047,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.443863284,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.494167576,
+    "phase": "build",
+    "unreclaimable": 1174700552,
+    "anon_shmem": 895803392,
+    "current": 5175488512,
+    "pinned": 0
+   },
+   {
+    "t": 868.553711379,
+    "phase": "build",
+    "unreclaimable": 738865672,
+    "anon_shmem": 627367936,
+    "current": 4907425792,
+    "pinned": 0
+   },
+   {
+    "t": 868.663322319,
+    "phase": "build",
+    "unreclaimable": 645509560,
+    "anon_shmem": 627372032,
+    "current": 4906360832,
+    "pinned": 0
+   },
+   {
+    "t": 868.719225583,
+    "phase": "build",
+    "unreclaimable": 638169528,
+    "anon_shmem": 628695040,
+    "current": 4899024896,
+    "pinned": 0
+   },
+   {
+    "t": 868.771331606,
+    "phase": "build",
+    "unreclaimable": 639480248,
+    "anon_shmem": 630214656,
+    "current": 4900335616,
+    "pinned": 0
+   },
+   {
+    "t": 868.824285924,
+    "phase": "build",
+    "unreclaimable": 720630200,
+    "anon_shmem": 709120000,
+    "current": 4981485568,
+    "pinned": 0
+   },
+   {
+    "t": 868.874702457,
+    "phase": "build",
+    "unreclaimable": 647356856,
+    "anon_shmem": 636043264,
+    "current": 4908212224,
+    "pinned": 0
+   },
+   {
+    "t": 868.92512274,
+    "phase": "build",
+    "unreclaimable": 647315896,
+    "anon_shmem": 635142144,
+    "current": 4908171264,
+    "pinned": 0
+   },
+   {
+    "t": 868.975515901,
+    "phase": "build",
+    "unreclaimable": 693060024,
+    "anon_shmem": 681451520,
+    "current": 4953915392,
+    "pinned": 0
+   },
+   {
+    "t": 869.02590856,
+    "phase": "build",
+    "unreclaimable": 686690744,
+    "anon_shmem": 675246080,
+    "current": 4947546112,
+    "pinned": 0
+   },
+   {
+    "t": 869.076265152,
+    "phase": "build",
+    "unreclaimable": 730362296,
+    "anon_shmem": 686047232,
+    "current": 4991217664,
+    "pinned": 0
+   },
+   {
+    "t": 869.126634158,
+    "phase": "build",
+    "unreclaimable": 789746104,
+    "anon_shmem": 740835328,
+    "current": 5050601472,
+    "pinned": 0
+   },
+   {
+    "t": 869.176990716,
+    "phase": "build",
+    "unreclaimable": 768627128,
+    "anon_shmem": 736415744,
+    "current": 5029482496,
+    "pinned": 0
+   },
+   {
+    "t": 869.230310317,
+    "phase": "build",
+    "unreclaimable": 778596792,
+    "anon_shmem": 767156224,
+    "current": 5039452160,
+    "pinned": 0
+   },
+   {
+    "t": 869.280810815,
+    "phase": "build",
+    "unreclaimable": 818528696,
+    "anon_shmem": 791576576,
+    "current": 5079384064,
+    "pinned": 0
+   },
+   {
+    "t": 869.331339595,
+    "phase": "build",
+    "unreclaimable": 862532024,
+    "anon_shmem": 824819712,
+    "current": 5123387392,
+    "pinned": 0
+   },
+   {
+    "t": 869.381884937,
+    "phase": "build",
+    "unreclaimable": 863547832,
+    "anon_shmem": 853618688,
+    "current": 5124403200,
+    "pinned": 0
+   },
+   {
+    "t": 869.432361431,
+    "phase": "build",
+    "unreclaimable": 924901816,
+    "anon_shmem": 903036928,
+    "current": 5185757184,
+    "pinned": 0
+   },
+   {
+    "t": 869.48288583,
+    "phase": "build",
+    "unreclaimable": 974946744,
+    "anon_shmem": 931786752,
+    "current": 5235802112,
+    "pinned": 0
+   },
+   {
+    "t": 869.537409541,
+    "phase": "build",
+    "unreclaimable": 948752824,
+    "anon_shmem": 908877824,
+    "current": 5209608192,
+    "pinned": 0
+   },
+   {
+    "t": 869.587941999,
+    "phase": "build",
+    "unreclaimable": 914035128,
+    "anon_shmem": 904249344,
+    "current": 5174890496,
+    "pinned": 0
+   },
+   {
+    "t": 869.638577539,
+    "phase": "build",
+    "unreclaimable": 997872056,
+    "anon_shmem": 985522176,
+    "current": 5258727424,
+    "pinned": 0
+   },
+   {
+    "t": 869.689264335,
+    "phase": "build",
+    "unreclaimable": 965673400,
+    "anon_shmem": 953819136,
+    "current": 5226528768,
+    "pinned": 0
+   },
+   {
+    "t": 869.739831922,
+    "phase": "build",
+    "unreclaimable": 1043747256,
+    "anon_shmem": 1021710336,
+    "current": 5304602624,
+    "pinned": 0
+   },
+   {
+    "t": 869.790450611,
+    "phase": "build",
+    "unreclaimable": 1091117496,
+    "anon_shmem": 1078480896,
+    "current": 5351972864,
+    "pinned": 0
+   },
+   {
+    "t": 869.841025809,
+    "phase": "build",
+    "unreclaimable": 1033134520,
+    "anon_shmem": 1021968384,
+    "current": 5293989888,
+    "pinned": 0
+   },
+   {
+    "t": 869.891561482,
+    "phase": "build",
+    "unreclaimable": 1032561080,
+    "anon_shmem": 1022160896,
+    "current": 5293416448,
+    "pinned": 0
+   },
+   {
+    "t": 869.945227768,
+    "phase": "build",
+    "unreclaimable": 1053442488,
+    "anon_shmem": 1041076224,
+    "current": 5314297856,
+    "pinned": 0
+   },
+   {
+    "t": 869.997307122,
+    "phase": "build",
+    "unreclaimable": 1115075000,
+    "anon_shmem": 1093783552,
+    "current": 5375930368,
+    "pinned": 0
+   },
+   {
+    "t": 870.047726232,
+    "phase": "build",
+    "unreclaimable": 1179230648,
+    "anon_shmem": 1150316544,
+    "current": 5440086016,
+    "pinned": 0
+   },
+   {
+    "t": 870.098187051,
+    "phase": "build",
+    "unreclaimable": 1112764856,
+    "anon_shmem": 1100955648,
+    "current": 5373620224,
+    "pinned": 0
+   },
+   {
+    "t": 870.148613319,
+    "phase": "build",
+    "unreclaimable": 1125290424,
+    "anon_shmem": 1114517504,
+    "current": 5386145792,
+    "pinned": 0
+   },
+   {
+    "t": 870.206100203,
+    "phase": "build",
+    "unreclaimable": 1133113784,
+    "anon_shmem": 1123069952,
+    "current": 5393969152,
+    "pinned": 0
+   },
+   {
+    "t": 870.260543265,
+    "phase": "build",
+    "unreclaimable": 1133375928,
+    "anon_shmem": 1123069952,
+    "current": 5394231296,
+    "pinned": 0
+   },
+   {
+    "t": 870.310970897,
+    "phase": "build",
+    "unreclaimable": 1229574584,
+    "anon_shmem": 1193082880,
+    "current": 5490429952,
+    "pinned": 0
+   },
+   {
+    "t": 870.366279788,
+    "phase": "build",
+    "unreclaimable": 1134969272,
+    "anon_shmem": 1123766272,
+    "current": 5395824640,
+    "pinned": 0
+   },
+   {
+    "t": 870.550249377,
+    "phase": "build",
+    "unreclaimable": 1034510776,
+    "anon_shmem": 1023426560,
+    "current": 5295362048,
+    "pinned": 0
+   },
+   {
+    "t": 870.600906618,
+    "phase": "build",
+    "unreclaimable": 1035035064,
+    "anon_shmem": 1023426560,
+    "current": 5295886336,
+    "pinned": 0
+   },
+   {
+    "t": 870.651950948,
+    "phase": "build",
+    "unreclaimable": 1036034488,
+    "anon_shmem": 1025069056,
+    "current": 5296885760,
+    "pinned": 0
+   },
+   {
+    "t": 870.702373653,
+    "phase": "build",
+    "unreclaimable": 1037083064,
+    "anon_shmem": 1026150400,
+    "current": 5297934336,
+    "pinned": 0
+   },
+   {
+    "t": 870.756018444,
+    "phase": "build",
+    "unreclaimable": 1038131640,
+    "anon_shmem": 1026150400,
+    "current": 5298982912,
+    "pinned": 0
+   },
+   {
+    "t": 870.806724677,
+    "phase": "build",
+    "unreclaimable": 1038131640,
+    "anon_shmem": 1026150400,
+    "current": 5298982912,
+    "pinned": 0
+   },
+   {
+    "t": 870.857060025,
+    "phase": "build",
+    "unreclaimable": 1109657880,
+    "anon_shmem": 1098502144,
+    "current": 5370671104,
+    "pinned": 0
+   },
+   {
+    "t": 870.907387391,
+    "phase": "build",
+    "unreclaimable": 1244613384,
+    "anon_shmem": 1233096704,
+    "current": 5505937408,
+    "pinned": 0
+   },
+   {
+    "t": 870.957683646,
+    "phase": "build",
+    "unreclaimable": 1379048744,
+    "anon_shmem": 1367412736,
+    "current": 5640679424,
+    "pinned": 0
+   },
+   {
+    "t": 871.0079578,
+    "phase": "build",
+    "unreclaimable": 1513742104,
+    "anon_shmem": 1501945856,
+    "current": 5775683584,
+    "pinned": 0
+   },
+   {
+    "t": 871.058235478,
+    "phase": "build",
+    "unreclaimable": 1648701752,
+    "anon_shmem": 1636446208,
+    "current": 5910949888,
+    "pinned": 0
+   },
+   {
+    "t": 871.108548825,
+    "phase": "build",
+    "unreclaimable": 1781568392,
+    "anon_shmem": 1769209856,
+    "current": 6044119040,
+    "pinned": 0
+   },
+   {
+    "t": 871.158828972,
+    "phase": "build",
+    "unreclaimable": 1916261752,
+    "anon_shmem": 1903456256,
+    "current": 6179123200,
+    "pinned": 0
+   },
+   {
+    "t": 871.209117737,
+    "phase": "build",
+    "unreclaimable": 2050959256,
+    "anon_shmem": 2037907456,
+    "current": 6314127360,
+    "pinned": 0
+   },
+   {
+    "t": 871.261719563,
+    "phase": "build",
+    "unreclaimable": 2113990920,
+    "anon_shmem": 2101116928,
+    "current": 6377304064,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.312276856,
+    "phase": "build",
+    "unreclaimable": 2189576288,
+    "anon_shmem": 2176397312,
+    "current": 6453063680,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.362588032,
+    "phase": "build",
+    "unreclaimable": 2324011648,
+    "anon_shmem": 2310623232,
+    "current": 6587805696,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.412874612,
+    "phase": "build",
+    "unreclaimable": 2457136288,
+    "anon_shmem": 2443329536,
+    "current": 6721236992,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.463170381,
+    "phase": "build",
+    "unreclaimable": 2591571648,
+    "anon_shmem": 2577469440,
+    "current": 6855979008,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.513435595,
+    "phase": "build",
+    "unreclaimable": 2726007008,
+    "anon_shmem": 2711642112,
+    "current": 6990721024,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.56370563,
+    "phase": "build",
+    "unreclaimable": 2860700368,
+    "anon_shmem": 2846068736,
+    "current": 7125725184,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.613967793,
+    "phase": "build",
+    "unreclaimable": 2994353440,
+    "anon_shmem": 2979487744,
+    "current": 7259680768,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.664249568,
+    "phase": "build",
+    "unreclaimable": 3128260368,
+    "anon_shmem": 3113279488,
+    "current": 7393898496,
+    "pinned": 1073741824
+   },
+   {
+    "t": 871.715170269,
+    "phase": "build",
+    "unreclaimable": 3189989600,
+    "anon_shmem": 3174862848,
+    "current": 7455764480,
+    "pinned": 2147483648
+   },
+   {
+    "t": 871.765753352,
+    "phase": "build",
+    "unreclaimable": 3261913240,
+    "anon_shmem": 3246481408,
+    "current": 7527854080,
+    "pinned": 2147483648
+   },
+   {
+    "t": 871.81608268,
+    "phase": "build",
+    "unreclaimable": 3396344456,
+    "anon_shmem": 3380797440,
+    "current": 7662596096,
+    "pinned": 2147483648
+   },
+   {
+    "t": 871.866366377,
+    "phase": "build",
+    "unreclaimable": 3530779816,
+    "anon_shmem": 3514834944,
+    "current": 7797338112,
+    "pinned": 2147483648
+   },
+   {
+    "t": 871.916632707,
+    "phase": "build",
+    "unreclaimable": 3665215176,
+    "anon_shmem": 3649105920,
+    "current": 7932080128,
+    "pinned": 2147483648
+   },
+   {
+    "t": 871.966901809,
+    "phase": "build",
+    "unreclaimable": 3799650536,
+    "anon_shmem": 3783290880,
+    "current": 8066822144,
+    "pinned": 2147483648
+   },
+   {
+    "t": 872.017256729,
+    "phase": "build",
+    "unreclaimable": 3932250888,
+    "anon_shmem": 3915554816,
+    "current": 8199729152,
+    "pinned": 2147483648
+   },
+   {
+    "t": 872.067543074,
+    "phase": "build",
+    "unreclaimable": 4066948392,
+    "anon_shmem": 4050046976,
+    "current": 8334733312,
+    "pinned": 2147483648
+   },
+   {
+    "t": 872.117803349,
+    "phase": "build",
+    "unreclaimable": 4197984168,
+    "anon_shmem": 4180733952,
+    "current": 8466067456,
+    "pinned": 2147483648
+   },
+   {
+    "t": 872.170712773,
+    "phase": "build",
+    "unreclaimable": 4265721992,
+    "anon_shmem": 4248612864,
+    "current": 8533962752,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.221286542,
+    "phase": "build",
+    "unreclaimable": 4339476496,
+    "anon_shmem": 4322033664,
+    "current": 8607887360,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.271596118,
+    "phase": "build",
+    "unreclaimable": 4474174000,
+    "anon_shmem": 4456460288,
+    "current": 8742891520,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.321919727,
+    "phase": "build",
+    "unreclaimable": 4607298640,
+    "anon_shmem": 4589416448,
+    "current": 8876322816,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.372220244,
+    "phase": "build",
+    "unreclaimable": 4741996144,
+    "anon_shmem": 4723843072,
+    "current": 9011326976,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.422494014,
+    "phase": "build",
+    "unreclaimable": 4876689504,
+    "anon_shmem": 4858339328,
+    "current": 9146331136,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.472765557,
+    "phase": "build",
+    "unreclaimable": 5011124864,
+    "anon_shmem": 4992475136,
+    "current": 9281073152,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.52304822,
+    "phase": "build",
+    "unreclaimable": 5145822368,
+    "anon_shmem": 5126914048,
+    "current": 9416077312,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.573325303,
+    "phase": "build",
+    "unreclaimable": 5280515728,
+    "anon_shmem": 5261201408,
+    "current": 9551081472,
+    "pinned": 3221225472
+   },
+   {
+    "t": 872.626834127,
+    "phase": "build",
+    "unreclaimable": 5341720672,
+    "anon_shmem": 5322358784,
+    "current": 9612423168,
+    "pinned": 4294967296
+   },
+   {
+    "t": 872.677597006,
+    "phase": "build",
+    "unreclaimable": 5342277728,
+    "anon_shmem": 5322379264,
+    "current": 9612980224,
+    "pinned": 4294967296
+   },
+   {
+    "t": 872.727990309,
+    "phase": "build",
+    "unreclaimable": 5341413472,
+    "anon_shmem": 5322407936,
+    "current": 9612115968,
+    "pinned": 4294967296
+   },
+   {
+    "t": 872.778515324,
+    "phase": "build",
+    "unreclaimable": 5341298784,
+    "anon_shmem": 5322440704,
+    "current": 9612001280,
+    "pinned": 4294967296
+   },
+   {
+    "t": 872.829604634,
+    "phase": "build",
+    "unreclaimable": 5341708384,
+    "anon_shmem": 5322469376,
+    "current": 9612410880,
+    "pinned": 4294967296
+   },
+   {
+    "t": 872.883713034,
+    "phase": "build",
+    "unreclaimable": 5341331552,
+    "anon_shmem": 5322498048,
+    "current": 9612034048,
+    "pinned": 4294967296
+   },
+   {
+    "t": 872.934151091,
+    "phase": "build",
+    "unreclaimable": 5342527584,
+    "anon_shmem": 5322526720,
+    "current": 9613230080,
+    "pinned": 4294967296
+   },
+   {
+    "t": 872.984641053,
+    "phase": "build",
+    "unreclaimable": 5342412896,
+    "anon_shmem": 5322563584,
+    "current": 9613115392,
+    "pinned": 4294967296
+   },
+   {
+    "t": 873.035903743,
+    "phase": "build",
+    "unreclaimable": 5342335072,
+    "anon_shmem": 5322596352,
+    "current": 9613037568,
+    "pinned": 4294967296
+   },
+   {
+    "t": 873.091365342,
+    "phase": "build",
+    "unreclaimable": 5341302880,
+    "anon_shmem": 5322739712,
+    "current": 9612005376,
+    "pinned": 4294967296
+   },
+   {
+    "t": 873.095612089,
+    "phase": "build",
+    "unreclaimable": 5341302880,
+    "anon_shmem": 5322739712,
+    "current": 9612005376,
+    "pinned": 4294967296,
+    "label": "build_end"
+   },
+   {
+    "t": 873.143924641,
+    "phase": "build",
+    "unreclaimable": 5342089312,
+    "anon_shmem": 5322739712,
+    "current": 9612791808,
+    "pinned": 4294967296
+   },
+   {
+    "t": 873.198358464,
+    "phase": "build",
+    "unreclaimable": 5344187984,
+    "anon_shmem": 5325606912,
+    "current": 9614934016,
+    "pinned": 4294967296
+   },
+   {
+    "t": 873.354253388,
+    "phase": "build",
+    "unreclaimable": 5344048720,
+    "anon_shmem": 5325606912,
+    "current": 9614794752,
+    "pinned": 4294967296
+   },
+   {
+    "t": 873.40551982,
+    "phase": "build",
+    "unreclaimable": 5346177592,
+    "anon_shmem": 5327790080,
+    "current": 9616891904,
+    "pinned": 4294979584
+   },
+   {
+    "t": 873.435493417,
+    "phase": "train",
+    "unreclaimable": 5346177592,
+    "anon_shmem": 5327790080,
+    "current": 9616891904,
+    "pinned": 4294991872,
+    "label": "first_step"
+   },
+   {
+    "t": 873.456735105,
+    "phase": "train",
+    "unreclaimable": 5346439736,
+    "anon_shmem": 5327790080,
+    "current": 9617154048,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.507110731,
+    "phase": "train",
+    "unreclaimable": 5346439736,
+    "anon_shmem": 5327790080,
+    "current": 9617154048,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.557494538,
+    "phase": "train",
+    "unreclaimable": 5353935416,
+    "anon_shmem": 5335240704,
+    "current": 9624756224,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.607817309,
+    "phase": "train",
+    "unreclaimable": 5412393528,
+    "anon_shmem": 5393629184,
+    "current": 9683214336,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.710608133,
+    "phase": "train",
+    "unreclaimable": 5534814776,
+    "anon_shmem": 5515464704,
+    "current": 9805635584,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.76113119,
+    "phase": "train",
+    "unreclaimable": 5565485624,
+    "anon_shmem": 5546102784,
+    "current": 9836306432,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.811703781,
+    "phase": "train",
+    "unreclaimable": 5565747768,
+    "anon_shmem": 5546102784,
+    "current": 9836568576,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.862022221,
+    "phase": "train",
+    "unreclaimable": 5566009912,
+    "anon_shmem": 5546102784,
+    "current": 9836830720,
+    "pinned": 4294991873
+   },
+   {
+    "t": 873.915267042,
+    "phase": "train",
+    "unreclaimable": 5640014824,
+    "anon_shmem": 5620244480,
+    "current": 9911017472,
+    "pinned": 4366295041
+   },
+   {
+    "t": 873.965666333,
+    "phase": "train",
+    "unreclaimable": 5754292848,
+    "anon_shmem": 5734264832,
+    "current": 10025574400,
+    "pinned": 4479541249
+   },
+   {
+    "t": 874.016080128,
+    "phase": "train",
+    "unreclaimable": 5868570872,
+    "anon_shmem": 5848305664,
+    "current": 10140131328,
+    "pinned": 4592787457
+   },
+   {
+    "t": 874.066476525,
+    "phase": "train",
+    "unreclaimable": 5982848896,
+    "anon_shmem": 5962268672,
+    "current": 10254688256,
+    "pinned": 4706033665
+   },
+   {
+    "t": 874.11691119,
+    "phase": "train",
+    "unreclaimable": 6096344632,
+    "anon_shmem": 6075826176,
+    "current": 10368458752,
+    "pinned": 4823474177
+   },
+   {
+    "t": 874.167443159,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.217991928,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.26872203,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.319153111,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.369629002,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.420379491,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.471029801,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.521481481,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.572015822,
+    "phase": "train",
+    "unreclaimable": 6104974264,
+    "anon_shmem": 6084259840,
+    "current": 10377109504,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.622313547,
+    "phase": "train",
+    "unreclaimable": 6113100728,
+    "anon_shmem": 6092505088,
+    "current": 10385235968,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.672784078,
+    "phase": "train",
+    "unreclaimable": 6113887160,
+    "anon_shmem": 6092505088,
+    "current": 10386022400,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.723164783,
+    "phase": "train",
+    "unreclaimable": 6113887160,
+    "anon_shmem": 6092505088,
+    "current": 10386022400,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.773585677,
+    "phase": "train",
+    "unreclaimable": 6113887160,
+    "anon_shmem": 6092505088,
+    "current": 10386022400,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.823896833,
+    "phase": "train",
+    "unreclaimable": 6113887160,
+    "anon_shmem": 6092505088,
+    "current": 10386022400,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.874477143,
+    "phase": "train",
+    "unreclaimable": 6113887160,
+    "anon_shmem": 6092505088,
+    "current": 10386022400,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.925124301,
+    "phase": "train",
+    "unreclaimable": 6113887160,
+    "anon_shmem": 6092505088,
+    "current": 10386022400,
+    "pinned": 4831862793
+   },
+   {
+    "t": 874.975426407,
+    "phase": "train",
+    "unreclaimable": 6113887160,
+    "anon_shmem": 6092505088,
+    "current": 10386022400,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.025914626,
+    "phase": "train",
+    "unreclaimable": 6114149304,
+    "anon_shmem": 6092505088,
+    "current": 10386284544,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.076197808,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6092505088,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.126561194,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.176838326,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.227230879,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.277743455,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.3280732,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.378491012,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.42876865,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.479212465,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.529503914,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.579800155,
+    "phase": "train",
+    "unreclaimable": 6114120632,
+    "anon_shmem": 6093185024,
+    "current": 10386255872,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.643179426,
+    "phase": "train",
+    "unreclaimable": 6114382776,
+    "anon_shmem": 6093524992,
+    "current": 10386518016,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.693529154,
+    "phase": "train",
+    "unreclaimable": 6181753784,
+    "anon_shmem": 6160691200,
+    "current": 10453889024,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.743943927,
+    "phase": "train",
+    "unreclaimable": 6233396152,
+    "anon_shmem": 6212300800,
+    "current": 10505531392,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.79436366,
+    "phase": "train",
+    "unreclaimable": 6233383864,
+    "anon_shmem": 6212308992,
+    "current": 10505519104,
+    "pinned": 4831862793
+   },
+   {
+    "t": 875.839868608,
+    "phase": "train",
+    "unreclaimable": 6264574904,
+    "anon_shmem": 6243434496,
+    "current": 10536714240,
+    "pinned": 4831862793,
+    "label": "step_end"
+   }
+  ],
+  "failed_readings": 0
+ },
+ "cgroup_end": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/user.slice/user-0.slice/session-12.scope",
+  "memory_max": "max",
+  "swap_max": "max",
+  "current": 10570096640,
+  "peak": 10606673920,
+  "inactive_file": 4138049536,
+  "stat": {
+   "anon": 1426366464,
+   "shmem": 4850716672,
+   "file_dirty": 16384,
+   "file_writeback": 0,
+   "inactive_file": 4138049536,
+   "active_file": 106496,
+   "slab_reclaimable": 133991496
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 6432047104,
+  "anon_shmem": 6277083136,
+  "unreclaimable": 6297965496
+ },
+ "ended_unix": 1793219151.8802059
+}

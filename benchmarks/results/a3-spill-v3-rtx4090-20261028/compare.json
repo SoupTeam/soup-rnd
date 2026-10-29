@@ -1,0 +1,159 @@
+{
+ "device": "cpu (analysis)",
+ "hashes_match": {
+  "l2l_nospill_1": true,
+  "l2l_nospill_2": true,
+  "l2l_spill": true,
+  "ga_1": true,
+  "ga_2": true,
+  "ga_floor": true
+ },
+ "nospill_repeat": {
+  "grads_equal": true,
+  "losses_equal": true,
+  "rates_equal": true,
+  "steps_equal": true,
+  "steps": [
+   3,
+   3
+  ],
+  "max_abs": 0.0,
+  "worst": [],
+  "equal": true
+ },
+ "spill_vs_nospill": {
+  "grads_equal": true,
+  "losses_equal": true,
+  "rates_equal": true,
+  "steps_equal": true,
+  "steps": [
+   3,
+   3
+  ],
+  "max_abs": 0.0,
+  "worst": [],
+  "equal": true
+ },
+ "mode": "bf16",
+ "tolerance": {
+  "status": "l2l_out_of_tolerance",
+  "pass": false,
+  "note": "L2L is outside the bf16 tolerance at 4 check(s); first: [{'what': 'gradient', 'step': 0, 'error': 0.018090733100463656, 'limit': 0.016452461646560432}, {'what': 'gradient', 'step': 1, 'error': 0.02133434290248132, 'limit': 0.020615278589764058}, {'what': 'gradient', 'step': 2, 'error': 0.17721940196011468, 'limit': 0.07667679771063814}]",
+  "a_vs_a": {
+   "grads_equal": true,
+   "losses_equal": true,
+   "rates_equal": true,
+   "steps_equal": true,
+   "steps": [
+    3,
+    3
+   ],
+   "max_abs": 0.0,
+   "worst": [],
+   "equal": true
+  },
+  "l2l_vs_ga": {
+   "grads_equal": false,
+   "losses_equal": false,
+   "rates_equal": true,
+   "steps_equal": true,
+   "steps": [
+    3,
+    3
+   ],
+   "max_abs": 1.172119140625,
+   "worst": [
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 1.172119140625
+    },
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 1.1142578125
+    },
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+     "max_abs": 0.6939697265625
+    },
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+     "max_abs": 0.4315185546875
+    },
+    {
+     "step": 1,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.373046875
+    }
+   ],
+   "equal": false
+  },
+  "tolerance": {
+   "mode": "bf16",
+   "factor": 1.5,
+   "limit_fp32": 0.0001,
+   "grad_rel": [
+    0.018090733100463656,
+    0.02133434290248132,
+    0.17721940196011468
+   ],
+   "loss_rel": [
+    0.00022173059391030002,
+    0.00012733957614984845,
+    7.58052954566948e-05
+   ],
+   "floor_grad": [
+    0.01096830776437362,
+    0.013743519059842705,
+    0.05111786514042543
+   ],
+   "floor_loss": [
+    6.836197935572253e-06,
+    0.0001075311976376498,
+    0.0009918888333861336
+   ],
+   "judged": true,
+   "failing": [
+    {
+     "what": "gradient",
+     "step": 0,
+     "error": 0.018090733100463656,
+     "limit": 0.016452461646560432
+    },
+    {
+     "what": "gradient",
+     "step": 1,
+     "error": 0.02133434290248132,
+     "limit": 0.020615278589764058
+    },
+    {
+     "what": "gradient",
+     "step": 2,
+     "error": 0.17721940196011468,
+     "limit": 0.07667679771063814
+    },
+    {
+     "what": "loss",
+     "step": 0,
+     "error": 0.00022173059391030002,
+     "limit": 1.0254296903358378e-05
+    }
+   ],
+   "pass": false,
+   "floor_problem": null,
+   "grad_limit": [
+    0.016452461646560432,
+    0.020615278589764058,
+    0.07667679771063814
+   ],
+   "loss_limit": [
+    1.0254296903358378e-05,
+    0.0001612967964564747,
+    0.0014878332500792004
+   ]
+  }
+ }
+}

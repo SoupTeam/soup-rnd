@@ -1,0 +1,229 @@
+{
+ "state": "stopped",
+ "children": [
+  {
+   "name": "calibration",
+   "output": "<work>/.soup/results/a3-spill-01/calibration.json",
+   "spill_dir": "<box>/spill/calibration",
+   "memory_max": 25769803776,
+   "limit": "generous",
+   "marker": "<work>/.soup/results/a3-spill-01/markers/calibration.json",
+   "command": [
+    "systemd-run",
+    "--scope",
+    "--quiet",
+    "--collect",
+    "-p",
+    "MemoryMax=25769803776",
+    "-p",
+    "MemorySwapMax=0",
+    "--",
+    "<work>/.venv/bin/python",
+    "<work>/benchmarks/harness/a3_spill_stand.py",
+    "child",
+    "--arm",
+    "calibration",
+    "--weights",
+    "<work>/.soup/models/mistral-7b",
+    "--shards",
+    "<work>/.soup/f1-nf4",
+    "--spill-dir",
+    "<box>/spill/calibration",
+    "--memory-max",
+    "25769803776",
+    "--k",
+    "4",
+    "--seq",
+    "512",
+    "--rows",
+    "10",
+    "--out",
+    "<work>/.soup/results/a3-spill-01/calibration.json",
+    "--marker",
+    "<work>/.soup/results/a3-spill-01/markers/calibration.json"
+   ],
+   "started_unix": 1793086772.438303,
+   "marker_after_exit": {
+    "arm": "calibration",
+    "device": "cuda",
+    "expected_memory_max": 25769803776,
+    "cgroup_start": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/run-rfa8ddf0f8ed647fa867374977222422d.scope",
+     "memory_max": 25769803776,
+     "swap_max": 0,
+     "current": 16367616,
+     "peak": 16367616,
+     "inactive_file": 0,
+     "stat": {
+      "anon": 16117760,
+      "shmem": 0,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 0,
+      "active_file": 0,
+      "slab_reclaimable": 1840
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 16367616,
+     "anon_shmem": 16117760,
+     "unreclaimable": 16365776
+    },
+    "pid": 3952,
+    "unix": 1793086788.4922876,
+    "calls": 1,
+    "steps_done": 0,
+    "in_step": true,
+    "spill_path": null
+   },
+   "returncode": 0,
+   "ended_unix": 1793086793.7663932,
+   "spill_files_after_exit": []
+  },
+  {
+   "name": "calibration_check_1",
+   "output": "<work>/.soup/results/a3-spill-01/calibration_check_1.json",
+   "spill_dir": "<box>/spill/calibration",
+   "memory_max": 5965348864,
+   "limit": "tight",
+   "marker": "<work>/.soup/results/a3-spill-01/markers/calibration_check_1.json",
+   "command": [
+    "systemd-run",
+    "--scope",
+    "--quiet",
+    "--collect",
+    "-p",
+    "MemoryMax=5965348864",
+    "-p",
+    "MemorySwapMax=0",
+    "--",
+    "<work>/.venv/bin/python",
+    "<work>/benchmarks/harness/a3_spill_stand.py",
+    "child",
+    "--arm",
+    "calibration_check_1",
+    "--weights",
+    "<work>/.soup/models/mistral-7b",
+    "--shards",
+    "<work>/.soup/f1-nf4",
+    "--spill-dir",
+    "<box>/spill/calibration",
+    "--memory-max",
+    "5965348864",
+    "--k",
+    "4",
+    "--seq",
+    "512",
+    "--rows",
+    "10",
+    "--out",
+    "<work>/.soup/results/a3-spill-01/calibration_check_1.json",
+    "--marker",
+    "<work>/.soup/results/a3-spill-01/markers/calibration_check_1.json"
+   ],
+   "started_unix": 1793086793.794599,
+   "marker_after_exit": {
+    "arm": "calibration_check_1",
+    "device": "cuda",
+    "expected_memory_max": 5965348864,
+    "cgroup_start": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/run-rdc3ffd3c2fe24f5797ef89036c8c3350.scope",
+     "memory_max": 5965348864,
+     "swap_max": 0,
+     "current": 16474112,
+     "peak": 16474112,
+     "inactive_file": 0,
+     "stat": {
+      "anon": 16117760,
+      "shmem": 0,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 0,
+      "active_file": 0,
+      "slab_reclaimable": 920
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 16474112,
+     "anon_shmem": 16117760,
+     "unreclaimable": 16473192
+    },
+    "pid": 4204,
+    "unix": 1793086808.6581159,
+    "calls": 1,
+    "steps_done": 0,
+    "in_step": true,
+    "spill_path": null
+   },
+   "returncode": -9,
+   "ended_unix": 1793086812.9130664,
+   "spill_files_after_exit": [
+    "<box>/spill/calibration/soup-l2l-spill-4204-a0e093d9.bin"
+   ]
+  }
+ ],
+ "limits": {
+  "generous": 25769803776,
+  "tight": null,
+  "calibration": {
+   "working_set_bytes": 5473333248,
+   "per_layer_bytes": 16777216,
+   "minimum_bytes": 67108864,
+   "target_spill_layers": 16,
+   "target_host_bytes": 335544320,
+   "target_budget_bytes": 343932928,
+   "limit_bytes": 5965348864,
+   "predicted_spill_layers": 16,
+   "source": "the product's plan-time numbers of /sys/fs/cgroup/system.slice/run-rfa8ddf0f8ed647fa867374977222422d.scope"
+  },
+  "checks": [
+   {
+    "limit_bytes": 5965348864,
+    "action": "stop",
+    "why": "the check child at 5,965,348,864 B failed: None None"
+   }
+  ],
+  "oom_margin": [
+   {
+    "limit_bytes": 5965348864,
+    "target_host_bytes": 335544320,
+    "warn_below_bytes": 268435456,
+    "transient": {
+     "unreclaimable_at_first_step": 4964287256,
+     "build_transient_bytes": 0,
+     "train_transient_bytes": 681512864,
+     "transient_bytes": 681512864,
+     "plan_host_bytes": 536870912,
+     "store_taken_out": "torch pinned host allocator growth since the first step, up to the plan's host_bytes",
+     "anon_shmem_at_first_step": 4946853888,
+     "anon_shmem_transient_bytes": 678289408,
+     "vm_hwm_bytes": 6653845504,
+     "memory_peak_bytes": 6193917952,
+     "readings": 263
+    },
+    "build_margin_bytes": 1001061608,
+    "train_margin_bytes": -15995576,
+    "stop": false,
+    "warnings": [
+     "training margin -15,995,576 B < 268,435,456 B (description only)"
+    ],
+    "margin_over_working_bytes": -525041568
+   }
+  ]
+ },
+ "reason": "SessionStopError: calibration: the check child at 5,965,348,864 B failed: None None"
+}

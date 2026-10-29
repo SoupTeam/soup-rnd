@@ -3516,6 +3516,34 @@ class TrainingConfig(BaseModel):
             "single GPU. k=1 behaves like plain streaming. See ADR 0002."
         ),
     )
+    l2l_spill_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "BETA — where training.l2l spills activations that do not fit the host-RAM "
+            "budget (cgroup-aware: the smallest of free RAM and every cgroup level's "
+            "remainder, times 0.7). Default: a '_l2l_spill' folder in the run's output "
+            "directory. Meant for another local drive, so it is not held to the working "
+            "directory. Refused at launch: RAM-backed, overlay and network filesystems, a "
+            "drive without the file size plus max(1 GiB, 10%) free, and one where unbuffered "
+            "I/O fails. When the weights stream from disk, the default directory is refused "
+            "on the weights' disk; a directory set here is allowed there with a warning. "
+            "Only valid with training.l2l=true."
+        ),
+    )
+
+    @field_validator("l2l_spill_dir")
+    @classmethod
+    def _validate_l2l_spill_dir(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if not value.strip():
+            raise ValueError("training.l2l_spill_dir must be a non-empty path")
+        if "\x00" in value:
+            raise ValueError("training.l2l_spill_dir must not contain null bytes")
+        if len(value) > 4096:
+            raise ValueError("training.l2l_spill_dir must be <= 4096 chars")
+        return value
+
     stream_source: Literal["auto", "ram", "disk"] = Field(
         default="auto",
         description=(
@@ -6373,6 +6401,12 @@ class SoupConfig(BaseModel):
         for rather than just saying no.
         """
         tcfg = self.training
+        if tcfg.l2l_spill_dir is not None and not tcfg.l2l:
+            raise ValueError(
+                "training.l2l_spill_dir is set but training.l2l is false: the directory "
+                "holds L2L's activation spill and nothing else reads it. Set l2l=true or "
+                "drop l2l_spill_dir."
+            )
         if tcfg.l2l:
             # ADR 0002: reject what would make L2L differ from gradient
             # accumulation rather than switch the mode off silently.

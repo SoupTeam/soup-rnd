@@ -869,7 +869,133 @@ Refused at launch:
 - `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the replayed draws would differ from accumulation. Use rows of one length or set the dropout to 0.
 - `neftune_alpha` together with `lora.dropout` or `attention_dropout` above 0.
 - `attention_dropout` above 0 with the `sdpa` attention implementation.
-- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+- Activations that do not fit host RAM even with every layer spilled to disk (see below).
+
+**Activations and the spill file.** L2L keeps one chunk of `batch x seq x hidden` per layer
+and micro-batch between the forward and the backward walk (80 layers, hidden 8192, seq 4096,
+k=16 in bf16 is 80 GiB). The store is sized once for the largest window the run can produce
+(`batch_size` rows of the longest tokenized row (at most `data.max_length`), rounded up to 64,
+times `gradient_accumulation_steps`) and serves every shorter window, so a run creates at most
+one spill file. Before the first step the run compares the store with the host-RAM budget:
+
+- **Budget.** Take the smaller of psutil's available memory and the smallest remainder over
+  the process's cgroup chain, from its own group up to the root of its namespace. The budget
+  is the smaller of 0.7 of that and that less a 512 MiB reserve (`RAM_RESERVE_BYTES`) kept
+  for what the rest of the training step allocates. Above 1.79 GB available the 0.7 decides;
+  below it the reserve does, and below 512 MiB the budget is 0. A
+  level's remainder is `limit - (used - inactive file cache)`: on cgroup v2 the limit is
+  `memory.max`, or `memory.high` when that is lower, used is `memory.current` and the cache is
+  `inactive_file` from that level's `memory.stat`; on v1 they are `memory.limit_in_bytes`,
+  `memory.usage_in_bytes` and `total_inactive_file`. Page-locked memory is charged as shmem
+  and counts. Levels without a limit are skipped; a parent can limit a child whose own limit
+  is `max`. Mountinfo maps controller co-mounts and subtree roots to the process's visible
+  cgroup ancestry. If an inherited mount predates a cgroup namespace and its membership
+  cannot be mapped, only its proven accessible ancestor is counted; a warning notes that a
+  tighter nested limit may be unknown. Unrelated or shadowed mounts are not charged. A level
+  whose limit cannot be read, or whose `memory.stat` cannot be read (then `limit - used` is
+  used), is logged. Without psutil and without a cgroup limit no budget is known and everything
+  stays in RAM.
+- **Cost.** On CUDA each chunk is a separate pinned allocation that torch rounds up to a power
+  of two, so a 17 MiB chunk costs 32 MiB. Spilling needs two staging rings of 4 pinned buffers
+  of one chunk (rounded up to 4096 bytes) plus 4096 bytes each.
+- **Fits.** Nothing changes: no file, no checks of the spill directory.
+- **Does not fit.** The fewest layers spill, the lowest first, so that the rest plus the rings
+  fit. One console line before the first step names the number of layers, the file size, the
+  spill file's path, the budget and the level that limited it (`psutil`, or the cgroup
+  directory with its limit, use and inactive file cache). Each logged step carries
+  `l2l_spill_layers` (0 when nothing spills).
+- **Cannot fit.** When even every layer spilled does not fit, the run stops before allocating
+  with the numbers, the reserve included: lower `gradient_accumulation_steps`,
+  `data.max_length` or `batch_size`, or free RAM. For Mistral-7B at k 4, seq 512 that is below
+  576 MiB available (the reserve plus 64 MiB of staging rings).
+
+The 512 MiB reserve is chosen, not measured. It comes from one GPU measurement, Mistral-7B NF4,
+LoRA r 8, k 4, seq 512: after the budget was read, the first training step allocated about
+183 MB outside the activation store. With the 0.7 share alone, the budget left 130 MB for that
+growth and the run was OOM-killed (`benchmarks/a3-spill-gpu-check.md` §9). With the reserve, a
+second session on another box of the same kind saw 184 to 298 MB of such growth over whole runs
+(28 runs) and no OOM kill (§10). Other models, ranks, sequence lengths and batch sizes may
+allocate more.
+
+The file lives in `training.l2l_spill_dir`, by default `<output>/_l2l_spill`. Use a local drive
+with room; the path is not held to the working directory. The run stops with the directory,
+the reason and the fix when the directory is on tmpfs, ramfs, devtmpfs, overlay, aufs,
+squashfs or a network filesystem (Linux mountinfo; Windows drive type; native filesystem
+locality and diskutil backing information on macOS). macOS also refuses RAM/image-backed or
+unverifiable backing. The run refuses when the drive has less free space than the file plus
+the larger of 1 GiB and 10% of the file, or when a 1 MiB unbuffered write and read there do not
+return the same bytes.
+When the weights stream from disk, the spill must not share their physical
+disk (read from `/sys/dev/block` on Linux; unknown on Windows and macOS): with the default
+directory, the same or an unknown disk stops the run; with `training.l2l_spill_dir` set, the
+run continues with a warning.
+
+```yaml
+training:
+  l2l: true
+  l2l_spill_dir: /mnt/nvme1/soup-spill   # optional; default <output>/_l2l_spill
+```
+
+In the earlier A4 v3 configuration (RTX 3090 on PCIe 3.0, Mistral-7B NF4, seq 512, k 2-4,
+ring 4, one virtual disk), slowdown averaged +2.5% and +1.7%, with 95% upper bounds +6.1%
+and +5.5%. With spill on the weights' drive that experiment saw a 13% slower step. Record:
+`benchmarks/probe-a4-l2l-ram-budget-spill.md` (on the A4 branch). These are scoped measurements,
+not a speed guarantee on other machines or configurations.
+
+The trainer's spill path has been checked end to end on CPU. GPU session 3 (RTX 4090 VM,
+Mistral-7B NF4, LoRA r 8, k 4, seq 512, the chosen reserve, 13 of 32 layers spilled) gave
+gradients, losses and learning rates bit-equal to no spill over 3 optimizer steps; the
+no-spill reference repeated. The spill arm peaked at 6,154,133,504 B within its
+6,409,945,088 B cgroup limit, with no OOM kill. Normal-end cleanup, Ctrl-C during a backward
+recompute in step 2 (KeyboardInterrupt, exit 130, file gone), and kill -9 followed by stale
+removal at the next start and 3 normal training steps all passed. Cost was +2.39% per step
+(95% interval -1.80% to +6.57%, 5 blocks, cost children spilling 12-18 layers): **below 10%
+confirmed on this faster machine**, not a promise for other GPUs, drives or step lengths.
+**The original L2L-versus-GA criterion 1b remains FAIL**, with the same four tolerance
+failures as session 2; this is not a spill finding, because spill equals no spill bit for
+bit. The later [targeted causal diagnostic](../benchmarks/results/a3-1b-diagnostic-rtx4090-20261029/README.md)
+establishes two causes for this pinned fixture: padding policy changes the forward loss
+endpoint; with padding matched, disabling ambient CUDA autocast only at backward entry
+preserves measured forwards and makes all 256 gradients bit-equal over three steps,
+without changing L2L's schedule or accumulation order. The aligned diagnostic comparator
+passes with a newly matched padded floor, but one aggregate logged loss is not bit-equal;
+backward-scope alignment alone does not match native GA. The exact internal kernel/cast
+and earliest backward divergence remain unresolved. This is not a verified product fix,
+general parity claim, or permission to relabel the historical failure. The retained private
+tensors enabled byte-identical CPU replay of the original measured comparison, and its
+rule verdict also replayed byte for byte. Historical records:
+[`benchmarks/a3-spill-gpu-check.md` §11](../benchmarks/a3-spill-gpu-check.md#11-session-3-rtx-4090-vm-2026-10-28-protocol-v3-spill-confirmed-1b-fail),
+[`session 3 evidence`](../benchmarks/results/a3-spill-v3-rtx4090-20261028/README.md).
+Sessions 1 and 2 keep their historical NO VERDICT results (§9 and §10); the 512 MiB reserve
+remains chosen, not measured.
+
+Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
+when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
+The next run with the same directory removes it at start if the process that created it is
+no longer alive. Otherwise remove it by hand; its path is in the console line. Files are named
+`soup-l2l-spill-<pid>-<8 hex>.bin`; the start-up sweep selects only those names (and its own
+`soup-l2l-probe-*` files) directly in that directory and never follows links. POSIX cleanup
+atomically claims a candidate into a private `.soup-l2l-sweep-*` directory and verifies its
+identity before deletion. If a replacement wins the race, it is restored without overwriting
+another file when possible; otherwise it is preserved at a logged recovery path, never deleted
+as stale. Such recovery directories are not automatically swept. Windows deletes through a
+verified no-follow file handle while holding directory replacement guards.
+
+**Changes after the GPU measurement.** Session 3 measured commit `ec795ef1`, not the later
+audit corrections. Those corrections make stale cleanup unlink inspected names rather than
+resolved link targets, discover non-default cgroup mounts, classify macOS volume backing,
+bound raw I/O requests to sector-aligned platform limits, and use blocking host transfers on
+non-CUDA devices. Store construction and close now retain buffers until started workers and
+pending transfers complete. A larger unknown-length window releases the previous store before
+rebudgeting; on CUDA, public `torch.accelerator.empty_host_cache()` is used when available.
+Older torch without that API may conservatively refuse growth while idle pinned cache remains
+charged; a warning explains this rather than assuming those bytes are reusable.
+
+These later changes have CPU regression and real CPU spill/interrupt/restart checks, not a new
+GPU measurement, native MPS run, native macOS volume test or 2 GiB Windows transfer run.
+Cleanup remains best-effort, including interruption inside CPython's native thread-launch
+window before it publishes a worker identity. The frozen GPU verdict is not reinterpreted as
+coverage of every later error path.
 
 **Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
 attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch
@@ -937,10 +1063,11 @@ cache = 32 layers x k x batch x seq x 4096 x 2 bytes
 ```
 
 with `seq` rounded up to a multiple of 64 and, on CUDA, each chunk rounded up to a power of
-two. The run needs free RAM of at least `cache / 0.7` after the weight store. For k = 4 the
-cache is 1 GiB at batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq
-2048, so the last one needs about 11.5 GiB free on top of the weights. These figures come
-from the formula, not from a measurement on a loaded host.
+two. The whole cache stays in RAM when it is at most 0.7 of the RAM left after the weight
+store; below that the lowest layers spill to disk (see above). For k = 4 the cache is 1 GiB at
+batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq 2048, so the last
+one stays in RAM with about 11.5 GiB free on top of the weights. These figures come from the
+formula, not from a measurement on a loaded host.
 
 **Bit-for-bit equality.** Equal bits against accumulation need all of:
 
@@ -955,7 +1082,7 @@ On SmolLM2-135M this gave equal bits. On Mistral-7B NF4 in bf16 it did not (see 
 compare 7B runs with a tolerance. The stand is
 [`benchmarks/harness/l2l_mistral_stand.py`](../benchmarks/harness/l2l_mistral_stand.py).
 
-**Counters.** Each logged training step carries four cumulative fields:
+**Counters.** Each logged training step carries five fields; the first four are cumulative:
 
 | Log field | Meaning |
 |---|---|
@@ -963,6 +1090,7 @@ compare 7B runs with a tolerance. The stand is
 | `l2l_layer_loads` | decoder layers loaded into a streaming slot |
 | `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
 | `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
+| `l2l_spill_layers` | layers whose activations go to the spill file; 0 when everything stays in RAM |
 
 Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
 flat as k grows. With plain accumulation it grows roughly in proportion to k.
