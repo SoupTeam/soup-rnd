@@ -139,7 +139,12 @@ def test_wmma_dispatch_rejects_reduced_precision_without_changing_global_mode(mo
     import d1_fused_nf4
     import torch
 
-    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_bf16_reduced_precision_reduction", True)
+    # Patch the facade: pytest 9.2 cannot undo assignments to dynamic cuBLAS properties.
+    monkeypatch.setattr(
+        torch.backends.cuda,
+        "matmul",
+        SimpleNamespace(allow_bf16_reduced_precision_reduction=True),
+    )
     with pytest.raises(RuntimeError, match="requires full FP32"):
         d1_fused_nf4._dispatch(None, (), (4, 8, 8, True, 256, torch.float32, "wmma"), False)
     assert torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction is True
@@ -158,7 +163,9 @@ def test_native_wmma_matches_observed_split_without_changing_global_mode(
 
     calls = []
     monkeypatch.setattr(
-        torch.backends.cuda.matmul, "allow_bf16_reduced_precision_reduction", reduced
+        torch.backends.cuda,
+        "matmul",
+        SimpleNamespace(allow_bf16_reduced_precision_reduction=reduced),
     )
     monkeypatch.setattr(d1_wmma_nf4, "matmul", lambda *a, **kw: calls.append((a, kw)))
     value = SimpleNamespace(shape=(128, 32768), numel=lambda: 128 * 32768)
@@ -189,7 +196,11 @@ def test_backend_is_saved_per_autograd_call_instead_of_global_monkeypatch(candid
 
     monkeypatch.setattr(d1_wmma_nf4, "matmul", wmma_oracle)
     monkeypatch.setattr(candidate, "_matmul", forbidden)
-    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_bf16_reduced_precision_reduction", False)
+    monkeypatch.setattr(
+        torch.backends.cuda,
+        "matmul",
+        SimpleNamespace(allow_bf16_reduced_precision_reduction=False),
+    )
     quant = state()
     saved = (
         torch.full((16, 1), 0xA5, dtype=torch.uint8),
