@@ -1,0 +1,41 @@
+# A5 ticket 04, arm A: plain streaming with gradient accumulation (k = 4).
+# l2l.yaml is this file with `l2l: true` and nothing else changed (diff the two files).
+base: mistralai/Mistral-7B-v0.1
+task: sft
+backend: transformers
+
+data:
+  train: data/alpaca64.jsonl
+  format: alpaca
+  max_length: 256
+  chat_template: mistral
+  val_split: 0.0
+
+training:
+  epochs: 1
+  lr: 2e-4
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  quantization: 4bit
+  scheduler: linear
+  warmup_ratio: 0.1
+  weight_decay: 0.0
+  logging_steps: 1
+  seed: 42
+  data_seed: 42
+  rewind_log: false
+  save_steps: 1000
+  stream_layers: true
+  stream_source: ram
+  l2l: false
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+
+output: ./out/run/

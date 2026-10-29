@@ -1,0 +1,84 @@
+Loading config from c2.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 5070 Ti                                          │
+│ Memory:  15.5 GB                                                             │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 64 train samples
+Run ID: run_20261029_162817_e369ad49
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+Loading model: mistralai/Mistral-7B-v0.1
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|▏         | 4/291 [00:00<00:08, 35.28it/s]Loading weights:  10%|▉         | 28/291 [00:00<00:01, 148.52it/s]Loading weights:  18%|█▊        | 51/291 [00:00<00:01, 184.08it/s]Loading weights:  27%|██▋       | 78/291 [00:00<00:01, 210.85it/s]Loading weights:  36%|███▌      | 105/291 [00:00<00:00, 224.91it/s]Loading weights:  45%|████▌     | 132/291 [00:00<00:00, 233.89it/s]Loading weights:  55%|█████▍    | 159/291 [00:00<00:00, 239.39it/s]Loading weights:  64%|██████▍   | 186/291 [00:00<00:00, 243.03it/s]Loading weights:  73%|███████▎  | 213/291 [00:00<00:00, 245.26it/s]Loading weights:  82%|████████▏ | 240/291 [00:01<00:00, 246.83it/s]Loading weights:  92%|█████████▏| 267/291 [00:01<00:00, 248.43it/s]Loading weights: 100%|██████████| 291/291 [00:01<00:00, 231.01it/s]
+LoRA applied: 6,815,744 trainable / 7,248,547,840 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/64 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map: 100%|██████████| 64/64 [00:00<00:00, 1089.73 examples/s]
+Map:   0%|          | 0/64 [00:00<?, ? examples/s]Map: 100%|██████████| 64/64 [00:00<00:00, 11689.91 examples/s]
+Truncating train dataset:   0%|          | 0/64 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 64/64 [00:00<00:00, 23091.22 examples/s]
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 2}.
+  0%|          | 0/32 [00:00<?, ?it/s]  3%|▎         | 1/32 [00:00<00:30,  1.01it/s]                                                3%|▎         | 1/32 [00:00<00:30,  1.01it/s]  6%|▋         | 2/32 [00:01<00:16,  1.81it/s]                                                6%|▋         | 2/32 [00:01<00:16,  1.81it/s]  9%|▉         | 3/32 [00:01<00:12,  2.33it/s]                                                9%|▉         | 3/32 [00:01<00:12,  2.33it/s] 12%|█▎        | 4/32 [00:01<00:10,  2.72it/s]                                               12%|█▎        | 4/32 [00:01<00:10,  2.72it/s] 16%|█▌        | 5/32 [00:02<00:09,  2.89it/s]                                               16%|█▌        | 5/32 [00:02<00:09,  2.89it/s] 19%|█▉        | 6/32 [00:02<00:08,  3.21it/s]                                               19%|█▉        | 6/32 [00:02<00:08,  3.21it/s] 22%|██▏       | 7/32 [00:02<00:07,  3.43it/s]                                               22%|██▏       | 7/32 [00:02<00:07,  3.43it/s] 25%|██▌       | 8/32 [00:02<00:06,  3.66it/s]                                               25%|██▌       | 8/32 [00:02<00:06,  3.66it/s] 28%|██▊       | 9/32 [00:03<00:06,  3.62it/s]                                               28%|██▊       | 9/32 [00:03<00:06,  3.62it/s] 31%|███▏      | 10/32 [00:03<00:06,  3.60it/s]                                                31%|███▏      | 10/32 [00:03<00:06,  3.60it/s] 34%|███▍      | 11/32 [00:03<00:05,  3.67it/s]                                                34%|███▍      | 11/32 [00:03<00:05,  3.67it/s] 38%|███▊      | 12/32 [00:03<00:05,  3.85it/s]                                                38%|███▊      | 12/32 [00:03<00:05,  3.85it/s] 41%|████      | 13/32 [00:04<00:04,  3.97it/s]                                                41%|████      | 13/32 [00:04<00:04,  3.97it/s] 44%|████▍     | 14/32 [00:04<00:04,  4.11it/s]                                                44%|████▍     | 14/32 [00:04<00:04,  4.11it/s] 47%|████▋     | 15/32 [00:04<00:04,  4.17it/s]                                                47%|████▋     | 15/32 [00:04<00:04,  4.17it/s] 50%|█████     | 16/32 [00:04<00:03,  4.25it/s]                                                50%|█████     | 16/32 [00:04<00:03,  4.25it/s] 53%|█████▎    | 17/32 [00:05<00:03,  4.31it/s]                                                53%|█████▎    | 17/32 [00:05<00:03,  4.31it/s] 56%|█████▋    | 18/32 [00:05<00:03,  3.92it/s]                                                56%|█████▋    | 18/32 [00:05<00:03,  3.92it/s] 59%|█████▉    | 19/32 [00:05<00:03,  3.97it/s]                                                59%|█████▉    | 19/32 [00:05<00:03,  3.97it/s] 62%|██████▎   | 20/32 [00:05<00:02,  4.07it/s]                                                62%|██████▎   | 20/32 [00:05<00:02,  4.07it/s] 66%|██████▌   | 21/32 [00:06<00:02,  4.14it/s]                                                66%|██████▌   | 21/32 [00:06<00:02,  4.14it/s] 69%|██████▉   | 22/32 [00:06<00:02,  4.20it/s]                                                69%|██████▉   | 22/32 [00:06<00:02,  4.20it/s] 72%|███████▏  | 23/32 [00:06<00:02,  4.23it/s]                                                72%|███████▏  | 23/32 [00:06<00:02,  4.23it/s] 75%|███████▌  | 24/32 [00:06<00:01,  4.14it/s]                                                75%|███████▌  | 24/32 [00:06<00:01,  4.14it/s] 78%|███████▊  | 25/32 [00:06<00:01,  4.18it/s]                                                78%|███████▊  | 25/32 [00:06<00:01,  4.18it/s] 81%|████████▏ | 26/32 [00:07<00:01,  4.22it/s]                                                81%|████████▏ | 26/32 [00:07<00:01,  4.22it/s] 84%|████████▍ | 27/32 [00:07<00:01,  4.25it/s]                                                84%|████████▍ | 27/32 [00:07<00:01,  4.25it/s] 88%|████████▊ | 28/32 [00:07<00:00,  4.27it/s]                                                88%|████████▊ | 28/32 [00:07<00:00,  4.27it/s] 91%|█████████ | 29/32 [00:07<00:00,  4.29it/s]                                                91%|█████████ | 29/32 [00:07<00:00,  4.29it/s] 94%|█████████▍| 30/32 [00:08<00:00,  4.33it/s]                                                94%|█████████▍| 30/32 [00:08<00:00,  4.33it/s] 97%|█████████▋| 31/32 [00:08<00:00,  4.32it/s]                                                97%|█████████▋| 31/32 [00:08<00:00,  4.32it/s]100%|██████████| 32/32 [00:08<00:00,  4.32it/s]                                               100%|██████████| 32/32 [00:08<00:00,  4.32it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+                                               100%|██████████| 32/32 [00:08<00:00,  4.32it/s]100%|██████████| 32/32 [00:08<00:00,  3.56it/s]
+{'loss': '1.502', 'grad_norm': '2.172', 'learning_rate': '0', 'entropy': '1.878', 'num_tokens': '258', 'mean_token_accuracy': '0.5982', 'epoch': '0.03125'}
+{'loss': '0.98', 'grad_norm': '3.656', 'learning_rate': '5e-05', 'entropy': '2.246', 'num_tokens': '405', 'mean_token_accuracy': '0.8235', 'epoch': '0.0625'}
+{'loss': '1.147', 'grad_norm': '1.859', 'learning_rate': '0.0001', 'entropy': '1.606', 'num_tokens': '611', 'mean_token_accuracy': '0.6761', 'epoch': '0.09375'}
+{'loss': '2.015', 'grad_norm': '2.703', 'learning_rate': '0.00015', 'entropy': '2.384', 'num_tokens': '788', 'mean_token_accuracy': '0.5507', 'epoch': '0.125'}
+{'loss': '1.451', 'grad_norm': '2.25', 'learning_rate': '0.0002', 'entropy': '1.836', 'num_tokens': '1022', 'mean_token_accuracy': '0.6054', 'epoch': '0.1562'}
+{'loss': '1.425', 'grad_norm': '5.562', 'learning_rate': '0.0001929', 'entropy': '2.104', 'num_tokens': '1126', 'mean_token_accuracy': '0.6406', 'epoch': '0.1875'}
+{'loss': '1.307', 'grad_norm': '2.594', 'learning_rate': '0.0001857', 'entropy': '1.887', 'num_tokens': '1300', 'mean_token_accuracy': '0.6429', 'epoch': '0.2188'}
+{'loss': '1.262', 'grad_norm': '3.797', 'learning_rate': '0.0001786', 'entropy': '1.838', 'num_tokens': '1518', 'mean_token_accuracy': '0.6408', 'epoch': '0.25'}
+{'loss': '2.572', 'grad_norm': '3.656', 'learning_rate': '0.0001714', 'entropy': '2.797', 'num_tokens': '1735', 'mean_token_accuracy': '0.4486', 'epoch': '0.2812'}
+{'loss': '1.063', 'grad_norm': '2.562', 'learning_rate': '0.0001643', 'entropy': '1.419', 'num_tokens': '1987', 'mean_token_accuracy': '0.6806', 'epoch': '0.3125'}
+{'loss': '1.103', 'grad_norm': '2.906', 'learning_rate': '0.0001571', 'entropy': '1.852', 'num_tokens': '2227', 'mean_token_accuracy': '0.6971', 'epoch': '0.3438'}
+{'loss': '0.488', 'grad_norm': '23.62', 'learning_rate': '0.00015', 'entropy': '2.334', 'num_tokens': '2293', 'mean_token_accuracy': '0.8', 'epoch': '0.375'}
+{'loss': '1.657', 'grad_norm': '5.25', 'learning_rate': '0.0001429', 'entropy': '2.032', 'num_tokens': '2431', 'mean_token_accuracy': '0.4952', 'epoch': '0.4062'}
+{'loss': '0.1639', 'grad_norm': '10.62', 'learning_rate': '0.0001357', 'entropy': '2.128', 'num_tokens': '2507', 'mean_token_accuracy': '0.96', 'epoch': '0.4375'}
+{'loss': '0.9789', 'grad_norm': '2.953', 'learning_rate': '0.0001286', 'entropy': '1.493', 'num_tokens': '2704', 'mean_token_accuracy': '0.7325', 'epoch': '0.4688'}
+{'loss': '0.7344', 'grad_norm': '7.656', 'learning_rate': '0.0001214', 'entropy': '1.97', 'num_tokens': '2764', 'mean_token_accuracy': '0.8438', 'epoch': '0.5'}
+{'loss': '0.185', 'grad_norm': '6.344', 'learning_rate': '0.0001143', 'entropy': '2.037', 'num_tokens': '2830', 'mean_token_accuracy': '0.96', 'epoch': '0.5312'}
+{'loss': '0.8024', 'grad_norm': '3', 'learning_rate': '0.0001071', 'entropy': '1.08', 'num_tokens': '3158', 'mean_token_accuracy': '0.7235', 'epoch': '0.5625'}
+{'loss': '0.878', 'grad_norm': '5.375', 'learning_rate': '0.0001', 'entropy': '1.268', 'num_tokens': '3341', 'mean_token_accuracy': '0.7477', 'epoch': '0.5938'}
+{'loss': '0.6591', 'grad_norm': '4.25', 'learning_rate': '9.286e-05', 'entropy': '1.45', 'num_tokens': '3475', 'mean_token_accuracy': '0.7978', 'epoch': '0.625'}
+{'loss': '1.247', 'grad_norm': '3.703', 'learning_rate': '8.571e-05', 'entropy': '1.782', 'num_tokens': '3713', 'mean_token_accuracy': '0.6338', 'epoch': '0.6562'}
+{'loss': '1.241', 'grad_norm': '4.812', 'learning_rate': '7.857e-05', 'entropy': '2.025', 'num_tokens': '3844', 'mean_token_accuracy': '0.6562', 'epoch': '0.6875'}
+{'loss': '0.8139', 'grad_norm': '3.266', 'learning_rate': '7.143e-05', 'entropy': '1.601', 'num_tokens': '3998', 'mean_token_accuracy': '0.7876', 'epoch': '0.7188'}
+{'loss': '0.5794', 'grad_norm': '3.984', 'learning_rate': '6.429e-05', 'entropy': '1.547', 'num_tokens': '4191', 'mean_token_accuracy': '0.8442', 'epoch': '0.75'}
+{'loss': '0.978', 'grad_norm': '4.938', 'learning_rate': '5.714e-05', 'entropy': '1.692', 'num_tokens': '4355', 'mean_token_accuracy': '0.78', 'epoch': '0.7812'}
+{'loss': '0.8571', 'grad_norm': '5.75', 'learning_rate': '5e-05', 'entropy': '1.697', 'num_tokens': '4488', 'mean_token_accuracy': '0.8', 'epoch': '0.8125'}
+{'loss': '2.709', 'grad_norm': '5.625', 'learning_rate': '4.286e-05', 'entropy': '3.472', 'num_tokens': '4590', 'mean_token_accuracy': '0.5821', 'epoch': '0.8438'}
+{'loss': '0.5628', 'grad_norm': '5.125', 'learning_rate': '3.571e-05', 'entropy': '1.873', 'num_tokens': '4693', 'mean_token_accuracy': '0.7895', 'epoch': '0.875'}
+{'loss': '1.252', 'grad_norm': '4.625', 'learning_rate': '2.857e-05', 'entropy': '2.083', 'num_tokens': '4827', 'mean_token_accuracy': '0.6709', 'epoch': '0.9062'}
+{'loss': '0.3354', 'grad_norm': '7.875', 'learning_rate': '2.143e-05', 'entropy': '2.113', 'num_tokens': '4900', 'mean_token_accuracy': '0.9', 'epoch': '0.9375'}
+{'loss': '0.8077', 'grad_norm': '3.25', 'learning_rate': '1.429e-05', 'entropy': '1.382', 'num_tokens': '5091', 'mean_token_accuracy': '0.8113', 'epoch': '0.9688'}
+{'loss': '1.094', 'grad_norm': '2.688', 'learning_rate': '7.143e-06', 'entropy': '1.483', 'num_tokens': '5323', 'mean_token_accuracy': '0.6256', 'epoch': '1'}
+{'train_runtime': '8.984', 'train_samples_per_second': '7.124', 'train_steps_per_second': '3.562', 'train_loss': '1.089', 'epoch': '1'}
+╭────────────────── Soup Training: mistralai/Mistral-7B-v0.1 ──────────────────╮
+│ Epoch 1.0/1   100%                                                           │
+│ Step:  32/32                                                                 │
+│ Loss:  1.0945    LR: 7.14e-06                                                │
+│ Speed: 3.56 it/s                                                             │
+│ GPU peak: 6.9/15.5 GB                                                        │
+│ Grad:  2.6875                                                                │
+╰───────────────────────── NVIDIA GeForce RTX 5070 Ti ─────────────────────────╯╭───────────────────────────── Training Complete! ─────────────────────────────╮
+│ Loss: 1.5019 -> 1.0945                                                       │
+│ Duration: 0m                                                                 │
+│ Output: out/run                                                              │
+│ Run ID: run_20261029_162817_e369ad49                                         │
+│                                                                              │
+│ Quick test:  soup chat --model out/run                                       │
+│ Push to HF:  soup push --model out/run                                       │
+│ Merge LoRA:  soup merge --adapter out/run                                    │
+│ Export GGUF: soup export --model out/run                                     │
+│ Run details: soup runs show run_20261029_162817_e369ad49                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+c2.yaml: 32 steps, failure=None

@@ -1,0 +1,73 @@
+Loading config from /root/soup/benchmarks/harness/l2l_ticket04/ga.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 3070                                             │
+│ Memory:  7.7 GB                                                              │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 64 train samples
+Run ID: run_20261027_111359_7a59ba55
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 6,815,744 parameters; weights=27262976, 
+gradients=27262976, optimizer=54525952 CUDA bytes; CPU tensors=1024 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files:  56%|█████▌    | 5/9 [00:00<00:00, 30.11it/s]Fetching 9 files:  89%|████████▉ | 8/9 [00:15<00:00, 30.11it/s]Fetching 9 files: 100%|██████████| 9/9 [00:17<00:00,  2.29s/it]Fetching 9 files: 100%|██████████| 9/9 [00:17<00:00,  1.91s/it]
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 14.48 GB                                                    │
+│ Soup materialized copy: 14.48 GB (write required)                            │
+│ Layer-shard cache: 3.74 GB (write required)                                  │
+│ Projected total on disk: 32.70 GB                                            │
+│ Additional writes before training: 18.22 GB                                  │
+│ Free on target volume (materialized weight copy + layer-shard cache): 86.30  │
+│ GB                                                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> /root/.soup/layer-stream/mistralai__Mistral-7B-v0.1
+Re-sharding layer cache: cache index is missing or unreadable.
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch mistral, tier ram                                │
+│   base store   4.13 GB across 32 layers (pinned)                             │
+│   VRAM buffers 2 x 113 MB + 1 x 262 MB large-layer slot = 487 MB             │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~0.81 GB at batch 1 x seq 256 (logits 0.11 GB)                │
+│   free VRAM    8.02 GB                                                       │
+│   forecast     579-851 tok/s — a compute-bound bound, not a promise          │
+│                (from 36.97 TFLOPS measured on this card now using bfloat16 @ │
+│ 1725 MHz)                                                                    │
+│   ! accumulating 4x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 4 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 32 layers, 4.13 GB pinned RAM store (4.29 GB 
+page-locked), 2 x 113 MB decoder buffers + 1 x 262 MB large-layer slot
+LoRA applied: 6,815,744 trainable / 7,241,732,096 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/64 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map: 100%|██████████| 64/64 [00:00<00:00, 907.47 examples/s]
+Map:   0%|          | 0/64 [00:00<?, ? examples/s]Map: 100%|██████████| 64/64 [00:00<00:00, 9193.62 examples/s]
+Truncating train dataset:   0%|          | 0/64 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 64/64 [00:00<00:00, 21702.28 examples/s]
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 2}.
+  0%|          | 0/16 [00:00<?, ?it/s]Crash bundle written: 
+/root/work/ga1/.soup-crashes/crash_20261027T111447Z_df634ec7.crash
+Attach this file when reporting the failure.
+  0%|          | 0/16 [00:02<?, ?it/s]
+/root/soup/benchmarks/harness/l2l_ticket04/ga.yaml: 0 losses, 0 grad steps, failure=TypeError: Got unsupported ScalarType BFloat16
+EXIT=1

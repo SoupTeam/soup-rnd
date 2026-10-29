@@ -1,0 +1,47 @@
+# A5 ticket 05: L2L on the synthetic 70B (random weights of the 70B shape), k = 4.
+# Mechanics and memory only. Not evidence about the quality or speed of a real 70B or 1T.
+# Build the base first:
+#   python benchmarks/harness/synth_checkpoint.py --shape llama-70b --vocab 32768 --out $SYNTH
+# then copy the Mistral-7B-v0.1 tokenizer files (vocab 32000 fits the 32768-row head) into $SYNTH.
+# Data: python benchmarks/harness/l2l_ticket04/prepare_data.py (writes data/alpaca64.jsonl).
+# Plan with the same shape as this file: plan --k 4 --seq 256 (max_length 256, batch 1, k 4).
+# Run: python benchmarks/harness/l2l_ticket04_arm.py --config l2l.yaml --out run.json
+base: ./synth-llama-70b
+task: sft
+backend: transformers
+
+data:
+  train: data/alpaca64.jsonl
+  format: alpaca
+  max_length: 256
+  chat_template: mistral
+  val_split: 0.0
+
+training:
+  epochs: 1
+  lr: 2e-4
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  quantization: 4bit
+  scheduler: linear
+  warmup_ratio: 0.1
+  weight_decay: 0.0
+  logging_steps: 1
+  seed: 42
+  data_seed: 42
+  rewind_log: false
+  save_steps: 1000
+  stream_layers: true
+  stream_source: disk
+  l2l: true
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+
+output: ./out/run/

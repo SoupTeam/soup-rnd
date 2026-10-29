@@ -1,0 +1,68 @@
+Loading config from c1.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 3090                                             │
+│ Memory:  23.6 GB                                                             │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 64 train samples
+Run ID: run_20261028_192035_c1ddabf5
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+Loading model: mistralai/Mistral-7B-v0.1
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|▏         | 4/291 [00:00<00:11, 25.35it/s]Loading weights:   5%|▌         | 15/291 [00:00<00:04, 62.82it/s]Loading weights:  11%|█         | 31/291 [00:00<00:02, 100.07it/s]Loading weights:  14%|█▍        | 42/291 [00:00<00:02, 101.77it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 119.29it/s]Loading weights:  24%|██▍       | 71/291 [00:00<00:01, 119.81it/s]Loading weights:  29%|██▉       | 85/291 [00:00<00:01, 124.70it/s]Loading weights:  34%|███▎      | 98/291 [00:00<00:01, 124.71it/s]Loading weights:  39%|███▉      | 113/291 [00:01<00:01, 127.11it/s]Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 133.93it/s]Loading weights:  49%|████▉     | 144/291 [00:01<00:01, 132.38it/s]Loading weights:  54%|█████▍    | 158/291 [00:01<00:01, 130.12it/s]Loading weights:  59%|█████▉    | 172/291 [00:01<00:00, 132.25it/s]Loading weights:  64%|██████▍   | 186/291 [00:01<00:00, 125.56it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 133.32it/s]Loading weights:  74%|███████▍  | 216/291 [00:01<00:00, 129.66it/s]Loading weights:  79%|███████▉  | 230/291 [00:01<00:00, 128.28it/s]Loading weights:  84%|████████▍ | 245/291 [00:02<00:00, 134.27it/s]Loading weights:  89%|████████▉ | 259/291 [00:02<00:00, 128.53it/s]Loading weights:  94%|█████████▍| 274/291 [00:02<00:00, 133.02it/s]Loading weights:  99%|█████████▉| 288/291 [00:02<00:00, 129.41it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 123.84it/s]
+LoRA applied: 6,815,744 trainable / 7,248,547,840 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/64 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map: 100%|██████████| 64/64 [00:00<00:00, 1038.93 examples/s]
+Map:   0%|          | 0/64 [00:00<?, ? examples/s]Map: 100%|██████████| 64/64 [00:00<00:00, 9735.45 examples/s]
+Truncating train dataset:   0%|          | 0/64 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 64/64 [00:00<00:00, 21533.41 examples/s]
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 2}.
+  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:01<00:26,  1.79s/it]                                                6%|▋         | 1/16 [00:01<00:26,  1.79s/it] 12%|█▎        | 2/16 [00:02<00:19,  1.36s/it]                                               12%|█▎        | 2/16 [00:02<00:19,  1.36s/it] 19%|█▉        | 3/16 [00:03<00:15,  1.20s/it]                                               19%|█▉        | 3/16 [00:03<00:15,  1.20s/it] 25%|██▌       | 4/16 [00:04<00:13,  1.13s/it]                                               25%|██▌       | 4/16 [00:04<00:13,  1.13s/it] 31%|███▏      | 5/16 [00:05<00:12,  1.10s/it]                                               31%|███▏      | 5/16 [00:05<00:12,  1.10s/it] 38%|███▊      | 6/16 [00:06<00:10,  1.07s/it]                                               38%|███▊      | 6/16 [00:06<00:10,  1.07s/it] 44%|████▍     | 7/16 [00:07<00:09,  1.05s/it]                                               44%|████▍     | 7/16 [00:07<00:09,  1.05s/it] 50%|█████     | 8/16 [00:08<00:08,  1.03s/it]                                               50%|█████     | 8/16 [00:08<00:08,  1.03s/it] 56%|█████▋    | 9/16 [00:09<00:07,  1.04s/it]                                               56%|█████▋    | 9/16 [00:09<00:07,  1.04s/it] 62%|██████▎   | 10/16 [00:10<00:06,  1.02s/it]                                                62%|██████▎   | 10/16 [00:10<00:06,  1.02s/it] 69%|██████▉   | 11/16 [00:11<00:05,  1.02s/it]                                                69%|██████▉   | 11/16 [00:11<00:05,  1.02s/it] 75%|███████▌  | 12/16 [00:12<00:04,  1.01s/it]                                                75%|███████▌  | 12/16 [00:12<00:04,  1.01s/it] 81%|████████▏ | 13/16 [00:13<00:03,  1.01s/it]                                                81%|████████▏ | 13/16 [00:13<00:03,  1.01s/it] 88%|████████▊ | 14/16 [00:14<00:02,  1.00s/it]                                                88%|████████▊ | 14/16 [00:14<00:02,  1.00s/it] 94%|█████████▍| 15/16 [00:15<00:01,  1.00s/it]                                                94%|█████████▍| 15/16 [00:15<00:01,  1.00s/it]100%|██████████| 16/16 [00:16<00:00,  1.01s/it]                                               100%|██████████| 16/16 [00:16<00:00,  1.01s/it]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+                                               100%|██████████| 16/16 [00:17<00:00,  1.01s/it]100%|██████████| 16/16 [00:17<00:00,  1.10s/it]
+{'loss': '1.4', 'grad_norm': '1.945', 'learning_rate': '0', 'entropy': '2.058', 'num_tokens': '405', 'mean_token_accuracy': '0.7267', 'epoch': '0.0625'}
+{'loss': '1.538', 'grad_norm': '1.641', 'learning_rate': '0.0001', 'entropy': '2.362', 'num_tokens': '788', 'mean_token_accuracy': '0.6561', 'epoch': '0.125'}
+{'loss': '1.483', 'grad_norm': '2.016', 'learning_rate': '0.0002', 'entropy': '2.252', 'num_tokens': '1126', 'mean_token_accuracy': '0.6285', 'epoch': '0.1875'}
+{'loss': '1.401', 'grad_norm': '2', 'learning_rate': '0.0001857', 'entropy': '2.261', 'num_tokens': '1518', 'mean_token_accuracy': '0.6467', 'epoch': '0.25'}
+{'loss': '1.848', 'grad_norm': '1.953', 'learning_rate': '0.0001714', 'entropy': '2.41', 'num_tokens': '1987', 'mean_token_accuracy': '0.5381', 'epoch': '0.3125'}
+{'loss': '1.179', 'grad_norm': '2.859', 'learning_rate': '0.0001571', 'entropy': '2.451', 'num_tokens': '2293', 'mean_token_accuracy': '0.6044', 'epoch': '0.375'}
+{'loss': '1.494', 'grad_norm': '3.703', 'learning_rate': '0.0001429', 'entropy': '2.288', 'num_tokens': '2507', 'mean_token_accuracy': '0.6746', 'epoch': '0.4375'}
+{'loss': '1.01', 'grad_norm': '3.438', 'learning_rate': '0.0001286', 'entropy': '1.841', 'num_tokens': '2764', 'mean_token_accuracy': '0.7517', 'epoch': '0.5'}
+{'loss': '0.7513', 'grad_norm': '2.203', 'learning_rate': '0.0001143', 'entropy': '1.69', 'num_tokens': '3158', 'mean_token_accuracy': '0.85', 'epoch': '0.5625'}
+{'loss': '0.7808', 'grad_norm': '4.531', 'learning_rate': '0.0001', 'entropy': '1.468', 'num_tokens': '3475', 'mean_token_accuracy': '0.8132', 'epoch': '0.625'}
+{'loss': '1.24', 'grad_norm': '3.156', 'learning_rate': '8.571e-05', 'entropy': '2.086', 'num_tokens': '3844', 'mean_token_accuracy': '0.6635', 'epoch': '0.6875'}
+{'loss': '0.7213', 'grad_norm': '3.812', 'learning_rate': '7.143e-05', 'entropy': '1.924', 'num_tokens': '4191', 'mean_token_accuracy': '0.8477', 'epoch': '0.75'}
+{'loss': '0.9422', 'grad_norm': '5.469', 'learning_rate': '5.714e-05', 'entropy': '1.991', 'num_tokens': '4488', 'mean_token_accuracy': '0.7735', 'epoch': '0.8125'}
+{'loss': '1.734', 'grad_norm': '7.812', 'learning_rate': '4.286e-05', 'entropy': '2.821', 'num_tokens': '4693', 'mean_token_accuracy': '0.7957', 'epoch': '0.875'}
+{'loss': '1.091', 'grad_norm': '6.031', 'learning_rate': '2.857e-05', 'entropy': '2.194', 'num_tokens': '4900', 'mean_token_accuracy': '0.7271', 'epoch': '0.9375'}
+{'loss': '0.9639', 'grad_norm': '3.688', 'learning_rate': '1.429e-05', 'entropy': '1.423', 'num_tokens': '5323', 'mean_token_accuracy': '0.7275', 'epoch': '1'}
+{'train_runtime': '17.61', 'train_samples_per_second': '3.634', 'train_steps_per_second': '0.908', 'train_loss': '1.224', 'epoch': '1'}
+╭────────────────── Soup Training: mistralai/Mistral-7B-v0.1 ──────────────────╮
+│ Epoch 1.0/1   100%                                                           │
+│ Step:  16/16                                                                 │
+│ Loss:  0.9639    LR: 1.43e-05                                                │
+│ Speed: 0.91 it/s                                                             │
+│ GPU peak: 5.8/23.6 GB                                                        │
+│ Grad:  3.6875                                                                │
+╰────────────────────────── NVIDIA GeForce RTX 3090 ───────────────────────────╯╭───────────────────────────── Training Complete! ─────────────────────────────╮
+│ Loss: 1.4005 -> 0.9639                                                       │
+│ Duration: 0m                                                                 │
+│ Output: out/run                                                              │
+│ Run ID: run_20261028_192035_c1ddabf5                                         │
+│                                                                              │
+│ Quick test:  soup chat --model out/run                                       │
+│ Push to HF:  soup push --model out/run                                       │
+│ Merge LoRA:  soup merge --adapter out/run                                    │
+│ Export GGUF: soup export --model out/run                                     │
+│ Run details: soup runs show run_20261028_192035_c1ddabf5                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+c1.yaml: 16 steps, failure=None

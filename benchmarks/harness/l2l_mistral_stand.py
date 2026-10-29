@@ -857,7 +857,7 @@ def write_outputs(out_dir: Path, payload: Dict[str, Any], raw_logs: Dict[str, st
 # --------------------------------------------------------------------------
 # command line
 # --------------------------------------------------------------------------
-def make_rows(count: int, seq: int, vocab: int) -> SyntheticRows:
+def make_rows(count: int, seq: int, vocab: int, seed: int = 5) -> SyntheticRows:
     """Rows of mixed lengths: odd rows mask a prefix, every third row masks a middle span."""
     fractions = (1.0, 0.75, 0.5, 0.25, 0.9, 0.6)
     lengths = [max(8, int(seq * fractions[i % len(fractions)])) for i in range(count)]
@@ -869,7 +869,7 @@ def make_rows(count: int, seq: int, vocab: int) -> SyntheticRows:
         if i % 3 == 2:
             row.append((length // 2, length // 2 + max(1, length // 8)))
         spans.append(row)
-    return SyntheticRows(lengths, spans, vocab)
+    return SyntheticRows(lengths, spans, vocab, seed=seed)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

@@ -1,0 +1,126 @@
+{
+ "config": "c2.yaml",
+ "sdpa": "MATH",
+ "deterministic": true,
+ "cublas_workspace_config": ":4096:8",
+ "failure": "OutOfMemoryError: CUDA out of memory. Tried to allocate 112.00 MiB. GPU 0 has a total capacity of 15.47 GiB of which 2.50 MiB is free. Including non-PyTorch memory, this process has 15.46 GiB memory in use. Of the allocated memory 14.13 GiB is allocated by PyTorch, and 1.03 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)",
+ "wall_s": 4.375721454620361,
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 5070 Ti",
+  "memory_total_mib": 16303,
+  "driver": "595.104.02"
+ },
+ "load": {
+  "read_bytes_since_process_start": 0,
+  "write_bytes_since_process_start": 94208,
+  "peak_vram_allocated_bytes": 4917381120,
+  "peak_rss_bytes": 15726219264,
+  "seconds_since_process_start": 3.8589092548936605,
+  "counters": {
+   "layer_loads": 0,
+   "nf4_restores": 0,
+   "large_loads": 0,
+   "pinned_store_bytes": 0
+  }
+ },
+ "steps": [],
+ "losses": [],
+ "process_peak_rss_bytes": 2164768768,
+ "process_peak_vram_allocated_bytes": null,
+ "run": null,
+ "bucket": 0,
+ "profile": false,
+ "host_bandwidth": {
+  "bytes": 1073741824,
+  "pageable_copy_gb_s": 8.494700814369743,
+  "h2d_pinned_gb_s": 24.150070177840725,
+  "d2h_pinned_gb_s": 28.20062330328082
+ },
+ "sensor_samples": [
+  {
+   "t": 1.0033994927071035,
+   "gpu": {
+    "sm_mhz": 180.0,
+    "max_sm_mhz": 3090.0,
+    "temp_c": 36.0,
+    "power_w": 15.67,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.004719925105320599,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 1.32
+  },
+  {
+   "t": 2.046955425757915,
+   "gpu": {
+    "sm_mhz": 180.0,
+    "max_sm_mhz": 3090.0,
+    "temp_c": 36.0,
+    "power_w": 14.54,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.003446080083904568,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 1.32
+  },
+  {
+   "t": 3.079924144782126,
+   "gpu": {
+    "sm_mhz": 2887.0,
+    "max_sm_mhz": 3090.0,
+    "temp_c": 38.0,
+    "power_w": 34.86,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.0041584757296234676,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 1.38
+  },
+  {
+   "t": 4.112923993729055,
+   "gpu": {
+    "sm_mhz": 2887.0,
+    "max_sm_mhz": 3090.0,
+    "temp_c": 37.0,
+    "power_w": 57.47,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.004085492717987527,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 1.38
+  }
+ ],
+ "sensors": {
+  "samples": 4,
+  "sensed": true,
+  "flags": [
+   "sm clock 50% of max"
+  ],
+  "sensors": {
+   "cpu_steal": 0.0,
+   "cpu_busy": 0.00410249340920904,
+   "cpu_outside": 0.0,
+   "sm_clock_ratio_median": 0.4962783171521035,
+   "sm_mhz_min": 180.0,
+   "throttle_bits": 0,
+   "power_cap_share": 0.0
+  },
+  "disturbed": true
+ },
+ "end_peaks": {
+  "allocated": 15192585728,
+  "reserved": 16280190976
+ }
+}

@@ -1,0 +1,68 @@
+Loading config from c2.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 5070 Ti                                          │
+│ Memory:  15.5 GB                                                             │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 64 train samples
+Run ID: run_20261029_164131_b2a1a06e
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+Loading model: mistralai/Mistral-7B-v0.1
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|▏         | 4/291 [00:00<00:09, 30.43it/s]Loading weights:   8%|▊         | 23/291 [00:00<00:02, 107.89it/s]Loading weights:  14%|█▍        | 42/291 [00:00<00:01, 139.58it/s]Loading weights:  22%|██▏       | 64/291 [00:00<00:01, 168.82it/s]Loading weights:  29%|██▉       | 85/291 [00:00<00:01, 179.79it/s]Loading weights:  36%|███▌      | 104/291 [00:00<00:01, 181.12it/s]Loading weights:  42%|████▏     | 123/291 [00:00<00:00, 182.13it/s]Loading weights:  50%|████▉     | 145/291 [00:00<00:00, 193.59it/s]Loading weights:  57%|█████▋    | 166/291 [00:00<00:00, 195.99it/s]Loading weights:  64%|██████▍   | 186/291 [00:01<00:00, 188.95it/s]Loading weights:  71%|███████▏  | 208/291 [00:01<00:00, 197.48it/s]Loading weights:  78%|███████▊  | 228/291 [00:01<00:00, 196.49it/s]Loading weights:  85%|████████▌ | 248/291 [00:01<00:00, 188.99it/s]Loading weights:  92%|█████████▏| 268/291 [00:01<00:00, 190.24it/s]Loading weights:  99%|█████████▉| 289/291 [00:01<00:00, 195.21it/s]Loading weights: 100%|██████████| 291/291 [00:01<00:00, 181.57it/s]
+LoRA applied: 6,815,744 trainable / 7,248,547,840 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/64 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map: 100%|██████████| 64/64 [00:00<00:00, 1211.90 examples/s]
+Map:   0%|          | 0/64 [00:00<?, ? examples/s]Map: 100%|██████████| 64/64 [00:00<00:00, 12003.02 examples/s]
+Truncating train dataset:   0%|          | 0/64 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 64/64 [00:00<00:00, 21882.73 examples/s]
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 2}.
+  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:01<00:17,  1.15s/it]                                                6%|▋         | 1/16 [00:01<00:17,  1.15s/it] 12%|█▎        | 2/16 [00:01<00:10,  1.33it/s]                                               12%|█▎        | 2/16 [00:01<00:10,  1.33it/s] 19%|█▉        | 3/16 [00:02<00:08,  1.58it/s]                                               19%|█▉        | 3/16 [00:02<00:08,  1.58it/s] 25%|██▌       | 4/16 [00:02<00:06,  1.86it/s]                                               25%|██▌       | 4/16 [00:02<00:06,  1.86it/s] 31%|███▏      | 5/16 [00:02<00:05,  1.95it/s]                                               31%|███▏      | 5/16 [00:02<00:05,  1.95it/s] 38%|███▊      | 6/16 [00:03<00:04,  2.12it/s]                                               38%|███▊      | 6/16 [00:03<00:04,  2.12it/s] 44%|████▍     | 7/16 [00:03<00:03,  2.39it/s]                                               44%|████▍     | 7/16 [00:03<00:03,  2.39it/s] 50%|█████     | 8/16 [00:03<00:03,  2.61it/s]                                               50%|█████     | 8/16 [00:03<00:03,  2.61it/s] 56%|█████▋    | 9/16 [00:04<00:02,  2.40it/s]                                               56%|█████▋    | 9/16 [00:04<00:02,  2.40it/s] 62%|██████▎   | 10/16 [00:04<00:02,  2.62it/s]                                                62%|██████▎   | 10/16 [00:04<00:02,  2.62it/s] 69%|██████▉   | 11/16 [00:05<00:01,  2.72it/s]                                                69%|██████▉   | 11/16 [00:05<00:01,  2.72it/s] 75%|███████▌  | 12/16 [00:05<00:01,  2.63it/s]                                                75%|███████▌  | 12/16 [00:05<00:01,  2.63it/s] 81%|████████▏ | 13/16 [00:05<00:01,  2.78it/s]                                                81%|████████▏ | 13/16 [00:05<00:01,  2.78it/s] 88%|████████▊ | 14/16 [00:06<00:00,  3.06it/s]                                                88%|████████▊ | 14/16 [00:06<00:00,  3.06it/s] 94%|█████████▍| 15/16 [00:06<00:00,  3.21it/s]                                                94%|█████████▍| 15/16 [00:06<00:00,  3.21it/s]100%|██████████| 16/16 [00:06<00:00,  3.14it/s]                                               100%|██████████| 16/16 [00:06<00:00,  3.14it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+                                               100%|██████████| 16/16 [00:07<00:00,  3.14it/s]100%|██████████| 16/16 [00:07<00:00,  2.26it/s]
+{'loss': '1.401', 'grad_norm': '1.938', 'learning_rate': '0', 'entropy': '2.011', 'num_tokens': '405', 'mean_token_accuracy': '0.6407', 'epoch': '0.0625'}
+{'loss': '1.538', 'grad_norm': '1.648', 'learning_rate': '0.0001', 'entropy': '2.025', 'num_tokens': '788', 'mean_token_accuracy': '0.6242', 'epoch': '0.125'}
+{'loss': '1.485', 'grad_norm': '2.016', 'learning_rate': '0.0002', 'entropy': '1.984', 'num_tokens': '1126', 'mean_token_accuracy': '0.6104', 'epoch': '0.1875'}
+{'loss': '1.398', 'grad_norm': '1.992', 'learning_rate': '0.0001857', 'entropy': '1.922', 'num_tokens': '1518', 'mean_token_accuracy': '0.6277', 'epoch': '0.25'}
+{'loss': '1.848', 'grad_norm': '1.961', 'learning_rate': '0.0001714', 'entropy': '2.05', 'num_tokens': '1987', 'mean_token_accuracy': '0.5586', 'epoch': '0.3125'}
+{'loss': '1.179', 'grad_norm': '2.859', 'learning_rate': '0.0001571', 'entropy': '2.112', 'num_tokens': '2293', 'mean_token_accuracy': '0.6821', 'epoch': '0.375'}
+{'loss': '1.496', 'grad_norm': '3.734', 'learning_rate': '0.0001429', 'entropy': '2.26', 'num_tokens': '2507', 'mean_token_accuracy': '0.5538', 'epoch': '0.4375'}
+{'loss': '1.011', 'grad_norm': '3.453', 'learning_rate': '0.0001286', 'entropy': '1.675', 'num_tokens': '2764', 'mean_token_accuracy': '0.7196', 'epoch': '0.5'}
+{'loss': '0.7508', 'grad_norm': '2.203', 'learning_rate': '0.0001143', 'entropy': '1.298', 'num_tokens': '3158', 'mean_token_accuracy': '0.7516', 'epoch': '0.5625'}
+{'loss': '0.7825', 'grad_norm': '4.562', 'learning_rate': '0.0001', 'entropy': '1.398', 'num_tokens': '3475', 'mean_token_accuracy': '0.7653', 'epoch': '0.625'}
+{'loss': '1.237', 'grad_norm': '3.094', 'learning_rate': '8.571e-05', 'entropy': '1.855', 'num_tokens': '3844', 'mean_token_accuracy': '0.6303', 'epoch': '0.6875'}
+{'loss': '0.7215', 'grad_norm': '3.781', 'learning_rate': '7.143e-05', 'entropy': '1.591', 'num_tokens': '4191', 'mean_token_accuracy': '0.8158', 'epoch': '0.75'}
+{'loss': '0.9457', 'grad_norm': '5.75', 'learning_rate': '5.714e-05', 'entropy': '1.81', 'num_tokens': '4488', 'mean_token_accuracy': '0.7765', 'epoch': '0.8125'}
+{'loss': '1.731', 'grad_norm': '7.781', 'learning_rate': '4.286e-05', 'entropy': '2.699', 'num_tokens': '4693', 'mean_token_accuracy': '0.6935', 'epoch': '0.875'}
+{'loss': '1.084', 'grad_norm': '5.938', 'learning_rate': '2.857e-05', 'entropy': '2.117', 'num_tokens': '4900', 'mean_token_accuracy': '0.6566', 'epoch': '0.9375'}
+{'loss': '0.9638', 'grad_norm': '3.672', 'learning_rate': '1.429e-05', 'entropy': '1.435', 'num_tokens': '5323', 'mean_token_accuracy': '0.709', 'epoch': '1'}
+{'train_runtime': '7.072', 'train_samples_per_second': '9.05', 'train_steps_per_second': '2.262', 'train_loss': '1.223', 'epoch': '1'}
+╭────────────────── Soup Training: mistralai/Mistral-7B-v0.1 ──────────────────╮
+│ Epoch 1.0/1   100%                                                           │
+│ Step:  16/16                                                                 │
+│ Loss:  0.9638    LR: 1.43e-05                                                │
+│ Speed: 2.26 it/s                                                             │
+│ GPU peak: 9.1/15.5 GB                                                        │
+│ Grad:  3.6719                                                                │
+╰───────────────────────── NVIDIA GeForce RTX 5070 Ti ─────────────────────────╯╭───────────────────────────── Training Complete! ─────────────────────────────╮
+│ Loss: 1.4014 -> 0.9638                                                       │
+│ Duration: 0m                                                                 │
+│ Output: out/run                                                              │
+│ Run ID: run_20261029_164131_b2a1a06e                                         │
+│                                                                              │
+│ Quick test:  soup chat --model out/run                                       │
+│ Push to HF:  soup push --model out/run                                       │
+│ Merge LoRA:  soup merge --adapter out/run                                    │
+│ Export GGUF: soup export --model out/run                                     │
+│ Run details: soup runs show run_20261029_164131_b2a1a06e                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+c2.yaml: 16 steps, failure=None

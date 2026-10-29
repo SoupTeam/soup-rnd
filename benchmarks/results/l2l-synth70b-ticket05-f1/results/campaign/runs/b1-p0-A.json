@@ -1,0 +1,132 @@
+{
+ "config": "l2l.yaml",
+ "sdpa": "MATH",
+ "deterministic": true,
+ "cublas_workspace_config": ":4096:8",
+ "failure": null,
+ "wall_s": 183.88590502738953,
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 3090",
+  "memory_total_mib": 24576,
+  "driver": "580.173.02"
+ },
+ "load": {
+  "read_bytes_since_process_start": 137079570432,
+  "write_bytes_since_process_start": 36393320448,
+  "peak_vram_allocated_bytes": 1584515584,
+  "peak_rss_bytes": 5170569216,
+  "seconds_since_process_start": 144.37980218417943,
+  "counters": {
+   "layer_loads": 0,
+   "nf4_restores": 0,
+   "large_loads": 0,
+   "pinned_store_bytes": 0
+  }
+ },
+ "steps": [
+  {
+   "step": 0,
+   "step_s": 12.176929336972535,
+   "real_tokens": 268,
+   "tokens_per_s": 22.00883265260296,
+   "peak_vram_allocated_bytes": 2189067776,
+   "peak_vram_reserved_bytes": 2847932416,
+   "peak_rss_bytes": 4406870016,
+   "pinned_store_bytes": 351272960,
+   "os_read_bytes": 70490386432,
+   "os_write_bytes": 0,
+   "layer_loads": 162,
+   "nf4_restores": 560,
+   "large_loads": 3,
+   "unavailable": {}
+  },
+  {
+   "step": 1,
+   "step_s": 10.913840048015118,
+   "real_tokens": 340,
+   "tokens_per_s": 31.153104544704707,
+   "peak_vram_allocated_bytes": 2338497536,
+   "peak_vram_reserved_bytes": 2858418176,
+   "peak_rss_bytes": 4743602176,
+   "pinned_store_bytes": 513802240,
+   "os_read_bytes": 68863721472,
+   "os_write_bytes": 0,
+   "layer_loads": 161,
+   "nf4_restores": 0,
+   "large_loads": 2,
+   "unavailable": {}
+  },
+  {
+   "step": 2,
+   "step_s": 10.436417198739946,
+   "real_tokens": 266,
+   "tokens_per_s": 25.487674068081127,
+   "peak_vram_allocated_bytes": 2329380864,
+   "peak_vram_reserved_bytes": 2858418176,
+   "peak_rss_bytes": 4743643136,
+   "pinned_store_bytes": 581959680,
+   "os_read_bytes": 68863721472,
+   "os_write_bytes": 4096,
+   "layer_loads": 160,
+   "nf4_restores": 0,
+   "large_loads": 2,
+   "unavailable": {}
+  },
+  {
+   "step": 3,
+   "step_s": 10.961969557683915,
+   "real_tokens": 341,
+   "tokens_per_s": 31.107548529996805,
+   "peak_vram_allocated_bytes": 3575588864,
+   "peak_vram_reserved_bytes": 3797942272,
+   "peak_rss_bytes": 5079785472,
+   "pinned_store_bytes": 650117120,
+   "os_read_bytes": 68863721472,
+   "os_write_bytes": 4096,
+   "layer_loads": 161,
+   "nf4_restores": 0,
+   "large_loads": 2,
+   "unavailable": {}
+  }
+ ],
+ "losses": [
+  {
+   "step": 1,
+   "loss": 11.957255363464355,
+   "learning_rate": 0.0
+  },
+  {
+   "step": 2,
+   "loss": 11.797627449035645,
+   "learning_rate": 0.0002
+  },
+  {
+   "step": 3,
+   "loss": 11.930097579956055,
+   "learning_rate": 0.00013333333333333334
+  },
+  {
+   "step": 4,
+   "loss": 11.991795539855957,
+   "learning_rate": 6.666666666666667e-05
+  }
+ ],
+ "process_peak_rss_bytes": 5148413952,
+ "process_peak_vram_allocated_bytes": 3575588864,
+ "run": {
+  "steps": 3,
+  "step_s_mean": 10.770742268146327,
+  "real_tokens": 947,
+  "tokens_per_s": 29.30779131167473,
+  "peak_vram_allocated_bytes": 3575588864,
+  "peak_vram_reserved_bytes": 3797942272,
+  "peak_rss_bytes": 5079785472,
+  "pinned_store_bytes": 650117120,
+  "os_read_bytes": 206591164416,
+  "os_write_bytes": 8192,
+  "layer_loads": 482,
+  "nf4_restores": 0,
+  "large_loads": 6,
+  "layer_loads_per_step": 160.66666666666666
+ }
+}

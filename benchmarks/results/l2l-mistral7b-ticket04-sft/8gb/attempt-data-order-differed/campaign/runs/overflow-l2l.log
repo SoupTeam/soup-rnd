@@ -1,0 +1,59 @@
+Loading config from overflow.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 3070                                             │
+│ Memory:  7.7 GB                                                              │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 8192 train samples
+Run ID: run_20261027_000633_b2db58fa
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 6,815,744 parameters; weights=27262976, 
+gradients=27262976, optimizer=54525952 CUDA bytes; CPU tensors=1024 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 1340.08it/s]
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 14.48 GB                                                    │
+│ Soup materialized copy: 14.48 GB (no write required)                         │
+│ Layer-shard cache: 3.74 GB (reusable)                                        │
+│ Projected total on disk: 32.70 GB                                            │
+│ Additional writes before training: 0.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> /root/.soup/layer-stream/mistralai__Mistral-7B-v0.1
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch mistral, tier ram                                │
+│   base store   4.13 GB across 32 layers (pinned)                             │
+│   VRAM buffers 2 x 113 MB + 1 x 262 MB large-layer slot = 487 MB             │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~1.41 GB at batch 4 x seq 256 (logits 0.46 GB)                │
+│   free VRAM    8.02 GB                                                       │
+│   forecast     578-850 tok/s — a compute-bound bound, not a promise          │
+│                (from 36.92 TFLOPS measured on this card now using bfloat16 @ │
+│ 1725 MHz)                                                                    │
+│   ! accumulating 2103x at batch 4: the base is re-read once per micro-batch. │
+│ Per token that is free, but reaching effective batch 8412 by raising         │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 32 layers, 4.13 GB pinned RAM store (4.29 GB 
+page-locked), 2 x 113 MB decoder buffers + 1 x 262 MB large-layer slot
+LoRA applied: 6,815,744 trainable / 7,241,732,096 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/8192 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map:   1%|▏         | 119/8192 [00:00<00:06, 1176.02 examples/s]Map:   3%|▎         | 252/8192 [00:00<00:06, 1258.04 examples/s]Map:   5%|▌         | 440/8192 [00:00<00:06, 1244.65 examples/s]Map:   8%|▊         | 619/8192 [00:00<00:06, 1215.39 examples/s]Map:  10%|▉         | 801/8192 [00:00<00:06, 1212.43 examples/s]Map:  12%|█▏        | 968/8192 [00:00<00:06, 1175.08 examples/s]Map:  14%|█▍        | 1130/8192 [00:00<00:06, 1074.31 examples/s]Map:  15%|█▌        | 1241/8192 [00:01<00:06, 1080.44 examples/s]Map:  17%|█▋        | 1357/8192 [00:01<00:06, 1098.94 examples/s]Map:  18%|█▊        | 1480/8192 [00:01<00:05, 1131.91 examples/s]Map:  20%|██        | 1648/8192 [00:01<00:05, 1123.80 examples/s]Map:  22%|██▏       | 1763/8192 [00:01<00:05, 1127.82 examples/s]Map:  23%|██▎       | 1881/8192 [00:01<00:05, 1137.77 examples/s]Map:  24%|██▍       | 1997/8192 [00:01<00:05, 1141.78 examples/s]Map:  26%|██▋       | 2153/8192 [00:01<00:05, 1102.53 examples/s]Map:  28%|██▊       | 2280/8192 [00:01<00:05, 1144.80 examples/s]Map:  30%|██▉       | 2452/8192 [00:02<00:05, 1142.03 examples/s]Map:  31%|███▏      | 2568/8192 [00:02<00:04, 1143.92 examples/s]Map:  33%|███▎      | 2690/8192 [00:02<00:04, 1162.14 examples/s]Map:  34%|███▍      | 2809/8192 [00:02<00:04, 1167.71 examples/s]Map:  36%|███▌      | 2930/8192 [00:02<00:04, 1175.72 examples/s]Map:  38%|███▊      | 3083/8192 [00:02<00:04, 1114.86 examples/s]Map:  40%|███▉      | 3244/8192 [00:02<00:04, 1096.48 examples/s]Map:  41%|████      | 3359/8192 [00:02<00:04, 1107.73 examples/s]Map:  42%|████▏     | 3440/8192 [00:03<00:04, 1133.80 examples/s]
+overflow.yaml: 0 steps, failure=ValueError: train row 3441: no causal-loss target remains after tokenization/truncation at data.max_length=256; the assistant response is absent or fully truncated. Increase data.max_length or shorten the prompt.

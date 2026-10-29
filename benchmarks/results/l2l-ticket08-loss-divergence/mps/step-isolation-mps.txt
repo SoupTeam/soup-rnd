@@ -1,0 +1,8 @@
+# before the fix (src without _backward_context), device=mps
+dev=mps model=bfloat16 autocast=False: GA vs GA 0.00e+00   GA vs L2L 0.00e+00
+dev=mps model=bfloat16 autocast=True: GA vs GA 0.00e+00   GA vs L2L 6.41e-04
+dev=mps: GA(backward inside autocast) vs L2L 0.00e+00;  GA(backward outside) vs GA(backward inside) 6.41e-04
+# after the fix, device=mps
+dev=mps model=bfloat16 autocast=False: GA vs GA 0.00e+00   GA vs L2L 0.00e+00
+dev=mps model=bfloat16 autocast=True: GA vs GA 0.00e+00   GA vs L2L 0.00e+00
+dev=mps: GA(backward inside autocast) vs L2L 6.41e-04;  GA(backward outside) vs GA(backward inside) 6.41e-04

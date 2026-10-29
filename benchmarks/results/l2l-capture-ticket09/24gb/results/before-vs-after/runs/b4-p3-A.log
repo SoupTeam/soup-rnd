@@ -1,0 +1,104 @@
+Loading config from l2l.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 3090                                             │
+│ Memory:  23.6 GB                                                             │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 64 train samples
+Run ID: run_20261027_154833_3ae55632
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 6,815,744 parameters; weights=27262976, 
+gradients=27262976, optimizer=54525952 CUDA bytes; CPU tensors=1024 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 1012.95it/s]
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 14.48 GB                                                    │
+│ Soup materialized copy: 14.48 GB (no write required)                         │
+│ Layer-shard cache: 3.74 GB (reusable)                                        │
+│ Projected total on disk: 32.70 GB                                            │
+│ Additional writes before training: 0.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> /root/.soup/layer-stream/mistralai__Mistral-7B-v0.1
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch mistral, tier ram                                │
+│   base store   4.13 GB across 32 layers (pinned)                             │
+│   VRAM buffers 2 x 113 MB + 1 x 262 MB large-layer slot = 487 MB             │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~0.81 GB at batch 1 x seq 256 (logits 0.11 GB)                │
+│   free VRAM    24.97 GB                                                      │
+│   forecast     972-1429 tok/s — a compute-bound bound, not a promise         │
+│                (from 62.09 TFLOPS measured on this card now using bfloat16 @ │
+│ 1695 MHz)                                                                    │
+│   ! accumulating 4x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 4 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 32 layers, 4.13 GB pinned RAM store (4.29 GB 
+page-locked), 2 x 113 MB decoder buffers + 1 x 262 MB large-layer slot
+LoRA applied: 6,815,744 trainable / 7,241,732,096 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/64 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map: 100%|██████████| 64/64 [00:00<00:00, 983.17 examples/s]
+Map:   0%|          | 0/64 [00:00<?, ? examples/s]Map: 100%|██████████| 64/64 [00:00<00:00, 9134.19 examples/s]
+Truncating train dataset:   0%|          | 0/64 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 64/64 [00:00<00:00, 20746.23 examples/s]
+L2L: each streamed layer loads once per optimizer step and runs 4 
+micro-batch(es)
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 2}.
+  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:03<00:52,  3.53s/it]                                                6%|▋         | 1/16 [00:03<00:52,  3.53s/it] 12%|█▎        | 2/16 [00:06<00:44,  3.20s/it]                                               12%|█▎        | 2/16 [00:06<00:44,  3.20s/it] 19%|█▉        | 3/16 [00:09<00:38,  2.98s/it]                                               19%|█▉        | 3/16 [00:09<00:38,  2.98s/it] 25%|██▌       | 4/16 [00:11<00:34,  2.84s/it]                                               25%|██▌       | 4/16 [00:11<00:34,  2.84s/it] 31%|███▏      | 5/16 [00:14<00:32,  2.92s/it]                                               31%|███▏      | 5/16 [00:14<00:32,  2.92s/it] 38%|███▊      | 6/16 [00:17<00:27,  2.75s/it]                                               38%|███▊      | 6/16 [00:17<00:27,  2.75s/it] 44%|████▍     | 7/16 [00:20<00:25,  2.80s/it]                                               44%|████▍     | 7/16 [00:20<00:25,  2.80s/it] 50%|█████     | 8/16 [00:22<00:21,  2.69s/it]                                               50%|█████     | 8/16 [00:22<00:21,  2.69s/it] 56%|█████▋    | 9/16 [00:25<00:18,  2.58s/it]                                               56%|█████▋    | 9/16 [00:25<00:18,  2.58s/it] 62%|██████▎   | 10/16 [00:27<00:15,  2.55s/it]                                                62%|██████▎   | 10/16 [00:27<00:15,  2.55s/it] 69%|██████▉   | 11/16 [00:30<00:13,  2.61s/it]                                                69%|██████▉   | 11/16 [00:30<00:13,  2.61s/it] 75%|███████▌  | 12/16 [00:32<00:10,  2.61s/it]                                                75%|███████▌  | 12/16 [00:32<00:10,  2.61s/it] 81%|████████▏ | 13/16 [00:34<00:07,  2.46s/it]                                                81%|████████▏ | 13/16 [00:34<00:07,  2.46s/it] 88%|████████▊ | 14/16 [00:37<00:05,  2.52s/it]                                                88%|████████▊ | 14/16 [00:37<00:05,  2.52s/it] 94%|█████████▍| 15/16 [00:40<00:02,  2.56s/it]                                                94%|█████████▍| 15/16 [00:40<00:02,  2.56s/it]100%|██████████| 16/16 [00:42<00:00,  2.50s/it]                                               100%|██████████| 16/16 [00:42<00:00,  2.50s/it]                                               100%|██████████| 16/16 [00:42<00:00,  2.50s/it]100%|██████████| 16/16 [00:42<00:00,  2.69s/it]
+{'loss': '1.401', 'grad_norm': '2.156', 'learning_rate': '0', 'l2l_steps': 1, 'l2l_layer_loads': 62, 'l2l_large_loads': 3, 'l2l_weight_restores': 0, 'epoch': '0.0625'}
+{'loss': '1.537', 'grad_norm': '1.844', 'learning_rate': '0.0001', 'l2l_steps': 2, 'l2l_layer_loads': 124, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'epoch': '0.125'}
+{'loss': '1.485', 'grad_norm': '2.25', 'learning_rate': '0.0002', 'l2l_steps': 3, 'l2l_layer_loads': 186, 'l2l_large_loads': 9, 'l2l_weight_restores': 0, 'epoch': '0.1875'}
+{'loss': '1.397', 'grad_norm': '2.219', 'learning_rate': '0.0001857', 'l2l_steps': 4, 'l2l_layer_loads': 248, 'l2l_large_loads': 12, 'l2l_weight_restores': 0, 'epoch': '0.25'}
+{'loss': '1.848', 'grad_norm': '2.25', 'learning_rate': '0.0001714', 'l2l_steps': 5, 'l2l_layer_loads': 310, 'l2l_large_loads': 15, 'l2l_weight_restores': 0, 'epoch': '0.3125'}
+{'loss': '1.171', 'grad_norm': '3.094', 'learning_rate': '0.0001571', 'l2l_steps': 6, 'l2l_layer_loads': 372, 'l2l_large_loads': 18, 'l2l_weight_restores': 0, 'epoch': '0.375'}
+{'loss': '1.488', 'grad_norm': '4.031', 'learning_rate': '0.0001429', 'l2l_steps': 7, 'l2l_layer_loads': 434, 'l2l_large_loads': 21, 'l2l_weight_restores': 0, 'epoch': '0.4375'}
+{'loss': '1.009', 'grad_norm': '3.562', 'learning_rate': '0.0001286', 'l2l_steps': 8, 'l2l_layer_loads': 496, 'l2l_large_loads': 24, 'l2l_weight_restores': 0, 'epoch': '0.5'}
+{'loss': '0.7498', 'grad_norm': '2.484', 'learning_rate': '0.0001143', 'l2l_steps': 9, 'l2l_layer_loads': 558, 'l2l_large_loads': 27, 'l2l_weight_restores': 0, 'epoch': '0.5625'}
+{'loss': '0.7733', 'grad_norm': '5.188', 'learning_rate': '0.0001', 'l2l_steps': 10, 'l2l_layer_loads': 620, 'l2l_large_loads': 30, 'l2l_weight_restores': 0, 'epoch': '0.625'}
+{'loss': '1.236', 'grad_norm': '3.719', 'learning_rate': '8.571e-05', 'l2l_steps': 11, 'l2l_layer_loads': 682, 'l2l_large_loads': 33, 'l2l_weight_restores': 0, 'epoch': '0.6875'}
+{'loss': '0.7166', 'grad_norm': '4', 'learning_rate': '7.143e-05', 'l2l_steps': 12, 'l2l_layer_loads': 744, 'l2l_large_loads': 36, 'l2l_weight_restores': 0, 'epoch': '0.75'}
+{'loss': '0.9427', 'grad_norm': '5.906', 'learning_rate': '5.714e-05', 'l2l_steps': 13, 'l2l_layer_loads': 806, 'l2l_large_loads': 39, 'l2l_weight_restores': 0, 'epoch': '0.8125'}
+{'loss': '1.729', 'grad_norm': '8.75', 'learning_rate': '4.286e-05', 'l2l_steps': 14, 'l2l_layer_loads': 868, 'l2l_large_loads': 42, 'l2l_weight_restores': 0, 'epoch': '0.875'}
+{'loss': '1.091', 'grad_norm': '6.312', 'learning_rate': '2.857e-05', 'l2l_steps': 15, 'l2l_layer_loads': 930, 'l2l_large_loads': 45, 'l2l_weight_restores': 0, 'epoch': '0.9375'}
+{'loss': '0.9608', 'grad_norm': '3.797', 'learning_rate': '1.429e-05', 'l2l_steps': 16, 'l2l_layer_loads': 992, 'l2l_large_loads': 48, 'l2l_weight_restores': 0, 'epoch': '1'}
+{'train_runtime': '42.99', 'train_samples_per_second': '1.489', 'train_steps_per_second': '0.372', 'train_loss': '1.221', 'epoch': '1'}
+╭────────────────── Soup Training: mistralai/Mistral-7B-v0.1 ──────────────────╮
+│ Epoch 1.0/1   100%                                                           │
+│ Step:  16/16                                                                 │
+│ Loss:  0.9608    LR: 1.43e-05                                                │
+│ Speed: 0.37 it/s                                                             │
+│ GPU peak: 0.8/23.6 GB                                                        │
+│ Grad:  3.7969                                                                │
+╰────────────────────────── NVIDIA GeForce RTX 3090 ───────────────────────────╯Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+╭───────────────────────────── Training Complete! ─────────────────────────────╮
+│ Loss: 1.4012 -> 0.9608                                                       │
+│ Duration: 0m                                                                 │
+│ Output: out/run                                                              │
+│ Run ID: run_20261027_154833_3ae55632                                         │
+│                                                                              │
+│ Quick test:  soup chat --model out/run                                       │
+│ Push to HF:  soup push --model out/run                                       │
+│ Merge LoRA:  soup merge --adapter out/run                                    │
+│ Export GGUF: soup export --model out/run                                     │
+│ Run details: soup runs show run_20261027_154833_3ae55632                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+l2l.yaml: 16 steps, failure=None

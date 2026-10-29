@@ -1,0 +1,533 @@
+{
+ "model": "mistralai/Mistral-7B-v0.1",
+ "quant": "nf4",
+ "card": "8gb",
+ "mode": "bf16",
+ "data_seed": 6,
+ "rng_seed": 1,
+ "dtype": "bfloat16",
+ "data_kind": "synthetic",
+ "command_line": "/root/soup/.venv/bin/python benchmarks/harness/l2l_fwdbwd.py --card 8gb --data-seed 6 --out /root/runs/fwdbwd-8gb-seed6",
+ "passport": {
+  "command": "/root/soup/.venv/bin/python benchmarks/harness/l2l_fwdbwd.py --card 8gb --data-seed 6 --out /root/runs/fwdbwd-8gb-seed6",
+  "argv": [
+   "/root/soup/.venv/bin/python",
+   "benchmarks/harness/l2l_fwdbwd.py",
+   "--card",
+   "8gb",
+   "--data-seed",
+   "6",
+   "--out",
+   "/root/runs/fwdbwd-8gb-seed6"
+  ],
+  "python": "3.12.3",
+  "platform": "linux",
+  "packages": {
+   "torch": "2.14.1+cu130",
+   "transformers": "5.19.0",
+   "peft": "0.21.2",
+   "bitsandbytes": "0.50.2",
+   "accelerate": "1.15.0",
+   "safetensors": "0.8.0",
+   "pydantic": "2.13.5",
+   "numpy": "2.4.6",
+   "psutil": "7.2.2",
+   "rich": "15.0.0"
+  },
+  "gpu": {
+   "name": "NVIDIA GeForce RTX 3070",
+   "memory_total_mib": 8192,
+   "driver": "580.142"
+  },
+  "container_ram": {
+   "source": "/sys/fs/cgroup/memory/memory.limit_in_bytes",
+   "limit_bytes": 52922679296,
+   "current_bytes": 31557787648,
+   "peak_bytes": 31565119488,
+   "swap_source": "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes",
+   "swap_max_bytes": 0,
+   "swap_total_bytes": 7614754816,
+   "version": 1
+  },
+  "commit": null,
+  "unavailable": {
+   "commit": "not a git checkout"
+  }
+ },
+ "deterministic": {
+  "CUBLAS_WORKSPACE_CONFIG": ":4096:8",
+  "sdpa_pinned": "MATH"
+ },
+ "ram_plan": {
+  "n_layers": 32,
+  "hidden": 4096,
+  "k": 4,
+  "batch": 1,
+  "seq": 256,
+  "chunk_bytes": 2097152,
+  "block_bytes": 2097152,
+  "cache_bytes": 268435456,
+  "need_free_for_cache": 383479222.85714287,
+  "weights_bytes": 4124704768.0,
+  "workspace_bytes": 1000000000,
+  "need_total": 5508183990.857142
+ },
+ "rows": {
+  "lengths": [
+   256,
+   192,
+   128,
+   64,
+   230,
+   153,
+   256
+  ],
+  "masked": 137
+ },
+ "cases": {
+  "1": {
+   "a_vs_a": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     7,
+     7
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "l2l_vs_ga": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     7,
+     7
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "tolerance": {
+    "mode": "bf16",
+    "factor": 1.5,
+    "limit_fp32": 0.0001,
+    "grad_rel": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "loss_rel": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "floor_grad": [
+     0.023804637808900016,
+     0.015693153885191578,
+     0.02211554337783688,
+     0.029139467819400012,
+     0.027222742219152555,
+     0.03184524160154984,
+     0.03241078287876876
+    ],
+    "floor_loss": [
+     0.00012893820642162474,
+     6.920041154253637e-07,
+     0.0001186812852490383,
+     0.0007249360740219355,
+     0.00047931503148897615,
+     0.00046585184397266707,
+     1.8348737980021644e-05
+    ],
+    "judged": true,
+    "failing": [],
+    "pass": true,
+    "floor_problem": null,
+    "grad_limit": [
+     0.03570695671335002,
+     0.023539730827787368,
+     0.03317331506675532,
+     0.04370920172910002,
+     0.040834113328728834,
+     0.047767862402324765,
+     0.04861617431815314
+    ],
+    "loss_limit": [
+     0.0001934073096324371,
+     1.0380061731380455e-06,
+     0.00017802192787355744,
+     0.0010874041110329033,
+     0.0007189725472334643,
+     0.0006987777659590006,
+     2.7523106970032466e-05
+    ]
+   },
+   "pass": true,
+   "note": "",
+   "status": "within_tolerance"
+  },
+  "2": {
+   "a_vs_a": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     4,
+     4
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "l2l_vs_ga": {
+    "grads_equal": false,
+    "losses_equal": false,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     4,
+     4
+    ],
+    "max_abs": 0.3515625,
+    "worst": [
+     {
+      "step": 2,
+      "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.3515625
+     },
+     {
+      "step": 0,
+      "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.3125
+     },
+     {
+      "step": 1,
+      "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.21875
+     },
+     {
+      "step": 2,
+      "name": "base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.216796875
+     },
+     {
+      "step": 2,
+      "name": "base_model.model.model.layers.9.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.1953125
+     }
+    ],
+    "equal": false
+   },
+   "tolerance": {
+    "mode": "bf16",
+    "factor": 1.5,
+    "limit_fp32": 0.0001,
+    "grad_rel": [
+     0.014875704986864998,
+     0.01597252390672457,
+     0.041465009996170546,
+     0.0
+    ],
+    "loss_rel": [
+     2.523814249256706e-05,
+     0.0001938306910300514,
+     0.00018489490271898966,
+     0.0
+    ],
+    "floor_grad": [
+     0.021563255388315085,
+     0.021093474762614063,
+     0.027241148007211027,
+     0.03241078287876876
+    ],
+    "floor_loss": [
+     8.296896162836343e-05,
+     0.0001380002480852747,
+     0.0004753735270933202,
+     1.8348737980021644e-05
+    ],
+    "judged": true,
+    "failing": [
+     {
+      "what": "gradient",
+      "step": 2,
+      "error": 0.041465009996170546,
+      "limit": 0.04086172201081654
+     }
+    ],
+    "pass": false,
+    "floor_problem": null,
+    "grad_limit": [
+     0.03234488308247263,
+     0.0316402121439211,
+     0.04086172201081654,
+     0.04861617431815314
+    ],
+    "loss_limit": [
+     0.00012445344244254515,
+     0.00020700037212791205,
+     0.0007130602906399802,
+     2.7523106970032466e-05
+    ]
+   },
+   "pass": false,
+   "note": "L2L is outside the bf16 tolerance at 1 check(s); first: [{'what': 'gradient', 'step': 2, 'error': 0.041465009996170546, 'limit': 0.04086172201081654}]",
+   "status": "l2l_out_of_tolerance"
+  },
+  "4": {
+   "a_vs_a": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     2,
+     2
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "l2l_vs_ga": {
+    "grads_equal": false,
+    "losses_equal": false,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     2,
+     2
+    ],
+    "max_abs": 0.2265625,
+    "worst": [
+     {
+      "step": 0,
+      "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.2265625
+     },
+     {
+      "step": 1,
+      "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.22265625
+     },
+     {
+      "step": 1,
+      "name": "base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.09765625
+     },
+     {
+      "step": 1,
+      "name": "base_model.model.model.layers.9.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.09765625
+     },
+     {
+      "step": 1,
+      "name": "base_model.model.model.layers.12.self_attn.v_proj.lora_A.default.weight",
+      "max_abs": 0.0908203125
+     }
+    ],
+    "equal": false
+   },
+   "tolerance": {
+    "mode": "bf16",
+    "factor": 1.5,
+    "limit_fp32": 0.0001,
+    "grad_rel": [
+     0.014763818651088055,
+     0.025483179840477738
+    ],
+    "loss_rel": [
+     3.3052135954870464e-05,
+     0.00010472328483110839
+    ],
+    "floor_grad": [
+     0.014106489102672334,
+     0.024298015867448234
+    ],
+    "floor_loss": [
+     9.885248017767004e-05,
+     0.00026123280941386376
+    ],
+    "judged": true,
+    "failing": [],
+    "pass": true,
+    "floor_problem": null,
+    "grad_limit": [
+     0.0211597336540085,
+     0.03644702380117235
+    ],
+    "loss_limit": [
+     0.00014827872026650505,
+     0.00039184921412079563
+    ]
+   },
+   "pass": true,
+   "note": "",
+   "status": "within_tolerance"
+  }
+ },
+ "facts": {
+  "gemm": {
+   "ga1": {
+    "256": {
+     "custom": 0,
+     "dequant": 2688
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "128": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "64": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 1344
+    }
+   },
+   "ga2": {
+    "256": {
+     "custom": 0,
+     "dequant": 2688
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "128": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "64": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 1344
+    }
+   },
+   "l2l": {
+    "256": {
+     "custom": 0,
+     "dequant": 6944
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 672
+    },
+    "128": {
+     "custom": 1280,
+     "dequant": 512
+    },
+    "64": {
+     "custom": 480,
+     "dequant": 192
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 672
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 672
+    }
+   },
+   "ga_floor": {
+    "256": {
+     "custom": 0,
+     "dequant": 2688
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "128": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "64": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 1344
+    }
+   }
+  },
+  "loads_first_full_window": {
+   "1": 62,
+   "2": 62,
+   "4": 62
+  },
+  "ga_loads_first_full_window": {
+   "1": 62,
+   "2": 122,
+   "4": 244
+  },
+  "restores": {
+   "1": 0,
+   "2": 0,
+   "4": 0
+  },
+  "restores_total": 224,
+  "windows": {
+   "1": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "2": [
+    2,
+    2,
+    2,
+    1
+   ],
+   "4": [
+    4,
+    3
+   ]
+  }
+ },
+ "findings": [],
+ "overall": {
+  "pass": false,
+  "status": "l2l_out_of_tolerance",
+  "note": "k=2: L2L is outside the bf16 tolerance at 1 check(s); first: [{'what': 'gradient', 'step': 2, 'error': 0.041465009996170546, 'limit': 0.04086172201081654}]"
+ }
+}

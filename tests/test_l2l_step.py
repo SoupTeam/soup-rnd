@@ -229,3 +229,73 @@ def test_l2l_step_with_masked_labels_equals_gradient_accumulation(harness, strea
     assert harness.compare(ga, l2l)["equal"]
     unmasked = harness.collect_grads(model)
     assert any(torch.count_nonzero(g) for g in unmasked.values())
+
+
+# --------------------------------------------------------------------------
+# ticket 07: rows of different lengths run at their own length, no padding
+# --------------------------------------------------------------------------
+MIXED_LENGTHS = [5, 8, 3, 6]
+
+
+def _mixed_rows(k, vocab=64, seed=23):
+    import torch
+
+    gen = torch.Generator().manual_seed(seed)
+    mbs = [torch.randint(0, vocab, (1, n), generator=gen) for n in MIXED_LENGTHS[:k]]
+    labels = [ids.clone() for ids in mbs]
+    labels[0][:, :2] = -100
+    labels[-1][:, -1:] = -100
+    return mbs, labels
+
+
+def _mixed_store(mbs, hidden=64):
+    import torch
+
+    from soup_cli.utils.l2l_activations import ActivationStore
+
+    shapes = [(*ids.shape, hidden) for ids in mbs]
+    return ActivationStore(
+        n_layers=3,
+        k=len(mbs),
+        chunk_shape=tuple(max(dims) for dims in zip(*shapes)),
+        mb_shapes=shapes,
+        dtype=torch.float32,
+        device="cpu",
+        pin=False,
+    )
+
+
+@pytest.mark.parametrize("k", [1, 2, 4])
+def test_l2l_step_with_rows_of_different_lengths_equals_gradient_accumulation(
+    harness, streamed, k  # noqa: F811
+):
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    mbs, labels = _mixed_rows(k)
+    n_items = sum(int((lab[:, 1:] != -100).sum()) for lab in labels)
+
+    harness.zero_grads(model)
+    ga_losses = []
+    for ids, lab in zip(mbs, labels):
+        out = model(input_ids=ids, labels=lab, num_items_in_batch=n_items)
+        out.loss.backward()
+        ga_losses.append(out.loss.detach())
+    ga = harness.collect_grads(model)
+
+    calls = [capture_layer_call(model, ids) for ids in mbs]
+    step = L2LStep(model, runtime, calls[0])
+    harness.zero_grads(model)
+    store = _mixed_store(mbs)
+    l2l_losses = step.run(mbs, store, n_items=n_items, labels=labels, calls=calls)
+    l2l = harness.collect_grads(model)
+
+    result = harness.compare(ga, l2l)
+    assert result["all_zero"] == []
+    assert result["equal"], result
+    assert harness.losses_equal(ga_losses, l2l_losses)
+    # the store holds each micro-batch at its own size, not the longest one's
+    assert [store._resident[(0, mb)].numel() for mb in range(k)] == [
+        ids.numel() * 64 for ids in mbs
+    ]
