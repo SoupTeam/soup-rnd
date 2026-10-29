@@ -5,6 +5,11 @@ The user approved this eight-fragment paired evaluation before measurement on
 spend only what is needed. Conservatively, the ceiling includes the original
 $3.707 pilot as well as follow-up probes. Final reviewer/owner acceptance is separate.
 
+After the initial follow-up ended at $3.863 cumulative, the user authorized up
+to another $5 on 2026-10-29 to finish the same protocol. This new spending window
+includes every new attempt, compute, storage and traffic, with a cumulative cap
+of $8.863. Evaluation selection and acceptance criteria are unchanged.
+
 Data: Salesforce/WikiText, wikitext-2-raw-v1 test split, pinned dataset commit
 b08601e04326c79dfdd32d625aee71d232d685c3. Eight eligible row positions are selected
 systematically across the corpus before tokenization; the exact rule, row IDs,

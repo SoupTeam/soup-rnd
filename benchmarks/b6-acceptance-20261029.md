@@ -7,6 +7,11 @@ The October 28 result remains a separate experiment with
 `ram_32gb_hardware_validated: false`; its measured 0.1456235249 tokens/s is unchanged.
 This report does not claim that all review acceptance items are satisfied.
 
+The user subsequently authorized up to another $5 to complete the same frozen
+protocol. The new VM request established an account-access blocker before any
+charge: `no_ssh_key_for_vm`. Details are recorded below; the added budget has
+not yet been spent.
+
 ## CI correction and local verification
 
 The Windows TOCTOU simulation patched process-wide `os.fstat`, which also affected
@@ -98,3 +103,33 @@ constraint, sufficient disk and an affordable checkpoint transfer; then the
 approved eight-pair run and exact reload, raw accounting, and reviewer acceptance.
 The already trained adapter and all original negative/positive journals remain
 available in [the original report](b6-giant-moe-20261028.md).
+
+## Additional authorization and account-access blocker
+
+The later user instruction authorized another $5. The new window is bounded
+separately, including every attempt and all compute/storage/network charges;
+combined with the measured $3.863 already spent, the conservative cumulative
+ceiling is $8.863. Evaluation data, the two-update comparison and decision rule
+remain unchanged. No follow-up giant loss has been measured.
+
+A refreshed verified RTX 3070 VM quote on machine 35724 has an all-in rate of
+$0.82777778/hour for one 8 GB GPU and 1300 GiB disk. The conservative allowance
+for a 3 h 15 min deadline, 3 min cleanup, 710 GB ingress, 15 GB egress and $0.30
+reserve is $4.93921875. This is a spending ceiling calculation, not a completed
+run or a guarantee of completion within that time. The owned-lease guard caps
+the attempt at $4.95, leaving margin under the new $5 authorization.
+
+Attempt H returned HTTP 400 with the explicit reason `no_ssh_key_for_vm`, before
+any instance ID was issued. The [raw response and absence receipt](
+evidence/b6-20261029/hardware-attempts/h-vm/) are retained. This clarifies the
+earlier generic VM failure: the available API credential has team context,
+where account SSH-key registration is rejected as `team_ssh_keys_not_supported`.
+A usable personal-account API context is needed to register the public key and
+create the VM. No new paid instance exists and no new giant download began.
+
+Hosted CI on `b1f39944` finished with 35,940 passes, 682 skips, one failure and
+86.57% coverage. Its sole failure was the B6 changelog fragment format, not the
+previously corrected TOCTOU test. Commit `d6fb7dd5` formats the fragment as Markdown
+list items with the required `#45` reference; all 21 changelog tests pass locally.
+The combined acceptance/verdict/changelog selection passes 54 tests. Final-head
+hosted checks still need to complete before claiming CI success.
