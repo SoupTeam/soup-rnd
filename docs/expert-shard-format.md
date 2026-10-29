@@ -1,8 +1,9 @@
 # B1.1: independently readable MoE expert storage
 
-This RND change implements storage only. It does not enable expert-streamed
-training, reduce measured VRAM, or establish a speed or quality improvement.
-GPU scheduling and backward integration belong to B1.2/B1.3.
+The B1.1 codec is the storage layer, not a public training option or a speed,
+quality or whole-model VRAM claim. B1.2/B1.3 now provide the internal sequential
+expert [forward/backward and runtime/L2L path](expert-forward.md); public
+expert-streamed enablement and planner/YAML/CLI changes remain B1.4.
 
 The codec is adapted from original Soup's `utils/expert_stream.py` at
 [`d500ae0d`](https://github.com/MakazhanAlpamys/Soup/tree/d500ae0dca7c4da905f8d59c9866af2f8aaa824b).
@@ -70,10 +71,13 @@ its existing index commit and deferred stale-file deletion behavior.
 
 The model builder validates the architecture and Hub-code policy through its
 meta-only skeleton before reading any index field (the B2 refusal order).
-It then rejects a per-expert cache before materializing weights or adapters;
-direct installation also rejects it, naming B1.2/B1.3 and the option to re-shard
-as fused. There is no new YAML or CLI training option. Older RND releases do not understand this
-extension: use a separate cache directory and re-shard as fused before downgrading.
+B1.3 then accepts this layout internally: it installs expert readers and one
+bounded shared arena before mapping layer weights, and the runtime owns their
+lifecycle. Routed base weights stay frozen and expert adapters remain refused;
+non-expert LoRA is supported. Existing/default sharder calls still use fused
+storage, no public YAML/CLI field is added, and the public L2L launch guard stays
+Llama/Mistral. Older RND releases do not understand this extension: use a separate
+cache directory and re-shard as fused before downgrading.
 
 ## Independent reader
 
@@ -110,7 +114,8 @@ expert tensors before its atomic file write: bounded to one layer, not one exper
 The focused tests cover a 12-expert synthetic MoE checkpoint, integer ordering,
 dense/shared separation, exact reconstruction, FP8 inputs, old caches, layout
 switches, missing files, malformed indices, replaced files, independent reads,
-stripe placement, and explicit runtime refusal. NF4 tests compare packed bytes,
+stripe placement, and the original B1.1 runtime-refusal boundary (superseded by
+the B1.3 internal install above). NF4 tests compare packed bytes,
 statistics and dequantized values with an independent bitsandbytes call, with
 double quantization on and off. Tiny/synthetic fixtures do not establish trained
 model quality or giant-checkpoint memory fit.
@@ -156,9 +161,10 @@ repository's default coverage configuration or the borrowed environment.
 The initial CPU environment lacked TRL, so B2 tests marked as requiring the
 training floor were skipped. CI subsequently found that the new storage-cache
 check accessed `index.expert_layout` before B2's Hub-code refusal. The model
-builder now performs its original meta-skeleton policy checks first, then
-rejects the storage-only layout before any real weights are materialized.
-The original B2 test is unchanged; the B1.1 test checks the corrected boundary.
+builder's B1.1 correction performed its original meta-skeleton policy checks
+first, then rejected the storage-only layout before real weights materialized.
+B1.3 preserves that policy-check order before its internal expert installation.
+The counts below describe the historical B1.1 checks, not a new backward run.
 
 With TRL 0.29.1 installed in a separate local dependency directory, the exact
 previously failing B2 test plus B1.1 pass: 34 passed, 2 CUDA cases skipped.

@@ -1,12 +1,11 @@
 # Performance & Quantization
 
-RND developer note: [B1.1 expert-shard storage format](expert-shard-format.md)
-documents the independently readable MoE cache. It is storage-only and does not
-enable expert-streamed training.
-
-[B1.2 expert forward](expert-forward.md) adds an internal sequential forward
-primitive and a prospective correctness/memory gate. Backward and public
-expert-streamed training remain gated.
+RND developer note: [B1.1 expert-shard storage](expert-shard-format.md) and
+[B1.2/B1.3 streamed experts](expert-forward.md) provide independently readable
+MoE weights and internal first-order backward/runtime/L2L integration for native
+DeepSeek-V3. Routed experts stay frozen, with no expert adapters. One bounded
+expert arena is not a bound on total allocated/reserved VRAM. Public MoE L2L
+launch, planner, YAML/CLI fields and defaults remain unchanged (B1.4).
 
 [← Back to the Soup README](../README.md)
 
@@ -835,6 +834,16 @@ checkpoints and resume stay with the Hugging Face loop. The default `false` chan
 existing configs. Report:
 [`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
 
+**Internal MoE boundary (B1.3).** The internal step and trainer attachment also
+run native DeepSeek-V3 with per-expert storage; the public launch guard below
+still admits only Llama/Mistral. Non-expert LoRA trains through frozen routed
+experts using one shared weight arena. Each hit expert is read for no-grad
+forward, grad recompute and expert backward: three reads per micro-batch, not
+one expert read per window. Expert activations must be stateless; registered
+buffers are refused for backward, while expert-local random draws use local RNG
+replay. L2L separately replays LoRA/eager-attention dropout in accumulation order.
+See [the boundary and standalone smoke](expert-forward.md#b13-backward-and-l2l).
+
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
 Refused when the config is read:
@@ -880,7 +889,8 @@ lengths together with dropout (padding changes the shapes of the draws).
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
 different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
 each new shape costs one extra forward pass. Speed and memory were not measured, and the check
-used random tokens, not real text. MoE and multi-GPU are out of scope.
+used random tokens, not real text. Public MoE launch and multi-GPU are out of scope;
+the separate internal B1.3 MoE path is described above.
 
 **Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
 number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
@@ -944,6 +954,10 @@ compare 7B runs with a tolerance. The stand is
 | `l2l_layer_loads` | decoder layers loaded into a streaming slot |
 | `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
 | `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
+
+Internal B1.3 MoE runs additionally log `l2l_expert_fetches` and
+`l2l_expert_bytes_read` (logical stored bytes). These include expert backward
+reloads and are distinct from decoder-layer loads and physical disk traffic.
 
 Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
 flat as k grows. With plain accumulation it grows roughly in proportion to k.
