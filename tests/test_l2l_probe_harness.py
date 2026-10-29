@@ -347,6 +347,13 @@ def streamed(tmp_path):
     fixture's do; three layers, so the zig-zag turnaround and the backward
     prefetch both run.
     """
+    model, runtime = build_streamed(tmp_path)
+    yield model, runtime
+    runtime.close()
+
+
+def build_streamed(tmp_path, lora_dropout=0.0, device="cpu"):
+    """The ``streamed`` fixture's model; the caller closes ``runtime``."""
     pytest.importorskip("peft")
     from peft import LoraConfig, TaskType
 
@@ -360,7 +367,7 @@ def streamed(tmp_path):
     lora = LoraConfig(
         r=4,
         lora_alpha=8,
-        lora_dropout=0.0,
+        lora_dropout=lora_dropout,
         bias="none",
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         task_type=TaskType.CAUSAL_LM,
@@ -370,14 +377,13 @@ def streamed(tmp_path):
         shard_dir=shards,
         index=index,
         lora_config=lora,
-        device="cpu",
+        device=device,
         dtype="float32",
         buffers=2,
         pin=False,
         seed=3,
     )
-    yield model, runtime
-    runtime.close()
+    return model, runtime
 
 
 def _micro_batches(k, vocab=64, seed=17):

@@ -1,0 +1,16 @@
+import json,pathlib,sys,time
+sys.path.insert(0,'/workspace/c2/benchmarks/harness')
+from c2_linux_depth_probe import quiet,snapshot
+from c2_linux_campaign import cache_identity
+p=pathlib.Path
+record={'kind':'new diagnostic idle window before final step-e3','start_unix':time.time(),'windows':[],'before':snapshot(),'ok':False}
+try:
+ for _ in range(12):record['windows'].append({'end_unix':time.time()+5,'rates':quiet(True)})
+ previous=json.loads(p('/workspace/c2-diag-step-e2/campaign.json').read_text())
+ record['cache']=cache_identity('/workspace/c2/c2-cache')
+ record['cache_unchanged']=record['cache']==previous['cache_before']==previous['cache_after']
+ if not record['cache_unchanged']:raise RuntimeError('cache identity changed')
+ record['after']=snapshot();record['ok']=True
+except BaseException as error:record['error']=repr(error)
+finally:p('/workspace/c2-prequiet-e3.json').write_text(json.dumps(record,indent=2)+'\n')
+sys.exit(0 if record['ok'] else 1)

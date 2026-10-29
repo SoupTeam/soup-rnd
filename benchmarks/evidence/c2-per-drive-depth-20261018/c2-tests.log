@@ -1,0 +1,30 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\esenb\Desktop\soup-rnd-d2\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\esenb\.codex\worktrees\c2-per-drive-depth\soup-rnd-d2
+configfile: pyproject.toml
+plugins: xdist-3.8.0, anyio-4.14.2, Faker-37.1.0, cov-7.1.0
+collecting ... collected 20 items
+
+tests/test_c2_depth_probe.py::test_every_span_verified_before_slot_reuse_and_workers_bounded[1] PASSED [  5%]
+tests/test_c2_depth_probe.py::test_every_span_verified_before_slot_reuse_and_workers_bounded[2] PASSED [ 10%]
+tests/test_c2_depth_probe.py::test_next_layer_can_use_idle_worker_only_at_depth_two[1] PASSED [ 15%]
+tests/test_c2_depth_probe.py::test_next_layer_can_use_idle_worker_only_at_depth_two[2] PASSED [ 20%]
+tests/test_c2_depth_probe.py::test_error_drains_all_writers_before_return[read] PASSED [ 25%]
+tests/test_c2_depth_probe.py::test_error_drains_all_writers_before_return[submit] PASSED [ 30%]
+tests/test_c2_depth_probe.py::test_error_drains_all_writers_before_return[verify] PASSED [ 35%]
+tests/test_c2_depth_probe.py::test_byte_mismatch_stops_and_drains PASSED [ 40%]
+tests/test_c2_depth_probe.py::test_bad_limits_rejected[0-4] PASSED       [ 45%]
+tests/test_c2_depth_probe.py::test_bad_limits_rejected[3-4] PASSED       [ 50%]
+tests/test_c2_depth_probe.py::test_bad_limits_rejected[1-0] PASSED       [ 55%]
+tests/test_c2_depth_probe.py::test_frozen_decision_rule[ratios0-PASS primitive] PASSED [ 60%]
+tests/test_c2_depth_probe.py::test_frozen_decision_rule[ratios1-FAIL benefit] PASSED [ 65%]
+tests/test_c2_depth_probe.py::test_frozen_decision_rule[ratios2-FAIL regression] PASSED [ 70%]
+tests/test_c2_depth_probe.py::test_frozen_decision_rule[ratios3-NO VERDICT] PASSED [ 75%]
+tests/test_c2_depth_probe.py::test_invalid_sequence_cannot_pass[counter missing] PASSED [ 80%]
+tests/test_c2_depth_probe.py::test_invalid_sequence_cannot_pass[battery] PASSED [ 85%]
+tests/test_c2_depth_probe.py::test_invalid_sequence_cannot_pass[foreign writes] PASSED [ 90%]
+tests/test_c2_depth_probe.py::test_missing_or_partial_evidence_and_unreviewed_host_cannot_pass PASSED [ 95%]
+tests/test_c2_depth_probe.py::test_counter_validity_detects_missing_contamination_and_gaps PASSED [100%]
+
+============================= 20 passed in 1.16s ==============================

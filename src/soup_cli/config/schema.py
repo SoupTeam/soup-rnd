@@ -3504,6 +3504,18 @@ class TrainingConfig(BaseModel):
             "not run on the card at all."
         ),
     )
+    l2l: bool = Field(
+        default=False,
+        description=(
+            "BETA — layer-to-layer (L2L) execution for SFT with stream_layers: "
+            "each streamed decoder layer is loaded once per optimizer step and "
+            "runs all k micro-batches, k = gradient_accumulation_steps, then "
+            "the optimizer takes one step on the adapters. Needs "
+            "stream_layers=true, task='sft' and lora.dropout=0; the launch "
+            "also needs a Llama/Mistral model with attention_dropout=0 on a "
+            "single GPU. k=1 behaves like plain streaming. See ADR 0002."
+        ),
+    )
     stream_source: Literal["auto", "ram", "disk"] = Field(
         default="auto",
         description=(
@@ -6361,6 +6373,18 @@ class SoupConfig(BaseModel):
         for rather than just saying no.
         """
         tcfg = self.training
+        if tcfg.l2l:
+            # ADR 0002: reject what would make L2L differ from gradient
+            # accumulation rather than switch the mode off silently.
+            if not tcfg.stream_layers:
+                raise ValueError(
+                    "training.l2l requires training.stream_layers=true: L2L reuses "
+                    "the streamed layer loads, and a resident model has none to reuse."
+                )
+            if self.task != "sft":
+                raise ValueError(
+                    f"training.l2l supports task='sft' only; got task={self.task!r}."
+                )
         if not tcfg.stream_layers:
             # Footgun: a non-default stream_* while streaming is off almost
             # certainly means the user forgot stream_layers=true.

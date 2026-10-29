@@ -1,0 +1,9 @@
+{
+  "shape": {
+    "tokens": 250,
+    "in_features": 512,
+    "out_features": 512
+  },
+  "harness_error": "UnsupportedShapeError: native FP4 GEMM needs every dimension divisible by its multiple; got tokens=250 (needs a multiple of 16). There is no fallback to NF4: it would mix two formats in one arm. Change the shape or pad it.",
+  "transformer_engine": "ValueError: FP8 execution requires the product of all dimensions except the last to be divisible by 8 and the last dimension to be divisible by 16, but got tensor with dims=[250, 512] (product of leading dims = 250, last dim = 512)"
+}
