@@ -57,6 +57,33 @@ def test_merge_preserves_all_adapter_keys():
     assert pipeline.merge_adapter_shards([{"a": 1}, {"b": 2}], {"a", "b"}) == {"a": 1, "b": 2}
 
 
+def test_launcher_keeps_active_python_when_global_torchrun_is_shadowed(tmp_path, monkeypatch):
+    """Real subprocess/module selection; no CUDA or Torch import is needed."""
+    package = tmp_path / "torch"
+    (package / "distributed").mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "distributed/__init__.py").write_text("")
+    result = tmp_path / "worker-environment.json"
+    (package / "distributed/run.py").write_text(
+        "import json, os, sys\nfrom pathlib import Path\n"
+        "Path(os.environ['H3_LAUNCH_RESULT']).write_text(json.dumps("
+        "{'executable': sys.executable, 'args': sys.argv[1:]}))\n",
+    )
+    bad_console = tmp_path / "bin"
+    bad_console.mkdir()
+    for name in ("torchrun", "torchrun.bat"):
+        (bad_console / name).write_text("#!/bin/sh\nexit 73\n")
+        (bad_console / name).chmod(0o755)
+    monkeypatch.setenv("PATH", str(bad_console) + os.pathsep + os.environ["PATH"])
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path))
+    monkeypatch.setenv("H3_LAUNCH_RESULT", str(result))
+    pipeline.launch_training(tmp_path / "prepared", tmp_path / "output", "cuda", 4)
+    observed = json.loads(result.read_text())
+    assert os.path.samefile(observed["executable"], sys.executable)
+    assert observed["args"][:2] == ["--standalone", "--nproc-per-node=2"]
+    assert observed["args"][-4:] == ["--device", "cuda", "--steps", "4"]
+
+
 @pytest.mark.parametrize("changed", ["config.json", "tokens.pt", "base/model.safetensors"])
 def test_tampered_prepared_inputs_are_rejected(tmp_path, changed):
     from soup_cli.config.schema import SoupConfig

@@ -1,6 +1,8 @@
 # H3 extra direction: two-stage pipeline smoke protocol
 
-Prepared before paid execution, 2026-10-29. **Rental is not authorized yet.**
+Prepared before paid execution, 2026-10-29. The user subsequently authorized
+up to$1 for this pilot, within the cumulative$4 cap. Original proposal snapshots
+below retain their historical pending status; they are not current authorization.
 Selected direction: a bounded executable two-GPU Qwen2 + PEFT/LoRA pipeline
 recipe associated with [upstream #39](https://github.com/MakazhanAlpamys/Soup/issues/39).
 The general Soup CLI pipeline path remains wiring only; use the explicit harness
@@ -77,12 +79,12 @@ export OMP_NUM_THREADS=2
 export PYTHONPATH="$PWD/src"
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 python benchmarks/harness/h3_pipeline_smoke.py prepare --prepared /tmp/h3-pp/prepared
-torchrun --standalone --nproc-per-node=2 benchmarks/harness/h3_pipeline_smoke.py train \
+python benchmarks/harness/h3_pipeline_smoke.py launch \
   --prepared /tmp/h3-pp/prepared --output /tmp/h3-pp/repeat-1 --device cuda --steps 4
 python benchmarks/harness/h3_pipeline_smoke.py reload \
   --prepared /tmp/h3-pp/prepared --output /tmp/h3-pp/repeat-1 --device cuda
 # Fresh run and fresh reload, without overwriting repeat-1.
-torchrun --standalone --nproc-per-node=2 benchmarks/harness/h3_pipeline_smoke.py train \
+python benchmarks/harness/h3_pipeline_smoke.py launch \
   --prepared /tmp/h3-pp/prepared --output /tmp/h3-pp/repeat-2 --device cuda --steps 4
 python benchmarks/harness/h3_pipeline_smoke.py reload \
   --prepared /tmp/h3-pp/prepared --output /tmp/h3-pp/repeat-2 --device cuda
@@ -98,6 +100,22 @@ download/verify each archive and write `repeat-N.received.json` with its
 `sha256` before the runner proceeds; receipts time out after180 seconds. Collect
 the metadata archive and completed campaign log as well. Rental lifecycle and
 the independent60-minute watchdog stay outside this script.
+
+### Interpreter regression discovered before the first GPU training step
+
+On the disposable runtime, a system `torchrun` entry point selected
+`/usr/bin/python3` even though the runner's active venv contained the pinned
+dependencies. Both workers failed to import Rich before loading the model.
+That attempt is excluded. The `launch` action now uses the active
+`sys.executable -m torch.distributed.run`; it does not rely on a console script
+being installed inside a venv that inherits system Torch.
+
+A real-subprocess regression shadows `torchrun` on PATH and supplies a probe
+Torch module, verifying that the active interpreter and two-rank arguments are
+used. All14 pipeline tests and full-scope Ruff pass after this correction. The
+training algorithm, inputs and numerical tolerances are unchanged. The failed
+capture is retained separately; a new clean source revision and output directory
+are required for the subsequent attempt. The original rental deadline remains.
 
 ## Proposed budget and stop rules (approval pending)
 

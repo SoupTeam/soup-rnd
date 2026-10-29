@@ -255,6 +255,15 @@ def merge_adapter_shards(shards: list[dict[str, Any]], expected_keys: set[str]) 
     return merged
 
 
+def launch_training(root: Path, output: Path, device: str, steps: int) -> None:
+    """Keep rank workers in the caller's environment, even with a global torchrun."""
+    subprocess.run([
+        sys.executable, "-m", "torch.distributed.run", "--standalone", "--nproc-per-node=2",
+        str(Path(__file__).absolute()), "train", "--prepared", str(root),
+        "--output", str(output), "--device", device, "--steps", str(steps),
+    ], check=True)
+
+
 def train(root: Path, output: Path, device_type: str, steps: int) -> None:
     import psutil
     import torch
@@ -499,7 +508,7 @@ def reload_adapter(root: Path, output: Path, device: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "train", "reload"))
+    parser.add_argument("action", choices=("prepare", "launch", "train", "reload"))
     parser.add_argument("--prepared", type=Path, required=True)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
@@ -509,7 +518,9 @@ def main() -> None:
     if args.action == "prepare":
         prepare(args.prepared, args.cpu_fixture)
     elif args.output is None:
-        parser.error("train/reload require --output")
+        parser.error("launch/train/reload require --output")
+    elif args.action == "launch":
+        launch_training(args.prepared, args.output, args.device, args.steps)
     elif args.action == "train":
         train(args.prepared, args.output, args.device, args.steps)
     else:

@@ -29,8 +29,7 @@ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py prepare \
   --prepared "$root/prepared"
 for repeat in 1 2; do
   output="$root/repeat-$repeat"
-  timeout 600 torchrun --standalone --nproc-per-node=2 \
-    benchmarks/harness/h3_pipeline_smoke.py train \
+  timeout 600 python benchmarks/harness/h3_pipeline_smoke.py launch \
     --prepared "$root/prepared" --output "$output" --device cuda --steps 4
   timeout 600 python benchmarks/harness/h3_pipeline_smoke.py reload \
     --prepared "$root/prepared" --output "$output" --device cuda
