@@ -690,6 +690,32 @@ def test_close_attempts_every_release_even_when_the_pool_refuses(tmp_path: Path)
     assert pool.stats()["closed"]
 
 
+def test_interrupt_during_pool_close_still_releases_readers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = moe_config()
+    weights = moe_weights_dir(tmp_path, config)
+    streamed = build_moe_streamed(weights, tmp_path / "shards")
+    runtime = streamed.runtime
+    try:
+        run_moe_pass(streamed.model, moe_batch(config), backward=False)
+        assert all(reader._handle is not None for reader in runtime.expert_readers)
+
+        def interrupted_sync() -> None:
+            raise KeyboardInterrupt("interrupted expert synchronization")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(runtime.expert_pool, "_synchronize", interrupted_sync)
+            with pytest.raises(KeyboardInterrupt, match="interrupted expert"):
+                runtime.close()
+
+        assert all(reader._handle is None for reader in runtime.expert_readers)
+        assert runtime.expert_pool.stats()["closed"]
+        assert runtime.hook is None
+    finally:
+        runtime.close()
+
+
 def _spy_expert_resources(monkeypatch: pytest.MonkeyPatch) -> Dict[str, List[Any]]:
     """Record every expert reader and pool the runtime creates, and whether it was closed."""
     from soup_cli.utils import expert_shard, expert_stream

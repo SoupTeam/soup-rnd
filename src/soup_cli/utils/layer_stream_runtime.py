@@ -3050,16 +3050,16 @@ def _close_expert_streaming(
     the pool from closing) is raised afterwards, unless ``raise_errors`` is off. A caller that
     is already unwinding an error turns it off so the original error stays the one reported.
     """
-    failures: List[Exception] = []
+    failures: List[BaseException] = []
     if pool is not None:
         try:
             pool.close()
-        except Exception as exc:  # noqa: BLE001 - every release must still be attempted
+        except BaseException as exc:  # every release must still be attempted on interruption
             failures.append(exc)
     for reader in readers:
         try:
             reader.close()
-        except Exception as exc:  # noqa: BLE001
+        except BaseException as exc:
             failures.append(exc)
     for failure in failures:
         logger.warning("releasing the expert streaming resources failed: %s", failure)
