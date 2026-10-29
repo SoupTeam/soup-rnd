@@ -9,11 +9,20 @@ import sys
 from tests.test_l2l_probe_harness import HARNESS, _load
 
 
+def _arm(**checks):
+    outcomes = {"suspend": "ok", "power": "ok", "foreign_reads": "ok", **checks}
+    return {
+        "source": "a", "arm": "A", "round": 1, "run": 0, "required": list(outcomes),
+        "outcome": "ok" if set(outcomes.values()) == {"ok"} else "unknown", "checks": outcomes,
+    }
+
+
 def _evidence(**over):
     ev = {
         "r1": [{"source": "a", "pass": True}, {"source": "b", "pass": True}],
         "r2": [{"source": "c", "pass": True}],
         "r3": [{"source": "a", "l2l": 100, "ga": 110}, {"source": "b", "l2l": 100, "ga": 100}],
+        "arms": [_arm()],
     }
     ev.update(over)
     return ev
@@ -46,6 +55,29 @@ def test_a_criterion_without_records_fails_instead_of_passing():
     assert out["verdict"] == "не готов" and out["criteria"]["R2"] is False
 
 
+def test_a_required_check_that_is_unknown_gives_no_verdict_even_when_criteria_pass():
+    dec = _load("l2l_ticket06_decision")
+    out = dec.decide(_evidence(arms=[_arm(), _arm(foreign_reads="unknown")]))
+    assert out["verdict"] == "нет вердикта"
+    assert out["criteria"] == {"R1": True, "R2": True, "R3": True}
+    assert out["blocked_by"] == {"foreign_reads:unknown": 1}
+    assert out["arm_outcomes"] == {"ok": 1, "unknown": 1}
+
+
+def test_a_void_check_gives_no_verdict_and_a_failed_criterion_does_not_override_it():
+    dec = _load("l2l_ticket06_decision")
+    arms = [_arm(power="void")]
+    out = dec.decide(_evidence(arms=arms, r1=[{"source": "a", "pass": False}]))
+    assert out["verdict"] == "нет вердикта" and out["blocked_by"] == {"power:void": 1}
+
+
+def test_a_required_check_missing_from_the_record_counts_as_unknown():
+    dec = _load("l2l_ticket06_decision")
+    arm = _arm()
+    del arm["checks"]["suspend"]
+    assert dec.decide(_evidence(arms=[arm]))["blocked_by"] == {"suspend:unknown": 1}
+
+
 def test_command_reads_the_committed_raw_records():
     done = subprocess.run(
         [sys.executable, str(HARNESS / "l2l_ticket06_decision.py")],
@@ -53,6 +85,9 @@ def test_command_reads_the_committed_raw_records():
     )
     assert done.returncode == 0, done.stderr
     out = json.loads(done.stdout)
-    assert out["verdict"] == "готов с ограничениями"
+    # the 60 rerun arms all have the required foreign_reads check unknown (no block device)
+    assert out["verdict"] == "нет вердикта"
+    assert out["blocked_by"] == {"foreign_reads:unknown": 60}
+    assert out["arm_outcomes"] == {"unknown": 60}
     assert out["criteria"] == {"R1": True, "R2": True, "R3": True}
     assert len(out["evidence"]["r1"]) == 3 and len(out["evidence"]["r2"]) == 4

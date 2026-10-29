@@ -913,8 +913,8 @@ quality was not measured. Report and raw logs:
 - Two accumulation runs equal each other bit for bit, so the stand itself is deterministic.
 - L2L and accumulation are **not** bit-identical in bf16 on this stand. (Superseded: the stand ran
   `backward` inside `autocast`, the real trainer does not, and the gap came from that. With the
-  trainer fixed, LoRA gradients and parameters match accumulation bit for bit over 16 steps on an
-  RTX 3070, see the A5 status below.) The relative L2 error of the LoRA
+  trainer fixed, LoRA gradients match accumulation bit for bit over 16 steps and parameters
+  over the first 4 updates (0 to 3) on an RTX 3070, see the A5 status below.) The relative L2 error of the LoRA
   gradients here is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
   the SDPA backend inside accumulation gives 1.4%, 1.5% and 4.5%, the same order.
 - In fp32 the two agree to 2.1e-6, 3.1e-6 and 8.3e-6 (rounding noise, not bit-equal). The bf16
@@ -926,7 +926,7 @@ quality was not measured. Report and raw logs:
 - A tolerance in place of the bit criterion is set in ticket 07 and was not applied to these
   numbers yet.
 
-**Status after A5 (Mistral-7B v0.1 NF4, 2026-10-28): ready with limits.** The rule that gives the
+**Status after A5 (Mistral-7B v0.1 NF4, 2026-10-28): no verdict.** The required `foreign_reads` validity check came back `unknown` in all 60 arms of the SFT campaigns, so under `benchmarks/METHOD.md` the readiness gate cannot give a verdict (that is not "not ready"). The numbers below are what the records show. The rule that gives the
 verdict is [`benchmarks/l2l-readiness-rule-a5.md`](../benchmarks/l2l-readiness-rule-a5.md), the
 evidence and the command that reproduces it are in
 [`benchmarks/probe-vast-l2l-a5-readiness-report.md`](../benchmarks/probe-vast-l2l-a5-readiness-report.md).

@@ -306,3 +306,31 @@ def test_report_names_the_equal_length_control(fwdbwd):
     payload = _payload()
     payload["facts"] = {**payload["facts"], "equal_lengths": True}
     assert "equal length" in fwdbwd.render_report(payload).lower()
+
+
+def test_both_arms_run_backward_outside_autocast(streamed, fwdbwd):  # noqa: F811
+    """The real Trainer calls backward after the autocast block exits (ticket 08)."""
+    import torch
+
+    model, runtime = streamed
+    seen = {"ga": [], "l2l": []}
+    handles = []
+    current = {"kind": "ga"}
+    for param in model.parameters():
+        if param.requires_grad:
+            handles.append(param.register_hook(
+                lambda grad: seen[current["kind"]].append(torch.is_autocast_enabled("cpu"))
+            ))
+    windows = fwdbwd.cut_windows(_rows(fwdbwd), 2)[:1]
+    try:
+        for kind in ("ga", "l2l"):
+            current["kind"] = kind
+            fwdbwd.run_arm(
+                model, runtime, windows, kind=kind, dtype=torch.bfloat16, device="cpu"
+            )
+    finally:
+        for handle in handles:
+            handle.remove()
+    for kind, flags in seen.items():
+        assert flags, f"{kind}: no gradient hook fired"
+        assert not any(flags), f"{kind}: backward ran with autocast enabled"

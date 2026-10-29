@@ -4,9 +4,11 @@
 The rule is in ``benchmarks/l2l-readiness-rule-a5.md`` (written before this script). R1: loss
 within the A3-07 tolerance in every ticket-04 rerun campaign. R2: the mixed-length forward and
 backward checks of ticket 07 all pass. R3: L2L peak VRAM at most the GA peak in every campaign.
-A criterion with no records fails. With all three met the verdict is "ready with limits" while
-``LIMITS`` is not empty. The script reads files and runs nothing on a GPU. Benchmark harness
-code, not shipped.
+A criterion with no records fails. R1 and R3 read arms, so every arm they read needs each
+required validity check ``ok`` (``benchmarks/METHOD.md``): a required check that is ``unknown`` or
+``void`` gives "no verdict" ("нет вердикта"), which is not "not ready". With all three met the
+verdict is "ready with limits" while ``LIMITS`` is not empty. The script reads files and runs
+nothing on a GPU. Benchmark harness code, not shipped.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from __future__ import annotations
 import glob
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -29,27 +32,48 @@ LIMITS = [
 ]
 
 
+NO_VERDICT = "нет вердикта"
+
+
 def decide(evidence: Dict[str, List[Dict[str, Any]]], limits: Optional[List[str]] = None
            ) -> Dict[str, Any]:
     """Apply the rule to ``evidence`` (lists of records per criterion)."""
     limits = LIMITS if limits is None else limits
+    arms = evidence.get("arms", [])
+    blocked = _blocked(arms)
     criteria = {
         "R1": bool(evidence["r1"]) and all(item["pass"] for item in evidence["r1"]),
         "R2": bool(evidence["r2"]) and all(item["pass"] for item in evidence["r2"]),
         "R3": bool(evidence["r3"]) and all(item["l2l"] <= item["ga"] for item in evidence["r3"]),
     }
-    if not all(criteria.values()):
+    if blocked:
+        verdict = NO_VERDICT
+    elif not all(criteria.values()):
         verdict = "не готов"
     elif limits:
         verdict = "готов с ограничениями"
     else:
         verdict = "готов"
-    return {"verdict": verdict, "criteria": criteria, "limits": limits, "evidence": evidence}
+    return {"verdict": verdict, "criteria": criteria, "limits": limits, "blocked_by": blocked,
+            "arm_outcomes": dict(Counter(arm["outcome"] for arm in arms)), "evidence": evidence}
+
+
+def _blocked(arms: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Count of arms per required check that is not ``ok`` (``check:outcome`` -> arms)."""
+    count: Counter = Counter()
+    for arm in arms:
+        for name in arm["required"]:
+            outcome = arm["checks"].get(name, "unknown")
+            if outcome != "ok":
+                count[f"{name}:{outcome}"] += 1
+        if arm["outcome"] == "void":
+            count["arm:void"] += 1
+    return dict(count)
 
 
 def collect(results: Path = RESULTS) -> Dict[str, List[Dict[str, Any]]]:
     """The evidence from the committed raw records under ``results``."""
-    r1, r3, r2 = [], [], []
+    r1, r3, r2, arms = [], [], [], []
     pattern = str(results / "l2l-mistral7b-ticket04-rerun-sft" / "*" / "results" / "campaign"
                   / "summary.json")
     for path in sorted(glob.glob(pattern)):
@@ -58,12 +82,21 @@ def collect(results: Path = RESULTS) -> Dict[str, List[Dict[str, Any]]]:
         r1.append({"source": source, "pass": bool(summary["loss"]["pass"])})
         peak = summary["metrics"]["peak_vram_allocated_bytes"]
         r3.append({"source": source, "ga": peak["a"], "l2l": peak["b"]})
+        blocks = json.loads((Path(path).parent / "blocks.json").read_text())
+        for entry in (arm for block in blocks for arm in block):
+            record = entry["arm_record"]
+            arms.append({
+                "source": source, "arm": entry["arm"], "round": entry["round"],
+                "run": entry["run"], "outcome": record["outcome"],
+                "required": list(record["required"]),
+                "checks": {name: check["outcome"] for name, check in record["checks"].items()},
+            })
     pattern = str(results / "l2l-mistral7b-ticket07-nopad" / "*" / "mixed-*" / "records.json")
     for path in sorted(glob.glob(pattern)):
         record = json.loads(Path(path).read_text())
         r2.append({"source": str(Path(path).relative_to(results)),
                    "pass": bool(record["overall"]["pass"])})
-    return {"r1": r1, "r2": r2, "r3": r3}
+    return {"r1": r1, "r2": r2, "r3": r3, "arms": arms}
 
 
 def main() -> int:

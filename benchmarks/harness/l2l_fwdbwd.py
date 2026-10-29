@@ -225,22 +225,25 @@ def run_arm(
     try:
         for window in windows:
             l2l_schedule.zero_grads(model)
-            with _autocast(device, dtype):
-                if stepper is not None:
+            if stepper is not None:
+                with _autocast(device, dtype):
                     losses, counters = stepper.run(window)
-                    loads, restores = counters.layer_loads, counters.restores
-                else:
-                    total = n_items(window)
-                    losses = []
-                    with count_loads(runtime) as counters:
-                        for ids, labels in window:
+                loads, restores = counters.layer_loads, counters.restores
+            else:
+                total = n_items(window)
+                losses = []
+                with count_loads(runtime) as counters:
+                    for ids, labels in window:
+                        # forward under autocast, backward after it exits: HF's accumulation
+                        # calls ``backward`` outside the autocast block (ticket 08)
+                        with _autocast(device, dtype):
                             out = model(
                                 input_ids=ids.to(device), labels=labels.to(device),
                                 num_items_in_batch=total,
                             )
-                            out.loss.backward()
-                            losses.append(out.loss.detach())
-                    loads, restores = counters.layer_loads, counters.restores
+                        out.loss.backward()
+                        losses.append(out.loss.detach())
+                loads, restores = counters.layer_loads, counters.restores
             record.logs.append({"loss": float(sum(float(loss) for loss in losses))})
             record.rates.append(0.0)
             record.grads.append(l2l_schedule.collect_grads(model))
