@@ -49,9 +49,37 @@ ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
     'runtime_candidate.lock', 'synthetic_fixture.jsonl', 'prepared_fixture_candidate.jsonl',
     'CE_CONFIRMATION_PROTOCOL.txt', 'ce_confirmation_plan.json', 'ce_confirmation_workset.json',
     'CE_CONTROLS_PROTOCOL.txt',
-    'CE_PREPARED_BATCHES_PROTOCOL.txt',
+    'CE_PREPARED_BATCHES_PROTOCOL.txt', 'CE_HARDENING_ADDENDUM.txt',
 ))
 _USED = False
+CLEANUP_RESERVE_SECONDS = 40
+ALARM_MARGIN_SECONDS = 15
+_ALARM = {'armed': False}
+
+
+def alarm_seconds(contract: dict, now: float) -> int:
+    """Child alarm from the shared deadline, minus cleanup reserve and an evidence margin."""
+    remaining = contract['deadline_unix_s'] - now - CLEANUP_RESERVE_SECONDS - ALARM_MARGIN_SECONDS
+    seconds = int(min(contract['max_seconds'], remaining))
+    if seconds <= 2:
+        raise ValueError('Shared deadline leaves no child budget')
+    return seconds
+
+
+def arm_alarm(seconds: int) -> None:
+    def expired(*unused) -> None:
+        # A disarmed alarm must never interrupt evidence writing, even if already pending.
+        if _ALARM['armed']:
+            raise TimeoutError('CE child deadline reached')
+    _ALARM['armed'] = True
+    signal.signal(signal.SIGALRM, expired)
+    signal.alarm(seconds)
+
+
+def disarm_alarm() -> None:
+    _ALARM['armed'] = False
+    if hasattr(signal, 'SIGALRM'):
+        signal.alarm(0)
 
 
 def validate_contract(contract: dict) -> dict:
@@ -186,6 +214,17 @@ def review_pair(root: Path, *, training: bool) -> dict:
     return {'status': 'PASS_CE_PROBES', 'probes': results, 'performance_verdict': 'NO_VERDICT'}
 
 
+def collator_config(trainer: Any) -> dict:
+    """Record the collator settings that decide labels and padding; a missing field fails closed."""
+    collator = trainer.data_collator
+    config = {'class': type(collator).__module__ + '.' + type(collator).__qualname__}
+    for name in ('pad_token_id', 'padding_free', 'completion_only_loss', 'pad_to_multiple_of'):
+        if not hasattr(collator, name):
+            raise ValueError('Collator config field missing: ' + name)
+        config[name] = getattr(collator, name)
+    return config
+
+
 def validate_prepared_batches(trainer: Any, expected: list[dict]) -> dict:
     """Check actual collated tensors; TRL may prune raw columns for Liger."""
     import torch
@@ -203,8 +242,30 @@ def validate_prepared_batches(trainer: Any, expected: list[dict]) -> dict:
                     or value.ndim != 2 or value.shape[0] != 1
                     or value.detach().cpu().tolist() != [reference[key]]):
                 raise ValueError(f'Actual prepared batch {index} {key} differs from frozen row')
+    dataset = trainer.train_dataset
+    columns = getattr(dataset, 'column_names', None)
+    if columns is None:
+        columns = list(dataset[0])
     return {'status': 'PASS_EXACT_COLLATED_PREPARED_ROWS', 'rows': len(expected),
-            'fields': sorted(keys)}
+            'fields': sorted(keys), 'dataset_columns': sorted(columns),
+            'collator': collator_config(trainer)}
+
+
+def validate_workset_link(trainer: Any, work: dict, expected: list[dict]) -> dict:
+    """Bind each fixed training batch to the audited prepared row it claims to come from."""
+    indices = work.get('training_row_indices')
+    batches = work.get('training_batches')
+    if (not isinstance(indices, list) or not isinstance(batches, list)
+            or len(indices) != 16 or len(batches) != 16 or len(set(indices)) != 16
+            or any(type(i) is not int or not 0 <= i < len(expected) for i in indices)):
+        raise ValueError('Invalid training row indices')
+    for position, index in enumerate(indices):
+        collated = trainer.data_collator([trainer.train_dataset[index]])
+        for key in ('input_ids', 'attention_mask', 'labels'):
+            if (collated[key].detach().cpu().tolist() != batches[position][key]
+                    or batches[position][key] != [expected[index][key]]):
+                raise ValueError(f'Training batch {position} {key} differs from row {index}')
+    return {'status': 'PASS_WORKSET_LINKED_TO_PREPARED_ROWS', 'rows': indices}
 
 
 def run_child(contract: dict, phase: str, out: Path) -> dict:
@@ -222,10 +283,7 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         if platform.system() != 'Linux':
             raise ValueError('Linux CUDA required')
 
-        def expired(*unused) -> None:
-            raise TimeoutError('CE child deadline reached')
-        signal.signal(signal.SIGALRM, expired)
-        signal.alarm(contract['max_seconds'])
+        arm_alarm(alarm_seconds(contract, time.time()))
         study = committed_preflight(contract)
         controls = CaptureControls(phase, contract['model_path'])
         controls.start()
@@ -286,6 +344,7 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         result['initial_identity'] = identity
         work = json.loads((SPEC / 'ce_confirmation_workset.json').read_text())
         if training:
+            result['workset_link'] = validate_workset_link(wrapper.trainer, work, prepared)
             rows = [{k: v[0] for k, v in batch.items()} for batch in work['training_batches']]
             wrapper.trainer.train_dataset = Dataset.from_list(rows)
 
@@ -318,8 +377,10 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         result.update(status='COMPLETE_CE_CAPTURE', source_commit=contract['source_commit'],
                       gpu_uuid=contract['gpu_uuid'], boot_id=contract['boot_id'])
     except Exception as error:
+        disarm_alarm()
         result['error'] = type(error).__name__ + ': ' + str(error)
     finally:
+        disarm_alarm()  # First: no timeout may interrupt controls.stop or the evidence writes.
         if controls is not None:
             try:
                 controls.stop()
@@ -327,8 +388,6 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
                 result.update(status='FAILED',
                               controls_error=type(error).__name__ + ': ' + str(error))
             write_json(out / 'controls.json', controls.record)
-        if hasattr(signal, 'SIGALRM'):
-            signal.alarm(0)
         write_json(out / 'evidence.json', result)
         write_json(out / 'contract.json', contract)
         tree_seal(out)
@@ -345,7 +404,7 @@ def run_series(contract: dict, out: Path) -> dict:
               'external_controls_required': True, 'provider_stop_performed': False}
     try:
         for index, phase in enumerate(PHASES):
-            remaining = contract['deadline_unix_s'] - time.time() - 40
+            remaining = contract['deadline_unix_s'] - time.time() - CLEANUP_RESERVE_SECONDS
             if remaining <= 2:
                 raise TimeoutError('Shared deadline cleanup reserve reached')
             report = bounded_process(

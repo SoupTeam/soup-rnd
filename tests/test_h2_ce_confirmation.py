@@ -130,7 +130,8 @@ def test_control_start_failure_is_sealed_and_never_accepted(tmp_path, monkeypatc
     monkeypatch.setattr(runner, 'CaptureControls', FailedControls)
     monkeypatch.setattr(runner.signal, 'signal', lambda *args: None)
     monkeypatch.setattr(runner.signal, 'alarm', lambda *args: None)
-    contract = {'evidence_root': str(tmp_path), 'model_path': '/model', 'max_seconds': 600}
+    contract = {'evidence_root': str(tmp_path), 'model_path': '/model', 'max_seconds': 600,
+                'deadline_unix_s': time.time() + 2400}
     out = tmp_path / 'baseline_probes/runner'
     result = runner.run_child(contract, 'baseline_probes', out)
     assert events == ['start', 'stop']

@@ -37,6 +37,12 @@ def copy_tensors(values: dict) -> dict:
     return result
 
 
+def window_targets(work: list[dict], index: int) -> int:
+    """Shifted useful targets of the four-microbatch accumulation window containing index."""
+    return sum(sum(v != -100 for v in seq[1:]) for batch in work[index // 4 * 4:index // 4 * 4 + 4]
+               for seq in batch['labels'])
+
+
 class Recorder:
     """Capture real Trainer observations; reject reordered work and incomplete updates."""
 
@@ -107,7 +113,8 @@ class Recorder:
             raise ValueError('Nonfinite training loss')
         if hasattr(denominator, 'item'):
             denominator = denominator.item()
-        if denominator is not None and (type(denominator) is not int or denominator <= 0):
+        if (type(denominator) is not int or denominator <= 0
+                or denominator != window_targets(self.work, self.backwards)):
             raise ValueError('Unexpected normalization denominator')
         self.batches.append({'inputs': actual, 'loss': scalar,
                              'num_items_in_batch': denominator, **batch_evidence(inputs)})
@@ -251,9 +258,7 @@ def read_training(root: Path, work: list[dict]) -> tuple[dict, dict]:
                 or type(row['loss']) not in (int, float) or not math.isfinite(row['loss'])):
             raise ValueError('Invalid ordered work/loss')
         denominator = row['num_items_in_batch']
-        count = sum(sum(v != -100 for v in seq[1:]) for batch in
-                    work[index // 4 * 4:index // 4 * 4 + 4] for seq in batch['labels'])
-        if denominator is not None and (type(denominator) is not int or denominator != count):
+        if type(denominator) is not int or denominator != window_targets(work, index):
             raise ValueError('Invalid accumulation normalization denominator')
     initial = load_file(str(root / 'initial.safetensors'))
     names = set(data['before']['trainable'])
