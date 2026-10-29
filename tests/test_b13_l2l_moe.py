@@ -19,9 +19,10 @@ set ``CUBLAS_WORKSPACE_CONFIG`` before CUDA starts.
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import re
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional
 
@@ -74,7 +75,10 @@ class Rig:
         return range(self.config.first_k_dense_replace, self.config.num_hidden_layers)
 
     def close(self) -> None:
-        self.moe.close()
+        try:
+            self.store.close()
+        finally:
+            self.moe.close()
 
 
 @pytest.fixture()
@@ -85,6 +89,7 @@ def make_rig(tmp_path):
         *,
         k: int,
         dropout: float = 0.0,
+        attention_dropout: float = 0.0,
         config: Any = None,
         rows: int = 2,
         seq: int = 6,
@@ -106,6 +111,14 @@ def make_rig(tmp_path):
                 resident.to(device)
             moe.model.train()
             resident.train()
+            if attention_dropout:
+                for model in (moe.model, resident):
+                    for module in model.modules():
+                        if hasattr(module, "attention_dropout"):
+                            module.attention_dropout = attention_dropout
+                        cfg = getattr(module, "config", None)
+                        if cfg is not None:
+                            cfg._attn_implementation = "eager"
             first = moe_batch(config, seed=0, rows=rows, seq=seq)["input_ids"].to(device)
             stepper = l2l_step.L2LStep(
                 moe.model, moe.runtime, l2l_step.capture_layer_call(moe.model, first)
@@ -220,8 +233,10 @@ class _ResidentProbe:
             handle.remove()
 
 
-def ga_windows(rig: Rig, specs: List[Spec], *, seed: int = SEED) -> List[Window]:
-    """Plain accumulation on the resident eager model: no hooks, one generator seeded once."""
+def ga_windows(
+    rig: Rig, specs: List[Spec], *, seed: int = SEED, amp: bool = False
+) -> List[Window]:
+    """Resident eager accumulation: forward AMP only, one generator seeded before windows."""
     model = rig.resident
     model.train()
     probe = _ResidentProbe(model)
@@ -234,7 +249,10 @@ def ga_windows(rig: Rig, specs: List[Spec], *, seed: int = SEED) -> List[Window]
             probe.reset()
             losses = []
             for ids, lab in zip(spec.ids, labels):
-                loss = model(input_ids=ids, labels=lab, num_items_in_batch=total).loss
+                with torch.autocast(
+                    torch.device(rig.device).type, dtype=torch.bfloat16, enabled=amp
+                ):
+                    loss = model(input_ids=ids, labels=lab, num_items_in_batch=total).loss
                 loss.backward()
                 losses.append(loss.detach())
             out.append(
@@ -245,7 +263,9 @@ def ga_windows(rig: Rig, specs: List[Spec], *, seed: int = SEED) -> List[Window]
     return out
 
 
-def l2l_windows(rig: Rig, specs: List[Spec], *, seed: int = SEED) -> List[Window]:
+def l2l_windows(
+    rig: Rig, specs: List[Spec], *, seed: int = SEED, amp: bool = False
+) -> List[Window]:
     """The L2L step over the streamed model, windows back to back on one stepper and store."""
     model = rig.model
     model.train()
@@ -253,7 +273,8 @@ def l2l_windows(rig: Rig, specs: List[Spec], *, seed: int = SEED) -> List[Window
     out: List[Window] = []
     for spec in specs:
         _zero_grads(model)
-        losses = rig.stepper.run(spec.ids, rig.store, n_items=spec.n_items, labels=spec.labels)
+        with torch.autocast(torch.device(rig.device).type, dtype=torch.bfloat16, enabled=amp):
+            losses = rig.stepper.run(spec.ids, rig.store, n_items=spec.n_items, labels=spec.labels)
         out.append(
             Window(
                 [loss.detach() for loss in losses],
@@ -302,6 +323,30 @@ def assert_same(want: Window, got: Window, *, stream: bool = True) -> None:
         assert rng_equal(want.rng, got.rng), "the generator state after the window differs"
 
 
+def max_grad_difference(left: Window, right: Window) -> float:
+    return max(
+        float((left.grads[name].double() - right.grads[name].double()).abs().max())
+        for name in left.grads
+        if left.grads[name] is not None and right.grads[name] is not None
+    )
+
+
+def record_comparison(record_property: Callable[..., None], want: Window, got: Window) -> None:
+    """Keep numerical evidence in pytest's JUnit report, including non-degeneracy."""
+    record_property("lora_grad_tensors", len(want.grads))
+    record_property(
+        "nonzero_lora_grad_tensors",
+        sum(g is not None and bool(g.ne(0).any()) for g in want.grads.values()),
+    )
+    record_property("max_abs_grad_diff", max_grad_difference(want, got))
+    record_property(
+        "max_abs_loss_diff", max(float((a - b).abs()) for a, b in zip(want.losses, got.losses))
+    )
+    record_property("rng_equal", rng_equal(want.rng, got.rng))
+    record_property("expert_fetches", got.counters.expert_fetches)
+    record_property("expert_bytes_read", got.counters.expert_bytes_read)
+
+
 def assert_signal(window: Window) -> None:
     """The reference is not degenerate, so equality is not a statement about zeros."""
     assert window.grads
@@ -321,7 +366,9 @@ def assert_routing_is_varied(window: Window, rig: Rig, k: int) -> None:
     """Different routing per micro-batch, unused experts, shared experts doing work."""
     assert sorted(window.routes) == list(rig.moe_layers)
     for layer, routes in window.routes.items():
-        assert len(routes) == k, f"layer {layer}: {len(routes)} routing records for {k} micro-batches"
+        assert len(routes) == k, (
+            f"layer {layer}: {len(routes)} routing records for {k} micro-batches"
+        )
         for i in range(k):
             for j in range(i + 1, k):
                 assert not torch.equal(routes[i], routes[j]), (
@@ -362,8 +409,9 @@ def check_l2l_equals_accumulation(
 # ==========================================================================
 @pytest.mark.parametrize("dropout", [0.0, 0.05])
 @pytest.mark.parametrize("k", [1, 2, 4])
-def test_e3_l2l_equals_resident_eager_accumulation(make_rig, k, dropout):
-    check_l2l_equals_accumulation(make_rig, k=k, dropout=dropout)
+def test_e3_l2l_equals_resident_eager_accumulation(make_rig, k, dropout, record_property):
+    _rig, want, got = check_l2l_equals_accumulation(make_rig, k=k, dropout=dropout)
+    record_comparison(record_property, want, got)
 
 
 def test_the_fixture_is_not_degenerate_dropout_changes_what_the_reference_computes(make_rig):
@@ -396,7 +444,7 @@ def test_router_top_k_is_varied_independently_of_k(make_rig, top_k, rows, seq, d
 # consecutive windows on one stepper: nothing stale in the store, the routing or the arena
 # ==========================================================================
 @pytest.mark.parametrize("dropout", [0.0, 0.05])
-def test_consecutive_windows_on_one_stepper_equal_accumulation(make_rig, dropout):
+def test_consecutive_windows_on_one_stepper_equal_accumulation(make_rig, dropout, guard_runs):
     """Windows A, B, A on one stepper, one store and one generator, as consecutive optimizer
     steps run them. B routes differently from A, so a routing record, a stored activation or an
     arena slot left behind by a window would show in the next one."""
@@ -419,6 +467,9 @@ def test_consecutive_windows_on_one_stepper_equal_accumulation(make_rig, dropout
         assert_same(expected, actual)
     if dropout == 0.0:  # without dropout the same window gives the same result again
         assert_same(got[0], got[2])
+    for guard in guard_runs.guards:
+        assert_guard_closed(guard)
+    assert all(released for _pair, released in guard_runs.checked)
 
 
 # ==========================================================================
@@ -459,6 +510,8 @@ class ReadLog:
     def __init__(self, monkeypatch: pytest.MonkeyPatch, model: Any) -> None:
         #: layer -> [(expert, ran inside autograd's engine)] in load order
         self.records: Dict[int, List[tuple]] = {}
+        #: all layers together, so reverse layer traversal cannot hide in per-layer totals
+        self.events: List[tuple] = []
         #: callable(layer, expert, host staging dict) applied to the loads inside the engine
         self.perturb: Optional[Callable[[int, int, Any], None]] = None
         self.perturbed: List[tuple] = []
@@ -473,6 +526,7 @@ class ReadLog:
             inside = torch._C._current_autograd_node() is not None
             host = original(expert, staging)
             records.append((expert, inside))
+            self.events.append((layer, expert, inside))
             if inside and self.perturb is not None:
                 self.perturb(layer, expert, host)
                 self.perturbed.append((layer, expert))
@@ -491,9 +545,10 @@ def perturb_down(_layer: int, expert: int, host: Any) -> None:
     host[expert_key(expert, DOWN)].add_(0.5)
 
 
-def test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again(make_rig, monkeypatch):
-    """Per hit expert per micro-batch: one read in the no-grad forward, one in the grad
-    recompute and one in the expert's own backward. Unused experts are never read."""
+def test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again(
+    make_rig, monkeypatch, record_property
+):
+    """Per hit expert per micro-batch: forward, recompute, backward reads; reverse layers."""
     from collections import Counter
 
     k = 3
@@ -504,8 +559,28 @@ def test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again(make_
     readers = rig.runtime.expert_readers
     before = [(reader.fetches, reader.bytes_read) for reader in readers]
     stats_before = rig.runtime.stats()  # make_rig's capture forward has read experts already
-    (got,) = l2l_windows(rig, specs)
+    calls = []
+    handles = [
+        layer.register_forward_pre_hook(
+            lambda _module, _args, idx=idx: calls.append((idx, torch.is_grad_enabled()))
+        )
+        for idx, layer in enumerate(rig.stepper.layers)
+    ]
+    try:
+        (got,) = l2l_windows(rig, specs)
+    finally:
+        for handle in handles:
+            handle.remove()
     assert_same(want, got)
+    assert calls == [
+        (layer, grad)
+        for grad, layers in (
+            (False, range(rig.config.num_hidden_layers)),
+            (True, range(rig.config.num_hidden_layers - 1, -1, -1)),
+        )
+        for layer in layers
+        for _mb in range(k)
+    ]
 
     hits = hits_of(want)
     assert sorted(hits) == sorted(log.records) == list(rig.moe_layers)
@@ -538,18 +613,44 @@ def test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again(make_
         counters.expert_bytes_read
     )
 
+    # Every forward load precedes the backward walk; each recompute and its real backward
+    # finish before the next micro-batch, and the MoE layers are consumed in reverse order.
+    forward_events = [
+        (layer, expert, False)
+        for layer, per_mb in hits.items()
+        for seen in per_mb
+        for expert in seen
+    ]
+    assert log.events[:total_hits] == forward_events
+    cursor = total_hits
+    for layer in reversed(list(rig.moe_layers)):
+        for seen in hits[layer]:
+            count = len(seen)
+            recompute = log.events[cursor : cursor + count]
+            backward = log.events[cursor + count : cursor + 2 * count]
+            assert recompute == [(layer, expert, False) for expert in seen]
+            assert all(idx == layer and inside for idx, _expert, inside in backward)
+            assert Counter(expert for _idx, expert, _inside in backward) == Counter(seen)
+            cursor += 2 * count
+    assert cursor == len(log.events)
+    record_property("backward_expert_reads", sum(inside for _idx, _expert, inside in log.events))
+    record_property("forward_layer_order", [idx for idx, grad in calls if not grad])
+    record_property("recompute_layer_order", [idx for idx, grad in calls if grad])
+    record_comparison(record_property, want, got)
+
 
 # ==========================================================================
 # negative controls on the SAME inputs: the comparison is sensitive to what it claims to check
 # ==========================================================================
 def check_backward_only_perturbation(
     make_rig: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch, *, device: str = "cpu"
-) -> None:
+) -> Dict[str, Any]:
     """(a) Expert weights perturbed only on loads inside autograd's engine: the losses stay
     equal and the gradients differ, while the unperturbed run on the same inputs passes."""
     rig = make_rig(k=2, device=device)
     specs = [Spec(micro_batches(rig, 2))]
     (want,) = ga_windows(rig, specs)
+    assert_signal(want)
     log = ReadLog(monkeypatch, rig.model)
 
     (clean,) = l2l_windows(rig, specs)
@@ -569,12 +670,21 @@ def check_backward_only_perturbation(
     log.perturb = None
     (again,) = l2l_windows(rig, specs)
     assert_same(want, again)
+    return {
+        "max_abs_grad_diff": max_grad_difference(want, bad),
+        "different_lora_grad_tensors": len(grads_differ(bad.grads, want.grads)),
+        "backward_perturbed_reads": len(log.perturbed),
+        "losses_equal": losses_equal(want, bad),
+        "rng_equal": rng_equal(want.rng, bad.rng),
+        "clean_repeat_exact": True,
+    }
 
 
 def test_negative_control_perturbing_only_backward_reloads_changes_grads_not_losses(
-    make_rig, monkeypatch
+    make_rig, monkeypatch, record_property
 ):
-    check_backward_only_perturbation(make_rig, monkeypatch)
+    for key, value in check_backward_only_perturbation(make_rig, monkeypatch).items():
+        record_property(key, value)
 
 
 def no_routing_guard(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -592,39 +702,312 @@ def without_replayed_state_on_the_recompute(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr("soup_cli.utils.l2l_rng.state_at", forward_only)
 
 
-def test_negative_control_state_not_applied_on_the_recompute_changes_the_grads(
-    make_rig, monkeypatch
-):
+def check_broken_rng_replay(
+    make_rig: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch, *, device: str = "cpu"
+) -> Dict[str, Any]:
     """(b) At dropout 0.05 the recompute without the replayed generator state draws other masks.
 
-    The routing guard would stop this run (next test), so the control runs without it: what is
-    compared here is the gradients, which must differ while the forward's losses stay equal.
+    The guard may stop this run when routing changes, so this control disables only that
+    check: the gradients must differ while the forward's losses stay equal.
     """
-    rig = make_rig(k=2, dropout=0.05)
+    rig = make_rig(k=2, dropout=0.05, device=device)
     specs = [Spec(micro_batches(rig, 2))]
     (want,) = ga_windows(rig, specs)
     (clean,) = l2l_windows(rig, specs)
     assert_same(want, clean)
 
-    without_replayed_state_on_the_recompute(monkeypatch)
-    no_routing_guard(monkeypatch)
-    (bad,) = l2l_windows(rig, specs)
+    with monkeypatch.context() as broken:
+        without_replayed_state_on_the_recompute(broken)
+        no_routing_guard(broken)
+        (bad,) = l2l_windows(rig, specs)
     assert losses_equal(want, bad)  # the forward still runs at its state
     assert grads_differ(bad.grads, want.grads)
     with pytest.raises(AssertionError, match="LoRA gradients differ"):
         assert_same(want, bad, stream=False)
+    (again,) = l2l_windows(rig, specs)
+    assert_same(want, again)
+    return {
+        "max_abs_grad_diff": max_grad_difference(want, bad),
+        "different_lora_grad_tensors": len(grads_differ(bad.grads, want.grads)),
+        "losses_equal": losses_equal(want, bad),
+        "clean_repeat_exact": True,
+    }
 
 
-def test_the_routing_guard_stops_a_recompute_that_drew_other_dropout_masks(make_rig, monkeypatch):
-    """Same break as control (b), guard on: other masks change the attention output the router
-    sees, so a layer is routed differently and the step stops before that pair's backward.
-    A property of this fixture's seeds (routing does flip), pinned because it is deterministic."""
+def test_negative_control_state_not_applied_on_the_recompute_changes_the_grads(
+    make_rig, monkeypatch, record_property
+):
+    for key, value in check_broken_rng_replay(make_rig, monkeypatch).items():
+        record_property(key, value)
+
+
+def assert_guard_closed(guard: Any) -> None:
+    assert not guard._records
+    assert not guard._handles
+    assert guard._visit is None
+
+
+@pytest.fixture()
+def guard_runs(monkeypatch):
+    """Observe real per-run guards without changing routing or expert execution."""
+    guards, checked = [], []
+    real = l2l_step.RoutingGuard
+
+    class ObservedGuard(real):
+        def __init__(self, layers):
+            super().__init__(layers)
+            guards.append(self)
+
+        @contextmanager
+        def check(self, layer, mb):
+            try:
+                with super().check(layer, mb):
+                    yield
+            finally:
+                checked.append(((layer, mb), (layer, mb) not in self._records))
+
+    monkeypatch.setattr(l2l_step, "RoutingGuard", ObservedGuard)
+    return SimpleNamespace(guards=guards, checked=checked)
+
+
+def expert_hooks(rig: Rig) -> Dict[int, tuple]:
+    return {
+        idx: tuple(module._forward_pre_hooks.items())
+        for idx, module in streamed_experts_modules(rig.model).items()
+    }
+
+
+def test_the_routing_guard_stops_a_recompute_that_drew_other_dropout_masks(
+    make_rig, monkeypatch, guard_runs
+):
+    """Broken replay changes routing; failure drops records/hooks, and the next run is exact."""
     rig = make_rig(k=2, dropout=0.05)
     specs = [Spec(micro_batches(rig, 2))]
     (want,) = ga_windows(rig, specs)
-    without_replayed_state_on_the_recompute(monkeypatch)
-    with pytest.raises(RuntimeError, match=r"routing guard: layer \d micro-batch \d was routed"):
-        l2l_windows(rig, specs)
-    monkeypatch.undo()
-    (clean,) = l2l_windows(rig, specs)  # nothing stale: the same stepper runs the next window
+    hooks = expert_hooks(rig)
+    with monkeypatch.context() as broken:
+        without_replayed_state_on_the_recompute(broken)
+        mismatch = r"routing guard: layer \d micro-batch \d was routed"
+        with pytest.raises(RuntimeError, match=mismatch):
+            l2l_windows(rig, specs)
+    assert_guard_closed(guard_runs.guards[-1])
+    assert guard_runs.checked and all(released for _pair, released in guard_runs.checked)
+    assert expert_hooks(rig) == hooks
+    assert all(layer.use_checkpoint for layer in rig.stepper.layers)
+    (clean,) = l2l_windows(rig, specs)
     assert_same(want, clean)
+    assert_guard_closed(guard_runs.guards[-1])
+    assert expert_hooks(rig) == hooks
+
+
+@pytest.mark.parametrize("phase", ["forward", "recompute", "backward"])
+def test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_again(
+    make_rig, monkeypatch, guard_runs, phase
+):
+    rig = make_rig(k=2)
+    specs = [Spec(micro_batches(rig, 2))]
+    (want,) = ga_windows(rig, specs)
+    hooks = expert_hooks(rig)
+    reader = rig.runtime.expert_readers[-1]
+    original = reader.read_host
+    failed = []
+
+    def fail_read(expert, staging):
+        inside = torch._C._current_autograd_node() is not None
+        # ExpertNode.forward itself disables grad even during the grad recompute; classify
+        # the caller from the guard's real visit, not the custom Function's grad mode.
+        recording = guard_runs.guards[-1]._visit[2] if not inside else None
+        current = "backward" if inside else "forward" if recording else "recompute"
+        if current == phase:
+            failed.append(expert)
+            raise OSError(f"deliberate {phase} expert read failure")
+        return original(expert, staging)
+
+    with monkeypatch.context() as broken:
+        broken.setattr(reader, "read_host", fail_read)
+        with pytest.raises(OSError, match=f"deliberate {phase}"):
+            l2l_windows(rig, specs)
+    assert failed
+    assert_guard_closed(guard_runs.guards[-1])
+    assert all(released for _pair, released in guard_runs.checked)
+    assert expert_hooks(rig) == hooks
+    assert all(layer.use_checkpoint for layer in rig.stepper.layers)
+    (again,) = l2l_windows(rig, specs)
+    assert_same(want, again)
+    assert_guard_closed(guard_runs.guards[-1])
+    assert expert_hooks(rig) == hooks
+
+
+@pytest.mark.parametrize("change", ["choice", "shape", "extra-call", "missing-call"])
+def test_guard_checks_actual_routing_before_loading_and_releases_each_pair(make_rig, change):
+    rig = make_rig(k=1)
+    (want,) = ga_windows(rig, [Spec(micro_batches(rig, 1))])
+    layer = next(iter(rig.moe_layers))
+    module = streamed_experts_modules(rig.model)[layer]
+    route = want.routes[layer][0].clone()
+    hidden = torch.randn(route.shape[0], rig.config.hidden_size)
+    weights = torch.full(route.shape, 0.5)
+    hooks = expert_hooks(rig)
+    with l2l_step.RoutingGuard(rig.stepper.layers) as guard:
+        with guard.record(layer, 0), torch.no_grad():
+            module(hidden, route, weights)
+        assert (layer, 0) in guard._records
+        bad = route.clone()
+        if change == "choice":
+            bad[0, 0] = (bad[0, 0] + 1) % rig.config.n_routed_experts
+        elif change == "shape":
+            bad = bad[:, :1]
+        before = module.reader.fetches
+        message = "routed differently" if change in ("choice", "shape") else "more often"
+        with pytest.raises(RuntimeError, match=message):
+            with guard.check(layer, 0):
+                if change != "missing-call":
+                    module(hidden, bad, weights[:, : bad.shape[1]])
+                if change == "extra-call":
+                    before = module.reader.fetches
+                    module(hidden, route, weights)
+        assert module.reader.fetches == before
+        assert (layer, 0) not in guard._records
+        assert guard._visit is None
+    assert_guard_closed(guard)
+    assert expert_hooks(rig) == hooks
+
+
+def test_guard_preserves_differentiable_router_weights(make_rig):
+    """Detaching/replacing top-k weights in a guard must not erase their real gradient path."""
+    from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+    rig = make_rig(k=1)
+    layer = next(iter(rig.moe_layers))
+    resident_mlp = decoder_owner(rig.resident).layers[layer].mlp
+    streamed_mlp = copy.deepcopy(resident_mlp)
+    streamed_mlp.experts = streamed_experts_modules(rig.model)[layer]
+    hidden = torch.randn(rig.rows, rig.seq, rig.config.hidden_size)
+
+    def run(mlp):
+        inputs = hidden.clone().requires_grad_(True)
+        seen = []
+
+        def save_weights(_module, _args, output):
+            weights = output[1]
+            assert weights.requires_grad and weights.grad_fn is not None
+            weights.retain_grad()
+            seen.append(weights)
+
+        handle = mlp.gate.register_forward_hook(save_weights)
+        try:
+            out = mlp(inputs)
+            out.backward(torch.ones_like(out))
+        finally:
+            handle.remove()
+        assert len(seen) == 1 and bool(seen[0].grad.ne(0).any())
+        return out.detach(), inputs.grad, seen[0].grad
+
+    want = run(resident_mlp)
+    with l2l_step.RoutingGuard(rig.stepper.layers) as guard:
+        with guard.record(layer, 0), torch.no_grad():
+            streamed_mlp(hidden)
+        with guard.check(layer, 0):
+            got = run(streamed_mlp)
+        assert not guard._records
+    assert all(torch.equal(a, b) for a, b in zip(want, got))
+    assert_guard_closed(guard)
+
+
+def test_public_launch_still_refuses_deepseek_but_internal_step_accepts_it(make_rig):
+    from soup_cli.trainer.l2l_trainer import refuse_unsupported_l2l
+
+    rig = make_rig(k=1)
+    assert l2l_step.model_parts(rig.model)[0].config.model_type == "deepseek_v3"
+    with pytest.raises(ValueError, match="deepseek_v3.*llama.*mistral"):
+        refuse_unsupported_l2l(rig.config, n_gpu=1)
+
+
+def test_expert_loads_remain_visible_in_trainer_logs_and_dense_fields_stay_unchanged(make_rig):
+    from soup_cli.trainer.l2l_trainer import L2LState
+
+    rig = make_rig(k=2)
+    windows = l2l_windows(rig, [Spec(micro_batches(rig, 2)), Spec(micro_batches(rig, 1))])
+    state = L2LState(runtime=rig.runtime, dtype=torch.float32)
+    for window in windows:
+        state.steps += 1
+        state.totals.add(window.counters)
+    fields = state.log_fields()
+    assert fields["l2l_steps"] == 2
+    assert fields["l2l_expert_fetches"] == sum(w.counters.expert_fetches for w in windows)
+    assert fields["l2l_expert_bytes_read"] == sum(w.counters.expert_bytes_read for w in windows)
+    assert fields["l2l_expert_fetches"] > 0 and fields["l2l_expert_bytes_read"] > 0
+    state.runtime = SimpleNamespace(expert_pool=None)
+    assert state.log_fields() == {
+        "l2l_steps": 2,
+        "l2l_layer_loads": state.totals.layer_loads,
+        "l2l_large_loads": state.totals.large_loads,
+        "l2l_weight_restores": state.totals.restores,
+    }
+
+
+def check_bf16_forward_amp(
+    make_rig: Callable[..., Rig], *, k: int, device: str = "cpu"
+) -> tuple:
+    """Ambient AMP around L2L must not change backward reductions relative to HF's loop."""
+    rig = make_rig(k=k, device=device)
+    specs = [Spec(micro_batches(rig, k)), Spec(micro_batches(rig, k, first=10))]
+    want = ga_windows(rig, specs, amp=True)
+    got = l2l_windows(rig, specs, amp=True)
+    for expected, actual in zip(want, got):
+        assert_signal(expected)
+        assert set(expected.grads) == set(actual.grads)
+        for name, gradient in expected.grads.items():
+            torch.testing.assert_close(actual.grads[name], gradient, atol=1e-6, rtol=1e-5)
+        for expected_loss, actual_loss in zip(expected.losses, actual.losses):
+            torch.testing.assert_close(actual_loss, expected_loss, atol=1e-6, rtol=1e-5)
+        assert rng_equal(expected.rng, actual.rng)
+    return want, got
+
+
+@pytest.mark.parametrize("k", [1, 2, 4])
+def test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga(
+    make_rig, k, record_property
+):
+    want, got = check_bf16_forward_amp(make_rig, k=k)
+    for expected, actual in zip(want, got):
+        record_comparison(record_property, expected, actual)
+
+
+def test_seeded_dropout_runs_repeat_exactly_and_another_seed_changes_gradients(
+    make_rig, guard_runs
+):
+    rig = make_rig(k=2, dropout=0.05)
+    specs = [Spec(micro_batches(rig, 2))]
+    (want,) = ga_windows(rig, specs)
+    (first,) = l2l_windows(rig, specs)
+    (again,) = l2l_windows(rig, specs)
+    (other,) = l2l_windows(rig, specs, seed=SEED + 1)
+    assert_same(want, first)
+    assert_same(first, again)
+    assert grads_differ(first.grads, other.grads)
+    assert not rng_equal(first.rng, other.rng)
+    for guard in guard_runs.guards:
+        assert_guard_closed(guard)
+
+
+def check_eager_attention_dropout(make_rig: Callable[..., Rig], *, device: str = "cpu") -> tuple:
+    rig = make_rig(k=2, dropout=0.05, attention_dropout=0.1, device=device)
+    specs = [Spec(micro_batches(rig, 2)), Spec(micro_batches(rig, 2, first=10))]
+    want = ga_windows(rig, specs)
+    got = l2l_windows(rig, specs)
+    assert l2l_rng.has_draws(rig.stepper.call.draws)
+    assert any(draw.p == 0.1 for layer in rig.stepper.call.draws for draw in layer)
+    for expected, actual in zip(want, got):
+        assert_signal(expected)
+        assert_routing_is_varied(expected, rig, 2)
+        assert_same(expected, actual)
+    return want, got
+
+
+def test_eager_attention_and_lora_dropout_replay_match_resident_accumulation(
+    make_rig, record_property
+):
+    want, got = check_eager_attention_dropout(make_rig)
+    for expected, actual in zip(want, got):
+        record_comparison(record_property, expected, actual)

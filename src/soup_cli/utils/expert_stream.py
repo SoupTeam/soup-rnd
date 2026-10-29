@@ -343,9 +343,10 @@ def _build_streamed_experts_class() -> Any:
         slices are saved (activation memory, never an arena view) and the output is a fresh
         tensor. Backward unpacks them first, because under checkpointing that replays a
         region which leases experts itself, then leases the same expert through the same
-        reader and pool, rebuilds the body with the arena weights as constants under the
-        forward's autocast state and lets autograd differentiate the ops eager runs. The
-        lease ends before the gradients leave the node. Backward is first-order only
+        reader and pool, rebuilds the body with the forward's RNG and autocast state and lets
+        autograd differentiate the ops eager runs. RNG replay preserves the outer stream,
+        including for a stochastic stateless activation. The lease ends before gradients leave
+        the node. Backward is first-order only
         (``once_differentiable``): the gradients carry no graph over the arena weights, which
         the next lease overwrites, so a second derivative is refused (torch raises) rather than
         taken against stale memory. The resident eager module does support second order.
@@ -355,6 +356,8 @@ def _build_streamed_experts_class() -> Any:
         def forward(
             ctx: Any, hidden: Any, route: Any, reader: Any, pool: Any, act_fn: Any, expert: int
         ) -> Any:
+            from soup_cli.utils.l2l_rng import snapshot
+
             device_type = pool.device.type
             ctx.reader, ctx.pool, ctx.act_fn, ctx.expert = reader, pool, act_fn, expert
             ctx.autocast = (
@@ -364,24 +367,28 @@ def _build_streamed_experts_class() -> Any:
                 torch.is_autocast_cache_enabled(),
             )
             ctx.save_for_backward(hidden, route)
+            ctx.rng = snapshot()
             with pool.lease(reader, expert) as (gate_up, down):
                 return expert_mlp(hidden, route, gate_up, down, act_fn)
 
         @staticmethod
         @torch.autograd.function.once_differentiable
         def backward(ctx: Any, grad_output: Any) -> Tuple[Any, ...]:
+            from soup_cli.utils.l2l_rng import state_at
+
             hidden, route = ctx.saved_tensors
             need_hidden, need_route = ctx.needs_input_grad[:2]
             device_type, enabled, dtype, cache = ctx.autocast
             hidden = hidden.detach().requires_grad_(need_hidden)
             route = route.detach().requires_grad_(need_route)
             with ctx.pool.lease(ctx.reader, ctx.expert) as (gate_up, down):
-                with torch.enable_grad(), torch.autocast(
-                    device_type, dtype=dtype, enabled=enabled, cache_enabled=cache
-                ):
-                    out = expert_mlp(hidden, route, gate_up, down, ctx.act_fn)
-                wanted = [tensor for tensor in (hidden, route) if tensor.requires_grad]
-                grads = iter(torch.autograd.grad(out, wanted, grad_output))
+                with state_at(ctx.rng):
+                    with torch.enable_grad(), torch.autocast(
+                        device_type, dtype=dtype, enabled=enabled, cache_enabled=cache
+                    ):
+                        out = expert_mlp(hidden, route, gate_up, down, ctx.act_fn)
+                    wanted = [tensor for tensor in (hidden, route) if tensor.requires_grad]
+                    grads = iter(torch.autograd.grad(out, wanted, grad_output))
             return (
                 next(grads) if need_hidden else None,
                 next(grads) if need_route else None,
@@ -436,6 +443,14 @@ def _build_streamed_experts_class() -> Any:
                 differentiable = torch.is_grad_enabled() and (
                     hidden_states.requires_grad or top_k_weights.requires_grad
                 )
+                if differentiable and isinstance(self.act_fn, nn.Module) and any(
+                    True for _ in self.act_fn.buffers()
+                ):
+                    raise ValueError(
+                        "streamed expert backward requires a stateless activation without "
+                        "registered buffers; stateful activation recomputation would update "
+                        "its state twice"
+                    )
                 final_hidden_states = torch.zeros_like(hidden_states)
                 expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
                 expert_mask = expert_mask.permute(2, 1, 0)

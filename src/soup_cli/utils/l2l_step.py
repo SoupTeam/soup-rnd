@@ -183,26 +183,16 @@ class RoutingGuard:
         from soup_cli.utils.expert_stream import streamed_experts_class
 
         experts = streamed_experts_class()
-        self._records: Dict[Tuple[int, int], List[Any]] = {}
-        #: (layer, micro-batch, recording) while a layer call runs inside ``forward`` or
-        #: ``recompute``; ``None`` otherwise.
+        self._records: Dict[Tuple[int, int], Any] = {}
+        #: (layer, micro-batch, recording) inside ``record`` or ``check``; ``None`` otherwise.
         self._visit: Optional[Tuple[int, int, bool]] = None
         self._handles: List[Any] = []
-        watched: List[int] = []
-        for idx, layer in enumerate(layers):
-            hooked = [module for module in layer.modules() if isinstance(module, experts)]
-            for module in hooked:
-                handle = module.register_forward_pre_hook(self._watch, with_kwargs=True)
-                self._handles.append(handle)
-            if hooked:
-                watched.append(idx)
-        #: Indices of the layers whose streamed experts are watched; empty for a dense model.
-        self.watched = tuple(watched)
-
-    @property
-    def pending(self) -> int:
-        """(layer, micro-batch) pairs the forward recorded and the recompute has not consumed."""
-        return len(self._records)
+        for layer in layers:
+            for module in layer.modules():
+                if isinstance(module, experts):
+                    self._handles.append(
+                        module.register_forward_pre_hook(self._watch, with_kwargs=True)
+                    )
 
     def _watch(self, _module: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         import torch
@@ -211,16 +201,17 @@ class RoutingGuard:
             return
         layer, mb, recording = self._visit
         routed = (kwargs["top_k_index"] if "top_k_index" in kwargs else args[1]).detach()
+        pair = (layer, mb)
         if recording:
-            self._records.setdefault((layer, mb), []).append(routed.to("cpu", copy=True))
+            self._records[pair] = routed.to("cpu", copy=True)
             return
-        recorded = self._records.get((layer, mb))
-        if not recorded:
+        before = self._records.pop(pair, None)
+        if before is None:
             raise RuntimeError(
                 f"routing guard: the recompute of layer {layer} micro-batch {mb} called its "
                 "streamed experts more often than the forward did"
             )
-        before, now = recorded.pop(0), routed.to("cpu")
+        now = routed.to("cpu")
         if not torch.equal(before, now):
             raise RuntimeError(
                 f"routing guard: layer {layer} micro-batch {mb} was routed differently in the "
@@ -238,6 +229,9 @@ class RoutingGuard:
         self._visit = (layer, mb, True)
         try:
             yield
+        except BaseException:
+            self._records.pop((layer, mb), None)
+            raise
         finally:
             self._visit = None
 
@@ -247,7 +241,7 @@ class RoutingGuard:
         forward's (the recompute).
 
         Raises ``RuntimeError`` naming the layer and micro-batch on a difference. The pair's
-        record is freed once the block has run to its end.
+        record is freed on success and on exceptions, without hiding the original exception.
         """
         if not self._handles:
             yield
@@ -255,13 +249,14 @@ class RoutingGuard:
         self._visit = (layer, mb, False)
         try:
             yield
+            if (layer, mb) in self._records:
+                raise RuntimeError(
+                    f"routing guard: the forward of layer {layer} micro-batch {mb} called its "
+                    "streamed experts more often than the recompute did"
+                )
         finally:
+            self._records.pop((layer, mb), None)
             self._visit = None
-        if self._records.pop((layer, mb), None):
-            raise RuntimeError(
-                f"routing guard: the forward of layer {layer} micro-batch {mb} called its "
-                "streamed experts more often than the recompute did"
-            )
 
     def close(self) -> None:
         for handle in self._handles:
@@ -383,7 +378,10 @@ class L2LStep:
                 loss = self.causal.loss_function(
                     logits=logits, labels=labels[mb], vocab_size=vocab, num_items_in_batch=total
                 )
-            loss.backward()
+            # HF's Trainer leaves autocast after the forward, before backward. The trainer
+            # calls this whole step inside autocast, so suspend it for the actual VJP only.
+            with torch.autocast("cpu", enabled=False), torch.autocast("cuda", enabled=False):
+                loss.backward()
             losses.append(loss.detach())
             grads.append(last.grad)
 
@@ -399,7 +397,11 @@ class L2LStep:
                         out = self._layer(
                             layer, inputs, states[mb][idx] if states else None
                         )
-                    torch.autograd.backward(out, grad_tensors=grads[mb])
+                    with (
+                        torch.autocast("cpu", enabled=False),
+                        torch.autocast("cuda", enabled=False),
+                    ):
+                        torch.autograd.backward(out, grad_tensors=grads[mb])
                     grads[mb] = inputs.grad
             finally:
                 layer.use_checkpoint = saved

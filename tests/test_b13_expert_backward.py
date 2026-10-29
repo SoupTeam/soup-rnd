@@ -967,3 +967,126 @@ def test_malformed_routing_with_grad_bearing_inputs_still_fails_before_a_read(tm
         assert reader.fetches == 0
     finally:
         _close(reader, pool)
+
+
+# --------------------------------------------------------------------------
+# accepted callable activations: stochastic replay and explicit mutable-state refusal
+# --------------------------------------------------------------------------
+def _rng_equal(left, right):
+    import torch
+
+    return torch.equal(left.cpu, right.cpu) and len(left.cuda) == len(right.cuda) and all(
+        idx == other and torch.equal(a, b)
+        for (idx, a), (other, b) in zip(left.cuda, right.cuda)
+    )
+
+
+def check_activation_rng_replay(tmp_path, *, device, stochastic, checkpoint=None):
+    """Actual installer/reader/pool with an admitted parameterless activation.
+
+    Churn the outer RNG after forward, then backpropagate: local replay must use each
+    expert's original masks without moving the caller's CPU or CUDA generator.
+    """
+    import torch
+    from torch.utils.checkpoint import checkpoint as run_checkpointed
+
+    from soup_cli.utils import l2l_rng
+    from soup_cli.utils.expert_stream import install_streamed_experts
+
+    module, _ = _experts()
+    module.to(device)
+    if stochastic:
+        module.act_fn = torch.nn.Dropout(0.5).train()
+    reader, pool = _store(tmp_path, module, device=device)
+    holder = _routed_holder(module)
+    args = _inputs(device=device, partial=True)
+
+    def exercise(target):
+        hidden, index, weights = (tensor.clone() for tensor in args)
+        hidden.requires_grad_(True)
+        weights.requires_grad_(True)
+        torch.manual_seed(902)
+        start = l2l_rng.snapshot()
+        if checkpoint is None:
+            out = target(hidden, index, weights)
+        else:
+            out = run_checkpointed(
+                lambda h, w: target(h, index, w), hidden, weights,
+                use_reentrant=checkpoint == "reentrant",
+            )
+        after_forward = l2l_rng.snapshot()
+        torch.rand(17)
+        if device == "cuda":
+            torch.rand(23, device=device)
+        before_backward = l2l_rng.snapshot()
+        out.backward(_upstream(out))
+        after_backward = l2l_rng.snapshot()
+        assert _rng_equal(before_backward, after_backward)
+        assert _rng_equal(start, after_forward) != stochastic
+        return _Run(out.detach(), hidden.grad, weights.grad), after_forward, after_backward
+
+    try:
+        want, want_forward_rng, want_end_rng = exercise(module)
+        assert install_streamed_experts([holder], {0: reader}, pool) == 1
+        got, got_forward_rng, got_end_rng = exercise(holder.mlp.experts)
+        assert bool(want.hidden_grad.ne(0).any()) and bool(want.weights_grad.ne(0).any())
+        _assert_exact(want, got)
+        assert _rng_equal(want_forward_rng, got_forward_rng)
+        assert _rng_equal(want_end_rng, got_end_rng)
+        assert module.gate_up_proj.grad is None and module.down_proj.grad is None
+        assert not list(holder.mlp.experts.parameters())
+        with pool.lease(reader, 0):
+            pass
+        return {
+            "max_abs_hidden_grad_diff": float((want.hidden_grad - got.hidden_grad).abs().max()),
+            "max_abs_route_grad_diff": float((want.weights_grad - got.weights_grad).abs().max()),
+            "outer_rng_preserved": True,
+            "expert_reads": reader.fetches - 1,
+        }
+    finally:
+        _close(reader, pool)
+
+
+@pytest.mark.parametrize("stochastic", [False, True], ids=["silu", "dropout"])
+@pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
+def test_installed_parameterless_activation_replays_rng_without_consuming_the_outer_stream(
+    tmp_path, stochastic, checkpoint, record_property
+):
+    evidence = check_activation_rng_replay(
+        tmp_path, device="cpu", stochastic=stochastic, checkpoint=checkpoint
+    )
+    for key, value in evidence.items():
+        record_property(key, value)
+
+
+def test_activation_buffers_are_refused_before_backward_reads_but_no_grad_stays_supported(tmp_path):
+    import torch
+
+    from soup_cli.utils.expert_stream import install_streamed_experts
+
+    module, _ = _experts()
+    module.act_fn = torch.nn.BatchNorm1d(16, affine=False).train()
+    reader, pool = _store(tmp_path, module)
+    holder = _routed_holder(module)
+    args = _inputs(partial=True)
+    try:
+        assert install_streamed_experts([holder], {0: reader}, pool) == 1
+        streamed = holder.mlp.experts
+        before = reader.fetches
+        hidden, index, weights = (tensor.clone() for tensor in args)
+        with pytest.raises(ValueError, match="backward requires a stateless activation"):
+            streamed(hidden.requires_grad_(True), index, weights.requires_grad_(True))
+        assert reader.fetches == before
+        assert module.act_fn.num_batches_tracked.item() == 0
+        with torch.no_grad():
+            want = module(*args)
+        module.act_fn.reset_running_stats()
+        with torch.no_grad():
+            got = streamed(*args)
+        assert torch.equal(want, got)
+        assert reader.fetches - before == len(_hit(args))
+        assert module.act_fn.num_batches_tracked.item() == len(_hit(args))
+        with pool.lease(reader, 0):
+            pass
+    finally:
+        _close(reader, pool)
