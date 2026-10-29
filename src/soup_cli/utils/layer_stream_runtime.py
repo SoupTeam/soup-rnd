@@ -2932,6 +2932,11 @@ class StreamRuntime:
     total_params: int = 0
     #: Read-only Qwen4 PLE mappings, if the N-gram table is SSD-backed.
     external_sources: Tuple[Any, ...] = ()
+    #: Per MoE layer, the reader of its experts file (``expert_layout == "per_expert"``);
+    #: empty for a fused cache. The runtime owns these and closes them.
+    expert_readers: Tuple[Any, ...] = ()
+    #: The one bounded expert arena every streamed experts module leases from, or None.
+    expert_pool: Any = None
 
     def close(self) -> None:
         """Release the weight source and detach the prefetch hook.
@@ -2942,17 +2947,24 @@ class StreamRuntime:
         ``AsyncDiskSource`` opens each shard per read precisely because a
         mapping charges Windows commit for the file's whole size (#926).
         A no-op for the RAM tier, which owns neither a thread nor handles.
+
+        A per-expert cache also leaves one open experts file per MoE layer (an
+        open file is locked on Windows) and one expert arena; both are released
+        here, before the source, and a failure releasing them does not skip it.
         """
-        source_close = getattr(self.source, "close", None)
-        if callable(source_close):
-            source_close()
-        for external in self.external_sources:
-            external_close = getattr(external, "close", None)
-            if callable(external_close):
-                external_close()
-        if self.hook is not None:
-            self.hook.remove()
-            self.hook = None
+        try:
+            _close_expert_streaming(self.expert_readers, self.expert_pool)
+        finally:
+            source_close = getattr(self.source, "close", None)
+            if callable(source_close):
+                source_close()
+            for external in self.external_sources:
+                external_close = getattr(external, "close", None)
+                if callable(external_close):
+                    external_close()
+            if self.hook is not None:
+                self.hook.remove()
+                self.hook = None
 
     def stats(self) -> Dict[str, Any]:
         return {
@@ -2978,6 +2990,16 @@ class StreamRuntime:
             "large_loads": getattr(self.large_pool, "loads", 0),
             "device": self.device,
             "total_params": self.total_params,
+            # Routed experts of a per-expert cache. Every key is always present (zero for
+            # a fused cache) so a consumer never branches on the layout. Fetches and bytes
+            # are the pool's: one fetch is one expert read into the arena, whichever of
+            # forward, recompute or backward asked for it; bytes are the stored (logical)
+            # bytes read, not the dequantised arena.
+            "expert_fetches": getattr(self.expert_pool, "fetches", 0),
+            "expert_bytes_read": getattr(self.expert_pool, "logical_bytes_read", 0),
+            "expert_buffer_bytes": (
+                self.expert_pool.plan.weight_bytes if self.expert_pool is not None else 0
+            ),
         }
 
 
@@ -3019,12 +3041,114 @@ def _layer_name_map(layer: Any) -> Dict[str, str]:
     }
 
 
-def _refuse_expert_storage_cache(index: Any) -> None:
-    if getattr(index, "expert_layout", ""):
+def _close_expert_streaming(
+    readers: Sequence[Any], pool: Any, *, raise_errors: bool = True
+) -> None:
+    """Close the expert arena and every experts-file reader, whatever fails on the way.
+
+    Both are idempotent. Every release is attempted; the first failure (an active lease keeps
+    the pool from closing) is raised afterwards, unless ``raise_errors`` is off. A caller that
+    is already unwinding an error turns it off so the original error stays the one reported.
+    """
+    failures: List[Exception] = []
+    if pool is not None:
+        try:
+            pool.close()
+        except Exception as exc:  # noqa: BLE001 - every release must still be attempted
+            failures.append(exc)
+    for reader in readers:
+        try:
+            reader.close()
+        except Exception as exc:  # noqa: BLE001
+            failures.append(exc)
+    for failure in failures:
+        logger.warning("releasing the expert streaming resources failed: %s", failure)
+    if failures and raise_errors:
+        raise failures[0]
+
+
+def _require_known_expert_layout(index: Any) -> str:
+    """The cache's routed-expert layout: ``""`` (fused, in the layer files) or ``"per_expert"``.
+
+    The index reader refuses unknown layouts and layout versions in a real cache; this is the
+    runtime's own boundary for an index that did not come through it, so that an unfamiliar
+    layout is never taken for ``per_expert`` (or for fused) by a truthiness test.
+    """
+    from soup_cli.utils.expert_shard import EXPERT_LAYOUT_PER_EXPERT
+
+    layout = getattr(index, "expert_layout", "") or ""
+    if layout not in ("", EXPERT_LAYOUT_PER_EXPERT):
         raise ValueError(
-            "per_expert cache is a B1.1 storage artifact; expert training runtime "
-            "requires B1.2/B1.3. Re-shard with the default fused layout to train."
+            f"unsupported expert layout {layout!r} in the shard index; layer streaming "
+            f"supports the fused default and {EXPERT_LAYOUT_PER_EXPERT!r}. Reshard the "
+            f"checkpoint"
         )
+    return layout
+
+
+def _install_expert_streaming(
+    layers: Sequence[Any],
+    shard_dir: str,
+    index: Any,
+    *,
+    device: str,
+    codes: Optional[Mapping[str, Any]],
+) -> Tuple[Tuple[Any, ...], Any]:
+    """Replace each MoE layer's routed experts with a streamed module over one bounded arena.
+
+    A no-op ``((), None)`` for a fused cache, whose routed experts live in the layer files.
+    For ``expert_layout == "per_expert"``: one reader per MoE layer's experts file, ONE pool
+    (a single expert slot at the runtime ``device``), and ``install_streamed_experts`` on the
+    decoder layers. Callers run this BEFORE the layer weight maps are taken, so the routed
+    ``gate_up_proj``/``down_proj`` are no longer meta parameters of the layer and the layer
+    buffer pool never allocates them.
+
+    The pool computes at ``index.dtype``. That is the stream dtype the layer pool stores
+    dense weights at, the dtype of the experts file's dense tensors, and (the index reader
+    checks it) the dtype every expert NF4 spec dequantises to, which the pool requires to
+    match. The streamed module refuses hidden states of any other dtype before it reads an
+    expert. The budget is the planned single slot, independent of the expert count.
+
+    Nothing stays open when this raises: the pool is closed and so is every reader. The
+    caller owns what it returns and closes it with :func:`_close_expert_streaming`.
+    """
+    if not _require_known_expert_layout(index):
+        return (), None
+    from soup_cli.utils.expert_shard import ExpertShardReader
+    from soup_cli.utils.expert_stream import (
+        ExpertBufferPool,
+        install_streamed_experts,
+        plan_expert_buffer,
+    )
+    from soup_cli.utils.layer_shard import expert_paths
+
+    _require_stripe_folders(shard_dir, index)
+    readers: Dict[int, Any] = {}
+    pool = None
+    try:
+        for layer, path in expert_paths(shard_dir, index).items():
+            readers[layer] = ExpertShardReader(
+                path,
+                count=index.expert_count,
+                shapes=index.expert_shapes,
+                quant_specs=index.expert_quant_specs,
+                dtype=index.dtype,
+            )
+        # The pool's host staging must fit every layer's reader, and `validate_reader` refuses
+        # a reader with a wider span, so the pool is sized from the widest one.
+        widest = max(readers.values(), key=lambda reader: reader.max_span)
+        pool = ExpertBufferPool(
+            widest,
+            device=str(device),
+            dtype=index.dtype,
+            weight_budget_bytes=plan_expert_buffer(widest, dtype=index.dtype).weight_bytes,
+            codes=codes,
+        )
+        install_streamed_experts(layers, readers, pool)
+    except BaseException:
+        _close_expert_streaming(tuple(readers.values()), pool, raise_errors=False)
+        raise
+    return tuple(readers.values()), pool
 
 
 def install_streaming(
@@ -3053,14 +3177,7 @@ def install_streaming(
     ``read_ahead`` came about, so the page-lock messages advise a depth that is
     not raised straight back up on a striped cache.
     """
-    import torch
-
-    from soup_cli.utils.layer_shard import (
-        QUANT_NF4,
-        large_shard_path,
-        large_weight_role,
-        layer_paths,
-    )
+    from soup_cli.utils.layer_shard import QUANT_NF4
 
     # PyTorch 2.7+ on Apple Silicon can turn
     # ``device="cpu", pin_memory=True`` into an MPS allocation, placing the
@@ -3082,7 +3199,7 @@ def install_streaming(
         pin = False
         require_pin = False
 
-    _refuse_expert_storage_cache(index)
+    _require_known_expert_layout(index)
 
     # Validate the index BEFORE touching the model: an index whose `quant` and
     # `quant_specs` disagree passes the cache key (which reads `quant`) and
@@ -3103,6 +3220,72 @@ def install_streaming(
             f"model has {n_layers} decoder layers but the shard index has "
             f"{index.n_layers} — reshard the checkpoint"
         )
+
+    # A per-expert cache keeps the routed experts out of the layer files. Replace them with
+    # streamed modules NOW: after this their fused weights are no longer meta parameters of
+    # the decoder layer, so the layer name maps below never list them and the layer pool
+    # never allocates (or looks for) a routed-expert weight. Adapters on routed experts are
+    # refused by the installer from their headers alone, before any expert is read.
+    expert_readers, expert_pool = _install_expert_streaming(
+        layers, shard_dir, index, device=str(device), codes=codes
+    )
+    try:
+        return _wire_layer_streaming(
+            model,
+            owner,
+            shard_dir=shard_dir,
+            index=index,
+            quant_specs=quant_specs,
+            buffers=buffers,
+            pin=pin,
+            require_pin=require_pin,
+            device=device,
+            console=console,
+            codes=codes,
+            tier=tier,
+            read_ahead=read_ahead,
+            refill_before_backward=refill_before_backward,
+            read_ahead_decision=read_ahead_decision,
+            expert_readers=expert_readers,
+            expert_pool=expert_pool,
+        )
+    except BaseException:
+        _close_expert_streaming(expert_readers, expert_pool, raise_errors=False)
+        raise
+
+
+def _wire_layer_streaming(
+    model: Any,
+    owner: Any,
+    *,
+    shard_dir: str,
+    index: Any,
+    quant_specs: Mapping[str, Any],
+    buffers: int,
+    pin: bool,
+    require_pin: bool,
+    device: str,
+    console: Any,
+    codes: Optional[Mapping[str, Any]],
+    tier: str,
+    read_ahead: int,
+    refill_before_backward: bool,
+    read_ahead_decision: Any,
+    expert_readers: Tuple[Any, ...],
+    expert_pool: Any,
+) -> StreamRuntime:
+    """The part of :func:`install_streaming` that follows the routed-expert install.
+
+    Maps each decoder layer's meta weights to the shard, builds the weight source, the layer
+    buffer pool and the prefetcher, and wraps every layer. Whatever this raises,
+    ``install_streaming`` releases the expert readers and pool it handed in.
+    """
+    import torch
+
+    from soup_cli.utils.layer_shard import large_shard_path, large_weight_role, layer_paths
+
+    layers = owner.layers
+    n_layers = len(layers)
 
     layer_name_maps = [_layer_name_map(layer) for layer in layers]
     if not any(layer_name_maps):
@@ -3295,6 +3478,8 @@ def install_streaming(
         hook=handle,
         total_params=int(getattr(index, "total_params", 0) or 0),
         tier=tier,
+        expert_readers=expert_readers,
+        expert_pool=expert_pool,
     )
 
 
@@ -3662,10 +3847,10 @@ def build_streamed_model(
         double_quant=double_quant,
         trust_remote_code=trust_remote_code,
     )
-    # Architecture / Hub-code refusals must run before ANY access to the cache
-    # index (B2). The skeleton is meta-only; reject storage-only layouts before
-    # materializing extras, decoder buffers or adapters.
-    _refuse_expert_storage_cache(index)
+    # Architecture / Hub-code refusals run inside `build_meta_skeleton` above, before ANY
+    # access to the cache index (B2). The skeleton is meta-only. An expert layout this
+    # runtime cannot stream is refused here too, before extras, buffers or adapters exist.
+    _require_known_expert_layout(index)
     external_tensors = dict(getattr(index, "external_tensors", None) or {})
     external_sources: Tuple[Any, ...] = ()
     if external_tensors:
