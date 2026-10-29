@@ -26,6 +26,7 @@ from tests.test_b13_expert_backward import (  # noqa: E402
     _assert_exact,
     _assert_signal,
     _hit,
+    check_activation_rng_replay,
     check_arena_churn,
     check_block_backward,
     check_negative_control,
@@ -88,3 +89,19 @@ def test_cuda_perturbing_only_backward_reloads_changes_gradients_not_outputs(
     check_negative_control(
         tmp_path, monkeypatch, device=DEVICE, dtype="bfloat16", **_STORAGE[storage]
     )
+
+
+@pytest.mark.parametrize("stochastic", [False, True], ids=["silu", "dropout"])
+@pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
+def test_cuda_installed_activation_replays_rng_and_preserves_the_outer_stream(
+    tmp_path, stochastic, checkpoint, record_property
+):
+    evidence = check_activation_rng_replay(
+        tmp_path, device=DEVICE, stochastic=stochastic, checkpoint=checkpoint
+    )
+    for key, value in evidence.items():
+        record_property(key, value)
+
+
+def test_cuda_fp32_block_forward_under_bf16_amp_backward_outside_amp_equals_eager(tmp_path):
+    check_block_backward(tmp_path, device=DEVICE, dtype="float32", amp=True)
