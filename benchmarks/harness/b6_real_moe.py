@@ -113,7 +113,15 @@ def run(args: argparse.Namespace) -> None:
     config = json.loads((source / "config.json").read_text(encoding="utf-8"))
     if config.get("model_type") != "deepseek_v3":
         raise ValueError("this pilot accepts DeepSeek-V3 FP8 only")
-    budget = new_expert_cache_budget([str(path) for path in source.glob("*.safetensors")])
+    source_plan = None
+    if getattr(args, "source_plan", None):
+        from benchmarks.harness.b6_source_plan import validate_plan
+
+        source_plan = validate_plan(source, Path(args.source_plan), args.revision)
+        if source_plan["dtype"] != dtype:
+            raise ValueError("source plan compute dtype differs from the actual runtime")
+    budget = (source_plan["cache_budget_bytes"] if source_plan else
+              new_expert_cache_budget([str(path) for path in source.glob("*.safetensors")]))
     cache.parent.mkdir(parents=True, exist_ok=True)
     free = shutil.disk_usage(cache.parent).free
     existing_partial = (
@@ -138,6 +146,14 @@ def run(args: argparse.Namespace) -> None:
     suffixes, layout = quantised_layer_suffixes(skeleton), shard_layout_of(skeleton)
     del skeleton
     gc.collect()
+    if source_plan:
+        from benchmarks.harness.b6_source_plan import validate_writer_plan
+
+        validate_writer_plan(source_plan, suffixes, layout.n_layers, dtype)
+        emit("source_plan", sha256=hashlib.sha256(Path(args.source_plan).read_bytes()).hexdigest(),
+             cache_budget_bytes=budget,
+             generic_cache_budget_bytes=source_plan["generic_cache_budget_bytes"],
+             n_layers=layout.n_layers, quant_suffixes=sorted(suffixes))
     started = time.perf_counter()
     previous_threads = torch.get_num_threads()
     try:
@@ -325,6 +341,7 @@ if __name__ == "__main__":
     parser.add_argument("--evaluation-protocol")
     parser.add_argument("--evaluation-data")
     parser.add_argument("--ram-phase-file")
+    parser.add_argument("--source-plan")
     cache_mode = parser.add_mutually_exclusive_group()
     cache_mode.add_argument("--restart-incomplete-cache", action="store_true")
     cache_mode.add_argument("--reuse-cache", action="store_true")
