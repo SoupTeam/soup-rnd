@@ -6,17 +6,9 @@ before layer weights are mapped, owned and closed by ``StreamRuntime``. LoRA sit
 non-expert (MLA) projections; the expected values always come from an independent resident
 eager model built from the same checkpoint with the same LoRA weights.
 
-Reusable helpers (the L2L tickets import these; plain functions, no fixtures):
-
-``moe_config(**overrides) -> DeepseekV3Config``
-    1 dense layer + 2 MoE layers, 8 routed experts, 1 shared, router top-k 2, fp32 sizes.
-``moe_weights_dir(tmp_path, config=None, *, seed=61) -> Path``
-    Saves a randomised fp32 checkpoint (router weight, correction bias and routed experts
-    randomised so routing differs between tokens and small inputs leave experts unused).
-``moe_batch(config, *, seed=0, rows=2, seq=6) -> dict``
-    ``input_ids``/``labels`` for one micro-batch; vary ``seed`` to vary the routing.
-``moe_lora_config(*, dropout=0.0) -> LoraConfig``
-    LoRA on the MLA projections only, never on routed experts.
+Shared construction lives in the pytest-free ``benchmarks/harness/b13_moe_fixture.py``.
+The runtime-specific helpers below cover sharding, NF4 reference weights and read evidence;
+resident execution always remains native eager, independent from the streamed product.
 ``shard_moe(weights, shards, *, storage="dense", dtype="float32", layout="per_expert")``
     Shard the checkpoint. ``storage``: ``"dense"``, ``"nf4"`` or ``"nf4-nested"``;
     ``layout``: ``"per_expert"`` or ``"fused"``. Returns the ``ShardIndex``.
@@ -31,7 +23,6 @@ Reusable helpers (the L2L tickets import these; plain functions, no fixtures):
     For an NF4 cache every stored NF4 weight (attention, shared experts, routed experts) is
     overwritten with its independent dequantization, so the reference holds exactly the
     values the cache stores.
-``randomize_lora_b(model, *, seed=67)`` / ``copy_lora_weights(src, dst)`` / ``lora_parameters``
 ``run_moe_pass(model, batch, *, backward=True) -> MoePass``  (``logits``, ``loss``, ``grads``)
 ``grads_differ(got, want) -> list[str]``  names whose gradient is missing or not ``torch.equal``
 ``routed_expert_hits(model, batch) -> {layer: set(expert)}``  what each router chose (no grad)
@@ -44,17 +35,15 @@ from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import pytest
-import torch
 
+from benchmarks.harness import b13_moe_fixture as fixture
 from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 
 pytestmark = _REQUIRES_TRAINING_FLOOR
 
-N_EXPERTS = 8
-MLA_LORA_TARGETS = ("q_a_proj", "q_b_proj", "kv_a_proj_with_mqa", "kv_b_proj", "o_proj")
 _STORAGES = ("dense", "nf4", "nf4-nested")
 _LAYOUTS = ("per_expert", "fused")
 
@@ -62,81 +51,8 @@ _LAYOUTS = ("per_expert", "fused")
 # ==========================================================================
 # helpers
 # ==========================================================================
-def moe_config(**overrides: Any) -> Any:
-    from transformers import DeepseekV3Config
-
-    fields: Dict[str, Any] = dict(
-        vocab_size=64,
-        hidden_size=32,
-        intermediate_size=64,
-        moe_intermediate_size=16,
-        num_hidden_layers=3,
-        first_k_dense_replace=1,
-        n_routed_experts=N_EXPERTS,
-        n_shared_experts=1,
-        num_experts_per_tok=2,
-        n_group=4,
-        topk_group=2,
-        q_lora_rank=24,
-        kv_lora_rank=16,
-        qk_rope_head_dim=8,
-        qk_nope_head_dim=8,
-        v_head_dim=8,
-        num_attention_heads=4,
-        num_key_value_heads=4,
-        max_position_embeddings=128,
-    )
-    fields.update(overrides)
-    return DeepseekV3Config(**fields)
-
-
 def _moe_layer_ids(config: Any) -> range:
     return range(config.first_k_dense_replace, config.num_hidden_layers)
-
-
-def moe_weights_dir(tmp_path: Path, config: Any = None, *, seed: int = 61) -> Path:
-    """Save a randomised fp32 checkpoint whose routed experts are separate keys on disk."""
-    from safetensors import safe_open
-    from transformers import AutoModelForCausalLM
-
-    config = config if config is not None else moe_config()
-    weights = tmp_path / "weights"
-    torch.manual_seed(seed)
-    model = AutoModelForCausalLM.from_config(config, dtype=torch.float32)
-    gen = torch.Generator().manual_seed(seed + 1)
-    with torch.no_grad():
-        for idx in _moe_layer_ids(config):
-            mlp = model.model.layers[idx].mlp
-            mlp.gate.weight.normal_(0.0, 0.6, generator=gen)
-            mlp.gate.e_score_correction_bias.normal_(0.0, 0.3, generator=gen)
-            mlp.experts.gate_up_proj.normal_(0.0, 0.2, generator=gen)
-            mlp.experts.down_proj.normal_(0.0, 0.2, generator=gen)
-    model.save_pretrained(weights, safe_serialization=True)
-    last = config.num_hidden_layers - 1
-    with safe_open(str(weights / "model.safetensors"), framework="pt") as handle:
-        keys = set(handle.keys())
-    assert f"model.layers.{last}.mlp.experts.{config.n_routed_experts - 1}.gate_proj.weight" in keys
-    assert f"model.layers.{last}.mlp.experts.gate_up_proj" not in keys
-    return weights
-
-
-def moe_batch(config: Any, *, seed: int = 0, rows: int = 2, seq: int = 6) -> Dict[str, Any]:
-    gen = torch.Generator().manual_seed(1000 + seed)
-    ids = torch.randint(0, config.vocab_size, (rows, seq), generator=gen)
-    return {"input_ids": ids, "labels": ids.clone()}
-
-
-def moe_lora_config(*, dropout: float = 0.0) -> Any:
-    from peft import LoraConfig, TaskType
-
-    return LoraConfig(
-        r=2,
-        lora_alpha=4,
-        lora_dropout=dropout,
-        bias="none",
-        target_modules=list(MLA_LORA_TARGETS),
-        task_type=TaskType.CAUSAL_LM,
-    )
 
 
 def shard_moe(
@@ -174,31 +90,6 @@ def shard_moe(
     )
 
 
-def lora_parameters(model: Any) -> Dict[str, Any]:
-    return {
-        name.replace(".inner.", "."): param
-        for name, param in model.named_parameters()
-        if "lora_" in name
-    }
-
-
-def randomize_lora_b(model: Any, *, seed: int = 67) -> None:
-    """PEFT starts ``lora_B`` at zero, which would make every adapter gradient degenerate."""
-    gen = torch.Generator().manual_seed(seed)
-    with torch.no_grad():
-        for name, param in sorted(lora_parameters(model).items()):
-            if "lora_B" in name:
-                param.copy_(torch.randn(param.shape, generator=gen).to(param) * 0.05)
-
-
-def copy_lora_weights(src: Any, dst: Any) -> None:
-    source, target = lora_parameters(src), lora_parameters(dst)
-    assert source and set(source) == set(target)
-    with torch.no_grad():
-        for name, param in target.items():
-            param.copy_(source[name])
-
-
 @dataclass
 class MoeStreamed:
     model: Any
@@ -231,7 +122,7 @@ def build_moe_streamed(
 
     if index is None:
         index = shard_moe(weights, shards, storage=storage, dtype=dtype, layout=layout)
-    lora = lora_config if lora_config is not None else moe_lora_config(dropout=lora_dropout)
+    lora = lora_config if lora_config is not None else fixture.moe_lora_config(dropout=lora_dropout)
     model, runtime = build_streamed_model(
         model_id=str(weights),
         shard_dir=str(shards),
@@ -246,12 +137,13 @@ def build_moe_streamed(
         double_quant=storage == "nf4-nested",
     )
     if randomize_b:
-        randomize_lora_b(model)
+        fixture.randomize_adapters(model)
     return MoeStreamed(model, runtime, index, lora, weights, shards, storage, dtype)
 
 
 def _apply_stored_nf4(base: Any, shards: Path, index: Any) -> None:
     """Overwrite every NF4-stored weight of ``base`` with its independent dequantization."""
+    import torch
     from bitsandbytes.functional import dequantize_4bit
     from safetensors.torch import load_file
 
@@ -298,24 +190,11 @@ def moe_resident_reference(
     dtype: str = "float32",
 ) -> Any:
     """Resident eager model: the checkpoint, the stored NF4 values (if any), the same LoRA."""
-    from transformers import AutoModelForCausalLM
-
-    from soup_cli.utils.kimi_k2 import load_stream_config
-    from soup_cli.utils.peft_wiring import attach_adapter
-
-    config = load_stream_config(str(weights), trust_remote_code=False)
-    config.use_cache = False
-    base = AutoModelForCausalLM.from_pretrained(
-        str(weights), config=config, dtype=getattr(torch, dtype), experts_implementation="eager"
-    )
-    assert base.config._experts_implementation == "eager"
+    base = fixture.resident_base(weights, dtype=dtype)
     if index is not None and index.quant == "nf4":
         assert shards is not None
         _apply_stored_nf4(base, shards, index)
-    resident = attach_adapter(base, lora_config)
-    if lora_from is not None:
-        copy_lora_weights(lora_from, resident)
-    return resident
+    return fixture.resident_adapter(base, lora_config, source=lora_from)
 
 
 @dataclass
@@ -327,6 +206,8 @@ class MoePass:
 
 
 def run_moe_pass(model: Any, batch: Dict[str, Any], *, backward: bool = True) -> MoePass:
+    import torch
+
     model.train()
     model.zero_grad(set_to_none=True)
     if not backward:
@@ -337,12 +218,14 @@ def run_moe_pass(model: Any, batch: Dict[str, Any], *, backward: bool = True) ->
     out.loss.backward()
     grads = {
         name: None if param.grad is None else param.grad.detach().clone()
-        for name, param in lora_parameters(model).items()
+        for name, param in fixture.trainables(model).items()
     }
     return MoePass(out.logits.detach().clone(), out.loss.detach().clone(), grads)
 
 
 def grads_differ(got: Dict[str, Any], want: Dict[str, Any]) -> List[str]:
+    import torch
+
     return sorted(
         name
         for name in set(got) | set(want)
@@ -391,7 +274,9 @@ def record_expert_reads(model: Any) -> Dict[int, List[int]]:
         reads = log.setdefault(layer, [])
         original = module.reader.read_host
 
-        def wrapped(expert: int, staging: Any, *, _original: Any = original, _reads: Any = reads):
+        def wrapped(
+            expert: int, staging: Any, *, _original: Any = original, _reads: Any = reads,
+        ) -> Any:
             _reads.append(expert)
             return _original(expert, staging)
 
@@ -413,18 +298,18 @@ def _stored_bytes_of_one_expert(shards: Path, index: Any) -> int:
 # the fixture itself is non-degenerate (independent of the streaming runtime)
 # ==========================================================================
 def test_reference_routes_unevenly_and_every_lora_gradient_is_non_zero(tmp_path: Path) -> None:
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
-    lora = moe_lora_config()
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
+    lora = fixture.moe_lora_config()
     resident = moe_resident_reference(weights, lora)
-    randomize_lora_b(resident)
-    batch = moe_batch(config)
+    fixture.randomize_adapters(resident)
+    batch = fixture.moe_batch(config)
 
     hits = routed_expert_hits(resident, batch)
     assert sorted(hits) == list(_moe_layer_ids(config))
     for layer, seen in hits.items():
-        assert 2 <= len(seen) < N_EXPERTS, f"layer {layer} hit {sorted(seen)}"
-    assert routed_expert_hits(resident, moe_batch(config, seed=1)) != hits
+        assert 2 <= len(seen) < fixture.N_EXPERTS, f"layer {layer} hit {sorted(seen)}"
+    assert routed_expert_hits(resident, fixture.moe_batch(config, seed=1)) != hits
 
     grads = run_moe_pass(resident, batch).grads
     assert grads
@@ -461,10 +346,12 @@ def test_streamed_forward_equals_resident_eager(
     dtype hidden states arrive in and the dtype every expert NF4 spec dequantises to; the
     bf16 cases would not be equal if any of them differed.
     """
+    import torch
+
     if storage != "dense":
         pytest.importorskip("bitsandbytes")
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(
         weights, tmp_path / "shards", storage=storage, dtype=dtype, randomize_b=randomize_b
     )
@@ -479,7 +366,7 @@ def test_streamed_forward_equals_resident_eager(
             lora_from=streamed.model,
             dtype=dtype,
         )
-        batch = moe_batch(config)
+        batch = fixture.moe_batch(config)
         want = run_moe_pass(resident, batch, backward=False)
         got = run_moe_pass(streamed.model, batch, backward=False)
         assert got.logits.dtype == getattr(torch, dtype)
@@ -494,14 +381,16 @@ def test_streamed_forward_equals_resident_eager(
 
 def test_forward_comparison_sees_a_wrong_routed_expert(tmp_path: Path) -> None:
     """Control: the equality above is not vacuous; the streamed forward really reads experts."""
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    import torch
+
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(weights, tmp_path / "shards")
     try:
         resident = moe_resident_reference(
             weights, streamed.lora_config, lora_from=streamed.model
         )
-        batch = moe_batch(config)
+        batch = fixture.moe_batch(config)
         hits = routed_expert_hits(resident, batch)
         assert torch.equal(
             run_moe_pass(streamed.model, batch, backward=False).logits,
@@ -529,8 +418,8 @@ def test_layer_pool_holds_no_routed_expert_weights(tmp_path: Path) -> None:
 
     from soup_cli.utils.layer_stream_runtime import decoder_owner
 
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     per_expert = build_moe_streamed(weights, tmp_path / "per_expert")
     fused = build_moe_streamed(weights, tmp_path / "fused", layout="fused")
     try:
@@ -564,8 +453,8 @@ def test_layer_pool_holds_no_routed_expert_weights(tmp_path: Path) -> None:
 
 
 def test_one_bounded_slot_and_one_reader_per_moe_layer(tmp_path: Path) -> None:
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(weights, tmp_path / "shards")
     try:
         runtime, index = streamed.runtime, streamed.index
@@ -589,14 +478,14 @@ def test_one_bounded_slot_and_one_reader_per_moe_layer(tmp_path: Path) -> None:
 
 
 def test_a_fused_cache_installs_no_expert_streaming(tmp_path: Path) -> None:
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     fused = build_moe_streamed(weights, tmp_path / "fused", layout="fused")
     try:
         assert fused.index.expert_layout == ""
         assert fused.runtime.expert_readers == () and fused.runtime.expert_pool is None
         assert not streamed_experts_modules(fused.model)
-        run_moe_pass(fused.model, moe_batch(config), backward=False)
+        run_moe_pass(fused.model, fixture.moe_batch(config), backward=False)
         stats = fused.runtime.stats()
         assert (stats["expert_fetches"], stats["expert_bytes_read"]) == (0, 0)
         assert stats["expert_buffer_bytes"] == 0
@@ -619,17 +508,17 @@ def test_expert_fetch_and_byte_counters_follow_the_experts_the_router_chose(
 ) -> None:
     if storage != "dense":
         pytest.importorskip("bitsandbytes")
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(weights, tmp_path / "shards", storage=storage)
     try:
         resident = moe_resident_reference(
             weights, streamed.lora_config, shards=streamed.shards, index=streamed.index,
             lora_from=streamed.model,
         )
-        batch = moe_batch(config)
+        batch = fixture.moe_batch(config)
         hits = routed_expert_hits(resident, batch)
-        assert any(len(seen) < N_EXPERTS for seen in hits.values())
+        assert any(len(seen) < fixture.N_EXPERTS for seen in hits.values())
 
         before = streamed.runtime.stats()
         assert (before["expert_fetches"], before["expert_bytes_read"]) == (0, 0)
@@ -657,12 +546,12 @@ def test_expert_fetch_and_byte_counters_follow_the_experts_the_router_chose(
 # the runtime owns and closes what it opened
 # ==========================================================================
 def test_close_releases_the_expert_readers_and_pool(tmp_path: Path) -> None:
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(weights, tmp_path / "shards")
     runtime = streamed.runtime
     try:
-        run_moe_pass(streamed.model, moe_batch(config), backward=False)
+        run_moe_pass(streamed.model, fixture.moe_batch(config), backward=False)
         assert all(reader._handle is not None for reader in runtime.expert_readers)
         assert not runtime.expert_pool.stats()["closed"]
     finally:
@@ -673,11 +562,11 @@ def test_close_releases_the_expert_readers_and_pool(tmp_path: Path) -> None:
 
 
 def test_close_attempts_every_release_even_when_the_pool_refuses(tmp_path: Path) -> None:
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(weights, tmp_path / "shards")
     runtime = streamed.runtime
-    run_moe_pass(streamed.model, moe_batch(config), backward=False)
+    run_moe_pass(streamed.model, fixture.moe_batch(config), backward=False)
     pool, first = runtime.expert_pool, runtime.expert_readers[0]
     try:
         with pool.lease(first, 0):
@@ -693,12 +582,12 @@ def test_close_attempts_every_release_even_when_the_pool_refuses(tmp_path: Path)
 def test_interrupt_during_pool_close_still_releases_readers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(weights, tmp_path / "shards")
     runtime = streamed.runtime
     try:
-        run_moe_pass(streamed.model, moe_batch(config), backward=False)
+        run_moe_pass(streamed.model, fixture.moe_batch(config), backward=False)
         assert all(reader._handle is not None for reader in runtime.expert_readers)
 
         def interrupted_sync() -> None:
@@ -747,8 +636,8 @@ def test_a_failed_expert_install_closes_the_readers_and_pool_it_opened(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The index drops MoE layer 2, whose model layer still has routed experts."""
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     shards = tmp_path / "shards"
     index = shard_moe(weights, shards)
     bad = dataclasses.replace(index, expert_layers=(1,))
@@ -767,8 +656,8 @@ def test_a_missing_experts_file_is_refused_by_name_and_closes_the_readers_opened
 ) -> None:
     from soup_cli.utils.layer_shard import expert_paths
 
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     shards = tmp_path / "shards"
     index = shard_moe(weights, shards)
     Path(expert_paths(str(shards), index)[2]).unlink()
@@ -788,8 +677,8 @@ def test_a_failure_after_the_experts_were_installed_still_closes_them(
     runs after the routed experts are installed and their readers opened."""
     from soup_cli.utils.layer_shard import layer_paths
 
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     shards = tmp_path / "shards"
     index = shard_moe(weights, shards)
     Path(layer_paths(str(shards), index)[0]).unlink()
@@ -806,31 +695,28 @@ def test_a_failure_after_the_experts_were_installed_still_closes_them(
 # ==========================================================================
 # adapters on routed experts are refused before any expert is read
 # ==========================================================================
-def _expert_adapter_configs() -> Dict[str, Any]:
+def _expert_adapter_config(name: str) -> Any:
     from peft import LoraConfig, TaskType
 
     common = dict(r=2, lora_alpha=4, lora_dropout=0.0, bias="none", task_type=TaskType.CAUSAL_LM)
-    return {
+    if name == "gate-up-down-modules":
         # peft turns bare gate/up/down targets into parameter targets on the fused experts.
-        "gate-up-down-modules": LoraConfig(
-            target_modules=["gate_proj", "up_proj", "down_proj"], **common
-        ),
-        "expert-parameters": LoraConfig(
-            target_modules=list(MLA_LORA_TARGETS),
-            target_parameters=["mlp.experts.gate_up_proj", "mlp.experts.down_proj"],
-            **common,
-        ),
-    }
+        return LoraConfig(target_modules=["gate_proj", "up_proj", "down_proj"], **common)
+    assert name == "expert-parameters"
+    return LoraConfig(
+        target_modules=list(fixture.TARGETS),
+        target_parameters=["mlp.experts.gate_up_proj", "mlp.experts.down_proj"], **common,
+    )
 
 
-@pytest.mark.parametrize("name", sorted(_expert_adapter_configs()))
+@pytest.mark.parametrize("name", ["expert-parameters", "gate-up-down-modules"])
 def test_adapters_on_routed_experts_are_refused_before_any_expert_read(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
     from soup_cli.utils import expert_shard
 
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     shards = tmp_path / "shards"
     index = shard_moe(weights, shards)
     made = _spy_expert_resources(monkeypatch)
@@ -845,7 +731,7 @@ def test_adapters_on_routed_experts_are_refused_before_any_expert_read(
 
     with pytest.raises(ValueError, match="adapters"):
         build_moe_streamed(
-            weights, shards, index=index, lora_config=_expert_adapter_configs()[name]
+            weights, shards, index=index, lora_config=_expert_adapter_config(name)
         )
 
     assert reads == []
@@ -856,20 +742,33 @@ def test_adapters_on_routed_experts_are_refused_before_any_expert_read(
 # ==========================================================================
 # E2: ordinary checkpointed streamed backward equals the resident eager model
 # ==========================================================================
-def test_e2_checkpointed_backward_lora_gradients_equal_resident_eager(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "targets", [fixture.TARGETS, fixture.EMBEDDING_TARGETS,
+                fixture.HEAD_SHARED_TARGETS, fixture.ALL_TARGETS],
+    ids=["mla30", "embedding32", "head-shared44", "combined46"],
+)
+def test_e2_checkpointed_backward_lora_gradients_equal_resident_eager(
+    tmp_path: Path, targets: Sequence[str], record_property: Callable[..., None],
+) -> None:
     """E2 (spec): CPU fp32 ``torch.equal`` on logits, loss and every LoRA gradient."""
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
-    streamed = build_moe_streamed(weights, tmp_path / "shards")
+    import torch
+
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
+    streamed = build_moe_streamed(
+        weights, tmp_path / "shards", lora_config=fixture.moe_lora_config(targets=targets),
+    )
     try:
         resident = moe_resident_reference(
             weights, streamed.lora_config, lora_from=streamed.model
         )
-        batch = moe_batch(config)
+        batch = fixture.moe_batch(config)
         want = run_moe_pass(resident, batch)
         got = run_moe_pass(streamed.model, batch)
 
         assert set(got.grads) == set(want.grads) and got.grads
+        assert all(grad is not None and bool(grad.ne(0).any()) for grad in want.grads.values())
+        record_property("nonzero_trainable_grad_tensors", len(want.grads))
         for name, grad in got.grads.items():
             assert grad is not None and bool(grad.ne(0).any()), f"{name}: no or zero gradient"
         assert torch.equal(got.logits, want.logits)
@@ -881,14 +780,14 @@ def test_e2_checkpointed_backward_lora_gradients_equal_resident_eager(tmp_path: 
 
 def test_checkpointed_backward_reads_each_hit_expert_three_times(tmp_path: Path) -> None:
     """Forward, checkpoint recompute and the expert's own backward: three reads per visit."""
-    config = moe_config()
-    weights = moe_weights_dir(tmp_path, config)
+    config = fixture.moe_config()
+    weights = fixture.moe_weights_dir(tmp_path, config)
     streamed = build_moe_streamed(weights, tmp_path / "shards")
     try:
         resident = moe_resident_reference(
             weights, streamed.lora_config, lora_from=streamed.model
         )
-        batch = moe_batch(config)
+        batch = fixture.moe_batch(config)
         hits = routed_expert_hits(resident, batch)
         reads = record_expert_reads(streamed.model)
         run_moe_pass(streamed.model, batch)

@@ -23,22 +23,18 @@ import copy
 import dataclasses
 import re
 from contextlib import contextmanager, nullcontext
+from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence
 
 import pytest
-import torch
 
+from benchmarks.harness import b13_moe_fixture as fixture
 from soup_cli.utils import l2l_rng, l2l_step
 from tests.test_b13_moe_runtime import (
-    N_EXPERTS,
     build_moe_streamed,
     grads_differ,
-    lora_parameters,
-    moe_batch,
-    moe_config,
     moe_resident_reference,
-    moe_weights_dir,
     streamed_experts_modules,
 )
 from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
@@ -82,7 +78,7 @@ class Rig:
 
 
 @pytest.fixture()
-def make_rig(tmp_path):
+def make_rig(tmp_path: Path) -> Iterator[Callable[..., Rig]]:
     rigs: List[Rig] = []
 
     def make(
@@ -95,15 +91,20 @@ def make_rig(tmp_path):
         seq: int = 6,
         device: str = "cpu",
         layout: str = "per_expert",
+        targets: Sequence[str] = fixture.TARGETS,
+        neftune: float = 0.0,
     ) -> Rig:
+        import torch
+
         from soup_cli.utils.l2l_activations import ActivationStore
 
-        config = config if config is not None else moe_config()
+        config = config if config is not None else fixture.moe_config()
         root = tmp_path / f"rig{len(rigs)}"
         root.mkdir()
-        weights = moe_weights_dir(root, config)
+        weights = fixture.moe_weights_dir(root, config)
         moe = build_moe_streamed(
-            weights, root / "shards", lora_dropout=dropout, layout=layout, device=device
+            weights, root / "shards", layout=layout, device=device,
+            lora_config=fixture.moe_lora_config(dropout=dropout, targets=targets),
         )
         try:
             resident = moe_resident_reference(weights, moe.lora_config, lora_from=moe.model)
@@ -119,7 +120,12 @@ def make_rig(tmp_path):
                         cfg = getattr(module, "config", None)
                         if cfg is not None:
                             cfg._attn_implementation = "eager"
-            first = moe_batch(config, seed=0, rows=rows, seq=seq)["input_ids"].to(device)
+            if neftune:
+                from transformers.integrations.neftune import activate_neftune
+
+                for model in (moe.model, resident):
+                    activate_neftune(model, neftune)
+            first = fixture.moe_batch(config, seed=0, rows=rows, seq=seq)["input_ids"].to(device)
             stepper = l2l_step.L2LStep(
                 moe.model, moe.runtime, l2l_step.capture_layer_call(moe.model, first)
             )
@@ -146,7 +152,7 @@ def make_rig(tmp_path):
 def micro_batches(rig: Rig, k: int, *, first: int = 0) -> List[Any]:
     """k micro-batches with different tokens, hence different routing."""
     return [
-        moe_batch(rig.config, seed=first + i, rows=rig.rows, seq=rig.seq)["input_ids"].to(
+        fixture.moe_batch(rig.config, seed=first + i, rows=rig.rows, seq=rig.seq)["input_ids"].to(
             rig.device
         )
         for i in range(k)
@@ -161,7 +167,7 @@ class Spec:
     labels: Optional[List[Any]] = None
     n_items: Optional[int] = None
 
-    def reference(self) -> tuple:
+    def reference(self) -> tuple[List[Any], int]:
         """(labels, num_items_in_batch) as plain accumulation passes them."""
         labels = self.labels if self.labels is not None else self.ids
         total = self.n_items
@@ -184,14 +190,14 @@ class Window:
 
 
 def _zero_grads(model: Any) -> None:
-    for param in lora_parameters(model).values():
+    for param in fixture.trainables(model).values():
         param.grad = None
 
 
 def _collect(model: Any) -> Dict[str, Any]:
     return {
         name: None if param.grad is None else param.grad.detach().clone()
-        for name, param in lora_parameters(model).items()
+        for name, param in fixture.trainables(model).items()
     }
 
 
@@ -237,6 +243,8 @@ def ga_windows(
     rig: Rig, specs: List[Spec], *, seed: int = SEED, amp: bool = False
 ) -> List[Window]:
     """Resident eager accumulation: forward AMP only, one generator seeded before windows."""
+    import torch
+
     model = rig.resident
     model.train()
     probe = _ResidentProbe(model)
@@ -267,6 +275,8 @@ def l2l_windows(
     rig: Rig, specs: List[Spec], *, seed: int = SEED, amp: bool = False
 ) -> List[Window]:
     """The L2L step over the streamed model, windows back to back on one stepper and store."""
+    import torch
+
     model = rig.model
     model.train()
     torch.manual_seed(seed)
@@ -290,13 +300,17 @@ def l2l_windows(
 # comparison helpers
 # ==========================================================================
 def rng_equal(left: Any, right: Any) -> bool:
+    import torch
+
     cuda = len(left.cuda) == len(right.cuda) and all(
         a[0] == b[0] and torch.equal(a[1], b[1]) for a, b in zip(left.cuda, right.cuda)
     )
     return bool(torch.equal(left.cpu, right.cpu)) and cuda
 
 
-def _worst(got: Dict[str, Any], want: Dict[str, Any], limit: int = 3) -> list:
+def _worst(
+    got: Dict[str, Any], want: Dict[str, Any], limit: int = 3,
+) -> list[tuple[str, Optional[float]]]:
     rows = []
     for name in grads_differ(got, want)[:limit]:
         g, w = got.get(name), want.get(name)
@@ -306,6 +320,8 @@ def _worst(got: Dict[str, Any], want: Dict[str, Any], limit: int = 3) -> list:
 
 
 def losses_equal(want: Window, got: Window) -> bool:
+    import torch
+
     return len(want.losses) == len(got.losses) and all(
         torch.equal(a.cpu(), b.cpu()) for a, b in zip(want.losses, got.losses)
     )
@@ -313,6 +329,8 @@ def losses_equal(want: Window, got: Window) -> bool:
 
 def assert_same(want: Window, got: Window, *, stream: bool = True) -> None:
     """E3: per-micro-batch losses, every LoRA gradient and (``stream``) the generator state."""
+    import torch
+
     assert len(got.losses) == len(want.losses)
     for mb, (a, b) in enumerate(zip(want.losses, got.losses)):
         assert torch.equal(a.cpu(), b.cpu()), f"loss of micro-batch {mb}: {a.item()} vs {b.item()}"
@@ -337,6 +355,10 @@ def record_comparison(record_property: Callable[..., None], want: Window, got: W
     record_property(
         "nonzero_lora_grad_tensors",
         sum(g is not None and bool(g.ne(0).any()) for g in want.grads.values()),
+    )
+    record_property(
+        "actual_nonzero_lora_grad_tensors",
+        sum(g is not None and bool(g.ne(0).any()) for g in got.grads.values()),
     )
     record_property("max_abs_grad_diff", max_grad_difference(want, got))
     record_property(
@@ -364,6 +386,8 @@ def hits_of(window: Window) -> Dict[int, List[List[int]]]:
 
 def assert_routing_is_varied(window: Window, rig: Rig, k: int) -> None:
     """Different routing per micro-batch, unused experts, shared experts doing work."""
+    import torch
+
     assert sorted(window.routes) == list(rig.moe_layers)
     for layer, routes in window.routes.items():
         assert len(routes) == k, (
@@ -375,7 +399,9 @@ def assert_routing_is_varied(window: Window, rig: Rig, k: int) -> None:
                     f"layer {layer}: micro-batches {i} and {j} were routed identically"
                 )
         used = [set(route.flatten().tolist()) for route in routes]
-        assert any(len(seen) < N_EXPERTS for seen in used), f"layer {layer} used every expert"
+        assert any(len(seen) < fixture.N_EXPERTS for seen in used), (
+            f"layer {layer} used every expert"
+        )
         assert len(set().union(*used)) >= 2, f"layer {layer} routed to a single expert"
         assert len(window.shared[layer]) == k and all(s > 0 for s in window.shared[layer]), (
             f"layer {layer}: the shared experts produced nothing"
@@ -391,7 +417,7 @@ def check_l2l_equals_accumulation(
     config: Any = None,
     rows: int = 2,
     seq: int = 6,
-) -> tuple:
+) -> tuple[Rig, Window, Window]:
     """E3 for one window of k different micro-batches; returns (rig, reference, l2l)."""
     rig = make_rig(k=k, dropout=dropout, device=device, config=config, rows=rows, seq=seq)
     specs = [Spec(micro_batches(rig, k))]
@@ -409,12 +435,78 @@ def check_l2l_equals_accumulation(
 # ==========================================================================
 @pytest.mark.parametrize("dropout", [0.0, 0.05])
 @pytest.mark.parametrize("k", [1, 2, 4])
-def test_e3_l2l_equals_resident_eager_accumulation(make_rig, k, dropout, record_property):
+def test_e3_l2l_equals_resident_eager_accumulation(
+    make_rig: Callable[..., Rig], k: int, dropout: float, record_property: Callable[..., None],
+) -> None:
     _rig, want, got = check_l2l_equals_accumulation(make_rig, k=k, dropout=dropout)
     record_comparison(record_property, want, got)
 
 
-def test_the_fixture_is_not_degenerate_dropout_changes_what_the_reference_computes(make_rig):
+
+def check_supported_trainable_boundaries(
+    make_rig: Callable[..., Rig], *, k: int, targets: Sequence[str], dropout: float,
+    neftune: float = 0.0, device: str = "cpu", amp: bool = False,
+) -> tuple[List[Window], List[Window]]:
+    """Catch missing embedding VJPs and head draws omitted between resident micro-batches."""
+    rig = make_rig(
+        k=k, targets=targets, dropout=dropout, neftune=neftune, device=device,
+    )
+    specs = [Spec(micro_batches(rig, k, first=first)) for first in (0, 10, 0)]
+    want = ga_windows(rig, specs, amp=amp)
+    got = l2l_windows(rig, specs, amp=amp)
+    expected_count = 30 + 2 * ("embed_tokens" in targets) + 14 * ("lm_head" in targets)
+    for expected, actual in zip(want, got):
+        assert len(expected.grads) == len(actual.grads) == expected_count
+        assert_signal(expected)
+        assert_signal(actual)
+        if amp:
+            import torch
+
+            for name, gradient in expected.grads.items():
+                torch.testing.assert_close(actual.grads[name], gradient, atol=1e-6, rtol=1e-5)
+            for left, right in zip(expected.losses, actual.losses):
+                torch.testing.assert_close(right, left, atol=1e-6, rtol=1e-5)
+            assert rng_equal(expected.rng, actual.rng)
+        else:
+            assert_same(expected, actual)
+    return want, got
+
+
+@pytest.mark.parametrize("k", [1, 2])
+@pytest.mark.parametrize(
+    "targets,dropout,neftune",
+    [
+        pytest.param(fixture.EMBEDDING_TARGETS, 0.0, 0.0, id="embedding32"),
+        pytest.param(fixture.EMBEDDING_TARGETS, 0.0, 0.2, id="embedding32-neftune"),
+        pytest.param(fixture.HEAD_SHARED_TARGETS, 0.05, 0.0, id="head-shared44-dropout"),
+        pytest.param(fixture.ALL_TARGETS, 0.05, 0.0, id="combined46-dropout"),
+    ],
+)
+def test_supported_trainables_equal_resident_ga_across_repeated_windows(
+    make_rig: Callable[..., Rig], k: int, targets: Sequence[str], dropout: float,
+    neftune: float, record_property: Callable[..., None],
+) -> None:
+    want, got = check_supported_trainable_boundaries(
+        make_rig, k=k, targets=targets, dropout=dropout, neftune=neftune,
+    )
+    for expected, actual in zip(want, got):
+        record_comparison(record_property, expected, actual)
+
+
+@pytest.mark.parametrize("k", [1, 2])
+def test_embedding_vjp_keeps_backward_outside_forward_autocast(
+    make_rig: Callable[..., Rig], k: int, record_property: Callable[..., None],
+) -> None:
+    want, got = check_supported_trainable_boundaries(
+        make_rig, k=k, targets=fixture.EMBEDDING_TARGETS, dropout=0.0, amp=True,
+    )
+    for expected, actual in zip(want, got):
+        record_comparison(record_property, expected, actual)
+
+
+def test_the_fixture_is_not_degenerate_dropout_changes_what_the_reference_computes(
+    make_rig: Callable[..., Rig],
+) -> None:
     """Control: dropout 0.05 really moves the gradients, so the dropout cases test the replay."""
     plain = make_rig(k=2, dropout=0.0)
     dropped = make_rig(k=2, dropout=0.05)
@@ -429,10 +521,12 @@ def test_the_fixture_is_not_degenerate_dropout_changes_what_the_reference_comput
 # ==========================================================================
 @pytest.mark.parametrize("dropout", [0.0, 0.05])
 @pytest.mark.parametrize(("top_k", "rows", "seq"), [(1, 2, 6), (3, 1, 4)])
-def test_router_top_k_is_varied_independently_of_k(make_rig, top_k, rows, seq, dropout):
+def test_router_top_k_is_varied_independently_of_k(
+    make_rig: Callable[..., Rig], top_k: int, rows: int, seq: int, dropout: float,
+) -> None:
     """k stays 2; the router picks 1 or 3 experts per token (3 needs few tokens to leave
     experts unused, so that case runs 4 tokens per micro-batch)."""
-    config = moe_config(num_experts_per_tok=top_k)
+    config = fixture.moe_config(num_experts_per_tok=top_k)
     _rig, want, _got = check_l2l_equals_accumulation(
         make_rig, k=2, dropout=dropout, config=config, rows=rows, seq=seq
     )
@@ -444,10 +538,14 @@ def test_router_top_k_is_varied_independently_of_k(make_rig, top_k, rows, seq, d
 # consecutive windows on one stepper: nothing stale in the store, the routing or the arena
 # ==========================================================================
 @pytest.mark.parametrize("dropout", [0.0, 0.05])
-def test_consecutive_windows_on_one_stepper_equal_accumulation(make_rig, dropout, guard_runs):
+def test_consecutive_windows_on_one_stepper_equal_accumulation(
+    make_rig: Callable[..., Rig], dropout: float, guard_runs: SimpleNamespace,
+) -> None:
     """Windows A, B, A on one stepper, one store and one generator, as consecutive optimizer
     steps run them. B routes differently from A, so a routing record, a stored activation or an
     arena slot left behind by a window would show in the next one."""
+    import torch
+
     k = 2
     rig = make_rig(k=k, dropout=dropout)
     window_a, window_b = micro_batches(rig, k), micro_batches(rig, k, first=10)
@@ -476,7 +574,9 @@ def test_consecutive_windows_on_one_stepper_equal_accumulation(make_rig, dropout
 # SFT labels: -100 on prompt and padding tokens reaches the loss like in accumulation
 # ==========================================================================
 @pytest.mark.parametrize("dropout", [0.0, 0.05])
-def test_sft_masked_labels_equal_accumulation(make_rig, dropout):
+def test_sft_masked_labels_equal_accumulation(
+    make_rig: Callable[..., Rig], dropout: float,
+) -> None:
     k = 2
     rig = make_rig(k=k, dropout=dropout)
     ids = micro_batches(rig, k)
@@ -519,6 +619,8 @@ class ReadLog:
             self._wrap(monkeypatch, layer, module.reader)
 
     def _wrap(self, monkeypatch: pytest.MonkeyPatch, layer: int, reader: Any) -> None:
+        import torch
+
         original = reader.read_host
         records = self.records.setdefault(layer, [])
 
@@ -546,10 +648,13 @@ def perturb_down(_layer: int, expert: int, host: Any) -> None:
 
 
 def test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again(
-    make_rig, monkeypatch, record_property
-):
+    make_rig: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[..., None],
+) -> None:
     """Per hit expert per micro-batch: forward, recompute, backward reads; reverse layers."""
     from collections import Counter
+
+    import torch
 
     k = 3
     rig = make_rig(k=k)
@@ -681,8 +786,9 @@ def check_backward_only_perturbation(
 
 
 def test_negative_control_perturbing_only_backward_reloads_changes_grads_not_losses(
-    make_rig, monkeypatch, record_property
-):
+    make_rig: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[..., None],
+) -> None:
     for key, value in check_backward_only_perturbation(make_rig, monkeypatch).items():
         record_property(key, value)
 
@@ -696,7 +802,9 @@ def no_routing_guard(monkeypatch: pytest.MonkeyPatch) -> None:
 def without_replayed_state_on_the_recompute(monkeypatch: pytest.MonkeyPatch) -> None:
     real = l2l_rng.state_at
 
-    def forward_only(state):
+    def forward_only(state: Any) -> Any:
+        import torch
+
         return nullcontext() if torch.is_grad_enabled() else real(state)
 
     monkeypatch.setattr("soup_cli.utils.l2l_rng.state_at", forward_only)
@@ -735,8 +843,9 @@ def check_broken_rng_replay(
 
 
 def test_negative_control_state_not_applied_on_the_recompute_changes_the_grads(
-    make_rig, monkeypatch, record_property
-):
+    make_rig: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[..., None],
+) -> None:
     for key, value in check_broken_rng_replay(make_rig, monkeypatch).items():
         record_property(key, value)
 
@@ -748,18 +857,18 @@ def assert_guard_closed(guard: Any) -> None:
 
 
 @pytest.fixture()
-def guard_runs(monkeypatch):
+def guard_runs(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Observe real per-run guards without changing routing or expert execution."""
     guards, checked = [], []
     real = l2l_step.RoutingGuard
 
     class ObservedGuard(real):
-        def __init__(self, layers):
+        def __init__(self, layers: Sequence[Any]) -> None:
             super().__init__(layers)
             guards.append(self)
 
         @contextmanager
-        def check(self, layer, mb):
+        def check(self, layer: int, mb: int) -> Iterator[None]:
             try:
                 with super().check(layer, mb):
                     yield
@@ -778,8 +887,8 @@ def expert_hooks(rig: Rig) -> Dict[int, tuple]:
 
 
 def test_the_routing_guard_stops_a_recompute_that_drew_other_dropout_masks(
-    make_rig, monkeypatch, guard_runs
-):
+    make_rig: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch, guard_runs: SimpleNamespace,
+) -> None:
     """Broken replay changes routing; failure drops records/hooks, and the next run is exact."""
     rig = make_rig(k=2, dropout=0.05)
     specs = [Spec(micro_batches(rig, 2))]
@@ -802,8 +911,9 @@ def test_the_routing_guard_stops_a_recompute_that_drew_other_dropout_masks(
 
 @pytest.mark.parametrize("phase", ["forward", "recompute", "backward"])
 def test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_again(
-    make_rig, monkeypatch, guard_runs, phase
-):
+    make_rig: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch,
+    guard_runs: SimpleNamespace, phase: str,
+) -> None:
     rig = make_rig(k=2)
     specs = [Spec(micro_batches(rig, 2))]
     (want,) = ga_windows(rig, specs)
@@ -812,7 +922,9 @@ def test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_aga
     original = reader.read_host
     failed = []
 
-    def fail_read(expert, staging):
+    def fail_read(expert: int, staging: Any) -> Any:
+        import torch
+
         inside = torch._C._current_autograd_node() is not None
         # ExpertNode.forward itself disables grad even during the grad recompute; classify
         # the caller from the guard's real visit, not the custom Function's grad mode.
@@ -839,7 +951,11 @@ def test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_aga
 
 
 @pytest.mark.parametrize("change", ["choice", "shape", "extra-call", "missing-call"])
-def test_guard_checks_actual_routing_before_loading_and_releases_each_pair(make_rig, change):
+def test_guard_checks_actual_routing_before_loading_and_releases_each_pair(
+    make_rig: Callable[..., Rig], change: str,
+) -> None:
+    import torch
+
     rig = make_rig(k=1)
     (want,) = ga_windows(rig, [Spec(micro_batches(rig, 1))])
     layer = next(iter(rig.moe_layers))
@@ -873,8 +989,12 @@ def test_guard_checks_actual_routing_before_loading_and_releases_each_pair(make_
     assert expert_hooks(rig) == hooks
 
 
-def test_guard_preserves_differentiable_router_weights(make_rig):
+def test_guard_preserves_differentiable_router_weights(
+    make_rig: Callable[..., Rig],
+) -> None:
     """Detaching/replacing top-k weights in a guard must not erase their real gradient path."""
+    import torch
+
     from soup_cli.utils.layer_stream_runtime import decoder_owner
 
     rig = make_rig(k=1)
@@ -884,11 +1004,11 @@ def test_guard_preserves_differentiable_router_weights(make_rig):
     streamed_mlp.experts = streamed_experts_modules(rig.model)[layer]
     hidden = torch.randn(rig.rows, rig.seq, rig.config.hidden_size)
 
-    def run(mlp):
+    def run(mlp: Any) -> tuple[Any, Any, Any]:
         inputs = hidden.clone().requires_grad_(True)
         seen = []
 
-        def save_weights(_module, _args, output):
+        def save_weights(_module: Any, _args: Any, output: Any) -> None:
             weights = output[1]
             assert weights.requires_grad and weights.grad_fn is not None
             weights.retain_grad()
@@ -914,7 +1034,9 @@ def test_guard_preserves_differentiable_router_weights(make_rig):
     assert_guard_closed(guard)
 
 
-def test_public_launch_still_refuses_deepseek_but_internal_step_accepts_it(make_rig):
+def test_public_launch_still_refuses_deepseek_but_internal_step_accepts_it(
+    make_rig: Callable[..., Rig],
+) -> None:
     from soup_cli.trainer.l2l_trainer import refuse_unsupported_l2l
 
     rig = make_rig(k=1)
@@ -923,7 +1045,11 @@ def test_public_launch_still_refuses_deepseek_but_internal_step_accepts_it(make_
         refuse_unsupported_l2l(rig.config, n_gpu=1)
 
 
-def test_expert_loads_remain_visible_in_trainer_logs_and_dense_fields_stay_unchanged(make_rig):
+def test_expert_loads_remain_visible_in_trainer_logs_and_dense_fields_stay_unchanged(
+    make_rig: Callable[..., Rig],
+) -> None:
+    import torch
+
     from soup_cli.trainer.l2l_trainer import L2LState
 
     rig = make_rig(k=2)
@@ -948,8 +1074,10 @@ def test_expert_loads_remain_visible_in_trainer_logs_and_dense_fields_stay_uncha
 
 def check_bf16_forward_amp(
     make_rig: Callable[..., Rig], *, k: int, device: str = "cpu"
-) -> tuple:
+) -> tuple[List[Window], List[Window]]:
     """Ambient AMP around L2L must not change backward reductions relative to HF's loop."""
+    import torch
+
     rig = make_rig(k=k, device=device)
     specs = [Spec(micro_batches(rig, k)), Spec(micro_batches(rig, k, first=10))]
     want = ga_windows(rig, specs, amp=True)
@@ -967,16 +1095,16 @@ def check_bf16_forward_amp(
 
 @pytest.mark.parametrize("k", [1, 2, 4])
 def test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga(
-    make_rig, k, record_property
-):
+    make_rig: Callable[..., Rig], k: int, record_property: Callable[..., None],
+) -> None:
     want, got = check_bf16_forward_amp(make_rig, k=k)
     for expected, actual in zip(want, got):
         record_comparison(record_property, expected, actual)
 
 
 def test_seeded_dropout_runs_repeat_exactly_and_another_seed_changes_gradients(
-    make_rig, guard_runs
-):
+    make_rig: Callable[..., Rig], guard_runs: SimpleNamespace,
+) -> None:
     rig = make_rig(k=2, dropout=0.05)
     specs = [Spec(micro_batches(rig, 2))]
     (want,) = ga_windows(rig, specs)
@@ -991,7 +1119,9 @@ def test_seeded_dropout_runs_repeat_exactly_and_another_seed_changes_gradients(
         assert_guard_closed(guard)
 
 
-def check_eager_attention_dropout(make_rig: Callable[..., Rig], *, device: str = "cpu") -> tuple:
+def check_eager_attention_dropout(
+    make_rig: Callable[..., Rig], *, device: str = "cpu",
+) -> tuple[List[Window], List[Window]]:
     rig = make_rig(k=2, dropout=0.05, attention_dropout=0.1, device=device)
     specs = [Spec(micro_batches(rig, 2)), Spec(micro_batches(rig, 2, first=10))]
     want = ga_windows(rig, specs)
@@ -1006,8 +1136,8 @@ def check_eager_attention_dropout(make_rig: Callable[..., Rig], *, device: str =
 
 
 def test_eager_attention_and_lora_dropout_replay_match_resident_accumulation(
-    make_rig, record_property
-):
+    make_rig: Callable[..., Rig], record_property: Callable[..., None],
+) -> None:
     want, got = check_eager_attention_dropout(make_rig)
     for expected, actual in zip(want, got):
         record_comparison(record_property, expected, actual)

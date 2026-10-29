@@ -97,14 +97,22 @@ backward; L2L does no-grad forward, grad recompute and expert backward. Unused
 experts are not read. A decoder-layer load counter is not an expert-read count.
 
 Internally, `L2LStep.run` and `make_l2l_trainer_class` with `attach_l2l_state`
-run native `deepseek_v3` in addition to the dense architectures. L2L replays
-LoRA/eager-attention dropout in accumulation order and leaves CPU/CUDA RNG state
-where ordinary accumulation leaves it. Router choices are checked between the
-forward and recompute. Masked labels, short final windows and no-dropout uneven
+run native `deepseek_v3` in addition to the dense architectures. Supported non-expert
+LoRA includes input embeddings, MLA projections, shared experts and the output head.
+After decoder backward, trainable embeddings are recomputed and differentiated one
+micro-batch at a time through the existing streamed large slot; frozen embeddings keep
+the no-grad fast path. Embedding recompute restores its forward RNG for NEFTune noise
+without advancing the outer stream. L2L replays decoder and native-head dropout in
+micro-batch accumulation order, including head draws between micro-batches, and leaves
+CPU/CUDA RNG where ordinary accumulation leaves it. Router choices are checked between
+the forward and recompute. Masked labels, short final windows and no-dropout uneven
 windows retain the existing right-padding contract; uneven windows with dropout
 are refused because padding would change the random draws. MoE trainer logs add
 `l2l_expert_fetches` and `l2l_expert_bytes_read`. None of this widens the public
 `training.l2l` architecture guard.
+
+The existing NEFTune-plus-dropout refusal remains: their interleaved draws are not a
+supported combination. Uneven windows with NEFTune remain refused as well.
 
 The independent synthetic smoke needs no pytest invocation or model download:
 
@@ -113,10 +121,15 @@ python benchmarks/harness/b13_moe_backward_smoke.py --device cpu --output smoke-
 python benchmarks/harness/b13_moe_backward_smoke.py --device cuda --output smoke-cuda.json
 ```
 
+The default still checks 30 MLA adapter tensors. Optional synthetic harness arguments
+`--targets embedding` (32 tensors), `--targets head-shared --dropout 0.05` (44) or
+`--targets all --dropout 0.05` (46) exercise the embedding/head boundaries. These are
+benchmark-only choices, not public training YAML/CLI switches.
+
 It compares repeated k=1/2/4 L2L updates against an independent resident eager
 model with identical nonzero LoRA, masked labels and ordinary accumulation. JSON
-records source SHA/dirty hashes, environment, all trainable gradient/state
-differences, reloads, reverse layer visits, arena pointer/plan/budget and CUDA
+records source SHA/dirty hashes, environment, all trainable gradient/state differences,
+CPU/CUDA RNG equality, reloads, reverse layer visits, arena pointer/plan/budget and CUDA
 allocated/reserved peaks separately. A test-only control corrupts reader staging
 only on backward reloads: forward/loss must remain equal while gradient
 comparison fails. A correct-path PASS alone does not validate that control.

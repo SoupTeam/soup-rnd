@@ -20,23 +20,41 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from rich.console import Console
 
 try:
-    from .b13_moe_fixture import build_fixture, micro_batches, snapshot, trainables
+    from .b13_moe_fixture import (
+        ALL_TARGETS,
+        EMBEDDING_TARGETS,
+        HEAD_SHARED_TARGETS,
+        TARGETS,
+        build_fixture,
+        micro_batches,
+        snapshot,
+        trainables,
+    )
 except ImportError:
-    from b13_moe_fixture import build_fixture, micro_batches, snapshot, trainables
+    from b13_moe_fixture import (
+        ALL_TARGETS,
+        EMBEDDING_TARGETS,
+        HEAD_SHARED_TARGETS,
+        TARGETS,
+        build_fixture,
+        micro_batches,
+        snapshot,
+        trainables,
+    )
 
 
-def source_identity() -> dict:
+def source_identity() -> dict[str, Any]:
     """Identify both the imported product and dirty measured source, without mutating Git."""
     import soup_cli
 
     package = Path(os.path.realpath(soup_cli.__file__))
 
-    def git(*args, cwd=package.parent):
+    def git(*args: str, cwd: Path = package.parent) -> str:
         return subprocess.run(
             ["git", *args], cwd=cwd, capture_output=True, check=True,
             text=True, timeout=10,
@@ -59,7 +77,7 @@ def source_identity() -> dict:
     }
 
 
-def comparison(want: dict, got: dict) -> dict:
+def comparison(want: dict[str, Any], got: dict[str, Any]) -> dict[str, Any]:
     """Zero-tolerance verdict including every supported trainable, not a selected projection."""
     import torch
 
@@ -91,7 +109,7 @@ def comparison(want: dict, got: dict) -> dict:
 class ReadProbe:
     """Observe the public reader seam and optionally corrupt ONLY backward staging."""
 
-    def __init__(self, model: Any, pool: Any):
+    def __init__(self, model: Any, pool: Any) -> None:
         from soup_cli.utils.expert_stream import streamed_experts_class
 
         self.pool = pool
@@ -104,7 +122,7 @@ class ReadProbe:
                     raise AssertionError("MoE layers do not share the bounded expert arena")
                 self._wrap(module.layer_idx, module.reader)
 
-    def _wrap(self, layer, reader):
+    def _wrap(self, layer: int, reader: Any) -> None:
         import torch
 
         from soup_cli.utils.expert_shard import DOWN, expert_key
@@ -112,7 +130,7 @@ class ReadProbe:
         original = reader.read_host
         self.originals.append((reader, original))
 
-        def read_host(expert, staging):
+        def read_host(expert: int, staging: Any) -> Any:
             backward = torch._C._current_autograd_node() is not None
             host = original(expert, staging)
             changed = backward and self.corrupt
@@ -127,16 +145,18 @@ class ReadProbe:
 
         reader.read_host = read_host
 
-    def reset(self, *, corrupt=False):
+    def reset(self, *, corrupt: bool = False) -> None:
         self.corrupt = corrupt
         self.events.clear()
 
-    def close(self):
+    def close(self) -> None:
         for reader, original in self.originals:
             reader.read_host = original
 
 
-def _read_evidence(events, before, after):
+def _read_evidence(
+    events: Sequence[dict[str, Any]], before: dict[str, Any], after: dict[str, Any],
+) -> dict[str, Any]:
     from collections import Counter
 
     backward = Counter((event["layer"], event["expert"])
@@ -158,21 +178,35 @@ def _read_evidence(events, before, after):
     }
 
 
-def _logits(model, ids):
+def _logits(model: Any, ids: Sequence[Any], *, seed: int) -> dict[str, Any]:
     import torch
 
-    with torch.no_grad():
+    cards = [ids[0].device] if ids[0].device.type == "cuda" else []
+    with torch.no_grad(), torch.random.fork_rng(devices=cards):
+        torch.manual_seed(seed)
         return {str(index): model(input_ids=batch).logits.detach().cpu().clone()
                 for index, batch in enumerate(ids)}
 
 
-def run_case(root: Path, *, k: int, device: str) -> dict:
+def _rng_equal(left: Any, right: Any) -> bool:
     import torch
 
+    return torch.equal(left.cpu, right.cpu) and len(left.cuda) == len(right.cuda) and all(
+        card_a == card_b and torch.equal(state_a, state_b)
+        for (card_a, state_a), (card_b, state_b) in zip(left.cuda, right.cuda)
+    )
+
+
+def run_case(
+    root: Path, *, k: int, device: str, targets: Sequence[str] = TARGETS, dropout: float = 0.0,
+) -> dict[str, Any]:
+    import torch
+
+    from soup_cli.utils import l2l_rng
     from soup_cli.utils.l2l_activations import ActivationStore
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
-    fixture = build_fixture(root, device=device)
+    fixture = build_fixture(root, device=device, targets=targets, dropout=dropout)
     store = probe = None
     try:
         first_ids, _ = micro_batches(fixture.config, k, first=0, device=device)
@@ -186,7 +220,7 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
         reverse_visits = []
         original_get = store.get
 
-        def get(layer, micro_batch):
+        def get(layer: int, micro_batch: int) -> Any:
             reverse_visits.append([layer, micro_batch])
             return original_get(layer, micro_batch)
 
@@ -204,7 +238,7 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
             for optimizer in optimizers:
                 optimizer.zero_grad(set_to_none=True)
             torch.manual_seed(11 + window)
-            reference_logits = _logits(fixture.resident, ids)
+            reference_logits = _logits(fixture.resident, ids, seed=11 + window)
             reference_losses = []
             for batch, lab in zip(ids, labels):
                 loss = fixture.resident(
@@ -213,33 +247,36 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
                 loss.backward()
                 reference_losses.append(loss.detach().cpu().clone())
             reference_grads = snapshot(fixture.resident, gradients=True)
+            reference_rng = l2l_rng.snapshot()
 
             # Corrupted pass first, without stepping: the clean pass reuses identical weights.
             probe.reset(corrupt=True)
-            bad_logits = _logits(fixture.streamed, ids)
+            bad_logits = _logits(fixture.streamed, ids, seed=11 + window)
             probe.reset(corrupt=True)
             reverse_visits.clear()
             before = fixture.runtime.stats()
             torch.manual_seed(11 + window)
             bad_losses = stepper.run(ids, store, labels=labels, n_items=total)
             bad_grads = snapshot(fixture.streamed, gradients=True)
+            bad_rng = l2l_rng.snapshot()
             bad_reads = _read_evidence(probe.events, before, fixture.runtime.stats())
             bad_reverse = list(reverse_visits)
             fixture.streamed.zero_grad(set_to_none=True)
 
             probe.reset()
-            clean_logits = _logits(fixture.streamed, ids)
+            clean_logits = _logits(fixture.streamed, ids, seed=11 + window)
             probe.reset()
             reverse_visits.clear()
             before = fixture.runtime.stats()
             torch.manual_seed(11 + window)
             clean_losses = stepper.run(ids, store, labels=labels, n_items=total)
             clean_grads = snapshot(fixture.streamed, gradients=True)
+            clean_rng = l2l_rng.snapshot()
             clean_reads = _read_evidence(probe.events, before, fixture.runtime.stats())
             clean_reverse = list(reverse_visits)
             expected_losses = {str(index): loss for index, loss in enumerate(reference_losses)}
 
-            def loss_dict(losses):
+            def loss_dict(losses: Sequence[Any]) -> dict[str, Any]:
                 return {str(index): loss.detach().cpu() for index, loss in enumerate(losses)}
 
             clean = {
@@ -247,12 +284,14 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
                 "loss": comparison(expected_losses, loss_dict(clean_losses)),
                 "gradient": comparison(reference_grads, clean_grads),
                 "reader": clean_reads, "reverse_visits": clean_reverse,
+                "rng_equal": _rng_equal(reference_rng, clean_rng),
             }
             bad = {
                 "forward": comparison(reference_logits, bad_logits),
                 "loss": comparison(expected_losses, loss_dict(bad_losses)),
                 "gradient": comparison(reference_grads, bad_grads),
                 "reader": bad_reads, "reverse_visits": bad_reverse,
+                "rng_equal": _rng_equal(reference_rng, bad_rng),
             }
             for optimizer in optimizers:
                 optimizer.step()
@@ -272,6 +311,7 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
         positive = all(
             all(row["clean"][key]["verdict"] == "PASS" for key in ("forward", "loss", "gradient"))
             and row["trained_state"]["verdict"] == "PASS"
+            and row["clean"]["rng_equal"]
             and all(item["actual_nonzero"] > 0
                     for item in row["clean"]["gradient"]["parameters"].values())
             and row["clean"]["reader"]["backward_layers"] == expected_layers
@@ -285,6 +325,7 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
         negative = all(
             row["backward_corruption"]["forward"]["verdict"] == "PASS"
             and row["backward_corruption"]["loss"]["verdict"] == "PASS"
+            and row["backward_corruption"]["rng_equal"]
             and row["backward_corruption"]["gradient"]["verdict"] == "FAIL"
             and row["backward_corruption"]["reader"]["corrupted_reloads"] > 0
             and row["backward_corruption"]["reader"]["three_reads_per_visit"]
@@ -302,6 +343,7 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
         )
         return {
             "k": k, "windows": windows, "clean_verdict": "PASS" if positive else "FAIL",
+            "targets": list(targets), "dropout": dropout, "trainable_tensors": len(initial),
             "negative_control_detected": negative, "arena_bounded": bounded,
             "arena": {**arena, "pointer_before": pointer_before, "pointer_after": pointer_after},
             "changed_trainables": changed,
@@ -315,11 +357,20 @@ def run_case(root: Path, *, k: int, device: str) -> dict:
         fixture.close()
 
 
-def main(argv=None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--targets", choices=("mla", "embedding", "head-shared", "all"), default="mla",
+        help="Synthetic adapter targets only; the unchanged default has 30 MLA tensors.",
+    )
+    parser.add_argument("--dropout", type=float, default=0.0)
     args = parser.parse_args(argv)
+    targets = {
+        "mla": TARGETS, "embedding": EMBEDDING_TARGETS,
+        "head-shared": HEAD_SHARED_TARGETS, "all": ALL_TARGETS,
+    }[args.targets]
     # Set before the first CUDA call. Refuse a conflicting launch instead of claiming determinism.
     if os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8") != ":4096:8":
         parser.error("CUBLAS_WORKSPACE_CONFIG must be :4096:8")
@@ -349,7 +400,10 @@ def main(argv=None) -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="b13-moe-smoke-") as temporary:
             for k in (1, 2, 4):
-                case = run_case(Path(temporary) / f"k{k}", k=k, device=args.device)
+                case = run_case(
+                    Path(temporary) / f"k{k}", k=k, device=args.device,
+                    targets=targets, dropout=args.dropout,
+                )
                 result["cases"].append(case)
                 console.print(
                     f"k={k}: clean={case['clean_verdict']}, "
