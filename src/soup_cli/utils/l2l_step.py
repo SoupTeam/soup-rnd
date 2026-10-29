@@ -14,6 +14,9 @@ and walk the backward the same way in reverse.
 * All k embedding lookups run before layer 0's first ``advance`` queues the head
   into the shared large slot; ``LargeLayerBufferPool.load_async`` orders that
   refill after them on the compute stream.
+* Trainable embedding adapters get a final one-micro-batch recompute and VJP after layer 0,
+  through the same streamed embedding wrapper. Its RNG is restored for noise hooks; the
+  large slot is not refilled between that recompute and its immediate backward.
 * The backward turns the wrapper's checkpoint off for its per-(layer,
   micro-batch) forward+backward, which would otherwise pay a third forward.
 * The top-level forward is re-implemented for Llama/Mistral and DeepSeek-V3:
@@ -24,9 +27,9 @@ and walk the backward the same way in reverse.
   real forward instead of rebuilding the rotary embeddings and the mask.
 
 * With ``lora.dropout`` > 0 the step replays the random stream of plain gradient
-  accumulation: every layer call, in the forward and in the recompute, runs at the
-  generator state accumulation reaches for that (micro-batch, layer) pair, and the outer
-  stream ends where accumulation leaves it. See ``utils/l2l_rng.py``.
+  accumulation: every decoder and head call runs at the generator state accumulation
+  reaches for that micro-batch, including head draws between consecutive micro-batches.
+  Recompute restores the same states without advancing the outer stream. See ``l2l_rng.py``.
 
 * A layer with streamed routed experts (a per-expert cache, ``utils/expert_stream.py``) reads
   every hit expert through the one-slot arena in the no-grad forward, again in the grad
@@ -56,6 +59,8 @@ class LayerCall:
     kwargs: Dict[str, Any]
     #: Per layer, the dropouts one call draws (``l2l_rng.Draw``); empty without dropout.
     draws: Tuple[Tuple[Any, ...], ...] = ()
+    #: Dropouts the native output head draws after the decoder layers of each micro-batch.
+    head_draws: Tuple[Any, ...] = ()
 
 
 #: ``LoadCounters`` field -> the ``runtime.stats()`` key whose growth it counts.
@@ -135,13 +140,13 @@ def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
     """Run one forward without grad and record what layer 0 receives.
 
     The random state is restored afterwards, so the capture draws nothing from it. The same
-    forward records which dropouts each layer draws, for the replay in :meth:`L2LStep.run`.
+    forward records which dropouts each decoder layer and the native output head draw.
     """
     import torch
 
     from soup_cli.utils.l2l_rng import record_draws
 
-    _causal, owner = model_parts(model)
+    causal, owner = model_parts(model)
     seen: Dict[str, Any] = {}
 
     def hook(_module: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
@@ -153,7 +158,7 @@ def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
     cuda = [input_ids.device] if input_ids.device.type == "cuda" else []
     try:
         with torch.no_grad(), torch.random.fork_rng(devices=cuda):
-            with record_draws(list(owner.layers)) as plan:
+            with record_draws([*owner.layers, causal.lm_head]) as plan:
                 model(input_ids=input_ids)
     finally:
         handle.remove()
@@ -161,7 +166,10 @@ def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
         raise RuntimeError("decoder layer 0 was never called by the forward")
     args, kwargs = seen["call"]
     kwargs.pop("num_items_in_batch", None)
-    return LayerCall(args=args, kwargs=kwargs, draws=tuple(tuple(layer) for layer in plan))
+    return LayerCall(
+        args=args, kwargs=kwargs, draws=tuple(tuple(layer) for layer in plan[:-1]),
+        head_draws=tuple(plan[-1]),
+    )
 
 
 class RoutingGuard:
@@ -179,7 +187,7 @@ class RoutingGuard:
     experts (a dense model, a fused cache) gets no hook, so nothing is recorded for it.
     """
 
-    def __init__(self, layers: Sequence[Any]):
+    def __init__(self, layers: Sequence[Any]) -> None:
         from soup_cli.utils.expert_stream import streamed_experts_class
 
         experts = streamed_experts_class()
@@ -287,7 +295,7 @@ class L2LStep:
         model: Any,
         runtime: Any,
         call: LayerCall,
-    ):
+    ) -> None:
         self.causal, self.owner = model_parts(model)
         self.layers = list(self.owner.layers)
         self.call = call
@@ -352,13 +360,20 @@ class L2LStep:
         vocab = int(self.causal.config.vocab_size)
 
         replayed = None
-        if l2l_rng.has_draws(self.call.draws):
-            replayed = l2l_rng.replay(self.call.draws, k)
+        plan = (*self.call.draws, self.call.head_draws)
+        if l2l_rng.has_draws(plan):
+            replayed = l2l_rng.replay(plan, k)
         states = replayed[0] if replayed else None
+        train_embedding = any(param.requires_grad for param in self.owner.embed_tokens.parameters())
+        embedding_states: List[Any] = []
 
         self._prime(self.owner, ())
         with torch.no_grad():
-            hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
+            hidden = []
+            for ids in micro_batches:
+                if train_embedding:
+                    embedding_states.append(l2l_rng.snapshot())
+                hidden.append(self.owner.embed_tokens(ids))
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
@@ -372,7 +387,11 @@ class L2LStep:
         for mb in range(k):
             last = hidden[mb].detach().requires_grad_(True)
             hidden[mb] = None
-            with torch.enable_grad():
+            head_state = states[mb][-1] if states and self.call.head_draws else None
+            with (
+                torch.enable_grad(),
+                l2l_rng.state_at(head_state) if head_state is not None else nullcontext(),
+            ):
                 normed = self.owner.norm(last)
                 logits = self.causal.lm_head(normed[:, slice(0, None), :])
                 loss = self.causal.loss_function(
@@ -405,6 +424,21 @@ class L2LStep:
                     grads[mb] = inputs.grad
             finally:
                 layer.use_checkpoint = saved
+        if train_embedding:
+            # The reverse walk normally prefetches this at layer 0. Explicitly request the
+            # same load for a one-layer decoder too, whose walk never changes direction.
+            refill = self.runtime.prefetcher.backward_tail_prefetch
+            if refill is not None:
+                refill()
+            for mb, ids in enumerate(micro_batches):
+                with torch.enable_grad(), l2l_rng.state_at(embedding_states[mb]):
+                    embedded = self.owner.embed_tokens(ids)
+                with (
+                    torch.autocast("cpu", enabled=False),
+                    torch.autocast("cuda", enabled=False),
+                ):
+                    torch.autograd.backward(embedded, grad_tensors=grads[mb])
+                grads[mb] = None
         store.end_step()
         if replayed is not None:
             l2l_rng.leave_stream_at(replayed[1])
