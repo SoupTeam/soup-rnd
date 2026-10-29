@@ -931,10 +931,10 @@ verdict is [`benchmarks/l2l-readiness-rule-a5.md`](../benchmarks/l2l-readiness-r
 evidence and the command that reproduces it are in
 [`benchmarks/probe-vast-l2l-a5-readiness-report.md`](../benchmarks/probe-vast-l2l-a5-readiness-report.md).
 The required `foreign_reads` validity check was `unknown` on the 3090, 3070 Ti and 3070 runs (the cache sits on a
-container overlay), so those runs give no verdict. On a vast local volume the check answers, and the 5070 Ti set has 27 arms `ok` and 1 `void` (excluded).
+container overlay), so those runs give no verdict. On a vast local volume the check answers, and the 5070 Ti set has 50 arms `ok` and 2 `void` (excluded).
 
 - **Correct.** All 30 L2L runs of the SFT campaigns (RTX 3090, 3070 Ti and 3070, 16 steps each)
-  and the 12 runs on the RTX 5070 Ti stay inside the A3-07 loss tolerance at every step, and windows of rows of different lengths
+  and the 22 runs on the RTX 5070 Ti stay inside the A3-07 loss tolerance at every step, and windows of rows of different lengths
   match gradient accumulation. The cause of the earlier loss gap (`backward` inside `autocast`)
   is fixed. Report: `benchmarks/probe-vast-l2l-loss-divergence-a5-ticket08.md`.
 - **Memory.** Peak VRAM allocated is 1.13 GB with L2L and 1.15 GB with streamed accumulation
@@ -949,7 +949,7 @@ container overlay), so those runs give no verdict. On a vast local volume the ch
   (L2L minus accumulation) runs from -36 to +168 tokens/s, 0.79 to 2.6 times. L2L was slower on
   hosts with fast host-to-GPU copies (about 20 GB/s and above) and faster on slow ones, but one
   host does not fit that pattern, so treat it as a correlation. Measure on your own host before
-  expecting L2L to be faster. On the one host where the validity check answers (RTX 5070 Ti), the difference cannot be told from zero and the repeats rule was not met, so no sign is claimed.
+  expecting L2L to be faster. On the one host where the validity check answers (RTX 5070 Ti), the repeats rule is met (11 valid blocks) and the difference is +3.6 tokens/s [-11.6; +18.7], so L2L is neither faster nor slower there within the measurement.
 - **Not measured.** Weight reads from disk (page cache was warm), spilling activations to a
   separate disk (the A4 spill is not wired into the trainer, the run stops on RAM first), models
   other than Mistral-7B, and a real 70B or 1T. A run with random weights of 70B shape used

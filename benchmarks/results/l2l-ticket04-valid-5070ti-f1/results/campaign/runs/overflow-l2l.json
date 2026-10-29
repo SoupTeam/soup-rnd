@@ -1,0 +1,31 @@
+{
+ "config": "overflow.yaml",
+ "sdpa": "MATH",
+ "deterministic": true,
+ "cublas_workspace_config": ":4096:8",
+ "failure": "ValueError: training.l2l keeps 32 layers x 2530 micro-batches of activations in host RAM: 518.72 GB of pinned blocks, but only 516.1 GB is free and 70% of that is usable. Lower gradient_accumulation_steps, data.max_length or batch_size, or free RAM.",
+ "wall_s": 37.10975122451782,
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 5070 Ti",
+  "memory_total_mib": 16303,
+  "driver": "595.104.02"
+ },
+ "load": {
+  "read_bytes_since_process_start": 0,
+  "write_bytes_since_process_start": 155648,
+  "peak_vram_allocated_bytes": 548103680,
+  "peak_rss_bytes": 6047141888,
+  "seconds_since_process_start": 32.348682818003,
+  "counters": {
+   "layer_loads": 0,
+   "nf4_restores": 0,
+   "large_loads": 0,
+   "pinned_store_bytes": 0
+  }
+ },
+ "steps": [],
+ "losses": [],
+ "process_peak_rss_bytes": 6250586112,
+ "process_peak_vram_allocated_bytes": null,
+ "run": null
+}

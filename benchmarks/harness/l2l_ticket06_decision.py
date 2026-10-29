@@ -26,7 +26,7 @@ RESULTS = Path(__file__).resolve().parents[1] / "results"
 
 #: The only ticket-04 set the gate reads: measured where ``foreign_reads`` answers (a vast local
 #: volume), see ``benchmarks/l2l-readiness-rule-a5.md``. The earlier sets are history.
-VALID_SET = "l2l-ticket04-valid-5070ti"
+VALID_SET = "l2l-ticket04-valid-5070ti-f1"
 
 #: What the records do not cover. Not computed from the data; a limit leaves this list when
 #: a measurement for it exists.
@@ -35,7 +35,7 @@ LIMITS = [
     "activation spill to a separate disk not measured (A4 spill is not wired into the trainer)",
     "one model family measured (Mistral-7B v0.1 NF4); the verdict covers one card and one host "
     "(RTX 5070 Ti 16 GB); earlier cards have foreign_reads unknown and are not read",
-    "speed: the F1 repeats rule was not met at the 7-block cap on this host, so no speed claim",
+    "speed: L2L minus GA on the one valid card cannot be told from zero (11 valid blocks)",
     "real 70B and 1T not measured (the 70B run uses random weights of its shape)",
 ]
 
