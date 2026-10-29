@@ -786,6 +786,13 @@
       "verification": "Integration-owner supplied hash/count of complete initial export"
     },
     {
+      "file": "adaptive-evidence-complete.tar.gz",
+      "bytes": 1737457063,
+      "entries": 724,
+      "sha256": "fb10633a24821e519d40b7aa10e15b0934a43bf4bdb4dbf76eeb241068d92969",
+      "verification": "Integration-owner verified complete local export against remote hash before deletion"
+    },
+    {
       "file": "metadata.tgz",
       "sha256": "7fcd19daeed18ba0246f83a4d1b5409639849705fbf3abcbbe254b7d629fc60c",
       "verification": "Integration-owner supplied export hash"
@@ -800,7 +807,8 @@
     "All tensors, logs, rental/operational tooling, credentials, API and billing snapshots",
     "Full metadata/analysis.json.gz (projection published instead)",
     "adaptive/ga_native_no_mask (incorrect effective metadata)",
-    "adaptive/ga_native_no_mask_verified (exclusive metadata-file collision)"
+    "adaptive/ga_native_no_mask_verified (exclusive metadata-file collision)",
+    "adaptive-evidence.tar.gz (first transfer partial; not the verified complete archive)"
   ],
   "manifest_policy": "LF SHA256SUMS covers generated evidence plus provenance.json; excludes README.md and itself",
   "verification_scope": "Publisher reads saved metadata and derives projections/equality summaries only. It does not reload tensors, rerun the analyzer/comparator, or independently verify integration-owner archive, source-identity, billing, or deletion attestations.",
@@ -848,5 +856,59 @@
     "raw_bytes": 6794136,
     "decompressed_sha256": "6a5cde7c311d8643a15cfe924d241ae3c6622e041f9a8d37abb416b815e376da",
     "decompressed_bytes": 57439661
+  },
+  "private_rental_closeout": {
+    "sources": [
+      {
+        "file": "confirm-gone.json",
+        "raw_sha256": "2bbf8ffbdc69cd2c9a933c45e63e04880e74dc1fb226a6c99f9ad15a23b9b306",
+        "raw_bytes": 333
+      },
+      {
+        "file": "billing-posted.json",
+        "raw_sha256": "aaeaf8212f0d2163215569e9b09775516cac3521317953b9dbdb4222a3ad7df0",
+        "raw_bytes": 654
+      },
+      {
+        "file": "destroy-response.json",
+        "raw_sha256": "e8af3a31f167a05e8659b4d3f605bca05e313d180c410914390a665b8e653cfd",
+        "raw_bytes": 171
+      }
+    ],
+    "instance_id": 58293613,
+    "deletion": {
+      "action": "vastai destroy instance 58293613 --raw --yes after both archive hashes verified",
+      "checked_utc": "2026-10-29T20:19:30.040875+00:00",
+      "api_response": {
+        "instances": null
+      },
+      "absent_from_listing": true,
+      "first_attempt": "Earlier destroy without --yes aborted and had no effect; not successful deletion evidence",
+      "timing_limit": "Absence-check timestamp, not an exact deletion-completion timestamp",
+      "verification": "Integration-owner explicit deletion after both archive hashes verified locally"
+    },
+    "posted_billing": {
+      "checked_utc": "2026-10-29T20:19:33.358764+00:00",
+      "status": "posted invoices may lag after immediate deletion",
+      "items": [
+        {
+          "amount": "0.700",
+          "quantity": "1.313",
+          "rate": "0.5333",
+          "type": "charge"
+        },
+        {
+          "amount": "0.066",
+          "quantity": "1.339",
+          "rate": "0.0493",
+          "type": "charge"
+        }
+      ],
+      "posted_total_usd": "0.766",
+      "prior_a3_total_usd": "1.290",
+      "combined_posted_a3_total_usd": "2.056",
+      "remaining_of_10_usd_on_posted_basis": "7.944",
+      "limit": "Posted charges observed immediately after deletion may lag; not a final bill claim"
+    }
   }
 }

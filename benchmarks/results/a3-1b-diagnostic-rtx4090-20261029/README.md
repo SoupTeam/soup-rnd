@@ -220,9 +220,31 @@ README or the manifest itself. Root `.gitattributes` marks the entire result dir
 The integration owner verified the complete private initial tensor archive,
 `diagnostic-evidence.tar.gz`: **3,910,733,600 B**, **1,599 entries**, SHA-256
 `1f765ff706a904fdfc4fdc16909ce73b9f12c2eab75a92dad03cca988d346a39`.
+The complete private adaptive archive, **`adaptive-evidence-complete.tar.gz`**, was also
+verified locally before deletion: **1,737,457,063 B**, **724 entries**, SHA-256
+`fb10633a24821e519d40b7aa10e15b0934a43bf4bdb4dbf76eeb241068d92969`.
+The earlier `adaptive-evidence.tar.gz` transfer was partial; it is not the verified archive.
 Private `metadata.tgz` SHA-256:
 `7fcd19daeed18ba0246f83a4d1b5409639849705fbf3abcbbe254b7d629fc60c`;
 private `final-metadata.tgz` SHA-256:
 `7c4e1640e72ad0512fdd2a86d63372ed4b8899b403f630e175816967f5728750`.
 These archive attestations are separate from the publisher's metadata-only projections;
 publication did not reload their tensors or rerun GPU work, tests, lint, or builds.
+
+## Rental closeout and posted charges
+
+After both complete tensor archives were hash-matched locally, the integration owner
+explicitly ran **`vastai destroy instance 58293613 --raw --yes`**. At
+**2026-10-29T20:19:30.040875+00:00**, the API returned **`instances: null`** and the
+instance was absent from the listing. This is the absence-check time, not an exact
+deletion-completion timestamp. An earlier destroy attempt without `--yes` aborted and
+had no effect; its return code 0 is not evidence of successful deletion.
+
+At **2026-10-29T20:19:33.358764+00:00**, instance-scoped **posted** charges were GPU
+**$0.700** (1.313 h at $0.5333/h) and storage **$0.066** (1.339 h at $0.0493/h), total
+**$0.766**. These are the posted invoice amounts, not calculations from rounded durations
+or the offer rate. **Immediate post-deletion billing can lag; this is not a final-bill
+claim.** Adding the prior A3 sessions' $1.290 gives **$2.056 posted**, leaving **$7.944**
+of the $10 budget on that posted basis. Provenance retains hashes and whitelisted values
+from private `confirm-gone.json`, `billing-posted.json` and the aborted first response;
+the API/billing snapshots and unrelated instance IDs are not published.

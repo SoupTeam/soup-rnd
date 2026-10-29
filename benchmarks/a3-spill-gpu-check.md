@@ -713,3 +713,23 @@ wrapper behavior/source hashes and retained initial-export archive hash.
 
 No automatic product cutover, generalized L2L/GA parity, model-quality claim, or change to
 the historical spill verdict follows from this investigation.
+
+### 13.4 Verified exports, deletion and posted charges
+
+The integration owner verified both complete archives locally before deleting the VM:
+initial **3,910,733,600 B / 1,599 entries**, SHA-256
+`1f765ff706a904fdfc4fdc16909ce73b9f12c2eab75a92dad03cca988d346a39`; adaptive
+**1,737,457,063 B / 724 entries**, SHA-256
+`fb10633a24821e519d40b7aa10e15b0934a43bf4bdb4dbf76eeb241068d92969`.
+The adaptive hash belongs to `adaptive-evidence-complete.tar.gz`, not the earlier partial
+transfer. Explicit `vastai destroy instance 58293613 --raw --yes` followed verification;
+at **2026-10-29T20:19:30.040875+00:00**, the API returned `instances: null` and the
+instance was absent from the listing. This is confirmation time, not an exact deletion
+completion time. The earlier no-`--yes` attempt aborted and had no effect.
+
+Instance-scoped posted charges at **2026-10-29T20:19:33.358764+00:00** were GPU **$0.700**
+(1.313 h at $0.5333/h), storage **$0.066** (1.339 h at $0.0493/h), total **$0.766**.
+These immediate post-deletion charges **may lag and are not claimed final**. Prior A3
+sessions $1.290 plus this posted amount = **$2.056**, leaving **$7.944** of $10 on the
+posted basis. The new provenance retains private closeout-source hashes and scoped values;
+raw API/billing snapshots are not published.
