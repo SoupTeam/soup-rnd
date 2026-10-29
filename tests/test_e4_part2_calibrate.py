@@ -391,6 +391,7 @@ class TestTheRealPathRequiresTheIdentity:
 
         monkeypatch.setattr(cal, "execute_attempt", spy)
         monkeypatch.setattr(common, "require_single_gpu", lambda _i: None)
+        tests.e4_part2_support.stub_pynvml(monkeypatch)
         monkeypatch.setattr(cal, "resolve_device", lambda _d, _i: "cuda:0")
         import torch
 
