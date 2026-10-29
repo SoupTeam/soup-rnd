@@ -28,3 +28,17 @@ ruff check src/soup_cli/ tests/  # Lint — must be clean before any commit
 - **Feature reference** lives in [`docs/`](docs/README.md) — per-topic guides plus the full `soup` command list ([`docs/commands.md`](docs/commands.md)). Read the relevant page before changing a feature.
 - **Contribution workflow, project structure, and architecture notes** are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Read it before making non-trivial changes.
 - The Pydantic config schema in [`src/soup_cli/config/schema.py`](src/soup_cli/config/schema.py) is the single source of truth for every config field.
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown under `.scratch/<feature>/` (GitHub Issues are disabled for this repo). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
