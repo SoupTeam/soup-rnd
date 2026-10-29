@@ -1,0 +1,169 @@
+{
+ "data_kind": "synthetic",
+ "model": "mistralai/Mistral-7B-v0.1",
+ "quant": "nf4",
+ "command": [
+  "/root/soup/.venv/bin/python",
+  "/root/diag_nocustom.py",
+  "--out",
+  "/root/runs/mistral7b-02-nocustom"
+ ],
+ "env": {
+  "packages": {
+   "torch": "2.14.1+cu130",
+   "transformers": "5.19.0",
+   "peft": "0.21.2",
+   "trl": null,
+   "accelerate": "1.15.0",
+   "bitsandbytes": "0.50.2",
+   "numpy": "2.4.6",
+   "psutil": "7.2.2"
+  },
+  "python": "3.12.3",
+  "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "gpu_facts": {
+   "gpu": "NVIDIA GeForce RTX 3060",
+   "torch": "2.14.1+cu130",
+   "vram_total_gb": 12.49,
+   "soup_cli_file": "/root/soup/src/soup_cli/__init__.py",
+   "driver": "595.104.02",
+   "pcie_gen": "3",
+   "pcie_width": "16"
+  }
+ },
+ "deterministic": {
+  "CUBLAS_WORKSPACE_CONFIG": ":4096:8",
+  "algorithms": "strict (warn_only off)",
+  "attn_implementation": "sdpa"
+ },
+ "sdpa": {
+  "pinned": "MATH",
+  "probe": {
+   "MATH": {
+    "ok": true,
+    "backward_repeatable": true,
+    "error": null
+   },
+   "FLASH_ATTENTION": {
+    "ok": false,
+    "backward_repeatable": null,
+    "error": "RuntimeError: No available kernel. Aborting execution."
+   },
+   "EFFICIENT_ATTENTION": {
+    "ok": true,
+    "backward_repeatable": true,
+    "error": null
+   },
+   "CUDNN_ATTENTION": {
+    "ok": false,
+    "backward_repeatable": null,
+    "error": "RuntimeError: No available kernel. Aborting execution."
+   }
+  }
+ },
+ "gemm_paths": {
+  "ga1": {},
+  "ga2": {},
+  "l2l": {},
+  "match": true,
+  "a_vs_a_match": true
+ },
+ "ram_plan": {
+  "n_layers": 32,
+  "hidden": 4096,
+  "k": 4,
+  "batch": 1,
+  "seq": 256,
+  "chunk_bytes": 2097152,
+  "block_bytes": 2097152,
+  "cache_bytes": 268435456,
+  "need_free_for_cache": 383479222.85714287,
+  "weights_bytes": 4124704768.0,
+  "workspace_bytes": 1000000000,
+  "need_total": 5508183990.857142
+ },
+ "verdict": {
+  "a_vs_a": {
+   "grads_equal": true,
+   "losses_equal": true,
+   "rates_equal": true,
+   "steps_equal": true,
+   "steps": [
+    3,
+    3
+   ],
+   "max_abs": 0.0,
+   "worst": [],
+   "equal": true
+  },
+  "l2l_vs_ga": {
+   "grads_equal": false,
+   "losses_equal": false,
+   "rates_equal": true,
+   "steps_equal": true,
+   "steps": [
+    3,
+    3
+   ],
+   "max_abs": 0.3359375,
+   "worst": [
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.3359375
+    },
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.21875
+    },
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.20361328125
+    },
+    {
+     "step": 0,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.1875
+    },
+    {
+     "step": 1,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.1741943359375
+    }
+   ],
+   "equal": false
+  },
+  "pass": false,
+  "note": "L2L differs from GA in grads_equal, losses_equal; largest gradient gap 0.335938; worst [{'step': 2, 'name': 'base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight', 'max_abs': 0.3359375}, {'step': 2, 'name': 'base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight', 'max_abs': 0.21875}, {'step': 2, 'name': 'base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight', 'max_abs': 0.20361328125}]",
+  "status": "l2l_differs"
+ },
+ "aliasing": {
+  "pass": true,
+  "status": "neutralized",
+  "by_m": {
+   "64": {
+    "shipped_max_abs": 0.0,
+    "raw_max_abs": 107.25,
+    "status": "neutralized",
+    "pass": true,
+    "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"
+   },
+   "256": {
+    "shipped_max_abs": 0.0,
+    "raw_max_abs": 64.9375,
+    "status": "neutralized",
+    "pass": true,
+    "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"
+   }
+  },
+  "dim": 4096,
+  "n_layers": 8,
+  "slots": 2
+ },
+ "k": 4,
+ "rows": 10,
+ "seq": 256
+}

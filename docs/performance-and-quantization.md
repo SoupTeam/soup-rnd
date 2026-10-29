@@ -434,12 +434,12 @@ soup train --config soup.yaml
 **How it works.** LoRA adapters + their gradients + optimizer state stay resident in VRAM (they are small). The frozen base lives in CPU RAM, page-locked when the machine allows it, and is streamed: each decoder layer is copied into one of two pre-allocated VRAM buffers on a dedicated CUDA stream while the previous layer is still computing, so the load overlaps the compute. Vocabulary-sized `embed_tokens` and an untied `lm_head` use one additional shared slot: the embedding is loaded for the model input, then the same allocation is reused for the output head, whose copy is issued right after the embedding lookup (`StreamPrefetcher.head_prefetch_layer`, default `0`) rather than at the last decoder layer, and the embedding is reloaded into it at the tail of that step's backward pass so the copy overlaps the remaining compute instead of blocking the next step's first lookup. Each decoder layer is read **twice** per step — once in the forward pass and once when the backward pass recomputes it — because `dL/dx = Wᵀ · dL/dy` needs the weights to reach the layers below. That is physics, not an implementation detail, and it is why streaming costs time.
 
 **Container RAM.** The RAM/disk preflight uses the smaller of host memory and
-visible cgroup allocation budgets on standard Linux cgroup v1/v2 mounts,
-including visible ancestor constraints. A positive protected reservation
-(`memory.low`/`memory.min`, or v1 `memory.soft_limit_in_bytes`) supplies the
-baseline budget, bounded by the hard limit. Memory above that reservation may
-be usable as a burst, but the planner conservatively avoids requiring it;
-the reservation itself is not a kernel hard limit.
+visible cgroup hard limits on standard Linux cgroup v1/v2 mounts,
+including visible ancestor constraints. Reclaim protection (`memory.low`,
+`memory.min`, or v1 `memory.soft_limit_in_bytes`) does not reduce the default
+capacity. A provider integration may explicitly opt into its reservation-budget
+policy with `cgroup_memory_bounds(use_protection_budget=True)`; that budget is
+still bounded by hard limits and is not itself a kernel hard limit.
 Available container memory includes clean file-LRU cache, including recently
 active checkpoint pages, bounded by the host's own available-memory estimate.
 Shared, dirty/writeback and anonymous pages are not added back as free cache;
@@ -447,7 +447,7 @@ a known limit with unreadable usage supplies no free headroom. This lets
 `stream_source: auto` choose NVMe when the real container allocation cannot
 safely hold the store. It does not change container limits or the planner's
 safety fractions. Systems without a finite visible cgroup limit retain the
-host measurement when no positive reservation is present either.
+host measurement under the default policy.
 
 **Early adapter memory check.** Before resolving checkpoint weights or preparing
 layer shards, Soup builds a meta model and applies its normal target resolution
@@ -867,21 +867,101 @@ existing configs. Report:
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
 - `task` other than `sft`.
-- `lora.dropout` other than 0. A layer-major pass draws dropout masks in a different order, so the result would differ from accumulation.
 
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
-- `attention_dropout` other than 0 on the model.
 - More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
 - `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
 - Rows with padding before real tokens. L2L needs right-padded rows.
 - `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the replayed draws would differ from accumulation. Use rows of one length or set the dropout to 0.
+- `neftune_alpha` together with `lora.dropout` or `attention_dropout` above 0.
+- `attention_dropout` above 0 with the `sdpa` attention implementation.
 - Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+
+**Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
+attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch
+after micro-batch, layer after layer. L2L cannot visit the layers in that order, so it replays the
+stream: it records which dropouts one layer call draws (shape, strides, dtype, device,
+probability), runs them on zeros in accumulation order to learn the generator state before each
+(micro-batch, layer) pair, and runs every layer call, in the forward and in the recompute, at its
+state. After the step the generators stand where accumulation leaves them. L2L therefore equals an
+unmodified Hugging Face Trainer, with no hooks on the reference side, and the next optimizer step
+starts from the same stream. Checked on CPU with a tiny Llama and LoRA: losses and gradients are
+bit-for-bit equal for k = 1, 2 and 4, two windows in a row stay equal, and a trainer run with
+`lora.dropout` 0.05 at k = 2 gives the same adapters as the plain Trainer. Controls (one shared
+stream, states saved in layer-major order, no state on the recompute, an outer stream left
+untouched) each disagree. On an RTX 3060 (CUDA 13, torch 2.14.1), SmolLM2-135M at dropout 0 and 0.05
+for k = 1, 2 and 4 gave losses, all 240 LoRA gradients and the generator state after the step equal to
+plain accumulation, with the shared-stream and other-seed controls disagreeing
+([`benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md`](../benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md)).
+Not checked: hidden states and logits compared directly, the full `SFTTrainer` path with a real
+collator, NF4, more than one card, and models larger than SmolLM2-135M.
+
+Refused because the stream cannot be replayed: `attention_dropout` above 0 with the `sdpa`
+attention implementation (its mask is drawn inside a fused kernel; load the model with
+`attn_implementation='eager'`), `neftune_alpha` together with dropout (accumulation draws the
+NEFTune noise from the same stream between the layers), and a window of rows with different
+lengths together with dropout (padding changes the shapes of the draws).
 
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
 different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
 each new shape costs one extra forward pass. Speed and memory were not measured, and the check
-used random tokens, not real text. Dropout above 0, MoE and multi-GPU are out of scope.
+used random tokens, not real text. MoE and multi-GPU are out of scope.
+
+**Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
+number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
+window. L2L divides the summed cross-entropy of every micro-batch by that one number, not by
+the token count of each micro-batch, so rows of different lengths and masked prefixes weigh
+the same as in gradient accumulation. A dataset whose size is not a multiple of k ends with a
+shorter window. The loop counts only the micro-batches that window really has, so
+`num_items_in_batch` covers them, the last window is a normal optimizer step with fewer
+micro-batches, and the number of optimizer steps, `l2l_steps` and the learning rate at every
+step equal those of accumulation. Resume from a checkpoint does not shift the windows.
+
+**Mistral-7B NF4.** `Mistral-7B-v0.1` with NF4 weights in RAM, RTX 3060 12 GB, k = 4 against
+`gradient_accumulation_steps: 4`, three optimizer steps on synthetic rows (random tokens, rows
+of different lengths, `-100` labels, a last window of 2 rows). Real data was not run and model
+quality was not measured. Report and raw logs:
+[`benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md`](../benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md).
+
+- Two accumulation runs equal each other bit for bit, so the stand itself is deterministic.
+- L2L and accumulation are **not** bit-identical in bf16. The relative L2 error of the LoRA
+  gradients is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
+  the SDPA backend inside accumulation gives 1.4%, 1.5% and 4.5%, the same order.
+- In fp32 the two agree to 2.1e-6, 3.1e-6 and 8.3e-6 (rounding noise, not bit-equal). The bf16
+  gap is bf16 rounding, not a different computation in the L2L step.
+- The number of steps and the learning rate per step match in both runs.
+- Open: `l2l_weight_restores` stayed 0 on this model (210 on SmolLM2), loads were not
+  compared with k = 1, and the `gemm_4bit` path counter was empty for L2L. L2L made 184 layer
+  loads in 3 steps (about 61 per step, two passes over 32 layers).
+- A tolerance in place of the bit criterion is set in ticket 07 and was not applied to these
+  numbers yet.
+
+**RAM for Mistral-7B NF4.** The NF4 weight store takes about 4.1 GB. The activation cache is
+
+```text
+cache = 32 layers x k x batch x seq x 4096 x 2 bytes
+```
+
+with `seq` rounded up to a multiple of 64 and, on CUDA, each chunk rounded up to a power of
+two. The run needs free RAM of at least `cache / 0.7` after the weight store. For k = 4 the
+cache is 1 GiB at batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq
+2048, so the last one needs about 11.5 GiB free on top of the weights. These figures come
+from the formula, not from a measurement on a loaded host.
+
+**Bit-for-bit equality.** Equal bits against accumulation need all of:
+
+- one card, with the same architecture and SM count in both runs;
+- the same CUDA toolkit and the same `bitsandbytes` version;
+- one fixed SDPA backend in both runs (the stand pins `MATH`; Flash, Efficient and cuDNN
+  backward are not deterministic, and different backends do not agree bit for bit);
+- `CUBLAS_WORKSPACE_CONFIG=:4096:8`, set before torch starts CUDA (it has no effect afterwards);
+- `torch.use_deterministic_algorithms(True)` without `warn_only`.
+
+On SmolLM2-135M this gave equal bits. On Mistral-7B NF4 in bf16 it did not (see above), so
+compare 7B runs with a tolerance. The stand is
+[`benchmarks/harness/l2l_mistral_stand.py`](../benchmarks/harness/l2l_mistral_stand.py).
 
 **Counters.** Each logged training step carries four cumulative fields:
 

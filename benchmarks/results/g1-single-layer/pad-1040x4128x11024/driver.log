@@ -1,0 +1,61 @@
+run 1 arm A (fp4): 0.000247 s, ok
+run 2 arm B (fp4+pad): 0.000263 s, ok
+run 3 arm B (fp4+pad): 0.000263 s, ok
+run 4 arm A (fp4): 0.000242 s, ok
+run 5 arm A (fp4): 0.000248 s, ok
+run 6 arm B (fp4+pad): 0.000264 s, ok
+run 7 arm B (fp4+pad): 0.000262 s, ok
+run 8 arm A (fp4): 0.000244 s, ok
+run 9 arm A (fp4): 0.000245 s, ok
+run 10 arm B (fp4+pad): 0.000264 s, ok
+run 11 arm B (fp4+pad): 0.000263 s, ok
+run 12 arm A (fp4): 0.000243 s, ok
+run 13 arm A (fp4): 0.000244 s, ok
+run 14 arm B (fp4+pad): 0.000266 s, ok
+run 15 arm B (fp4+pad): 0.000265 s, ok
+run 16 arm A (fp4): 0.000246 s, ok
+run 17 arm A (fp4): 0.000246 s, ok
+run 18 arm B (fp4+pad): 0.000263 s, ok
+run 19 arm B (fp4+pad): 0.000265 s, ok
+run 20 arm A (fp4): 0.000245 s, ok
+{
+  "label": "RTX 5090, synthetic (random data, one layer)",
+  "data_kind": "synthetic",
+  "shape": {
+    "tokens": 1040,
+    "in_features": 4128,
+    "out_features": 11024
+  },
+  "valid_blocks": 5,
+  "void_blocks": 0,
+  "arms": {
+    "A": {
+      "path": "fp4",
+      "runs": 10,
+      "mean_seconds": 0.0002450655996799469,
+      "rel_error": 0.14618511497974396,
+      "cosine": 0.9892858862876892
+    },
+    "B": {
+      "path": "fp4+pad",
+      "runs": 10,
+      "mean_seconds": 0.00026377120018005373,
+      "rel_error": 0.14618511497974396,
+      "cosine": 0.9892858862876892
+    }
+  },
+  "padding_to_128": [
+    {
+      "padded": {
+        "tokens": 1152,
+        "in_features": 4224,
+        "out_features": 11136
+      },
+      "flop_overhead": 0.1449680774553357,
+      "weight_overhead": 0.03365173659162246
+    }
+  ],
+  "sigma": 1.5103621555414294e-06,
+  "blocks_needed": 2,
+  "valid_block_count": 5
+}

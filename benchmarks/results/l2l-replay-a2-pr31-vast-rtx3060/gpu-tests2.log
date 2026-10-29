@@ -1,0 +1,22 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.7.0 -- /root/soup/.venv/bin/python
+rootdir: /root/soup
+configfile: pyproject.toml
+plugins: anyio-4.15.1
+collecting ... collected 13 items
+
+tests/test_l2l_rng_cuda.py::test_cpu_and_cuda_state_are_set_from_the_snapshot_and_restored_apart PASSED [  7%]
+tests/test_l2l_rng_cuda.py::test_replay_moves_the_cuda_offset_like_the_native_dropout PASSED [ 15%]
+tests/test_l2l_rng_cuda.py::test_a_state_restores_the_second_card_too SKIPPED [ 23%]
+tests/test_l2l_rng_cuda.py::test_l2l_equals_accumulation_on_cuda[1-0.0] PASSED [ 30%]
+tests/test_l2l_rng_cuda.py::test_l2l_equals_accumulation_on_cuda[1-0.05] PASSED [ 38%]
+tests/test_l2l_rng_cuda.py::test_l2l_equals_accumulation_on_cuda[2-0.0] PASSED [ 46%]
+tests/test_l2l_rng_cuda.py::test_l2l_equals_accumulation_on_cuda[2-0.05] PASSED [ 53%]
+tests/test_l2l_rng_cuda.py::test_l2l_equals_accumulation_on_cuda[4-0.0] PASSED [ 61%]
+tests/test_l2l_rng_cuda.py::test_l2l_equals_accumulation_on_cuda[4-0.05] PASSED [ 69%]
+tests/test_l2l_rng_cuda.py::test_two_windows_in_a_row_equal_accumulation_on_cuda PASSED [ 76%]
+tests/test_l2l_rng_cuda.py::test_dropout_changes_the_gradients_on_cuda PASSED [ 84%]
+tests/test_l2l_rng_cuda.py::test_same_seed_repeats_and_another_seed_differs_on_cuda PASSED [ 92%]
+tests/test_l2l_rng_cuda.py::test_one_shared_stream_disagrees_with_accumulation_on_cuda PASSED [100%]
+
+======================== 12 passed, 1 skipped in 13.70s ========================
