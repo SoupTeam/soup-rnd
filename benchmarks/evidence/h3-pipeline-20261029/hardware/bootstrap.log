@@ -1,0 +1,210 @@
++ cd /workspace/h3-pp-soup
++ git fetch --depth=1 origin 55f675e17a20812d548054956d5af7edc7815d09
+From https://github.com/SoupTeam/soup-rnd
+ * branch            55f675e17a20812d548054956d5af7edc7815d09 -> FETCH_HEAD
++ git checkout --detach 55f675e17a20812d548054956d5af7edc7815d09
+HEAD is now at 55f675e fix(bench): launch pipeline ranks with the active Python
+++ git status --porcelain
++ test -z ''
++ source /workspace/h3-pp-venv/bin/activate
+++ deactivate nondestructive
+++ '[' -n '' ']'
+++ '[' -n '' ']'
+++ hash -r
+++ '[' -n '' ']'
+++ unset VIRTUAL_ENV
+++ unset VIRTUAL_ENV_PROMPT
+++ '[' '!' nondestructive = nondestructive ']'
+++ '[' linux-gnu = cygwin ']'
+++ '[' linux-gnu = msys ']'
+++ export VIRTUAL_ENV=/workspace/h3-pp-venv
+++ VIRTUAL_ENV=/workspace/h3-pp-venv
+++ _OLD_VIRTUAL_PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ PATH=/workspace/h3-pp-venv/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ export PATH
+++ '[' -n '' ']'
+++ '[' -z '' ']'
+++ _OLD_VIRTUAL_PS1=
+++ PS1='(h3-pp-venv) '
+++ export PS1
+++ VIRTUAL_ENV_PROMPT='(h3-pp-venv) '
+++ export VIRTUAL_ENV_PROMPT
+++ hash -r
++ python -m pip check
+No broken requirements found.
++ timeout 1400 bash benchmarks/h3-pipeline-linux.sh /workspace/h3-pp-fixed-output
++ export OMP_NUM_THREADS=2
++ OMP_NUM_THREADS=2
++ export PYTHONPATH=/workspace/h3-pp-soup/src
++ PYTHONPATH=/workspace/h3-pp-soup/src
++ export CUBLAS_WORKSPACE_CONFIG=:4096:8
++ CUBLAS_WORKSPACE_CONFIG=:4096:8
++ git rev-parse HEAD
+++ git status --porcelain
++ test -z ''
++ python -m pip check
+No broken requirements found.
++ python -
++ python -m pip freeze
++ nvidia-smi -q
++ nvidia-smi topo -m
++ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py prepare --prepared /workspace/h3-pp-fixed-output/prepared
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 1214.04it/s]
+Prepared pipeline experiment: /workspace/h3-pp-fixed-output/prepared
++ for repeat in 1 2
++ output=/workspace/h3-pp-fixed-output/repeat-1
++ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py launch --prepared /workspace/h3-pp-fixed-output/prepared --output /workspace/h3-pp-fixed-output/repeat-1 --device cuda --steps 4
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 1/290 [00:00<01:34,  3.06it/s]Loading weights:  72%|███████▏  | 208/290 [00:00<00:00, 620.90it/s]Loading weights:   0%|          | 1/290 [00:00<02:12,  2.18it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 603.52it/s]
+Loading weights: 100%|██████████| 290/290 [00:00<00:00, 614.73it/s]
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
+[rank0]:[W1029 07:06:49.113617785 ProcessGroupNCCL.cpp:5276] Guessing device ID based on global rank. This can cause a hang if rank to GPU mapping is heterogeneous. You can specify device_id in init_process_group()
+[rank1]:[W1029 07:06:50.250696070 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[rank0]:[W1029 07:06:50.250939970 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[rank1]:[W1029 07:06:50.298332662 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[rank0]:[W1029 07:06:50.299017012 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
++ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py reload --prepared /workspace/h3-pp-fixed-output/prepared --output /workspace/h3-pp-fixed-output/repeat-1 --device cuda
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 1/290 [00:00<01:04,  4.48it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 1107.03it/s]
+Separate-process adapter reload passed: /workspace/h3-pp-fixed-output/repeat-1
++ tar -C /workspace/h3-pp-fixed-output/repeat-1 -czf /workspace/h3-pp-fixed-output/repeat-1.tar.gz.partial .
++ mv /workspace/h3-pp-fixed-output/repeat-1.tar.gz.partial /workspace/h3-pp-fixed-output/repeat-1.tar.gz
++ sha256sum /workspace/h3-pp-fixed-output/repeat-1.tar.gz
++ receipt=/workspace/h3-pp-fixed-output/repeat-1.received.json
++ deadline=223
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-1.received.json ]]
++ python - /workspace/h3-pp-fixed-output/repeat-1.sha256 /workspace/h3-pp-fixed-output/repeat-1.received.json
++ for repeat in 1 2
++ output=/workspace/h3-pp-fixed-output/repeat-2
++ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py launch --prepared /workspace/h3-pp-fixed-output/prepared --output /workspace/h3-pp-fixed-output/repeat-2 --device cuda --steps 4
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 1/290 [00:00<01:23,  3.47it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 820.26it/s]
+Loading weights:   0%|          | 1/290 [00:00<01:24,  3.44it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 889.84it/s]
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
+[rank0]:[W1029 07:07:57.068875668 ProcessGroupNCCL.cpp:5276] Guessing device ID based on global rank. This can cause a hang if rank to GPU mapping is heterogeneous. You can specify device_id in init_process_group()
+[rank1]:[W1029 07:07:59.502472279 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[rank0]:[W1029 07:07:59.502626469 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[rank1]:[W1029 07:07:59.546823986 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[rank0]:[W1029 07:07:59.546966827 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
++ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py reload --prepared /workspace/h3-pp-fixed-output/prepared --output /workspace/h3-pp-fixed-output/repeat-2 --device cuda
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 1/290 [00:00<00:59,  4.89it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 1215.23it/s]
+Separate-process adapter reload passed: /workspace/h3-pp-fixed-output/repeat-2
++ tar -C /workspace/h3-pp-fixed-output/repeat-2 -czf /workspace/h3-pp-fixed-output/repeat-2.tar.gz.partial .
++ mv /workspace/h3-pp-fixed-output/repeat-2.tar.gz.partial /workspace/h3-pp-fixed-output/repeat-2.tar.gz
++ sha256sum /workspace/h3-pp-fixed-output/repeat-2.tar.gz
++ receipt=/workspace/h3-pp-fixed-output/repeat-2.received.json
++ deadline=292
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ ((  SECONDS < deadline  ))
++ sleep 2
++ [[ -f /workspace/h3-pp-fixed-output/repeat-2.received.json ]]
++ python - /workspace/h3-pp-fixed-output/repeat-2.sha256 /workspace/h3-pp-fixed-output/repeat-2.received.json
++ tar -C /workspace/h3-pp-fixed-output -czf /workspace/h3-pp-fixed-output/metadata.tar.gz.partial prepared source-commit.txt pip-freeze.txt nvidia-smi.txt topology.txt
++ mv /workspace/h3-pp-fixed-output/metadata.tar.gz.partial /workspace/h3-pp-fixed-output/metadata.tar.gz
++ sha256sum /workspace/h3-pp-fixed-output/metadata.tar.gz
++ touch /workspace/h3-pp-fixed-output/campaign.completed
++ set +x
++ finish
++ code=0
++ printf '%s\n' 0
++ printf '%s\n' 0
++ cp /tmp/h3-pp-fixed-run.sh /workspace/h3-pp-fixed-support/run.sh.capture.txt
++ cp /workspace/h3-pp-support/gpu-preflight-rank-0.json /workspace/h3-pp-support/gpu-preflight-rank-1.json /workspace/h3-pp-fixed-support/
++ cp /workspace/h3-pp-support/transfer-preflight.json /workspace/h3-pp-fixed-support/
++ cp /workspace/h3-pp-support/cpu.txt /workspace/h3-pp-support/host-memory.txt /workspace/h3-pp-fixed-support/
++ tar -C /workspace/h3-pp-fixed-support -czf /workspace/h3-pp-fixed-support.tar.gz .
++ sha256sum /workspace/h3-pp-fixed-support.tar.gz
++ test 0 '!=' 0

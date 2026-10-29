@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SUPPORT=/workspace/h3-pp-fixed-support
+OUT=/workspace/h3-pp-fixed-output
+mkdir -p "$SUPPORT"
+exec > >(tee "$SUPPORT/bootstrap.log") 2>&1
+finish() {
+  code=$?
+  printf '%s\n' "$code" > /tmp/h3-pp-fixed.exit
+  printf '%s\n' "$code" > "$SUPPORT/exit-code.txt"
+  cp /tmp/h3-pp-fixed-run.sh "$SUPPORT/run.sh.capture.txt"
+  cp /workspace/h3-pp-support/gpu-preflight-rank-*.json "$SUPPORT/"
+  cp /workspace/h3-pp-support/transfer-preflight.json "$SUPPORT/"
+  cp /workspace/h3-pp-support/cpu.txt /workspace/h3-pp-support/host-memory.txt "$SUPPORT/"
+  tar -C "$SUPPORT" -czf /workspace/h3-pp-fixed-support.tar.gz . || true
+  sha256sum /workspace/h3-pp-fixed-support.tar.gz > /workspace/h3-pp-fixed-support.sha256
+  if test "$code" != 0 && test -d "$OUT"; then
+    tar --exclude='*.tar.gz*' -C "$OUT" -czf /workspace/h3-pp-fixed-diagnostics.tar.gz . || true
+    sha256sum /workspace/h3-pp-fixed-diagnostics.tar.gz > /workspace/h3-pp-fixed-diagnostics.sha256
+  fi
+}
+trap finish EXIT
+set -x
+cd /workspace/h3-pp-soup
+git fetch --depth=1 origin 55f675e17a20812d548054956d5af7edc7815d09
+git checkout --detach 55f675e17a20812d548054956d5af7edc7815d09
+test -z "$(git status --porcelain)"
+source /workspace/h3-pp-venv/bin/activate
+python -m pip check
+timeout 1400 bash benchmarks/h3-pipeline-linux.sh "$OUT"

@@ -1322,9 +1322,11 @@ The separate [H3 two-stage pipeline experiment](../benchmarks/h3-pipeline-protoc
 uses an explicit native `torch.distributed.pipelining` harness for Qwen2 + LoRA.
 It checks microbatch/gradient accumulation against ordinary training and merges
 stage adapters for separate-process reload. This research recipe does not change
-the CLI route above. Its GPU pilot is pending budget approval; CPU fixture
-results and the [H3 acceptance map](../benchmarks/h3-acceptance-20261029.md)
-are labelled separately from earlier hardware measurements.
+the CLI route above. The [GPU result](../benchmarks/h3-pipeline-result-20261029.md)
+records two passing four-step runs on two RTX 3090s, strict ordinary-control
+gradient/update checks and two zero-error adapter reloads. CPU fixtures and the
+[H3 acceptance map](../benchmarks/h3-acceptance-20261029.md) remain separately
+labelled; no pipeline throughput or general CLI support is claimed.
 
 
 ## Performance + Long-Context

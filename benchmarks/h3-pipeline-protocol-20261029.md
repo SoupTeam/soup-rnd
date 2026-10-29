@@ -117,7 +117,11 @@ training algorithm, inputs and numerical tolerances are unchanged. The failed
 capture is retained separately; a new clean source revision and output directory
 are required for the subsequent attempt. The original rental deadline remains.
 
-## Proposed budget and stop rules (approval pending)
+## Original budget proposal and stop rules
+
+The following is the pre-rental proposal. Subsequent authorization, failed
+preparation, comparable replacement, measured results and final cost/cleanup
+are recorded in the [result report](h3-pipeline-result-20261029.md).
 
 A read-only Vast.ai search found offer55801599, machine48612, North Macedonia,
 2xRTX3090, Threadripper3960X, 64GB allocated RAM, reliability0.99018. Quoted
@@ -134,9 +138,9 @@ instances or use them as replacements.
 The refreshed provider snapshot still reports$2.348 for the seven prior task
 rentals (no further pages). Keeping the earlier conservative$2.60 upper estimate
 and reserving$1 for this pilot gives **$3.60 cumulative**, within the prior$4 cap.
-The user has explicitly requested approval before this new rental, so none is
-started. [Offer/charge arithmetic](evidence/h3-pipeline-20261029/local/budget-proposal.json)
-is a snapshot, not a final invoice. A replacement offer must remain below
+At proposal time no rental had started; the user then explicitly approved the
+limit. [Original offer/charge arithmetic](evidence/h3-pipeline-20261029/local/budget-proposal.json)
+is a historical snapshot, not a final invoice. A replacement offer must remain below
 $0.60/hour including30GB storage and avoid every existing machine.
 
 - Preflight a4MiB binary upload/download with SHA before training. Abort a
