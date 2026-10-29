@@ -1,0 +1,78 @@
+{
+  "stage_id": "soup-memory-impact-20261023",
+  "maximum_total_usd": 10,
+  "prior_remainder_added": false,
+  "source_base": "f8833454c9a7e60af5c7d4b038600616f8979b25",
+  "scope": "native persistent decoder slots and measured automatic capacity selection; no independent full Alpamys replication",
+  "model": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "quantization": "none",
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "context": 1024,
+  "gradient_accumulation_steps": 2,
+  "seed": 792,
+  "adapter_init_cpu_generator_seed": 123,
+  "lora_rank": 4,
+  "lora_alpha": 4,
+  "lora_dropout": 0,
+  "target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "arms": [
+    {
+      "name": "baseline",
+      "stream_resident_layers": 0
+    },
+    {
+      "name": "auto",
+      "stream_resident_layers": "auto"
+    }
+  ],
+  "accuracy": {
+    "rtol": 0.01,
+    "atol": 1e-05,
+    "reference_first": true,
+    "loss_decimals": 3,
+    "require_finite": true,
+    "require_exact_inputs_and_initial_adapters": true,
+    "captures": [
+      "logits",
+      "loss",
+      "pre_reset_gradients",
+      "updated_adapters"
+    ],
+    "causal_and_padding_negative_controls": true,
+    "accuracy_before_timing": true
+  },
+  "timing": {
+    "fresh_process_pairs": [
+      "AB",
+      "BA",
+      "BA",
+      "AB"
+    ],
+    "warmup_updates": 6,
+    "measured_updates": 8,
+    "total_updates_each_process": 14,
+    "final_losses_and_adapters_checked": true,
+    "minimum_median_time_reduction_percent": 2,
+    "minimum_positive_pair_fraction": 0.75,
+    "bootstrap_samples": 20000,
+    "bootstrap_seed": 792,
+    "minimum_bootstrap_95_lower_percent": 0,
+    "setup_and_planner_time_reported_separately": true,
+    "no_compile_liger_external_flash": true
+  },
+  "optional_14b": "only after verified 8B accuracy/speed/raw retention and >=3USD remaining, with separate same-model comparison",
+  "storage": "RAM tier; do not claim SSD performance from this workload",
+  "retention": "exact tensors/full loss trajectories; SHA256 verified lossless transfer and ACK before source cleanup",
+  "cleanup": "exact owned instance deletion and independent account API absence confirmation",
+  "capacity_not_speed_optimality": "auto chooses conservative measured capacity, not a global time-optimal allocation"
+}

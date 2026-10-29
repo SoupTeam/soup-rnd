@@ -1,0 +1,42 @@
+"""Replay retained F traces independently, without allocating full logits."""
+import importlib.util
+import json
+from pathlib import Path
+
+import torch
+from rich.console import Console
+
+ROOT = Path(__file__).parent
+spec = importlib.util.spec_from_file_location(
+    'replay', ROOT.parents[1] / 'benchmarks/stream8-compile-20261022-resume/compare_streamed.py'
+)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+torch.set_num_threads(2)
+base = ROOT / 'bundles/f-accuracy-8/retained/results/model-8'
+report = {'receipt': json.loads((ROOT / 'bundle-f-accuracy-8-verified.json').read_text()),
+          'comparisons': {}, 'finite_self_checks': {}}
+for candidate in ['resident', 'resident_compile', 'resident_compile_precise']:
+    result = module.compare(base / 'capture-baseline/trace.safetensors',
+                            base / f'capture-{candidate}/trace.safetensors')
+    report['comparisons'][candidate] = result
+    # Self comparison also explicitly verifies every element is finite.
+    finite = module.compare(base / f'capture-{candidate}/trace.safetensors',
+                            base / f'capture-{candidate}/trace.safetensors')
+    assert finite['passed'] and finite['bitwise_equal']
+    report['finite_self_checks'][candidate] = finite
+    Console().print(candidate, {k: r['failed_tensors'] for k, r in result['groups'].items()})
+report['semantics'] = module.compare(base / 'semantics-baseline/trace.safetensors',
+                                     base / 'semantics-resident/trace.safetensors')
+assert report['comparisons']['resident']['bitwise_equal']
+assert report['semantics']['bitwise_equal']
+for candidate, gradients in [('resident_compile', 694), ('resident_compile_precise', 656)]:
+    result = report['comparisons'][candidate]
+    assert not result['passed'] and not result['loss_three_decimals']
+    assert result['groups']['final']['failed_tensors'] == 504
+    assert result['groups']['gradient']['failed_tensors'] == gradients
+    assert result['groups']['logits']['failed_tensors'] == 4
+(ROOT / 'f-accuracy-independent-replay.json').write_text(
+    json.dumps(report, indent=2) + '\n', encoding='utf-8'
+)
+Console().print('All independent replay checks matched original GPU gates.')

@@ -1,0 +1,2842 @@
+{
+  "study": "nf4-ssd-32b-20261024",
+  "success": false,
+  "status": "FAILED",
+  "worker_summary": {
+    "status": "FAILED",
+    "cohorts": {},
+    "stages": [
+      {
+        "name": "cuda-source-controls",
+        "exit_code": 0,
+        "seconds": 9.226094245910645,
+        "started_unix": 1792856216.4787154
+      },
+      {
+        "name": "prepare-nf4-disk",
+        "exit_code": 0,
+        "seconds": 359.85005164146423,
+        "started_unix": 1792856247.823722
+      },
+      {
+        "name": "capacity-512-vram",
+        "exit_code": 0,
+        "seconds": 72.38913893699646,
+        "started_unix": 1792856629.700952
+      },
+      {
+        "name": "capacity-512-14336-both",
+        "exit_code": 1,
+        "seconds": 52.10065197944641,
+        "started_unix": 1792856755.3912127
+      }
+    ],
+    "bundles": [
+      {
+        "name": "sweep-joint-cuda-source-controls",
+        "bytes": 6563840
+      },
+      {
+        "name": "sweep-joint-prepared",
+        "bytes": 102400
+      },
+      {
+        "name": "sweep-joint-capacity-512-vram",
+        "bytes": 51435520
+      },
+      {
+        "name": "sweep-joint-capacity-512-14336-both",
+        "bytes": 61440
+      },
+      {
+        "name": "final",
+        "bytes": 30720
+      }
+    ],
+    "funding": "Combined authorization; preceding 4B and 32B RAM-source attempts included once",
+    "source_sha256": "761f1cae8428d0934b187da0d11da6364e89d7ff4d9ade1a82a6eef8a35e7361",
+    "last_admission": {
+      "admitted": true,
+      "estimated_total_usd": 4.017541590202982,
+      "remaining_seconds": 20693.795791387558,
+      "required_seconds": 2365.193134636897,
+      "encoded_bytes_forecast": 1073741824,
+      "raw_bytes_forecast": 2147483648,
+      "local_free_bytes": 54295121920,
+      "donor_savings_assumed": false,
+      "remote_free_bytes": 86909911040
+    },
+    "current_stage": "capacity-512-14336-both",
+    "capacity_trials": [
+      {
+        "context": 512,
+        "arm": "vram",
+        "provenance": {
+          "status": "COMPLETED_NOT_AN_INDEPENDENT_VERDICT",
+          "arm": "baseline",
+          "capacity_only": true,
+          "capacity_failure": null,
+          "requested_resident_layers": "auto",
+          "entry_sha256": "a805881599de7edd72e0f5c96f10e379ca0aae792418abeafca4afd73588b388",
+          "pid": 3213,
+          "torch": "2.8.0+cu128",
+          "affinity": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "config_sha256": "09c8f60362ccc4def1818915d4e4e861893f7c6a3a513ce5e5c1b95b2c116018",
+          "prepared": {
+            "status": "PREPARED_CACHE_NOT_A_TRAINING_VERDICT",
+            "model_id": "Qwen/Qwen3-32B",
+            "revision": "9216db5781bf21249d130ec9da846c4624c16137",
+            "size_b": 32,
+            "base_path": "/root/liger/model-32",
+            "quant": "nf4",
+            "source": "disk",
+            "cache_root": "/data/soup-shards-nf4",
+            "shard_dir": "/data/soup-shards-nf4/root__liger__model-32",
+            "config_sha256": "09c8f60362ccc4def1818915d4e4e861893f7c6a3a513ce5e5c1b95b2c116018",
+            "data_sha256": "c017bc3aa232448b410f55ea883f6b7bda09c48c6e49069cc1ba3b1a1daccdd6",
+            "data_path": "/root/liger/train.jsonl",
+            "snapshot_manifest_sha256": "41819258f363d7d81970051629dadf09a045bfebc45c046e37f6a6f0cb49579e",
+            "shard_quantization": "nf4",
+            "double_quant": true,
+            "quant_device": "cuda",
+            "quant_specs": {
+              "mlp.down_proj.weight": {
+                "shape": [
+                  5120,
+                  25600
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "mlp.gate_proj.weight": {
+                "shape": [
+                  25600,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "mlp.up_proj.weight": {
+                "shape": [
+                  25600,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.k_proj.weight": {
+                "shape": [
+                  1024,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.o_proj.weight": {
+                "shape": [
+                  5120,
+                  8192
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.q_proj.weight": {
+                "shape": [
+                  8192,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.v_proj.weight": {
+                "shape": [
+                  1024,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              }
+            },
+            "device_budget": {
+              "physical_gpu_bytes": 8186822656,
+              "initial_device_free_bytes": 8051425280,
+              "initial_reserved_bytes": 0,
+              "allocator_budget_bytes": 7917207552,
+              "device_reserve_bytes": 268435456,
+              "minimum_device_free_bytes": 134217728
+            },
+            "source_info": {
+              "class": "AsyncDiskSource",
+              "tier": "disk",
+              "direct_io": true,
+              "direct_io_roots": {}
+            },
+            "preparation_peak_allocated_bytes": 2227275264,
+            "preparation_peak_reserved_bytes": 2256535552,
+            "shard_files": {
+              "extras.safetensors": {
+                "bytes": 11560,
+                "mtime_ns": 1792856590829958267,
+                "sha256": "2e133165ade5d59a626f4aa8cc3fd80b17d09f6a6941569db3fb3bc2898d4b85"
+              },
+              "index.json": {
+                "bytes": 5082,
+                "mtime_ns": 1792856590892957257,
+                "sha256": "c4acf7ed1292d1652ff643967bdc884babffd50050d119ed8e11e2ef0a1d1491"
+              },
+              "large_embed_tokens.safetensors": {
+                "bytes": 1555824752,
+                "mtime_ns": 1792856588889989347,
+                "sha256": "a0915e898a17f315355f430e1aa7f5bbc9a713ba15f7d718b8e7625e2a7b440e"
+              },
+              "large_lm_head.safetensors": {
+                "bytes": 1555824736,
+                "mtime_ns": 1792856590388965336,
+                "sha256": "f3ae0cf6041aefde6d263aea4ef51f54f66033078349dd394852beb663f41c0a"
+              },
+              "layer_000.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856550126600791,
+                "sha256": "bbaf90f660de40ac541aea1e98dc12226016c5cf8f521bf165f66c54d66f24cd"
+              },
+              "layer_001.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856550620593116,
+                "sha256": "3354101c0f44da79ac8b3c811376dc4ee5cb802c3afb1f1b080a5a45d63bfab1"
+              },
+              "layer_002.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856551133585143,
+                "sha256": "04a05ecdf691eef3be884bf59e7f797cfe00474149a4dc15f04058f41cd6bfa7"
+              },
+              "layer_003.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856551658576980,
+                "sha256": "5ffd9a9387f3f7f3be82b83819b25d52c1bfb40a71ff6e5eb09c0e976d9c3e28"
+              },
+              "layer_004.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856552184568799,
+                "sha256": "b3db46194c1ee1a203ab557d780b583b5ffda7e7002dbf5022f0f986b01d26a3"
+              },
+              "layer_005.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856552734560239,
+                "sha256": "1da0bd0346692dc20f674dd92d4f5788cd651cce658b3f8ebec7d2e77e896359"
+              },
+              "layer_006.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856553225552595,
+                "sha256": "e6c77046e5dd8c68d6e1d7ebf6e1d8eed9ce9a14dbd6b8d2cf87302473151580"
+              },
+              "layer_007.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856553764544200,
+                "sha256": "68970d55cb4a8fe740fc4fc8f57e26d31e630b070cf927fbdb610ecff3cdf1b4"
+              },
+              "layer_008.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856554266536379,
+                "sha256": "521e7396a668d10c6f3f39c4d969a42d41ba3f9ea9d660397f093aa9f0e821d9"
+              },
+              "layer_009.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856554776528429,
+                "sha256": "57448ade15bb79d8aa5ddbcf06f6cf7fe5d4a69bc70dde83291b05b029c8a7b9"
+              },
+              "layer_010.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856555292520382,
+                "sha256": "09ba08b620d3a4272141794df96298a7f3dc5d0d40a9cc48257516bfa0ff9f89"
+              },
+              "layer_011.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856555804512395,
+                "sha256": "f2bd5aff6e9f8893ec463d8f2a22af007b69717503ab50ef94ff374dc3b3f742"
+              },
+              "layer_012.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856556970494192,
+                "sha256": "a85d3d15b83a0a4e63ea4de4fd0860a4a5f0032456f5266bd483dbadbae4769c"
+              },
+              "layer_013.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856558072476973,
+                "sha256": "703b18768ec4a0a01d1d31676358153ee2bb0a747c1cd4cbfe3c9703e4e1c608"
+              },
+              "layer_014.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856558675467542,
+                "sha256": "6e2770adda47b706de89939ec19b1a57822e1dc64ef537029c41a6369c324e1e"
+              },
+              "layer_015.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856559216459080,
+                "sha256": "f0f07305db78e27f16c99bde4abd813377dc0e4bf0bb2d67d7991d31cce4c7d4"
+              },
+              "layer_016.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856559825449548,
+                "sha256": "bbb32f07308f960a72c16899d04157dbfb6ec2f75444d7eecc347b08cf0f76b2"
+              },
+              "layer_017.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856560431440059,
+                "sha256": "c8febaf683662df3b9c11347a1f97465dfceb9a3339a4854260f611e0bc89a70"
+              },
+              "layer_018.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856561097429626,
+                "sha256": "a65ef9143badec248e12e701c3e0d2f0d899108b6a461731cd2fc33828f77adf"
+              },
+              "layer_019.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856561749419405,
+                "sha256": "217ec91eb17d32e3b7d2f4da04094a52e8d8ff892f950cac8c8aeb7fa9c72286"
+              },
+              "layer_020.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856562272411203,
+                "sha256": "856caa08d1a34c0a75a95cc727e562a44a209bd6d17e1c53e4d28f5dcc311c8a"
+              },
+              "layer_021.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856562942400692,
+                "sha256": "385d6bb01ec7b00dc1a79a77000975484f9c78da69ed39570022aa1df44e1219"
+              },
+              "layer_022.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856563665389342,
+                "sha256": "91b5464658968c436f5a3db289ce54586a6cd85c23dcd7f7df833305152139c7"
+              },
+              "layer_023.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856564136381945,
+                "sha256": "2fa35b1a70c8867e3396de85b1632ef108fb26a4563888759efa700e8e167c3b"
+              },
+              "layer_024.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856564725372690,
+                "sha256": "6fe540b9e5efd5e027ed06caa4564742457dd0ae292a206a52cdaa97ca45b033"
+              },
+              "layer_025.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856565290363808,
+                "sha256": "10e90c058220422fa64d2cedd0d9b3e8b37d3822b3f25579d4ab6aa7906815b8"
+              },
+              "layer_026.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856565891354357,
+                "sha256": "b9bfe3e32412547996804be5b124017661642b8b6d6b26cc05d4bb868a8dc7d1"
+              },
+              "layer_027.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856566444345656,
+                "sha256": "e0d2d00661f8489be198789584d908dfcabe55f1681171404a24ecb1130cfcd0"
+              },
+              "layer_028.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856566969337394,
+                "sha256": "1b7c11f276c1c974df2d37829e3e26507cf9a74ee3576e67951b828933be1bf0"
+              },
+              "layer_029.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856567963321738,
+                "sha256": "c823171e8a78d1d1cf7c63df65c510732987e4f978bb480cbe06ab168f2dee77"
+              },
+              "layer_030.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856568478313621,
+                "sha256": "f92ea16ee129b7c7f156b796ff68f5590abbc06b3d4b339c6657a2b0f4b078d3"
+              },
+              "layer_031.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856569002305361,
+                "sha256": "6a384606bf6627729e9452b30723a57e2269251575f705abf6779b98e6d792c5"
+              },
+              "layer_032.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856570101288023,
+                "sha256": "3b845ef47ac5ddc85fb822b9e855dd7126b40013b9191af2518776fc448d65f1"
+              },
+              "layer_033.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856570603280098,
+                "sha256": "b7e23c8551b0f2b7e708e843390e8f227a3f37d66cb41f27eaf427137ab69a3f"
+              },
+              "layer_034.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856571093272361,
+                "sha256": "a5f53f7284e7af4243d190a446f80cd5b868976d14d113fdc4c46d14cf649b86"
+              },
+              "layer_035.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856571562264950,
+                "sha256": "e6c830e8a06a7aadf58f95db27241bde5f6c500073bde585f04deee9b6979cbf"
+              },
+              "layer_036.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856572167255389,
+                "sha256": "2561d856e4c3f6089e6104f24394362471f60b3cb0a33e2fd8f4f50fabcc2417"
+              },
+              "layer_037.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856572705246883,
+                "sha256": "17c657a488605fc07e0a9a138676570838adb133dd50ef6b5a0b6e77f5d9caa2"
+              },
+              "layer_038.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856573218238769,
+                "sha256": "fa83a0a3d818c38a4db856a6168272852cba962c010dfe6233b4b590623bb619"
+              },
+              "layer_039.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856573657231822,
+                "sha256": "8f9f9d6325b2437be1b7660976c382d940dd59c99e0175a412d5eb8550d4b0d1"
+              },
+              "layer_040.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856574229222768,
+                "sha256": "7458be2c9be517677bddd21d400cbfb99ed0499f4a0409a34df7b70d47415b95"
+              },
+              "layer_041.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856575061209592,
+                "sha256": "5ea632254b78943a10b797df99a8c7ee0e3f9703755e8faaabc4f39102d9048d"
+              },
+              "layer_042.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856575583201319,
+                "sha256": "df9af741cb1fabfdb6400b4238355d8fcbcc166a62a1d579b75c011f599a4fae"
+              },
+              "layer_043.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856576058193790,
+                "sha256": "a9e805efc74131a114c531cd3cdd5fb58434e15c62a8e0a98236463584daa3d8"
+              },
+              "layer_044.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856576673184036,
+                "sha256": "03b5f1d0c30a380585efce783bf2ef4943287a7c19cefc5851b47056860d8f3b"
+              },
+              "layer_045.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856577288174279,
+                "sha256": "ddf8d62376366d40771ff3effb7140f0e63bd04b3f80ad4873489b9337ee5e0a"
+              },
+              "layer_046.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856577841165501,
+                "sha256": "c3030c53a65711fe9cdf7e4971eb726eadd424fc3e78d3def511c0e77ca8750b"
+              },
+              "layer_047.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856578334157672,
+                "sha256": "0930543a2be80df0203044fef6a7b56196bf16cd6341173bb68f09fe3577e195"
+              },
+              "layer_048.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856579351141513,
+                "sha256": "c96fc8d5de8812b088961e8805083b18d00bdbe1524e1741346977f1dbcff5d8"
+              },
+              "layer_049.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856579802134344,
+                "sha256": "997b3e5fa35458420013a7fe955b99ced4bf48c8eeac1a7fdf0a7e690c4684b0"
+              },
+              "layer_050.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856580314126200,
+                "sha256": "f7ca4431b91f12b6225c9affa1e2b3823f05091f98dcf68d1d079bbc7f0a2d7a"
+              },
+              "layer_051.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856580876117260,
+                "sha256": "53dae611da2dd8f9ecf1350801cd4fd69942c23c54894941b333cdc7fc1f4520"
+              },
+              "layer_052.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856581418108632,
+                "sha256": "240ec2a865122ff78d94f40e6ebe0910096250a0e40866b7b42c6714563fdfe0"
+              },
+              "layer_053.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856581941100306,
+                "sha256": "6356fc2249199d0bd956d5c91f5a4561cd6be5efb8562982f67dd52dbd654ceb"
+              },
+              "layer_054.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856583313078443,
+                "sha256": "767c51a861b3d653353ba212b4e7f3ea9db548c4d46d9b1fbd3b77b571e498ed"
+              },
+              "layer_055.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856583759071332,
+                "sha256": "92028936484f31bfe4d82281a35b1a2f484473a5c92fc21d6838fb50d90dc8a1"
+              },
+              "layer_056.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856584254063436,
+                "sha256": "0f2682bc63f0df81bf33243fad32c8e5a6cebc14d1aa045020259ba244cc69bb"
+              },
+              "layer_057.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856584746055585,
+                "sha256": "500702b5764f3a0f31d98763ed6509f4114c6415051cf35e910450676cd2bbb9"
+              },
+              "layer_058.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856585387045352,
+                "sha256": "99358639a104d49aef5492cb1a4a0754b81176448c8e1a66903cb90f9ace8470"
+              },
+              "layer_059.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856585919036857,
+                "sha256": "76fc1316c719d04dc03cf9e1921b5cc259aae81169a8e2876a0baa5a77501e8e"
+              },
+              "layer_060.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856586402029140,
+                "sha256": "40e5605f49b0caa151acf33d38188ace7e51d0ef7e9133ca5199a4064ee30fa3"
+              },
+              "layer_061.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856586860021820,
+                "sha256": "d4a815a6b9cb4bd199663d82d78f778f78195008c0346c795b033b9ebd0b3591"
+              },
+              "layer_062.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856587512011395,
+                "sha256": "d483974d62a0024eac1ff8e330856ae0bb91ea1a6d6b4883d0ea787c7faef618"
+              },
+              "layer_063.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856588352997941,
+                "sha256": "6c5f1538e8a22bf71a96fb896f41238f491c8ba239783f47aeacd6c6afa2cf5b"
+              }
+            },
+            "preparation_seconds": 356.76335343695246,
+            "manifest_sha256": "d116116e0141f7c655740b8c5bd12e182d56f0029ff0fd7390a8d0df750e74b0"
+          },
+          "storage_validation": {
+            "nvme_verified": false,
+            "scope": "Actual disk-source mount; physical NVMe backing is not assumed",
+            "raw_mount": "TARGET SOURCE                                FSTYPE OPTIONS\n/data  /dev/loop5[/volumes/V.57531171/_data] xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,prjquota,grpquota",
+            "major_minor": "7:5",
+            "loop/backing_file": "/vast_disk.img\n",
+            "loop/dio": "0\n"
+          },
+          "storage_validation_sha256": "e03868fd76394276d892f049af6d08d5054a68287d769186dd962d8782187b0f",
+          "requested_quant": "nf4",
+          "quantization": "4bit",
+          "shard_quantization": "nf4",
+          "source": "disk",
+          "physical_gpu_bytes": 8186822656,
+          "initial_device_free_bytes": 8051425280,
+          "initial_reserved_bytes": 0,
+          "allocator_budget_bytes": 7917207552,
+          "device_reserve_bytes": 268435456,
+          "minimum_device_free_bytes": 134217728,
+          "whole_setup_seconds": 38.819791954010725,
+          "indices": [
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34
+          ],
+          "resident_layers": 7,
+          "resident_bytes": 1760867780,
+          "layer_count": 64,
+          "actual_mode": "auto",
+          "actual_tier": "disk",
+          "per_layer_bytes": [
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540
+          ],
+          "attention_backend": "sdpa",
+          "host_memory_after_setup": {
+            "max_rss_bytes": 6135537664,
+            "VmLck_bytes": 0,
+            "VmPin_bytes": 0,
+            "VmHWM_bytes": 6135537664,
+            "VmRSS_bytes": 6134894592
+          },
+          "quantization_actual": {
+            "loaded_in_4bit": true,
+            "quantized_layer_specs": [
+              {
+                "idx": 0,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 1,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 2,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 3,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 4,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 5,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 6,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 7,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 8,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 9,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 10,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 11,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 12,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 13,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 14,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 15,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 16,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 17,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 18,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 19,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 20,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 21,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 22,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 23,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 24,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 25,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 26,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 27,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 28,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 29,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 30,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 31,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 32,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 33,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 34,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 35,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 36,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 37,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 38,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 39,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 40,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 41,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 42,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 43,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 44,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 45,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 46,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 47,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 48,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 49,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 50,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 51,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 52,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 53,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 54,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 55,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 56,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 57,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 58,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 59,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 60,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 61,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 62,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 63,
+                "count": 7,
+                "nested": true
+              }
+            ],
+            "rotating_slot_dtypes": {
+              "self_attn.q_proj.weight": "torch.uint8",
+              "self_attn.q_proj.weight::absmax": "torch.uint8",
+              "self_attn.q_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.q_proj.weight::nested_offset": "torch.float32",
+              "self_attn.k_proj.weight": "torch.uint8",
+              "self_attn.k_proj.weight::absmax": "torch.uint8",
+              "self_attn.k_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.k_proj.weight::nested_offset": "torch.float32",
+              "self_attn.v_proj.weight": "torch.uint8",
+              "self_attn.v_proj.weight::absmax": "torch.uint8",
+              "self_attn.v_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.v_proj.weight::nested_offset": "torch.float32",
+              "self_attn.o_proj.weight": "torch.uint8",
+              "self_attn.o_proj.weight::absmax": "torch.uint8",
+              "self_attn.o_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.o_proj.weight::nested_offset": "torch.float32",
+              "self_attn.q_norm.weight": "torch.bfloat16",
+              "self_attn.k_norm.weight": "torch.bfloat16",
+              "mlp.gate_proj.weight": "torch.uint8",
+              "mlp.gate_proj.weight::absmax": "torch.uint8",
+              "mlp.gate_proj.weight::nested_absmax": "torch.float32",
+              "mlp.gate_proj.weight::nested_offset": "torch.float32",
+              "mlp.up_proj.weight": "torch.uint8",
+              "mlp.up_proj.weight::absmax": "torch.uint8",
+              "mlp.up_proj.weight::nested_absmax": "torch.float32",
+              "mlp.up_proj.weight::nested_offset": "torch.float32",
+              "mlp.down_proj.weight": "torch.uint8",
+              "mlp.down_proj.weight::absmax": "torch.uint8",
+              "mlp.down_proj.weight::nested_absmax": "torch.float32",
+              "mlp.down_proj.weight::nested_offset": "torch.float32",
+              "input_layernorm.weight": "torch.bfloat16",
+              "post_attention_layernorm.weight": "torch.bfloat16"
+            },
+            "bitsandbytes": "0.50.2"
+          },
+          "all_update_wall_seconds": [
+            9.840642288094386,
+            9.007031649001874,
+            8.992944539058954
+          ],
+          "all_update_peak_allocated_bytes": [
+            5807112704,
+            5673651200,
+            5673651200
+          ],
+          "all_update_peak_reserved_bytes": [
+            6207569920,
+            6111100928,
+            6111100928
+          ],
+          "per_update_loads": [
+            {
+              "step": 1,
+              "loads": 222,
+              "large_loads": 4,
+              "logical_decoder_copy_bytes": 55844663880
+            },
+            {
+              "step": 2,
+              "loads": 222,
+              "large_loads": 4,
+              "logical_decoder_copy_bytes": 55844663880
+            },
+            {
+              "step": 3,
+              "loads": 222,
+              "large_loads": 4,
+              "logical_decoder_copy_bytes": 55844663880
+            }
+          ],
+          "per_update_io": [
+            {
+              "step": 1,
+              "linux_process_io_delta": {
+                "rchar": 55342247088,
+                "wchar": 54,
+                "syscr": 882,
+                "syscw": 1,
+                "read_bytes": 55364759552,
+                "write_bytes": 4096,
+                "cancelled_write_bytes": 0
+              }
+            },
+            {
+              "step": 2,
+              "linux_process_io_delta": {
+                "rchar": 55342247090,
+                "wchar": 60,
+                "syscr": 882,
+                "syscw": 1,
+                "read_bytes": 55342284800,
+                "write_bytes": 4096,
+                "cancelled_write_bytes": 0
+              }
+            },
+            {
+              "step": 3,
+              "linux_process_io_delta": {
+                "rchar": 55342247090,
+                "wchar": 66,
+                "syscr": 882,
+                "syscw": 1,
+                "read_bytes": 55342284800,
+                "write_bytes": 4096,
+                "cancelled_write_bytes": 0
+              }
+            }
+          ],
+          "source_class": "AsyncDiskSource",
+          "direct_io": true,
+          "direct_io_roots": {},
+          "source_backing_claim": "disk-tier control only; NVMe read qualification not established",
+          "cache_root": "/data/soup-shards-nf4",
+          "cache_paths": [
+            "/data/soup-shards-nf4/root__liger__model-32"
+          ],
+          "io_after_setup": {
+            "rchar": 65207627814,
+            "wchar": 48967,
+            "syscr": 21319,
+            "syscw": 70,
+            "read_bytes": 65551441920,
+            "write_bytes": 69632,
+            "cancelled_write_bytes": 4096
+          },
+          "device_free_min_bytes": 1814495232,
+          "device_used_peak_bytes": 6372327424,
+          "setup_peak_allocated_bytes": 5807112704,
+          "setup_peak_reserved_bytes": 6207569920,
+          "cache_feature": {
+            "source_module": "/root/liger/repo/src/soup_cli/utils/async_disk_source.py",
+            "source_module_sha256": "ee2b18575f85aa8724c91778fc503533e59bf7a2bf0a884535d50b2f20f5c5a2",
+            "observer_sha256": "2a94dc781772d44005e119681a9deb33205c436d4fa8f66b9e9da404c15e0cb8",
+            "source_archive_sha256": "761f1cae8428d0934b187da0d11da6364e89d7ff4d9ade1a82a6eef8a35e7361",
+            "save_strategy": "SaveStrategy.NO",
+            "source_file_hashes": {
+              "src/soup_cli/utils/async_disk_source.py": "ee2b18575f85aa8724c91778fc503533e59bf7a2bf0a884535d50b2f20f5c5a2",
+              "src/soup_cli/utils/stream_ram_cache.py": "05e004ee05ff4a162e9811daf0d119ba3a046e1ce457f7e59d54dfd59531c6b0",
+              "src/soup_cli/utils/stream_residency.py": "4f5898e35f537a8989be7f3be5b06b63e91da1df7c79fc95a245469681a9870b",
+              "src/soup_cli/utils/layer_stream_runtime.py": "03f1c5dae5eda74eee6869b3ca4068d8b7bb340b0f489e1519edeb3e40fc38e2",
+              "src/soup_cli/trainer/stream_setup.py": "b169bc04f5d3d1bd5be9099897c588ad4b193857a649d9a86919c1fc65de7d9e",
+              "src/soup_cli/config/schema.py": "ee76222288f82ebe35d65637eb0cf1f1ae3eb494cc6f9dd903290dcdfd74d3c6"
+            },
+            "native_residency_plan": {
+              "mode": "auto",
+              "indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "resident_bytes": 1760867780,
+              "baseline_peak_allocated_bytes": 4044864000,
+              "baseline_peak_reserved_bytes": 4404019200,
+              "candidate_peak_allocated_bytes": 5807112704,
+              "candidate_peak_reserved_bytes": 6207569920,
+              "cap_bytes": 6958799257,
+              "reserve_bytes": 67108864,
+              "optimizer_reserve_bytes": 402653184,
+              "setup_seconds": 17.390561737003736,
+              "preload_seconds": 0.2276747589930892,
+              "reason": "measured resident candidate fits the shared cap"
+            },
+            "actual_runtime_stats": {
+              "n_layers": 64,
+              "buffers": 2,
+              "buffer_bytes": 3819797500,
+              "resident_layer_bytes": 1760867780,
+              "resident_layer_indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "large_buffer_bytes": 1555824640,
+              "store_bytes": 3614754360,
+              "pinned": true,
+              "pinned_bytes": 4294967296,
+              "tier": "disk",
+              "read_ahead": 2,
+              "disk_bytes": 19211011840,
+              "ram_cache_allocated_bytes": 0,
+              "ram_cache_indices": [],
+              "layer_loads": 244,
+              "large_loads": 5,
+              "device": "cuda",
+              "total_params": 32762123264
+            },
+            "requested_mib": 0,
+            "stats_after_setup": {
+              "requested_bytes": 0,
+              "indices": [],
+              "allocated_bytes": 0,
+              "payload_bytes": 0,
+              "preload_seconds": 0.0,
+              "tensor_hits": 0,
+              "resident_indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "live_allocated_bytes": 0
+            },
+            "host_swap_bytes_after_setup": 0,
+            "pinned_bytes_total": 4294967296,
+            "staging_payload_bytes": 3614769152,
+            "per_update_host_memory": [
+              {
+                "step": 1,
+                "max_rss_bytes": 6212751360,
+                "VmLck_bytes": 0,
+                "VmPin_bytes": 0,
+                "VmHWM_bytes": 6213226496,
+                "VmRSS_bytes": 6213226496,
+                "VmSwap_bytes": 0
+              },
+              {
+                "step": 2,
+                "max_rss_bytes": 6221271040,
+                "VmLck_bytes": 0,
+                "VmPin_bytes": 0,
+                "VmHWM_bytes": 6221611008,
+                "VmRSS_bytes": 6221611008,
+                "VmSwap_bytes": 0
+              },
+              {
+                "step": 3,
+                "max_rss_bytes": 6221402112,
+                "VmLck_bytes": 0,
+                "VmPin_bytes": 0,
+                "VmHWM_bytes": 6221742080,
+                "VmRSS_bytes": 6221742080,
+                "VmSwap_bytes": 0
+              }
+            ],
+            "stats_at_exit": {
+              "requested_bytes": 0,
+              "indices": [],
+              "allocated_bytes": 0,
+              "payload_bytes": 0,
+              "preload_seconds": 0.0,
+              "tensor_hits": 0,
+              "resident_indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "live_allocated_bytes": 0
+            }
+          },
+          "host_memory_at_exit": {
+            "max_rss_bytes": 6304935936,
+            "VmLck_bytes": 0,
+            "VmPin_bytes": 0,
+            "VmHWM_bytes": 6304935936,
+            "VmRSS_bytes": 6231789568
+          },
+          "whole_run_peak_allocated_bytes": 5807112704,
+          "whole_run_peak_reserved_bytes": 6207569920,
+          "process_io_after_training_delta": {
+            "rchar": 166027672400,
+            "wchar": 90159654,
+            "syscr": 2849,
+            "syscw": 138,
+            "read_bytes": 166054416384,
+            "write_bytes": 90222592,
+            "cancelled_write_bytes": 9330688
+          },
+          "io_read_bytes_delta": 166049329152,
+          "nvme_backing_verified": false,
+          "nvme_timing_qualified": false,
+          "nvme_read_control_qualified": false,
+          "observed_process_storage_read_bytes": 166049329152,
+          "whole_entry_seconds": 69.71845103392843,
+          "capacity_admissibility": "capacity only; no numerical or performance qualification"
+        }
+      },
+      {
+        "context": 512,
+        "arm": "both",
+        "ram_ceiling_mib": 14336,
+        "provenance": {
+          "status": "FAILED",
+          "arm": "baseline",
+          "capacity_only": true,
+          "capacity_failure": null,
+          "requested_resident_layers": 7,
+          "entry_sha256": "a805881599de7edd72e0f5c96f10e379ca0aae792418abeafca4afd73588b388",
+          "pid": 3616,
+          "torch": "2.8.0+cu128",
+          "affinity": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "config_sha256": "71fbe008e32e7d344a215ef78861fb4d4ff0aba963b146073a5a2554e67be1df",
+          "prepared": {
+            "status": "PREPARED_CACHE_NOT_A_TRAINING_VERDICT",
+            "model_id": "Qwen/Qwen3-32B",
+            "revision": "9216db5781bf21249d130ec9da846c4624c16137",
+            "size_b": 32,
+            "base_path": "/root/liger/model-32",
+            "quant": "nf4",
+            "source": "disk",
+            "cache_root": "/data/soup-shards-nf4",
+            "shard_dir": "/data/soup-shards-nf4/root__liger__model-32",
+            "config_sha256": "71fbe008e32e7d344a215ef78861fb4d4ff0aba963b146073a5a2554e67be1df",
+            "data_sha256": "c017bc3aa232448b410f55ea883f6b7bda09c48c6e49069cc1ba3b1a1daccdd6",
+            "data_path": "/root/liger/train.jsonl",
+            "snapshot_manifest_sha256": "41819258f363d7d81970051629dadf09a045bfebc45c046e37f6a6f0cb49579e",
+            "shard_quantization": "nf4",
+            "double_quant": true,
+            "quant_device": "cuda",
+            "quant_specs": {
+              "mlp.down_proj.weight": {
+                "shape": [
+                  5120,
+                  25600
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "mlp.gate_proj.weight": {
+                "shape": [
+                  25600,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "mlp.up_proj.weight": {
+                "shape": [
+                  25600,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.k_proj.weight": {
+                "shape": [
+                  1024,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.o_proj.weight": {
+                "shape": [
+                  5120,
+                  8192
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.q_proj.weight": {
+                "shape": [
+                  8192,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              },
+              "self_attn.v_proj.weight": {
+                "shape": [
+                  1024,
+                  5120
+                ],
+                "dtype": "bfloat16",
+                "blocksize": 64,
+                "quant_type": "nf4",
+                "nested": true,
+                "nested_blocksize": 256
+              }
+            },
+            "device_budget": {
+              "physical_gpu_bytes": 8186822656,
+              "initial_device_free_bytes": 8051425280,
+              "initial_reserved_bytes": 0,
+              "allocator_budget_bytes": 7917207552,
+              "device_reserve_bytes": 268435456,
+              "minimum_device_free_bytes": 134217728
+            },
+            "source_info": {
+              "class": "AsyncDiskSource",
+              "tier": "disk",
+              "direct_io": true,
+              "direct_io_roots": {}
+            },
+            "preparation_peak_allocated_bytes": 2227275264,
+            "preparation_peak_reserved_bytes": 2256535552,
+            "shard_files": {
+              "extras.safetensors": {
+                "bytes": 11560,
+                "mtime_ns": 1792856590829958267,
+                "sha256": "2e133165ade5d59a626f4aa8cc3fd80b17d09f6a6941569db3fb3bc2898d4b85"
+              },
+              "index.json": {
+                "bytes": 5082,
+                "mtime_ns": 1792856590892957257,
+                "sha256": "c4acf7ed1292d1652ff643967bdc884babffd50050d119ed8e11e2ef0a1d1491"
+              },
+              "large_embed_tokens.safetensors": {
+                "bytes": 1555824752,
+                "mtime_ns": 1792856588889989347,
+                "sha256": "a0915e898a17f315355f430e1aa7f5bbc9a713ba15f7d718b8e7625e2a7b440e"
+              },
+              "large_lm_head.safetensors": {
+                "bytes": 1555824736,
+                "mtime_ns": 1792856590388965336,
+                "sha256": "f3ae0cf6041aefde6d263aea4ef51f54f66033078349dd394852beb663f41c0a"
+              },
+              "layer_000.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856550126600791,
+                "sha256": "bbaf90f660de40ac541aea1e98dc12226016c5cf8f521bf165f66c54d66f24cd"
+              },
+              "layer_001.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856550620593116,
+                "sha256": "3354101c0f44da79ac8b3c811376dc4ee5cb802c3afb1f1b080a5a45d63bfab1"
+              },
+              "layer_002.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856551133585143,
+                "sha256": "04a05ecdf691eef3be884bf59e7f797cfe00474149a4dc15f04058f41cd6bfa7"
+              },
+              "layer_003.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856551658576980,
+                "sha256": "5ffd9a9387f3f7f3be82b83819b25d52c1bfb40a71ff6e5eb09c0e976d9c3e28"
+              },
+              "layer_004.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856552184568799,
+                "sha256": "b3db46194c1ee1a203ab557d780b583b5ffda7e7002dbf5022f0f986b01d26a3"
+              },
+              "layer_005.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856552734560239,
+                "sha256": "1da0bd0346692dc20f674dd92d4f5788cd651cce658b3f8ebec7d2e77e896359"
+              },
+              "layer_006.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856553225552595,
+                "sha256": "e6c77046e5dd8c68d6e1d7ebf6e1d8eed9ce9a14dbd6b8d2cf87302473151580"
+              },
+              "layer_007.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856553764544200,
+                "sha256": "68970d55cb4a8fe740fc4fc8f57e26d31e630b070cf927fbdb610ecff3cdf1b4"
+              },
+              "layer_008.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856554266536379,
+                "sha256": "521e7396a668d10c6f3f39c4d969a42d41ba3f9ea9d660397f093aa9f0e821d9"
+              },
+              "layer_009.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856554776528429,
+                "sha256": "57448ade15bb79d8aa5ddbcf06f6cf7fe5d4a69bc70dde83291b05b029c8a7b9"
+              },
+              "layer_010.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856555292520382,
+                "sha256": "09ba08b620d3a4272141794df96298a7f3dc5d0d40a9cc48257516bfa0ff9f89"
+              },
+              "layer_011.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856555804512395,
+                "sha256": "f2bd5aff6e9f8893ec463d8f2a22af007b69717503ab50ef94ff374dc3b3f742"
+              },
+              "layer_012.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856556970494192,
+                "sha256": "a85d3d15b83a0a4e63ea4de4fd0860a4a5f0032456f5266bd483dbadbae4769c"
+              },
+              "layer_013.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856558072476973,
+                "sha256": "703b18768ec4a0a01d1d31676358153ee2bb0a747c1cd4cbfe3c9703e4e1c608"
+              },
+              "layer_014.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856558675467542,
+                "sha256": "6e2770adda47b706de89939ec19b1a57822e1dc64ef537029c41a6369c324e1e"
+              },
+              "layer_015.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856559216459080,
+                "sha256": "f0f07305db78e27f16c99bde4abd813377dc0e4bf0bb2d67d7991d31cce4c7d4"
+              },
+              "layer_016.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856559825449548,
+                "sha256": "bbb32f07308f960a72c16899d04157dbfb6ec2f75444d7eecc347b08cf0f76b2"
+              },
+              "layer_017.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856560431440059,
+                "sha256": "c8febaf683662df3b9c11347a1f97465dfceb9a3339a4854260f611e0bc89a70"
+              },
+              "layer_018.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856561097429626,
+                "sha256": "a65ef9143badec248e12e701c3e0d2f0d899108b6a461731cd2fc33828f77adf"
+              },
+              "layer_019.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856561749419405,
+                "sha256": "217ec91eb17d32e3b7d2f4da04094a52e8d8ff892f950cac8c8aeb7fa9c72286"
+              },
+              "layer_020.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856562272411203,
+                "sha256": "856caa08d1a34c0a75a95cc727e562a44a209bd6d17e1c53e4d28f5dcc311c8a"
+              },
+              "layer_021.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856562942400692,
+                "sha256": "385d6bb01ec7b00dc1a79a77000975484f9c78da69ed39570022aa1df44e1219"
+              },
+              "layer_022.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856563665389342,
+                "sha256": "91b5464658968c436f5a3db289ce54586a6cd85c23dcd7f7df833305152139c7"
+              },
+              "layer_023.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856564136381945,
+                "sha256": "2fa35b1a70c8867e3396de85b1632ef108fb26a4563888759efa700e8e167c3b"
+              },
+              "layer_024.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856564725372690,
+                "sha256": "6fe540b9e5efd5e027ed06caa4564742457dd0ae292a206a52cdaa97ca45b033"
+              },
+              "layer_025.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856565290363808,
+                "sha256": "10e90c058220422fa64d2cedd0d9b3e8b37d3822b3f25579d4ab6aa7906815b8"
+              },
+              "layer_026.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856565891354357,
+                "sha256": "b9bfe3e32412547996804be5b124017661642b8b6d6b26cc05d4bb868a8dc7d1"
+              },
+              "layer_027.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856566444345656,
+                "sha256": "e0d2d00661f8489be198789584d908dfcabe55f1681171404a24ecb1130cfcd0"
+              },
+              "layer_028.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856566969337394,
+                "sha256": "1b7c11f276c1c974df2d37829e3e26507cf9a74ee3576e67951b828933be1bf0"
+              },
+              "layer_029.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856567963321738,
+                "sha256": "c823171e8a78d1d1cf7c63df65c510732987e4f978bb480cbe06ab168f2dee77"
+              },
+              "layer_030.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856568478313621,
+                "sha256": "f92ea16ee129b7c7f156b796ff68f5590abbc06b3d4b339c6657a2b0f4b078d3"
+              },
+              "layer_031.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856569002305361,
+                "sha256": "6a384606bf6627729e9452b30723a57e2269251575f705abf6779b98e6d792c5"
+              },
+              "layer_032.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856570101288023,
+                "sha256": "3b845ef47ac5ddc85fb822b9e855dd7126b40013b9191af2518776fc448d65f1"
+              },
+              "layer_033.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856570603280098,
+                "sha256": "b7e23c8551b0f2b7e708e843390e8f227a3f37d66cb41f27eaf427137ab69a3f"
+              },
+              "layer_034.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856571093272361,
+                "sha256": "a5f53f7284e7af4243d190a446f80cd5b868976d14d113fdc4c46d14cf649b86"
+              },
+              "layer_035.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856571562264950,
+                "sha256": "e6c830e8a06a7aadf58f95db27241bde5f6c500073bde585f04deee9b6979cbf"
+              },
+              "layer_036.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856572167255389,
+                "sha256": "2561d856e4c3f6089e6104f24394362471f60b3cb0a33e2fd8f4f50fabcc2417"
+              },
+              "layer_037.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856572705246883,
+                "sha256": "17c657a488605fc07e0a9a138676570838adb133dd50ef6b5a0b6e77f5d9caa2"
+              },
+              "layer_038.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856573218238769,
+                "sha256": "fa83a0a3d818c38a4db856a6168272852cba962c010dfe6233b4b590623bb619"
+              },
+              "layer_039.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856573657231822,
+                "sha256": "8f9f9d6325b2437be1b7660976c382d940dd59c99e0175a412d5eb8550d4b0d1"
+              },
+              "layer_040.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856574229222768,
+                "sha256": "7458be2c9be517677bddd21d400cbfb99ed0499f4a0409a34df7b70d47415b95"
+              },
+              "layer_041.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856575061209592,
+                "sha256": "5ea632254b78943a10b797df99a8c7ee0e3f9703755e8faaabc4f39102d9048d"
+              },
+              "layer_042.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856575583201319,
+                "sha256": "df9af741cb1fabfdb6400b4238355d8fcbcc166a62a1d579b75c011f599a4fae"
+              },
+              "layer_043.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856576058193790,
+                "sha256": "a9e805efc74131a114c531cd3cdd5fb58434e15c62a8e0a98236463584daa3d8"
+              },
+              "layer_044.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856576673184036,
+                "sha256": "03b5f1d0c30a380585efce783bf2ef4943287a7c19cefc5851b47056860d8f3b"
+              },
+              "layer_045.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856577288174279,
+                "sha256": "ddf8d62376366d40771ff3effb7140f0e63bd04b3f80ad4873489b9337ee5e0a"
+              },
+              "layer_046.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856577841165501,
+                "sha256": "c3030c53a65711fe9cdf7e4971eb726eadd424fc3e78d3def511c0e77ca8750b"
+              },
+              "layer_047.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856578334157672,
+                "sha256": "0930543a2be80df0203044fef6a7b56196bf16cd6341173bb68f09fe3577e195"
+              },
+              "layer_048.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856579351141513,
+                "sha256": "c96fc8d5de8812b088961e8805083b18d00bdbe1524e1741346977f1dbcff5d8"
+              },
+              "layer_049.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856579802134344,
+                "sha256": "997b3e5fa35458420013a7fe955b99ced4bf48c8eeac1a7fdf0a7e690c4684b0"
+              },
+              "layer_050.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856580314126200,
+                "sha256": "f7ca4431b91f12b6225c9affa1e2b3823f05091f98dcf68d1d079bbc7f0a2d7a"
+              },
+              "layer_051.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856580876117260,
+                "sha256": "53dae611da2dd8f9ecf1350801cd4fd69942c23c54894941b333cdc7fc1f4520"
+              },
+              "layer_052.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856581418108632,
+                "sha256": "240ec2a865122ff78d94f40e6ebe0910096250a0e40866b7b42c6714563fdfe0"
+              },
+              "layer_053.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856581941100306,
+                "sha256": "6356fc2249199d0bd956d5c91f5a4561cd6be5efb8562982f67dd52dbd654ceb"
+              },
+              "layer_054.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856583313078443,
+                "sha256": "767c51a861b3d653353ba212b4e7f3ea9db548c4d46d9b1fbd3b77b571e498ed"
+              },
+              "layer_055.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856583759071332,
+                "sha256": "92028936484f31bfe4d82281a35b1a2f484473a5c92fc21d6838fb50d90dc8a1"
+              },
+              "layer_056.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856584254063436,
+                "sha256": "0f2682bc63f0df81bf33243fad32c8e5a6cebc14d1aa045020259ba244cc69bb"
+              },
+              "layer_057.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856584746055585,
+                "sha256": "500702b5764f3a0f31d98763ed6509f4114c6415051cf35e910450676cd2bbb9"
+              },
+              "layer_058.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856585387045352,
+                "sha256": "99358639a104d49aef5492cb1a4a0754b81176448c8e1a66903cb90f9ace8470"
+              },
+              "layer_059.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856585919036857,
+                "sha256": "76fc1316c719d04dc03cf9e1921b5cc259aae81169a8e2876a0baa5a77501e8e"
+              },
+              "layer_060.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856586402029140,
+                "sha256": "40e5605f49b0caa151acf33d38188ace7e51d0ef7e9133ca5199a4064ee30fa3"
+              },
+              "layer_061.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856586860021820,
+                "sha256": "d4a815a6b9cb4bd199663d82d78f778f78195008c0346c795b033b9ebd0b3591"
+              },
+              "layer_062.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856587512011395,
+                "sha256": "d483974d62a0024eac1ff8e330856ae0bb91ea1a6d6b4883d0ea787c7faef618"
+              },
+              "layer_063.safetensors": {
+                "bytes": 251555668,
+                "mtime_ns": 1792856588352997941,
+                "sha256": "6c5f1538e8a22bf71a96fb896f41238f491c8ba239783f47aeacd6c6afa2cf5b"
+              }
+            },
+            "preparation_seconds": 356.76335343695246,
+            "manifest_sha256": "8511d4bec39bb2a131b6f8e25a79b5c351176a7ecf9edb11262d3c2f25ff8edb"
+          },
+          "storage_validation": {
+            "nvme_verified": false,
+            "scope": "Actual disk-source mount; physical NVMe backing is not assumed",
+            "raw_mount": "TARGET SOURCE                                FSTYPE OPTIONS\n/data  /dev/loop5[/volumes/V.57531171/_data] xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,prjquota,grpquota",
+            "major_minor": "7:5",
+            "loop/backing_file": "/vast_disk.img\n",
+            "loop/dio": "0\n"
+          },
+          "storage_validation_sha256": "e03868fd76394276d892f049af6d08d5054a68287d769186dd962d8782187b0f",
+          "requested_quant": "nf4",
+          "quantization": "4bit",
+          "shard_quantization": "nf4",
+          "source": "disk",
+          "physical_gpu_bytes": 8186822656,
+          "initial_device_free_bytes": 8051425280,
+          "initial_reserved_bytes": 0,
+          "allocator_budget_bytes": 7917207552,
+          "device_reserve_bytes": 268435456,
+          "minimum_device_free_bytes": 134217728,
+          "whole_setup_seconds": 44.97450834000483,
+          "indices": [
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34
+          ],
+          "resident_layers": 7,
+          "resident_bytes": 1760867780,
+          "layer_count": 64,
+          "actual_mode": 7,
+          "actual_tier": "disk",
+          "per_layer_bytes": [
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540,
+            251552540
+          ],
+          "attention_backend": "sdpa",
+          "host_memory_after_setup": {
+            "max_rss_bytes": 21166010368,
+            "VmLck_bytes": 0,
+            "VmPin_bytes": 0,
+            "VmHWM_bytes": 21166010368,
+            "VmRSS_bytes": 20801921024
+          },
+          "quantization_actual": {
+            "loaded_in_4bit": true,
+            "quantized_layer_specs": [
+              {
+                "idx": 0,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 1,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 2,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 3,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 4,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 5,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 6,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 7,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 8,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 9,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 10,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 11,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 12,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 13,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 14,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 15,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 16,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 17,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 18,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 19,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 20,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 21,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 22,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 23,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 24,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 25,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 26,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 27,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 28,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 29,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 30,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 31,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 32,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 33,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 34,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 35,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 36,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 37,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 38,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 39,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 40,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 41,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 42,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 43,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 44,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 45,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 46,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 47,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 48,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 49,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 50,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 51,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 52,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 53,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 54,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 55,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 56,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 57,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 58,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 59,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 60,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 61,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 62,
+                "count": 7,
+                "nested": true
+              },
+              {
+                "idx": 63,
+                "count": 7,
+                "nested": true
+              }
+            ],
+            "rotating_slot_dtypes": {
+              "self_attn.q_proj.weight": "torch.uint8",
+              "self_attn.q_proj.weight::absmax": "torch.uint8",
+              "self_attn.q_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.q_proj.weight::nested_offset": "torch.float32",
+              "self_attn.k_proj.weight": "torch.uint8",
+              "self_attn.k_proj.weight::absmax": "torch.uint8",
+              "self_attn.k_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.k_proj.weight::nested_offset": "torch.float32",
+              "self_attn.v_proj.weight": "torch.uint8",
+              "self_attn.v_proj.weight::absmax": "torch.uint8",
+              "self_attn.v_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.v_proj.weight::nested_offset": "torch.float32",
+              "self_attn.o_proj.weight": "torch.uint8",
+              "self_attn.o_proj.weight::absmax": "torch.uint8",
+              "self_attn.o_proj.weight::nested_absmax": "torch.float32",
+              "self_attn.o_proj.weight::nested_offset": "torch.float32",
+              "self_attn.q_norm.weight": "torch.bfloat16",
+              "self_attn.k_norm.weight": "torch.bfloat16",
+              "mlp.gate_proj.weight": "torch.uint8",
+              "mlp.gate_proj.weight::absmax": "torch.uint8",
+              "mlp.gate_proj.weight::nested_absmax": "torch.float32",
+              "mlp.gate_proj.weight::nested_offset": "torch.float32",
+              "mlp.up_proj.weight": "torch.uint8",
+              "mlp.up_proj.weight::absmax": "torch.uint8",
+              "mlp.up_proj.weight::nested_absmax": "torch.float32",
+              "mlp.up_proj.weight::nested_offset": "torch.float32",
+              "mlp.down_proj.weight": "torch.uint8",
+              "mlp.down_proj.weight::absmax": "torch.uint8",
+              "mlp.down_proj.weight::nested_absmax": "torch.float32",
+              "mlp.down_proj.weight::nested_offset": "torch.float32",
+              "input_layernorm.weight": "torch.bfloat16",
+              "post_attention_layernorm.weight": "torch.bfloat16"
+            },
+            "bitsandbytes": "0.50.2"
+          },
+          "all_update_wall_seconds": [],
+          "all_update_peak_allocated_bytes": [],
+          "all_update_peak_reserved_bytes": [],
+          "per_update_loads": [],
+          "per_update_io": [],
+          "source_class": "AsyncDiskSource",
+          "direct_io": true,
+          "direct_io_roots": {},
+          "source_backing_claim": "disk-tier control only; NVMe read qualification not established",
+          "cache_root": "/data/soup-shards-nf4",
+          "cache_paths": [
+            "/data/soup-shards-nf4/root__liger__model-32"
+          ],
+          "io_after_setup": {
+            "rchar": 79294800661,
+            "wchar": 20134,
+            "syscr": 21582,
+            "syscw": 68,
+            "read_bytes": 79281950720,
+            "write_bytes": 45056,
+            "cancelled_write_bytes": 4096
+          },
+          "device_free_min_bytes": 3821469696,
+          "device_used_peak_bytes": 4365352960,
+          "setup_peak_allocated_bytes": 5807112704,
+          "setup_peak_reserved_bytes": 6207569920,
+          "cache_feature": {
+            "source_module": "/root/liger/repo/src/soup_cli/utils/async_disk_source.py",
+            "source_module_sha256": "ee2b18575f85aa8724c91778fc503533e59bf7a2bf0a884535d50b2f20f5c5a2",
+            "observer_sha256": "2a94dc781772d44005e119681a9deb33205c436d4fa8f66b9e9da404c15e0cb8",
+            "source_archive_sha256": "761f1cae8428d0934b187da0d11da6364e89d7ff4d9ade1a82a6eef8a35e7361",
+            "save_strategy": "SaveStrategy.NO",
+            "source_file_hashes": {
+              "src/soup_cli/utils/async_disk_source.py": "ee2b18575f85aa8724c91778fc503533e59bf7a2bf0a884535d50b2f20f5c5a2",
+              "src/soup_cli/utils/stream_ram_cache.py": "05e004ee05ff4a162e9811daf0d119ba3a046e1ce457f7e59d54dfd59531c6b0",
+              "src/soup_cli/utils/stream_residency.py": "4f5898e35f537a8989be7f3be5b06b63e91da1df7c79fc95a245469681a9870b",
+              "src/soup_cli/utils/layer_stream_runtime.py": "03f1c5dae5eda74eee6869b3ca4068d8b7bb340b0f489e1519edeb3e40fc38e2",
+              "src/soup_cli/trainer/stream_setup.py": "b169bc04f5d3d1bd5be9099897c588ad4b193857a649d9a86919c1fc65de7d9e",
+              "src/soup_cli/config/schema.py": "ee76222288f82ebe35d65637eb0cf1f1ae3eb494cc6f9dd903290dcdfd74d3c6"
+            },
+            "native_residency_plan": {
+              "mode": 7,
+              "indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "resident_bytes": 1760867780,
+              "baseline_peak_allocated_bytes": 4044864000,
+              "baseline_peak_reserved_bytes": 4404019200,
+              "candidate_peak_allocated_bytes": 5807112704,
+              "candidate_peak_reserved_bytes": 6207569920,
+              "cap_bytes": 6958799257,
+              "reserve_bytes": 67108864,
+              "optimizer_reserve_bytes": 402653184,
+              "setup_seconds": 12.40291519893799,
+              "preload_seconds": 0.21721720090135932,
+              "reason": "measured resident candidate fits the shared cap"
+            },
+            "actual_runtime_stats": {
+              "n_layers": 64,
+              "buffers": 2,
+              "buffer_bytes": 3819797500,
+              "resident_layer_bytes": 1760867780,
+              "resident_layer_indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "large_buffer_bytes": 1555824640,
+              "store_bytes": 3614754360,
+              "pinned": true,
+              "pinned_bytes": 19327352832,
+              "tier": "disk",
+              "read_ahead": 2,
+              "disk_bytes": 19211011840,
+              "ram_cache_allocated_bytes": 15032385536,
+              "ram_cache_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                48,
+                49,
+                50,
+                51,
+                52,
+                53,
+                54,
+                55,
+                56,
+                57,
+                58,
+                59,
+                60,
+                61,
+                62
+              ],
+              "layer_loads": 244,
+              "large_loads": 5,
+              "device": "cuda",
+              "total_params": 32762123264
+            },
+            "requested_mib": 14336,
+            "stats_after_setup": {
+              "requested_bytes": 15032385536,
+              "indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                48,
+                49,
+                50,
+                51,
+                52,
+                53,
+                54,
+                55,
+                56,
+                57,
+                58,
+                59,
+                60,
+                61,
+                62
+              ],
+              "allocated_bytes": 15032385536,
+              "payload_bytes": 14086942240,
+              "preload_seconds": 9.313192195026204,
+              "tensor_hits": 0,
+              "memory_admission": {
+                "host_available_bytes": 25139236864,
+                "available_bytes": 25139236864,
+                "constraints": [
+                  {
+                    "path": "/sys/fs/cgroup/memory.max",
+                    "limit_bytes": 31950110720,
+                    "usage_bytes": 30341623808,
+                    "reclaimable_file_bytes": 23698718720,
+                    "available_bytes": 25307205632,
+                    "kind": "memory.max"
+                  }
+                ]
+              },
+              "budget_bytes": 15032385536,
+              "resident_indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "live_allocated_bytes": 15032385536
+            },
+            "host_swap_bytes_after_setup": 0,
+            "pinned_bytes_total": 19327352832,
+            "staging_payload_bytes": 3614769152,
+            "per_update_host_memory": [],
+            "stats_at_exit": {
+              "requested_bytes": 15032385536,
+              "indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                48,
+                49,
+                50,
+                51,
+                52,
+                53,
+                54,
+                55,
+                56,
+                57,
+                58,
+                59,
+                60,
+                61,
+                62
+              ],
+              "allocated_bytes": 15032385536,
+              "payload_bytes": 14086942240,
+              "preload_seconds": 9.313192195026204,
+              "tensor_hits": 32,
+              "memory_admission": {
+                "host_available_bytes": 25139236864,
+                "available_bytes": 25139236864,
+                "constraints": [
+                  {
+                    "path": "/sys/fs/cgroup/memory.max",
+                    "limit_bytes": 31950110720,
+                    "usage_bytes": 30341623808,
+                    "reclaimable_file_bytes": 23698718720,
+                    "available_bytes": 25307205632,
+                    "kind": "memory.max"
+                  }
+                ]
+              },
+              "budget_bytes": 15032385536,
+              "resident_indices": [
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34
+              ],
+              "live_allocated_bytes": 0
+            }
+          },
+          "host_memory_at_exit": {
+            "max_rss_bytes": 21166010368,
+            "VmLck_bytes": 0,
+            "VmPin_bytes": 0,
+            "VmHWM_bytes": 21166010368,
+            "VmRSS_bytes": 20806811648
+          },
+          "whole_run_peak_allocated_bytes": 5807112704,
+          "whole_run_peak_reserved_bytes": 6207569920,
+          "process_io_after_training_delta": {
+            "rchar": 252453614,
+            "wchar": 2340,
+            "syscr": 179,
+            "syscw": 23,
+            "read_bytes": 261718016,
+            "write_bytes": 4096,
+            "cancelled_write_bytes": 0
+          },
+          "io_read_bytes_delta": 261718016,
+          "nvme_backing_verified": false,
+          "nvme_timing_qualified": false,
+          "nvme_read_control_qualified": false,
+          "observed_process_storage_read_bytes": 261718016,
+          "error": "RuntimeError: layer-stream staging for layer(s) 0 is still on loan: get() handed it out and release() was never called, and now layer 64 has been requested. With PINNED staging the host-to-device copy is still draining when load_async returns, so recycling that buffer puts another layer's weights on the device with no error at all \u2014 measured 6 of 8 layers at the default depth. Call release(idx, event) once the copy is enqueued; layer_stream_runtime._release_source is what the buffer pools use. (Pageable staging permits the implicit release, because its copy is host-synchronous.)",
+          "whole_entry_seconds": 47.90193665307015,
+          "capacity_admissibility": "capacity only; no numerical or performance qualification"
+        }
+      }
+    ],
+    "error": "CohortError: Non-capacity failure in host-cache screen"
+  },
+  "protocol": {
+    "study": "soup-nf4-ssd-32b-20261024",
+    "models": [
+      {
+        "model_id": "Qwen/Qwen3-32B",
+        "size_b": 32,
+        "revision": "9216db5781bf21249d130ec9da846c4624c16137",
+        "config": {
+          "architectures": [
+            "Qwen3ForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "bos_token_id": 151643,
+          "eos_token_id": 151645,
+          "head_dim": 128,
+          "hidden_act": "silu",
+          "hidden_size": 5120,
+          "initializer_range": 0.02,
+          "intermediate_size": 25600,
+          "max_position_embeddings": 40960,
+          "max_window_layers": 64,
+          "model_type": "qwen3",
+          "num_attention_heads": 64,
+          "num_hidden_layers": 64,
+          "num_key_value_heads": 8,
+          "rms_norm_eps": 1e-06,
+          "rope_scaling": null,
+          "rope_theta": 1000000,
+          "sliding_window": null,
+          "tie_word_embeddings": false,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.51.0",
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 151936
+        },
+        "weight_bytes": 65524246528,
+        "weight_files": [
+          "model-00001-of-00017.safetensors",
+          "model-00002-of-00017.safetensors",
+          "model-00003-of-00017.safetensors",
+          "model-00004-of-00017.safetensors",
+          "model-00005-of-00017.safetensors",
+          "model-00006-of-00017.safetensors",
+          "model-00007-of-00017.safetensors",
+          "model-00008-of-00017.safetensors",
+          "model-00009-of-00017.safetensors",
+          "model-00010-of-00017.safetensors",
+          "model-00011-of-00017.safetensors",
+          "model-00012-of-00017.safetensors",
+          "model-00013-of-00017.safetensors",
+          "model-00014-of-00017.safetensors",
+          "model-00015-of-00017.safetensors",
+          "model-00016-of-00017.safetensors",
+          "model-00017-of-00017.safetensors"
+        ]
+      }
+    ],
+    "maximum_stage_usd": 13.34,
+    "context_tokens": 512,
+    "batch": 1,
+    "accumulation": 2,
+    "lora_rank_alpha": 4,
+    "seed": 792,
+    "dataset": "Frozen BoolQ train rows, capacity/numerical workload only",
+    "task_quality_not_measured": true,
+    "ram_upper_bound_bytes": 34359738368,
+    "ram_bound_requirement": "Physical total or native kernel cgroup <=32GiB",
+    "swap_policy": "Abort on any observed container swap use",
+    "source": "Fixed NF4 SSD source, four cache arms",
+    "timing_order": [
+      [
+        "baseline",
+        "ram",
+        "both",
+        "vram"
+      ],
+      [
+        "ram",
+        "vram",
+        "baseline",
+        "both"
+      ],
+      [
+        "vram",
+        "both",
+        "ram",
+        "baseline"
+      ],
+      [
+        "both",
+        "baseline",
+        "vram",
+        "ram"
+      ]
+    ],
+    "timing_warmup": 2,
+    "timing_measured_updates": 4,
+    "timing_initialization": "Identical seeded native adapters, reset optimizer",
+    "expected_trainable_tensors": 896,
+    "reference_first_rtol": 0.01,
+    "atol": 1e-05,
+    "loss_three_decimals": true,
+    "finite_required": true,
+    "resident_selection": "Native automatic capacity probe; fixed before accuracy/timing",
+    "expected_8b_baseline_encoded_bytes": 1073741824,
+    "expected_whole_matrix_encoded_bytes": 10737418240,
+    "no_cross_precision_or_larger_model_quality_claim": true,
+    "data_manifest_sha256": "4cdfc55bb072b03167d14acf8f560fc22a55c1c823d5b2d6c5a752200ea6e92f",
+    "source_sha256": "761f1cae8428d0934b187da0d11da6364e89d7ff4d9ade1a82a6eef8a35e7361",
+    "source_base_head": "90ba15ac56916dab4bc14bec24cb8122543e15fd",
+    "candidate_ram_ceilings_mib": [
+      14336,
+      8192,
+      4096
+    ],
+    "candidate_contexts": [
+      512
+    ],
+    "frozen_data_sha256": "c017bc3aa232448b410f55ea883f6b7bda09c48c6e49069cc1ba3b1a1daccdd6",
+    "profile": "Separate CUDA diagnostic after accuracy approval, before normal timings",
+    "capture": {
+      "reference_first_rtol": 0.01,
+      "atol": 1e-05,
+      "loss_three_decimals": true,
+      "exact_inputs_initial_adapters": true,
+      "finite_required": true,
+      "updates": 2
+    }
+  },
+  "hardware": {
+    "scope": "32B capacity with physical/cgroup RAM <=32GiB",
+    "samples": [
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792855894.305792
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792855899.3337064
+      },
+      {
+        "gpu": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099, NVIDIA GeForce RTX 4060 Ti, 8188, 0, 2",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792855904.3597014
+      }
+    ],
+    "ram_scope": {
+      "limit_enforced": true,
+      "requested_ram_upper_bound_bytes": 34359738368,
+      "effective_ram_upper_bound_bytes": 31950110720,
+      "host_mem_total_bytes": 33282760704,
+      "native_cgroup_limit_bytes": 31950110720,
+      "container_swap_current_bytes": 0,
+      "method": "PHYSICAL_32GB_CLASS",
+      "parent_limits_and_system_settings_unchanged": true,
+      "host_swap_total_bytes": 8589930496,
+      "swap_policy": "Enabled host swap is not called disabled; abort on container swap use",
+      "proc_self_cgroup": "0::/\n"
+    },
+    "passed": true,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+    "gpu_uuid": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099",
+    "host_meminfo": "MemTotal:       32502696 kB\nMemFree:        14280344 kB\nMemAvailable:   30792940 kB\nBuffers:           14748 kB\nCached:         16382848 kB\nSwapCached:        70920 kB\nActive:          1141368 kB\nInactive:       15602272 kB\nActive(anon):     286948 kB\nInactive(anon):    68016 kB\nActive(file):     854420 kB\nInactive(file): 15534256 kB\nUnevictable:       26724 kB\nMlocked:           26724 kB\nSwapTotal:       8388604 kB\nSwapFree:        8179964 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               196 kB\nWriteback:             0 kB\nAnonPages:        364420 kB\nMapped:           192832 kB\nShmem:               596 kB\nKReclaimable:     616728 kB\nSlab:             968052 kB\nSReclaimable:     616728 kB\nSUnreclaim:       351324 kB\nKernelStack:        8656 kB\nPageTables:        10764 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    24639952 kB\nCommitted_AS:    2989180 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:      179560 kB\nVmallocChunk:          0 kB\nPercpu:            14976 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:     18432 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:    21893736 kB\nDirectMap2M:    11296768 kB\nDirectMap1G:           0 kB\n",
+    "cgroup": {
+      "/sys/fs/cgroup/memory.max": "31950110720\n"
+    }
+  },
+  "independent_reports": {},
+  "performance": null,
+  "validation": {
+    "local_protocol_and_retention_controls": {
+      "tests": 32,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "context_refusal_control": {
+      "tests": 1,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "profile_interval_control": {
+      "tests": 1,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "gpu_host_controls": {
+      "tests": 144,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  },
+  "cleanup": {
+    "verified_absent": true,
+    "instance_id": 57531172,
+    "volume_id": 57531171,
+    "account_instance_count": 1,
+    "account_volume_count": 0,
+    "unix": 1792858157.77994,
+    "method": "Fresh independent read-only account listings",
+    "scope": "Exact owned instance and volume IDs; unrelated resources untouched",
+    "unrelated_instances": [
+      {
+        "id": 57533867,
+        "label": "soup-g4-20261024"
+      }
+    ]
+  },
+  "controller_error": null,
+  "cost": {
+    "current_stage_conservative_usd": 0.508310940201663,
+    "combined_since_4b_conservative_usd": 2.842537632011247,
+    "combined_available_before_4b_usd": 13.343605273574783,
+    "combined_remaining_usd": 10.501067641563536,
+    "additional_ten_dollar_allowance_used": 0,
+    "invoice_claim": false
+  },
+  "raw_retention": {
+    "files": 262,
+    "logical_bytes": 155646919
+  },
+  "scope": "Same-NF4 numerical/capacity/residency workload; no 32B task-quality result",
+  "post_failure_local_fix": {
+    "base_head": "90ba15ac56916dab4bc14bec24cb8122543e15fd",
+    "unix": 1792857728.949463,
+    "source_import_verified_from_managed_worktree": true,
+    "old_behavior_mutation_killed": true,
+    "cold_loan_guard_bypass_mutation_killed": true,
+    "gpu_regression_pending": true,
+    "files": {
+      "src/soup_cli/utils/async_disk_source.py": {
+        "bytes": 81380,
+        "sha256": "e340b5c31c146f67881f37f10d28dfd7d393889bc1377adc94ff095377a63432"
+      },
+      "tests/test_stream_joint_cache.py": {
+        "bytes": 12110,
+        "sha256": "4334e8a81ea010d8ab25681a42877a884965ccfd8c7ce79d480b6652762f1b70"
+      },
+      "changelog.d/0.75.1/5.fixed.md": {
+        "bytes": 176,
+        "sha256": "f5029f5405cccf92f9ca03b9999533546cc8a3054ca1dff652343c4a96e96d71"
+      }
+    }
+  },
+  "post_failure_focused_cpu_controls": {
+    "tests": 218,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 18
+  },
+  "failure_classification": "PINNED_STAGING_LIFETIME_GUARD_BEFORE_ACCEPTED_ACCURACY_TIMING"
+}

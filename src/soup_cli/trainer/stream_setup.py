@@ -62,11 +62,17 @@ def _stream_source_line(stats: dict) -> str:
         )
     # Since #974 the staging lives in the same power-of-two arenas as the RAM
     # store, so the disk tier can say what was page-locked too.
+    cache = ""
+    if stats.get("ram_cache_allocated_bytes", 0):
+        cache = (
+            f", {stats['ram_cache_allocated_bytes'] / 1e9:.2f} GB RAM cache "
+            f"({len(stats['ram_cache_indices'])} layers)"
+        )
     return (
         f"streamed from DISK ({stats['disk_bytes'] / 1e9:.2f} GB on an NVMe volume) "
         f"by an async reader, read_ahead={stats['read_ahead']}, "
         f"{stats['store_bytes'] / 1e6:.0f} MB {pinned} host staging"
-    ) + _page_locked_note(stats)
+    ) + cache + _page_locked_note(stats)
 
 
 def _page_locked_note(stats: dict) -> str:
@@ -642,6 +648,8 @@ class StreamingSetupMixin:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         model_config = load_stream_config(cfg.base, self._trust_remote_code)
+        if getattr(tcfg, "fast_lora", False) and model_config.model_type != "llama":
+            raise ValueError("training.fast_lora initially supports Llama models only")
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)
@@ -855,6 +863,12 @@ class StreamingSetupMixin:
 
         free_ram = free_ram_bytes()
         total_ram = total_ram_bytes()
+        if tcfg.stream_ram_cache_mb:
+            from soup_cli.utils.stream_ram_cache import available_memory
+
+            # A large host may give this process only a small cgroup. Do not
+            # select a whole-model RAM store using physical-host availability.
+            free_ram = available_memory(host_available=free_ram)["available_bytes"]
         if free_ram is None:
             console.print(
                 "[yellow]psutil unavailable — cannot size the RAM tier; "
@@ -1043,6 +1057,8 @@ class StreamingSetupMixin:
                 "a pageable CPU source.[/]"
             )
 
+        cache_bytes = tcfg.stream_ram_cache_mb * 2**20 if tier == TIER_DISK else 0
+        defer_ram_cache = bool(cache_bytes and getattr(tcfg, "stream_resident_layers", 0) != 0)
         model, runtime = build_streamed_model(
             model_id=cfg.base,
             shard_dir=shard_dir,
@@ -1073,20 +1089,70 @@ class StreamingSetupMixin:
             weights_dir=weights_dir,
             ngram_source=ngram_source,
             refill_before_backward=self._STREAM_REFILL_BEFORE_BACKWARD,
+            **({"ram_cache_bytes": cache_bytes} if cache_bytes and not defer_ram_cache else {}),
         )
+        if tcfg.stream_ram_cache_mb and tier != TIER_DISK:
+            console.print(
+                "[dim]RAM cache is unnecessary: the complete streamed store fits in RAM.[/]"
+            )
         self.model = model
         self._stream_runtime = runtime
+        if getattr(tcfg, "fast_lora", False):
+            from soup_cli.utils.fast_lora_training import apply_fast_lora_training
+
+            # Patch after the streamed wrappers exist, before the VRAM probe:
+            # the probe must execute the same graph as training. Each forward
+            # reads the temporary functional_call weights, never the meta base.
+            try:
+                apply_fast_lora_training(model, streaming=True)
+            except BaseException:
+                self._close_stream_runtime()
+                raise
+        if getattr(tcfg, "stream_resident_layers", 0) != 0:
+            from soup_cli.utils.stream_residency import configure_stream_residency
+
+            try:
+                if self._stream_total_experts(model_config) > 1:
+                    raise ValueError(
+                        "training.stream_resident_layers currently supports dense decoders only"
+                    )
+                shape = self._stream_shape_config(model_config)
+                self._stream_residency_plan = configure_stream_residency(
+                    model,
+                    runtime,
+                    tcfg.stream_resident_layers,
+                    rows=int(tcfg.batch_size),
+                    seq_len=int(cfg.data.max_length),
+                    vocab_size=int(shape.vocab_size),
+                    override_bytes=tcfg.stream_vram_override,
+                    notify=console.print,
+                )
+            except BaseException:
+                self._close_stream_runtime()
+                raise
+        if defer_ram_cache:
+            try:
+                runtime.source.configure_ram_cache(cache_bytes)
+            except BaseException:
+                self._close_stream_runtime()
+                raise
         if probe_plan is not None:
             self._run_stream_vram_probe(model, probe_plan)
         stats = runtime.stats()
         source_line = _stream_source_line(stats)
         large_runtime_buffer = stats.get("large_buffer_bytes", 0)
-        decoder_buffers = stats["buffer_bytes"] - large_runtime_buffer
+        resident_bytes = stats.get("resident_layer_bytes", 0)
+        decoder_buffers = stats["buffer_bytes"] - large_runtime_buffer - resident_bytes
         buffer_line = (
             f"{stats['buffers']} x "
             f"{decoder_buffers / stats['buffers'] / 1e6:.0f} MB decoder buffers + "
             f"1 x {large_runtime_buffer / 1e6:.0f} MB large-layer slot"
         )
+        if resident_bytes:
+            buffer_line += (
+                f", {len(stats['resident_layer_indices'])} persistent decoder layers "
+                f"({resident_bytes / 1e6:.0f} MB)"
+            )
         console.print(
             f"[green]Layer streaming ready:[/] {stats['n_layers']} layers, "
             f"{source_line}, {buffer_line}"

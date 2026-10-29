@@ -1,0 +1,26 @@
+"""Actual transport/remote-range/codec integration with a forced connection reset."""
+import base64,io,json,os,random,sys,tempfile,time
+from pathlib import Path
+from rich.console import Console
+ROOT=Path(__file__).parent;sys.path.insert(0,str(ROOT));import archive_ranges,cloud,lossless_results as codec,remote_ranges,transport
+original_rebuild=archive_ranges.rebuild
+archive_ranges.rebuild=lambda *args,**kw:original_rebuild(*args,**kw,sleep=lambda _:None)
+proof={}
+with tempfile.TemporaryDirectory(prefix='transport-test-',dir=ROOT) as temporary:
+ top=Path(temporary);assert os.path.commonpath([os.path.realpath(ROOT),os.path.realpath(top)])==os.path.realpath(ROOT)
+ r=top/'stream8-compile-20261022-resume-test';r.mkdir();source=top/'source';source.mkdir();data=random.Random(792).randbytes(12*2**20);(source/'raw.bin').write_bytes(data);idx=codec.pack(source,['raw.bin'],top/'test.tar');layout=archive_ranges.layout_from_archive(top/'test.tar');(top/'again.tar').write_bytes((top/'test.tar').read_bytes());calls=[];events=[]
+ transport.ROOT=r;cloud.receipt=lambda:{'created_unix':time.time(),'maximum_seconds':100000};cloud.own=lambda:{'label':cloud.LABEL,'ports':{}};cloud.save=lambda n,v:(r/n).write_text(json.dumps(v));(r/'network-preflight.json').write_text(json.dumps({'encoded_mib_per_second':1}))
+ def get(name,**kwargs):
+  if name.startswith('ack/'):
+   events.append('ACK');assert (r/('bundle-'+name.split('/')[1]+'-verified.json')).exists();return b'OK'
+  return json.dumps(layout if name.endswith('.layout.json') else idx).encode()
+ transport.get=get;transport.upload=lambda name:events.append('policy_uploaded')
+ def stream(command,sink,timeout):
+  args=command.split();name,encoded,offset=args[2],args[3],int(args[4]);calls.append(offset);buffer=io.BytesIO();remote_ranges.copy_spans(top,name,encoded,offset,buffer);payload=buffer.getvalue()
+  if len(calls)==1:
+   sink.write(payload[:2**20]);raise ConnectionError('injected SSH negative exit')
+  sink.write(payload)
+ transport.stream=stream;transport.download('test');assert calls==[0,2**20],calls;assert events==['policy_uploaded','ACK'];assert (r/'bundles/test/retained/raw.bin').read_bytes()==data;assert codec.file_sha(r/'bundles/test/results.tar')==idx['archive_sha256'];bulk=json.loads((r/'network-preflight.json').read_text())['encoded_mib_per_second'];assert bulk>0
+ calls.clear();events.clear();transport.download('again');assert not calls,'all exact retained objects should be reused';assert events==['policy_uploaded','ACK'];assert json.loads((r/'network-preflight.json').read_text())['encoded_mib_per_second']==bulk
+ proof={'passed':True,'actual_remote_range_reader_binary_offsets_checked':True,'forced_connection_reset_resumed_offset':2**20,'whole_canonical_archive_sha_verified':True,'all_original_bytes_verified':True,'policy_before_ack_verified':True,'second_archive_network_object_bytes':0,'metadata_only_archive_preserves_bulk_admission_rate':True,'root_codec_unchanged':codec.file_sha(ROOT/'lossless_results.py')=='98ba251412e4d8d42781d0778b2f60a037d1a3434146cf2df6deb885e992579c'}
+(ROOT/'transport-range-integration-regression.json').write_text(json.dumps(proof,indent=2));Console().print(proof)

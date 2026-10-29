@@ -1,0 +1,152 @@
+{
+  "scope": "Descriptive supplement; immutable original protocol bytes unchanged",
+  "study": "joint-cache-20261024",
+  "source_base_head": "23d08004d37a174ca7f79489a41ba2c367a3d8a6",
+  "source_sha256": "684106dc607a94afa52796ac12330a6fefed742b86498a3da23c7f8a0b257402",
+  "actual_selection": {
+    "context": 512,
+    "ram_ceiling_mib": 14336,
+    "resident_indices": [
+      31
+    ],
+    "arms": {
+      "baseline": {
+        "resident_indices": [],
+        "ram_cache": {
+          "indices": [],
+          "allocated_bytes": 0,
+          "payload_bytes": 0
+        }
+      },
+      "ram": {
+        "resident_indices": [],
+        "ram_cache": {
+          "indices": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 13652753408
+        }
+      },
+      "vram": {
+        "resident_indices": [
+          31
+        ],
+        "ram_cache": {
+          "indices": [],
+          "allocated_bytes": 0,
+          "payload_bytes": 0
+        }
+      },
+      "both": {
+        "resident_indices": [
+          31
+        ],
+        "ram_cache": {
+          "indices": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38
+          ],
+          "allocated_bytes": 15032385536,
+          "payload_bytes": 13652753408
+        }
+      }
+    }
+  },
+  "actual_block_order": [
+    [
+      "baseline",
+      "ram",
+      "both",
+      "vram"
+    ],
+    [
+      "ram",
+      "vram",
+      "baseline",
+      "both"
+    ],
+    [
+      "vram",
+      "both",
+      "ram",
+      "baseline"
+    ],
+    [
+      "both",
+      "baseline",
+      "vram",
+      "ram"
+    ]
+  ],
+  "actual_training": "32B BF16 LoRA, not full-base training",
+  "actual_phase_order": [
+    "source_controls",
+    "prepare",
+    "capacity_only_selection",
+    "eight_accuracy_captures",
+    "independent_CPU_approval",
+    "sixteen_fresh_timing_processes",
+    "independent_timing_replay"
+  ],
+  "actual_stage_cap_usd": 5.12,
+  "prior_stage_spending_separate_usd": 2.5299722239428704,
+  "unchanged_capture_contract": {
+    "reference_first_rtol": 0.01,
+    "atol": 1e-05,
+    "loss_three_decimals": true,
+    "exact_inputs_initial_adapters": true,
+    "finite_required": true,
+    "updates": 2
+  },
+  "unchanged_performance_gate": {
+    "minimum_median_paired_time_reduction_percent": 2,
+    "minimum_positive_pair_fraction": 0.75,
+    "bootstrap_95_lower_above_zero": true,
+    "resamples": 20000,
+    "seed": 792
+  },
+  "inherited_descriptive_fields_not_current_contract": [
+    "label",
+    "source_base",
+    "stage_id",
+    "pair_order",
+    "funding",
+    "phase_order",
+    "profile_quant",
+    "cache_request_mib",
+    "matrix",
+    "failed_preflight_attempts",
+    "production_feature_commit",
+    "profile_phase_source",
+    "memory_constraint",
+    "source_identity_note",
+    "timing_preregistration_note"
+  ],
+  "execution_authority": "Frozen joint_worker.py and joint_analysis.py; actual configs/provenance"
+}

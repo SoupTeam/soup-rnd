@@ -1,0 +1,1526 @@
+{
+  "descriptive_tables": {
+    "accuracy": {
+      "native": {
+        "controls": {
+          "adapters_nonzero_changed_and_nonzero_gradients": 288,
+          "full_microbatch_losses": [
+            13.027236938476562,
+            12.924687385559082,
+            12.76525592803955,
+            12.639369010925293
+          ],
+          "microbatches": 4,
+          "native_gate": {
+            "bitwise": true,
+            "checks": 4596,
+            "failures": [],
+            "passed": true
+          },
+          "passed": true,
+          "updates": 2
+        },
+        "versus_native": {
+          "bitwise": true,
+          "checks": 4884,
+          "failures": [],
+          "passed": true
+        }
+      },
+      "t1": {
+        "controls": {
+          "adapters_nonzero_changed_and_nonzero_gradients": 288,
+          "full_microbatch_losses": [
+            13.027236938476562,
+            12.924687385559082,
+            12.76525592803955,
+            12.639369010925293
+          ],
+          "microbatches": 4,
+          "native_gate": {
+            "bitwise": true,
+            "checks": 4596,
+            "failures": [],
+            "passed": true
+          },
+          "passed": true,
+          "updates": 2
+        },
+        "versus_native": {
+          "bitwise": true,
+          "checks": 4884,
+          "failures": [],
+          "passed": true
+        }
+      },
+      "t2": {
+        "controls": {
+          "adapters_nonzero_changed_and_nonzero_gradients": 288,
+          "full_microbatch_losses": [
+            13.027236938476562,
+            12.924687385559082,
+            12.76525592803955,
+            12.639369010925293
+          ],
+          "microbatches": 4,
+          "native_gate": {
+            "bitwise": true,
+            "checks": 4596,
+            "failures": [],
+            "passed": true
+          },
+          "passed": true,
+          "updates": 2
+        },
+        "versus_native": {
+          "bitwise": true,
+          "checks": 4884,
+          "failures": [],
+          "passed": true
+        }
+      },
+      "t4": {
+        "controls": {
+          "adapters_nonzero_changed_and_nonzero_gradients": 288,
+          "full_microbatch_losses": [
+            13.027236938476562,
+            12.924687385559082,
+            12.76525592803955,
+            12.639369010925293
+          ],
+          "microbatches": 4,
+          "native_gate": {
+            "bitwise": true,
+            "checks": 4596,
+            "failures": [],
+            "passed": true
+          },
+          "passed": true,
+          "updates": 2
+        },
+        "versus_native": {
+          "bitwise": true,
+          "checks": 4884,
+          "failures": [],
+          "passed": true
+        }
+      },
+      "t8": {
+        "controls": {
+          "adapters_nonzero_changed_and_nonzero_gradients": 288,
+          "full_microbatch_losses": [
+            13.027236938476562,
+            12.924687385559082,
+            12.76525592803955,
+            12.639369010925293
+          ],
+          "microbatches": 4,
+          "native_gate": {
+            "bitwise": true,
+            "checks": 4596,
+            "failures": [],
+            "passed": true
+          },
+          "passed": true,
+          "updates": 2
+        },
+        "versus_native": {
+          "bitwise": true,
+          "checks": 4884,
+          "failures": [],
+          "passed": true
+        }
+      }
+    },
+    "financial": {
+      "attempt_a_usd": 0.507217201476755,
+      "attempt_b_usd": 0.769376338256434,
+      "provider_invoice_verified": false,
+      "remaining_usd": 4.909114004480999,
+      "total_current_check_usd": 1.276593539733189
+    },
+    "profile": {
+      "actual_gpu_trace_events": {
+        "": 60,
+        "Trace": 1,
+        "ac2g": 1861,
+        "cpu_op": 2325,
+        "cuda_driver": 22,
+        "cuda_runtime": 1033,
+        "gpu_memcpy": 128,
+        "gpu_user_annotation": 80,
+        "kernel": 678,
+        "overhead": 1,
+        "user_annotation": 128
+      },
+      "cpu_self_time_ranking": [
+        {
+          "count": 128,
+          "cpu_time_total_us": 2992.1890000000085,
+          "device_time_total_us": 0.0,
+          "device_type": "DeviceType.CPU",
+          "name": "cudaStreamSynchronize",
+          "self_cpu_time_total_us": 2992.1890000000085,
+          "self_device_time_total_us": 0.0
+        },
+        {
+          "count": 128,
+          "cpu_time_total_us": 2111.49099999999,
+          "device_time_total_us": 0.0,
+          "device_type": "DeviceType.CPU",
+          "name": "cudaMemcpyAsync",
+          "self_cpu_time_total_us": 2111.49099999999,
+          "self_device_time_total_us": 0.0
+        },
+        {
+          "count": 656,
+          "cpu_time_total_us": 1600.711999999976,
+          "device_time_total_us": 0.0,
+          "device_type": "DeviceType.CPU",
+          "name": "cudaLaunchKernel",
+          "self_cpu_time_total_us": 1600.711999999976,
+          "self_device_time_total_us": 0.0
+        },
+        {
+          "count": 16,
+          "cpu_time_total_us": 12030.113,
+          "device_time_total_us": 3815.2860000000273,
+          "device_type": "DeviceType.CPU",
+          "name": "soup.expert.fetch",
+          "self_cpu_time_total_us": 1255.6559999999927,
+          "self_device_time_total_us": 0.0
+        },
+        {
+          "count": 128,
+          "cpu_time_total_us": 7445.457000000012,
+          "device_time_total_us": 3196.986000000027,
+          "device_type": "DeviceType.CPU",
+          "name": "aten::_to_copy",
+          "self_cpu_time_total_us": 890.2630000000026,
+          "self_device_time_total_us": 0.0
+        },
+        {
+          "count": 30,
+          "cpu_time_total_us": 1914.9410000000012,
+          "device_time_total_us": 252.06000000000586,
+          "device_type": "DeviceType.CPU",
+          "name": "aten::linear",
+          "self_cpu_time_total_us": 872.6130000000135,
+          "self_device_time_total_us": 0.0
+        },
+        {
+          "count": 30,
+          "cpu_time_total_us": 955.2260000000078,
+          "device_time_total_us": 252.06000000000586,
+          "device_type": "DeviceType.CPU",
+          "name": "aten::mm",
+          "self_cpu_time_total_us": 863.1540000000159,
+          "self_device_time_total_us": 252.06000000000586
+        },
+        {
+          "count": 32,
+          "cpu_time_total_us": 1026.3870000000043,
+          "device_time_total_us": 71.97099999999637,
+          "device_type": "DeviceType.CPU",
+          "name": "bitsandbytes::dequantize_blockwise",
+          "self_cpu_time_total_us": 727.4220000000009,
+          "self_device_time_total_us": 45.57000000000062
+        },
+        {
+          "count": 14,
+          "cpu_time_total_us": 10450.124,
+          "device_time_total_us": 3648.8220000000374,
+          "device_type": "DeviceType.CPU",
+          "name": "_WeightedExpert",
+          "self_cpu_time_total_us": 679.9879999999994,
+          "self_device_time_total_us": 0.0
+        },
+        {
+          "count": 160,
+          "cpu_time_total_us": 1448.438000000012,
+          "device_time_total_us": 159.5170000000112,
+          "device_type": "DeviceType.CPU",
+          "name": "aten::empty_strided",
+          "self_cpu_time_total_us": 619.1390000000104,
+          "self_device_time_total_us": 0.0
+        }
+      ],
+      "devices": {
+        "0": {
+          "busy_union_us": 4543.740234375,
+          "event_span_us": 18130.50146484375,
+          "events": 806,
+          "first_event_us": 2336631538471.406,
+          "gaps_inside_observed_device_span_us": 13586.76123046875,
+          "last_event_end_us": 2336631556601.907,
+          "union_us_by_kind": {
+            "gpu_memcpy": 3063.865234375,
+            "gpu_memset": 0.0,
+            "h2d": 3063.865234375,
+            "kernel": 1479.875
+          }
+        }
+      },
+      "direct_dequant_kernel_duration_sum_us": 392.06099999999924,
+      "direct_dequant_kernel_events": [
+        {
+          "count": 32,
+          "cpu_time_total_us": 0.0,
+          "device_time_total_us": 346.4909999999986,
+          "device_type": "DeviceType.CUDA",
+          "name": "void kDequantizeBlockwise<__nv_bfloat16, 512, 64, 8, 2>(float*, unsigned char*, float*, __nv_bfloat16*, int, int)",
+          "self_cpu_time_total_us": 0.0,
+          "self_device_time_total_us": 346.4909999999986
+        },
+        {
+          "count": 32,
+          "cpu_time_total_us": 0.0,
+          "device_time_total_us": 45.57000000000062,
+          "device_type": "DeviceType.CUDA",
+          "name": "void kDequantizeBlockwise<float, 512, 64, 8, 0>(float*, unsigned char*, float*, float*, int, int)",
+          "self_cpu_time_total_us": 0.0,
+          "self_device_time_total_us": 45.57000000000062
+        }
+      ],
+      "duration_interpretation": "Nested/concurrent durations are not additive; profiler time is not unprofiled speed",
+      "scope": "native forward window only, not a full-step causal split",
+      "window": {
+        "cache_after": {
+          "device": {
+            "budget_bytes": 2147483648,
+            "entries": 227,
+            "evictions": 0,
+            "hits": 2897,
+            "misses": 68251,
+            "payload_bytes": 2142240768
+          },
+          "host": {
+            "budget_bytes": 8589934592,
+            "copied_bytes": 17175602304,
+            "entries": 3528,
+            "evictions": 0,
+            "hits": 40167,
+            "insertions": 7056,
+            "misses": 28084,
+            "payload_bytes": 8587801152,
+            "rejected_admissions": 20574
+          },
+          "host_cache_policy": "static",
+          "host_staging_bytes": 2473984,
+          "logical_fetches": 81766,
+          "materializations": 78869,
+          "storage_bytes_read": 94207789168,
+          "storage_reads": 38702
+        },
+        "cache_before": {
+          "device": {
+            "budget_bytes": 2147483648,
+            "entries": 227,
+            "evictions": 0,
+            "hits": 2897,
+            "misses": 68235,
+            "payload_bytes": 2142240768
+          },
+          "host": {
+            "budget_bytes": 8589934592,
+            "copied_bytes": 17175602304,
+            "entries": 3528,
+            "evictions": 0,
+            "hits": 40151,
+            "insertions": 7056,
+            "misses": 28084,
+            "payload_bytes": 8587801152,
+            "rejected_admissions": 20574
+          },
+          "host_cache_policy": "static",
+          "host_staging_bytes": 2473984,
+          "logical_fetches": 81750,
+          "materializations": 78853,
+          "storage_bytes_read": 94207789168,
+          "storage_reads": 38702
+        },
+        "cache_delta": {
+          "device_hits": 0,
+          "host_hits": 16,
+          "logical_fetches": 16,
+          "materializations": 16,
+          "storage_bytes_read": 0,
+          "storage_reads": 0
+        },
+        "microbatch": 0,
+        "phase": "forward",
+        "profiled_fetches": 16,
+        "requested_fetches": 16,
+        "restored": true,
+        "skip_fetches": 1024,
+        "started": true,
+        "stopped": true
+      }
+    },
+    "selection": {
+      "candidate": null,
+      "duplicate_controls": [
+        "t1"
+      ],
+      "exploratory_only": true,
+      "native_actual_threads": 1,
+      "not_a_confirmatory_speed_estimate": true,
+      "status": "NO_CONFIRMED_WIN"
+    },
+    "source_commit": "43cf0b34afe0d8850d76bf86d60663ab5c85cdb2",
+    "status": "descriptive_retained_original_tables_not_independent_verdict",
+    "timing": [
+      {
+        "actual_intraop_threads": 1,
+        "configuration_seconds": 4.2027910239994526e-05,
+        "exploratory_difference_percent": 0.0,
+        "inner_native_worker_seconds": 178.293514813995,
+        "median_step_seconds": 16.324279078573454,
+        "native_build_seconds": 37.61375020898413,
+        "peak_allocated_vram_gib": 3.64431095123291,
+        "peak_reserved_vram_gib": 3.83203125,
+        "policy": "native",
+        "sampled_timed_cgroup_swap_bytes": 0,
+        "sampled_timed_peak_rss_gib": 11.963088989257812,
+        "sampled_timed_process_swap_bytes": 0,
+        "setup_seconds": 37.61379799700808,
+        "steps_seconds": [
+          17.508185263955966,
+          16.350723972078413,
+          16.297834185068496,
+          16.120211348054,
+          16.1239319749875,
+          16.753671603975818
+        ],
+        "thread_control": {
+          "after": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 1
+          },
+          "applied_after_build": true,
+          "before": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 1
+          },
+          "configuration_seconds_included_in_native_setup": 4.2027910239994526e-05,
+          "requested": null
+        },
+        "whole_eight_update_entry_seconds": 180.57986948499456
+      },
+      {
+        "actual_intraop_threads": 1,
+        "configuration_seconds": 9.651004802435637e-05,
+        "exploratory_difference_percent": 1.3417616506110175,
+        "inner_native_worker_seconds": 180.50492667907383,
+        "median_step_seconds": 16.54331199498847,
+        "native_build_seconds": 37.68195472902153,
+        "peak_allocated_vram_gib": 3.64431095123291,
+        "peak_reserved_vram_gib": 3.83203125,
+        "policy": "t1",
+        "sampled_timed_cgroup_swap_bytes": 0,
+        "sampled_timed_peak_rss_gib": 11.968727111816406,
+        "sampled_timed_process_swap_bytes": 0,
+        "setup_seconds": 37.68205764994491,
+        "steps_seconds": [
+          17.759892838075757,
+          16.548470927984454,
+          16.499317207955755,
+          16.53815306199249,
+          16.320714382920414,
+          16.78175627195742
+        ],
+        "thread_control": {
+          "after": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 1
+          },
+          "applied_after_build": true,
+          "before": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 1
+          },
+          "configuration_seconds_included_in_native_setup": 9.651004802435637e-05,
+          "requested": 1
+        },
+        "whole_eight_update_entry_seconds": 182.87927382497583
+      },
+      {
+        "actual_intraop_threads": 2,
+        "configuration_seconds": 0.0001665889285504818,
+        "exploratory_difference_percent": 1.7094969896147116,
+        "inner_native_worker_seconds": 180.24926467996556,
+        "median_step_seconds": 16.60334213799797,
+        "native_build_seconds": 37.8370622349903,
+        "peak_allocated_vram_gib": 3.64431095123291,
+        "peak_reserved_vram_gib": 3.83203125,
+        "policy": "t2",
+        "sampled_timed_cgroup_swap_bytes": 0,
+        "sampled_timed_peak_rss_gib": 11.975345611572266,
+        "sampled_timed_process_swap_bytes": 0,
+        "setup_seconds": 37.837234834907576,
+        "steps_seconds": [
+          17.71511205099523,
+          16.54475604405161,
+          16.3189614249859,
+          16.662767091067508,
+          16.2737342689652,
+          16.66192823194433
+        ],
+        "thread_control": {
+          "after": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 2
+          },
+          "applied_after_build": true,
+          "before": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 1
+          },
+          "configuration_seconds_included_in_native_setup": 0.0001665889285504818,
+          "requested": 2
+        },
+        "whole_eight_update_entry_seconds": 182.63057396304794
+      },
+      {
+        "actual_intraop_threads": 4,
+        "configuration_seconds": 0.00019632501062005758,
+        "exploratory_difference_percent": 1.0224530994099812,
+        "inner_native_worker_seconds": 181.3432250469923,
+        "median_step_seconds": 16.491187175968662,
+        "native_build_seconds": 38.46553350798786,
+        "peak_allocated_vram_gib": 3.64431095123291,
+        "peak_reserved_vram_gib": 3.83203125,
+        "policy": "t4",
+        "sampled_timed_cgroup_swap_bytes": 0,
+        "sampled_timed_peak_rss_gib": 11.966495513916016,
+        "sampled_timed_process_swap_bytes": 0,
+        "setup_seconds": 38.46573697507847,
+        "steps_seconds": [
+          17.740192432072945,
+          16.528497171937488,
+          16.453877179999836,
+          16.278226924012415,
+          16.299766047974117,
+          17.02566648006905
+        ],
+        "thread_control": {
+          "after": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 4
+          },
+          "applied_after_build": true,
+          "before": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 1
+          },
+          "configuration_seconds_included_in_native_setup": 0.00019632501062005758,
+          "requested": 4
+        },
+        "whole_eight_update_entry_seconds": 183.78140919597354
+      },
+      {
+        "actual_intraop_threads": 8,
+        "configuration_seconds": 0.00021514995023608208,
+        "exploratory_difference_percent": 1.1006351829066174,
+        "inner_native_worker_seconds": 180.02537393802777,
+        "median_step_seconds": 16.5039498374681,
+        "native_build_seconds": 37.786824321956374,
+        "peak_allocated_vram_gib": 3.64431095123291,
+        "peak_reserved_vram_gib": 3.83203125,
+        "policy": "t8",
+        "sampled_timed_cgroup_swap_bytes": 0,
+        "sampled_timed_peak_rss_gib": 11.97542953491211,
+        "sampled_timed_process_swap_bytes": 0,
+        "setup_seconds": 37.787046705023386,
+        "steps_seconds": [
+          17.606116689974442,
+          16.63158303592354,
+          16.376316639012657,
+          16.25704776798375,
+          16.266040971968323,
+          16.76365922403056
+        ],
+        "thread_control": {
+          "after": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 8
+          },
+          "applied_after_build": true,
+          "before": {
+            "affinity": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "cpu_count": 12,
+            "env": {
+              "MKL_NUM_THREADS": "1",
+              "NUMEXPR_NUM_THREADS": null,
+              "OMP_NUM_THREADS": "1",
+              "OPENBLAS_NUM_THREADS": null,
+              "TOKENIZERS_PARALLELISM": "false"
+            },
+            "interop": 12,
+            "intraop": 1
+          },
+          "configuration_seconds_included_in_native_setup": 0.00021514995023608208,
+          "requested": 8
+        },
+        "whole_eight_update_entry_seconds": 182.3232038820861
+      }
+    ]
+  },
+  "failed_attempt_a": {
+    "archive_manifest_sha256": "ecf35e5ef6bf4211174ec6314980b93db0424972bf8f89d3588d317640fe49bf",
+    "audit_script_sha256": "d592bc8bf800b43788c26b4ba3764164d5bb8eda0178de0f3a03b8dc71e747ac",
+    "budget": {
+      "conservative_stage_usd": 0.507217201476755,
+      "provider_invoice_verified": false,
+      "remaining_task_usd": 5.678490342737433
+    },
+    "bundle_verified_sha256": "085bb124304180ebd9720fe84db383aec898f3ae77d37b3f121dd8870b44e82e",
+    "cleanup": {
+      "instance_id": 58086698,
+      "instance_verified_absent": true,
+      "label": "soup-expert-cpu-overlap-20261028-a",
+      "label_verified_absent": true,
+      "method": "fresh read-only full account listings after exact-owned cleanup",
+      "unix": 1793187147.0659015,
+      "verified_absent": true,
+      "volume_id": 58086695,
+      "volume_verified_absent": true
+    },
+    "frozen_audit_core_sha256": "b10aeef5913dae7ac3441133814f385f71f85305852d5690bb205a1c8f5a611c",
+    "full_30b_accuracy_runs": 0,
+    "full_30b_timing_runs": 0,
+    "hardware": {
+      "gpu_memory_mib": 8151,
+      "gpu_name": "NVIDIA GeForce RTX 5060 Ti",
+      "gpu_uuid": "GPU-d841e68e-b5bc-a7d1-9f4e-251fd4ed7dd0",
+      "native_ram_limit_bytes": 30881611776
+    },
+    "large_model_download_reached": false,
+    "launch_manifest_sha256": "0f43e43aa544fdb902dd73845edec2b0afd913b4d165e5fa67d5a38518e5cedf",
+    "numerical_readiness_cases_passed": 4,
+    "profiler": {
+      "actual_cpu_and_metadata_events": 124,
+      "actual_cuda_events": 0,
+      "actual_cuda_kernel_events": 0,
+      "actual_h2d_events": 0,
+      "recorded_error": "CUPTI_ERROR_INVALID_DEVICE",
+      "status": "failed",
+      "trace_gpu_complete_events": 0,
+      "window": {
+        "microbatch": 0,
+        "phase": "forward",
+        "profiled_fetches": 16,
+        "requested_fetches": 16,
+        "restored": true,
+        "skip_fetches": 1024,
+        "started": true,
+        "stopped": true
+      }
+    },
+    "retention": {
+      "archive_bytes": 2877440,
+      "archive_sha256": "4d85f08163606b802da7dd3dd4d8c80473011d88365bb872ed467d58569ed72b",
+      "decoded_unique_chunks_verified": 64,
+      "inner_manifest_sha256": "7a8eb42909e5390ea2faa056afbe3c2e1a7daea53bcda92c2efc721e6453f204",
+      "original_bytes": 9821593,
+      "verified_files": 108
+    },
+    "scientific_status": "FAILED_PROFILER_PREFLIGHT_NO_30B_VERDICT",
+    "scope": "Posthoc infrastructure/failure evidence only; no accuracy or speed gain claim",
+    "source_commit": "43cf0b34afe0d8850d76bf86d60663ab5c85cdb2",
+    "stage_id": "soup-expert-cpu-overlap-20261028-a",
+    "status": "passed_independent_failed_preflight_retention_cleanup_audit"
+  },
+  "independent_audit": {
+    "accuracy_gates": {
+      "native": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      },
+      "t1": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      },
+      "t2": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      },
+      "t4": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      },
+      "t8": {
+        "bitwise": true,
+        "checks": 4884,
+        "failures": [],
+        "passed": true
+      }
+    },
+    "actual_native_cpu_configuration": {
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "cpu_count": 12,
+      "env": {
+        "MKL_NUM_THREADS": "1",
+        "NUMEXPR_NUM_THREADS": null,
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": null,
+        "TOKENIZERS_PARALLELISM": "false"
+      },
+      "interop": 12,
+      "intraop": 1
+    },
+    "archive_manifest_sha256": "9378416e06de85095726babb024058b62254372680e5e976a7b3b9bb801bd398",
+    "audit_script_filename": "audit_cpu_overlap_pipfreeze_v2.py",
+    "audit_script_sha256": "14a10faf874fc4810d74621048458878faaced76f250470b2011554928cf93c0",
+    "budget": {
+      "conservative_stage_usd": 0.769376338256434,
+      "provider_invoice_verified": false,
+      "remaining_task_usd": 4.909114004480999
+    },
+    "bundle_verified_sha256": "456d9e0dbce19fcb85a7c6875e268b8347070f3fd19d9d6e7b0e445553bfeb4f",
+    "checkpoint_integrity": {
+      "expected_total_bytes": 61343935088,
+      "forced_redownloads_used": 0,
+      "helper_sha256": "ba16dc71dd8fddcb2622fe7720dd8cee24ed6a4da14eb4308d36826d90ec14e1",
+      "initial_failed_files": [],
+      "scope": "Captured official SHA/size checks and native prepare fingerprints agree. Checkpoint payloads are not retained/rehashed by this local audit; bad full payloads are not retained.",
+      "verified_files": 13
+    },
+    "cleanup": {
+      "instance_id": 58097253,
+      "instance_verified_absent": true,
+      "label": "soup-expert-cpu-overlap-20261028-b",
+      "label_verified_absent": true,
+      "method": "fresh read-only full account listings after exact-owned cleanup",
+      "unix": 1793199410.1578703,
+      "verified_absent": true,
+      "volume_id": 58097252,
+      "volume_verified_absent": true
+    },
+    "confirmation_absolute": {},
+    "confirmation_recomputed": null,
+    "dynamic_tiny_profiler_preflight": {
+      "scope": "bounded forward window with intervening work; not a full-step causal split",
+      "timeline": {
+        "cpu_phase_envelope_us_excluding_final_sync": null,
+        "cpu_scalar_counts": {
+          "aten::_local_scalar_dense": 0,
+          "aten::is_nonzero": 0,
+          "aten::item": 0,
+          "aten::nonzero": 0,
+          "aten::where": 0
+        },
+        "decoded_json_metadata": {
+          "baseTimeNanoseconds": 1790857026000000000,
+          "cuda_driver_version": 13020,
+          "cuda_runtime_version": 13000,
+          "cupti_version": 130001,
+          "deviceProperties": [
+            {
+              "computeMajor": 8,
+              "computeMinor": 9,
+              "id": 0,
+              "maxThreadsPerBlock": 1024,
+              "maxThreadsPerMultiprocessor": 1536,
+              "name": "NVIDIA GeForce RTX 4060 Ti",
+              "numSms": 34,
+              "regsPerBlock": 65536,
+              "regsPerMultiprocessor": 65536,
+              "sharedMemPerBlock": 49152,
+              "sharedMemPerBlockOptin": 101376,
+              "sharedMemPerMultiprocessor": 102400,
+              "totalGlobalMem": 8186822656,
+              "warpSize": 32
+            }
+          ],
+          "displayTimeUnit": "ms",
+          "parsed_events": 312,
+          "schemaVersion": 1,
+          "traceName": "/root/liger/results/profiler-preflight/trace.json",
+          "trace_id": "30143623F62D48F7906FCD549825FDED"
+        },
+        "devices": {
+          "0": {
+            "busy_union_us": 5132.42724609375,
+            "event_span_us": 5257.35302734375,
+            "events": 31,
+            "first_event_us": 2335539251281.737,
+            "gaps_inside_observed_device_span_us": 124.92578125,
+            "last_event_end_us": 2335539256539.09,
+            "union_us_by_kind": {
+              "gpu_memcpy": 5048.2998046875,
+              "gpu_memset": 0.0,
+              "h2d": 5048.2998046875,
+              "kernel": 84.12744140625
+            }
+          }
+        },
+        "event_category_counts": {
+          "": 60,
+          "Trace": 1,
+          "ac2g": 63,
+          "cpu_op": 124,
+          "cuda_runtime": 32,
+          "gpu_memcpy": 16,
+          "kernel": 15,
+          "overhead": 1
+        },
+        "gpu_complete_events": 31,
+        "interpretation": "GPU busy is an interval union across streams. Gaps are inside first-to-last recorded GPU activity only, not a whole-step idle percentage or proof of a particular bottleneck. CPU phase annotations end before the final CUDA sync. All durations include profiler overhead.",
+        "maximum_gpu_intervals": 1000000,
+        "microbatch_cpu_phase_annotations": {},
+        "soup_marker_counts": {},
+        "status": "parsed"
+      },
+      "trace": {
+        "bytes": 5654,
+        "decoded_bytes": 71754,
+        "decoded_sha256": "4205d6476fbec2b7a75bfdf61c252cfd7e96ee307ebb390bb671f31ee4c61d0b",
+        "decoded_verified": true,
+        "export_compression_verification_seconds": 0.0019212240586057305,
+        "maximum_encoded_bytes": 134217728,
+        "path": "trace.json.gz",
+        "sha256": "8d79c418dfe25491fad075f4c8eecb4c30fc9a4721bc4f8ce0b2c9be0dc6e919",
+        "within_bound": true
+      },
+      "window": {
+        "microbatch": 0,
+        "phase": "forward",
+        "profiled_fetches": 16,
+        "requested_fetches": 16,
+        "restored": true,
+        "skip_fetches": 1024,
+        "started": true,
+        "stopped": true
+      }
+    },
+    "exploration_absolute": {
+      "native": {
+        "actual_intraop": 1,
+        "exploratory_only": true,
+        "median_step_seconds": 16.324279078573454,
+        "peak_sampled_rss_bytes": 12845268992,
+        "peak_step_allocated_bytes": 3913049088,
+        "peak_step_reserved_bytes": 4114612224,
+        "setup_seconds": 37.61379799700808,
+        "update_seconds": [
+          17.508185263955966,
+          16.350723972078413,
+          16.297834185068496,
+          16.120211348054,
+          16.1239319749875,
+          16.753671603975818
+        ],
+        "whole_entry_seconds": 180.57986948499456
+      },
+      "t1": {
+        "actual_intraop": 1,
+        "exploratory_only": true,
+        "median_step_seconds": 16.54331199498847,
+        "peak_sampled_rss_bytes": 12851322880,
+        "peak_step_allocated_bytes": 3913049088,
+        "peak_step_reserved_bytes": 4114612224,
+        "setup_seconds": 37.68205764994491,
+        "update_seconds": [
+          17.759892838075757,
+          16.548470927984454,
+          16.499317207955755,
+          16.53815306199249,
+          16.320714382920414,
+          16.78175627195742
+        ],
+        "whole_entry_seconds": 182.87927382497583
+      },
+      "t2": {
+        "actual_intraop": 2,
+        "exploratory_only": true,
+        "median_step_seconds": 16.60334213799797,
+        "peak_sampled_rss_bytes": 12858429440,
+        "peak_step_allocated_bytes": 3913049088,
+        "peak_step_reserved_bytes": 4114612224,
+        "setup_seconds": 37.837234834907576,
+        "update_seconds": [
+          17.71511205099523,
+          16.54475604405161,
+          16.3189614249859,
+          16.662767091067508,
+          16.2737342689652,
+          16.66192823194433
+        ],
+        "whole_entry_seconds": 182.63057396304794
+      },
+      "t4": {
+        "actual_intraop": 4,
+        "exploratory_only": true,
+        "median_step_seconds": 16.491187175968662,
+        "peak_sampled_rss_bytes": 12848926720,
+        "peak_step_allocated_bytes": 3913049088,
+        "peak_step_reserved_bytes": 4114612224,
+        "setup_seconds": 38.46573697507847,
+        "update_seconds": [
+          17.740192432072945,
+          16.528497171937488,
+          16.453877179999836,
+          16.278226924012415,
+          16.299766047974117,
+          17.02566648006905
+        ],
+        "whole_entry_seconds": 183.78140919597354
+      },
+      "t8": {
+        "actual_intraop": 8,
+        "exploratory_only": true,
+        "median_step_seconds": 16.5039498374681,
+        "peak_sampled_rss_bytes": 12858519552,
+        "peak_step_allocated_bytes": 3913049088,
+        "peak_step_reserved_bytes": 4114612224,
+        "setup_seconds": 37.787046705023386,
+        "update_seconds": [
+          17.606116689974442,
+          16.63158303592354,
+          16.376316639012657,
+          16.25704776798375,
+          16.266040971968323,
+          16.76365922403056
+        ],
+        "whole_entry_seconds": 182.3232038820861
+      }
+    },
+    "foundations": {
+      "audit_cpu_foundation.py": "6c2eed12596fd76e49bca74ba214d506032339138915d17e88195640bc783bf6",
+      "audit_cpu_numeric_foundation.py": "15d64f4289d3763801d9a296bbd96a7482b9eb8073676a48a1a615e5e15f38d5",
+      "profile_timeline.py": "16c3f1b55e9e5b7e7f20aad80d6c101a3b9bcc81091b4838e1d26cb21a72a9a6"
+    },
+    "hardware": {
+      "gpu_memory_mib": 8188,
+      "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+      "gpu_uuid": "GPU-fbac6a92-77f6-7486-b8c7-d36cdb886099",
+      "native_ram_limit_bytes": 31950110720
+    },
+    "launch_manifest_sha256": "f2c4afa213b4af4b500ceec04c64071a59f3ac380a7d1ec1db6952657ba66884",
+    "posthoc_change": {
+      "installation_requirements": "all twenty official URL/hash locks remain mandatory",
+      "normalization": "exact registered wheel URL may omit the hash fragment",
+      "scope": "pip-freeze URL representation only; scientific gates unchanged",
+      "timing": "post-retention metadata parser correction; not preregistered code"
+    },
+    "pre_data_auditor_sha256": "a0b434b3b7f894bcaf07af3b4cfa36e8208d91de090118cd241ed4866e63b54c",
+    "profile": {
+      "actual_window_cache_delta": {
+        "device_hits": 0,
+        "host_hits": 16,
+        "logical_fetches": 16,
+        "materializations": 16,
+        "storage_bytes_read": 0,
+        "storage_reads": 0
+      },
+      "scope": "bounded forward window with intervening work; not a full-step causal split",
+      "timeline": {
+        "cpu_phase_envelope_us_excluding_final_sync": null,
+        "cpu_scalar_counts": {
+          "aten::_local_scalar_dense": 0,
+          "aten::is_nonzero": 0,
+          "aten::item": 0,
+          "aten::nonzero": 0,
+          "aten::where": 0
+        },
+        "decoded_json_metadata": {
+          "baseTimeNanoseconds": 1790857026000000000,
+          "cuda_driver_version": 13020,
+          "cuda_runtime_version": 13000,
+          "cupti_version": 130001,
+          "deviceProperties": [
+            {
+              "computeMajor": 8,
+              "computeMinor": 9,
+              "id": 0,
+              "maxThreadsPerBlock": 1024,
+              "maxThreadsPerMultiprocessor": 1536,
+              "name": "NVIDIA GeForce RTX 4060 Ti",
+              "numSms": 34,
+              "regsPerBlock": 65536,
+              "regsPerMultiprocessor": 65536,
+              "sharedMemPerBlock": 49152,
+              "sharedMemPerBlockOptin": 101376,
+              "sharedMemPerMultiprocessor": 102400,
+              "totalGlobalMem": 8186822656,
+              "warpSize": 32
+            }
+          ],
+          "displayTimeUnit": "ms",
+          "parsed_events": 6317,
+          "schemaVersion": 1,
+          "traceName": "/root/liger/results/cpu-overlap/profile/native/trace.json",
+          "trace_id": "57213D1316254BF2AD3C29F968E17CAB"
+        },
+        "devices": {
+          "0": {
+            "busy_union_us": 4543.740234375,
+            "event_span_us": 18130.50146484375,
+            "events": 806,
+            "first_event_us": 2336631538471.406,
+            "gaps_inside_observed_device_span_us": 13586.76123046875,
+            "last_event_end_us": 2336631556601.907,
+            "union_us_by_kind": {
+              "gpu_memcpy": 3063.865234375,
+              "gpu_memset": 0.0,
+              "h2d": 3063.865234375,
+              "kernel": 1479.875
+            }
+          }
+        },
+        "event_category_counts": {
+          "": 60,
+          "Trace": 1,
+          "ac2g": 1861,
+          "cpu_op": 2325,
+          "cuda_driver": 22,
+          "cuda_runtime": 1033,
+          "gpu_memcpy": 128,
+          "gpu_user_annotation": 80,
+          "kernel": 678,
+          "overhead": 1,
+          "user_annotation": 128
+        },
+        "gpu_complete_events": 806,
+        "interpretation": "GPU busy is an interval union across streams. Gaps are inside first-to-last recorded GPU activity only, not a whole-step idle percentage or proof of a particular bottleneck. CPU phase annotations end before the final CUDA sync. All durations include profiler overhead.",
+        "maximum_gpu_intervals": 1000000,
+        "microbatch_cpu_phase_annotations": {},
+        "soup_marker_counts": {
+          "soup.expert.fetch": 16,
+          "soup.expert.file_identity": 16,
+          "soup.nf4.dequantize_4bit": 32,
+          "soup.nf4.dequantize_blockwise": 32,
+          "soup.nf4.quant_state": 32
+        },
+        "status": "parsed"
+      },
+      "trace": {
+        "bytes": 123718,
+        "decoded_bytes": 1591941,
+        "decoded_sha256": "f32a256f20c5dbe2e8d6798ffde7db42110e8c60d4b8bbe229c0cb54f578d472",
+        "decoded_verified": true,
+        "export_compression_verification_seconds": 0.03697232808917761,
+        "maximum_encoded_bytes": 134217728,
+        "path": "trace.json.gz",
+        "sha256": "304dec17ad23d5f6d44f14a040cd60647ff7d5ed75979e9d96d3b6872e1b91ca",
+        "within_bound": true
+      },
+      "window": {
+        "cache_after": {
+          "device": {
+            "budget_bytes": 2147483648,
+            "entries": 227,
+            "evictions": 0,
+            "hits": 2897,
+            "misses": 68251,
+            "payload_bytes": 2142240768
+          },
+          "host": {
+            "budget_bytes": 8589934592,
+            "copied_bytes": 17175602304,
+            "entries": 3528,
+            "evictions": 0,
+            "hits": 40167,
+            "insertions": 7056,
+            "misses": 28084,
+            "payload_bytes": 8587801152,
+            "rejected_admissions": 20574
+          },
+          "host_cache_policy": "static",
+          "host_staging_bytes": 2473984,
+          "logical_fetches": 81766,
+          "materializations": 78869,
+          "storage_bytes_read": 94207789168,
+          "storage_reads": 38702
+        },
+        "cache_before": {
+          "device": {
+            "budget_bytes": 2147483648,
+            "entries": 227,
+            "evictions": 0,
+            "hits": 2897,
+            "misses": 68235,
+            "payload_bytes": 2142240768
+          },
+          "host": {
+            "budget_bytes": 8589934592,
+            "copied_bytes": 17175602304,
+            "entries": 3528,
+            "evictions": 0,
+            "hits": 40151,
+            "insertions": 7056,
+            "misses": 28084,
+            "payload_bytes": 8587801152,
+            "rejected_admissions": 20574
+          },
+          "host_cache_policy": "static",
+          "host_staging_bytes": 2473984,
+          "logical_fetches": 81750,
+          "materializations": 78853,
+          "storage_bytes_read": 94207789168,
+          "storage_reads": 38702
+        },
+        "cache_delta": {
+          "device_hits": 0,
+          "host_hits": 16,
+          "logical_fetches": 16,
+          "materializations": 16,
+          "storage_bytes_read": 0,
+          "storage_reads": 0
+        },
+        "microbatch": 0,
+        "phase": "forward",
+        "profiled_fetches": 16,
+        "requested_fetches": 16,
+        "restored": true,
+        "skip_fetches": 1024,
+        "started": true,
+        "stopped": true
+      }
+    },
+    "qualification_run_sha256": "563d2c0e30fde9845740534c307330d254bfbac90fb4f65e88800384f27e2df1",
+    "recording_limits": {
+      "accuracy": "five separate complete two-update/four-micro trajectories",
+      "checkpoint": "deleted model payloads not independently rehashed by this local audit",
+      "fill_uninitialized_memory": "runtime value not persisted; NO VERDICT",
+      "physical_io": "logical payload counts are not physical SSD traffic",
+      "profile": "forward-fetch window; no backward/full-step causal split",
+      "profile_states": "same initialization; advancing AdamW hashes; no full parity",
+      "quality": "fixed random-token short updates; no convergence/task-quality verdict",
+      "ram": "RSS excludes filesystem/kernel charges; native cgroup bound retained",
+      "timed_final_tensors": "not persisted; NO VERDICT on full final timed tensor parity",
+      "timed_losses": "all recorded last-micro losses; first-micro scalar not persisted"
+    },
+    "retention": {
+      "archive_bytes": 627015680,
+      "archive_sha256": "bea9f672b737958551eb5ae2132bb331e8b5ad0d3081680cf8b95d940a260b89",
+      "decoded_unique_chunks_verified": 415,
+      "inner_manifest_sha256": "56b9492c102fdcf6ae79c83fe626612d497a7c055a54dbf71758be1f60572741",
+      "original_bytes": 5875436481,
+      "verified_files": 195
+    },
+    "runtime_cohort": {
+      "actual_worker_environment": {
+        "adapter_b_initialization": "cpu-fp32-normal(seed+1000)*0.02 cast to adapter dtype",
+        "allow_tf32": false,
+        "compute_capability": [
+          8,
+          9
+        ],
+        "deterministic_algorithms": true,
+        "gpu_name": "NVIDIA GeForce RTX 4060 Ti",
+        "gpu_total_bytes": 8186822656,
+        "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+        "python": "3.12.3",
+        "torch_cuda": "13.0",
+        "training_mode": "eval with differentiable LoRA updates; dropout disabled",
+        "versions": {
+          "bitsandbytes": "0.50.2",
+          "peft": "0.20.0",
+          "torch": "2.10.0+cu130",
+          "transformers": "5.16.1",
+          "trl": "0.29.1"
+        }
+      },
+      "name": "b",
+      "old_cohort_timing_denominator_allowed": false,
+      "preregistered": {
+        "launch_manifest_sha256": "f2c4afa213b4af4b500ceec04c64071a59f3ac380a7d1ec1db6952657ba66884",
+        "maximum_seconds": 9000,
+        "maximum_stage_usd": 5.6,
+        "remaining_before_usd": 5.678490342737433,
+        "stage_id": "soup-expert-cpu-overlap-20261028-b",
+        "torch": "2.10.0+cu130",
+        "torch_cuda": "13.0",
+        "triton": "3.6.0"
+      },
+      "software_admission": {
+        "actual_admission": {
+          "actual_versions": {
+            "bitsandbytes": "0.50.2",
+            "cuda-bindings": "13.0.3",
+            "cuda-pathfinder": "1.8.4",
+            "nvidia-cublas": "13.1.0.3",
+            "nvidia-cuda-cupti": "13.0.85",
+            "nvidia-cuda-nvrtc": "13.0.88",
+            "nvidia-cuda-runtime": "13.0.96",
+            "nvidia-cudnn-cu13": "9.15.1.9",
+            "nvidia-cufft": "12.0.0.61",
+            "nvidia-cufile": "1.15.1.6",
+            "nvidia-curand": "10.4.0.35",
+            "nvidia-cusolver": "12.0.4.66",
+            "nvidia-cusparse": "12.6.3.3",
+            "nvidia-cusparselt-cu13": "0.8.0",
+            "nvidia-nccl-cu13": "2.28.9",
+            "nvidia-nvjitlink": "13.0.88",
+            "nvidia-nvshmem-cu13": "3.4.5",
+            "nvidia-nvtx": "13.0.85",
+            "torch": "2.10.0+cu130",
+            "triton": "3.6.0"
+          },
+          "bitsandbytes_actual_library_path": "/root/liger/venv/lib/python3.12/site-packages/bitsandbytes/libbitsandbytes_cuda130.so",
+          "bitsandbytes_actual_library_sha256": "00901675cb2acb8b1d6015cfe2c2571050bf59c7ce1972e6b6717ffc99b2a285",
+          "bitsandbytes_actual_version": "0.50.2",
+          "bitsandbytes_compiled_with_cuda": true,
+          "bitsandbytes_module_path": "/root/liger/venv/lib/python3.12/site-packages/bitsandbytes/__init__.py",
+          "cohort_sha256": "5363ac6745eb1590cc92dd307a4e9db896854b957b83e2c51650e76993f844a9",
+          "cuda_available": true,
+          "cuda_visible_device_count": 1,
+          "helper_path": "/root/liger/runtime_stack.py",
+          "helper_sha256": "875cb67d59076e037c6a595179bba2cf2f7f1f6b14fa17bef341af06ea0b0da3",
+          "schema_version": 1,
+          "scope": "Actual installed/imported CUDA13 stack admission; not numerical or profiler proof",
+          "status": "passed_runtime_stack_admission",
+          "torch_actual_version": "2.10.0+cu130",
+          "torch_cuda_version": "13.0",
+          "torch_module_path": "/root/liger/venv/lib/python3.12/site-packages/torch/__init__.py",
+          "unix_completed": 1793192554.0838213,
+          "unix_started": 1793192549.984301,
+          "wheel_lock_sha256": "7ff20e7001dc6f46a232947c583a875156fc53257ec9e12b6c294a01eb42b462"
+        },
+        "constraints_sha256": "2d00187cb406d0405c52ae15bec90e557ab2706108387fd6f63f2e2c155737cd",
+        "registered": {
+          "bitsandbytes_required_native_library": "libbitsandbytes_cuda130.so",
+          "bitsandbytes_wheel_url_with_sha256": "https://files.pythonhosted.org/packages/a5/6e/e4e8b75716dbe5e50964f070266e06f4e6806ce051bfb97f52ee162b9310/bitsandbytes-0.50.2-py3-none-manylinux_2_24_x86_64.whl#sha256=55348a9a4a21bfd99cf8c7b32fe67b4030ae5c2a05738e03c1747f65fa6ec283",
+          "gpu_proof_from_metadata": false,
+          "metadata_sha256": "1b87a7275d84186dd7cebf8a6b8255dc26303f922feb3a97ed0c7f4afac60dcd",
+          "name": "torch210_cu130_compatibility_retry",
+          "old_f15_or_stage_a_timing_denominator_allowed": false,
+          "required_cuda_major": 13,
+          "required_versions": {
+            "bitsandbytes": "0.50.2",
+            "cuda-bindings": "13.0.3",
+            "cuda-pathfinder": "1.8.4",
+            "nvidia-cublas": "13.1.0.3",
+            "nvidia-cuda-cupti": "13.0.85",
+            "nvidia-cuda-nvrtc": "13.0.88",
+            "nvidia-cuda-runtime": "13.0.96",
+            "nvidia-cudnn-cu13": "9.15.1.9",
+            "nvidia-cufft": "12.0.0.61",
+            "nvidia-cufile": "1.15.1.6",
+            "nvidia-curand": "10.4.0.35",
+            "nvidia-cusolver": "12.0.4.66",
+            "nvidia-cusparse": "12.6.3.3",
+            "nvidia-cusparselt-cu13": "0.8.0",
+            "nvidia-nccl-cu13": "2.28.9",
+            "nvidia-nvjitlink": "13.0.88",
+            "nvidia-nvshmem-cu13": "3.4.5",
+            "nvidia-nvtx": "13.0.85",
+            "torch": "2.10.0+cu130",
+            "triton": "3.6.0"
+          },
+          "schema_version": 1,
+          "torch_cuda_version": "13.0",
+          "torch_version": "2.10.0+cu130",
+          "torch_wheel_url_with_sha256": "https://download-r2.pytorch.org/whl/cu130/torch-2.10.0%2Bcu130-cp312-cp312-manylinux_2_28_x86_64.whl#sha256=858f0cbcc78d726fea9499eb3464faa98392fa093845a3262209bd226b7844d6",
+          "transitive_metadata_sha256": "1d47208df9a1cfbcec0015ab8cb7c33566113200ef85f727dab6b490e2d4b0a8",
+          "wheel_lock_sha256": "7ff20e7001dc6f46a232947c583a875156fc53257ec9e12b6c294a01eb42b462"
+        },
+        "scope": "Separate CUDA13 runtime; every speed denominator uses its own native arm",
+        "wheel_lock_sha256": "7ff20e7001dc6f46a232947c583a875156fc53257ec9e12b6c294a01eb42b462"
+      }
+    },
+    "schema_version": 1,
+    "selection_recomputed": {
+      "candidate": null,
+      "duplicate_controls": [
+        "t1"
+      ],
+      "exploratory_only": true,
+      "native_actual_threads": 1,
+      "not_a_confirmatory_speed_estimate": true,
+      "status": "NO_CONFIRMED_WIN"
+    },
+    "source_commit": "43cf0b34afe0d8850d76bf86d60663ab5c85cdb2",
+    "speed_verdict": "NO_CONFIRMED_WIN",
+    "stage_id": "soup-expert-cpu-overlap-20261028-b",
+    "status": "passed_independent_cpu_overlap_audit",
+    "storage_capacity": {
+      "advertised_pool_required": 144,
+      "data_floor_bytes": 107374182400,
+      "data_worst_case_bytes": 90731222941,
+      "minimum_remaining_before_nf4_bytes": 29387287853,
+      "plan_sha256": "f5ade50cd2af0ae8c3a6210534d199b7bd35501b53358e62b7637944282e17d2",
+      "provider_gb_to_gib_conversion_assumed": false,
+      "root_floor_bytes": 17179869184,
+      "root_provider_gb": 32,
+      "root_worst_case_bytes": 16632385536,
+      "scope": "Operational disk capacities only; RAM/VRAM/no-swap/precision gates unchanged",
+      "volume_provider_gb": 112
+    },
+    "workers": 11
+  },
+  "posthoc_parser_review": {
+    "actual_pip_freeze_fixture_sha256": "40f6fedb28f49a64825d396e77bc8fcc3fb805a05efdfeb7e7ed52eac7481772",
+    "all_other_function_asts_identical": true,
+    "benchmark_metrics_inspected": false,
+    "changed_functions": [
+      "software_admission (one URL representation equality)",
+      "audit/main (provenance fields only)"
+    ],
+    "corrected_auditor_filename": "audit_cpu_overlap_pipfreeze_v2.py",
+    "corrected_auditor_sha256": "14a10faf874fc4810d74621048458878faaced76f250470b2011554928cf93c0",
+    "exact_diff_sha256": "75878af891883af66e08fb6c42cab83a82568f02e7a2f435772bffd764c44b42",
+    "green": {
+      "passed": 13,
+      "test_source_sha256": "43c1b2c0eab9a272658d2039811955a692afcbce791094e3c67cad804363ae78",
+      "xml_sha256": "ef7f1e9beda114459fc182d181669af912bd2d363fa5749c72f498cf5bf2428f"
+    },
+    "interpretation": "Actual retained pip-freeze dropped URL fragments. Accept only exact registered URL without any fragment, or the original exact hash-locked URL. No foreign URL/version/nonempty foreign fragment allowed. Installation requirements remain strict all20 URL/hash. No numerical/timing/resource/selection/retention/cleanup changes. Posthoc normalization is explicitly labeled; original scientific method remains pre-data a0.",
+    "no_full_actual_audit_run": true,
+    "original_failed_audit_preserved_sha256": "ff62b34f0cd1836f4b1c6ce72c20244eb3d40742f443bd407eebcdd519f341be",
+    "pre_data_auditor_sha256": "a0b434b3b7f894bcaf07af3b4cfa36e8208d91de090118cd241ed4866e63b54c",
+    "red": {
+      "failed": 1,
+      "result": "expected failure of original auditor",
+      "xml_sha256": "21de8488da2dc84d6ab75939e0c92e189451671af229d756de0f8a3e170de362"
+    },
+    "requirements_hash_gate_unchanged": true,
+    "status": "passed_bounded_posthoc_metadata_parser_review",
+    "unix": 1793199632.777904
+  },
+  "recovery": {
+    "local_controller_interrupted": true,
+    "mutable_api_throttle_state_repaired_under_lock": true,
+    "original_deadline_and_budget_preserved": true,
+    "recovery_monitor_exit": "1: conservative transfer reserve boundary; original completed archive fully recovered",
+    "remote_compute_restarted": false,
+    "same_lease": true,
+    "scientific_inputs_or_tolerances_changed": false
+  },
+  "schema_version": 1,
+  "status": "completed_negative_cpu_thread_scaling_result"
+}

@@ -795,6 +795,18 @@ class SFTTrainerWrapper(StreamingSetupMixin):
         else:
             self._setup_transformers(cfg, tcfg)
 
+        self._fast_lora_patches = {}
+        if getattr(tcfg, "fast_lora", False):
+            from soup_cli.utils.fast_lora_training import apply_fast_lora_training
+
+            self._fast_lora_patches = apply_fast_lora_training(
+                self.model, streaming=use_streaming
+            )
+            console.print(
+                "[green]Fast-LoRA installed (experimental):[/] "
+                + ", ".join(f"{name}={count}" for name, count in self._fast_lora_patches.items())
+            )
+
         # v0.71.23 #266 — the Spectrum full-FT branch leaves a raw (non-PEFT)
         # model, which has no get_nb_trainable_parameters(); fall back to a
         # direct parameter count.

@@ -1,0 +1,367 @@
+{
+  "status": "COMPLETED_NOT_A_NUMERICAL_OR_PERFORMANCE_VERDICT",
+  "arm": "resident_compile",
+  "indices": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "physical_gpu_bytes": 8222670848,
+  "allocator_budget_bytes": 7516192768,
+  "budget_excludes_context": true,
+  "torch": "2.8.0+cu128",
+  "research_bench_sha256": "080b4de75b8f228f367d7f9de2e4b7be7793b2b3c1e6c06c27ec0b0638b10f1b",
+  "pid": 5254,
+  "affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "ordinary_setup_seconds": 22.86458170018159,
+  "layer_count": 36,
+  "per_layer_bytes": 385892864,
+  "host_memory_after_setup": {
+    "max_rss_bytes": 19776753664,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 19776753664,
+    "VmRSS_bytes": 18585903104
+  },
+  "attention_backend": "sdpa",
+  "residency": {
+    "indices": [
+      16,
+      17,
+      18,
+      19
+    ],
+    "dedicated_slots": {
+      "16": 2,
+      "17": 3,
+      "18": 4,
+      "19": 5
+    },
+    "rotating_slots": 2,
+    "resident_bytes": 1543571456,
+    "preload_loads": 4,
+    "resident_load_calls_skipped": 0,
+    "dynamic_loads": 242,
+    "dynamic_logical_bytes": 93386073088,
+    "arithmetic_changed": false,
+    "host_store_retained": true,
+    "preload_seconds": 0.14561706804670393
+  },
+  "compiled_decoders": 4,
+  "compile_wrapper_seconds": 0.006185388192534447,
+  "all_update_wall_seconds": [
+    15.398841553134844,
+    7.08017839002423
+  ],
+  "compiler_before": {
+    "stats": {},
+    "frames": {},
+    "graph_break": {}
+  },
+  "setup_peak_allocated_bytes": 3638279168,
+  "setup_peak_reserved_bytes": 3663724544,
+  "all_update_peak_allocated_bytes": [
+    5903398912,
+    5990693376
+  ],
+  "all_update_peak_reserved_bytes": [
+    6616514560,
+    6616514560
+  ],
+  "per_update_loads": [
+    {
+      "step": 1,
+      "loads": 122,
+      "bytes": 47078929408
+    },
+    {
+      "step": 2,
+      "loads": 120,
+      "bytes": 46307143680
+    }
+  ],
+  "compiler_after": {
+    "stats": {
+      "calls_captured": 112,
+      "unique_graphs": 1
+    },
+    "frames": {},
+    "graph_break": {}
+  },
+  "compiler_time_metrics_seconds_inclusive": {
+    "inductor_codecache_torch_key": [
+      0.232105561
+    ],
+    "_compile.compile_inner": [
+      6.776136108
+    ],
+    "compile_attempt_0": [
+      6.629795447
+    ],
+    "bytecode_tracing": [
+      0.447611098
+    ],
+    "OutputGraph.call_user_compiler": [
+      6.138282697
+    ],
+    "_recursive_pre_grad_passes": [
+      0.031331176
+    ],
+    "create_aot_dispatcher_function": [
+      5.136546007
+    ],
+    "aot_collect_metadata": [
+      0.219084846
+    ],
+    "aot_trace_joint_graph": [
+      0.818577108
+    ],
+    "_recursive_joint_graph_passes": [
+      2.22826645
+    ],
+    "pad_mm_benchmark": [
+      0.000740363,
+      0.782115356,
+      0.076441974,
+      0.075739505,
+      0.075187435,
+      0.000933561,
+      0.001238373,
+      0.001199994,
+      0.075433661,
+      0.075170459,
+      0.00093319,
+      0.00123868,
+      0.001211498,
+      0.001221912,
+      0.001204854,
+      0.000926518,
+      0.001217002,
+      0.001206362,
+      0.001243168,
+      0.001206875,
+      0.000927112,
+      0.001217057,
+      0.001024526,
+      0.084863553,
+      0.063650046,
+      0.000700685,
+      0.000923691,
+      0.000912374,
+      0.000928453,
+      0.000910939,
+      0.00069217,
+      0.062577724,
+      0.064677694,
+      0.000978056,
+      0.000902481,
+      0.06297842,
+      0.064860883,
+      0.00068195,
+      0.062022014,
+      0.063878612,
+      0.000693836,
+      0.000915067,
+      0.000926576,
+      0.000678514,
+      0.000910893,
+      0.000930871,
+      0.00068995,
+      0.06340898,
+      0.000980474,
+      0.000701611,
+      0.000910769,
+      0.00093095,
+      0.000681089,
+      0.001067298,
+      0.000930194,
+      0.000692566
+    ],
+    "pad_mm_benchmark_get_do_bench": [
+      0.000340674,
+      0.00031904,
+      0.000446993,
+      0.000446062,
+      0.000430881,
+      0.000429775,
+      0.000424468,
+      0.000420886,
+      0.000422836,
+      0.000427069,
+      0.000444509,
+      0.000447703,
+      0.000426642,
+      0.000424597,
+      0.0004223,
+      0.000441184,
+      0.000427593,
+      0.000424699,
+      0.000421205,
+      0.000437344,
+      0.000439321,
+      0.00043954,
+      0.000351923,
+      0.000351325,
+      0.000325848,
+      0.000321917,
+      0.000329595,
+      0.000329353,
+      0.000329951,
+      0.000316552,
+      0.000317515,
+      0.000317682,
+      0.000366966,
+      0.000364255,
+      0.000313249,
+      0.000317072,
+      0.000330733,
+      0.000318434,
+      0.000316744,
+      0.000320208,
+      0.000328658,
+      0.000316082,
+      0.000316743,
+      0.000315232,
+      0.000327251,
+      0.00032965,
+      0.000317887,
+      0.000319412,
+      0.000368529,
+      0.000335666,
+      0.000316931,
+      0.000319162,
+      0.000316883,
+      0.000478667,
+      0.000318913,
+      0.000328711
+    ],
+    "InductorBenchmarker.benchmark_gpu": [
+      0.044175496,
+      0.036352134,
+      0.036354455,
+      0.037128559,
+      0.035489748,
+      0.037109302,
+      0.035729092,
+      0.036557149,
+      0.035419136,
+      0.036945308,
+      0.035523733,
+      0.036718945,
+      0.028951055,
+      0.05332664,
+      0.02656177,
+      0.03482559,
+      0.026581026,
+      0.033628286,
+      0.02663538,
+      0.03570774,
+      0.026196302,
+      0.034555,
+      0.02729504,
+      0.035258742,
+      0.026364986,
+      0.033392948,
+      0.026528537,
+      0.035047409,
+      0.026140238,
+      0.034981394
+    ],
+    "min_cut_rematerialization_partition": [
+      0.130967124
+    ],
+    "compile_fx.<locals>.fw_compiler_base": [
+      1.693722249
+    ],
+    "compile_fx_inner": [
+      1.693032243,
+      1.311128857
+    ],
+    "fx_codegen_and_compile": [
+      1.688464847,
+      1.304953627
+    ],
+    "additional_fake_tensor_prop": [
+      0.070292129,
+      0.082264989
+    ],
+    "_recursive_post_grad_passes": [
+      0.052159276,
+      0.048613122
+    ],
+    "GraphLowering.run": [
+      0.320895962,
+      0.227334213
+    ],
+    "GraphLowering.compile_to_fn": [
+      1.181369384,
+      0.883303772
+    ],
+    "GraphLowering.compile_to_module": [
+      1.181241356,
+      0.883209464
+    ],
+    "GraphLowering.codegen": [
+      0.753719807,
+      0.532923634
+    ],
+    "Scheduler.__init__": [
+      0.402519688,
+      0.189514533
+    ],
+    "Scheduler.fused_nodes": [
+      0.020205694,
+      0.028118574
+    ],
+    "Scheduler.codegen": [
+      0.327810736,
+      0.320252544
+    ],
+    "PythonWrapperCodegen.generate": [
+      0.01731899,
+      0.020033099
+    ],
+    "PyCodeCache.load_by_key_path": [
+      0.426146811,
+      0.349002886
+    ],
+    "async_compile.wait": [
+      0.404728826,
+      0.339551731
+    ],
+    "TritonBundler.collect": [
+      0.005339872,
+      0.005188047
+    ],
+    "build_guards": [
+      0.133278629
+    ],
+    "gc": [
+      0.001645372
+    ],
+    "backward._backward_impl": [
+      1.340854943
+    ],
+    "compile_fx.<locals>.bw_compiler": [
+      1.311384471
+    ]
+  },
+  "host_memory_at_exit": {
+    "max_rss_bytes": 22923976704,
+    "VmLck_bytes": 0,
+    "VmPin_bytes": 0,
+    "VmHWM_bytes": 22923976704,
+    "VmRSS_bytes": 21820694528
+  },
+  "peak_allocated_bytes": 5990693376,
+  "peak_reserved_bytes": 6616514560,
+  "whole_run_peak_allocated_bytes": 5990693376,
+  "whole_run_peak_reserved_bytes": 6616514560,
+  "whole_entry_seconds": 56.2247939768713
+}

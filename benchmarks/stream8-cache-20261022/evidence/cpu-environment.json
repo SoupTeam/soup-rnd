@@ -1,0 +1,15 @@
+{
+  "python": "3.10.0",
+  "torch": "2.13.0+cpu",
+  "validation_source": "reconstructed d500ae0dca7c4da905f8d59c9866af2f8aaa824b src/soup_cli",
+  "passed": 27,
+  "cuda_skips": 2,
+  "new_tests": 16,
+  "scope": "small synthetic CPU fixture; not pretrained/Qwen/CUDA qualification",
+  "command": "PYTHONPATH=output/stream8-cache-20261022-repro2/repo/src python -m pytest tests/test_stream8_cache_20261022.py tests/test_streaming_residency_candidate.py --no-cov -q -o addopts= --tb=short",
+  "mutation_controls": [
+    "blind checkpoint bypass",
+    "adjacent retained layers without frozen saved-weight snapshots",
+    "missing prefetch repair"
+  ]
+}

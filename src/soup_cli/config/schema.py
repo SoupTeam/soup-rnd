@@ -3021,6 +3021,14 @@ class TrainingConfig(BaseModel):
         ge=0,
         description="Auxiliary load-balancing loss coefficient for MoE models",
     )
+    fast_lora: bool = Field(
+        default=False,
+        description=(
+            "Experimental Fast-LoRA autograd for Llama text SFT: resident dense weights "
+            "or layer streaming (dense/NF4). "
+            "Requires ordinary LoRA with dropout=0; no performance guarantee."
+        ),
+    )
     # Performance — Liger Kernel (fused operations)
     use_liger: bool = Field(
         default=False,
@@ -3548,6 +3556,28 @@ class TrainingConfig(BaseModel):
             "single buffer cannot overlap load with compute."
         ),
     )
+    stream_resident_layers: Union[int, Literal["auto"]] = Field(
+        default=0,
+        description=(
+            "Opt-in persistent decoder weights for streamed text SFT. 0 keeps ordinary "
+            "streaming; a positive integer keeps a centred block of that many layers; "
+            "'auto' measures the configured forward/backward peak and selects layers "
+            "within a conservative VRAM budget. CUDA with RAM or coordinated async SSD "
+            "sources. GPU-resident layers skip SSD reads and are excluded from the RAM "
+            "hotset. Auto falls back on unsupported sources. The full RAM-tier host store "
+            "is retained. "
+            "Setup probes preserve RNG and do not update adapters. No speed guarantee."
+        ),
+    )
+
+    @field_validator("stream_resident_layers", mode="before")
+    @classmethod
+    def _validate_stream_resident_layers(cls, value: Any) -> Any:
+        if value == "auto":
+            return value
+        if type(value) is not int or value < 0:
+            raise ValueError("training.stream_resident_layers must be 0, a positive int or 'auto'")
+        return value
 
     @field_validator("stream_buffers", mode="before")
     @classmethod
@@ -3590,6 +3620,18 @@ class TrainingConfig(BaseModel):
         if isinstance(v, bool):
             raise ValueError("training.stream_read_ahead must be an int, not bool")
         return v
+
+    stream_ram_cache_mb: int = Field(
+        default=0,
+        ge=0,
+        strict=True,
+        description=(
+            "Optional allocation ceiling in MiB for a persistent RAM hotset on the SSD "
+            "streaming tier. Zero disables it. Layer count is selected automatically, "
+            "including arena rounding, current cgroup limits, 30% available-RAM slack "
+            "and a 512 MiB runtime reserve. Does not change weights or GPU buffers."
+        ),
+    )
 
     stream_pin: Optional[bool] = Field(
         default=None,
@@ -5902,6 +5944,41 @@ class SoupConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _validate_fast_lora_training(self) -> "SoupConfig":
+        tcfg = self.training
+        if not tcfg.fast_lora:
+            return self
+        if self.task != "sft" or self.backend != "transformers" or self.modality != "text":
+            raise ValueError(
+                "training.fast_lora requires task=sft, backend=transformers, modality=text"
+            )
+        if tcfg.quantization != "none" and not (
+            tcfg.stream_layers and tcfg.quantization == "4bit"
+        ):
+            raise ValueError(
+                "training.fast_lora requires quantization=none, or streamed 4bit NF4"
+            )
+        lora = tcfg.lora
+        if lora.r <= 0 or lora.dropout != 0:
+            raise ValueError("training.fast_lora requires lora.r>0 and lora.dropout=0")
+        if (
+            lora.use_dora or lora.use_vera or lora.use_rslora or lora.use_olora
+            or lora.init_strategy != "random" or lora.target_parameters
+        ):
+            raise ValueError("training.fast_lora initially supports ordinary LoRA only")
+        incompatible = (
+            "use_liger", "use_cut_ce", "fp8_attention", "nvfp4", "quantization_aware",
+            "activation_offloading", "lisa_enabled", "unfrozen_parameters", "moe_lora",
+            "use_lorafa", "relora_steps",
+        )
+        for flag in incompatible:
+            if getattr(tcfg, flag, False):
+                raise ValueError(f"training.fast_lora cannot yet be combined with training.{flag}")
+        if type(tcfg.gradient_checkpointing) is not bool:
+            raise ValueError("training.fast_lora supports boolean gradient_checkpointing only")
+        return self
+
+    @model_validator(mode="after")
     def _validate_kernel_flags_task_gate(self) -> "SoupConfig":
         """#806: use_flash_attn / use_liger are read only by the SFT-family
         trainer (sft.py, inherited by tts.py's ``TTSTrainerWrapper``); every
@@ -6392,6 +6469,8 @@ class SoupConfig(BaseModel):
                 tcfg.stream_source != "auto"
                 or tcfg.stream_ngram_source != "auto"
                 or tcfg.stream_buffers != 2
+                or tcfg.stream_resident_layers != 0
+                or tcfg.stream_ram_cache_mb != 0
                 or tcfg.stream_read_ahead != DEFAULT_STREAM_READ_AHEAD
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
@@ -6402,11 +6481,31 @@ class SoupConfig(BaseModel):
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
-                    "/ training.stream_disk_kind / training.stream_pin set but "
+                    "/ training.stream_disk_kind / training.stream_pin / "
+                    "training.stream_resident_layers / training.stream_ram_cache_mb set but "
                     "stream_layers is false; set stream_layers=true to stream the "
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_ram_cache_mb and tcfg.stream_source == "ram":
+            raise ValueError(
+                "training.stream_ram_cache_mb requires stream_source='disk' or 'auto'; "
+                "the RAM tier already holds the complete store"
+            )
+        if tcfg.stream_resident_layers != 0:
+            if self.task != "sft":
+                raise ValueError("training.stream_resident_layers requires task='sft'")
+            if tcfg.activation_offloading is not None:
+                raise ValueError(
+                    "training.stream_resident_layers cannot be combined with activation_offloading"
+                )
+            if tcfg.optimizer not in {
+                "adamw_torch", "adamw_torch_fused", "adamw_8bit", "paged_adamw_8bit",
+            }:
+                raise ValueError(
+                    "training.stream_resident_layers requires an AdamW optimizer "
+                    "whose future moment allocation can be budgeted"
+                )
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
         # read-ahead reader belongs to the NVMe disk tier, so a non-default

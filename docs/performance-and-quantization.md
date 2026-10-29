@@ -14,6 +14,7 @@ expert-streamed training remain gated.
 
 **Contents:**
 
+- [Experimental Fast-LoRA in SFT](#experimental-fast-lora-in-sft)
 - [Experimental CUDA graph decoding](#experimental-cuda-graph-decoding)
 - [Quantization-Aware Training (QAT)](#quantization-aware-training-qat)
 - [Experimental QuEST mixed W4/A4+A16 route](#experimental-quest-mixed-w4a4a16-route)
@@ -40,6 +41,49 @@ expert-streamed training remain gated.
 - [Quant Menu II + Export Pipeline (v0.53.1)](#quant-menu-ii--export-pipeline-v0531)
 
 ---
+
+## Experimental Fast-LoRA in SFT
+
+`training.fast_lora: true` installs Soup's Fast-LoRA MLP, QKV and single-projection
+operations in the regular SFT trainer after PEFT attaches the adapter. It keeps the
+same trainable parameters, optimizer and saved PEFT adapter format. It is off by default.
+
+```yaml
+base: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+task: sft
+backend: transformers
+data:
+  train: train.jsonl
+training:
+  quantization: none
+  fast_lora: true
+  lora:
+    r: 16
+    alpha: 16
+    dropout: 0.0
+```
+
+The scope is Llama text SFT with one ordinary LoRA adapter and frozen base weights:
+resident unquantized weights, or layer streaming with dense or 4-bit NF4 weights.
+To stream, set `stream_layers: true`, a concrete `batch_size`, and
+`quantization: none` or `4bit` alongside `fast_lora: true`. The operations are
+installed before the optional measured streaming VRAM pre-flight. Streaming
+keeps its layer checkpointing and reusable weight buffers; decoder weights stay
+off the device outside the pool. Both RAM and disk sources have local CPU tests.
+Boolean gradient checkpointing is supported on the resident path.
+Resident quantized weights, other backends/tasks, nonzero adapter dropout,
+LoRA variants, and combinations with Liger/Cut-CE or the other explicitly rejected
+training transformations fail with an error. Other model architectures are refused
+at model setup. Distributed training has not been validated for this option.
+
+Local CPU checks cover real Soup/TRL training, gradients, checkpointing and loading
+the saved adapter with ordinary PEFT. They do not establish a GPU speed or memory
+benefit. The streaming implementation, example configuration and CPU/GPU verification
+boundaries are in [the streaming report](../benchmarks/d2-fast-lora-streaming-20261018.md).
+Raw results and replay instructions are indexed in [the evidence archive](../benchmarks/d2-evidence-archive.md).
+The synthetic four-layer/two-buffer RTX 3090 checks pass for FP16/BF16 and
+dense/NF4 weights on RAM and disk. Real-data speed, peak VRAM and task quality
+are still unmeasured for this integration.
 
 ## Experimental CUDA graph decoding
 
@@ -419,7 +463,9 @@ training:
   stream_source: auto          # 'auto' (same-host RAM), 'ram', 'disk' (v0.72.3)
   stream_ngram_source: auto    # Qwen4 PLE only: 'auto', 'ram', or read-only 'disk'
   stream_buffers: 2            # Double-buffering; range [2, 8]
+  # stream_resident_layers: auto  # Keep selected weights in spare VRAM (CUDA RAM/SSD SFT)
   stream_read_ahead: 2         # Disk tier only; range [1, 8]. N stages N-1 layers ahead, and each level costs one layer of pinned host RAM
+  # stream_ram_cache_mb: 14336 # Optional SSD-tier RAM hotset allocation ceiling in MiB; 0 disables it
   # stream_pin: false          # Force the pinned RAM store off (escape hatch) or on; unset = automatic. See below
   # stream_vram_override: 4_000_000_000   # Bytes to assume free (v0.73.x); see below
   # stream_vram_probe: true    # Decide the fit by MEASURING one step (sft only); see below
@@ -432,6 +478,77 @@ soup train --config soup.yaml
 ```
 
 **How it works.** LoRA adapters + their gradients + optimizer state stay resident in VRAM (they are small). The frozen base lives in CPU RAM, page-locked when the machine allows it, and is streamed: each decoder layer is copied into one of two pre-allocated VRAM buffers on a dedicated CUDA stream while the previous layer is still computing, so the load overlaps the compute. Vocabulary-sized `embed_tokens` and an untied `lm_head` use one additional shared slot: the embedding is loaded for the model input, then the same allocation is reused for the output head, whose copy is issued right after the embedding lookup (`StreamPrefetcher.head_prefetch_layer`, default `0`) rather than at the last decoder layer, and the embedding is reloaded into it at the tail of that step's backward pass so the copy overlaps the remaining compute instead of blocking the next step's first lookup. Each decoder layer is read **twice** per step — once in the forward pass and once when the backward pass recomputes it — because `dL/dx = Wᵀ · dL/dy` needs the weights to reach the layers below. That is physics, not an implementation detail, and it is why streaming costs time.
+
+**Persistent decoder weights (opt-in).** `training.stream_resident_layers: auto`
+measures forward/backward at the configured batch size and maximum context, then keeps a
+centred block of frozen decoder weights in private GPU slots. They are copied once during
+setup and reused across training steps. Other layers use the existing rotating buffers.
+An integer selects that many centred layers; `0` (the default) leaves ordinary streaming.
+The complete host store is retained on the RAM tier. This does not change precision
+or update base weights.
+
+The scope is dense text SFT on CUDA with a RAM or coordinated async SSD source and
+an AdamW optimizer.
+NF4 slots keep the packed weights and quantization sidecars; dense slots keep the existing
+dtype. Automatic mode reports a fallback on CPU/MPS or unsupported disk sources.
+Explicit positive counts refuse unsupported or over-budget requests. On the async
+SSD source, already preloaded GPU layers are removed from speculative read queues.
+In-flight setup reads may finish once; subsequent lookahead skips GPU-resident indices.
+
+The measured candidate must fit the smallest of 85% of physical VRAM, currently free plus
+reserved memory, and `stream_vram_override`, after a 64 MiB setup reserve and an estimated
+12 bytes per trainable parameter for future AdamW state/workspace. The setup probe includes
+forward/backward but no optimizer step. It preserves Torch RNG, adapter values and module
+training flags and requires pristine gradients. An automatic OOM or failed capacity check
+keeps the ordinary pool; a non-OOM execution error refuses the run. The ready message reports
+persistent memory separately from rotating buffers. Setup time is additional to training.
+
+This is a conservative capacity policy, not an optimal speed selector or a promise that
+occupying more VRAM is faster. Speed and peak memory must be checked for the actual model
+and configuration. Other persistent allocations already present are included in the measured
+peak. A future activation-retention auto mode must share the remaining cap including the
+optimizer/setup reserve; two independent planners must not each spend the same headroom.
+
+**Partial RAM cache for the SSD tier (opt-in).** If the full base does not fit in
+RAM, `training.stream_ram_cache_mb` can keep a fixed, centred hotset of frozen layers
+in host memory. The remaining layers continue through the existing async NVMe reader.
+Cached layers are read once at setup and skipped by subsequent speculative disk reads;
+they still use the ordinary GPU buffers and host-to-device copies. This is separate
+from `stream_resident_layers`, which keeps weights on the GPU. They can be combined:
+GPU residency is selected and validated first, then the RAM hotset fills its ceiling
+with other layers. No layer occupies both caches. A rejected residency candidate
+restores the ordinary source. Existing RAM hotsets are drained and released before
+replanning, so replacement never requires two full host caches simultaneously.
+
+The integer is an **allocation ceiling in MiB**, including power-of-two pinned arenas
+or pageable alignment slack. The layer count fits that ceiling and a conservative
+current-RAM allowance: 70% of available memory minus a 512 MiB future-runtime reserve.
+On Linux, visible cgroup hard limits, `memory.high`, and finite positive v1 soft-limit
+hints also constrain the allowance. Clean file-cache pages may be reclaimed; dirty,
+writeback, shared and unevictable pages and swap capacity are excluded. Limits and
+system settings are never changed. Singleton groups already held by ordinary staging
+are not duplicated. No fitting layer means ordinary disk streaming with a notice.
+
+`0` is the default and does not probe or allocate the hotset. Explicit `stream_source:
+ram` rejects a nonzero cache budget; `auto` uses the complete RAM store when it fits and
+reports that the partial cache is unnecessary. An explicit cache allocation failure
+refuses with advice to lower the budget or disable pinning; SSD read/identity failures
+are propagated rather than retried through a different source. Cached buffers remain
+alive until their outstanding copy events finish at teardown.
+
+The cache preserves original tensor bytes, including packed NF4 weights and sidecars;
+it adds no quantization, arithmetic kernel, activation retention or compilation.
+Setup preload consumes time and additional RAM. A speed benefit requires exposed SSD
+waiting and enough repeated reads to repay preload; filling memory alone is not a
+speed guarantee. On a cached layer, all ordinary staging slots can prefetch cold layers;
+on an uncached layer, its own slot leaves the usual N-1 slots for lookahead.
+
+The [physical 8 GB Qwen3-32B BF16 LoRA study](../benchmarks/ssd-ram-cache-20261024/README.md)
+reports accuracy, paired step/whole-entry timing, RAM/VRAM and exact evidence for
+one RAM-constrained NVMe configuration; its speedup is not universal.
+The [four-arm joint-cache study](../benchmarks/joint-cache-20261024/README.md)
+compares ordinary SSD streaming, RAM caching, GPU residency, and both together
+with matched configuration, independent full-tensor replay, and separate setup costs.
 
 **Early adapter memory check.** Before resolving checkpoint weights or preparing
 layer shards, Soup builds a meta model and applies its normal target resolution

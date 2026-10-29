@@ -1,0 +1,241 @@
+"""Authenticated binary SSH with a large receive window and hash-checked retention."""
+import hashlib
+import json
+import re
+import subprocess
+import time
+from pathlib import Path
+
+import paramiko
+from rich.console import Console
+
+import cloud
+
+ROOT = Path(__file__).parent
+
+
+def log(value):
+    Console().print(value)
+
+
+def digest(path):
+    hashed = hashlib.sha256()
+    with path.open('rb') as source:
+        for data in iter(lambda: source.read(8 * 1024 * 1024), b''):
+            hashed.update(data)
+    return hashed.hexdigest()
+
+
+def connect():
+    connection = json.loads((ROOT / 'vast-connection.json').read_text())
+    # OpenSSH first-use records the host key; Paramiko requires that exact trusted key.
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.connect(connection['host'], port=int(connection['port']), username='root',
+                   key_filename=str(cloud.SSH_KEY), timeout=15, banner_timeout=20,
+                   auth_timeout=20, look_for_keys=False, allow_agent=False)
+    return client
+
+
+def stream(command, target, timeout=60):
+    started = time.monotonic()
+    count = 0
+    with connect() as client:
+        channel = client.get_transport().open_session(window_size=64 * 1024 * 1024,
+                                                     max_packet_size=1024 * 1024)
+        channel.settimeout(60)
+        client.get_transport().set_keepalive(10)
+        channel.exec_command(command)
+        with channel.makefile('rb', 1024 * 1024) as source:
+            while True:
+                data = source.read(64 * 1024)
+                if not data:
+                    break
+                target.write(data)
+                count += len(data)
+                if time.monotonic() - started > timeout:
+                    raise TimeoutError('binary artifact transfer deadline')
+        code = channel.recv_exit_status()
+        if code == -1:
+            raise ConnectionError('SSH transport closed before command exit status')
+        if code:
+            raise RuntimeError('SSH command failed with code ' + str(code))
+    return count
+
+
+def ssh_retry(command, timeout=60, attempts=20):
+    import io
+
+    for attempt in range(attempts):
+        try:
+            sink = io.BytesIO()
+            stream(command, sink, timeout)
+            return subprocess.CompletedProcess(command, 0, sink.getvalue(), b'')
+        except Exception:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(15)
+
+
+def upload(name):
+    assert re.fullmatch(r'[a-zA-Z0-9_.-]+', name)
+    with connect() as client, client.open_sftp() as sftp:
+        sftp.put(str(ROOT / name), '/root/liger/' + name)
+
+
+def get(name, timeout=60, method='GET'):
+    if name.startswith('ack/'):
+        identifier = name.removeprefix('ack/')
+        assert method == 'POST' and re.fullmatch(r'[a-z0-9_-]+', identifier)
+        command = 'touch /root/liger/ack-' + identifier + '; printf OK'
+    else:
+        assert method == 'GET' and re.fullmatch(r'[a-z0-9_.-]+', name) and '..' not in name
+        remote = {'progress.json': '/root/liger/results/progress.json',
+                  'guard.json': '/root/liger/guard-status.json'}.get(
+                      name, '/root/liger/exports/' + name)
+        command = 'cat ' + remote
+    return ssh_retry(command, timeout).stdout
+
+
+def network_preflight():
+    import shutil
+    import lossless_results
+
+    upload('lossless_results.py')
+    upload('remote_retention_probe.py')
+    ssh_retry('python3 /root/liger/remote_retention_probe.py', 120)
+    index = json.loads(ssh_retry('cat /root/liger/retention-probe.json').stdout)
+    folder = ROOT / 'retention-probe'
+    folder.mkdir(exist_ok=True)
+    target = folder / 'encoded.tar'
+    started = time.perf_counter()
+    with target.open('wb') as sink:
+        count = stream('cat /root/liger/retention-probe.tar', sink, 600)
+    elapsed = time.perf_counter() - started
+    assert count == index['archive_bytes'] and digest(target) == index['archive_sha256']
+    assert shutil.disk_usage(ROOT).free > index['original_bytes'] + 2**30
+    decoded = lossless_results.unpack(target, folder / 'retained')
+    assert decoded['all_original_files_verified'] == index['original_file_count']
+    assert decoded['manifest_sha256'] == index['manifest_sha256']
+    proof = {'route': 'authenticated SSH, shared exact-byte codec', 'passed': True,
+             'encoded_bytes': count, 'original_bytes': index['original_bytes'],
+             'transfer_seconds': elapsed, 'pack_seconds': index['pack_seconds'],
+             'encoded_mib_per_second': count / 2**20 / elapsed,
+             'sha256_verified': True, 'all_original_files_verified': decoded['all_original_files_verified'],
+             'archive_sha256': index['archive_sha256'], 'synthetic_only': True,
+             'admission': 'actual encoded archive size, measured speed and remaining reserved time/cost; no fixed throughput cutoff'}
+    cloud.save('network-preflight.json', proof)
+    log(proof)
+
+
+def download(name):
+    import base64
+    import shutil
+    import archive_ranges
+    import lossless_results
+
+    assert re.fullmatch(r'[a-z0-9_-]+', name)
+    started = time.time()
+    folder = ROOT / 'bundles' / name
+    folder.mkdir(parents=True, exist_ok=True)
+    index = json.loads(get(name + '.json'))
+    layout = json.loads(get(name + '.layout.json'))
+    (folder / 'index.json').write_text(json.dumps(index, indent=2))
+    (folder / 'layout.json').write_text(json.dumps(layout, indent=2))
+    calibration = json.loads((ROOT / 'network-preflight.json').read_text())
+    rate = calibration['encoded_mib_per_second'] * 2**20
+
+    def remaining():
+        policy = cloud.receipt()
+        return policy['created_unix'] + policy['maximum_seconds'] - time.time() - 180
+
+    def record(value):
+        path = ROOT / ('range-state-' + name + '.json')
+        previous = json.loads(path.read_text()) if path.exists() else {}
+        previous.update(value, unix=time.time())
+        cloud.save(path.name, previous)
+
+    def refresh():
+        try:
+            row = cloud.own()
+        except RuntimeError as error:
+            if any(str(error).startswith('Vast HTTP status ' + str(code) + ':')
+                   for code in [429, 500, 502, 503, 504]):
+                raise ConnectionError('transient provider port refresh') from error
+            raise
+        if row is None:
+            raise RuntimeError('owned instance absent during ranged transfer')
+        if row.get('label') != cloud.LABEL:
+            raise RuntimeError('owned transfer label mismatch')
+        if row.get('ports', {}).get('22/tcp'):
+            cloud.save('vast-connection.json', {'host': row['public_ipaddr'],
+                'port': row['ports']['22/tcp'][0]['HostPort']})
+
+    def read_ranges(batch, offset, sink, deadline):
+        request = base64.b64encode(json.dumps(batch, separators=(',', ':')).encode()).decode()
+        command = 'python3 /root/liger/remote_ranges.py ' + name + ' ' + request + ' ' + str(offset)
+        try:
+            return stream(command, sink, deadline)
+        except paramiko.SSHException as error:
+            raise ConnectionError('SSH range session failed') from error
+
+    priors = sorted(ROOT.parent.glob('stream8-compile-20261022-resume*/bundles/*/results.tar'))
+    donors_path = ROOT / 'retention-donors.json'
+    if donors_path.exists():
+        for donor in json.loads(donors_path.read_text())['archives']:
+            path = Path(donor['path'])
+            if digest(path) != donor['sha256']:
+                raise ValueError('retained donor canonical SHA mismatch')
+            priors.append(path)
+    ranged = archive_ranges.rebuild(layout, index, folder, priors, read_ranges,
+                                    remaining, rate, refresh=refresh, record=record)
+    cloud.save('range-proof-' + name + '.json', ranged)
+    target = folder / 'results.tar'
+    if shutil.disk_usage(ROOT).free < index['original_bytes'] + 2**30:
+        raise RuntimeError('insufficient local disk for full lossless reconstruction')
+    statistics = lossless_results.unpack(target, folder / 'retained')
+    assert statistics['all_original_files_verified'] == index['original_file_count']
+    assert statistics['manifest_sha256'] == index['manifest_sha256']
+    cloud.save('streaming-extraction-' + name + '.json', statistics)
+    proof = {'name': name, 'archive_bytes': index['archive_bytes'],
+             'sha256': index['archive_sha256'],
+             'all_original_files_verified': statistics['all_original_files_verified'],
+             'seconds': time.time() - started, 'unix': time.time(),
+             'transport': ranged['transport'],
+             'encoded_bytes_reused': ranged['encoded_object_bytes_reused'],
+             'new_network_object_bytes': ranged['new_network_object_bytes']}
+    cloud.save('bundle-' + name + '-verified.json', proof)
+    log(proof)
+    network_bytes = ranged['new_network_object_bytes']
+    # Metadata-only transfers do not replace a measured bulk throughput sample.
+    if network_bytes >= 8 * 2**20:
+        achieved_bytes_per_second = network_bytes / proof['seconds']
+        calibration.setdefault('initial_synthetic_probe', dict(calibration))
+        calibration.update(encoded_mib_per_second=achieved_bytes_per_second / 2**20,
+            admission_rate_source='new object bytes transferred; elapsed includes full reconstruction',
+            actual_verified_bundle=name)
+        cloud.save('network-preflight.json', calibration)
+    else:
+        achieved_bytes_per_second = rate
+    policy_path = ROOT / 'retention-policy.json'
+    policy = json.loads(policy_path.read_text()) if policy_path.exists() else {}
+    policy['encoded_bytes_per_second'] = achieved_bytes_per_second
+    if 'baseline-' in name:
+        policy['actual_baseline_encoded_bytes'] = index['archive_bytes']
+    cloud.save('retention-policy.json', policy)
+    for attempt in range(20):
+        try:
+            upload('retention-policy.json')
+            break
+        except (OSError, EOFError, paramiko.SSHException):
+            if attempt == 19:
+                raise
+            time.sleep(15)
+    assert get('ack/' + name, method='POST') == b'OK'
+    # Derived received objects are recoverable from the fully verified canonical
+    # archive. Reclaim only these exact duplicate files, retaining request ledgers.
+    cache = folder / 'received-objects'
+    for path in cache.iterdir():
+        assert re.fullmatch(r'[0-9a-f]{64}', path.name) and path.is_file()
+        path.unlink()
+    cache.rmdir()
