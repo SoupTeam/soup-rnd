@@ -220,10 +220,23 @@ All paid B6 resources are absent; no more rental is needed for hosted CI.
 Required Ubuntu/Python 3.12 CI on executed feature-code head `c243b0f4` passed:
 **35,968 passed, 683 skipped, 12 deselected, 2 xfailed; 86.58% coverage**.
 [Run 40852163066](https://github.com/SoupTeam/soup-rnd/actions/runs/40852163066).
-The 105 selected local B6/B2 tests and Ruff pass. The process-wide Windows fstat
-mock is isolated to the path helper; the changelog fragment format is corrected.
-The wider maintainer-triggered OS/version matrix was not run. Unchanged E4 Unix
-`resource` imports still prevent full local Windows collection.
+The report/evidence head `ebc2956a` also passed with the same counts and coverage:
+[run 40890645392](https://github.com/SoupTeam/soup-rnd/actions/runs/40890645392).
+The 105 selected local B6/B2 tests and Ruff passed before integration. The
+process-wide Windows fstat mock is isolated to the path helper; the changelog
+fragment format is corrected. The wider maintainer-triggered OS/version matrix
+was not run.
+
+The subsequent merge of `main` at `38ccc787` retains the upstream isolated
+Windows OS fixture and the B6 pytest-capture regression assertions. Upstream
+also fixes E4's Windows `resource` import and F3 portability. All measured B6
+runtime, harness and frozen protocol bytes remain unchanged: 1523 of the 1526
+manifest files still match; only `tests/test_f3_rental.py`,
+`tests/test_f3_setup.py` and `tests/test_issue820_windows_symlink_open_nofollow.py`
+differ. The original executed source snapshot remains sealed in the bundle;
+these integration changes are not a new giant-model measurement.
+After integration, the Windows path/capture, B6 and E4/F3 portability selection
+passed locally: **134 passed, 1 skipped**. Full repository Ruff also passed.
 
 Report/evidence commits do not change the measured feature code. The final
 merge-candidate required status is visible in [PR #45 checks](
