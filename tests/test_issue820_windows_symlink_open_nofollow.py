@@ -138,6 +138,10 @@ class TestOpenNoFollow:
         assert exc_info.value.errno == errno.ELOOP
         assert "File swapped during open" in str(exc_info.value)
 
+        # Other users of fstat, including pytest's FD capture, need real metadata.
+        with real_file.open("rb") as captured:
+            assert os.fstat(captured.fileno()).st_size == len(b"content")
+
     def test_post_open_symlink_swap_on_create_windows(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_os: SimpleNamespace
     ) -> None:
