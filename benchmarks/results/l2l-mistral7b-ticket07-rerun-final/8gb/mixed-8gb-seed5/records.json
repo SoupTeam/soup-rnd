@@ -1,0 +1,475 @@
+{
+ "model": "mistralai/Mistral-7B-v0.1",
+ "quant": "nf4",
+ "card": "8gb",
+ "mode": "bf16",
+ "data_seed": 5,
+ "rng_seed": 1,
+ "dtype": "bfloat16",
+ "data_kind": "synthetic",
+ "command_line": "/root/soup/.venv/bin/python benchmarks/harness/l2l_fwdbwd.py --card 8gb --data-seed 5 --out /root/runs/mixed-8gb-seed5",
+ "passport": {
+  "command": "/root/soup/.venv/bin/python benchmarks/harness/l2l_fwdbwd.py --card 8gb --data-seed 5 --out /root/runs/mixed-8gb-seed5",
+  "argv": [
+   "/root/soup/.venv/bin/python",
+   "benchmarks/harness/l2l_fwdbwd.py",
+   "--card",
+   "8gb",
+   "--data-seed",
+   "5",
+   "--out",
+   "/root/runs/mixed-8gb-seed5"
+  ],
+  "python": "3.12.3",
+  "platform": "linux",
+  "packages": {
+   "torch": "2.14.1+cu130",
+   "transformers": "5.19.0",
+   "peft": "0.21.2",
+   "bitsandbytes": "0.50.2",
+   "accelerate": "1.15.0",
+   "safetensors": "0.8.0",
+   "pydantic": "2.13.5",
+   "numpy": "2.4.6",
+   "psutil": "7.2.2",
+   "rich": "15.0.0"
+  },
+  "gpu": {
+   "name": "NVIDIA GeForce RTX 3070",
+   "memory_total_mib": 8192,
+   "driver": "610.43.02"
+  },
+  "container_ram": {
+   "source": "/sys/fs/cgroup/memory.max",
+   "limit_bytes": 80060874752,
+   "current_bytes": 46264279040,
+   "peak_bytes": 46264279040,
+   "swap_source": "/sys/fs/cgroup/memory.swap.max",
+   "swap_max_bytes": 0,
+   "swap_total_bytes": 8589930496,
+   "version": 2
+  },
+  "commit": null,
+  "unavailable": {
+   "commit": "not a git checkout"
+  }
+ },
+ "deterministic": {
+  "CUBLAS_WORKSPACE_CONFIG": ":4096:8",
+  "sdpa_pinned": "MATH"
+ },
+ "ram_plan": {
+  "n_layers": 32,
+  "hidden": 4096,
+  "k": 4,
+  "batch": 1,
+  "seq": 256,
+  "chunk_bytes": 2097152,
+  "block_bytes": 2097152,
+  "cache_bytes": 268435456,
+  "need_free_for_cache": 383479222.85714287,
+  "weights_bytes": 4124704768.0,
+  "workspace_bytes": 1000000000,
+  "need_total": 5508183990.857142
+ },
+ "rows": {
+  "lengths": [
+   256,
+   192,
+   128,
+   64,
+   230,
+   153,
+   256
+  ],
+  "masked": 137
+ },
+ "cases": {
+  "1": {
+   "a_vs_a": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     7,
+     7
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "l2l_vs_ga": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     7,
+     7
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "tolerance": {
+    "mode": "bf16",
+    "factor": 1.5,
+    "limit_fp32": 0.0001,
+    "grad_rel": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "loss_rel": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "floor_grad": [
+     0.018114822170430922,
+     0.01622672764327278,
+     0.02565351466935052,
+     0.02913242184960929,
+     0.03626122170312833,
+     0.02527817778657367,
+     0.028347655070129936
+    ],
+    "floor_loss": [
+     0.0004945180813793028,
+     0.00034855477872719324,
+     0.00032438892611053586,
+     0.00024233776368360634,
+     0.0006024183224451628,
+     0.0005340573692442319,
+     0.000609034615617867
+    ],
+    "judged": true,
+    "failing": [],
+    "pass": true,
+    "floor_problem": null,
+    "grad_limit": [
+     0.027172233255646383,
+     0.024340091464909168,
+     0.03848027200402578,
+     0.04369863277441394,
+     0.054391832554692494,
+     0.037917266679860506,
+     0.04252148260519491
+    ],
+    "loss_limit": [
+     0.0007417771220689542,
+     0.0005228321680907899,
+     0.0004865833891658038,
+     0.0003635066455254095,
+     0.0009036274836677441,
+     0.0008010860538663478,
+     0.0009135519234268004
+    ]
+   },
+   "pass": true,
+   "note": "",
+   "status": "within_tolerance"
+  },
+  "2": {
+   "a_vs_a": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     4,
+     4
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "l2l_vs_ga": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     4,
+     4
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "tolerance": {
+    "mode": "bf16",
+    "factor": 1.5,
+    "limit_fp32": 0.0001,
+    "grad_rel": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "loss_rel": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "floor_grad": [
+     0.013597042572297114,
+     0.026524450137018582,
+     0.0232251589672995,
+     0.028347655070129936
+    ],
+    "floor_loss": [
+     0.0001853626208081996,
+     0.0001527247748666263,
+     0.00024979540900655543,
+     0.000609034615617867
+    ],
+    "judged": true,
+    "failing": [],
+    "pass": true,
+    "floor_problem": null,
+    "grad_limit": [
+     0.02039556385844567,
+     0.03978667520552787,
+     0.03483773845094925,
+     0.04252148260519491
+    ],
+    "loss_limit": [
+     0.0002780439312122994,
+     0.00022908716229993944,
+     0.00037469311350983315,
+     0.0009135519234268004
+    ]
+   },
+   "pass": true,
+   "note": "",
+   "status": "within_tolerance"
+  },
+  "4": {
+   "a_vs_a": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     2,
+     2
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "l2l_vs_ga": {
+    "grads_equal": true,
+    "losses_equal": true,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+     2,
+     2
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": true
+   },
+   "tolerance": {
+    "mode": "bf16",
+    "factor": 1.5,
+    "limit_fp32": 0.0001,
+    "grad_rel": [
+     0.0,
+     0.0
+    ],
+    "loss_rel": [
+     0.0,
+     0.0
+    ],
+    "floor_grad": [
+     0.013595428907536363,
+     0.018909465196635052
+    ],
+    "floor_loss": [
+     0.00017591952793897562,
+     0.00012766734647157426
+    ],
+    "judged": true,
+    "failing": [],
+    "pass": true,
+    "floor_problem": null,
+    "grad_limit": [
+     0.020393143361304544,
+     0.028364197794952577
+    ],
+    "loss_limit": [
+     0.00026387929190846345,
+     0.0001915010197073614
+    ]
+   },
+   "pass": true,
+   "note": "",
+   "status": "within_tolerance"
+  }
+ },
+ "facts": {
+  "gemm": {
+   "ga1": {
+    "256": {
+     "custom": 0,
+     "dequant": 2688
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "128": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "64": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 1344
+    }
+   },
+   "ga2": {
+    "256": {
+     "custom": 0,
+     "dequant": 2688
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "128": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "64": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 1344
+    }
+   },
+   "l2l": {
+    "256": {
+     "custom": 0,
+     "dequant": 2688
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "128": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "64": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 1344
+    }
+   },
+   "ga_floor": {
+    "256": {
+     "custom": 0,
+     "dequant": 2688
+    },
+    "192": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "128": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "64": {
+     "custom": 960,
+     "dequant": 384
+    },
+    "230": {
+     "custom": 0,
+     "dequant": 1344
+    },
+    "153": {
+     "custom": 0,
+     "dequant": 1344
+    }
+   }
+  },
+  "loads_first_full_window": {
+   "1": 61,
+   "2": 61,
+   "4": 61
+  },
+  "ga_loads_first_full_window": {
+   "1": 62,
+   "2": 122,
+   "4": 244
+  },
+  "restores": {
+   "1": 0,
+   "2": 0,
+   "4": 0
+  },
+  "restores_total": 224,
+  "windows": {
+   "1": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "2": [
+    2,
+    2,
+    2,
+    1
+   ],
+   "4": [
+    4,
+    3
+   ]
+  },
+  "equal_lengths": false
+ },
+ "findings": [],
+ "overall": {
+  "pass": true,
+  "status": "within_tolerance",
+  "note": ""
+ }
+}
