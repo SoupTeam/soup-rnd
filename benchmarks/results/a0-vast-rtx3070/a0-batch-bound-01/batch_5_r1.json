@@ -1,0 +1,118 @@
+{
+ "meta": {
+  "gpu": "NVIDIA GeForce RTX 3070",
+  "torch": "2.14.1+cu130",
+  "vram_total_gb": 8.221,
+  "soup_cli_file": "/workspace/soup-a0/src/soup_cli/__init__.py",
+  "driver": "580.159.04",
+  "pcie_gen": "3",
+  "pcie_width": "16",
+  "mode": "batch",
+  "weights": "/workspace/soup-a0/.soup/models/synth-70b-v32k",
+  "shards": "/workspace/soup-a0/.soup/f2-nf4",
+  "quant": "nf4",
+  "tier": "disk",
+  "buffers": 2,
+  "read_ahead": 2,
+  "seq": 512,
+  "lora_r": 8,
+  "lora_targets": "q_proj,k_proj,v_proj,o_proj",
+  "seed": 3,
+  "input_seed": 17,
+  "k": 2,
+  "batch": 5,
+  "round_index": 1,
+  "ks": "1,2,3,4,8,16",
+  "cd_k": 4,
+  "steps": 3,
+  "warmup": 1,
+  "rounds": 2,
+  "spill_k": 16,
+  "spill_budget_k": 8,
+  "spill_dir": "D:/soup-l2l-spill",
+  "deterministic": false,
+  "dry_run": false,
+  "allow_invalid": false,
+  "out": "/workspace/soup-a0/.soup/results/a0-batch-bound-01/batch_5_r1.json",
+  "label": "A0_bound_batch5_r1",
+  "lazy_shard_handles": false,
+  "control_sync_source": false,
+  "no_pin": false,
+  "weights_dir": "/workspace/soup-a0/.soup/models/synth-70b-v32k",
+  "shard_dir": "/workspace/soup-a0/.soup/f2-nf4",
+  "dtype": "bfloat16",
+  "arch": "llama",
+  "n_layers": 80,
+  "hidden": 8192,
+  "pinned": true,
+  "source_class": "AsyncDiskSource",
+  "direct_io": true,
+  "store_gb": 1.956601912,
+  "shard_seconds": 0.005192054999497486,
+  "build_seconds": 1.6583839119994082,
+  "chunk_bytes": 8388608,
+  "v3": {
+   "free_gb": 28.314279936,
+   "commit_avail_gb": null,
+   "need_gb": 0.67108864,
+   "margin_gb": 4.0,
+   "gpu_used_before_build_mib": 4,
+   "gpu_pids": [
+    173777
+   ],
+   "foreign_gpu_pids": [],
+   "ram_ok": true,
+   "gpu_ok": true,
+   "ok": true
+  },
+  "box": {
+   "pid": 5819,
+   "own_pids": [
+    5819
+   ],
+   "gpu_own_pids": [
+    5819,
+    173777
+   ],
+   "gpu_pid_attribution": {
+    "before": [],
+    "after": [
+     173777
+    ],
+    "context_active": true,
+    "single_device": true,
+    "method": "exclusive-local-CUDA-initialization"
+   },
+   "unix": 1792418838.0995207,
+   "total_phys_gb": 32.10739712,
+   "avail_phys_gb": 28.314198016,
+   "commit_limit_gb": null,
+   "commit_avail_gb": null,
+   "ac": true,
+   "gpu_pids": [
+    173777
+   ],
+   "gpu_mem_used_mib": 1669,
+   "python_processes": null,
+   "power_source": "operator-declared-server"
+  },
+  "started": "2026-10-19T14:07:18"
+ },
+ "records": [
+  {
+   "kind": "oom",
+   "label": "batch_control",
+   "error_type": "OutOfMemoryError",
+   "error": "CUDA out of memory. Tried to allocate 140.00 MiB. GPU 0 has a total capacity of 7.66 GiB of which 117.12 MiB is free. Process 173777 has 7.53 GiB memory in use. Of the allocated memory 6.97 GiB is allocated by PyTorch, and 350.53 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation. See documentation for Memory Management (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)",
+   "traceback_tail": "  File \"/workspace/soup-a0/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py\", line 1783, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/soup-a0/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py\", line 1794, in _call_impl\n    return forward_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/soup-a0/.venv/lib/python3.12/site-packages/transformers/models/llama/modeling_llama.py\", line 164, in forward\n    down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))\n                                                                ^^^^^^^^^^^^^^^\n  File \"/workspace/soup-a0/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py\", line 1783, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/soup-a0/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py\", line 1794, in _call_impl\n    return forward_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/soup-a0/benchmarks/harness/stream_probe.py\", line 644, in forward\n    return _original(x)\n           ^^^^^^^^^^^^\n  File \"/workspace/soup-a0/src/soup_cli/utils/layer_stream_runtime.py\", line 512, in _dequant_forward\n    return functional.linear(x, weight, bias).to(inp_dtype)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntorch.OutOfMemoryError: CUDA out of memory. Tried to allocate 140.00 MiB. GPU 0 has a total capacity of 7.66 GiB of which 117.12 MiB is free. Process 173777 has 7.53 GiB memory in use. Of the allocated memory 6.97 GiB is allocated by PyTorch, and 350.53 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)\n",
+   "peak_alloc_gb": 7.496760832,
+   "peak_reserved_gb": 7.849639936,
+   "memory": {
+    "num_alloc_retries": 1,
+    "num_ooms": 1,
+    "free_gb": 0.122814464,
+    "total_gb": 8.220901376
+   }
+  }
+ ]
+}

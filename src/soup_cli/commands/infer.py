@@ -717,7 +717,7 @@ def _load_model(
         tokenizer.pad_token = tokenizer.eos_token
 
     if is_adapter:
-        from peft import PeftModel
+        from soup_cli.utils.peft_wiring import load_adapter
 
         base_obj = AutoModelForCausalLM.from_pretrained(
             base_model,
@@ -725,7 +725,7 @@ def _load_model(
             device_map=device_map,
             torch_dtype=torch_dtype,
         )
-        model_obj = PeftModel.from_pretrained(base_obj, model_path)
+        model_obj = load_adapter(base_obj, model_path)
     else:
         model_obj = AutoModelForCausalLM.from_pretrained(
             model_path,

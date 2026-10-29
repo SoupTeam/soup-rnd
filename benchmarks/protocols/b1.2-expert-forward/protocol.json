@@ -1,0 +1,47 @@
+{
+  "task": "B1.2 exact forward and bounded expert-weight arena",
+  "schema_version": 1,
+  "scope": "Trained OLMoE routed-expert layers and their real router with synthetic activations. No backward, training, throughput or whole-model capacity verdict.",
+  "model_id": "allenai/OLMoE-1B-7B-0924",
+  "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "package_versions": {
+    "torch": "2.14.1",
+    "transformers": "5.19.0",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0"
+  },
+  "checkpoint_files": {
+    "config.json": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335",
+    "model-00001-of-00003.safetensors": "5e3cff7e367794685c241169072c940d200918617d5e2813f1c387dff52d845e",
+    "model-00002-of-00003.safetensors": "15ef5c730ee3cfed7199498788cd2faf337203fc74b529625e7502cdd759f4a7",
+    "model-00003-of-00003.safetensors": "a9abac4ac1b55c9adabac721a02fa39971f103eea9a65c310972b1246de76e04"
+  },
+  "layers": [0, 7, 15],
+  "cells": ["cpu-fp32", "cuda-bf16", "cuda-bf16-nf4", "cuda-bf16-nf4-dq"],
+  "tokens": 512,
+  "input_seed": 1234,
+  "weight_budget_bytes": 67108864,
+  "negative_control_down_delta": 0.125,
+  "attempts_per_cell": 1,
+  "replacements": 0,
+  "execution": "One new process per layer/cell. Commit source and protocol before the first arm. Use the same selected CUDA device/software for all CUDA cells, with TF32 disabled. The harness refuses a dirty checkout and refuses to overwrite attempts.",
+  "reference": "Native eager OlmoeExperts. For NF4, independently dequantize the exact stored packed bytes and sidecars into resident weights. Use OlmoeTopKRouter with the trained gate weights and checkpoint normalization setting.",
+  "pass": "All 12 cells: finite outputs and torch.equal forward, negative control differs in the same process, one read for each routed expert in ascending ID order, arena storage and measured CUDA allocation delta within 64 MiB. Shared-expert correctness is covered separately by native DeepSeek/Kimi CPU/CUDA integration tests.",
+  "fail": "Any numeric mismatch, ineffective negative control, wrong load count/order, or exceeded expert-weight arena budget. Preserve the failed cell; do not reinterpret a mismatch as a valid exclusion.",
+  "no_verdict": "Missing/incorrect checkpoint, unavailable required backend/dependency, OOM, interrupted execution or other unresolved execution error. Keep traceback and outputs. A no-verdict cell prevents an overall PASS and does not authorize another attempt under this protocol.",
+  "validity": [
+    "Verify all checkpoint SHA-256 values before each cell; retain source Git commit and Git-blob hashes, protocol, package versions, device, logs and every attempted cell.",
+    "Run on mains power; power source is an explicit operator declaration, not a sensor-certified reading.",
+    "Record exposed nvidia-smi state and visible GPU peers. Missing peer telemetry limits hardware-capacity attribution but does not turn exact forward equality into a host-isolation claim.",
+    "Record CUDA allocated/reserved baseline and peaks separately for resident and streamed arms. Release the resident stack before measuring the streamed arm; include pool construction in the streamed peak.",
+    "The weight budget includes packed weights, dense matrices, quantization statistics, code tables, nested-statistics scratch and arena padding. Report activation/backend-workspace peaks separately; do not call the weight bound a total-VRAM bound."
+  ],
+  "limitations": [
+    "Prior original Soup results are references only; this protocol needs new RND results after its commit.",
+    "Synthetic CPU unit tests and smoke fixtures are not formal trained-checkpoint results.",
+    "OLMoE layer extraction validates the generic expert primitive, not full OLMoE checkpoint-sharder or model support in RND.",
+    "B1.2 exposes no public training option; backward belongs to B1.3 and planner/CLI integration to B1.4.",
+    "No disk-read reduction, throughput, convergence, giant-model fit or physical 8 GB capacity claim follows from this gate.",
+    "CPU NF4 development checks use temporary CPU dequantization outputs because bitsandbytes CPU has no out kernels. CUDA uses out kernels into the bounded arena and never silently falls back to allocating CUDA dequantization."
+  ]
+}

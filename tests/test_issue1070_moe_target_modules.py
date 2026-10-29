@@ -47,6 +47,12 @@ def _model(model_type, text_type=None):
     )
 
 
+def _v3_model(model_type, **fields):
+    return types.SimpleNamespace(
+        config=types.SimpleNamespace(model_type=model_type, text_config=None, **fields)
+    )
+
+
 class TestTheTableResolves:
     @pytest.mark.parametrize("model_type", sorted(MOE_TEXT_LORA_TARGETS))
     def test_every_entry_resolves_to_something_peft_can_use(self, model_type):
@@ -72,6 +78,61 @@ class TestTheTableResolves:
         )
         assert MOE_TEXT_LORA_TARGETS["glm_moe_dsa"] == MOE_TEXT_LORA_TARGETS["deepseek_v3"]
         assert MOE_TEXT_LORA_TARGETS["kimi_k25"] == MOE_TEXT_LORA_TARGETS["deepseek_v3"]
+
+    def test_a_v3_shaped_model_without_q_lora_gets_q_proj(self):
+        """``q_lora_rank=None`` leaves one ``q_proj`` where ``q_a_proj`` and
+        ``q_b_proj`` would be, so the table's V3 names reach no query projection
+        (ticket 13)."""
+        for model_type in ("deepseek_v3", "kimi_k2", "kimi_k25"):
+            resolved = resolve_lora_target_modules(
+                _v3_model(model_type, q_lora_rank=None), "auto"
+            )
+
+            assert resolved == ["q_proj", "kv_a_proj_with_mqa", "kv_b_proj", "o_proj"], model_type
+
+    def test_glm_moe_dsa_keeps_the_table_whatever_q_lora_rank_says(self):
+        """Its modeling code always builds ``q_a_proj`` / ``q_b_proj``."""
+        resolved = resolve_lora_target_modules(_v3_model("glm_moe_dsa", q_lora_rank=None), "auto")
+
+        assert resolved == list(MOE_TEXT_LORA_TARGETS["glm_moe_dsa"])
+
+    def test_a_bare_config_resolves_like_a_model(self):
+        """``stream_setup`` resolves from a config, not a model."""
+        from transformers import DeepseekV3Config
+
+        config = DeepseekV3Config(q_lora_rank=None)
+
+        assert resolve_lora_target_modules(config, "auto")[0] == "q_proj"
+
+    def test_a_v3_shaped_model_with_q_lora_keeps_the_table(self):
+        resolved = resolve_lora_target_modules(_v3_model("deepseek_v3", q_lora_rank=1536), "auto")
+
+        assert resolved == list(MOE_TEXT_LORA_TARGETS["deepseek_v3"])
+
+    def test_q_lora_rank_is_read_from_the_text_config(self):
+        """Kimi K2.5 is a wrapper: ``q_lora_rank`` lives on its ``text_config``."""
+        model = types.SimpleNamespace(
+            config=types.SimpleNamespace(
+                model_type="kimi_k25",
+                text_config=types.SimpleNamespace(model_type="kimi_k2", q_lora_rank=None),
+            )
+        )
+
+        assert resolve_lora_target_modules(model, "auto")[0] == "q_proj"
+
+    def test_a_config_that_does_not_say_keeps_the_table(self):
+        """No ``q_lora_rank`` attribute is not the same as ``None``: a test double
+        or a config that omits it resolves as before."""
+        assert resolve_lora_target_modules(_model("deepseek_v3"), "auto") == list(
+            MOE_TEXT_LORA_TARGETS["deepseek_v3"]
+        )
+
+    def test_the_other_tables_ignore_q_lora_rank(self):
+        model = _v3_model("qwen3_moe", q_lora_rank=None)
+
+        resolved = resolve_lora_target_modules(model, "auto")
+
+        assert resolved == ["q_proj", "k_proj", "v_proj", "o_proj"]
 
     def test_no_entry_names_a_routed_expert_parameter(self):
         """Routed experts are 3-D ``nn.Parameter`` tensors on several of these, so

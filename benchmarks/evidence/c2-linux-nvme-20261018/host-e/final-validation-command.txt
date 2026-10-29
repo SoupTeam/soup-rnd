@@ -1,0 +1,8 @@
+# Final validation is run only after the final campaign driver has exited.
+cd /workspace/c2
+OMP_NUM_THREADS=8 TOKENIZERS_PARALLELISM=false /venv/main/bin/python -m pytest tests/test_c2_*.py -q --no-cov --tb=short > /workspace/c2-final-tests-e3.log 2>&1
+echo $? > /workspace/c2-final-tests-e3.exit
+/venv/main/bin/python -m ruff check src/soup_cli/ scripts/ tests/ benchmarks/ > /workspace/c2-final-ruff-e3.log 2>&1
+echo $? > /workspace/c2-final-ruff-e3.exit
+/venv/main/bin/python /dev/shm/collect_e.py
+

@@ -1,0 +1,440 @@
+{
+ "synthetic": false,
+ "versions": {
+  "python": "3.10.12",
+  "torch": "2.14.1",
+  "transformers": "5.20.2",
+  "peft": "0.21.2",
+  "bitsandbytes": "0.50.2",
+  "datasets": "5.1.0",
+  "tokenizers": "0.23.3",
+  "soup-cli": "0.75.0"
+ },
+ "commit": {
+  "sha": "0c0ad5f21b25a371a553b4ccf70d7718fb98f106",
+  "dirty": []
+ },
+ "gpu": {
+  "workload_gpu": {
+   "id": "0",
+   "source": "default"
+  },
+  "name": "NVIDIA GeForce RTX 3090",
+  "uuid": "GPU-101261c3-8f7f-798b-267d-53e6d2b89f41",
+  "driver_version": "580.159.03",
+  "memory.total": "24576 MiB",
+  "clocks.max.sm": "2100 MHz",
+  "torch_name": "NVIDIA GeForce RTX 3090",
+  "cuda": "13.0"
+ },
+ "harness": {
+  "sha256": "e03ba21ef5196ba5e6cae46552cd14c5e48f147cde96c218ee901351906e71bb",
+  "codec_sha256": "fbaefa2a5efdf988fbc9dbb509de339b6ea6a56de3b1c08a1b43d5305f7917ac"
+ },
+ "command": [
+  "/venv/main/bin/python",
+  "benchmarks/harness/c5_cache.py",
+  "build",
+  "--model",
+  "allenai/OLMoE-1B-7B-0924",
+  "--revision",
+  "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "--device",
+  "cuda",
+  "--cache-root",
+  "/root/c5/caches",
+  "--out",
+  "/root/c5/cache.json"
+ ],
+ "started": "2026-10-20T21:47:36Z",
+ "device": "cuda",
+ "model": {
+  "id": "allenai/OLMoE-1B-7B-0924",
+  "revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "synthetic": false,
+  "note": ""
+ },
+ "variants": {
+  "bf16": {
+   "files": {
+    "extras.safetensors": 4184,
+    "index.json": 1261,
+    "large_embed_tokens.safetensors": 206045288,
+    "large_lm_head.safetensors": 206045280,
+    "layer_000.safetensors": 839140408,
+    "layer_001.safetensors": 839140408,
+    "layer_002.safetensors": 839140408,
+    "layer_003.safetensors": 839140408,
+    "layer_004.safetensors": 839140408,
+    "layer_005.safetensors": 839140408,
+    "layer_006.safetensors": 839140408,
+    "layer_007.safetensors": 839140408,
+    "layer_008.safetensors": 839140408,
+    "layer_009.safetensors": 839140408,
+    "layer_010.safetensors": 839140408,
+    "layer_011.safetensors": 839140408,
+    "layer_012.safetensors": 839140408,
+    "layer_013.safetensors": 839140408,
+    "layer_014.safetensors": 839140408,
+    "layer_015.safetensors": 839140408
+   },
+   "ssd_bytes": 13838342541,
+   "ram_store_bytes": 13838323712,
+   "layers": [
+    {
+     "layer": 0,
+     "file": "layer_000.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 1,
+     "file": "layer_001.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 2,
+     "file": "layer_002.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 3,
+     "file": "layer_003.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 4,
+     "file": "layer_004.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 5,
+     "file": "layer_005.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 6,
+     "file": "layer_006.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 7,
+     "file": "layer_007.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 8,
+     "file": "layer_008.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 9,
+     "file": "layer_009.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 10,
+     "file": "layer_010.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 11,
+     "file": "layer_011.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 12,
+     "file": "layer_012.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 13,
+     "file": "layer_013.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 14,
+     "file": "layer_014.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    },
+    {
+     "layer": 15,
+     "file": "layer_015.safetensors",
+     "file_bytes": 839140408,
+     "expert_bytes": 805306368
+    }
+   ]
+  },
+  "nf4": {
+   "files": {
+    "extras.safetensors": 5416,
+    "index.json": 1261,
+    "large_embed_tokens.safetensors": 206045288,
+    "large_lm_head.safetensors": 206045280,
+    "layer_000.safetensors": 241551736,
+    "layer_001.safetensors": 241551736,
+    "layer_002.safetensors": 241551736,
+    "layer_003.safetensors": 241551736,
+    "layer_004.safetensors": 241551736,
+    "layer_005.safetensors": 241551736,
+    "layer_006.safetensors": 241551736,
+    "layer_007.safetensors": 241551736,
+    "layer_008.safetensors": 241551736,
+    "layer_009.safetensors": 241551736,
+    "layer_010.safetensors": 241551736,
+    "layer_011.safetensors": 241551736,
+    "layer_012.safetensors": 241551736,
+    "layer_013.safetensors": 241551736,
+    "layer_014.safetensors": 241551736,
+    "layer_015.safetensors": 241551736
+   },
+   "ssd_bytes": 4276925021,
+   "ram_store_bytes": 4276892736,
+   "layers": [
+    {
+     "layer": 0,
+     "file": "layer_000.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 1,
+     "file": "layer_001.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 2,
+     "file": "layer_002.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 3,
+     "file": "layer_003.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 4,
+     "file": "layer_004.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 5,
+     "file": "layer_005.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 6,
+     "file": "layer_006.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 7,
+     "file": "layer_007.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 8,
+     "file": "layer_008.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 9,
+     "file": "layer_009.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 10,
+     "file": "layer_010.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 11,
+     "file": "layer_011.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 12,
+     "file": "layer_012.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 13,
+     "file": "layer_013.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 14,
+     "file": "layer_014.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    },
+    {
+     "layer": 15,
+     "file": "layer_015.safetensors",
+     "file_bytes": 241551736,
+     "expert_bytes": 207716864
+    }
+   ],
+   "expert_digest": "84ae958591eff2f996bc041532aba416e517458e9ef330172392e8b2f4b9fb5c"
+  },
+  "q2_0": {
+   "files": {
+    "extras.safetensors": 4184,
+    "index.json": 1261,
+    "large_embed_tokens.safetensors": 206045288,
+    "large_lm_head.safetensors": 206045280,
+    "layer_000.safetensors": 147080576,
+    "layer_001.safetensors": 147080576,
+    "layer_002.safetensors": 147080576,
+    "layer_003.safetensors": 147080576,
+    "layer_004.safetensors": 147080576,
+    "layer_005.safetensors": 147080576,
+    "layer_006.safetensors": 147080576,
+    "layer_007.safetensors": 147080576,
+    "layer_008.safetensors": 147080576,
+    "layer_009.safetensors": 147080576,
+    "layer_010.safetensors": 147080576,
+    "layer_011.safetensors": 147080576,
+    "layer_012.safetensors": 147080576,
+    "layer_013.safetensors": 147080576,
+    "layer_014.safetensors": 147080576,
+    "layer_015.safetensors": 147080576
+   },
+   "ssd_bytes": 2765385229,
+   "ram_store_bytes": 2765361152,
+   "layers": [
+    {
+     "layer": 0,
+     "file": "layer_000.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 1,
+     "file": "layer_001.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 2,
+     "file": "layer_002.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 3,
+     "file": "layer_003.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 4,
+     "file": "layer_004.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 5,
+     "file": "layer_005.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 6,
+     "file": "layer_006.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 7,
+     "file": "layer_007.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 8,
+     "file": "layer_008.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 9,
+     "file": "layer_009.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 10,
+     "file": "layer_010.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 11,
+     "file": "layer_011.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 12,
+     "file": "layer_012.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 13,
+     "file": "layer_013.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 14,
+     "file": "layer_014.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    },
+    {
+     "layer": 15,
+     "file": "layer_015.safetensors",
+     "file_bytes": 147080576,
+     "expert_bytes": 113246208
+    }
+   ],
+   "expert_digest": "090f4fbd1d860c4052150ac81a8be767bc03bdcc4a879bbd8a3e8da7b2f33645"
+  }
+ },
+ "non_expert_mismatch": [],
+ "checks": {
+  "non_expert_identical": true,
+  "nf4_expert_digest_matches_ticket_04": true,
+  "q2_0_expert_digest_matches_ticket_04": true
+ },
+ "build_s": 432.8255894151516
+}

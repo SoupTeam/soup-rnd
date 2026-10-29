@@ -21,12 +21,14 @@ from safetensors.torch import save_file  # noqa: E402
 
 from soup_cli.utils.layer_shard import (  # noqa: E402
     STRIPE_MARKER_NAME,
+    ShardLayout,
     inspect_shard_cache,
     layer_shard_path,
     read_shard_index,
     shard_checkpoint,
     stripe_dirs,
 )
+from tests._tiny_hf_models import write_tiny_llama_config  # noqa: E402
 
 
 def _weights(tmp_path, n_layers=3):
@@ -41,6 +43,7 @@ def _weights(tmp_path, n_layers=3):
     src = tmp_path / "weights"
     src.mkdir()
     save_file(state, str(src / "model.safetensors"))
+    write_tiny_llama_config(str(src), n_layers)
     return str(src)
 
 
@@ -99,7 +102,7 @@ class TestAMalformedMarkerIsACleanMiss:
         _write(marker, b'{"source_fingerprint": "SECRET-LOOKING", "position": 1, "n_roots": 2}')
         found, reason = inspect_shard_cache(
             out, "float32", index.source_fingerprint, (), "none", False, "", "",
-            stripe_roots=(stripe,),
+            stripe_roots=(stripe,), layout=ShardLayout(n_layers=3, stack_experts=False),
         )
         assert found is None and "another cache" in reason and marker in reason, reason
         assert "SECRET-LOOKING" not in reason, reason
@@ -121,7 +124,7 @@ class TestAMalformedMarkerIsACleanMiss:
         monkeypatch.setattr(layer_shard_mod.json, "loads", spy)
         found, reason = inspect_shard_cache(
             out, "float32", index.source_fingerprint, (), "none", False, "", "",
-            stripe_roots=(stripe,),
+            stripe_roots=(stripe,), layout=ShardLayout(n_layers=3, stack_experts=False),
         )
         assert found is None and "not a stripe marker" in reason, reason
         assert parsed == []

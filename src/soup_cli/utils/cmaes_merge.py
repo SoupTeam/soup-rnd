@@ -493,13 +493,14 @@ def _load_adapter_generator(merged_dir: str) -> Callable[[str], str]:
     grep guard). One-shot: reloads the base on every call. The CMA-ES loop
     uses :class:`_CachedBaseScorer` instead so the base loads only once.
     """
-    from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    from soup_cli.utils.peft_wiring import load_adapter
 
     base = _read_merged_base_name(merged_dir)
     tokenizer = AutoTokenizer.from_pretrained(base, trust_remote_code=False)
     model = AutoModelForCausalLM.from_pretrained(base, trust_remote_code=False)
-    model = PeftModel.from_pretrained(model, merged_dir)
+    model = load_adapter(model, merged_dir)
     model.eval()
 
     def _gen(prompt: str) -> str:
@@ -549,13 +550,12 @@ class _CachedBaseScorer:
             )
 
     def __call__(self, merged_dir: str, eval_suite: str) -> float:
-        from peft import PeftModel
-
         from soup_cli.eval.custom import load_eval_tasks, score_task
+        from soup_cli.utils.peft_wiring import load_adapter
 
         base_name = _read_merged_base_name(merged_dir)
         self._ensure_base(base_name)
-        peft_model = PeftModel.from_pretrained(self._base, merged_dir)
+        peft_model = load_adapter(self._base, merged_dir)
         peft_model.eval()
         try:
             tasks = load_eval_tasks(eval_suite)

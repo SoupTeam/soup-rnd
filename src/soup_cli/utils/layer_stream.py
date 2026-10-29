@@ -42,6 +42,7 @@ from soup_cli.utils.config_bounds import (
 # could drift and leave this module's pre-flight RAM estimate disagreeing with
 # what was actually written to disk. (layer_shard has no top-level torch either,
 # so the light CLI import path is unaffected.)
+from soup_cli.utils.kimi_k2 import KIMI_K2_MODEL_TYPE
 from soup_cli.utils.layer_shard import QUANT_NONE, SUPPORTED_STREAM_QUANTS
 
 # --- tiers (plan 5.1) -----------------------------------------------------
@@ -85,6 +86,9 @@ FLOPS_PER_PARAM_PER_TOKEN = 6
 #: reports ``model_type='gemma3'`` for the vision-capable wrapper, and streaming
 #: a multimodal wrapper as though it were a causal LM is exactly the failure the
 #: allowlist exists to prevent.
+#:
+#: ``deepseek_v3`` streams through the native transformers class only (B2). Its
+#: fused experts and fp32 router bias come from the meta skeleton's shard layout.
 SUPPORTED_STREAM_ARCHS = (
     "llama",
     "qwen2",
@@ -96,6 +100,7 @@ SUPPORTED_STREAM_ARCHS = (
     "gemma3_text",
     "phi",
     "phi3",
+    "deepseek_v3",
 )
 
 # Model types whose text decoders reuse an admitted streaming family.  Each
@@ -107,7 +112,25 @@ _STREAM_ARCH_ALIASES = {
     "qwen3_5_moe": "qwen3",
     "qwen3_5_moe_text": "qwen3",
     "qwen4_exp_text": "qwen4_exp",
+    # Kimi K2 has DeepSeek-V3's decoder layer. transformers does not know the type, so
+    # ``soup_cli.utils.kimi_k2`` builds the config and registers the expert conversion.
+    KIMI_K2_MODEL_TYPE: "deepseek_v3",
 }
+
+#: Outer model types whose text tower is ``kimi_k2`` but which are not K2-Base or K2-Instruct.
+#: Kimi K2.5 is a vision-language wrapper with INT4 routed experts.
+_REFUSED_KIMI_WRAPPERS = frozenset({"kimi_k25", "kimi_k25_vision"})
+
+#: ``kimi_k2`` checkpoints this module admits are the block-FP8 K2-Base and K2-Instruct.
+#: K2-Thinking stores its routed experts as INT4 ``compressed-tensors``, which layer
+#: streaming cannot read.
+_KIMI_K2_INT4_REFUSAL = (
+    "layer streaming does not support this model_type={raw!r} checkpoint: its routed "
+    "experts are INT4 compressed-tensors (Kimi-K2-Thinking). Only the block-FP8 "
+    "Kimi-K2-Base and Kimi-K2-Instruct are supported. One Kimi K2 MoE layer holds about "
+    "17 GB in FP8, so running a real K2 also needs sub-layer streaming (B1). "
+    "Supported: {supported}."
+)
 
 #: The loss path's own arithmetic, in VRAM bytes per logit element. **Measured
 #: stage by stage (issue #327), not derived.** ``ForCausalLMLoss`` upcasts to
@@ -248,6 +271,15 @@ def resolve_stream_dtype(device: str = "cuda") -> str:
 # ==========================================================================
 # architecture gate
 # ==========================================================================
+def _is_int4_compressed(config: Any) -> bool:
+    """Is the checkpoint's ``quantization_config`` ``compressed-tensors``? K2-Thinking and
+    K2.5 use it for INT4 routed experts. The block-FP8 K2 files use ``fp8``."""
+    quant = getattr(config, "quantization_config", None)
+    if not isinstance(quant, dict):
+        quant = getattr(quant, "to_dict", lambda: {})()
+    return str(quant.get("quant_method", "")).lower() == "compressed-tensors"
+
+
 def stream_arch_of(config: Any) -> str:
     """Return the streaming architecture family, or raise naming the allowlist.
 
@@ -259,6 +291,12 @@ def stream_arch_of(config: Any) -> str:
     text_config = getattr(config, "text_config", None)
     text_model_type = getattr(text_config, "model_type", None)
     raw_family = model_type
+    supported = ", ".join(SUPPORTED_STREAM_ARCHS)
+    if isinstance(model_type, str) and model_type.strip().lower() in _REFUSED_KIMI_WRAPPERS:
+        raise ValueError(
+            f"layer streaming does not support model_type={model_type!r}. "
+            f"Supported: {supported}."
+        )
     if isinstance(text_model_type, str):
         alias = text_model_type.strip().lower()
         if alias in _STREAM_ARCH_ALIASES:
@@ -272,11 +310,14 @@ def stream_arch_of(config: Any) -> str:
             "found on the model config"
         )
     family = _STREAM_ARCH_ALIASES.get(raw_family.strip().lower(), raw_family.strip().lower())
+    if raw_family.strip().lower() == KIMI_K2_MODEL_TYPE and (
+        _is_int4_compressed(config) or _is_int4_compressed(text_config)
+    ):
+        raise ValueError(_KIMI_K2_INT4_REFUSAL.format(raw=raw_family, supported=supported))
     if family not in SUPPORTED_STREAM_ARCHS:
         raise ValueError(
             f"layer streaming does not support model_type={raw_family!r}. "
-            f"Supported: {', '.join(SUPPORTED_STREAM_ARCHS)}. "
-            f"More architectures land in v0.72.3."
+            f"Supported: {supported}."
         )
     return family
 
@@ -970,6 +1011,7 @@ def estimate_stream_store_bytes(
     dtype: str,
     quant: str = QUANT_NONE,
     double_quant: bool = True,
+    fp8_source: bool = False,
 ) -> int:
     """Scale an on-disk checkpoint size to the RAM store streaming will hold.
 
@@ -979,11 +1021,18 @@ def estimate_stream_store_bytes(
     file size would refuse an 8B run on a 16.9 GB box — precisely the
     configuration this release exists to enable.
 
-    Deliberately coarse: it assumes the source is stored at ``dtype`` and
-    charges the NF4 rate to every parameter, while layernorms and (in the shard
-    set) the embeddings actually stay unquantised. That errs slightly LOW, which
-    is the safe direction — the authoritative check runs after sharding, on the
-    real shard sizes.
+    ``fp8_source`` is determined from the model's quantization_config before
+    materialization. Such sources store their dominant linear weights at one
+    byte per parameter, regardless of the target ``dtype``. Unquantised output
+    expands to the target dtype; NF4 output uses its own bytes-per-parameter.
+    Ordinary sources retain the historical dtype-based estimate.
+
+    Deliberately coarse: source headers, FP8 scale grids and mixed-dtype tensors
+    are counted as weight bytes. Under NF4 every parameter is charged the NF4
+    rate even though norms and embeddings stay unquantised. These effects can
+    over- or under-estimate a mixed checkpoint; there is no universal error
+    bound. The authoritative post-sharding checks still use actual shard sizes.
+    An underestimate is not a safety guarantee.
     """
     if quant not in SUPPORTED_STREAM_QUANTS:
         raise ValueError(
@@ -993,9 +1042,10 @@ def estimate_stream_store_bytes(
     if source_bytes < 0:
         raise ValueError(f"source_bytes must be non-negative; got {source_bytes}")
     if quant == QUANT_NONE:
-        return int(source_bytes)
+        return int(source_bytes * dtype_bytes(dtype)) if fp8_source else int(source_bytes)
     per_param = NF4_BYTES_PER_PARAM if double_quant else NF4_BYTES_PER_PARAM_SINGLE
-    return int(source_bytes * per_param / dtype_bytes(dtype))
+    source_itemsize = 1 if fp8_source else dtype_bytes(dtype)
+    return int(source_bytes * per_param / source_itemsize)
 
 
 def estimate_stream_tokens_per_sec(params: int, effective_tflops: float) -> float:
@@ -1187,6 +1237,7 @@ def estimate_stream_peak_vram(
     dtype: str = "bfloat16",
     logits_bytes_per_element: Optional[float] = None,
     large_layer_bytes: int = 0,
+    adapter_training_bytes: Optional[int] = None,
 ) -> int:
     """Predicted ``torch.cuda.max_memory_allocated()`` for a streaming step.
 
@@ -1204,6 +1255,11 @@ def estimate_stream_peak_vram(
     checkpoint also holds a private copy of the head (#1049); the caller charges
     that as a second slot, so pass the sum.
 
+    ``adapter_training_bytes`` replaces the legacy adapter_params*16 term when
+    a resolved persistent adapter budget is available; it is not added twice.
+    The historical calibration above describes the legacy/default path, not
+    validation of every alternative optimizer's temporary allocations.
+
     Returns allocator-visible bytes only. The CUDA context and driver reservation
     sit outside the caching allocator (0.85 GB on the dev box, which also drives
     a display), so the fit decision compares this against *measured free VRAM*
@@ -1213,11 +1269,17 @@ def estimate_stream_peak_vram(
     :func:`calibrated_logits_bytes_per_element`; it is floored at the shipped
     constant, so passing it can only raise the prediction.
     """
+    if adapter_training_bytes is not None and adapter_training_bytes < 0:
+        raise ValueError("adapter_training_bytes must be non-negative")
+    adapter_bytes = (
+        estimate_optimizer_bytes(adapter_params)
+        if adapter_training_bytes is None else adapter_training_bytes
+    )
     return (
         layer_bytes * buffers
         + large_layer_bytes
         + extras_bytes
-        + estimate_optimizer_bytes(adapter_params)
+        + adapter_bytes
         + STREAM_FIXED_SLACK_BYTES
         + estimate_activation_bytes(
             hidden_size=hidden_size,

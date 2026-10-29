@@ -1,0 +1,45 @@
+# E4 part 2 harness tests on the stack the calibration rule pins (section 1).
+#
+# Six tests/test_e4_part2_*.py modules skip unless torch, transformers, bitsandbytes and peft
+# are exactly the rule's versions, so the main matrix (latest resolvable stack) never runs them.
+# This job installs the pins and fails if any of those tests skipped.
+name: e4 part 2 pinned stack
+
+on:
+  pull_request:
+    paths: &paths
+      - "benchmarks/harness/e4_part2_*.py"
+      - "benchmarks/harness/arm_validity.py"
+      - "tests/*e4_part2*"
+      - "e4-*.md"
+      - ".github/constraints/e4-part2-pins.txt"
+      - ".github/workflows/e4-part2-pinned.yml"
+  push:
+    branches: [main]
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinned:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install with the rule's pins
+        run: |
+          start=$(date +%s)
+          pip install -e ".[dev]" -c .github/constraints/e4-part2-pins.txt
+          echo "install seconds: $(( $(date +%s) - start ))" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Assert the pins held
+        run: python -c "import sys; sys.path.insert(0, 'benchmarks/harness'); import e4_part2_common as c; m = c.library_versions(); assert not m['mismatches'], m"
+      - name: Run the part 2 tests
+        run: pytest -o addopts= --no-cov -q -p no:cacheprovider tests/test_e4_part2_*.py --junitxml=e4-part2.xml
+      - name: Fail on any skip
+        run: python -c "import xml.etree.ElementTree as E; s = E.parse('e4-part2.xml').getroot().iter('testsuite'); n = sum(int(x.get('skipped', 0)) for x in s); assert n == 0, f'{n} skipped'"

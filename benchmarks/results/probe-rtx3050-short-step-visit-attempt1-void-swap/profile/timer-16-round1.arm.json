@@ -1,0 +1,173 @@
+{
+  "arm": "timer-16-round1",
+  "round": 1,
+  "run": 2,
+  "label": "RTX 3050, synthetic",
+  "gpu": {
+    "id": "0",
+    "source": "default"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads",
+    "gpu_power_limit",
+    "swap"
+  ],
+  "outcome": "void",
+  "box_stamp_before": {
+    "unix_s": 1792004890.6184428,
+    "ram_available_bytes": 13448695808,
+    "commit_charge": {
+      "used_bytes": 8144437248,
+      "limit_bytes": 12209106944
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1792004916.3471375,
+    "ram_available_bytes": 13626830848,
+    "commit_charge": {
+      "used_bytes": 8144588800,
+      "limit_bytes": 12209106944
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 5674,
+        "type": "G",
+        "name": "/usr/bin/gnome-shell",
+        "used_mib": 1
+      }
+    ],
+    "gpu_memory_used_mib": 12,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 210 to 1942 MHz over 14 samples; clock event reasons seen: gpu_idle",
+    "samples": 14,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 210,
+      "median": 1841.0,
+      "max": 1942
+    },
+    "reasons_seen": {
+      "gpu_idle": 3
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 1",
+      "evidence": {
+        "sleep_offset_start_s": 6657.88242435,
+        "sleep_offset_end_s": 6657.882424231,
+        "suspend_count_start": 1,
+        "suspend_count_end": 1
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "on mains in all 14 power samples",
+      "evidence": {
+        "samples": 14,
+        "off_mains_samples": [],
+        "battery_present": true,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": true,
+          "online": {
+            "ACAD": true,
+            "ucsi-source-psy-USBC000:001": false,
+            "ucsi-source-psy-USBC000:002": false
+          }
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 65028096 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+      "evidence": {
+        "model_path": "/var/tmp/g7/shards",
+        "device": "nvme0n1",
+        "disk_read_bytes_start": 74982809088,
+        "disk_read_bytes_end": 80922398208,
+        "other_disk_read_bytes_start": 0,
+        "other_disk_read_bytes_end": 0,
+        "own_read_bytes": 5874561024,
+        "foreign_read_bytes": 65028096,
+        "foreign_read_bytes_min": 65028096,
+        "foreign_read_bytes_max": 65028096,
+        "uninspectable_processes": 284
+      },
+      "readers": [
+        {
+          "pid": 26734,
+          "name": "claude",
+          "read_bytes": 49127424
+        },
+        {
+          "pid": 26177,
+          "name": "ghostty",
+          "read_bytes": 2732032
+        },
+        {
+          "pid": 5832,
+          "name": "gsd-housekeepin",
+          "read_bytes": 65536
+        },
+        {
+          "pid": 5674,
+          "name": "gnome-shell",
+          "read_bytes": 49152
+        },
+        {
+          "pid": 6069,
+          "name": "warp-taskbar",
+          "read_bytes": 4096
+        }
+      ],
+      "unattributed_bytes": 13049856
+    },
+    "gpu_power_limit": {
+      "outcome": "ok",
+      "reason": "limit 90.00 W before and 90.00 W after the arm (within 80.00 to 95.00 W)",
+      "evidence": {
+        "power_limit_w_start": 90.0,
+        "power_limit_w_end": 90.0,
+        "expected_w": [
+          80.0,
+          95.0
+        ]
+      }
+    },
+    "swap": {
+      "outcome": "void",
+      "reason": "the machine swapped in 2978 pages and swapped out 39498 pages during the arm",
+      "evidence": {
+        "swapped_in_pages": 2978,
+        "swapped_out_pages": 39498,
+        "counters_start": {
+          "pswpin": 335559,
+          "pswpout": 551482
+        },
+        "counters_end": {
+          "pswpin": 338537,
+          "pswpout": 590980
+        }
+      }
+    }
+  }
+}

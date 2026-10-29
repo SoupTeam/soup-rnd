@@ -7,6 +7,7 @@ import pytest
 
 from soup_cli.utils.layer_shard import (
     ShardIndex,
+    ShardLayout,
     _atomic_write_index,
     _write_stripe_marker,
     extras_shard_path,
@@ -53,7 +54,10 @@ def _cache(tmp_path, *, striped):
 
 
 def _inspect(out, roots):
-    return inspect_shard_cache(out, "float32", FP, (), "none", False, "", "", stripe_roots=roots)
+    return inspect_shard_cache(
+        out, "float32", FP, (), "none", False, "", "", stripe_roots=roots,
+        layout=ShardLayout(n_layers=3, stack_experts=False),
+    )
 
 
 def _write_raw_index(out, **extra):

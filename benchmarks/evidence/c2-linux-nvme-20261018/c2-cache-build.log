@@ -1,0 +1,22 @@
+[transformers] Model config: bos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128000. This may result in unexpected behavior.
+[transformers] Model config: eos_token_id must be `None` or an integer within the vocabulary (between 0 and 32767), got 128001. This may result in unexpected behavior.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Traceback (most recent call last):
+  File "/workspace/c2/benchmarks/harness/c2_linux_campaign.py", line 140, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/c2/benchmarks/harness/c2_linux_campaign.py", line 133, in main
+    return prepare_model(args)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/c2/benchmarks/harness/c2_linux_campaign.py", line 35, in prepare_model
+    model, runtime, _config, _index, _weights, _shards, shard_s, build_s = stream_probe.build(
+                                                                           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/c2/benchmarks/harness/stream_probe.py", line 406, in build
+    index = shard_checkpoint(
+            ^^^^^^^^^^^^^^^^^
+  File "/workspace/c2/src/soup_cli/utils/layer_shard.py", line 1285, in shard_checkpoint
+    resolved_out = _validate_out_dir(out_dir)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/c2/src/soup_cli/utils/layer_shard.py", line 937, in _validate_out_dir
+    raise ValueError(
+ValueError: shard output directory must be under $HOME, $CWD or $TMPDIR; got /workspace/c2-cache

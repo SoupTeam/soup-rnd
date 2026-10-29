@@ -1,5 +1,13 @@
 # Performance & Quantization
 
+RND developer note: [B1.1 expert-shard storage format](expert-shard-format.md)
+documents the independently readable MoE cache. It is storage-only and does not
+enable expert-streamed training.
+
+[B1.2 expert forward](expert-forward.md) adds an internal sequential forward
+primitive and a prospective correctness/memory gate. Backward and public
+expert-streamed training remain gated.
+
 [← Back to the Soup README](../README.md)
 
 > Quantization-aware training (FP8 and the experimental QuEST route), the Quant Menu (I + II), KV-cache, NVFP4, save formats, Cut Cross-Entropy, gradient checkpointing, kernel auto-composition, activation offloading, and multi-GPU / DeepSpeed / FSDP.
@@ -542,6 +550,52 @@ The [four-arm joint-cache study](../benchmarks/joint-cache-20261024/README.md)
 compares ordinary SSD streaming, RAM caching, GPU residency, and both together
 with matched configuration, independent full-tensor replay, and separate setup costs.
 
+**Early adapter memory check.** Before resolving checkpoint weights or preparing
+layer shards, Soup builds a meta model and applies its normal target resolution
+and PEFT conversion. The resulting adapter shapes account for rectangular
+projections, per-module ranks and fused experts. On CUDA, a persistent adapter
+budget exceeding free VRAM (or `stream_vram_override`) refuses the run before
+checkpoint loading, even when `stream_vram_probe` is enabled.
+
+The breakdown separates adapter weights, gradients and optimizer tensors;
+non-capturable Torch step counters are charged to CPU rather than VRAM.
+Verified profiles currently cover ordinary fp32 AdamW, SGD without momentum,
+Adagrad, RMSprop without momentum/centering, HF Adafactor without a first moment,
+and ordinary LoRA-FA (including storage of frozen A matrices). Non-paged
+bitsandbytes AdamW 8-bit is profiled for version 0.50.2, including its small-tensor
+fp32 threshold and block metadata. GaLore, LoRA+ and other optimizer profiles
+report that the adapter-fit estimate is unavailable; their adapter weights alone
+can still trigger refusal. The later full forecast retains a visibly labelled
+legacy adapter estimate for those unknown profiles.
+
+On refusal, Soup tries two narrower meta-model configurations: attention only,
+and attention plus shared experts. Only a strictly smaller, supported adapter
+budget within the available VRAM is printed. The message gives recalculated
+weights, gradients and optimizer bytes, plus explicit target regexes and
+`training.moe_lora: false` (otherwise MoE target resolution would override the
+selection). Rank patterns and other settings remain unchanged. A shared-expert
+alternative is omitted if no shared-expert adapters are found. These suggestions
+do not change the configuration automatically or establish training quality;
+the full training forecast still applies. Unrecognized architectures/optimizers
+may have no verified alternative.
+
+For the Kimi K2 routed-expert reference, its published configuration has 60 MoE
+layers, 384 experts, hidden size 7168 and expert width 2048. Separate gate/up/down
+LoRA at rank 16 therefore has `60 * 384 * 3 * 16 * (7168 + 2048)` =
+10,192,158,720 parameters. Float32 weights and gradients take 40.769 GB each;
+the two AdamW moments take 81.537 GB, totaling 163.075 GB on CUDA, plus CPU step
+scalars. Thus the task brief's approximately 163 GB describes the combined
+persistent training tensors, not the two Adam moments alone. This is a
+shape-only reference test, not validation of K2 runtime/FP8 support.
+Source: [Kimi K2 configuration](https://huggingface.co/moonshotai/Kimi-K2-Instruct/raw/main/config.json).
+
+Passing the adapter check does not guarantee that training fits: frozen base
+buffers, activations and optimizer temporaries need additional memory. The later
+full streaming forecast remains in place and uses the resolved adapter term when
+available, without counting it twice. CPU runs report the tensor budget without
+a CUDA fit verdict. These checks do not imply that every MoE target pattern
+actually adapts experts on every architecture; the count follows what PEFT builds.
+
 For streamed NF4 on CUDA, Soup follows bitsandbytes' own 4-bit dispatch. When
 bitsandbytes selects its custom fused GEMM, Soup executes that GEMM through a
 checkpoint-visible autograd Function so pooled packed weights cannot outlive their
@@ -646,6 +700,7 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
   - **Warm — the whole store in the page cache — was reported as a 1.03–1.20x REGRESSION** against the synchronous source (gate-971 §5). Position-matched in both run orders it is **0.91–0.97x**, i.e. not one: the bracket was the run-order effect that record had already named for the cold fixture (#974). After the change, in one session against the reader it replaces, the new reader is 0.76x of it warm (1.58 vs 2.09 s) and 2.25x faster right after a page-cache eviction (1.79 vs 4.02 s). **If the store fits RAM, use the RAM tier** — 1.1 s against 1.8–2.0 s for either disk arm in the same session; the disk tier exists for a store that does not.
   - **It is still bound by the read, less so since #974**: per-layer read brackets were 82.6–84.9% of the cold step in gate-971 and are 62–64% after the direct-I/O reader. There is no measured read-free floor at this sequence to compare that against — the ~14 s figure is at a shorter one — so no headroom ratio is quoted.
   - **`stream_read_ahead` did not change throughput** in that record. Depths 1, 2 and 4 were indistinguishable once run order was controlled for — the same configuration measured 48.09 s run first and 30.28 s run last, as the page cache warmed across blocks, which is larger than the whole spread across depths. Treat it as a **host-memory knob**: 1.5 GB of pinned staging at depth 1, 2.0 GB at 2, 2.8 GB at 4 on a 70B. The pre-flight prints that figure on the disk tier (`host staging read_ahead N -> X MB`) and **refuses the run** when it plus the resident extras will not fit the free-RAM headroom, naming `stream_read_ahead` as the knob to lower — the embedding and an untied `lm_head` take one slot each at any depth, because they are one layer each.
+  - **Per-drive read depth (C2) remains 1.** A [physical-NVMe diagnostic comparison](../benchmarks/c2-results-20261018.md) with fixed workers/staging and canonical F1 repeats found only +0.54–0.96% paired primitive throughput, inside the frozen no-benefit band. Synthetic 70B NF4 training steps showed median paired speedup 1.0252x, also below the frozen acceptance thresholds. Periodic background writes prevented the original strict quiet-window acceptance; the separately preregistered diagnostic cannot authorize production integration. No useful C2 read-speed or training-speed improvement is established, and Windows/striping validation remains open. The older R3' ratios 1.106 / 1.101 / 0.963 remain ambiguous.
   - **Disk-kind detection.** A paravirtual (virtio) disk reports `rotational=1` with no media hint, so a genuinely NVMe-backed cloud disk was misread as an HDD and refused (#365); detection now measures a bounded O_DIRECT sequential read when the rotational flag is unreliable and admits NVMe-class throughput (>= 1 GB/s), while a genuinely slow disk stays rejected. Set `training.stream_disk_kind: nvme` (or `ssd`/`hdd`) to override when detection is still wrong — the resolved value is printed beside what was detected.
 - **Apple APFS disk detection.** On macOS, an APFS volume may report `Apple Fabric`
   even when its physical store is Apple's internal NVMe. Soup resolves the target
@@ -654,6 +709,7 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
   unknown hardware remains refused. `training.stream_disk_kind` still has final
   authority when explicitly set.
 - **Llama / Qwen / Qwen3.5 dense and MoE text / Qwen4-Exp text / Mistral / Gemma / Gemma2 / Gemma3-Text / Phi / Phi3** (`qwen3_5`, `qwen3_5_text`, `qwen3_5_moe`, and `qwen3_5_moe_text` route through the qwen3 streamer; `qwen4_exp_text` routes through the Qwen4-Exp streamer), `task: sft`, `backend: transformers`, `modality: text`. The original list is verified bit-exact in bf16 and NF4. Qwen3.5's heterogeneous dense and MoE decoder paths are verified bit-exact against resident controls on CPU; the MoE path also has live streamed-training validation on `Qwen/Qwen3.5-35B-A3B`, whose real 35B run has no resident control because the available hardware could not load it resident. Qwen4-Exp currently has an exact float32 tiny-model parity gate, including its external PLE table; real-checkpoint and NF4 validation are still pending.
+- **DeepSeek-V3** (`deepseek_v3`), `task: sft`, `backend: transformers`, `modality: text`. A tiny synthetic DeepSeek-V3 model streams bit-exact against a resident one in fp32 on an RTX 3050 (and on CPU, except NF4, which needs a GPU): forward, backward, NF4, the disk tier, LoRA on attention and `moe_lora` on the routed experts. NF4 quantizes the attention and shared-expert linears and leaves the routed experts at the base dtype. The sharder stacks per-expert checkpoint keys into fused experts, drops the MTP layer, and keeps the router bias in fp32. A DeepSeek-V3 model built from Hub code is refused, so drop `trust_remote_code: true`. `model_type=kimi_k2` (K2-Base and K2-Instruct, block FP8) is admitted as an alias: Soup reads its `config.json` without Hub code and registers the expert conversion transformers lacks for it, and a tiny `kimi_k2` checkpoint streams bit-exact. The Kimi K2 tokenizer is built natively from `tiktoken.model` for a local folder, with no Hub code. Its ids match Moonshot's own tokenizer for Kimi-K2-Instruct on a fixed text set, K2-Thinking and K2.5 (INT4) are refused, and one real K2 MoE layer is about 17 GB, which needs sub-layer streaming. `deepseek_v32`, `deepseek_v2` and `kimi_k25` are refused. No real DeepSeek-V3 or Kimi K2 checkpoint has been streamed. The [compatibility table and gate record](../benchmarks/gate-b2-deepseek-v3.md) list what is proven, refused and not tested.
 - **Heterogeneous layer keys are allowed only at the presence/absence level.** The sharder reads every layer's safetensors header and the runtime builds the RAM/disk source from those per-layer specs, then merges them into one VRAM buffer pool. A key that appears in multiple layers must keep the same stored shape and dtype everywhere; NF4 weights also keep one `NF4WeightSpec` per short key, validate every packed sidecar against the shard header, and share only the small code tables after proving they are equal.
 - **Batch sizes, gradient accumulation, `--resume` / `--hf-resume`** all now work (v0.72.3).
 - **Pre-Ampere cards (T4, P100, V100, GTX 16xx, RTX 20xx) now stream in fp16 instead of bf16.** Until this fix the store dtype was hardcoded to bf16 on every CUDA device, so the entire free notebook tier was streaming a dtype its GPU has no units for, and nothing said so — it could not fail on the Ampere card every number above was measured on. fp16 is bit-exact against a resident reference of matching numerics, `0.000000e+00` in both quantisations, exactly as bf16 is.
@@ -663,6 +719,17 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
 - **A streamed 8B run now completes on a Turing card — free-tier Colab, Tesla T4 (sm_75) — and that is all it shows.** `NousResearch/Meta-Llama-3.1-8B-Instruct`, NF4, `stream_buffers: 2`, batch 1, `max_length: 256`, LoRA r=8, fp16: 7 steps, adapter written with 128 of 128 tensors non-zero in both runs (the second ran in-process, per the notebook, so it has no exit code to quote). The first run measured peak **2.91 GB** against a predicted ~3.02 GB (the pre-flight over-predicts by 3.8%, the safe direction it was fitted for), with the pre-flight reading **free VRAM 15.10 GB** — the device, not the per-process cap. The T4 has 15.6 GB, so the process was capped to **4.00 GB** with `torch.cuda.set_per_process_memory_fraction`, and the cap was shown to bite — a 4.29 GiB allocation was refused. The committed [notebook](../notebooks/proof-4gb.ipynb) now sets `training.stream_vram_override` to that same 4.00 GB, which replaces the yardstick the fit decision is taken against — the pre-flight then reports **free VRAM 4.00 GB** instead of the driver's whole-card figure, and it is a harder gate than the first run faced. Against it: predicted ~1.97 GB, **measured peak 1.83 GB** (a +7.7% over-prediction, still the safe direction). The drop from 2.91 GB is self-consistent, not a contradiction: the embeddings and `lm_head` moved out of the resident allocation into a streamed large-layer slot between the two runs. **No throughput is quoted from either run**: a card under an artificial cap is not a benchmark, and the notebook deliberately quotes none either. **What neither establishes**: backward/gradient exactness at 8B on Turing (a non-zero adapter shows gradients flowed, not that they were correct). The notebook's streamed-vs-resident comparison is now recorded rather than unrun — bit-exact, max `|streamed - resident|` = 0.0, `torch.equal` = True — but on `SmolLM2-135M`, fp16, unquantized, not the 8B NF4 configuration this bullet is about. Record: [`benchmarks/run-t4-colab-free-tier.md`](../benchmarks/run-t4-colab-free-tier.md).
 - **The bf16 3B throughput above is a LOWER BOUND.** The reference box could not page-lock the 5.55 GB base (its measured page-locked ceiling was 7.65 GB — which #901 later traced to per-tensor pinning being rounded up to powers of two, so that store was really asking for ~10 GB; it would pin today), so that run fell back to a pageable store. Pageable memory makes the host-to-device copy synchronous, which costs overlap — visible as the GPU-utilisation drop from 96.8% (1.5B, pinned) to 79.3% (3B, pageable). Soup does this fallback automatically **and prints the cost** rather than absorbing it silently. NF4 lifts this at 3B: the store drops under the ceiling and pins.
 - Numbers are Windows/WDDM and therefore systematically pessimistic versus Linux. `expandable_segments:True` is silently ignored on Windows; Soup detects that and does not claim it is active.
+
+### FP8 source checkpoints (research track B3)
+
+DeepSeek-V3 and Kimi K2 publish their linear weights as `float8_e4m3fn` with an fp32 `<name>.weight_scale_inv` per 128 x 128 block, declared in `config.json` as `quantization_config: {quant_method: fp8, fmt: e4m3, weight_block_size: [128, 128]}`. The sharder reads that config and dequantises each FP8 weight once, at shard time: `q * scale` in fp32, rounded once to the store dtype, in block-aligned row chunks so no fp32 intermediate is larger than one chunk. From there it is an ordinary dense weight, and `quantization: 4bit` runs the unchanged NF4 path on it. A weight and its scale may sit in different files (DeepSeek-V3 puts 155 of its 45,808 scales in the file after their weight).
+
+**Before this, an FP8 checkpoint sharded without a word into wrong weights**: the sharder cast the raw e4m3 values to bf16 without their scales and copied the scales into the layer shard as ordinary tensors. Float8 storage is now refused unless it comes with its scale and the fp8 config. Also refused, by name and before any tensor is read: a scale without its weight, a scale grid of the wrong shape, a non-finite, zero or negative scale, and an `fmt` other than `e4m3`.
+
+- **Verified**: FP8 -> bf16 is bit-exact against an independent e4m3 decoder on 126 of 126 real DeepSeek-V3 weights. Record: [`benchmarks/gate-b3-fp8-source.md`](../benchmarks/gate-b3-fp8-source.md).
+- **Not yet**: `soup train` still refuses `model_type: deepseek_v3` at its architecture check (track B2), so a DeepSeek-V3 or K2 run does not reach the sharder from the CLI yet.
+- **FP8 sources shard without double-quant.** With `quantization: 4bit`, a block-scaled FP8 source resolves an unset `training.bnb_4bit_use_double_quant` to **false**, and an explicit `true` is refused by name. With double-quant on, the NF4 codec failed the preregistered per-block reconstruction gate on real DeepSeek-V3 weights (worst 2.15 against `0.17 x absmax`) and passed with it off (worst 0.1531); the gate was kept, the default changed. The cost is the un-double-quantised NF4 statistics: 0.5 instead of 0.127 bit per parameter, about 31 GB more on 671B parameters (computed from the bitsandbytes layout, not measured). Every other source keeps double-quant on by default.
+- **Found along the way, not specific to FP8**: with double-quant on (the default), bitsandbytes stores some small block maxima sign-flipped when the blocks in a 256-block group span a wide range. On the worst tensor in one DeepSeek-V3 file (`layers.1.mlp.gate_proj`), about 6% of NF4 blocks exceed `0.17 x absmax` with double-quant and none do without it; its whole-tensor relative error barely moves (0.0872 -> 0.0880). Other tensors' share, other files and Kimi K2 are not measured. The training-quality effect is not measured.
 
 ### Forcing the pin (`training.stream_pin`)
 
@@ -782,7 +849,7 @@ prints this advice when it sees you accumulating.
 - a disk-tier run whose host staging (`stream_read_ahead` layers, plus one slot each for the embedding and an untied `lm_head`) plus the resident extras will not fit the free-RAM headroom → refused by name, naming the depth to lower. Refused rather than clamped: a depth you set is a decision, and silently lowering it would hand back a slower run than the one you configured
 - more than 8 distinct layer shapes in one shard index → refused. Staging is allocated per shape and a shape with one member takes a full slot at any depth, so an index whose every layer differed would hold most of the model in staging at once — page-locked when the box allows it and `stream_pin` is not false, a loud pageable fallback otherwise, and a refusal only under `stream_pin: true` on a CUDA target — which is what the disk tier exists to avoid. A real model has one to three
 - `stream_vram_probe` on any task other than `sft` → the probe runs a plain causal-LM step, which *is* the SFT step but is not a preference loss. Measured at one matching shape it is conservative there too (6.02 GB against a real DPO step's 5.30 GB, +13.5%), but one shape is not a validation, so it is not offered for `dpo`/`orpo`/`simpo`/`kto` yet
-- an architecture outside the supported list (llama / qwen2 / qwen3, including qwen3_5_moe text aliases / qwen4_exp text / mistral / gemma / gemma2 / gemma3_text / phi / phi3) → named explicitly
+- an architecture outside the supported list (llama / qwen2 / qwen3, including qwen3_5_moe text aliases / qwen4_exp text / deepseek_v3 / mistral / gemma / gemma2 / gemma3_text / phi / phi3) → named explicitly
 
 **Config example:**
 
@@ -855,11 +922,148 @@ output: ./output
 - **"base exceeds the physical RAM safety ceiling"** — `stream_source: auto` fell back to the NVMe disk tier because the RAM tier would keep the store plus resident extras above Soup's physical-host ceiling. Set `stream_source: ram` only when you want that case to refuse instead of falling back.
 - **"layer streaming needs NVMe or more RAM … the detected disk is 'hdd'"** on a fast cloud disk — a virtio device reports `rotational=1` with no media hint. Detection now measures the disk when the flag is unreliable; if it still misreads yours, set `training.stream_disk_kind: nvme` to force the tier on (`ssd`/`hdd` force it off).
 - **"could not page-lock the base … falling back to a PAGEABLE RAM store"** — expected on a busy machine. Training continues, more slowly. Close other applications to keep the pinned store. Since #901 the fallback also prints `after the failed page-lock: cleared the stale CUDA out-of-memory error … and released N GB of page-locked memory it left cached` — a failed page-lock leaves the CUDA runtime holding a stale "out of memory" that the run's first kernel launch would otherwise report as a real one (the report's `AcceleratorError: CUDA error: out of memory` inside `SFTTrainer.__init__`, with gigabytes of VRAM free), and the blocks pinned before the failure stay in torch's host cache until released. Both are handled before the pageable store is built. The store also pins in power-of-two arenas now, so the fallback itself is rarer: a 9.93 GB 14B NF4 store page-locks as 10 GiB where per-tensor pinning asked for ~17 GB.
-- **"layer streaming does not support model_type=…"** — the supported list is llama / qwen2 / qwen3, including `qwen3_5_moe` text aliases / qwen4_exp text / mistral / gemma / gemma2 / gemma3_text / phi / phi3. Multimodal `gemma3` is excluded on purpose; use `gemma3_text`.
+- **"layer streaming does not support model_type=…"** — the supported list is llama / qwen2 / qwen3, including `qwen3_5_moe` text aliases / qwen4_exp text / deepseek_v3 / mistral / gemma / gemma2 / gemma3_text / phi / phi3. Multimodal `gemma3` is excluded on purpose; use `gemma3_text`.
 - **"predicted peak … exceeds free VRAM" and you believe it is wrong** — lower `batch_size` or `data.max_length` first. Otherwise there are two escape hatches and they are not interchangeable. `training.stream_vram_probe: true` (`sft` only) **measures** one real forward+backward at your configured shape and decides on that, printing the prediction beside it; it costs one step (1–5 s measured) and it can also refuse a run the formula accepted. `training.stream_vram_override: <bytes>` instead **replaces** the free-VRAM figure the check runs against — that is an assertion you are making, not a measurement, so raising it past a real limit is an OOM on Linux and a silent spill on Windows. Prefer the probe when you want to be told the truth; use the override when you know something the driver cannot report.
 - **The prediction is not equally trustworthy at every sequence length.** Measured on a 4 GB RTX 3050 with SmolLM2-135M streamed in bf16 at batch 1, the formula over-predicts by 8% at seq 4352 (safe) and then **under-predicts — 0.934x the real peak at seq 5120 and 0.787x at 6144**. The grid it was fitted on only ever varied batch size, at seq 256 and 512, so long-context streaming is exactly where it has the least evidence behind it. If you are streaming at multi-thousand-token sequences, turn on `stream_vram_probe`. Record: [`benchmarks/gate-v0.73.1-measured-vram-fit.md`](../benchmarks/gate-v0.73.1-measured-vram-fit.md).
 - **The pre-flight reports the whole card on a capped or shared GPU** — `torch.cuda.mem_get_info()` is a device-level driver query and cannot see `set_per_process_memory_fraction`, a MIG slice, or another process on the same card. Set `training.stream_vram_override` to what your process may actually use; the check then refuses configurations that would exceed *that*, which is also how you rehearse a 4 GB card on a 16 GB one.
 - **Slower than you expected** — layer streaming trades time for memory. If the model already fits resident on your card, do not enable it.
+
+### L2L: load each layer once per optimizer step (`training.l2l`, BETA)
+
+With plain streaming plus `gradient_accumulation_steps: k`, every one of the k micro-batches
+walks the whole model, so each layer is loaded k times per optimizer step. `training.l2l: true`
+runs layer-major instead: each streamed decoder layer is loaded once and processes all k
+micro-batches, then the optimizer takes one step on the LoRA adapters. k is
+`gradient_accumulation_steps`; there is no separate field ([ADR 0002](adr/0002-l2l-is-a-bool-and-k-is-gradient-accumulation.md)).
+
+```yaml
+training:
+  stream_layers: true
+  gradient_accumulation_steps: 4   # k
+  l2l: true
+  lora:
+    dropout: 0
+```
+
+The result matches gradient accumulation. The LoRA gradients and the losses were bit-identical
+on SmolLM2-135M (RTX 3060, k = 1, 2, 4, `quantization: none` and `4bit`). Layer loads stay at 58
+for every k with L2L, against 58, 115 and 229 with accumulation. Learning rate, logging,
+checkpoints and resume stay with the Hugging Face loop. The default `false` changes nothing for
+existing configs. Report:
+[`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
+
+**Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
+
+Refused when the config is read:
+- `stream_layers: false`. A resident model has no layer loads to reuse.
+- `task` other than `sft`.
+
+Refused at launch:
+- `model_type` other than `llama` or `mistral`.
+- More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
+- `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
+- Rows with padding before real tokens. L2L needs right-padded rows.
+- `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the replayed draws would differ from accumulation. Use rows of one length or set the dropout to 0.
+- `neftune_alpha` together with `lora.dropout` or `attention_dropout` above 0.
+- `attention_dropout` above 0 with the `sdpa` attention implementation.
+- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+
+**Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
+attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch
+after micro-batch, layer after layer. L2L cannot visit the layers in that order, so it replays the
+stream: it records which dropouts one layer call draws (shape, strides, dtype, device,
+probability), runs them on zeros in accumulation order to learn the generator state before each
+(micro-batch, layer) pair, and runs every layer call, in the forward and in the recompute, at its
+state. After the step the generators stand where accumulation leaves them. L2L therefore equals an
+unmodified Hugging Face Trainer, with no hooks on the reference side, and the next optimizer step
+starts from the same stream. Checked on CPU with a tiny Llama and LoRA: losses and gradients are
+bit-for-bit equal for k = 1, 2 and 4, two windows in a row stay equal, and a trainer run with
+`lora.dropout` 0.05 at k = 2 gives the same adapters as the plain Trainer. Controls (one shared
+stream, states saved in layer-major order, no state on the recompute, an outer stream left
+untouched) each disagree. On an RTX 3060 (CUDA 13, torch 2.14.1), SmolLM2-135M at dropout 0 and 0.05
+for k = 1, 2 and 4 gave losses, all 240 LoRA gradients and the generator state after the step equal to
+plain accumulation, with the shared-stream and other-seed controls disagreeing
+([`benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md`](../benchmarks/probe-vast-rtx3060-l2l-replay-a2-pr31.md)).
+Not checked: hidden states and logits compared directly, the full `SFTTrainer` path with a real
+collator, NF4, more than one card, and models larger than SmolLM2-135M.
+
+Refused because the stream cannot be replayed: `attention_dropout` above 0 with the `sdpa`
+attention implementation (its mask is drawn inside a fused kernel; load the model with
+`attn_implementation='eager'`), `neftune_alpha` together with dropout (accumulation draws the
+NEFTune noise from the same stream between the layers), and a window of rows with different
+lengths together with dropout (padding changes the shapes of the draws).
+
+With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
+different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
+each new shape costs one extra forward pass. Speed and memory were not measured, and the check
+used random tokens, not real text. MoE and multi-GPU are out of scope.
+
+**Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
+number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
+window. L2L divides the summed cross-entropy of every micro-batch by that one number, not by
+the token count of each micro-batch, so rows of different lengths and masked prefixes weigh
+the same as in gradient accumulation. A dataset whose size is not a multiple of k ends with a
+shorter window. The loop counts only the micro-batches that window really has, so
+`num_items_in_batch` covers them, the last window is a normal optimizer step with fewer
+micro-batches, and the number of optimizer steps, `l2l_steps` and the learning rate at every
+step equal those of accumulation. Resume from a checkpoint does not shift the windows.
+
+**Mistral-7B NF4.** `Mistral-7B-v0.1` with NF4 weights in RAM, RTX 3060 12 GB, k = 4 against
+`gradient_accumulation_steps: 4`, three optimizer steps on synthetic rows (random tokens, rows
+of different lengths, `-100` labels, a last window of 2 rows). Real data was not run and model
+quality was not measured. Report and raw logs:
+[`benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md`](../benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md).
+
+- Two accumulation runs equal each other bit for bit, so the stand itself is deterministic.
+- L2L and accumulation are **not** bit-identical in bf16. The relative L2 error of the LoRA
+  gradients is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
+  the SDPA backend inside accumulation gives 1.4%, 1.5% and 4.5%, the same order.
+- In fp32 the two agree to 2.1e-6, 3.1e-6 and 8.3e-6 (rounding noise, not bit-equal). The bf16
+  gap is bf16 rounding, not a different computation in the L2L step.
+- The number of steps and the learning rate per step match in both runs.
+- Open: `l2l_weight_restores` stayed 0 on this model (210 on SmolLM2), loads were not
+  compared with k = 1, and the `gemm_4bit` path counter was empty for L2L. L2L made 184 layer
+  loads in 3 steps (about 61 per step, two passes over 32 layers).
+- A tolerance in place of the bit criterion is set in ticket 07 and was not applied to these
+  numbers yet.
+
+**RAM for Mistral-7B NF4.** The NF4 weight store takes about 4.1 GB. The activation cache is
+
+```text
+cache = 32 layers x k x batch x seq x 4096 x 2 bytes
+```
+
+with `seq` rounded up to a multiple of 64 and, on CUDA, each chunk rounded up to a power of
+two. The run needs free RAM of at least `cache / 0.7` after the weight store. For k = 4 the
+cache is 1 GiB at batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq
+2048, so the last one needs about 11.5 GiB free on top of the weights. These figures come
+from the formula, not from a measurement on a loaded host.
+
+**Bit-for-bit equality.** Equal bits against accumulation need all of:
+
+- one card, with the same architecture and SM count in both runs;
+- the same CUDA toolkit and the same `bitsandbytes` version;
+- one fixed SDPA backend in both runs (the stand pins `MATH`; Flash, Efficient and cuDNN
+  backward are not deterministic, and different backends do not agree bit for bit);
+- `CUBLAS_WORKSPACE_CONFIG=:4096:8`, set before torch starts CUDA (it has no effect afterwards);
+- `torch.use_deterministic_algorithms(True)` without `warn_only`.
+
+On SmolLM2-135M this gave equal bits. On Mistral-7B NF4 in bf16 it did not (see above), so
+compare 7B runs with a tolerance. The stand is
+[`benchmarks/harness/l2l_mistral_stand.py`](../benchmarks/harness/l2l_mistral_stand.py).
+
+**Counters.** Each logged training step carries four cumulative fields:
+
+| Log field | Meaning |
+|---|---|
+| `l2l_steps` | L2L optimizer steps taken so far |
+| `l2l_layer_loads` | decoder layers loaded into a streaming slot |
+| `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
+| `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
+
+Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
+flat as k grows. With plain accumulation it grows roughly in proportion to k.
 
 ### Preference losses over streaming (v0.72.4)
 
@@ -923,6 +1127,14 @@ still needs, and the per-layer shard cache. Required writes are grouped by targe
 the run refuses before either write when that volume lacks free space. Override the two cache
 roots with `SOUP_SPECTRUM_CACHE_DIR` and `SOUP_LAYER_STREAM_CACHE_DIR`; both retain Soup's
 home/cwd/tmp containment policy.
+
+For block-scaled FP8 source checkpoints, both disk and early RAM estimates use
+one source byte per parameter from `quantization_config`, rather than treating
+the FP8 files as bf16. Plain output expands to the selected target dtype; NF4
+output is charged at the selected codec rate (single-quant by default for FP8).
+Ordinary-source estimates are unchanged. These are coarse pre-flight estimates:
+headers, scale grids, mixed-dtype tensors and unquantised embeddings/norms limit
+their accuracy. Actual shard sizes remain authoritative after sharding.
 
 **Two or more NVMe drives.** On a cold store larger than RAM the disk-tier step can wait on the
 read (measured for a 70B-shaped store), and then one drive is the ceiling. Set
@@ -1403,7 +1615,7 @@ Cross-validator ordering picks the most actionable error: `quantization_aware='f
 
 ## LF / Axolotl Quant Parity (v0.53.0)
 
-- `bnb_4bit_use_double_quant` — controls BNB's double-quantization. **Defaults to `true`** (matching every 4-bit load path — resident, layer-streaming, and the `soup merge` 4bit save formats), and is now honoured everywhere (#321): set `false` to disable it and it actually reaches BNB. Explicitly setting it requires `quantization: 4bit`; combinations with the Quant Menu formats (gptq / awq / hqq:Nbit / aqlm / eetq / mxfp4 / fp8) are rejected at config load.
+- `bnb_4bit_use_double_quant` — controls BNB's double-quantization. **Defaults to `true`** (matching every 4-bit load path — resident, layer-streaming, and the `soup merge` 4bit save formats), and is now honoured everywhere (#321): set `false` to disable it and it actually reaches BNB. The one exception is a block-scaled FP8 source checkpoint under layer streaming: there an unset value resolves to `false` and an explicit `true` is refused (see "FP8 source checkpoints" above). Explicitly setting it requires `quantization: 4bit`; combinations with the Quant Menu formats (gptq / awq / hqq:Nbit / aqlm / eetq / mxfp4 / fp8) are rejected at config load.
 - `quantize_reward_model: true` — live for `ppo` and `reward_model` training, extending the v0.40.5 Quant Menu wiring to reward models (`trainer/ppo.py`, `trainer/reward_model.py`).
 - `quantize_ref_model: true` — accepted for reference-policy tasks (`dpo / ipo / simpo / orpo / bco / kto / preference / grpo / ppo`), but read by nothing. Staged field: warns in v0.76 and is refused as of v0.77 (#808).
 

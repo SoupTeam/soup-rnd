@@ -316,6 +316,9 @@ an explicit target list always wins unchanged:
    `language_model...self_attn` only, so the Pixtral vision tower, the multimodal
    projector and the MLP projections stay unadapted (#1395). `glm4_moe` is GLM-4.6 and
    is *not* `glm_moe_dsa` (GLM-5 / GLM-5.1): the two have different attention shapes.
+   `deepseek_v3` and `kimi_k2`/`kimi_k25` name `q_a_proj` and `q_b_proj`. When the config
+   sets `q_lora_rank: null` the model has one `q_proj` instead, and `auto` targets that.
+   `glm_moe_dsa` always has `q_a_proj` and `q_b_proj`.
 3. **Anything else fails closed.** `auto` on an architecture neither PEFT nor Soup
    maps is refused at setup, naming the `model_type`, rather than reaching PEFT's
    `No target_modules passed`. This is not new behaviour — PEFT refused those too —

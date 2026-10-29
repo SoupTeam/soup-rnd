@@ -93,6 +93,44 @@ def test_target_parameters_is_scoped_to_resident_text_sft_and_pretrain(
         _soup_config(**kwargs)
 
 
+@pytest.mark.parametrize(
+    "target_parameters",
+    ["auto", ["mlp.experts.gate_up_proj", "mlp.experts.down_proj"]],
+)
+def test_target_parameters_is_refused_with_stream_layers(target_parameters):
+    """Ticket 14: the streamed setup never passes target_parameters to peft."""
+    from soup_cli.config.schema import SoupConfig
+
+    with pytest.raises(ValidationError, match="target_parameters.*stream_layers"):
+        SoupConfig(
+            base="Qwen/Qwen3.8-Flash-Next",
+            task="sft",
+            data={"train": "train.jsonl"},
+            training={
+                "quantization": "none",
+                "stream_layers": True,
+                "lora": {"dropout": 0, "target_parameters": target_parameters},
+            },
+        )
+
+
+def test_stream_layers_without_target_parameters_is_accepted():
+    from soup_cli.config.schema import SoupConfig
+
+    config = SoupConfig(
+        base="Qwen/Qwen3.8-Flash-Next",
+        task="sft",
+        data={"train": "train.jsonl"},
+        training={
+            "quantization": "none",
+            "stream_layers": True,
+            "batch_size": 1,
+            "lora": {"r": 8},
+        },
+    )
+    assert config.training.stream_layers is True
+
+
 def test_qwen4_exp_auto_resolves_both_routed_expert_parameters():
     from soup_cli.utils.peft_wiring import resolve_lora_target_parameters
 
