@@ -97,7 +97,13 @@ def dataset_sha256(rows: Sequence[Sequence[int]]) -> str:
 def fetch_commands(url: str, commit: str, dest: Path) -> List[List[str]]:
     """Git commands that put ``url`` at ``commit`` in ``dest``, which must be outside the repo."""
     real = os.path.realpath(dest)
-    if os.path.commonpath([real, os.path.realpath(REPO)]) == os.path.realpath(REPO):
+    repo = os.path.realpath(REPO)
+    try:
+        inside_repo = os.path.commonpath([real, repo]) == repo
+    except ValueError:
+        # Windows paths on different drives cannot contain one another.
+        inside_repo = False
+    if inside_repo:
         raise ValueError(f"{dest} is inside the repository; foreign code stays outside git")
     return [
         ["git", "clone", "--no-checkout", url, str(dest)],
