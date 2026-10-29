@@ -1,0 +1,108 @@
+G6: prospective inference-only confirmation of literal turn stopping
+
+Status: PREPARED_NOT_RUN. This is a new test, not a replacement for the completed
+four-policy 5M study. No rental or new paid execution is authorized by this file.
+The previous instance was deleted by the user. Its completed receipts, CE,
+quality NO_VERDICT, raw answers and post-hoc audit remain unchanged.
+
+Question
+Does a fixed literal turn boundary improve exact single-answer task completion
+for the original pinned model and each of the four preserved FULL adapters?
+The intervention changes only stopping/scored-answer segmentation. It does not
+change prompts, weights, training, template, scorer, token limit or data policies.
+It cannot establish that any G6 data policy improves training or safety.
+
+Inputs and partition
+The JSON contract pins the original recipe/model manifest/exact runtime wheels,
+all source bytes, original24-case diagnostic suite and a NEW48-task confirmation
+suite (four tasks in each of12families). Fresh operands/answers are retained for
+independent oracle checks. No model outputs from the new tasks have been seen.
+Before freezing, screen every new prompt against ALL11999 retained raw training
+conversations, all256 held-out conversations and the old24diagnostic prompts:
+NFKC/casefold/whitespace normalized full-prompt containment and shared13-word spans
+against every message. Preserve the full input hashes and screen findings privately.
+This is lexical screening only; paraphrases and pretraining exposure remain unknown.
+A detected overlap blocks admission. Do not replace cases after seeing model output.
+The old24cases are diagnostic, not fresh confirmation. Safety examples stay manual.
+
+Models
+Use the original Mistral-7B-v0.3 pinned revision and original recipe, seed901,
+FP16 base/FP32 q/v LoRA. Label initial uses the original initialized model state;
+the four FULL adapter file hashes and full parameter identities are separately
+pinned. Do not substitute pilot adapters, an Instruct model or a new fine-tune.
+Verify full model bytes, exact56package runtime, original initialization, strict
+adapter names/shapes/dtypes/finite values and frozen base before any generation.
+
+Execution
+One label per exclusive supervised process; labels in order initial, baseline,
+coherence_filter, length_curriculum, reverse_length_curriculum. Each label runs
+both diagnostic and confirmation suites under original_v1 and role_boundary_v1.
+Even label indices run original then boundary; odd indices reverse that order.
+Both use identical literal role render/BOS, greedy decoding, one beam, max128,
+EOS and context2048, unchanged strict strip_exact/json_object scorer. Both use
+per-token Guard checks. There is no timing or speed recommendation from this test;
+no extrapolated GPU budget or full-study performance claim is an observation.
+
+Original mode keeps the whole completion. Candidate mode examines only generated
+tokens after each step, decoding the full generated prefix; it stops on the earliest
+complete case-sensitive newline user:, assistant: or system:. The raw token that
+contains a boundary and any overhang remains stored. Only the scored text ends
+before that boundary. Markers in quotations/code also stop: no answer-dependent
+exception, no punctuation/case normalization and no substring answer extraction.
+For every case save prompt IDs, raw completion IDs/text, scored text, reason,
+boundary marker/offset and strict score. Candidate raw IDs must exactly match the
+original generation's prefix with identical prompt IDs. Mismatch blocks acceptance.
+Safety task_pass remains null and never becomes an automatic pass.
+
+Validity and bounded operation
+Keep default F1/foreign-read/ownership and clocks checks unchanged for all four
+phases per model. Before a new provider stage require fresh native host/container
+ownership and clean/own/independent-foreign controls on that exact host, with raw
+calibration evidence. Unknown/void/ambiguous ownership blocks acceptance. Guest
+controls do not certify inaccessible physical-host isolation. Verify model states
+after each pass and frozen base at completion. Any mutation blocks acceptance.
+Per phase maximum1200s; global3600s per label, external supervisor3600+30s before
+TERM and10s before KILL. These are ceilings, not measured runtime/cost forecasts.
+No retry/resume, existing output overwrite or claim deletion. Keep failed outputs.
+No network/model download occurs in the scientific runner. The operator verifies
+pushed Git objects and deployed bytes; a40hex argument alone is not evidence.
+New private SHA-bound authority must explicitly authorize this inference-only
+scope, current instance/GPU and absolute runs_root; a separate admission binds
+spec/config/model label. It is not inherited from an old deleted server's receipt.
+Provider financial/rental/termination authority stays private and needs current
+user authorization. No provider API control, installation or rental is implemented.
+
+Decision rule fixed before observing new outputs
+Report per label on FRESH48: original/candidate exact passes, gains, losses, net
+gain, completion lengths, stop reasons and all48prefix matches. Report families
+as descriptive breakdowns; do not select families to manufacture a positive gate.
+A candidate warrants a further deployment discussion ONLY if baseline FULL gains
+at least4/48 and loses0, all other FULL labels have nonnegative net gain and lose0,
+all required validity and prefix/state checks pass, and no cases are missing.
+This operational descriptive gate is not a significance claim, a release gate,
+a safety acceptance or a data-policy winner. The initial model is a comparator,
+not a substitute for trained baseline. No optional extra seeds/case additions or
+rule changes after inspecting results. Otherwise report negative or inconclusive.
+The12old safety cases for both decoders require separate blinded independent
+manual review before any safety/nonregression recommendation; scope remains small.
+Keep quality NO_VERDICT until that review. Do not reuse old labels for new outputs.
+
+Commands
+Local offline source/oracle check (does not require model, GPU or network):
+  python benchmarks/g6/boundary_confirmation.py check \
+    --spec benchmarks/g6/spec/boundary_confirmation.json --spec-sha PINNED_SHA
+
+Future run shape ONLY after user commit/push verification, new hardware readiness,
+private admission and explicit paid-stage authority:
+  CUDA_VISIBLE_DEVICES=APPROVED_UUID SOUP_G6_INSTANCE_ID=APPROVED_ID \
+    python benchmarks/g6/boundary_confirmation.py run \
+    --spec benchmarks/g6/spec/boundary_confirmation.json --spec-sha PINNED_SHA \
+    --label baseline --model-dir /verified/model --adapter /verified/FULL-adapter \
+    --authority /private/authority.json --authority-sha ACTUAL_CONFIG_SHA \
+    --admission /private/model_admission.json --protocol-commit VERIFIED_USER_COMMIT \
+    --out /new/unique/run
+The runner itself starts the external bounded worker. Never invoke --worker.
+For label initial omit --adapter. Preserve every phase and launcher log/receipt,
+verify all SHA and prefix/state/F1 checks before the next model. Audit fresh task
+oracles independently, including consistency of operands with prompt text, before
+commit. User alone commits/pushes. GPU execution has not been tested or approved.

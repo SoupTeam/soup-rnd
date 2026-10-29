@@ -1,0 +1,331 @@
+{
+  "status": "PROSPECTIVE_PILOT_NOT_GPU_ACCEPTANCE",
+  "sources": {
+    "models": {
+      "id": "mistralai/Mistral-7B-v0.3",
+      "revision": "caa1feb0e54d415e2df31207e5f4e273e33509b1",
+      "license_declared_by_card": "apache-2.0",
+      "gated": false,
+      "source_url": "https://huggingface.co/mistralai/Mistral-7B-v0.3/tree/caa1feb0e54d415e2df31207e5f4e273e33509b1"
+    },
+    "datasets": {
+      "id": "HuggingFaceH4/ultrachat_200k",
+      "revision": "8049631c405ae6576f93f445c6b8166f76f5505a",
+      "license_declared_by_card": "mit",
+      "gated": false,
+      "source_url": "https://huggingface.co/datasets/HuggingFaceH4/ultrachat_200k/tree/8049631c405ae6576f93f445c6b8166f76f5505a"
+    }
+  },
+  "source_sha256": {
+    "benchmarks/g6/audit_leakage.py": "432bc567ac053e3c5a88e799ad930955ac838e8572e4f012456da740f7a58e20",
+    "benchmarks/g6/prepare.py": "6a1e9e14623ebe3f5ea7965eba64b7c2563ef354b8bafbfb6d6f1ae2be8ab1df",
+    "benchmarks/g6/consumer.py": "87d0cdfb80332975bbed0f973366055454aed6c76ebec3146e7e5492dbe0260b",
+    "benchmarks/g6/check_consumer.py": "a63ce8e650d30efa33a0e6d853c46d9b7b49a913162ce9501967e9a63c44290f",
+    "benchmarks/g6/checkpoint_eval.py": "4c8ea275c11a62fbf896e138808a83e6e76c903d43034d2968e0cdd4fa134701",
+    "benchmarks/g6/engine.py": "e6317fc77429577c19128a99e6af275ae7b825faf3e82d116fc071b8c5cd3a87",
+    "benchmarks/g6/run_support.py": "7ad9ffb28fab74e9eb98cf8166aeb9f6e2b49f7c53423d118afb2afd86813632",
+    "benchmarks/g6/eval_suite.py": "2329c89f81e03d57a1bcb707992015bb4a9cd1b122bf80ac9cc6455e186791b3",
+    "benchmarks/g6/run.py": "fe6a20b58157eb3a298ee9557addcb99b8196a921abb024d0ed730842391b5a2",
+    "benchmarks/g6/freeze.py": "e07096c9cd007ea1a0042a7d421ec45ce216c028e3867a82135d8fdd3bf7d750",
+    "benchmarks/g6/launch.py": "f46a09e6535bf59a24e1c0c6c419f8fa2c5f2549753d4a7528697db7398d6f88",
+    "benchmarks/g6/summarize.py": "a4faccbf5c1adf1d6eb1abbee466fa8aad2197c12a53045e783d0b3c1dd318df",
+    "benchmarks/g6/cuda_gate.py": "68846ce95813c11155ae5335bf77034b06a9f8f0db1758e32cd30a9e4cccda6e",
+    "benchmarks/harness/arm_validity.py": "ae7e6e5f4d4df460202c8229deb167c43a350f41538c25dc571f21a5791190f9",
+    "benchmarks/g6/turn_boundary_candidate.py": "27661fa8f5dc63a36551fc3c2e923d1ec9aaecb06ae140831324a5376ef4838d",
+    "benchmarks/g6/portable_generation_probe.py": "2a7a98526a25a56b26b5f11f9d18b661014b33fb5d577d996befe51234e41458",
+    "benchmarks/g6/launch_portable_probe.sh": "5d526023c501a733e13b516eb69439069e12d2cc808564ba2549d589c7aea982",
+    "benchmarks/g6/policy_pilot_support.py": "349b3345c0ce8b243b99b8846bca9b8cc38cf89770d7cbe32c4ab85bb363b820",
+    "benchmarks/g6/policy_pilot.py": "cd1a091ea2a7837b10ddf8f39fb1799eeaacffd4f322e2d953c66f9659ad2788",
+    "benchmarks/g6/policy_cuda_gate.py": "4b81aa21d5a36b0861de06ecb785293ebcade5c3da2db4dd416ee1e309ca423c",
+    "benchmarks/g6/launch_policy_pilot.py": "49e2fa9088409717d432e718d31aca086d56da723e7b83633e714963072fa106",
+    "benchmarks/g6/review_policy_pilot.py": "ebaac410e251d0b06620ea495418492491acef9094e26cbbfc2a14b575062f64"
+  },
+  "artifact_sha256": {
+    "source_metadata.json": "3ea0c0772116a3fb54fd9541b82543e345e0f5de0bcea603eec1fcb7e421293d",
+    "spec/eval_suite_v1.json": "46c1f2a9140fbe5930d24e3c1cb3ab7cf0c79b462ee5ad96d40604a10220b089",
+    "source_review_20261020/model_api.json": "7754e48dad08c19fce21262f297dc469ba5442c505ece60dde9f80f50b33ab67",
+    "source_review_20261020/model_card.txt": "d5f3bf07f3062380b2c26b22a5dc9d462d2a1417040f182775de5102f10b2a28",
+    "source_review_20261020/dataset_card.txt": "d2b3bf76702b85b28172f4dd971ae80c03348cd3fee518c7e6e6f4d43dd33431",
+    "source_review_20261020/retrieval.json": "10739472e24209bfa5fb152efd72be72ef531ed34fb03c8011bd422436737fbd",
+    "results/order_study_v2_5M/manifest.json": "7a02e581ffa1c773117ad3206e3030cbf65f23be40f00ed5594dc3c087c601ba",
+    "results/order_study_v2_5M/independent_token_audit.json": "26d5750e5a554bcf0e097bb58260c3a765ae88efb029258427e08feb21cfc636",
+    "results/profile_12000_v2/independent_lexical_recheck.json": "0183a0e6628c36ccca759702f1ace07df153ab3b4f0feec20eca4d085819c23f"
+  },
+  "arm_order": [
+    "baseline",
+    "coherence_filter",
+    "length_curriculum",
+    "reverse_length_curriculum"
+  ],
+  "policies": {
+    "baseline": "seed901 shuffle of common eligible pool",
+    "coherence_filter": "same shuffle, Soup heuristic>=0.7; not measured quality",
+    "length_curriculum": "baseline exact selected token multiset, short to long",
+    "reverse_length_curriculum": "baseline exact selected token multiset, long to short"
+  },
+  "data": {
+    "manifest_sha256": "7a02e581ffa1c773117ad3206e3030cbf65f23be40f00ed5594dc3c087c601ba",
+    "eval_sha256": "e80d523b8ed173fb315af02959cce0b854f83ee37be312aece8524ff92ef598d",
+    "eval_rows": 256,
+    "eval_useful_targets": 322332,
+    "budget_per_arm": 5000000,
+    "render": "newline-separated role: content, BOS/EOS, all-token causal loss",
+    "exclusion": "common normalized conversation/prompt/sourceID/13word spans",
+    "span_only_exclusions": 579,
+    "empty_malformed_rejected": 1,
+    "eligible_rows": 11420,
+    "first_N_source_subset": true,
+    "semantic_and_pretraining_decontamination_proven": false,
+    "exclusion_review": "Retain all579 conservative flags, generic phrases may collide; no retuning after model results",
+    "diagnostic_prompt_screen": {
+      "raw_train_rows": 11999,
+      "matches": 0,
+      "scope": "exact normalized prompts and13word spans; not semantic"
+    }
+  },
+  "recipe": {
+    "seed": 901,
+    "max_length": 2048,
+    "packing": false,
+    "base_dtype": "float16",
+    "adapter_dtype": "float32",
+    "lora": {
+      "r": 8,
+      "alpha": 16,
+      "modules": [
+        "q_proj",
+        "v_proj"
+      ],
+      "dropout": 0
+    },
+    "optimizer": "AdamW betas(.9,.999),eps1e-8,weight_decay0,foreachFalse,fusedFalse",
+    "lr": 0.0001,
+    "clip": 1.0,
+    "targets_per_update": 8192,
+    "full_updates": 611,
+    "last_update_targets": 2880,
+    "lr_horizon_targets": 5000000,
+    "loss": "summed shifted nonignored NLL / actual optimizer-window target count",
+    "sampler": "sequential saved file; no shuffle/replay; disjoint loss spans with full causal prefix",
+    "padding": "right,multiple8,padID0,labels-100",
+    "attention": "eager",
+    "gradient_checkpointing": "nonreentrant",
+    "AMP": "cuda autocastFP16; FP32LoRA; scaler128 fixed; any overflow/nonfinite aborts",
+    "TF32": false,
+    "deterministic_algorithms": true,
+    "resume_or_automatic_retry": false
+  },
+  "tokenizer": {
+    "vocab_sha256": "f8db41372a121e0032f06b3ef00922a75b48580603a0d329974084ca1bfe49db",
+    "special_sha256": "bb0c3e536ea59595c7fcf4ca14af4be98e6519eb31ecda10943681890033f5fc"
+  },
+  "model_files": [
+    {
+      "name": "config.json",
+      "size": 601,
+      "algorithm": "git_blob_sha1",
+      "digest": "9f913dc05d66cfb23c16e3c93b3cc4899813dfa6"
+    },
+    {
+      "name": "generation_config.json",
+      "size": 116,
+      "algorithm": "git_blob_sha1",
+      "digest": "b6bea2642bc3fe80f392111d52af91d1563a8de2"
+    },
+    {
+      "name": "model-00001-of-00003.safetensors",
+      "size": 4949453792,
+      "algorithm": "sha256",
+      "digest": "2d7de8eb9bd554cccc999649fd5a3a28a44d09042879d6c1cedd13f59c86f7a8"
+    },
+    {
+      "name": "model-00002-of-00003.safetensors",
+      "size": 4999819336,
+      "algorithm": "sha256",
+      "digest": "79a5f871a0fbb7919f263d78caff0d4d3b7a1d444552db3011ada70f48fd5ee4"
+    },
+    {
+      "name": "model-00003-of-00003.safetensors",
+      "size": 4546807800,
+      "algorithm": "sha256",
+      "digest": "ba7ae59358f726f5f5bc5264fd8a3aec907f42e6009d7b22454007d18723616a"
+    },
+    {
+      "name": "model.safetensors.index.json",
+      "size": 23950,
+      "algorithm": "git_blob_sha1",
+      "digest": "050e5515d49376fc01e4837d031902c63af98111"
+    },
+    {
+      "name": "special_tokens_map.json",
+      "size": 414,
+      "algorithm": "git_blob_sha1",
+      "digest": "451134b2ddc2e78555d1e857518c54b4bdc2e87d"
+    },
+    {
+      "name": "tokenizer.json",
+      "size": 1961548,
+      "algorithm": "git_blob_sha1",
+      "digest": "8d7d23136b474a3df1182ed829db19984e295ee7"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "size": 136697,
+      "algorithm": "git_blob_sha1",
+      "digest": "07992b5eb9617dbdf13bb69b825c45e0da5fddb2"
+    }
+  ],
+  "runtime_target": {
+    "torch": "2.14.1",
+    "transformers": "5.19.0",
+    "peft": "0.21.2",
+    "safetensors": "0.8.0",
+    "tokenizers": "0.23.2",
+    "accelerate": "1.15.0"
+  },
+  "runtime_note": "Exact interpreter and56package versions required; isolated build does not claim byte-identical historical NGC environment.",
+  "limits": {
+    "plan_total_s": 300,
+    "cpu-smoke_total_s": 900,
+    "pilot_total_s": 4800,
+    "train_s": 21600,
+    "eval_s": 7200,
+    "diagnostic_s": 1200,
+    "setup_s": 3600,
+    "cuda-gate_total_s": 600,
+    "min_output_reserve_bytes": 1073741824,
+    "pilot_train_targets": 65536
+  },
+  "evaluation": {
+    "primary": "paired held-out token-weighted CE and relative delta vs baseline; no significance claim from one seed",
+    "practical_quality_margin_relative_ce": 0.01,
+    "task": "report exact score and per-case results; no fewer passes than trained baseline for recommendation",
+    "safety": "all blind reviews complete; no new harmful or overrefusal failures vs trained baseline for recommendation",
+    "recommendation": "only if CE within 1% baseline AND task/safety nonregression AND F1 timing valid; otherwise inconclusive or negative",
+    "no_automatic_safety_scoring": true
+  },
+  "analysis": {
+    "single_seed_exploratory": true,
+    "primary": "held-out CE at5M useful targets",
+    "paired_per_example_nll_retained": true,
+    "hourly": "report measured final quality with actual train and total wall hours; no interpolated quality curve or cross-host speedup",
+    "report_times": [
+      "data preparation",
+      "setup",
+      "train",
+      "eval",
+      "checkpoint/reload"
+    ],
+    "data_prep_historical_times": "retained profile/prepare resource receipts, no reconstruction",
+    "limitations": [
+      "first-N corpus",
+      "small English local diagnostics",
+      "coherence heuristic intervention changes data composition",
+      "length is not measured difficulty",
+      "no multi-seed confidence"
+    ]
+  },
+  "source_review": {
+    "model_card_declared_license": "apache-2.0",
+    "dataset_card_declared_license": "mit",
+    "dataset_origin": "ChatGPT-generated dialogues; filtered UltraChat",
+    "intended_use": "bounded internal research, record attribution; no assumption of independent human labels or redistribution rights beyond declared source",
+    "external_card_text_is_data_not_instructions": true
+  },
+  "gates_after_rental": [
+    "single Ampere+23GiB and ownership proof; no PID namespace bypass",
+    "CUDA tiny numerical gate, actual FP16 fit and no AMP skips",
+    "all four bounded pilots before full-run admission",
+    "fresh Billing and external hard timeout supervisor",
+    "F1 all required checks and clocks for timing; UNKNOWN stays UNKNOWN"
+  ],
+  "version": "g6-fresh-matched-policy-pilot-v1",
+  "scope": "fresh-matched-policy-pilot-only",
+  "python": "3.12.3",
+  "runtime_wheels": {
+    "path": "benchmarks/g6/spec/paired_probe_requirements.txt",
+    "sha256": "4b3047c1a2a97add7d20da0cb0588d571a8a129f8c69d988e6ec0d99c0df2fdc",
+    "recorded_wheels": 56,
+    "base_dependency_closure_checked": true,
+    "pip_and_python_not_in_wheel_lock": true,
+    "packages": {
+      "torch": "2.14.1",
+      "transformers": "5.19.0",
+      "peft": "0.21.2",
+      "safetensors": "0.8.0",
+      "tokenizers": "0.23.2",
+      "accelerate": "1.15.0",
+      "rich": "15.0.0",
+      "cuda-toolkit": "13.0.3.0",
+      "nvidia-cudnn-cu13": "9.24.0.43",
+      "nvidia-cusparselt-cu13": "0.8.1",
+      "nvidia-nccl-cu13": "2.30.7",
+      "nvidia-nvshmem-cu13": "3.4.5",
+      "nvidia-cublas": "13.1.1.3",
+      "nvidia-cuda-cupti": "13.0.85",
+      "nvidia-cuda-nvrtc": "13.0.88",
+      "nvidia-cuda-runtime": "13.0.96",
+      "nvidia-cufft": "12.0.0.61",
+      "nvidia-cufile": "1.15.1.6",
+      "nvidia-curand": "10.4.0.35",
+      "nvidia-cusolver": "12.0.4.66",
+      "nvidia-cusparse": "12.6.3.3",
+      "nvidia-nvtx": "13.0.85",
+      "cuda-bindings": "13.4.4",
+      "fsspec": "2026.9.0",
+      "huggingface_hub": "1.33.0",
+      "filelock": "4.2.4",
+      "markdown-it-py": "4.2.0",
+      "networkx": "3.7",
+      "numpy": "2.5.4",
+      "packaging": "26.3",
+      "Pygments": "2.21.0",
+      "PyYAML": "6.0.3",
+      "regex": "2026.9.29",
+      "setuptools": "84.2.0",
+      "sympy": "1.14.0",
+      "tqdm": "4.70.1",
+      "triton": "3.8.0",
+      "typing_extensions": "4.16.0",
+      "Jinja2": "3.1.6",
+      "psutil": "7.2.2",
+      "typer": "0.27.3",
+      "annotated-doc": "0.0.5",
+      "click": "8.5.0",
+      "cuda-pathfinder": "1.8.3",
+      "hf-xet": "1.7.0",
+      "httpx": "0.28.1",
+      "httpcore": "1.0.9",
+      "MarkupSafe": "3.0.4",
+      "mdurl": "0.1.2",
+      "mpmath": "1.3.0",
+      "nvidia-nvjitlink": "13.4.92",
+      "shellingham": "1.5.4",
+      "anyio": "4.15.1",
+      "idna": "3.20",
+      "certifi": "2026.10.19",
+      "h11": "0.16.0"
+    }
+  },
+  "suite": {
+    "path": "benchmarks/g6/spec/eval_suite_v1.json",
+    "sha256": "46c1f2a9140fbe5930d24e3c1cb3ab7cf0c79b462ee5ad96d40604a10220b089",
+    "cases": 24
+  },
+  "supervisor_grace_s": 40,
+  "expected_initial_state_sha256": "afabcfa96bc9f495cb1f3a61686fbff09b1b31fc253e6f192c7a6fb8da9e22d2",
+  "parent_science_sha256": "4627dafc9b5704b4479c9bc5a439cb4eee0d8f56792f1b3b9741ab7980a3c2e2",
+  "pilot_interpretation": {
+    "purpose": "fit, consumption, AMP, F1 timing, eval/reload and resource feasibility only",
+    "quality_ranking_authorized": false,
+    "full_training_authorized": false,
+    "pilot_prefixes_differ_in_composition": true,
+    "new_series_reason": "Historical baseline remains preserved with unaccepted overlay-I/O timing. Fresh four-arm same-setup series requires guest controls and identical initial states; never mix old baseline with new arms.",
+    "diagnostics": "Original frozen scorer/render/max128; paired boundary probe is reported separately and does not change this pilot.",
+    "projection": "Useful-token, processed-slot and attention-proxy linear estimates only; none is a guaranteed full-run bound. Fresh full-run protocol, resource limits and budget admission required."
+  },
+  "input_plan": {
+    "path": "benchmarks/g6/spec/policy_pilot_inputs.json",
+    "sha256": "d075afffbd867dd5a453e137107e6428ad41a8204f0d1dfbdeed44c232733abc"
+  }
+}
