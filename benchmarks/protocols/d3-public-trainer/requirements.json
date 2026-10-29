@@ -34,7 +34,7 @@
   },
   "github": {
     "pr": "https://github.com/SoupTeam/soup-rnd/pull/28",
-    "head_observed": "98706ed06319603db802fda1a86b5b7f1f97b33e",
+    "head_observed": "76d2c4281adae978af300ee039800b8f47735d55",
     "latest_review": "https://github.com/SoupTeam/soup-rnd/pull/28#pullrequestreview-5605458361",
     "review_state": "CHANGES_REQUESTED",
     "prior_forward_only_approval_state": "DISMISSED",
@@ -43,7 +43,8 @@
       "url": "https://github.com/SoupTeam/soup-rnd/issues",
       "new_issue_disabled": true,
       "message": "Issue creation is restricted in this repository."
-    }
+    },
+    "current_note": "The operator completed the merge and committed/pushed the CI corrections at 76d2c42. Required current-head tests, lint, gate and merge freshness pass. The revision-2 full pretrained session later stopped incomplete at its three-hour cap; revision 3 is being prepared prospectively."
   },
   "dependencies": {
     "b1_1_pr": 24,
@@ -63,7 +64,7 @@
     "current_note": "The operator completed the merge, including A3. The first formal session failed; only corrective benchmark/control code and evidence now await another commit. B1.3 acceptance is not inferred."
   },
   "open_full_task_items": [
-    "The public SFT/L2L integration is committed in cd6515ac; its first formal session failed the evaluation control. The corrective revision requires a new committed source freeze and an accepted pretrained trainer comparison.",
+    "The revision-2 public SFT/L2L session at 76d2c42 started 40 cells: 36 correctness and three timing cells completed, then a timing cell had no verdict when the three-hour session cap expired. No throughput verdict is accepted. Revision 3 must be committed/frozen and run within a cap aligned to the 234–414-cell budget.",
     "Current B1 technical interface contract accepted under explicit operator delegation on 2026-10-29. Historical coordination before earlier B1 measurements is not certified; final pretrained qualification remains required.",
     "Repository Issues UI currently disables New issue and states issue creation is restricted; maintainer tracking decision is outstanding. The historical HTTP 410 attempt is retained.",
     "The source uses the name grouped fused dequant-GEMM; current routed experts use separate grouped restoration and GEMM. Literal packed-weight dequant+GEMM kernel fusion is not implemented or claimed. Maintainer acceptance must resolve this distinction.",
@@ -100,8 +101,32 @@
     "linux_failed_before": 2,
     "linux_passed_after": 39,
     "local_ci_dependency_selection_passed": 259,
-    "full_repository_ci_on_new_commit": "pending",
+    "full_repository_ci_on_new_commit": "passed on exact head 76d2c4281adae978af300ee039800b8f47735d55",
     "exact_numerical_checks_relaxed": false,
     "cpu_parity_scope": "one CPU thread; previous count restored by fixture"
+  },
+  "operator_commit_and_revision_2_formal_attempt": {
+    "git_head": "76d2c4281adae978af300ee039800b8f47735d55",
+    "status": "incomplete_no_task_verdict",
+    "cells_started": 40,
+    "cells_ok": 39,
+    "correctness_cells_ok": 36,
+    "timing_cells_ok": 3,
+    "unresolved_cell": "timing-dense-ordinary-01-4-triton",
+    "cause": "Three-hour session cap expired; only 118.18 seconds remained for a cell with a 900-second cap.",
+    "numerical_failure": false,
+    "accepted_performance_verdict": false,
+    "session_path": "/root/d3-public-trainer-preparation-01/prepared-02/formal-76d2c428-01",
+    "full_session_archive": "Recovery archive required; original archive file is truncated and invalid."
+  },
+  "revision_3_prospective_session": {
+    "status": "prepared_locally_awaiting_operator_commit_and_push",
+    "session_timeout_seconds": 129600,
+    "session_hours": 36,
+    "minimum_cells": 234,
+    "maximum_cells": 414,
+    "replacements": 0,
+    "sessions_per_commit": 1,
+    "reuses_revision_2_cells": false
   }
 }

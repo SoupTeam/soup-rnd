@@ -39,7 +39,7 @@ this audit does not silently choose the smaller interpretation.
 
 | Requirement | Delivered code/evidence | Remaining qualification or decision |
 | --- | --- | --- |
-| Use existing prerequisites | B1.1/#24 merged as `4b90b8d3`; B1.2/#25 as `fdf067fc`; F4/#11 as `84042a12`; A3/#34 as `da1fc473`. Main/integration are merged in `cd6515ac`. The integration reuses A3's accumulation/activation/RNG path. | The corrective evaluation harness needs a new source/rule commit after untied-boundary preflight. B1.3/B1.4 acceptance is not inferred. |
+| Use existing prerequisites | B1.1/#24 merged as `4b90b8d3`; B1.2/#25 as `fdf067fc`; F4/#11 as `84042a12`; A3/#34 as `da1fc473`. Main/integration are merged in `cd6515ac`. The integration reuses A3's accumulation/activation/RNG path. | The corrective evaluation passed and is committed at `76d2c42`; its formal run stopped incomplete at the undersized three-hour cap. Revision 3's 36-hour cap needs a new source/rule commit and fresh session. B1.3/B1.4 acceptance is not inferred. |
 | Coordinate the B1 interface before final B1 measurements | The operator identified themselves as B1.1/B1.2 owner and delegated the technical decision based on evidence/requirements on 2026-10-29. The current contract below is accepted on that basis. | Pretrained public-trainer qualification remains pending. No retrospective coordination before historical measurements is certified. |
 | Group weight restoration and expert matrix work | `expert_group.py`, `expert_group_decode.py`, `expert_group_gemm.py` and `expert_group_compute.py` implement the bounded grouped pipeline; `expert_group_autograd.py` supplies first-order reload/recompute; `expert_training.py` installs it through public SFT. | New public attention-LoRA trainer integration has synthetic qualification, but no pretrained trainer verdict yet. Backward GEMMs remain native one-expert recomputation; do not call them grouped backward GEMMs. |
 | Source phrase: grouped **fused** dequant-GEMM | Grouped NF4 restoration and GEMM are separate stages. Optional Triton SiLU/multiply is activation fusion. Main's checkpoint-visible bitsandbytes NF4 linear path already exists and is reused for supported non-expert linears. | There is no new single packed-weight NF4-dequant/GEMM kernel over routed experts. Maintainer acceptance must explicitly resolve whether the staged grouped implementation satisfies the assigned wording or whether literal fusion is still required. The trainer gate cannot itself settle this. |
@@ -65,11 +65,14 @@ this audit does not silently choose the smaller interpretation.
 - [Earlier synthetic public trainer preflight](../benchmarks/results/d3-trainer-integration-cuda-preflight-20261029/report.md):
   eighteen CUDA cases, 933 CPU passes, eight skips and 116 GPU deselections at that
   preparation source. Later checks are recorded separately from those old counts.
-- [Corrective revision-2 preparation](../benchmarks/protocols/d3-public-trainer/README.md):
+- [Public-trainer protocol and retained sessions](../benchmarks/protocols/d3-public-trainer/README.md):
   four-layer untied random fixture, 36 numerical cases, 18 CUDA profiles and 74
   corrective CPU passes. The earlier broad 999-case runtime selection was not
   rerun after the callback correction; all production source files are unchanged.
   The first frozen pretrained session remains failed with zero accepted cells.
+  The second session at `76d2c42` reached the three-hour cap after 39 cells and
+  has no complete timing block or throughput verdict. Revision 3 proposes a
+  36-hour cap; it must be committed and frozen before another run.
 
 No result above proves quality/convergence, 8 GiB model fit, a full platform
 matrix, physical-host isolation or a general performance improvement. Quality

@@ -1,14 +1,14 @@
 {
-  "kind": "corrective revision 2 prospective preparation verification; not an accepted pretrained comparison",
-  "protocol_revision": 2,
+  "kind": "D3 revision-3 prospective verification after incomplete revision-2 formal session; not an accepted pretrained comparison",
+  "protocol_revision": 3,
   "previous_formal_execution_started": true,
   "previous_pretrained_model_executed": true,
   "previous_formal_source": "cd6515ac503b15a111050b35db5c33768d506a9b",
   "previous_formal_status": "fail",
   "previous_formal_started_cells": 1,
   "previous_formal_accepted_cells": 0,
-  "revision_2_formal_execution_started": false,
-  "revision_2_pretrained_model_executed": false,
+  "revision_2_formal_execution_started": true,
+  "revision_2_pretrained_model_executed": true,
   "full_task_accepted": false,
   "preparation_bindings": 8,
   "prepared_input_files": 157,
@@ -52,17 +52,18 @@
   },
   "actual_host_and_prepared_full_hash_check": "passed after the corrective synthetic preflight; no active CUDA workload",
   "remaining_launch_blockers": [
-    "operator commits and pushes corrective source/rule/evidence",
-    "canonical committed source export/freeze from the new clean checkout"
+    "operator commit/push of revision-3 prospective 36-hour budget and session audit",
+    "canonical committed Git-blob export/freeze for that new head",
+    "fresh GPU/driver/F1 readiness check immediately before starting the single revision-3 session"
   ],
   "project_commit_or_push_performed": false,
-  "scope": "No current-head full repository pytest/CI, accepted pretrained trainer comparison, production default or final D3 acceptance is claimed.",
+  "scope": "Revision-2 session data is retained but incomplete; no throughput comparison or final D3 acceptance is claimed. Revision 3 changes only the prospective time envelope, not numerical gates or cell budgets.",
   "ci_repairs": {
     "confirmed_causes": "publication lint, globally patched OS functions, dirty-checkout assumption, missing schema default, unfrozen CPU threads",
     "linux_failed_before": 2,
     "linux_passed_after": 39,
     "local_ci_dependency_selection_passed": 259,
-    "full_repository_ci_on_new_commit": "pending",
+    "full_repository_ci_on_new_commit": "passed on 76d2c4281adae978af300ee039800b8f47735d55",
     "exact_numerical_checks_relaxed": false,
     "cpu_parity_scope": "one CPU thread; previous count restored by fixture"
   },
@@ -75,5 +76,15 @@
     "controls": "/root/d3-public-trainer-preparation-01/actual-shard-controls-after-restart-01/controls/report.json",
     "new_model_execution": false,
     "prior_failed_session_and_marker_preserved": true
-  }
+  },
+  "revision_2_formal_status": "incomplete_no_task_verdict",
+  "revision_2_cells_started": 40,
+  "revision_2_cells_ok": 39,
+  "revision_2_correctness_cells_ok": 36,
+  "revision_2_timing_cells_ok": 3,
+  "revision_2_unresolved_cell": "timing-dense-ordinary-01-4-triton: session cap left 118.18 seconds against a 900 second cell cap",
+  "revision_2_numerical_failure": false,
+  "revision_2_accepted_performance_verdict": false,
+  "revision_3_formal_execution_started": false,
+  "revision_3_pretrained_model_executed": false
 }

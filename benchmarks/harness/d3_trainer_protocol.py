@@ -95,9 +95,9 @@ def read_rule(root: Path = ROOT) -> dict:
 def validate_rule(rule: dict) -> None:
     """Protect numerical gates, independent contrasts and the finite attempt plan."""
     revision = rule.get("protocol_revision", 1)
-    if type(revision) is not int or revision not in (1, 2):
+    if type(revision) is not int or revision not in (1, 2, 3):
         raise ValueError("unknown prospective protocol revision")
-    if revision == 2 and rule.get("required_launcher_fixture") != {
+    if revision >= 2 and rule.get("required_launcher_fixture") != {
         "layers": 4,
         "experts": 4,
         "vocab": 64,
@@ -136,7 +136,7 @@ def validate_rule(rule: dict) -> None:
         "replacements": 0,
         "sessions_per_commit": 1,
         "cell_timeout_seconds": 900,
-        "session_timeout_seconds": 10800,
+        "session_timeout_seconds": 129600,
         "exactness": "dtype_shape_and_bytes_including_signed_zero",
         "allow_allclose": False,
         "allow_noise_floor_tolerance": False,

@@ -1,13 +1,11 @@
 # D3 public SFT/L2L prospective protocol
 
-**Status: revision 2 preparation verified; awaiting the operator's new commit.**
-The operator committed/pushed `cd6515ac503b15a111050b35db5c33768d506a9b` and its
-canonical source/host/data freeze passed. The first formal native dense cell
-completed four training steps, then failed its post-training evaluation with
-nonfinite logits. F1 was OK; zero cells were accepted and no timing arms ran.
-See the [attempt report](../../results/d3-public-trainer-attempt-01-cd6515ac/report.md).
-The corrective revision passed the CPU/synthetic checks below and must be
-committed before a new formal session.
+**Status: revision 3 time-budget correction prepared; awaiting the operator's commit.**
+On `76d2c42`, required current-head Ubuntu tests, lint, gate and merge freshness
+passed. Its formal session stopped at the declared three-hour cap with 39 cells
+complete and one timing cell without a verdict. It is retained as an incomplete
+attempt; no throughput result is accepted. The original `cd6515ac` evaluation
+failure is also retained in its own report.
 The historical `protocol-draft.json` filename is retained; its explicit status,
 switch and bound evidence determine readiness.
 
@@ -16,8 +14,9 @@ streamed embedding's **meta placeholder** device. Evaluation now uses the real
 runtime device. The first synthetic fixture tied embedding/head and missed this
 path. Revision 2 requires a pinned **four-layer untied** fixture with both
 streamed boundary modules and more decoder layers than reusable buffer slots.
-The committed failed session remains failed; no criterion or old result is
-rewritten, and no pretrained rerun occurs under uncommitted corrective source.
+The failed `cd6515ac` session and the incomplete `76d2c42` session remain
+distinct and unchanged. Revision 3 fixes only the prospective time envelope;
+it must be committed before another pretrained session starts.
 
 The authoritative machine-readable draft is [protocol-draft.json](protocol-draft.json).
 The source/assignment snapshot is [requirements.json](requirements.json); the
@@ -115,12 +114,21 @@ two-arm scheduling rule, not a claim that the F1 implementation was modified.
 | Separate GPU profiles | 18 | 18 |
 | Total | 234 | 414 |
 
-These are process/cell counts, not hours. Existing small-model development
-durations are not a pretrained runtime estimate. Cap the complete session at
-**three hours**, each child at fifteen minutes and remaining session time; stop
-with no verdict if the budget expires. There is one session per source commit,
-zero replacement cells and no automatic new output-name retry. A positive speedup
-or lower whole-step memory is not an acceptance threshold.
+These are process/cell counts, not a short-run promise. The revision-2 session
+at `76d2c42` reached its three-hour cap after 40 cells had started: 36 correctness
+cells and three timing cells completed, and the fourth timing cell had no verdict
+because only 118 seconds remained against its 900-second cell allowance. This was
+a session-budget stop, not a numerical failure. The incomplete run is retained and
+none of its timing cells is reused for a formal verdict.
+
+Using the observed rate, the declared 234-cell minimum projects to about 17.6 hours
+and the 414-cell maximum to about 31.1 hours. Revision 3 fixes the whole-session
+cap prospectively at **36 hours**, with a 15-minute per-child cap. The cell budget,
+zero replacements and one session per committed source remain unchanged. Stop with
+no verdict if either budget expires; do not retry under another output name. At the
+currently selected instance rate of $0.613/hour, 36 hours is about $22.07 before
+bandwidth. A positive speedup or lower whole-step memory is not an acceptance
+threshold.
 
 ## Completed preparation and required freeze
 
@@ -141,14 +149,15 @@ The new RTX4090 KVM identity/software/cuBLAS pins are recorded. The earlier
 - The corrective harness/planner/analyzer suite passes **74 CPU tests**.
   The historical broad runtime selection passed **999**, with eight skips and
   116 GPU deselections; production source files are unchanged by this callback
-  fix. Full-repository Ruff passes. These are not full repository pytest/CI.
+  fix. On exact head `76d2c42`, full-repository Ubuntu tests, lint, gate and
+  merge freshness pass. Optional platform/smoke jobs are skipped.
 
 Before the formal run:
 
 1. Preserve the current preparation and exact host. A reboot, data mutation or
    software/GPU change requires rediscovery and a new prospective binding.
 2. The main merge is already completed in `cd6515ac`. The operator commits/pushes
-   the corrective evaluation harness, revision-2 rule and retained evidence.
+   the revision-3 prospective time cap and retained incomplete-session evidence.
    No agent commit/push is performed.
 3. Export only canonical committed Git blobs from a clean checkout. The remote
    runner requires `FROZEN-D3-TRAINER-SOURCE.json`, the rule verbatim and unchanged
@@ -231,15 +240,18 @@ The operator restarted the server during investigation. Boot identity is now
 unchanged; all 48 shards were remapped and F1 controls again passed OK/OK/VOID.
 The original prepared manifest and failed-session marker remain intact. The new
 manifest/rule binds the new boot; `d3-restart-evidence.zip` retains rediscovery.
-No pretrained forward/training was repeated. The historical 36/18 synthetic
-CUDA preflight remains evidence for the unchanged numerical source on the
-earlier boot, not a claim of a new CUDA preflight after this restart.
+No pretrained forward/training was repeated after the revision-2 session cap.
+The historical 36/18 synthetic CUDA preflight remains evidence for the unchanged
+numerical source on the earlier boot, not a claim of a new CUDA preflight after
+this restart.
 
 A numerical mismatch fails; OOM, interruption, missing/ineffective controls,
 missing device traces, unknown/void F1, inactive required paths, identity drift or
 exhausted precision/time/attempt budget gives no verdict. Preserve every result.
-Passed qualification remains pending offline replay, current-head repository
-checks and independent review.
+The revision-2 run is `incomplete_no_task_verdict`; revision 3 is not yet
+committed, frozen or started. No pretrained qualification or throughput verdict
+is claimed. The failed run's raw directory remains on the server; its first
+packaging attempt is truncated and must be rebuilt under a new archive name.
 
 The current B1 interface contract is accepted under the identified owner's
 delegation, with no retrospective coordination claim. The new gate does not

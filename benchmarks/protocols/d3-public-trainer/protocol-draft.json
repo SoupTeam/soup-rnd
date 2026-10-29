@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "task": "D3 public Soup SFT/L2L qualification",
-  "status": "revision_2_prepared_for_operator_commit_after_failed_first_session",
+  "status": "revision_3_prepared_after_revision_2_session_cap_exhaustion",
   "execution_enabled": true,
   "scope_is_full_task_acceptance": false,
   "model_id": "allenai/OLMoE-1B-7B-0924",
@@ -196,8 +196,8 @@
   "sessions_per_commit": 1,
   "replacements": 0,
   "cell_timeout_seconds": 900,
-  "session_timeout_seconds": 10800,
-  "budget_enforcement": "Create one exclusive session marker for the actual source commit, outside user-selectable output names. Record every started child, argv, exit, timeout and exception. At a failure or time/cell budget stop, retain everything and create no replacement/new session under this rule. A new attempt needs a new prospective rule/source commit.",
+  "session_timeout_seconds": 129600,
+  "budget_enforcement": "One exclusive session marker per actual source commit, outside user-selectable output names. Record every started child, argv, exit, timeout and exception. Revision 2 at 76d2c428 started 40 cells in its 10800-second cap: 39 completed and the next cell had only 118 seconds remaining of its 900-second cell allowance. The full declared plan is 234 to 414 cells; revision 3 prospectively sets a 129600-second (36-hour) cap, based on the observed session rate, without changing cell counts, numerical gates or replacement policy. At a failure/time/cell stop, retain everything and create no replacement under this rule; a new attempt requires a new committed rule/source.",
   "hardware": {
     "instance_id_operator_reported": 58145733,
     "machine_id": 44906,
@@ -267,7 +267,7 @@
       "sha256": "50098a97e90b030f8822483f16b69fd5d6d2b1e4c03040473db9ccb722d2dcfb"
     }
   },
-  "promotion": "Revision 2 has all eight preparation bindings, the corrected numerical runtime and passing untied four-layer synthetic controls. The first cd6515ac session failed and remains retained. This switch alone cannot launch: the operator must commit/push the corrective rule/source/evidence and export canonical Git blobs from a clean checkout. A new formal session requires that new source receipt and unchanged bound data/software/GPU/boot identities. No corrected-revision formal session has run.",
+  "promotion": "Revision 3 preserves the revision-2 numerical recipe and all eight preparation bindings. The 76d2c428 formal session completed 36 correctness cells and three timing cells before exhausting its declared three-hour session cap; the incomplete block has no timing verdict and remains retained. Revision 3 requires a fresh clean committed source export, unchanged bound data/software/GPU/boot identities, and one new session marker. No result from the incomplete session is reused as a formal cell.",
   "retention": "Preserve all historical studies and failed/incomplete formal sessions and all preliminary trainer preflight failures. Keep raw tensors/native oracle, state/route/gradient hashes, logs, F1 records, profiles, source packet, manifests and offline byte-identical analysis. Verify publication from normalized committed bytes in a fresh checkout.",
   "separate_full_task_items": [
     "The public SFT/L2L integration is committed in cd6515ac; its first formal session failed the evaluation control. The corrective revision requires a new committed source freeze and an accepted pretrained trainer comparison.",
@@ -294,7 +294,7 @@
   "prepared_manifest_path": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-after-restart-r2.json",
   "formal_output_workspace": "/root/d3-public-trainer-preparation-01/prepared-02",
   "prepared_path_rule": "Use the exact bound prepared_manifest_path; do not copy/alias the manifest to create another session-marker directory. Keep the single per-commit marker and all started sessions.",
-  "protocol_revision": 2,
+  "protocol_revision": 3,
   "previous_formal_attempt": {
     "git_head": "cd6515ac503b15a111050b35db5c33768d506a9b",
     "status": "FAIL",
@@ -321,5 +321,22 @@
     "controls": "/root/d3-public-trainer-preparation-01/actual-shard-controls-after-restart-01/controls/report.json",
     "new_model_execution": false,
     "prior_failed_session_and_marker_preserved": true
+  },
+  "prior_formal_attempt": {
+    "git_head": "76d2c4281adae978af300ee039800b8f47735d55",
+    "session_path": "/root/d3-public-trainer-preparation-01/prepared-02/formal-76d2c428-01",
+    "status": "incomplete_no_task_verdict",
+    "session_timeout_seconds": 10800,
+    "cells_started": 40,
+    "cells_ok": 39,
+    "correctness_cells_ok": 36,
+    "timing_cells_ok": 3,
+    "timing_cell_without_verdict": "timing-dense-ordinary-01-4-triton",
+    "failure": "The series cap left 118.18 seconds for a cell whose declared timeout is 900 seconds; the cell timed out, then the series stopped at the three-hour cap.",
+    "numerical_failure": false,
+    "accepted_performance_verdict": false,
+    "replacement_attempted": false,
+    "remaining_processes": false,
+    "archive_note": "The remote full output directory remains intact. The initial 2.9 GB archive file is truncated and fails ZIP validation; rebuild to a new unique archive name before publication."
   }
 }

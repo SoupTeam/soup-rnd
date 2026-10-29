@@ -57,13 +57,19 @@ def verify(folder, backup_directory=None):
         host["prepared_sha256"] != read_rule(root)["preparation"]["shards"]["sha256"]
     ):
         raise ValueError("final host/preparation receipt differs")
+    rule = read_rule(root)
+    prior = rule.get("prior_formal_attempt", {})
     result = {
         "published_hashes": len(manifest),
         "setup": check_archive(folder / "setup-evidence.zip"),
         "cpu": check_archive(folder / "cpu-evidence.zip"),
         "preparation_runtime_bindings": "passed",
         "new_revision_formal_execution_started": False,
-        "pretrained_trainer_verdict": "previous attempt failed; corrected revision not measured",
+        "pretrained_trainer_verdict": (
+            f"prior session {prior.get('git_head', 'unknown')} is "
+            f"{prior.get('status', 'unrecorded')}; no timing verdict; "
+            f"revision {rule.get('protocol_revision')} not measured"
+        ),
         "full_task_accepted": False,
     }
     if read_rule(root).get("protocol_revision", 1) >= 2:
@@ -72,7 +78,12 @@ def verify(folder, backup_directory=None):
         previous = json.loads((folder / "previous-attempt.json").read_text())
         if previous["status"] != "fail" or previous["accepted_cells"] != 0:
             raise ValueError("the failed first session was reclassified")
-        result["previous_attempt_retained"] = previous["formal_source"]
+        result["previous_attempt_retained"] = {
+            "first_formal_failure": previous["formal_source"],
+            "latest_incomplete_session": prior.get("git_head"),
+            "latest_status": prior.get("status"),
+            "latest_cells_ok": prior.get("cells_ok"),
+        }
     if (folder / "ci-repair-evidence.zip").is_file():
         result["ci_repair"] = check_archive(folder / "ci-repair-evidence.zip")
         result["linux_ci_reproduction"] = check_archive(folder / "d3-ci-linux-evidence.zip")

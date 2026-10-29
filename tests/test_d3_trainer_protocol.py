@@ -57,6 +57,7 @@ def test_live_rule_has_all_required_gates_but_empty_checkout_cannot_start(tmp_pa
         {"adapter_dropout": 0.2},
         {"tokens": 1024},
         {"sessions_per_commit": 2},
+        {"session_timeout_seconds": 10800},
         {"native_rows_from": 480},
         {"pilot_blocks": 2},
         {"max_blocks": 11},
@@ -86,7 +87,7 @@ def test_rule_refuses_a_replaced_checkpoint_or_a_missing_backward_control():
         validate_rule(rule)
 
 
-def test_revision_two_refuses_reusing_the_tied_boundary_fixture():
+def test_revision_two_or_later_refuses_reusing_the_tied_boundary_fixture():
     rule = copy.deepcopy(read_rule())
     rule["required_launcher_fixture"]["tie_word_embeddings"] = True
     with pytest.raises(ValueError, match="untied"):
@@ -95,6 +96,8 @@ def test_revision_two_refuses_reusing_the_tied_boundary_fixture():
 
 def test_pilot_and_capped_plans_are_complete_unique_and_use_fresh_arm_names():
     rule = read_rule()
+    assert rule["protocol_revision"] == 3
+    assert rule["session_timeout_seconds"] == 36 * 60 * 60
     plan = cell_plan(rule)
     assert Counter(row["kind"] for row in plan) == {
         "correctness": 36,

@@ -147,6 +147,18 @@ for the assigned dequant/GEMM work. Commit/source freeze must precede formal run
 
 The first public-trainer session at `cd6515ac` is retained as
 [failed evaluation control](../benchmarks/results/d3-public-trainer-attempt-01-cd6515ac/report.md).
+
+The second frozen session at `76d2c428` is retained separately as an
+[incomplete session-budget stop](../benchmarks/results/d3-public-trainer-attempt-02-76d2c428/report.md).
+It completed 36 correctness cells and three timing cells, then the 10,800-second
+whole-session cap expired with 118 seconds left for the next 900-second cell.
+No timing block or throughput verdict is accepted. Its raw 4.8 GB session
+directory remains on the server; the first outer archive was truncated when the
+detached wrapper's roughly three-hour-five-minute runtime limit expired.
+Revision 3 increases the prospective session cap to 36 hours, matched to the
+declared 234–414 cells and observed session rate. The cell budget and numerical
+recipe are unchanged. A fresh committed source freeze is required before another
+formal run.
 Its native training steps were finite, but evaluation IDs were allocated on the
 streamed embedding's meta placeholder device. The callback now uses the runtime
 execution device. Revision 2 adds untied four-layer CPU/CUDA coverage and requires
