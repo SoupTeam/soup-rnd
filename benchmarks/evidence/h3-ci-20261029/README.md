@@ -46,3 +46,21 @@ This is Linux reproduction, not a rerun of the hosted Ubuntu image or full suite
 Full repository Ruff (`src/soup_cli/ scripts/ tests/ benchmarks/`) and
 `git diff --check` also pass. Hosted CI was inspected for diagnosis, not polled
 or awaited. No cloud rental, existing server change, or new GPU evidence.
+
+## Synchronization with main
+
+The hosted [Ubuntu/Python 3.12 check at 5fad22c2](https://github.com/SoupTeam/soup-rnd/actions/runs/40871901410/job/123440841687)
+and lint subsequently passed. A later `merge-freshness` failure instead reported
+conflicts with main. Merge main `38ccc7876622b0911fb514ba41269eb2cddd4f0b`
+without rewriting the branch history. Retain both H3 and D1 benchmark index
+entries, and use main's equivalent isolated OS fixture with the explicit
+capture regression retained. No production or H3 numerical harness changes
+are introduced by this synchronization.
+
+The same four-file subset passes again on the merged tree: **38 passed,
+3 skipped** on [Linux/Python 3.12.15/pytest 9.2.0](merge-linux.log), and
+**40 passed, 1 skipped** on [Windows/Python 3.10/pytest 9.1.1](merge-windows.log).
+
+Full repository Ruff and checks of the manually resolved files pass. Main's
+historical raw logs include whitespace diagnostics; their captured bytes are
+preserved instead of reformatted. Hosted CI for the merge is not awaited.

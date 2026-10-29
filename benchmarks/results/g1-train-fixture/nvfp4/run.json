@@ -1,0 +1,1014 @@
+{
+ "synthetic": true,
+ "arm": "nvfp4",
+ "seed": 1,
+ "attempt": 1,
+ "status": "complete",
+ "started": "2026-10-22T18:25:16+0000",
+ "started_unix": 1792693516.4307556,
+ "command": [
+  "/venv/main/bin/python",
+  "benchmarks/harness/g4_train.py",
+  "--arm",
+  "nvfp4",
+  "--seed",
+  "1",
+  "--fixture",
+  "mistral",
+  "--data-dir",
+  "/root/data",
+  "--train-limit",
+  "32",
+  "--panel-limit",
+  "8",
+  "--gate-max-new-tokens",
+  "2",
+  "--device",
+  "cuda",
+  "--out-dir",
+  "/root/runs/nvfp4"
+ ],
+ "commit": {
+  "sha": "7701de1b7c33c779c424970e4c5ce245a8687258",
+  "dirty": [
+   "M benchmarks/harness/g4_train.py"
+  ]
+ },
+ "rule": {
+  "added_commit": "7701de1b7c33c779c424970e4c5ce245a8687258",
+  "added_at": "2026-10-22T18:23:11+00:00",
+  "clean": true
+ },
+ "versions": {
+  "python": "3.12.15",
+  "torch": "2.14.1+cu130",
+  "transformers": "5.20.2",
+  "peft": "0.21.2",
+  "bitsandbytes": "0.50.2",
+  "datasets": "5.1.0",
+  "tokenizers": "0.23.3",
+  "soup-cli": "0.75.0",
+  "transformer_engine": "2.20.2"
+ },
+ "device": "cuda",
+ "gpu": {
+  "workload_gpu": {
+   "id": "0",
+   "source": "default"
+  },
+  "name": "NVIDIA GeForce RTX 5090",
+  "uuid": "GPU-041ddbd7-e9e8-96bb-24c9-88533ccb81c3",
+  "driver_version": "595.84",
+  "memory.total": "32607 MiB",
+  "clocks.max.sm": "3105 MHz",
+  "torch_name": "NVIDIA GeForce RTX 5090",
+  "cuda": "13.0"
+ },
+ "harness": {
+  "sha256": "525834570c32750d61c16b273edafcf6f8ee5ce07ae5f00988a7bd90c220db25"
+ },
+ "base_format": {
+  "name": "nvfp4",
+  "detail": "TransformerEngine NVFP4BlockScaling, frozen packed weight, native FP4 GEMM"
+ },
+ "config": {
+  "seed": 1,
+  "model": {
+   "id": "fixture:mistral",
+   "revision": null
+  },
+  "data": {
+   "source": "Dolly row as alpaca: instruction, context as input, response as output",
+   "chat_template": "chatml",
+   "max_length": 1024,
+   "train_on_responses_only": true,
+   "task_loss_tokens": "tokens starting inside the answer text; no header, no marker",
+   "train_limit": 32,
+   "panel_limit": 8
+  },
+  "lora": {
+   "r": 16,
+   "alpha": 32,
+   "target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj"
+   ],
+   "dropout": 0.0,
+   "bias": "none"
+  },
+  "training": {
+   "epochs": 1,
+   "effective_batch": 16,
+   "micro_batch": 4,
+   "gradient_accumulation": 4,
+   "lr": 0.0002,
+   "scheduler": "cosine",
+   "warmup_ratio": 0.03,
+   "weight_decay": 0.01,
+   "max_grad_norm": 1.0,
+   "optimizer": "adamw_torch",
+   "adam_betas": [
+    0.9,
+    0.999
+   ],
+   "adam_eps": 1e-08,
+   "gradient_checkpointing": false,
+   "model_dtype": "bfloat16",
+   "batch_order": "random.Random(seed).shuffle, then steps, then micro batches",
+   "loss": "summed NLL of a step's label tokens over their count",
+   "pad_to_multiple": 16
+  },
+  "eval": {
+   "panel_micro_batch": 4,
+   "gate_suites": [
+    "mini_mmlu",
+    "mini_common_sense",
+    "mini_instruction",
+    "mini_arithmetic"
+   ],
+   "gate_max_new_tokens": 2,
+   "gate_decode": "greedy, no KV cache, whole sequence padded to a multiple of 16 each step"
+  },
+  "base": {
+   "format": "nvfp4"
+  }
+ },
+ "box_stamp_before": {
+  "pid": 1708,
+  "own_pids": [
+   1708
+  ],
+  "gpu_own_pids": [
+   1708
+  ],
+  "gpu_pid_attribution": null,
+  "unix": 1792693516.6440694,
+  "total_phys_gb": 129.642790912,
+  "avail_phys_gb": 128.993837056,
+  "commit_limit_gb": null,
+  "commit_avail_gb": null,
+  "ac": null,
+  "gpu_pids": [],
+  "gpu_mem_used_mib": 4,
+  "python_processes": null,
+  "power_source": "sensor"
+ },
+ "train_log": [
+  {
+   "step": 1,
+   "loss": 5.5732202211198585,
+   "grad_norm": 1.65625,
+   "lr": 0.0,
+   "tokens": 778,
+   "elapsed_s": 0.7809039809508249
+  },
+  {
+   "step": 2,
+   "loss": 5.575997064052484,
+   "grad_norm": 1.65625,
+   "lr": 0.0002,
+   "tokens": 780,
+   "elapsed_s": 0.8673331459867768
+  }
+ ],
+ "phases_s": {
+  "data": 1.2013418689602986,
+  "load": 1.943363883998245,
+  "base": 0.942479936988093,
+  "train": 1.9842016950133257,
+  "panel": 0.014750348986126482,
+  "gate": 1.6052782210172154
+ },
+ "data": {
+  "heldout_sha256": "1217b020517bc5249865c2d55bcae3a6d918600669b5eb40e1f1f935f53d3254",
+  "train_sha256": "03341aaba4d580e49047609f9a0d8ed00c0dcd229cf1814d54a164b7b2a16c79",
+  "panel_rows": 8,
+  "train_rows": 32,
+  "train_truncated": 0,
+  "train_without_labels": 0,
+  "train_label_tokens": 1558
+ },
+ "pad_token_id": 257,
+ "batch_order_sha256": "b73c3c5df6a00826ca7ba4a5617fbd59c3373b8fc11aee086ca693c1dfedfd35",
+ "total_steps": 2,
+ "model": {
+  "id": "fixture:mistral",
+  "revision": null,
+  "synthetic": true,
+  "note": "SYNTHETIC: a tiny random-init Mistral with a byte-level tokenizer. Its losses and scores say nothing about a real model and never enter the verdict.",
+  "model_type": "mistral"
+ },
+ "unquantized_fingerprints": {
+  "model.embed_tokens.weight": "1a04452fd86a91b4deaebb196ed31646944e279540ba28a9e274339106940582",
+  "model.layers.0.input_layernorm.weight": "8e6b548203bfc0860b22f197dbde1c838d15e2654555143cb6dfa88e0e2bcac2",
+  "model.layers.0.post_attention_layernorm.weight": "8e6b548203bfc0860b22f197dbde1c838d15e2654555143cb6dfa88e0e2bcac2",
+  "model.layers.1.input_layernorm.weight": "8e6b548203bfc0860b22f197dbde1c838d15e2654555143cb6dfa88e0e2bcac2",
+  "model.layers.1.post_attention_layernorm.weight": "8e6b548203bfc0860b22f197dbde1c838d15e2654555143cb6dfa88e0e2bcac2",
+  "model.norm.weight": "8e6b548203bfc0860b22f197dbde1c838d15e2654555143cb6dfa88e0e2bcac2",
+  "lm_head.weight": "18b9ba7bfc69da92cd032a4a9fdb4760125677069507ecc53912eb7f27c7e20d"
+ },
+ "storage_counts": {
+  "NVFP4Tensor": 14
+ },
+ "trainable_parameters": [
+  "model.layers.0.self_attn.q_proj.lora_a",
+  "model.layers.0.self_attn.q_proj.lora_b",
+  "model.layers.0.self_attn.k_proj.lora_a",
+  "model.layers.0.self_attn.k_proj.lora_b",
+  "model.layers.0.self_attn.v_proj.lora_a",
+  "model.layers.0.self_attn.v_proj.lora_b",
+  "model.layers.0.self_attn.o_proj.lora_a",
+  "model.layers.0.self_attn.o_proj.lora_b",
+  "model.layers.1.self_attn.q_proj.lora_a",
+  "model.layers.1.self_attn.q_proj.lora_b",
+  "model.layers.1.self_attn.k_proj.lora_a",
+  "model.layers.1.self_attn.k_proj.lora_b",
+  "model.layers.1.self_attn.v_proj.lora_a",
+  "model.layers.1.self_attn.v_proj.lora_b",
+  "model.layers.1.self_attn.o_proj.lora_a",
+  "model.layers.1.self_attn.o_proj.lora_b"
+ ],
+ "panel": {
+  "task_loss": 5.588222376505533,
+  "tokens": 120,
+  "examples_without_tokens": 0,
+  "per_example": [
+   {
+    "row": 0,
+    "tokens": 15,
+    "nll": 83.93235778808594
+   },
+   {
+    "row": 1,
+    "tokens": 15,
+    "nll": 84.18403625488281
+   },
+   {
+    "row": 2,
+    "tokens": 15,
+    "nll": 83.71763610839844
+   },
+   {
+    "row": 3,
+    "tokens": 15,
+    "nll": 83.59323120117188
+   },
+   {
+    "row": 4,
+    "tokens": 15,
+    "nll": 84.00201416015625
+   },
+   {
+    "row": 5,
+    "tokens": 15,
+    "nll": 84.05184936523438
+   },
+   {
+    "row": 6,
+    "tokens": 15,
+    "nll": 83.75968933105469
+   },
+   {
+    "row": 7,
+    "tokens": 15,
+    "nll": 83.34587097167969
+   }
+  ]
+ },
+ "gate_suites": {
+  "mini_mmlu": {
+   "n": 26,
+   "correct": 0,
+   "items": [
+    {
+     "question": "What is 2 + 2? (A) 3 (B) 4 (C) 5",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The capital of France is: (A) London (B) Berlin (C) Paris",
+     "answer": "C",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "Water freezes at: (A) 0C (B) 50C (C) 100C",
+     "answer": "A",
+     "output": "tI",
+     "correct": false
+    },
+    {
+     "question": "Photosynthesis mainly uses: (A) oxygen (B) carbon dioxide (C) nitrogen",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Atomic number of hydrogen is: (A) 1 (B) 2 (C) 3",
+     "answer": "A",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The largest planet in our solar system is: (A) Earth (B) Jupiter (C) Mars",
+     "answer": "B",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "The chemical symbol for gold is: (A) Gd (B) Go (C) Au",
+     "answer": "C",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "How many continents are there on Earth? (A) 5 (B) 7 (C) 9",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The powerhouse of the cell is the: (A) nucleus (B) ribosome (C) mitochondrion",
+     "answer": "C",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "Light travels faster than: (A) sound (B) nothing (C) radio waves",
+     "answer": "A",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "The square root of 81 is: (A) 8 (B) 9 (C) 18",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Which gas do plants release during photosynthesis? (A) oxygen (B) hydrogen (C) methane",
+     "answer": "A",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "The author of 'Romeo and Juliet' is: (A) Dickens (B) Shakespeare (C) Austen",
+     "answer": "B",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "The freezing point of water in Fahrenheit is: (A) 0 (B) 32 (C) 100",
+     "answer": "B",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "Which ocean is the largest? (A) Atlantic (B) Indian (C) Pacific",
+     "answer": "C",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "The human body has how many pairs of ribs? (A) 10 (B) 12 (C) 14",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The currency of Japan is the: (A) yuan (B) won (C) yen",
+     "answer": "C",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Which metal is liquid at room temperature? (A) mercury (B) iron (C) copper",
+     "answer": "A",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "The speed of light is closest to: (A) 300 km/s (B) 300,000 km/s (C) 30 km/s",
+     "answer": "B",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "A triangle has how many sides? (A) 3 (B) 4 (C) 5",
+     "answer": "A",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The closest star to Earth is the: (A) Moon (B) Sun (C) Sirius",
+     "answer": "B",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "DNA carries: (A) genetic information (B) oxygen (C) sugar",
+     "answer": "A",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "The tallest mountain above sea level is: (A) K2 (B) Everest (C) Denali",
+     "answer": "B",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Which is a prime number? (A) 9 (B) 15 (C) 13",
+     "answer": "C",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The primary gas in Earth's atmosphere is: (A) oxygen (B) nitrogen (C) argon",
+     "answer": "B",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Sound cannot travel through a: (A) solid (B) liquid (C) vacuum",
+     "answer": "C",
+     "output": "__",
+     "correct": false
+    }
+   ]
+  },
+  "mini_common_sense": {
+   "n": 24,
+   "correct": 0,
+   "items": [
+    {
+     "question": "If it is raining, you should bring a: (A) hat (B) umbrella (C) fan",
+     "answer": "B",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "You eat breakfast in the: (A) morning (B) evening (C) night",
+     "answer": "A",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Fish live in: (A) trees (B) water (C) sand",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "The sun rises in the: (A) west (B) south (C) east",
+     "answer": "C",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Ice melts when: (A) heated (B) frozen (C) pressed",
+     "answer": "A",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "To unlock a door you usually need a: (A) spoon (B) key (C) pillow",
+     "answer": "B",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "Before crossing a busy street you should: (A) close your eyes (B) look both ways (C) run fast",
+     "answer": "B",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "If a glass falls on tile it will likely: (A) bounce (B) break (C) float",
+     "answer": "B",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "To write on paper you use a: (A) hammer (B) pen (C) plate",
+     "answer": "B",
+     "output": "tI",
+     "correct": false
+    },
+    {
+     "question": "A wet towel is best dried by: (A) folding it (B) hanging it in the sun (C) burying it",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "You feel cold, so you put on a: (A) swimsuit (B) coat (C) sandal",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Plants need this to grow: (A) darkness (B) sunlight (C) television",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "To call a friend far away you use a: (A) phone (B) fork (C) broom",
+     "answer": "A",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "After you finish eating, dirty dishes should be: (A) washed (B) painted (C) planted",
+     "answer": "A",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "If the room is dark you should turn on the: (A) faucet (B) light (C) oven",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "A baby is younger than a: (A) grandparent (B) newborn (C) egg",
+     "answer": "A",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "To cut paper you use: (A) scissors (B) a magnet (C) glue",
+     "answer": "A",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Bread that is very old may become: (A) fresh (B) moldy (C) cold",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "If you are thirsty you should drink: (A) sand (B) water (C) paper",
+     "answer": "B",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "A car needs this to run: (A) fuel (B) music (C) paint",
+     "answer": "A",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "You wear shoes on your: (A) hands (B) head (C) feet",
+     "answer": "C",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "To keep food cold you put it in the: (A) oven (B) refrigerator (C) closet",
+     "answer": "B",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "If you are tired at night you should: (A) sleep (B) exercise hard (C) shout",
+     "answer": "A",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Rain falls from the: (A) ground (B) clouds (C) ocean floor",
+     "answer": "B",
+     "output": "__",
+     "correct": false
+    }
+   ]
+  },
+  "mini_instruction": {
+   "n": 24,
+   "correct": 0,
+   "items": [
+    {
+     "question": "Respond with just the word: ok",
+     "answer": "ok",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word \u2014 the color of grass:",
+     "answer": "green",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Answer yes or no: Is fire hot?",
+     "answer": "yes",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Reply with only the number three.",
+     "answer": "3",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Say only the word: done",
+     "answer": "done",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Reply with a single word: the opposite of 'up'.",
+     "answer": "down",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: the color of a clear daytime sky.",
+     "answer": "blue",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer yes or no: Is water wet?",
+     "answer": "yes",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Respond with only the word: apple",
+     "answer": "apple",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "Reply with the number that comes after 9.",
+     "answer": "10",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: what animal says 'meow'?",
+     "answer": "cat",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Say only the word: banana",
+     "answer": "banana",
+     "output": "II",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: the opposite of 'hot'.",
+     "answer": "cold",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Reply with the single word: yes if 2 is greater than 1.",
+     "answer": "yes",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: the first month of the year.",
+     "answer": "January",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Respond with only: purple",
+     "answer": "purple",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: what do bees make?",
+     "answer": "honey",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Reply with only the number of days in a week.",
+     "answer": "7",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: the opposite of 'left'.",
+     "answer": "right",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "Say only the word: ocean",
+     "answer": "ocean",
+     "output": "II",
+     "correct": false
+    },
+    {
+     "question": "Answer with one word: what color is a ripe tomato?",
+     "answer": "red",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Reply with a single word: the season after winter.",
+     "answer": "spring",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "Answer in one word: what do you call frozen water?",
+     "answer": "ice",
+     "output": "__",
+     "correct": false
+    },
+    {
+     "question": "Respond with only the number: how many wheels does a bicycle have?",
+     "answer": "2",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    }
+   ]
+  },
+  "mini_arithmetic": {
+   "n": 40,
+   "correct": 0,
+   "items": [
+    {
+     "question": "What is 6 + 7?",
+     "answer": "13",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 9 - 4?",
+     "answer": "5",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 8 times 3?",
+     "answer": "24",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 6 multiplied by 7?",
+     "answer": "42",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 12 divided by 4?",
+     "answer": "3",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 15 + 27?",
+     "answer": "42",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 100 - 37?",
+     "answer": "63",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 9 times 9?",
+     "answer": "81",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is half of 50?",
+     "answer": "25",
+     "output": "_I",
+     "correct": false
+    },
+    {
+     "question": "What is 7 + 8?",
+     "answer": "15",
+     "output": "II",
+     "correct": false
+    },
+    {
+     "question": "What is 5 squared?",
+     "answer": "25",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 45 divided by 9?",
+     "answer": "5",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 11 times 11?",
+     "answer": "121",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 30 - 12?",
+     "answer": "18",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 4 + 4 + 4?",
+     "answer": "12",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 3 times 12?",
+     "answer": "36",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 200 - 99?",
+     "answer": "101",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 8 + 9?",
+     "answer": "17",
+     "output": "II",
+     "correct": false
+    },
+    {
+     "question": "What is 72 divided by 8?",
+     "answer": "9",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 14 times 2?",
+     "answer": "28",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 6 + 6 + 6?",
+     "answer": "18",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 10 percent of 200?",
+     "answer": "20",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 16 + 25?",
+     "answer": "41",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 90 divided by 3?",
+     "answer": "30",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 47 times 38?",
+     "answer": "1786",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 1234 times 56?",
+     "answer": "69104",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 7 + 3 times 4 - 6 divided by 2?",
+     "answer": "16",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "A shirt costs 80 dollars. It is discounted by 25 percent, then the discounted price is raised by 25 percent. What is the final price in dollars?",
+     "answer": "75",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 2 to the power of 15?",
+     "answer": "32768",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is the remainder when 2024 is divided by 37?",
+     "answer": "26",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "How many seconds are in 3 days?",
+     "answer": "259200",
+     "output": "YI",
+     "correct": false
+    },
+    {
+     "question": "What is 999 times 999?",
+     "answer": "998001",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is the sum of all the whole numbers from 1 to 250?",
+     "answer": "31375",
+     "output": "_\ufffd",
+     "correct": false
+    },
+    {
+     "question": "What is 17 squared minus 13 squared?",
+     "answer": "120",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "A train leaves at 9:47 and arrives at 14:12 the same day. How many minutes long is the trip?",
+     "answer": "265",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 15 percent of 15 percent of 4000?",
+     "answer": "90",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 123456789 divided by 9?",
+     "answer": "13717421",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is the least common multiple of 18, 24 and 40?",
+     "answer": "360",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "What is 3/8 plus 5/12, as a fraction in lowest terms?",
+     "answer": "19/24",
+     "output": "\ufffdI",
+     "correct": false
+    },
+    {
+     "question": "How many times is the digit 7 written when you write out every whole number from 1 to 100?",
+     "answer": "20",
+     "output": "\ufffd\ufffd",
+     "correct": false
+    }
+   ]
+  }
+ },
+ "finished": "2026-10-22T18:25:24+0000",
+ "box_stamp_after": {
+  "pid": 1708,
+  "own_pids": [
+   1708
+  ],
+  "gpu_own_pids": [
+   1708
+  ],
+  "gpu_pid_attribution": null,
+  "unix": 1792693524.42158,
+  "total_phys_gb": 129.642790912,
+  "avail_phys_gb": 127.424647168,
+  "commit_limit_gb": null,
+  "commit_avail_gb": null,
+  "ac": null,
+  "gpu_pids": [
+   1708
+  ],
+  "gpu_mem_used_mib": 4140,
+  "python_processes": null,
+  "power_source": "sensor"
+ },
+ "max_memory_allocated_bytes": 112278528
+}

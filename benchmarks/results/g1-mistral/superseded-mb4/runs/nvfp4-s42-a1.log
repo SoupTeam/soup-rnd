@@ -1,0 +1,16 @@
+[transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 27167.84it/s]
+[W1022 19:25:37.624451809 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 117440512 bytes (free: 29032448, total: 33670758400).
+[W1022 19:25:37.693899871 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 117440512 bytes (free: 66781184, total: 33670758400).
+[W1022 19:25:37.711217333 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 117440512 bytes (free: 16449536, total: 33670758400).
+[W1022 19:25:37.711543085 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 117440512 bytes (free: 18546688, total: 33670758400).
+run failed: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 112.00
+MiB. GPU 0 has a total capacity of 31.36 GiB of which 17.69 MiB is free. 
+Including non-PyTorch memory, this process has 31.33 GiB memory in use. Of the 
+allocated memory 26.37 GiB is allocated by PyTorch, and 1.03 GiB is reserved by 
+PyTorch but unallocated. If reserved but unallocated memory is large try setting
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See 
+documentation for Memory Management  
+(https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-wi
+th-pytorch-cuda-alloc-conf)
+nvfp4 seed 42: failed -> /root/runs/nvfp4-s42-a1
