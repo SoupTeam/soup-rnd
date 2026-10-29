@@ -156,6 +156,40 @@ def test_urllib_http_error_401_gets_the_authentication_hint():
     assert "Authentication failed." in out
 
 
+def test_broken_response_proxy_does_not_hide_urllib_code():
+    class BrokenResponseError(Exception):
+        code = 401
+
+        @property
+        def response(self):
+            raise KeyError("file")
+
+    assert "Authentication failed." in _render(BrokenResponseError("request failed"))
+
+
+def test_broken_response_status_does_not_hide_direct_status():
+    class BrokenStatus:
+        @property
+        def status_code(self):
+            raise RuntimeError("response already closed")
+
+    exc = Exception("request failed")
+    exc.response = BrokenStatus()
+    exc.status_code = 403
+    assert "Access denied." in _render(exc)
+
+
+def test_broken_code_property_does_not_turn_row_digits_into_authentication():
+    class BrokenCodeError(Exception):
+        @property
+        def code(self):
+            raise OSError("status unavailable")
+
+    out = _render(BrokenCodeError("train row 401: invalid sample"))
+    assert "Authentication failed." not in out
+    assert "train row 401" in out
+
+
 def test_http_phrasing_without_a_response_object_is_accepted():
     out = _render(Exception("401 Client Error: Unauthorized for url: https://x"))
     assert "Authentication failed." in out
