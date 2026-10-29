@@ -623,3 +623,93 @@ hold, SIGKILL/next-start cleanup, and POSIX stale-entry replacement. They are no
 native MPS, native macOS-volume or 2 GiB Windows transfer measurement. Regression evidence for
 invalid records and resource failures is separate from the frozen GPU result. Replaying the
 stricter rule on session 3 still yields its byte-identical verdict.
+
+## 13. Criterion 1b causal diagnostic: RTX 4090, 2026-10-29
+
+Records: [`results/a3-1b-diagnostic-rtx4090-20261029/`](results/a3-1b-diagnostic-rtx4090-20261029/README.md).
+This is a targeted cause investigation, **not a product fix or a new spill gate**. Sections
+9–11 and their records retain their original results and then-known cause wording; §12's
+audit is unchanged. The current bounded conclusion is that **two execution conditions
+explain the measured discrepancy on this pinned fixture**: padding policy changes the
+forward endpoint, and backward-entry autocast changes residual gradients despite matching
+forwards. The contrasts are sequential, not additive error components.
+
+One vast.ai KVM VM, instance **58293613**, RTX 4090, Australia host **370354** / machine
+**137610** (the session-2 host/machine), offered at **$0.5826666667/h** including storage;
+the offer is not an invoice. Baseline product/stand **`ec795ef1`**, diagnostic source
+**`cf0a7490`**, the historical Mistral-7B NF4 fixture, bf16, LoRA r 8, k 4, seq 512.
+Saved source, model, initial-adapter, shard-cache and dependency fingerprints are identical
+across all valid arms. MATH is used except for the EFFICIENT_ATTENTION floor arms.
+
+**The original 1b FAIL is reproduced, not relabeled:** gradient relative errors
+**[0.018090733100463656, 0.02133434290248132, 0.17721940196011468]** exceed the original
+limits **[0.016452461646560432, 0.020615278589764058, 0.07667679771063814]**; first logged
+loss relative error **0.00022173059391030002** exceeds **0.000010254296903358378**.
+Native GA's first loss is **12.834332466125488**, versus original L2L's
+**12.831486701965332**. The unchanged pinned comparator reports `l2l_out_of_tolerance`.
+
+### 13.1 Padding-policy endpoint and its localization limit
+
+All three observer controls are `BITMATCH`. The original native-versus-padded GA trace
+contrast first observes a valid-token difference at **decoder 0, window 0, microbatch 0**,
+max absolute **0.001953125**, relative L2 **0.004390999502744277**. That contrast changes
+padding **and mask policy**; it is not pure-padding layer localization.
+
+The corrected **`ga_native_no_mask_verified_v3`** control removes only the native mask
+and records actual effective inputs after removal. It matches native GA's loss and all
+**256 gradients** bit for bit, at the same rows **[5, 6, 1, 2]**, native lengths
+**[307, 512, 384, 256]** and **N=1215**. Native-no-mask versus padded-no-mask therefore
+isolates a padding-policy endpoint effect: padded GA's first loss matches L2L's
+**12.831486701965332**. The no-mask arm is untraced, so the original combined contrast's
+decoder-0 localization cannot be transferred to pure padding. Two earlier no-mask attempts
+had incorrect effective metadata or a metadata-file collision; neither is valid control
+evidence or published as such.
+
+### 13.2 Matched-input residual and the backward-scope intervention
+
+Padded GA versus original L2L has **144 bitmatching initial-forward tensors** (140
+valid-token/output tensors plus four CE numerator scalars), matching actual per-row losses,
+N and independently computed CE numerators. Yet gradients differ: relative L2
+**0.007499608746411462**, max absolute **0.2308349609375**.
+
+A direct-child diagnostic wrapper disables **ambient CUDA autocast at backward entry**
+only, around the original `torch.autograd.backward`, forwarding arguments unchanged and
+restoring the callable in `finally`. This covers both Tensor.backward delegation and
+L2L's direct autograd entrypoint, not explicit forward or reverse-layer forward
+recomputation. All **144 original-versus-adaptive L2L initial trace file SHA-256 values**
+remain identical; layer calls, per-microbatch losses, windows, dispatch and training-step
+losses also stay identical. All **256 gradients** now bitmatch padded GA.
+
+Three-step confirmation gives exact gradients at every step, an independent bitmatching
+padded-GA repeat, and applied learning rates **[0, 0.001, 0.0005]**. Aggregate logged losses
+are **not all bit-equal**: at zero-based step 1, padded GA logs **12.808198928833008** and
+L2L-outside **12.808199882507324**; loss relative errors are
+**[0, 7.445811247195722e-8, 0]**. The unchanged comparator with a newly matched padded
+EFFICIENT floor returns **`within_tolerance`, `pass: true`** for this **new diagnostic
+comparison**, not for the original gate. Backward-scope alignment alone still differs
+from native GA: gradient relative errors **[0.015837362726258193, 0.014676687301150623,
+0.12116253884098395]**.
+
+Disabling ambient autocast at backward entry is sufficient for the matched-input residual
+on this three-step fixture without changing L2L's schedule or accumulation order. An
+accumulation-order change is therefore **not necessary** for that residual correction.
+This does **not** establish that all backward work is FP32 or identify an internal cast or
+CUDA kernel. Four decoder-0 **input** adjoint boundaries remain unmatched; the earliest
+backward divergence is unresolved. The analyzer's residual kwargs warning is GA's extra
+`num_items_in_batch` only, not an observed mask/position mismatch; actual denominators and
+all remaining captured args/kwargs match.
+
+### 13.3 Evidence scope
+
+The new result directory publishes compact **DERIVED** arm/trace/numeric-pair metadata,
+all original manifests, common source/model/cache/dependency fingerprints, the unchanged
+original session, the aligned diagnostic comparator and confirmation summary. Provenance
+records raw source hashes, published hashes, explicit field projections and longest-first
+path substitutions; the LF manifest is byte-preserved by `.gitattributes`. The full analysis,
+tensor archives, logs, operational tooling and private access/API records are not committed.
+Only the retained raw layout and pinned sources permit tensor-level numeric replay; public
+projections are not drop-in analyzer inputs. The result README gives the exact limits,
+wrapper behavior/source hashes and retained initial-export archive hash.
+
+No automatic product cutover, generalized L2L/GA parity, model-quality claim, or change to
+the historical spill verdict follows from this investigation.

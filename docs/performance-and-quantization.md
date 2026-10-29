@@ -932,10 +932,19 @@ recompute in step 2 (KeyboardInterrupt, exit 130, file gone), and kill -9 follow
 removal at the next start and 3 normal training steps all passed. Cost was +2.39% per step
 (95% interval -1.80% to +6.57%, 5 blocks, cost children spilling 12-18 layers): **below 10%
 confirmed on this faster machine**, not a promise for other GPUs, drives or step lengths.
-**L2L versus GA still FAILS criterion 1b** with the same four tolerance failures as session 2;
-their cause is unestablished and they are not a spill finding, because spill equals no spill
-bit for bit. The retained private tensors enabled byte-identical CPU replay of the measured
-comparison, and the rule's verdict also replayed byte for byte. Records:
+**The original L2L-versus-GA criterion 1b remains FAIL**, with the same four tolerance
+failures as session 2; this is not a spill finding, because spill equals no spill bit for
+bit. The later [targeted causal diagnostic](../benchmarks/results/a3-1b-diagnostic-rtx4090-20261029/README.md)
+establishes two causes for this pinned fixture: padding policy changes the forward loss
+endpoint; with padding matched, disabling ambient CUDA autocast only at backward entry
+preserves measured forwards and makes all 256 gradients bit-equal over three steps,
+without changing L2L's schedule or accumulation order. The aligned diagnostic comparator
+passes with a newly matched padded floor, but one aggregate logged loss is not bit-equal;
+backward-scope alignment alone does not match native GA. The exact internal kernel/cast
+and earliest backward divergence remain unresolved. This is not a verified product fix,
+general parity claim, or permission to relabel the historical failure. The retained private
+tensors enabled byte-identical CPU replay of the original measured comparison, and its
+rule verdict also replayed byte for byte. Historical records:
 [`benchmarks/a3-spill-gpu-check.md` §11](../benchmarks/a3-spill-gpu-check.md#11-session-3-rtx-4090-vm-2026-10-28-protocol-v3-spill-confirmed-1b-fail),
 [`session 3 evidence`](../benchmarks/results/a3-spill-v3-rtx4090-20261028/README.md).
 Sessions 1 and 2 keep their historical NO VERDICT results (§9 and §10); the 512 MiB reserve

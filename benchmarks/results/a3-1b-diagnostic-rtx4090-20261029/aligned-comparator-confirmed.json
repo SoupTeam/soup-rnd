@@ -1,0 +1,93 @@
+{
+  "diagnostic_only": true,
+  "independent_padded_repeat": true,
+  "tensor_hashes_match": {
+    "ga": true,
+    "repeat": true,
+    "l2l": true,
+    "floor": true
+  },
+  "comparison": {
+    "a_vs_a": {
+      "grads_equal": true,
+      "losses_equal": true,
+      "rates_equal": true,
+      "steps_equal": true,
+      "steps": [
+        3,
+        3
+      ],
+      "max_abs": 0.0,
+      "worst": [],
+      "equal": true
+    },
+    "l2l_vs_ga": {
+      "grads_equal": true,
+      "losses_equal": false,
+      "rates_equal": true,
+      "steps_equal": true,
+      "steps": [
+        3,
+        3
+      ],
+      "max_abs": 0.0,
+      "worst": [],
+      "equal": false
+    },
+    "tolerance": {
+      "mode": "bf16",
+      "factor": 1.5,
+      "limit_fp32": 0.0001,
+      "grad_rel": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "loss_rel": [
+        0.0,
+        7.445811247195722e-08,
+        0.0
+      ],
+      "floor_grad": [
+        0.00993183386311702,
+        0.01494967149887498,
+        0.12498521807350028
+      ],
+      "floor_loss": [
+        5.6262495086322054e-05,
+        0.00019567591957630356,
+        0.0008863142707460495
+      ],
+      "judged": true,
+      "failing": [],
+      "pass": true,
+      "floor_problem": null,
+      "grad_limit": [
+        0.01489775079467553,
+        0.02242450724831247,
+        0.18747782711025043
+      ],
+      "loss_limit": [
+        8.439374262948309e-05,
+        0.00029351387936445535,
+        0.0013294714061190742
+      ]
+    },
+    "pass": true,
+    "note": "",
+    "status": "within_tolerance"
+  },
+  "exact_comparison": {
+    "grads_equal": true,
+    "losses_equal": false,
+    "rates_equal": true,
+    "steps_equal": true,
+    "steps": [
+      3,
+      3
+    ],
+    "max_abs": 0.0,
+    "worst": [],
+    "equal": false
+  }
+}

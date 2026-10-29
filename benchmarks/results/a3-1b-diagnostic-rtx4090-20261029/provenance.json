@@ -1,0 +1,852 @@
+{
+  "schema_version": 1,
+  "publication": "A3 criterion 1b causal diagnostic; not a new historical gate or product fix",
+  "raw_source_root": "private machine-1 export",
+  "path_substitutions_longest_first": [
+    {
+      "raw": "/root/a3/baseline",
+      "published": "<baseline>"
+    },
+    {
+      "raw": "/root/a3/repo",
+      "published": "<diagnostic-work>"
+    },
+    {
+      "raw": "/root/a3",
+      "published": "<box>"
+    }
+  ],
+  "source_commit": "cf0a74900617e3140d79b9770c1f617a6a174049",
+  "baseline_commit": "ec795ef175c222b60ff91b9ba44f7f2bfad55dd5",
+  "files": [
+    {
+      "file": "common-fingerprints.compact.json",
+      "published_sha256": "3d868c6273682c8312942a4e9ec5d35658d62665a3cc5248da69e1aeb1262ce7",
+      "published_bytes": 421830,
+      "transformation": "DERIVED: retain six common fields once; exact values equal in all 15 selected arms; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_3step/arm.json",
+          "raw_sha256": "c4f37a9172967edf6f0c7a5fbb95418e61c61099417166fca311d0c97d8f8455",
+          "raw_bytes": 750880
+        },
+        {
+          "file": "final-metadata/out/arms/ga_repeat_3step/arm.json",
+          "raw_sha256": "241dd889e3daa778d697104f974e72f89a3474b4a56fd2c3173318da7f4187e8",
+          "raw_bytes": 750913
+        },
+        {
+          "file": "final-metadata/out/arms/ga_floor_3step/arm.json",
+          "raw_sha256": "375b90e3ec599175e0f7ce86d546b5ced3a997f2e397147a49cfb5c6518c76b2",
+          "raw_bytes": 750961
+        },
+        {
+          "file": "final-metadata/out/arms/l2l_3step/arm.json",
+          "raw_sha256": "c33ad854a59f693e8fb3168701fa84a4fda178d83d809e4cae7c4d8d6ed035d2",
+          "raw_bytes": 748645
+        },
+        {
+          "file": "final-metadata/out/arms/ga_native_1step/arm.json",
+          "raw_sha256": "7f35845c2b31fd350cb65d78c621868df0aba0cbd1d4e733f20be5f2946f20a2",
+          "raw_bytes": 573969
+        },
+        {
+          "file": "final-metadata/out/arms/ga_native_trace_1step/arm.json",
+          "raw_sha256": "cece70209e0b6c2333747bf5b2dd351065279d8a91ed38c8378cd9d4dcc9da65",
+          "raw_bytes": 1494860
+        },
+        {
+          "file": "final-metadata/out/arms/ga_padded_1step/arm.json",
+          "raw_sha256": "e289872103546bdbb48bfb9df252cae4528e640653fea0b08930173e3275e45a",
+          "raw_bytes": 572434
+        },
+        {
+          "file": "final-metadata/out/arms/ga_padded_trace_1step/arm.json",
+          "raw_sha256": "e8197771d99a93bf42c23bd2e1adf33141ec3c7fdf099d5dd914bfb007ed6663",
+          "raw_bytes": 1493318
+        },
+        {
+          "file": "final-metadata/out/arms/l2l_trace_1step/arm.json",
+          "raw_sha256": "c76730e043e250ed3db927724deb882dcdcb0b38c424d6a829d4fc46b96e74b3",
+          "raw_bytes": 1624857
+        },
+        {
+          "file": "final-metadata/adaptive/ga_native_no_mask_verified_v3/arm.json",
+          "raw_sha256": "b932a55c383c481e9774c96e70c610562d965f86627d1a2ec04d2963113c399a",
+          "raw_bytes": 572323
+        },
+        {
+          "file": "final-metadata/adaptive/l2l_backward_outside/arm.json",
+          "raw_sha256": "da11eeabdca97f87a425423927305175ef2c74a4548e0c43fd030d6b21516fb6",
+          "raw_bytes": 1624725
+        },
+        {
+          "file": "final-metadata/adaptive/ga_padded_3step/arm.json",
+          "raw_sha256": "5fb3be126eba18f13c30365af1511c20f109e80dde32d8e17a014377607cf504",
+          "raw_bytes": 746890
+        },
+        {
+          "file": "final-metadata/adaptive/ga_padded_repeat_3step/arm.json",
+          "raw_sha256": "cfd1e060baace5a77af8d4a802c202ddecfc7da4ec2033de1a480407024345ac",
+          "raw_bytes": 746890
+        },
+        {
+          "file": "final-metadata/adaptive/ga_padded_floor_3step/arm.json",
+          "raw_sha256": "ac6e6f8711f87a5bf5d23f9d4f9d2d4fcb20d30a653f8566fe8ce702d7cff57f",
+          "raw_bytes": 746923
+        },
+        {
+          "file": "final-metadata/adaptive/l2l_outside_3step/arm.json",
+          "raw_sha256": "f610232372d5fa81cf0c3555128b2f40bcb082aaa5a86e1630635ec68ab59a28",
+          "raw_bytes": 748573
+        }
+      ]
+    },
+    {
+      "file": "arms/ga_3step/arm.compact.json",
+      "published_sha256": "f3bd1ca1c7df2605d53ade8732cd908b0fc2c896341d6cf5b3ed8858e85e4644",
+      "published_bytes": 191373,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_3step/arm.json",
+          "raw_sha256": "c4f37a9172967edf6f0c7a5fbb95418e61c61099417166fca311d0c97d8f8455",
+          "raw_bytes": 750880
+        }
+      ],
+      "raw_sha256": "c4f37a9172967edf6f0c7a5fbb95418e61c61099417166fca311d0c97d8f8455"
+    },
+    {
+      "file": "arms/ga_3step/manifest.json",
+      "published_sha256": "31dca09cfecd5bd7d33a6b1a78fe07981b4aaeb0f160898334946c9b56996ef3",
+      "published_bytes": 2240,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_3step/manifest.json",
+          "raw_sha256": "31dca09cfecd5bd7d33a6b1a78fe07981b4aaeb0f160898334946c9b56996ef3",
+          "raw_bytes": 2240
+        }
+      ],
+      "raw_sha256": "31dca09cfecd5bd7d33a6b1a78fe07981b4aaeb0f160898334946c9b56996ef3"
+    },
+    {
+      "file": "arms/ga_repeat_3step/arm.compact.json",
+      "published_sha256": "56e8bc9d3ca1c171514b4e98d07b475eea4ab3c52603154c94df1020daf6fd5c",
+      "published_bytes": 191413,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_repeat_3step/arm.json",
+          "raw_sha256": "241dd889e3daa778d697104f974e72f89a3474b4a56fd2c3173318da7f4187e8",
+          "raw_bytes": 750913
+        }
+      ],
+      "raw_sha256": "241dd889e3daa778d697104f974e72f89a3474b4a56fd2c3173318da7f4187e8"
+    },
+    {
+      "file": "arms/ga_repeat_3step/manifest.json",
+      "published_sha256": "bdb3f3c08fe46e1931fd59d22a19ee0f8573452714068dd14a8c72ff124fa2c2",
+      "published_bytes": 2247,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_repeat_3step/manifest.json",
+          "raw_sha256": "bdb3f3c08fe46e1931fd59d22a19ee0f8573452714068dd14a8c72ff124fa2c2",
+          "raw_bytes": 2247
+        }
+      ],
+      "raw_sha256": "bdb3f3c08fe46e1931fd59d22a19ee0f8573452714068dd14a8c72ff124fa2c2"
+    },
+    {
+      "file": "arms/ga_floor_3step/arm.compact.json",
+      "published_sha256": "0392dc768c97a7c0a34a51fd377cf82f0351f8a9cd648fd81b7654598aa38e3d",
+      "published_bytes": 191460,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_floor_3step/arm.json",
+          "raw_sha256": "375b90e3ec599175e0f7ce86d546b5ced3a997f2e397147a49cfb5c6518c76b2",
+          "raw_bytes": 750961
+        }
+      ],
+      "raw_sha256": "375b90e3ec599175e0f7ce86d546b5ced3a997f2e397147a49cfb5c6518c76b2"
+    },
+    {
+      "file": "arms/ga_floor_3step/manifest.json",
+      "published_sha256": "aa75e77d06c100fd9a97149f72e0591bd47736fc971610ed514865558e518e8c",
+      "published_bytes": 2246,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_floor_3step/manifest.json",
+          "raw_sha256": "aa75e77d06c100fd9a97149f72e0591bd47736fc971610ed514865558e518e8c",
+          "raw_bytes": 2246
+        }
+      ],
+      "raw_sha256": "aa75e77d06c100fd9a97149f72e0591bd47736fc971610ed514865558e518e8c"
+    },
+    {
+      "file": "arms/l2l_3step/arm.compact.json",
+      "published_sha256": "a01624c50fba97b78d9b0aa9d2175a042d77fca59b72b4355783e102555f4174",
+      "published_bytes": 190226,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/l2l_3step/arm.json",
+          "raw_sha256": "c33ad854a59f693e8fb3168701fa84a4fda178d83d809e4cae7c4d8d6ed035d2",
+          "raw_bytes": 748645
+        }
+      ],
+      "raw_sha256": "c33ad854a59f693e8fb3168701fa84a4fda178d83d809e4cae7c4d8d6ed035d2"
+    },
+    {
+      "file": "arms/l2l_3step/manifest.json",
+      "published_sha256": "767a0bac06519c67146b7f76d8cb4ec6f6c72ca0ffd13d22be9d0682cbf4c3c1",
+      "published_bytes": 2236,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/l2l_3step/manifest.json",
+          "raw_sha256": "767a0bac06519c67146b7f76d8cb4ec6f6c72ca0ffd13d22be9d0682cbf4c3c1",
+          "raw_bytes": 2236
+        }
+      ],
+      "raw_sha256": "767a0bac06519c67146b7f76d8cb4ec6f6c72ca0ffd13d22be9d0682cbf4c3c1"
+    },
+    {
+      "file": "arms/ga_native_1step/arm.compact.json",
+      "published_sha256": "8b950db375b8afab9b1d6bfb87daed35d8221b17f3e0c2edafa773bdbb7d845f",
+      "published_bytes": 70537,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_native_1step/arm.json",
+          "raw_sha256": "7f35845c2b31fd350cb65d78c621868df0aba0cbd1d4e733f20be5f2946f20a2",
+          "raw_bytes": 573969
+        }
+      ],
+      "raw_sha256": "7f35845c2b31fd350cb65d78c621868df0aba0cbd1d4e733f20be5f2946f20a2"
+    },
+    {
+      "file": "arms/ga_native_1step/manifest.json",
+      "published_sha256": "87941cdc064b7cfeb9b72ddea704e2d10935d45cf168eea48556e6fc677be6d4",
+      "published_bytes": 1096,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_native_1step/manifest.json",
+          "raw_sha256": "87941cdc064b7cfeb9b72ddea704e2d10935d45cf168eea48556e6fc677be6d4",
+          "raw_bytes": 1096
+        }
+      ],
+      "raw_sha256": "87941cdc064b7cfeb9b72ddea704e2d10935d45cf168eea48556e6fc677be6d4"
+    },
+    {
+      "file": "arms/ga_native_trace_1step/arm.compact.json",
+      "published_sha256": "c8aef073ff6dabe174d5c0c0e053d3118106a681fd5a4455e8c71002b51bcf53",
+      "published_bytes": 128182,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_native_trace_1step/arm.json",
+          "raw_sha256": "cece70209e0b6c2333747bf5b2dd351065279d8a91ed38c8378cd9d4dcc9da65",
+          "raw_bytes": 1494860
+        }
+      ],
+      "raw_sha256": "cece70209e0b6c2333747bf5b2dd351065279d8a91ed38c8378cd9d4dcc9da65"
+    },
+    {
+      "file": "arms/ga_native_trace_1step/manifest.json",
+      "published_sha256": "362bd3b44328b678622fc666207ce578102bf8e9194df85cf635e1b6d13a1469",
+      "published_bytes": 59614,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_native_trace_1step/manifest.json",
+          "raw_sha256": "362bd3b44328b678622fc666207ce578102bf8e9194df85cf635e1b6d13a1469",
+          "raw_bytes": 59614
+        }
+      ],
+      "raw_sha256": "362bd3b44328b678622fc666207ce578102bf8e9194df85cf635e1b6d13a1469"
+    },
+    {
+      "file": "arms/ga_padded_1step/arm.compact.json",
+      "published_sha256": "db6c473bfa2d0618170990d13a8b28c5566170ca5bec74e378c845fdbba3df59",
+      "published_bytes": 69626,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_padded_1step/arm.json",
+          "raw_sha256": "e289872103546bdbb48bfb9df252cae4528e640653fea0b08930173e3275e45a",
+          "raw_bytes": 572434
+        }
+      ],
+      "raw_sha256": "e289872103546bdbb48bfb9df252cae4528e640653fea0b08930173e3275e45a"
+    },
+    {
+      "file": "arms/ga_padded_1step/manifest.json",
+      "published_sha256": "4a9721b1163c49a7b7a3bb1fabb190f6b5cd3e76e4bcdd5e66c132d4238e911e",
+      "published_bytes": 1094,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_padded_1step/manifest.json",
+          "raw_sha256": "4a9721b1163c49a7b7a3bb1fabb190f6b5cd3e76e4bcdd5e66c132d4238e911e",
+          "raw_bytes": 1094
+        }
+      ],
+      "raw_sha256": "4a9721b1163c49a7b7a3bb1fabb190f6b5cd3e76e4bcdd5e66c132d4238e911e"
+    },
+    {
+      "file": "arms/ga_padded_trace_1step/arm.compact.json",
+      "published_sha256": "69f69337d52306f2ea2190658cf4a1d17504cbc38ec8d5c8173a40ebc787583f",
+      "published_bytes": 127264,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_padded_trace_1step/arm.json",
+          "raw_sha256": "e8197771d99a93bf42c23bd2e1adf33141ec3c7fdf099d5dd914bfb007ed6663",
+          "raw_bytes": 1493318
+        }
+      ],
+      "raw_sha256": "e8197771d99a93bf42c23bd2e1adf33141ec3c7fdf099d5dd914bfb007ed6663"
+    },
+    {
+      "file": "arms/ga_padded_trace_1step/manifest.json",
+      "published_sha256": "a7481cfa8a3007d4ab5d0ffd3cd48d248a90946ec31db4c7c86ebd45c8efc06f",
+      "published_bytes": 59612,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_padded_trace_1step/manifest.json",
+          "raw_sha256": "a7481cfa8a3007d4ab5d0ffd3cd48d248a90946ec31db4c7c86ebd45c8efc06f",
+          "raw_bytes": 59612
+        }
+      ],
+      "raw_sha256": "a7481cfa8a3007d4ab5d0ffd3cd48d248a90946ec31db4c7c86ebd45c8efc06f"
+    },
+    {
+      "file": "arms/l2l_trace_1step/arm.compact.json",
+      "published_sha256": "6abfc9f5e5b42afc1f84ae94b8782325c84c61603b6242116e0e2fe9909cb6b7",
+      "published_bytes": 146168,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/l2l_trace_1step/arm.json",
+          "raw_sha256": "c76730e043e250ed3db927724deb882dcdcb0b38c424d6a829d4fc46b96e74b3",
+          "raw_bytes": 1624857
+        }
+      ],
+      "raw_sha256": "c76730e043e250ed3db927724deb882dcdcb0b38c424d6a829d4fc46b96e74b3"
+    },
+    {
+      "file": "arms/l2l_trace_1step/manifest.json",
+      "published_sha256": "b761d2d336f5e23e4e7c61a26894fa6ef3ac258fbebe882c0d02e0f65f045d88",
+      "published_bytes": 82958,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/l2l_trace_1step/manifest.json",
+          "raw_sha256": "b761d2d336f5e23e4e7c61a26894fa6ef3ac258fbebe882c0d02e0f65f045d88",
+          "raw_bytes": 82958
+        }
+      ],
+      "raw_sha256": "b761d2d336f5e23e4e7c61a26894fa6ef3ac258fbebe882c0d02e0f65f045d88"
+    },
+    {
+      "file": "arms/ga_native_no_mask_verified_v3/arm.compact.json",
+      "published_sha256": "2feb3699c396cb2407d21f99836ecd1867e3e38a855bc95a0f9633d525e25d45",
+      "published_bytes": 69544,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_native_no_mask_verified_v3/arm.json",
+          "raw_sha256": "b932a55c383c481e9774c96e70c610562d965f86627d1a2ec04d2963113c399a",
+          "raw_bytes": 572323
+        }
+      ],
+      "raw_sha256": "b932a55c383c481e9774c96e70c610562d965f86627d1a2ec04d2963113c399a"
+    },
+    {
+      "file": "arms/ga_native_no_mask_verified_v3/manifest.json",
+      "published_sha256": "4593cdddd80eb9ad1604064b0df7f6b73e138aae5674f428a5b2543fcf0234d3",
+      "published_bytes": 1094,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_native_no_mask_verified_v3/manifest.json",
+          "raw_sha256": "4593cdddd80eb9ad1604064b0df7f6b73e138aae5674f428a5b2543fcf0234d3",
+          "raw_bytes": 1094
+        }
+      ],
+      "raw_sha256": "4593cdddd80eb9ad1604064b0df7f6b73e138aae5674f428a5b2543fcf0234d3"
+    },
+    {
+      "file": "arms/l2l_backward_outside/arm.compact.json",
+      "published_sha256": "f2068d991b208ac0f45914228ae3c9bd78e2a9b7903b5ab393c89760141ff220",
+      "published_bytes": 146061,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/l2l_backward_outside/arm.json",
+          "raw_sha256": "da11eeabdca97f87a425423927305175ef2c74a4548e0c43fd030d6b21516fb6",
+          "raw_bytes": 1624725
+        }
+      ],
+      "raw_sha256": "da11eeabdca97f87a425423927305175ef2c74a4548e0c43fd030d6b21516fb6"
+    },
+    {
+      "file": "arms/l2l_backward_outside/manifest.json",
+      "published_sha256": "289f0f148a461535b015a49aee887289f8c19426b5ab234463a80fb4933925f0",
+      "published_bytes": 82958,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/l2l_backward_outside/manifest.json",
+          "raw_sha256": "289f0f148a461535b015a49aee887289f8c19426b5ab234463a80fb4933925f0",
+          "raw_bytes": 82958
+        }
+      ],
+      "raw_sha256": "289f0f148a461535b015a49aee887289f8c19426b5ab234463a80fb4933925f0"
+    },
+    {
+      "file": "arms/ga_padded_3step/arm.compact.json",
+      "published_sha256": "1a17fafe74d9035da3e36798edd28cd18dd355356c7e8e9a3df968120d7e6bc1",
+      "published_bytes": 188965,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_padded_3step/arm.json",
+          "raw_sha256": "5fb3be126eba18f13c30365af1511c20f109e80dde32d8e17a014377607cf504",
+          "raw_bytes": 746890
+        }
+      ],
+      "raw_sha256": "5fb3be126eba18f13c30365af1511c20f109e80dde32d8e17a014377607cf504"
+    },
+    {
+      "file": "arms/ga_padded_3step/manifest.json",
+      "published_sha256": "fc6b7b5b765d89f128f6521688bcbdd354be6d38e1a4155ff1f5c47ae5e53cbf",
+      "published_bytes": 2235,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_padded_3step/manifest.json",
+          "raw_sha256": "fc6b7b5b765d89f128f6521688bcbdd354be6d38e1a4155ff1f5c47ae5e53cbf",
+          "raw_bytes": 2235
+        }
+      ],
+      "raw_sha256": "fc6b7b5b765d89f128f6521688bcbdd354be6d38e1a4155ff1f5c47ae5e53cbf"
+    },
+    {
+      "file": "arms/ga_padded_repeat_3step/arm.compact.json",
+      "published_sha256": "a169bd6703e8cb12f040e7bf92c248aef935e2afc0035632d812db85caf3b883",
+      "published_bytes": 188972,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_padded_repeat_3step/arm.json",
+          "raw_sha256": "cfd1e060baace5a77af8d4a802c202ddecfc7da4ec2033de1a480407024345ac",
+          "raw_bytes": 746890
+        }
+      ],
+      "raw_sha256": "cfd1e060baace5a77af8d4a802c202ddecfc7da4ec2033de1a480407024345ac"
+    },
+    {
+      "file": "arms/ga_padded_repeat_3step/manifest.json",
+      "published_sha256": "2872c4a990c4905a1fdad31ad22d7e70c1e9a228f28fe4810c164c2553bbd27a",
+      "published_bytes": 2235,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_padded_repeat_3step/manifest.json",
+          "raw_sha256": "2872c4a990c4905a1fdad31ad22d7e70c1e9a228f28fe4810c164c2553bbd27a",
+          "raw_bytes": 2235
+        }
+      ],
+      "raw_sha256": "2872c4a990c4905a1fdad31ad22d7e70c1e9a228f28fe4810c164c2553bbd27a"
+    },
+    {
+      "file": "arms/ga_padded_floor_3step/arm.compact.json",
+      "published_sha256": "d1eb628bdac4bd8bd60b6bb2dfef2f70963aa10e08a7e3a995b2516d5136d7c9",
+      "published_bytes": 189009,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_padded_floor_3step/arm.json",
+          "raw_sha256": "ac6e6f8711f87a5bf5d23f9d4f9d2d4fcb20d30a653f8566fe8ce702d7cff57f",
+          "raw_bytes": 746923
+        }
+      ],
+      "raw_sha256": "ac6e6f8711f87a5bf5d23f9d4f9d2d4fcb20d30a653f8566fe8ce702d7cff57f"
+    },
+    {
+      "file": "arms/ga_padded_floor_3step/manifest.json",
+      "published_sha256": "cf185043fb187f7bf959b3dd8b3bf5f98a7e0716b56aea965107769429e1d977",
+      "published_bytes": 2241,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/ga_padded_floor_3step/manifest.json",
+          "raw_sha256": "cf185043fb187f7bf959b3dd8b3bf5f98a7e0716b56aea965107769429e1d977",
+          "raw_bytes": 2241
+        }
+      ],
+      "raw_sha256": "cf185043fb187f7bf959b3dd8b3bf5f98a7e0716b56aea965107769429e1d977"
+    },
+    {
+      "file": "arms/l2l_outside_3step/arm.compact.json",
+      "published_sha256": "067b9c40c07e5265978409bf439503c50b401a259f13061736e2d6a5c49b76f3",
+      "published_bytes": 190177,
+      "transformation": "DERIVED: omit six fields deduplicated in common-fingerprints.compact.json and dispatch payload; retain all remaining values including gradients, windows, calls, losses, rates, argv, artifacts; add explicit projection metadata; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/l2l_outside_3step/arm.json",
+          "raw_sha256": "f610232372d5fa81cf0c3555128b2f40bcb082aaa5a86e1630635ec68ab59a28",
+          "raw_bytes": 748573
+        }
+      ],
+      "raw_sha256": "f610232372d5fa81cf0c3555128b2f40bcb082aaa5a86e1630635ec68ab59a28"
+    },
+    {
+      "file": "arms/l2l_outside_3step/manifest.json",
+      "published_sha256": "de2e39d158df848c7477a67a6e753b44720506b78b2b5f2b0e0095b2b4915e4c",
+      "published_bytes": 2236,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/adaptive/l2l_outside_3step/manifest.json",
+          "raw_sha256": "de2e39d158df848c7477a67a6e753b44720506b78b2b5f2b0e0095b2b4915e4c",
+          "raw_bytes": 2236
+        }
+      ],
+      "raw_sha256": "de2e39d158df848c7477a67a6e753b44720506b78b2b5f2b0e0095b2b4915e4c"
+    },
+    {
+      "file": "arms/ga_native_trace_1step/traces.compact.json",
+      "published_sha256": "05037570cca9ee5ba85171bb09239b8d60f1fa67c8b318d9a598e408656f54e8",
+      "published_bytes": 216262,
+      "transformation": "DERIVED: remove valid_positions arrays only; preserve all other trace fields; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_native_trace_1step/traces.json",
+          "raw_sha256": "855fa09c1f3d1068d39fe4ccfebaf500cb9ab95eaf8be467914eba11b1884210",
+          "raw_bytes": 1896688
+        }
+      ],
+      "raw_sha256": "855fa09c1f3d1068d39fe4ccfebaf500cb9ab95eaf8be467914eba11b1884210"
+    },
+    {
+      "file": "arms/ga_padded_trace_1step/traces.compact.json",
+      "published_sha256": "50dc9d0faee62965b6129d59db03e8acdf8d8a6d320999547f8ddd15d6fa98c7",
+      "published_bytes": 216262,
+      "transformation": "DERIVED: remove valid_positions arrays only; preserve all other trace fields; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/ga_padded_trace_1step/traces.json",
+          "raw_sha256": "7ecaba09b9754151bfc70c17bacd1f6df655d6b4cb460603bc8b25731473bd7b",
+          "raw_bytes": 1896688
+        }
+      ],
+      "raw_sha256": "7ecaba09b9754151bfc70c17bacd1f6df655d6b4cb460603bc8b25731473bd7b"
+    },
+    {
+      "file": "arms/l2l_trace_1step/traces.compact.json",
+      "published_sha256": "1b307c9563e0c7ef7bd3ee486d208ba99cc3d647b127e8840fb865b463e826b2",
+      "published_bytes": 298657,
+      "transformation": "DERIVED: remove valid_positions arrays only; preserve all other trace fields; compact JSON serialization; path substitutions",
+      "sources": [
+        {
+          "file": "final-metadata/out/arms/l2l_trace_1step/traces.json",
+          "raw_sha256": "0cc0243201ce0c8d18520688b5e0691bca448f5b8feff28d5e41c4872030b1c8",
+          "raw_bytes": 2639914
+        }
+      ],
+      "raw_sha256": "0cc0243201ce0c8d18520688b5e0691bca448f5b8feff28d5e41c4872030b1c8"
+    },
+    {
+      "file": "compact-causal-summary.json",
+      "published_sha256": "89f40572be6ac1167a85100ce6018d0da6cc3765010caa529172744612e424bc",
+      "published_bytes": 3418853,
+      "transformation": "DERIVED: explicit projection and new reviewed interpretation; see derivation and provenance_sources",
+      "sources": [
+        {
+          "file": "metadata/analysis.json.gz",
+          "raw_sha256": "a1b7ab42a9c681365c36ef15bd07d134f9b33f77c840bf34e97b7996f8363ea0",
+          "raw_bytes": 6794136,
+          "decompressed_sha256": "6a5cde7c311d8643a15cfe924d241ae3c6622e041f9a8d37abb416b815e376da",
+          "decompressed_bytes": 57439661
+        },
+        {
+          "file": "final-metadata/out/arms/ga_3step/arm.json",
+          "raw_sha256": "c4f37a9172967edf6f0c7a5fbb95418e61c61099417166fca311d0c97d8f8455",
+          "raw_bytes": 750880
+        },
+        {
+          "file": "final-metadata/out/arms/ga_repeat_3step/arm.json",
+          "raw_sha256": "241dd889e3daa778d697104f974e72f89a3474b4a56fd2c3173318da7f4187e8",
+          "raw_bytes": 750913
+        },
+        {
+          "file": "final-metadata/out/arms/ga_floor_3step/arm.json",
+          "raw_sha256": "375b90e3ec599175e0f7ce86d546b5ced3a997f2e397147a49cfb5c6518c76b2",
+          "raw_bytes": 750961
+        },
+        {
+          "file": "final-metadata/out/arms/l2l_3step/arm.json",
+          "raw_sha256": "c33ad854a59f693e8fb3168701fa84a4fda178d83d809e4cae7c4d8d6ed035d2",
+          "raw_bytes": 748645
+        },
+        {
+          "file": "final-metadata/out/arms/ga_native_1step/arm.json",
+          "raw_sha256": "7f35845c2b31fd350cb65d78c621868df0aba0cbd1d4e733f20be5f2946f20a2",
+          "raw_bytes": 573969
+        },
+        {
+          "file": "final-metadata/out/arms/ga_native_trace_1step/arm.json",
+          "raw_sha256": "cece70209e0b6c2333747bf5b2dd351065279d8a91ed38c8378cd9d4dcc9da65",
+          "raw_bytes": 1494860
+        },
+        {
+          "file": "final-metadata/out/arms/ga_padded_1step/arm.json",
+          "raw_sha256": "e289872103546bdbb48bfb9df252cae4528e640653fea0b08930173e3275e45a",
+          "raw_bytes": 572434
+        },
+        {
+          "file": "final-metadata/out/arms/ga_padded_trace_1step/arm.json",
+          "raw_sha256": "e8197771d99a93bf42c23bd2e1adf33141ec3c7fdf099d5dd914bfb007ed6663",
+          "raw_bytes": 1493318
+        },
+        {
+          "file": "final-metadata/out/arms/l2l_trace_1step/arm.json",
+          "raw_sha256": "c76730e043e250ed3db927724deb882dcdcb0b38c424d6a829d4fc46b96e74b3",
+          "raw_bytes": 1624857
+        },
+        {
+          "file": "final-metadata/adaptive/ga_native_no_mask_verified_v3/arm.json",
+          "raw_sha256": "b932a55c383c481e9774c96e70c610562d965f86627d1a2ec04d2963113c399a",
+          "raw_bytes": 572323
+        },
+        {
+          "file": "final-metadata/adaptive/l2l_backward_outside/arm.json",
+          "raw_sha256": "da11eeabdca97f87a425423927305175ef2c74a4548e0c43fd030d6b21516fb6",
+          "raw_bytes": 1624725
+        },
+        {
+          "file": "final-metadata/adaptive/ga_padded_3step/arm.json",
+          "raw_sha256": "5fb3be126eba18f13c30365af1511c20f109e80dde32d8e17a014377607cf504",
+          "raw_bytes": 746890
+        },
+        {
+          "file": "final-metadata/adaptive/ga_padded_repeat_3step/arm.json",
+          "raw_sha256": "cfd1e060baace5a77af8d4a802c202ddecfc7da4ec2033de1a480407024345ac",
+          "raw_bytes": 746890
+        },
+        {
+          "file": "final-metadata/adaptive/ga_padded_floor_3step/arm.json",
+          "raw_sha256": "ac6e6f8711f87a5bf5d23f9d4f9d2d4fcb20d30a653f8566fe8ce702d7cff57f",
+          "raw_bytes": 746923
+        },
+        {
+          "file": "final-metadata/adaptive/l2l_outside_3step/arm.json",
+          "raw_sha256": "f610232372d5fa81cf0c3555128b2f40bcb082aaa5a86e1630635ec68ab59a28",
+          "raw_bytes": 748573
+        },
+        {
+          "file": "final-metadata/confirmation-summary.json",
+          "raw_sha256": "401aa93dce6b5604d671f11429057cff38e304a24c33c4a9ae9c94c34f37eb1c",
+          "raw_bytes": 1778
+        },
+        {
+          "file": "final-metadata/aligned-comparator-confirmed.json",
+          "raw_sha256": "9b4ece10835e581ce40718a6bc56b0e7243d69061795411458b770cb6b5bcbc4",
+          "raw_bytes": 1793
+        }
+      ]
+    },
+    {
+      "file": "session.json",
+      "published_sha256": "d348986270bb3b5c2216bbcdb9fa6207f9ab5def2ba25f755f0b6785fefd6630",
+      "published_bytes": 310698,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/out/session.json",
+          "raw_sha256": "cb78e16f541e4f9de0eda06e87583037e9c16e6c53260f769673adf2daf162fa",
+          "raw_bytes": 310994
+        }
+      ],
+      "raw_sha256": "cb78e16f541e4f9de0eda06e87583037e9c16e6c53260f769673adf2daf162fa"
+    },
+    {
+      "file": "aligned-comparator-confirmed.json",
+      "published_sha256": "9b4ece10835e581ce40718a6bc56b0e7243d69061795411458b770cb6b5bcbc4",
+      "published_bytes": 1793,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/aligned-comparator-confirmed.json",
+          "raw_sha256": "9b4ece10835e581ce40718a6bc56b0e7243d69061795411458b770cb6b5bcbc4",
+          "raw_bytes": 1793
+        }
+      ],
+      "raw_sha256": "9b4ece10835e581ce40718a6bc56b0e7243d69061795411458b770cb6b5bcbc4"
+    },
+    {
+      "file": "confirmation-summary.json",
+      "published_sha256": "401aa93dce6b5604d671f11429057cff38e304a24c33c4a9ae9c94c34f37eb1c",
+      "published_bytes": 1778,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/confirmation-summary.json",
+          "raw_sha256": "401aa93dce6b5604d671f11429057cff38e304a24c33c4a9ae9c94c34f37eb1c",
+          "raw_bytes": 1778
+        }
+      ],
+      "raw_sha256": "401aa93dce6b5604d671f11429057cff38e304a24c33c4a9ae9c94c34f37eb1c"
+    },
+    {
+      "file": "runlog/diag-start.txt",
+      "published_sha256": "302ac6bf692a22b24bcc784604ca593c03a0c5a99f45e0b82b55d5731a365293",
+      "published_bytes": 21,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/runlog/diag-start.txt",
+          "raw_sha256": "302ac6bf692a22b24bcc784604ca593c03a0c5a99f45e0b82b55d5731a365293",
+          "raw_bytes": 21
+        }
+      ],
+      "raw_sha256": "302ac6bf692a22b24bcc784604ca593c03a0c5a99f45e0b82b55d5731a365293"
+    },
+    {
+      "file": "runlog/diag-exit.txt",
+      "published_sha256": "06ec5cb98e686e1811fe494a05eefee553342f27518443aebc1e06ced58d9fc4",
+      "published_bytes": 28,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/runlog/diag-exit.txt",
+          "raw_sha256": "06ec5cb98e686e1811fe494a05eefee553342f27518443aebc1e06ced58d9fc4",
+          "raw_bytes": 28
+        }
+      ],
+      "raw_sha256": "06ec5cb98e686e1811fe494a05eefee553342f27518443aebc1e06ced58d9fc4"
+    },
+    {
+      "file": "runlog/diagnostic-head.txt",
+      "published_sha256": "e06cecfdf3b21c559dc9aca5f59b12c26edc43a0ff82e8eb9a95bc553c5ab60f",
+      "published_bytes": 41,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/runlog/diagnostic-head.txt",
+          "raw_sha256": "e06cecfdf3b21c559dc9aca5f59b12c26edc43a0ff82e8eb9a95bc553c5ab60f",
+          "raw_bytes": 41
+        }
+      ],
+      "raw_sha256": "e06cecfdf3b21c559dc9aca5f59b12c26edc43a0ff82e8eb9a95bc553c5ab60f"
+    },
+    {
+      "file": "runlog/fixture-sha256.txt",
+      "published_sha256": "dffb8dc21e6d511ae27aba1fe50c64182245b36d8870161bf605e199831f9022",
+      "published_bytes": 375,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/runlog/fixture-sha256.txt",
+          "raw_sha256": "dffb8dc21e6d511ae27aba1fe50c64182245b36d8870161bf605e199831f9022",
+          "raw_bytes": 375
+        }
+      ],
+      "raw_sha256": "dffb8dc21e6d511ae27aba1fe50c64182245b36d8870161bf605e199831f9022"
+    },
+    {
+      "file": "runlog/pip-freeze.txt",
+      "published_sha256": "b1f80ed53ed9f5b3a49de1e2ac9234d8586704dab08a82d31f88a7365b3435a8",
+      "published_bytes": 1248,
+      "transformation": "Path substitutions only; all other source bytes retained",
+      "sources": [
+        {
+          "file": "final-metadata/runlog/pip-freeze.txt",
+          "raw_sha256": "b1f80ed53ed9f5b3a49de1e2ac9234d8586704dab08a82d31f88a7365b3435a8",
+          "raw_bytes": 1248
+        }
+      ],
+      "raw_sha256": "b1f80ed53ed9f5b3a49de1e2ac9234d8586704dab08a82d31f88a7365b3435a8"
+    }
+  ],
+  "private_archives": [
+    {
+      "file": "diagnostic-evidence.tar.gz",
+      "bytes": 3910733600,
+      "entries": 1599,
+      "sha256": "1f765ff706a904fdfc4fdc16909ce73b9f12c2eab75a92dad03cca988d346a39",
+      "verification": "Integration-owner supplied hash/count of complete initial export"
+    },
+    {
+      "file": "metadata.tgz",
+      "sha256": "7fcd19daeed18ba0246f83a4d1b5409639849705fbf3abcbbe254b7d629fc60c",
+      "verification": "Integration-owner supplied export hash"
+    },
+    {
+      "file": "final-metadata.tgz",
+      "sha256": "7c4e1640e72ad0512fdd2a86d63372ed4b8899b403f630e175816967f5728750",
+      "verification": "Integration-owner supplied export hash"
+    }
+  ],
+  "excluded": [
+    "All tensors, logs, rental/operational tooling, credentials, API and billing snapshots",
+    "Full metadata/analysis.json.gz (projection published instead)",
+    "adaptive/ga_native_no_mask (incorrect effective metadata)",
+    "adaptive/ga_native_no_mask_verified (exclusive metadata-file collision)"
+  ],
+  "manifest_policy": "LF SHA256SUMS covers generated evidence plus provenance.json; excludes README.md and itself",
+  "verification_scope": "Publisher reads saved metadata and derives projections/equality summaries only. It does not reload tensors, rerun the analyzer/comparator, or independently verify integration-owner archive, source-identity, billing, or deletion attestations.",
+  "private_diagnostic_sources": [
+    {
+      "file": "final-metadata/diagnostic/a3_1b_diagnose.py",
+      "raw_sha256": "e4b7ed50d00478ed2c01188558bbabf1da2f111ae14400e27b11b4f082cbf392",
+      "raw_bytes": 61432,
+      "behavior": "Original diagnostic runner; source commit cf0a7490."
+    },
+    {
+      "file": "final-metadata/diagnostic/a3_1b_analyze.py",
+      "raw_sha256": "3649e8c6da912cb596e9efeb2676551cb6a4ba79c3046effbc4e142fe2dcdc20",
+      "raw_bytes": 84307,
+      "behavior": "Original CPU analyzer; initial report predates adaptive interventions."
+    },
+    {
+      "file": "final-metadata/diagnostic/backward_scope_probe.py",
+      "raw_sha256": "736c31a23652eecab8175b5c6956bb89678eeaa8a0e6235e7c18ea9530194a86",
+      "raw_bytes": 696,
+      "behavior": "Direct child wrapper patches torch.autograd.backward with CUDA autocast disabled, forwards all arguments unchanged, and restores the callable in finally."
+    },
+    {
+      "file": "final-metadata/diagnostic/confirmation_probe.py",
+      "raw_sha256": "7b0088908afa4befe5748464deeb77bc48d923fffc3a49a60a8ed61e543de872",
+      "raw_bytes": 1676,
+      "behavior": "Executed padded-GA and L2L-outside three-step modes. Its native-no-mask mode recorded incorrect effective metadata and is not accepted as control evidence."
+    },
+    {
+      "file": "final-metadata/diagnostic/confirmation_probe_v3.py",
+      "raw_sha256": "99556d1b152c18cbe074b29513a8ab7b6e2144e0ff4536b3f24c1c04af5a037b",
+      "raw_bytes": 1845,
+      "behavior": "Accepted native-no-mask control only: suppress premature ledger.effective, remove only attention_mask, record actual inputs once with none_causal_default."
+    },
+    {
+      "file": "final-metadata/diagnostic/aligned_floor_probe.py",
+      "raw_sha256": "b6c47957e0e89d11284fba438a846d82353bf32d54daf7e1e262a940cfab26cb",
+      "raw_bytes": 473,
+      "behavior": "Sets pad=True only for ga_floor_3step (EFFICIENT_ATTENTION)."
+    }
+  ],
+  "private_analysis": {
+    "file": "metadata/analysis.json.gz",
+    "raw_sha256": "a1b7ab42a9c681365c36ef15bd07d134f9b33f77c840bf34e97b7996f8363ea0",
+    "raw_bytes": 6794136,
+    "decompressed_sha256": "6a5cde7c311d8643a15cfe924d241ae3c6622e041f9a8d37abb416b815e376da",
+    "decompressed_bytes": 57439661
+  }
+}
