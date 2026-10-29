@@ -10,6 +10,12 @@ to another $5 on 2026-10-29 to finish the same protocol. This new spending windo
 includes every new attempt, compute, storage and traffic, with a cumulative cap
 of $8.863. Evaluation selection and acceptance criteria are unchanged.
 
+Before any follow-up giant measurement, the $4.94 offer became unavailable.
+The user then explicitly authorized up to $7.20 for the repeat against a fresh
+$7.09 estimate, including reserve. The revised cumulative cap is $11.063;
+this replaces the previous $5 follow-up window, without changing evaluation
+data or acceptance criteria.
+
 Data: Salesforce/WikiText, wikitext-2-raw-v1 test split, pinned dataset commit
 b08601e04326c79dfdd32d625aee71d232d685c3. Eight eligible row positions are selected
 systematically across the corpus before tokenization; the exact rule, row IDs,
