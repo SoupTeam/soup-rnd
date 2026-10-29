@@ -32,7 +32,7 @@ def rental():
 
 def test_arm_command_uses_batch_16_and_the_venv_python(rental):
     command = rental.arm_command("unsloth", Path("/tmp/out.json"), steps=20)
-    assert command[0].endswith("f3-unsloth/bin/python")
+    assert Path(command[0]).parts[-3:] == ("f3-unsloth", "bin", "python")
     assert command[command.index("--batch") + 1] == "16"
     assert command[command.index("--model") + 1] == "Qwen/Qwen2.5-0.5B"
     assert command[command.index("--steps") + 1] == "20"
@@ -149,7 +149,7 @@ class World:
                 if world.network_down or name in world.upload_fail:
                     raise OSError("network down")
                 world.events.append(("upload", name))
-                world.uploaded[name] = path.read_text(encoding="utf-8")
+                world.uploaded[name] = path.read_bytes()
 
             return upload
 
@@ -256,7 +256,7 @@ def test_a_resume_after_an_upload_outage_keeps_the_original_reports(
     assert len(world.trained()) == 2
     for name, data in originals.items():
         assert (world.workdir / name).read_bytes() == data
-        assert world.uploaded[name] == data.decode("utf-8")
+        assert world.uploaded[name] == data
     assert world.events[-1] == ("destroy", None)
 
 
