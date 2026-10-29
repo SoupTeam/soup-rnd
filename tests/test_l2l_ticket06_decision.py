@@ -78,16 +78,20 @@ def test_a_required_check_missing_from_the_record_counts_as_unknown():
     assert dec.decide(_evidence(arms=[arm]))["blocked_by"] == {"suspend:unknown": 1}
 
 
-def test_command_reads_the_committed_raw_records():
+def test_no_arm_records_in_the_valid_set_gives_no_verdict():
+    dec = _load("l2l_ticket06_decision")
+    out = dec.decide(_evidence(arms=[]))
+    assert out["verdict"] == "нет вердикта" and out["blocked_by"] == {"no arm records": 1}
+
+
+def test_command_reads_only_the_valid_set_and_the_rerun_gate_records(tmp_path):
     done = subprocess.run(
         [sys.executable, str(HARNESS / "l2l_ticket06_decision.py")],
         capture_output=True, text=True, check=False,
     )
     assert done.returncode == 0, done.stderr
     out = json.loads(done.stdout)
-    # the 60 rerun arms all have the required foreign_reads check unknown (no block device)
+    # earlier sets have the required foreign_reads check unknown, so the gate does not read them
     assert out["verdict"] == "нет вердикта"
-    assert out["blocked_by"] == {"foreign_reads:unknown": 60}
-    assert out["arm_outcomes"] == {"unknown": 60}
-    assert out["criteria"] == {"R1": True, "R2": True, "R3": True}
-    assert len(out["evidence"]["r1"]) == 3 and len(out["evidence"]["r2"]) == 4
+    assert all("rerun-sft" not in item["source"] for item in out["evidence"]["r1"])
+    assert len(out["evidence"]["r2"]) == 4

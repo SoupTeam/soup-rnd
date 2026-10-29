@@ -23,6 +23,10 @@ from typing import Any, Dict, List, Optional
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 
+#: The only ticket-04 set the gate reads: measured where ``foreign_reads`` answers (a vast local
+#: volume), see ``benchmarks/l2l-readiness-rule-a5.md``. The earlier sets are history.
+VALID_SET = "l2l-ticket04-valid-5070ti"
+
 #: What the records do not cover. Not computed from the data; a limit leaves this list when
 #: a measurement for it exists.
 LIMITS = [
@@ -42,6 +46,8 @@ def decide(evidence: Dict[str, List[Dict[str, Any]]], limits: Optional[List[str]
     limits = LIMITS if limits is None else limits
     arms = evidence.get("arms", [])
     blocked = _blocked(arms)
+    if not arms:
+        blocked = {"no arm records": 1}
     criteria = {
         "R1": bool(evidence["r1"]) and all(item["pass"] for item in evidence["r1"]),
         "R2": bool(evidence["r2"]) and all(item["pass"] for item in evidence["r2"]),
@@ -75,8 +81,7 @@ def _blocked(arms: List[Dict[str, Any]]) -> Dict[str, int]:
 def collect(results: Path = RESULTS) -> Dict[str, List[Dict[str, Any]]]:
     """The evidence from the committed raw records under ``results``."""
     r1, r3, r2, arms = [], [], [], []
-    pattern = str(results / "l2l-mistral7b-ticket04-rerun-sft" / "*" / "results" / "campaign"
-                  / "summary.json")
+    pattern = str(results / VALID_SET / "results" / "campaign" / "summary.json")
     for path in sorted(glob.glob(pattern)):
         summary = json.loads(Path(path).read_text())
         source = str(Path(path).relative_to(results))
