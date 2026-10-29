@@ -1,4 +1,4 @@
-# B1.2: sequential expert forward with a bounded weight arena
+# Streamed experts: B1.2 forward and B1.3 backward
 
 This internal RND primitive adapts the forward loop from original Soup
 [`d500ae0d`](https://github.com/MakazhanAlpamys/Soup/tree/d500ae0dca7c4da905f8d59c9866af2f8aaa824b).
@@ -6,10 +6,11 @@ It reuses the [B1.1 cache codec](expert-shard-format.md), preserves the native
 eager arithmetic and loads one routed expert at a time. Experts without tokens
 are not read. Coverage can approach 100%, so reduced disk reads are not promised.
 
-This is forward-only. A gradient-bearing input or routing weight under enabled
-autograd is refused with a B1.3 message. The public training builder still refuses
-per-expert caches, including before materializing real weights/adapters. Backward
-is B1.3; planner, public YAML and CLI integration are B1.4. No defaults change.
+B1.3 adds first-order backward through frozen routed experts and internal
+DeepSeek-V3 runtime/L2L integration. Non-expert LoRA adapters can train; routed
+base weights and adapters on routed experts remain unsupported. The public L2L
+launch guard still admits only Llama/Mistral. Planner, public YAML/CLI fields,
+budgets and defaults are unchanged; public MoE enablement belongs to B1.4.
 
 ## Memory and ownership
 
@@ -66,26 +67,79 @@ Only the routed-experts submodule is replaced. Router, correction bias, shared
 experts and dense decoder layers remain with the original DeepSeek/Kimi block.
 The full block and shared-expert call count are tested separately.
 
-This helper is for forward validation, not installation into a training run or
-serialization of a complete streamed model. Device placement is fixed when the
-pool is created; moving an enclosing module does not move this caller-owned pool.
+The internal `build_streamed_model` path installs one reader per MoE layer and
+one shared expert pool before taking layer weight maps, so routed weights are
+excluded from decoder-layer slots. `StreamRuntime` owns and closes both the
+readers and the pool. Its statistics include `expert_fetches`,
+`expert_bytes_read` (logical stored bytes) and `expert_buffer_bytes` (the arena).
+Device placement is fixed when the pool is created; moving an enclosing module
+does not move the pool.
+
+## B1.3 backward and L2L
+
+Each hit expert's autograd node saves only its gathered hidden states and
+routing weights, never a view of the reusable arena. Backward first unpacks
+those activations (which may trigger checkpoint recompute), then leases the
+same expert again through the reader/pool and rebuilds the native eager local
+graph under the forward's autocast state. Gradients flow to hidden states,
+routing weights and supported non-expert adapters, not routed base weights.
+This is first-order autograd, not a higher-order differentiation interface.
+Expert activations must be stateless. Differentiable calls refuse an activation
+module with registered buffers (including running statistics): recompute would
+update that state twice. Expert-local random draws instead save/replay CPU and
+initialized CUDA RNG around the local backward graph, preserving the caller's
+outer stream. Native SiLU remains deterministic; arbitrary hidden Python state
+is not a supported recomputation contract. No-grad B1.2 calls are unchanged.
+
+The accepted one-slot read cost is three reads per hit expert/micro-batch:
+ordinary checkpointed training does forward, checkpoint recompute and expert
+backward; L2L does no-grad forward, grad recompute and expert backward. Unused
+experts are not read. A decoder-layer load counter is not an expert-read count.
+
+Internally, `L2LStep.run` and `make_l2l_trainer_class` with `attach_l2l_state`
+run native `deepseek_v3` in addition to the dense architectures. L2L replays
+LoRA/eager-attention dropout in accumulation order and leaves CPU/CUDA RNG state
+where ordinary accumulation leaves it. Router choices are checked between the
+forward and recompute. Masked labels, short final windows and no-dropout uneven
+windows retain the existing right-padding contract; uneven windows with dropout
+are refused because padding would change the random draws. MoE trainer logs add
+`l2l_expert_fetches` and `l2l_expert_bytes_read`. None of this widens the public
+`training.l2l` architecture guard.
+
+The independent synthetic smoke needs no pytest invocation or model download:
+
+```text
+python benchmarks/harness/b13_moe_backward_smoke.py --device cpu --output smoke-cpu.json
+python benchmarks/harness/b13_moe_backward_smoke.py --device cuda --output smoke-cuda.json
+```
+
+It compares repeated k=1/2/4 L2L updates against an independent resident eager
+model with identical nonzero LoRA, masked labels and ordinary accumulation. JSON
+records source SHA/dirty hashes, environment, all trainable gradient/state
+differences, reloads, reverse layer visits, arena pointer/plan/budget and CUDA
+allocated/reserved peaks separately. A test-only control corrupts reader staging
+only on backward reloads: forward/loss must remain equal while gradient
+comparison fails. A correct-path PASS alone does not validate that control.
+These are tiny synthetic correctness checks, not convergence, throughput or
+whole-model memory-fit measurements. B1.2 gate results below remain historical
+forward evidence; they are not B1.3 backward or CUDA verification.
 
 ## Local checks
 
 ```text
-python -m pytest tests/test_b1_expert_forward.py tests/test_b1_expert_forward_gate.py --no-cov -v
-python -m pytest tests/test_b1_expert_forward.py -m gpu --no-cov -v
+python -m pytest tests/test_b13_expert_backward.py tests/test_b13_moe_runtime.py --no-cov -v
+python -m pytest tests/test_b13_l2l_moe.py tests/test_b13_moe_trainer.py --no-cov -v
 ruff check src/soup_cli/ scripts/ tests/ benchmarks/
 ```
 
-Tests cover dense and NF4 exactness, nested quantization on/off, varied top-k and
-seeds, empty/partial/all-hit routing, autocast, a same-process different-weight
-negative control, one-slot reuse, insufficient budget, exceptions, explicit
-autograd refusal and full native DeepSeek/Kimi MoE blocks. CUDA checks must be
-reported as skipped when CUDA is unavailable. Small gate-instrument fixtures
-are synthetic; they are not trained-checkpoint acceptance results.
+B1.3 checks compare native eager outputs, losses and nonzero gradients on dense
+and NF4 storage, reload/lifetime behavior, autocast and L2L windows. The trainer
+contract is bitwise fp32 for equal lengths, `atol=2e-5, rtol=1e-4` for uneven
+lengths and `atol=1e-6, rtol=1e-5` for bf16 autocast; tolerances are fixed before
+results. CUDA checks must be reported as skipped when CUDA is unavailable.
+Historical B1.2 tests/gates below do not establish the B1.3 result.
 
-## Prospective trained-checkpoint gate
+## Historical B1.2 prospective trained-checkpoint gate
 
 The [protocol](../benchmarks/protocols/b1.2-expert-forward/protocol.json) pins
 OLMoE `6d84c48581ece794365f2b8e9cfb043c68ade9c5`, full checkpoint hashes,
@@ -135,7 +189,7 @@ Original Soup's earlier forward/backward gate is cited as prior evidence only.
 This path makes no new convergence, throughput, giant-model, physical 8 GB fit,
 physical-host isolation or backward-correctness claim.
 
-## Local verification, 2026-10-20
+## Historical B1.2 local verification, 2026-10-20
 
 On the B1.2 working tree based on B1.1 `9510096a`, Windows/Python 3.11.15,
 torch 2.14.1+cpu, transformers 5.19.0, bitsandbytes 0.50.2 and safetensors 0.8.0:
@@ -152,7 +206,7 @@ separate TRL dependency directory on `PYTHONPATH`. Repository test configuration
 and the borrowed environment were not changed. The B1.1 interrupted-conversion
 fix and its regressions are included in this branch's base.
 
-## Synthetic CUDA preflight, 2026-10-20
+## Historical B1.2 synthetic CUDA preflight, 2026-10-20
 
 The retained [raw archive](../benchmarks/results/b1.2-cuda-preflight-20261020/raw-results.zip)
 contains the exact uncommitted source bytes tested on Linux/Python 3.12.13,
@@ -171,7 +225,7 @@ JUnit passes, negative controls, load order/count and arena allocation bounds.
 Source identity is recorded by manifest and base `9510096a`; it is not presented
 as a precommitted trained-checkpoint protocol.
 
-## Trained-checkpoint gate, 2026-10-20
+## Historical B1.2 trained-checkpoint gate, 2026-10-20
 
 The prospective gate passed all 12 cells at committed source `99664b09` on the
 RTX 3060: trained OLMoE layers 0/7/15, each in CPU fp32, CUDA BF16, CUDA NF4 and
@@ -186,7 +240,7 @@ below the frozen 64 MiB budget. Streamed peak allocated memory was approximately
 The [report, raw archive and replay analyzer](../benchmarks/results/b1.2-olmoe-forward-20261020/report.md)
 retain all cell logs, routing, traces, memory, hashes, protocol and source.
 
-## Acceptance status
+## Historical B1.2 acceptance status
 
 CPU regression, synthetic CUDA preflight and the 12-cell prospective trained-layer
 forward/arena gate passed. The B1.1 interrupted-layout review correction is
