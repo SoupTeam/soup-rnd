@@ -164,7 +164,7 @@ above. Integrator owned Git/merges, minor annotation closure, final execution an
 - Independent review reproduced an inherited AsyncDiskSource thread leak after a later setup
   allocation failure on the pre-B1.3 fused baseline as well. It is not fixed or misrepresented as
   a new regression. Normal runtime expert cleanup, including interrupts, is covered and fixed.
-- Existing feature docs are updated. A complete staged changelog text is archived from
-  `.scratch/b1.3-moe-backward/changelog-fragment.md`: once the real PR number exists, publish it
-  as `changelog.d/0.75.1/<PR>.added.md`, substituting the number in filename and text. No number
-  was invented, no invalid fragment was added, and no push/PR/merge to a shared branch occurred.
+- Existing feature docs are updated. [PR #47](https://github.com/SoupTeam/soup-rnd/pull/47)
+  publishes the numbered fragment `changelog.d/0.75.1/47.added.md`. The staged text in the
+  archive is the historical pre-PR snapshot and is retained unchanged. Branch/PR publication
+  followed the user's explicit authorization; the shared main branch has not been merged.
