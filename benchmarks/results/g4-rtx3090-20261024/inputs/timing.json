@@ -1,0 +1,4326 @@
+{
+ "label": "g4",
+ "required_checks": [
+  "suspend",
+  "power"
+ ],
+ "probe_args": [
+  "--weights",
+  "<work>/.soup/g4/mistral-7b-instruct-v0.3",
+  "--model-revision",
+  "60b99dcbc7f853b7cd18472a607e8d045b96f03e",
+  "--shards",
+  "<work>/.soup/g4/shards",
+  "--dolly",
+  "<hf-cache>/hub/datasets--databricks--databricks-dolly-15k/snapshots/bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a/databricks-dolly-15k.jsonl"
+ ],
+ "runs_dir": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01",
+ "attempt": 1,
+ "comparisons": [
+  {
+   "codec": "int8",
+   "blocks": [
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 0,
+      "run": 1,
+      "value": 3.186279221001314,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 0,
+       "run": 1,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866059.532972,
+        "ram_available_bytes": 106728693760,
+        "commit_charge": {
+         "used_bytes": 36981374976,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866110.6109748,
+        "ram_available_bytes": 106734661632,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.170034900307655e-07,
+          "sleep_offset_end_s": -9.500072337687016e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run001-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 0,
+      "run": 2,
+      "value": 3.2614135300100315,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 0,
+       "run": 2,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866110.6630938,
+        "ram_available_bytes": 106734645248,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866162.4056525,
+        "ram_available_bytes": 106735644672,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.47009539231658e-07,
+          "sleep_offset_end_s": -5.020119715481997e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run002-B-int8.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 1,
+      "run": 3,
+      "value": 2.8458299670019187,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 1,
+       "run": 3,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866162.4523814,
+        "ram_available_bytes": 106731782144,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866210.79257,
+        "ram_available_bytes": 106727018496,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 25 samples; clock event reasons seen: gpu_idle",
+        "samples": 25,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -5.899928510189056e-07,
+          "sleep_offset_end_s": -8.479983080178499e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 26 power samples, so on mains",
+         "evidence": {
+          "samples": 26,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run003-B-int8.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 1,
+      "run": 4,
+      "value": 2.8758740935008973,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 1,
+       "run": 4,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866210.840018,
+        "ram_available_bytes": 106730901504,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866259.1307294,
+        "ram_available_bytes": 106710728704,
+        "commit_charge": {
+         "used_bytes": 37194813440,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 585 to 1950 MHz over 25 samples; clock event reasons seen: gpu_idle",
+        "samples": 25,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 585,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -1.3159879017621279e-06,
+          "sleep_offset_end_s": -6.899936124682426e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 26 power samples, so on mains",
+         "evidence": {
+          "samples": 26,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run004-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 2,
+      "run": 5,
+      "value": 3.213967984498595,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 2,
+       "run": 5,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866259.1705341,
+        "ram_available_bytes": 106710667264,
+        "commit_charge": {
+         "used_bytes": 37194829824,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866310.2705734,
+        "ram_available_bytes": 106733408256,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.190116543322802e-07,
+          "sleep_offset_end_s": -8.689821697771549e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run005-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 2,
+      "run": 6,
+      "value": 3.236522070990759,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 2,
+       "run": 6,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866310.3172336,
+        "ram_available_bytes": 106730496000,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866361.7267344,
+        "ram_available_bytes": 106724044800,
+        "commit_charge": {
+         "used_bytes": 36992708608,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 570 to 1950 MHz over 27 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 570,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1,
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.920040611177683e-07,
+          "sleep_offset_end_s": -6.479967851191759e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run006-B-int8.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 3,
+      "run": 7,
+      "value": 3.25325772499491,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 3,
+       "run": 7,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866361.7736728,
+        "ram_available_bytes": 106727645184,
+        "commit_charge": {
+         "used_bytes": 36992724992,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866413.1662016,
+        "ram_available_bytes": 106714550272,
+        "commit_charge": {
+         "used_bytes": 36992671744,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 540 to 1950 MHz over 27 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 540,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1,
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -5.80010237172246e-07,
+          "sleep_offset_end_s": -5.759939085692167e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run007-B-int8.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 3,
+      "run": 8,
+      "value": 3.102390103013022,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 3,
+       "run": 8,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866413.2087393,
+        "ram_available_bytes": 106711306240,
+        "commit_charge": {
+         "used_bytes": 36992688128,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866463.4085686,
+        "ram_available_bytes": 106704773120,
+        "commit_charge": {
+         "used_bytes": 36992671744,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 615 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 615,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 3
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -6.389745976775885e-07,
+          "sleep_offset_end_s": -8.360075298696756e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run008-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 4,
+      "run": 9,
+      "value": 3.157859061495401,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 4,
+       "run": 9,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866463.4541092,
+        "ram_available_bytes": 106702700544,
+        "commit_charge": {
+         "used_bytes": 36992688128,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866514.08938,
+        "ram_available_bytes": 106713997312,
+        "commit_charge": {
+         "used_bytes": 37202812928,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 26 samples; clock event reasons seen: gpu_idle",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.020150173455477e-07,
+          "sleep_offset_end_s": -8.520146366208792e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run009-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 4,
+      "run": 10,
+      "value": 3.240330629007076,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 4,
+       "run": 10,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866514.136645,
+        "ram_available_bytes": 106712907776,
+        "commit_charge": {
+         "used_bytes": 37202829312,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866565.5479221,
+        "ram_available_bytes": 106728140800,
+        "commit_charge": {
+         "used_bytes": 36990042112,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.550130926072598e-07,
+          "sleep_offset_end_s": -8.250062819570303e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run010-B-int8.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 5,
+      "run": 11,
+      "value": 3.28410494599666,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 5,
+       "run": 11,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866565.5936556,
+        "ram_available_bytes": 106731597824,
+        "commit_charge": {
+         "used_bytes": 36990058496,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866617.444234,
+        "ram_available_bytes": 106732933120,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: sw_power_cap, sw_thermal_slowdown",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1,
+         "sw_thermal_slowdown": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.259965736418962e-07,
+          "sleep_offset_end_s": -6.00004568696022e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run011-B-int8.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 5,
+      "run": 12,
+      "value": 3.231840007501887,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 5,
+       "run": 12,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866617.4964066,
+        "ram_available_bytes": 106731339776,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866669.067044,
+        "ram_available_bytes": 106732806144,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.450013749301434e-07,
+          "sleep_offset_end_s": -5.13013219460845e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run012-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 6,
+      "run": 13,
+      "value": 2.987974217001465,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 6,
+       "run": 13,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866669.1105378,
+        "ram_available_bytes": 106730233856,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866718.2813013,
+        "ram_available_bytes": 106732855296,
+        "commit_charge": {
+         "used_bytes": 37203337216,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -5.439796950668097e-07,
+          "sleep_offset_end_s": -7.750059012323618e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 26 power samples, so on mains",
+         "evidence": {
+          "samples": 26,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run013-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 6,
+      "run": 14,
+      "value": 3.302463018495473,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 6,
+       "run": 14,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866718.3215475,
+        "ram_available_bytes": 106727907328,
+        "commit_charge": {
+         "used_bytes": 37203353600,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866770.3180828,
+        "ram_available_bytes": 106727460864,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: sw_power_cap, sw_thermal_slowdown",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 2,
+         "sw_thermal_slowdown": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.520153980702162e-07,
+          "sleep_offset_end_s": -8.519855327904224e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run014-B-int8.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 7,
+      "run": 15,
+      "value": 3.3548760680132546,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 7,
+       "run": 15,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866770.3663573,
+        "ram_available_bytes": 106728951808,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866823.234587,
+        "ram_available_bytes": 106730598400,
+        "commit_charge": {
+         "used_bytes": 36992708608,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 630 to 1950 MHz over 28 samples; clock event reasons seen: gpu_idle",
+        "samples": 28,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 630,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.149953257292509e-07,
+          "sleep_offset_end_s": -8.459901437163353e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 28 power samples, so on mains",
+         "evidence": {
+          "samples": 28,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run015-B-int8.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 7,
+      "run": 16,
+      "value": 3.1379279019893147,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 7,
+       "run": 16,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866823.2812057,
+        "ram_available_bytes": 106727702528,
+        "commit_charge": {
+         "used_bytes": 36992724992,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866872.4129076,
+        "ram_available_bytes": 106670538752,
+        "commit_charge": {
+         "used_bytes": 36992540672,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 600 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 600,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.860086720436811e-07,
+          "sleep_offset_end_s": -4.759931471198797e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 26 power samples, so on mains",
+         "evidence": {
+          "samples": 26,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run016-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 8,
+      "run": 17,
+      "value": 2.7544221124844626,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 8,
+       "run": 17,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866872.460481,
+        "ram_available_bytes": 106674429952,
+        "commit_charge": {
+         "used_bytes": 36992557056,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866919.7728696,
+        "ram_available_bytes": 106703822848,
+        "commit_charge": {
+         "used_bytes": 36992667648,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 630 to 1950 MHz over 25 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+        "samples": 25,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 630,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1,
+         "sw_power_cap": 2
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -7.020134944468737e-07,
+          "sleep_offset_end_s": -7.950002327561378e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 25 power samples, so on mains",
+         "evidence": {
+          "samples": 25,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run017-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 8,
+      "run": 18,
+      "value": 3.2340957785054343,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 8,
+       "run": 18,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866919.8197541,
+        "ram_available_bytes": 106706006016,
+        "commit_charge": {
+         "used_bytes": 36992684032,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792866971.2859638,
+        "ram_available_bytes": 106725294080,
+        "commit_charge": {
+         "used_bytes": 36992667648,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 540 to 1950 MHz over 27 samples; clock event reasons seen: sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 540,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 2
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.429932106286287e-07,
+          "sleep_offset_end_s": -8.249771781265736e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run018-B-int8.json"
+     },
+     {
+      "arm": "B",
+      "codec": "int8",
+      "round": 9,
+      "run": 19,
+      "value": 3.2915285675117048,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 9,
+       "run": 19,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792866971.3315704,
+        "ram_available_bytes": 106723987456,
+        "commit_charge": {
+         "used_bytes": 36992684032,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867023.29237,
+        "ram_available_bytes": 106709192704,
+        "commit_charge": {
+         "used_bytes": 37194289152,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.66014340519905e-07,
+          "sleep_offset_end_s": -4.880130290985107e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run019-B-int8.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 9,
+      "run": 20,
+      "value": 3.1528358580108033,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 9,
+       "run": 20,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867023.339182,
+        "ram_available_bytes": 106708180992,
+        "commit_charge": {
+         "used_bytes": 37194305536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867073.5157988,
+        "ram_available_bytes": 106731343872,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 645 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 645,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.359791874885559e-07,
+          "sleep_offset_end_s": -8.289935067296028e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run020-A-bf16.json"
+     }
+    ]
+   ],
+   "stopped": null,
+   "next_run": 21,
+   "sigma": 0.14916350003195986,
+   "mean_a": 3.080137056049716,
+   "blocks_needed": 2
+  },
+  {
+   "codec": "fp8_e4m3",
+   "blocks": [
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 0,
+      "run": 21,
+      "value": 3.187830702998326,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 0,
+       "run": 21,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867073.5706408,
+        "ram_available_bytes": 106728460288,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867124.1593208,
+        "ram_available_bytes": 106727133184,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 2
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.68982931226492e-07,
+          "sleep_offset_end_s": -7.880153134465218e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run021-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 0,
+      "run": 22,
+      "value": 3.340637440996943,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 0,
+       "run": 22,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867124.204503,
+        "ram_available_bytes": 106726608896,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867176.8759284,
+        "ram_available_bytes": 106731745280,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -1.0289950296282768e-06,
+          "sleep_offset_end_s": -4.780013114213943e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 28 power samples, so on mains",
+         "evidence": {
+          "samples": 28,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run022-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 1,
+      "run": 23,
+      "value": 3.206975869004964,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 1,
+       "run": 23,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867176.9240205,
+        "ram_available_bytes": 106732998656,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867228.3764148,
+        "ram_available_bytes": 106737864704,
+        "commit_charge": {
+         "used_bytes": 36990042112,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 585 to 1950 MHz over 27 samples; clock event reasons seen: gpu_idle",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 585,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -5.640031304210424e-07,
+          "sleep_offset_end_s": -7.619964890182018e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run023-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 1,
+      "run": 24,
+      "value": 3.1435588629829,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 1,
+       "run": 24,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867228.4226859,
+        "ram_available_bytes": 106744950784,
+        "commit_charge": {
+         "used_bytes": 36990058496,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867278.7173903,
+        "ram_available_bytes": 106716323840,
+        "commit_charge": {
+         "used_bytes": 37203075072,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 630 to 1950 MHz over 26 samples; clock event reasons seen: gpu_idle",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 630,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -8.450006134808064e-07,
+          "sleep_offset_end_s": -8.149945642799139e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run024-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 2,
+      "run": 25,
+      "value": 3.147446160510299,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 2,
+       "run": 25,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867278.7628186,
+        "ram_available_bytes": 106717474816,
+        "commit_charge": {
+         "used_bytes": 37203091456,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867329.33017,
+        "ram_available_bytes": 106720800768,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.150244295597076e-07,
+          "sleep_offset_end_s": -8.360075298696756e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run025-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 2,
+      "run": 26,
+      "value": 3.2971808620059164,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 2,
+       "run": 26,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867329.3762875,
+        "ram_available_bytes": 106725281792,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867381.6044548,
+        "ram_available_bytes": 106737422336,
+        "commit_charge": {
+         "used_bytes": 36992708608,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 600 to 1950 MHz over 27 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 600,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "gpu_idle": 1,
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -1.0530056897550821e-06,
+          "sleep_offset_end_s": -5.2098766900599e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 28 power samples, so on mains",
+         "evidence": {
+          "samples": 28,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run026-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 3,
+      "run": 27,
+      "value": 3.160467700508889,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 3,
+       "run": 27,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867381.649001,
+        "ram_available_bytes": 106734571520,
+        "commit_charge": {
+         "used_bytes": 36992724992,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867432.189603,
+        "ram_available_bytes": 106716409856,
+        "commit_charge": {
+         "used_bytes": 36992708608,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 26 samples; clock event reasons seen: none",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -5.160109139978886e-07,
+          "sleep_offset_end_s": -8.390052244067192e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run027-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 3,
+      "run": 28,
+      "value": 3.2557094910152955,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 3,
+       "run": 28,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867432.236811,
+        "ram_available_bytes": 106714025984,
+        "commit_charge": {
+         "used_bytes": 36992724992,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867483.8166249,
+        "ram_available_bytes": 106725666816,
+        "commit_charge": {
+         "used_bytes": 36992667648,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.690120350569487e-07,
+          "sleep_offset_end_s": -7.55971996113658e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run028-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 4,
+      "run": 29,
+      "value": 3.114613283003564,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 4,
+       "run": 29,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867483.8631217,
+        "ram_available_bytes": 106724364288,
+        "commit_charge": {
+         "used_bytes": 36992684032,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867533.959278,
+        "ram_available_bytes": 106693439488,
+        "commit_charge": {
+         "used_bytes": 37213986816,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 540 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 540,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 2
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.989889804273844e-07,
+          "sleep_offset_end_s": -5.300098564475775e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run029-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 4,
+      "run": 30,
+      "value": 3.2337493854865897,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 4,
+       "run": 30,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867534.0042055,
+        "ram_available_bytes": 106699886592,
+        "commit_charge": {
+         "used_bytes": 37219651584,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867585.2200015,
+        "ram_available_bytes": 106726227968,
+        "commit_charge": {
+         "used_bytes": 36990042112,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 2
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.34989657253027e-07,
+          "sleep_offset_end_s": -5.199981387704611e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run030-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 5,
+      "run": 31,
+      "value": 3.2319560705072945,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 5,
+       "run": 31,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867585.265239,
+        "ram_available_bytes": 106725953536,
+        "commit_charge": {
+         "used_bytes": 36990058496,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867636.6053534,
+        "ram_available_bytes": 106727387136,
+        "commit_charge": {
+         "used_bytes": 36990017536,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 2
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -1.0519870556890965e-06,
+          "sleep_offset_end_s": -7.880153134465218e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run031-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 5,
+      "run": 32,
+      "value": 3.1746669040003326,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 5,
+       "run": 32,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867636.6515489,
+        "ram_available_bytes": 106724745216,
+        "commit_charge": {
+         "used_bytes": 36990033920,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867686.944259,
+        "ram_available_bytes": 106773295104,
+        "commit_charge": {
+         "used_bytes": 36929773568,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.13016265258193e-07,
+          "sleep_offset_end_s": -4.050089046359062e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run032-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 6,
+      "run": 33,
+      "value": 3.1908151544921566,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 6,
+       "run": 33,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867686.9887784,
+        "ram_available_bytes": 106770898944,
+        "commit_charge": {
+         "used_bytes": 36929789952,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867737.736078,
+        "ram_available_bytes": 106790666240,
+        "commit_charge": {
+         "used_bytes": 36929773568,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -8.259958121925592e-07,
+          "sleep_offset_end_s": -7.780035957694054e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run033-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 6,
+      "run": 34,
+      "value": 3.2003842150006676,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 6,
+       "run": 34,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867737.7827826,
+        "ram_available_bytes": 106784931840,
+        "commit_charge": {
+         "used_bytes": 36929789952,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867789.0003736,
+        "ram_available_bytes": 106783780864,
+        "commit_charge": {
+         "used_bytes": 36929773568,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 27 samples; clock event reasons seen: none",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.249779395759106e-07,
+          "sleep_offset_end_s": -8.619972504675388e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run034-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 7,
+      "run": 35,
+      "value": 3.194979459993192,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 7,
+       "run": 35,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867789.0490768,
+        "ram_available_bytes": 106786500608,
+        "commit_charge": {
+         "used_bytes": 36929789952,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867839.8343084,
+        "ram_available_bytes": 106716291072,
+        "commit_charge": {
+         "used_bytes": 37171462144,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1935 MHz over 26 samples; clock event reasons seen: none",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1935
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -6.190093699842691e-07,
+          "sleep_offset_end_s": -8.479983080178499e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run035-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 7,
+      "run": 36,
+      "value": 3.194973982492229,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 7,
+       "run": 36,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867839.880702,
+        "ram_available_bytes": 106716524544,
+        "commit_charge": {
+         "used_bytes": 37171478528,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867890.8607984,
+        "ram_available_bytes": 106721173504,
+        "commit_charge": {
+         "used_bytes": 37124378624,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 540 to 1935 MHz over 27 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 540,
+         "median": 1935,
+         "max": 1935
+        },
+        "reasons_seen": {
+         "gpu_idle": 1,
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.160139597952366e-07,
+          "sleep_offset_end_s": -5.110050551593304e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run036-A-bf16.json"
+     }
+    ],
+    [
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 8,
+      "run": 37,
+      "value": 3.2018862514960347,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 8,
+       "run": 37,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867890.9082596,
+        "ram_available_bytes": 106722013184,
+        "commit_charge": {
+         "used_bytes": 37124395008,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867942.100025,
+        "ram_available_bytes": 106728357888,
+        "commit_charge": {
+         "used_bytes": 36970676224,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1935 MHz over 27 samples; clock event reasons seen: sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1935
+        },
+        "reasons_seen": {
+         "sw_power_cap": 3
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.490177035331726e-07,
+          "sleep_offset_end_s": -8.250062819570303e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run037-A-bf16.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 8,
+      "run": 38,
+      "value": 3.2125871749885846,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 8,
+       "run": 38,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867942.1447754,
+        "ram_available_bytes": 106731610112,
+        "commit_charge": {
+         "used_bytes": 36970692608,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792867993.2884667,
+        "ram_available_bytes": 106727686144,
+        "commit_charge": {
+         "used_bytes": 36970872832,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1935 MHz over 27 samples; clock event reasons seen: sw_power_cap",
+        "samples": 27,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935,
+         "max": 1935
+        },
+        "reasons_seen": {
+         "sw_power_cap": 1
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -1.1690135579556227e-06,
+          "sleep_offset_end_s": -1.1429947335273027e-06,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run038-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "B",
+      "codec": "fp8_e4m3",
+      "round": 9,
+      "run": 39,
+      "value": 3.369506030488992,
+      "outcome": "ok",
+      "record": {
+       "arm": "B",
+       "round": 9,
+       "run": 39,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792867993.3276563,
+        "ram_available_bytes": 106729738240,
+        "commit_charge": {
+         "used_bytes": 36970889216,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792868046.184206,
+        "ram_available_bytes": 106707996672,
+        "commit_charge": {
+         "used_bytes": 37193687040,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1950 MHz over 28 samples; clock event reasons seen: none",
+        "samples": 28,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1950
+        },
+        "reasons_seen": {}
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.360082913190126e-07,
+          "sleep_offset_end_s": -7.480266503989697e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 28 power samples, so on mains",
+         "evidence": {
+          "samples": 28,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run039-B-fp8_e4m3.json"
+     },
+     {
+      "arm": "A",
+      "codec": "bf16",
+      "round": 9,
+      "run": 40,
+      "value": 3.096007202984765,
+      "outcome": "ok",
+      "record": {
+       "arm": "A",
+       "round": 9,
+       "run": 40,
+       "label": "g4",
+       "gpu": {
+        "id": "0",
+        "source": "default"
+       },
+       "required": [
+        "suspend",
+        "power"
+       ],
+       "outcome": "ok",
+       "box_stamp_before": {
+        "unix_s": 1792868046.228103,
+        "ram_available_bytes": 106707783680,
+        "commit_charge": {
+         "used_bytes": 37193703424,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "box_stamp_after": {
+        "unix_s": 1792868096.396509,
+        "ram_available_bytes": 106724941824,
+        "commit_charge": {
+         "used_bytes": 36977119232,
+         "limit_bytes": 76081143808
+        },
+        "power_source": "mains",
+        "gpu_processes": [],
+        "gpu_memory_used_mib": 1,
+        "unknown": {}
+       },
+       "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1800 to 1935 MHz over 26 samples; clock event reasons seen: sw_power_cap",
+        "samples": 26,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+         "min": 1800,
+         "median": 1935.0,
+         "max": 1935
+        },
+        "reasons_seen": {
+         "sw_power_cap": 4
+        }
+       },
+       "checks": {
+        "suspend": {
+         "outcome": "ok",
+         "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+         "evidence": {
+          "sleep_offset_start_s": -9.360082913190126e-07,
+          "sleep_offset_end_s": -8.619972504675388e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+         }
+        },
+        "power": {
+         "outcome": "ok",
+         "reason": "no battery in any of 27 power samples, so on mains",
+         "evidence": {
+          "samples": 27,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+           "battery": false,
+           "online": {}
+          }
+         }
+        },
+        "foreign_reads": {
+         "outcome": "unknown",
+         "reason": "no model path given",
+         "evidence": {
+          "model_path": null,
+          "device": null,
+          "disk_read_bytes_start": null,
+          "disk_read_bytes_end": null,
+          "other_disk_read_bytes_start": null,
+          "other_disk_read_bytes_end": null,
+          "own_read_bytes": null,
+          "foreign_read_bytes": null,
+          "foreign_read_bytes_min": null,
+          "foreign_read_bytes_max": null,
+          "uninspectable_processes": null
+         },
+         "readers": [],
+         "unattributed_bytes": null
+        }
+       }
+      },
+      "report": "<work>/benchmarks/results/g4-rtx3090-20261024/runs/attempt-01/run040-A-bf16.json"
+     }
+    ]
+   ],
+   "stopped": null,
+   "next_run": 41,
+   "sigma": 0.05836031446065328,
+   "mean_a": 3.1707507995975903,
+   "blocks_needed": 2
+  }
+ ]
+}

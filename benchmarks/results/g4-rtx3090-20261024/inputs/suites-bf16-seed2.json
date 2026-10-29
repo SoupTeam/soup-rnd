@@ -1,0 +1,883 @@
+{
+ "meta": {
+  "label": "g4",
+  "device": "cuda",
+  "verdict_eligible": true,
+  "arm": "train-bf16-seed2.json",
+  "adapter_sha256": {
+   "README.md": "eebc8f6cd02bac92e44732b9557ecb79c7edd4b70c9228b5ff4a2aea736176db",
+   "adapter_config.json": "22e96a61e3a53a687d03d37ca1f8747af56ab14fba88c9d713c85b4218e54f04",
+   "adapter_model.safetensors": "f84df7becc72b0229982f3e68bf90a931e053e255f9cea4c99dd123aa26d3e42"
+  },
+  "max_new_tokens": 64,
+  "quant": "nf4",
+  "dtype": "bfloat16",
+  "args": {
+   "mode": "suites",
+   "device": "cuda",
+   "weights": "<work>/.soup/g4/mistral-7b-instruct-v0.3",
+   "tokenizer": null,
+   "model_revision": "60b99dcbc7f853b7cd18472a607e8d045b96f03e",
+   "shards": "<work>/.soup/g4/shards",
+   "quant": "nf4",
+   "tier": "ram",
+   "buffers": 2,
+   "read_ahead": 2,
+   "seq": 512,
+   "k": 4,
+   "lora_r": 16,
+   "lora_targets": "q_proj,k_proj,v_proj,o_proj",
+   "seed": 1,
+   "dolly": "<hf-cache>/hub/datasets--databricks--databricks-dolly-15k/snapshots/bdd27f4d94b9c1f951818a7da7fd7aeea5dbff1a/databricks-dolly-15k.jsonl",
+   "codec": "bf16",
+   "error_sets": 2,
+   "bench_reps": 50,
+   "steps": 0,
+   "warmup": 2,
+   "lr": 0.0002,
+   "warmup_ratio": 0.03,
+   "weight_decay": 0.01,
+   "max_grad_norm": 1.0,
+   "eval_every": 100,
+   "curve_panel": 128,
+   "panel_limit": 0,
+   "panel_max_length": 1024,
+   "arm": "<work>/benchmarks/results/g4-rtx3090-20261024/train-bf16-seed2.json",
+   "adapter_out": null,
+   "max_new_tokens": 64,
+   "parity_rows": 16,
+   "deterministic": true,
+   "out": "<work>/benchmarks/results/g4-rtx3090-20261024/suites-bf16-seed2.json",
+   "label": "g4"
+  },
+  "versions": {
+   "python": "3.12.3",
+   "torch": "2.14.1+cu130",
+   "transformers": "5.19.0",
+   "peft": "0.21.2",
+   "bitsandbytes": "0.50.2",
+   "accelerate": "1.15.0",
+   "safetensors": "0.8.0",
+   "numpy": "2.4.6",
+   "psutil": "7.2.2"
+  },
+  "git_head": "b195da29bad0b31463f072f8bd0cd2d304e21708",
+  "soup_cli_file": "<work>/src/soup_cli/__init__.py",
+  "harness_sha256": {
+   "g4_activation_codec.py": "2403acfb1fff89a50e3b0940ab0de93315e4e4b96e5ca9750cc715a268593d20",
+   "g4_data.py": "795caff92eea7e6de6af2940aa525aa939977b153651ef7da52254205021bd02",
+   "g4_probe.py": "91a60fd16e037ca995e4006154de566b781c1edb69746ce65fb1b1c993762418",
+   "g4_rule.py": "2b141d70a89be653ab4566a5754865259e4d2daeff4d6b46d8f951922ecee7a8",
+   "g4_timing.py": "68b874c1dcd2a22264d7a74f19da74eca9354735d8ba70e2713dde6b25bdbfdb",
+   "l2l_activations.py": "ec3db4c67901908d77df36d9febf983aa42d4efca62efd664fc568b2d0ef47b9",
+   "l2l_schedule.py": "05dc06265aff10fba7d34e5ccfa56dd79df5b60064eab343f674a60858037e4c",
+   "stream_probe.py": "0c84d8c32b5ca4dda493eaab94157954fef5ac670ea4c72cbaecedb26eed8835"
+  }
+ },
+ "base_parity": {
+  "rows": 16,
+  "tokens": 1029,
+  "tokens_match": true,
+  "task_loss_resident": 1.185225851913467,
+  "task_loss_streamed": 1.185225851913467,
+  "max_abs_nll_per_token_diff": 0.0,
+  "task_loss_resident_adapter_disabled": 2.1761270176449137,
+  "adapter": {
+   "tensors": 256,
+   "mismatch": [],
+   "mismatched": 0
+  },
+  "per_example_resident": [
+   {
+    "row": 13039,
+    "nll": 88.48114776611328,
+    "tokens": 68
+   },
+   {
+    "row": 11370,
+    "nll": 29.46133804321289,
+    "tokens": 28
+   },
+   {
+    "row": 12737,
+    "nll": 63.3240966796875,
+    "tokens": 54
+   },
+   {
+    "row": 7899,
+    "nll": 17.637676239013672,
+    "tokens": 125
+   },
+   {
+    "row": 6210,
+    "nll": 34.13938522338867,
+    "tokens": 29
+   },
+   {
+    "row": 12606,
+    "nll": 106.10101318359375,
+    "tokens": 75
+   },
+   {
+    "row": 11374,
+    "nll": 312.35980224609375,
+    "tokens": 113
+   },
+   {
+    "row": 2799,
+    "nll": 5.91104793548584,
+    "tokens": 17
+   },
+   {
+    "row": 9855,
+    "nll": 72.99017333984375,
+    "tokens": 70
+   },
+   {
+    "row": 11564,
+    "nll": 58.28907012939453,
+    "tokens": 61
+   },
+   {
+    "row": 11490,
+    "nll": 142.52572631835938,
+    "tokens": 58
+   },
+   {
+    "row": 10527,
+    "nll": 7.088294982910156,
+    "tokens": 51
+   },
+   {
+    "row": 7748,
+    "nll": 15.349372863769531,
+    "tokens": 29
+   },
+   {
+    "row": 3510,
+    "nll": 231.39845275878906,
+    "tokens": 239
+   },
+   {
+    "row": 4533,
+    "nll": 5.921772003173828,
+    "tokens": 2
+   },
+   {
+    "row": 1910,
+    "nll": 28.61903190612793,
+    "tokens": 10
+   }
+  ]
+ },
+ "suites": {
+  "mini_mmlu": {
+   "n": 26,
+   "correct": 24,
+   "items": [
+    {
+     "question": "What is 2 + 2? (A) 3 (B) 4 (C) 5",
+     "answer": "B",
+     "output": "(B) 4",
+     "correct": true
+    },
+    {
+     "question": "The capital of France is: (A) London (B) Berlin (C) Paris",
+     "answer": "C",
+     "output": "(C) Paris",
+     "correct": true
+    },
+    {
+     "question": "Water freezes at: (A) 0C (B) 50C (C) 100C",
+     "answer": "A",
+     "output": "(A) 0C",
+     "correct": true
+    },
+    {
+     "question": "Photosynthesis mainly uses: (A) oxygen (B) carbon dioxide (C) nitrogen",
+     "answer": "B",
+     "output": "(B) carbon dioxide",
+     "correct": true
+    },
+    {
+     "question": "Atomic number of hydrogen is: (A) 1 (B) 2 (C) 3",
+     "answer": "A",
+     "output": "(A) 1",
+     "correct": true
+    },
+    {
+     "question": "The largest planet in our solar system is: (A) Earth (B) Jupiter (C) Mars",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "The chemical symbol for gold is: (A) Gd (B) Go (C) Au",
+     "answer": "C",
+     "output": "(C) Au",
+     "correct": true
+    },
+    {
+     "question": "How many continents are there on Earth? (A) 5 (B) 7 (C) 9",
+     "answer": "B",
+     "output": "(B) 7",
+     "correct": true
+    },
+    {
+     "question": "The powerhouse of the cell is the: (A) nucleus (B) ribosome (C) mitochondrion",
+     "answer": "C",
+     "output": "C",
+     "correct": true
+    },
+    {
+     "question": "Light travels faster than: (A) sound (B) nothing (C) radio waves",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "The square root of 81 is: (A) 8 (B) 9 (C) 18",
+     "answer": "B",
+     "output": "(C) 18",
+     "correct": false
+    },
+    {
+     "question": "Which gas do plants release during photosynthesis? (A) oxygen (B) hydrogen (C) methane",
+     "answer": "A",
+     "output": "(A) oxygen",
+     "correct": true
+    },
+    {
+     "question": "The author of 'Romeo and Juliet' is: (A) Dickens (B) Shakespeare (C) Austen",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "The freezing point of water in Fahrenheit is: (A) 0 (B) 32 (C) 100",
+     "answer": "B",
+     "output": "(B) 32",
+     "correct": true
+    },
+    {
+     "question": "Which ocean is the largest? (A) Atlantic (B) Indian (C) Pacific",
+     "answer": "C",
+     "output": "(C) Pacific",
+     "correct": true
+    },
+    {
+     "question": "The human body has how many pairs of ribs? (A) 10 (B) 12 (C) 14",
+     "answer": "B",
+     "output": "(B) 12",
+     "correct": true
+    },
+    {
+     "question": "The currency of Japan is the: (A) yuan (B) won (C) yen",
+     "answer": "C",
+     "output": "(C) yen",
+     "correct": true
+    },
+    {
+     "question": "Which metal is liquid at room temperature? (A) mercury (B) iron (C) copper",
+     "answer": "A",
+     "output": "(A) mercury",
+     "correct": true
+    },
+    {
+     "question": "The speed of light is closest to: (A) 300 km/s (B) 300,000 km/s (C) 30 km/s",
+     "answer": "B",
+     "output": "(B) 300,000 km/s",
+     "correct": true
+    },
+    {
+     "question": "A triangle has how many sides? (A) 3 (B) 4 (C) 5",
+     "answer": "A",
+     "output": "(A) 3",
+     "correct": true
+    },
+    {
+     "question": "The closest star to Earth is the: (A) Moon (B) Sun (C) Sirius",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "DNA carries: (A) genetic information (B) oxygen (C) sugar",
+     "answer": "A",
+     "output": "(A) genetic information",
+     "correct": true
+    },
+    {
+     "question": "The tallest mountain above sea level is: (A) K2 (B) Everest (C) Denali",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "Which is a prime number? (A) 9 (B) 15 (C) 13",
+     "answer": "C",
+     "output": "C",
+     "correct": true
+    },
+    {
+     "question": "The primary gas in Earth's atmosphere is: (A) oxygen (B) nitrogen (C) argon",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "Sound cannot travel through a: (A) solid (B) liquid (C) vacuum",
+     "answer": "C",
+     "output": "(A) solid",
+     "correct": false
+    }
+   ]
+  },
+  "mini_common_sense": {
+   "n": 24,
+   "correct": 23,
+   "items": [
+    {
+     "question": "If it is raining, you should bring a: (A) hat (B) umbrella (C) fan",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "You eat breakfast in the: (A) morning (B) evening (C) night",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "Fish live in: (A) trees (B) water (C) sand",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "The sun rises in the: (A) west (B) south (C) east",
+     "answer": "C",
+     "output": "(C) east",
+     "correct": true
+    },
+    {
+     "question": "Ice melts when: (A) heated (B) frozen (C) pressed",
+     "answer": "A",
+     "output": "(A)",
+     "correct": true
+    },
+    {
+     "question": "To unlock a door you usually need a: (A) spoon (B) key (C) pillow",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "Before crossing a busy street you should: (A) close your eyes (B) look both ways (C) run fast",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "If a glass falls on tile it will likely: (A) bounce (B) break (C) float",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "To write on paper you use a: (A) hammer (B) pen (C) plate",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "A wet towel is best dried by: (A) folding it (B) hanging it in the sun (C) burying it",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "You feel cold, so you put on a: (A) swimsuit (B) coat (C) sandal",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "Plants need this to grow: (A) darkness (B) sunlight (C) television",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "To call a friend far away you use a: (A) phone (B) fork (C) broom",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "After you finish eating, dirty dishes should be: (A) washed (B) painted (C) planted",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "If the room is dark you should turn on the: (A) faucet (B) light (C) oven",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "A baby is younger than a: (A) grandparent (B) newborn (C) egg",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "To cut paper you use: (A) scissors (B) a magnet (C) glue",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "Bread that is very old may become: (A) fresh (B) moldy (C) cold",
+     "answer": "B",
+     "output": "Bread that is very old may become moldy.",
+     "correct": false
+    },
+    {
+     "question": "If you are thirsty you should drink: (A) sand (B) water (C) paper",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "A car needs this to run: (A) fuel (B) music (C) paint",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "You wear shoes on your: (A) hands (B) head (C) feet",
+     "answer": "C",
+     "output": "C",
+     "correct": true
+    },
+    {
+     "question": "To keep food cold you put it in the: (A) oven (B) refrigerator (C) closet",
+     "answer": "B",
+     "output": "B",
+     "correct": true
+    },
+    {
+     "question": "If you are tired at night you should: (A) sleep (B) exercise hard (C) shout",
+     "answer": "A",
+     "output": "A",
+     "correct": true
+    },
+    {
+     "question": "Rain falls from the: (A) ground (B) clouds (C) ocean floor",
+     "answer": "B",
+     "output": "(B) clouds",
+     "correct": true
+    }
+   ]
+  },
+  "mini_instruction": {
+   "n": 24,
+   "correct": 23,
+   "items": [
+    {
+     "question": "Respond with just the word: ok",
+     "answer": "ok",
+     "output": "ok",
+     "correct": true
+    },
+    {
+     "question": "Answer in one word \u2014 the color of grass:",
+     "answer": "green",
+     "output": "Green",
+     "correct": true
+    },
+    {
+     "question": "Answer yes or no: Is fire hot?",
+     "answer": "yes",
+     "output": "Yes",
+     "correct": true
+    },
+    {
+     "question": "Reply with only the number three.",
+     "answer": "3",
+     "output": "Three",
+     "correct": false
+    },
+    {
+     "question": "Say only the word: done",
+     "answer": "done",
+     "output": "Done",
+     "correct": true
+    },
+    {
+     "question": "Reply with a single word: the opposite of 'up'.",
+     "answer": "down",
+     "output": "Down",
+     "correct": true
+    },
+    {
+     "question": "Answer with one word: the color of a clear daytime sky.",
+     "answer": "blue",
+     "output": "Blue",
+     "correct": true
+    },
+    {
+     "question": "Answer yes or no: Is water wet?",
+     "answer": "yes",
+     "output": "Yes",
+     "correct": true
+    },
+    {
+     "question": "Respond with only the word: apple",
+     "answer": "apple",
+     "output": "Apple",
+     "correct": true
+    },
+    {
+     "question": "Reply with the number that comes after 9.",
+     "answer": "10",
+     "output": "10",
+     "correct": true
+    },
+    {
+     "question": "Answer in one word: what animal says 'meow'?",
+     "answer": "cat",
+     "output": "Cat",
+     "correct": true
+    },
+    {
+     "question": "Say only the word: banana",
+     "answer": "banana",
+     "output": "Banana",
+     "correct": true
+    },
+    {
+     "question": "Answer with one word: the opposite of 'hot'.",
+     "answer": "cold",
+     "output": "Cold",
+     "correct": true
+    },
+    {
+     "question": "Reply with the single word: yes if 2 is greater than 1.",
+     "answer": "yes",
+     "output": "yes",
+     "correct": true
+    },
+    {
+     "question": "Answer in one word: the first month of the year.",
+     "answer": "January",
+     "output": "January",
+     "correct": true
+    },
+    {
+     "question": "Respond with only: purple",
+     "answer": "purple",
+     "output": "Purple",
+     "correct": true
+    },
+    {
+     "question": "Answer with one word: what do bees make?",
+     "answer": "honey",
+     "output": "Honey",
+     "correct": true
+    },
+    {
+     "question": "Reply with only the number of days in a week.",
+     "answer": "7",
+     "output": "7",
+     "correct": true
+    },
+    {
+     "question": "Answer in one word: the opposite of 'left'.",
+     "answer": "right",
+     "output": "Right",
+     "correct": true
+    },
+    {
+     "question": "Say only the word: ocean",
+     "answer": "ocean",
+     "output": "Ocean",
+     "correct": true
+    },
+    {
+     "question": "Answer with one word: what color is a ripe tomato?",
+     "answer": "red",
+     "output": "Red",
+     "correct": true
+    },
+    {
+     "question": "Reply with a single word: the season after winter.",
+     "answer": "spring",
+     "output": "Spring",
+     "correct": true
+    },
+    {
+     "question": "Answer in one word: what do you call frozen water?",
+     "answer": "ice",
+     "output": "Ice",
+     "correct": true
+    },
+    {
+     "question": "Respond with only the number: how many wheels does a bicycle have?",
+     "answer": "2",
+     "output": "2",
+     "correct": true
+    }
+   ]
+  },
+  "mini_arithmetic": {
+   "n": 40,
+   "correct": 27,
+   "items": [
+    {
+     "question": "What is 6 + 7?",
+     "answer": "13",
+     "output": "6 + 7 = 13",
+     "correct": true
+    },
+    {
+     "question": "What is 9 - 4?",
+     "answer": "5",
+     "output": "5",
+     "correct": true
+    },
+    {
+     "question": "What is 8 times 3?",
+     "answer": "24",
+     "output": "8 times 3 is 24.",
+     "correct": true
+    },
+    {
+     "question": "What is 6 multiplied by 7?",
+     "answer": "42",
+     "output": "6 multiplied by 7 is 42.",
+     "correct": true
+    },
+    {
+     "question": "What is 12 divided by 4?",
+     "answer": "3",
+     "output": "12 divided by 4 is 3.",
+     "correct": true
+    },
+    {
+     "question": "What is 15 + 27?",
+     "answer": "42",
+     "output": "15 + 27 = 42",
+     "correct": true
+    },
+    {
+     "question": "What is 100 - 37?",
+     "answer": "63",
+     "output": "63",
+     "correct": true
+    },
+    {
+     "question": "What is 9 times 9?",
+     "answer": "81",
+     "output": "9 times 9 is 81.",
+     "correct": true
+    },
+    {
+     "question": "What is half of 50?",
+     "answer": "25",
+     "output": "25",
+     "correct": true
+    },
+    {
+     "question": "What is 7 + 8?",
+     "answer": "15",
+     "output": "7 + 8 = 15",
+     "correct": true
+    },
+    {
+     "question": "What is 5 squared?",
+     "answer": "25",
+     "output": "5 squared is 25.",
+     "correct": true
+    },
+    {
+     "question": "What is 45 divided by 9?",
+     "answer": "5",
+     "output": "45 divided by 9 is 5.",
+     "correct": true
+    },
+    {
+     "question": "What is 11 times 11?",
+     "answer": "121",
+     "output": "11 times 11 is 121.",
+     "correct": true
+    },
+    {
+     "question": "What is 30 - 12?",
+     "answer": "18",
+     "output": "18",
+     "correct": true
+    },
+    {
+     "question": "What is 4 + 4 + 4?",
+     "answer": "12",
+     "output": "4 + 4 + 4 = 12",
+     "correct": true
+    },
+    {
+     "question": "What is 3 times 12?",
+     "answer": "36",
+     "output": "3 times 12 is 36.",
+     "correct": true
+    },
+    {
+     "question": "What is 200 - 99?",
+     "answer": "101",
+     "output": "101",
+     "correct": true
+    },
+    {
+     "question": "What is 8 + 9?",
+     "answer": "17",
+     "output": "8 + 9 = 17",
+     "correct": true
+    },
+    {
+     "question": "What is 72 divided by 8?",
+     "answer": "9",
+     "output": "72 divided by 8 is 9.",
+     "correct": true
+    },
+    {
+     "question": "What is 14 times 2?",
+     "answer": "28",
+     "output": "14 times 2 is 28.",
+     "correct": true
+    },
+    {
+     "question": "What is 6 + 6 + 6?",
+     "answer": "18",
+     "output": "6 + 6 + 6 = 18",
+     "correct": true
+    },
+    {
+     "question": "What is 10 percent of 200?",
+     "answer": "20",
+     "output": "10 percent of 200 is 20.",
+     "correct": true
+    },
+    {
+     "question": "What is 16 + 25?",
+     "answer": "41",
+     "output": "16 + 25 = 41",
+     "correct": true
+    },
+    {
+     "question": "What is 90 divided by 3?",
+     "answer": "30",
+     "output": "90 divided by 3 is 30.",
+     "correct": true
+    },
+    {
+     "question": "What is 47 times 38?",
+     "answer": "1786",
+     "output": "47 times 38 is 1756.",
+     "correct": false
+    },
+    {
+     "question": "What is 1234 times 56?",
+     "answer": "69104",
+     "output": "1234 times 56 equals 68,992.",
+     "correct": false
+    },
+    {
+     "question": "What is 7 + 3 times 4 - 6 divided by 2?",
+     "answer": "16",
+     "output": "7 + 3 times 4 - 6 divided by 2 = 23",
+     "correct": false
+    },
+    {
+     "question": "A shirt costs 80 dollars. It is discounted by 25 percent, then the discounted price is raised by 25 percent. What is the final price in dollars?",
+     "answer": "75",
+     "output": "The final price is 80 dollars. The discounted price is 80 dollars * (1 - 0.25) = 80 dollars * 0.75 = 60 dollars. The final price is 60 dollars * (1 + 0.25) =",
+     "correct": true
+    },
+    {
+     "question": "What is 2 to the power of 15?",
+     "answer": "32768",
+     "output": "2 to the power of 15 is 32,768.",
+     "correct": false
+    },
+    {
+     "question": "What is the remainder when 2024 is divided by 37?",
+     "answer": "26",
+     "output": "The remainder when 2024 is divided by 37 is 14.",
+     "correct": false
+    },
+    {
+     "question": "How many seconds are in 3 days?",
+     "answer": "259200",
+     "output": "3 days is equal to 259200 seconds.",
+     "correct": true
+    },
+    {
+     "question": "What is 999 times 999?",
+     "answer": "998001",
+     "output": "999 times 999 is 998,001.",
+     "correct": false
+    },
+    {
+     "question": "What is the sum of all the whole numbers from 1 to 250?",
+     "answer": "31375",
+     "output": "The sum of all the whole numbers from 1 to 250 is 32,500.",
+     "correct": false
+    },
+    {
+     "question": "What is 17 squared minus 13 squared?",
+     "answer": "120",
+     "output": "17 squared is 289 and 13 squared is 169. So 17 squared minus 13 squared is 289 - 169 = 120.",
+     "correct": true
+    },
+    {
+     "question": "A train leaves at 9:47 and arrives at 14:12 the same day. How many minutes long is the trip?",
+     "answer": "265",
+     "output": "The trip is 4 hours and 25 minutes long.",
+     "correct": false
+    },
+    {
+     "question": "What is 15 percent of 15 percent of 4000?",
+     "answer": "90",
+     "output": "15 percent of 15 percent of 4000 is 0.000000000000000000000000000000000000000000000",
+     "correct": false
+    },
+    {
+     "question": "What is 123456789 divided by 9?",
+     "answer": "13717421",
+     "output": "138282828282828282828282828282828282828282828282828282828282828",
+     "correct": false
+    },
+    {
+     "question": "What is the least common multiple of 18, 24 and 40?",
+     "answer": "360",
+     "output": "The least common multiple of 18, 24 and 40 is 72.",
+     "correct": false
+    },
+    {
+     "question": "What is 3/8 plus 5/12, as a fraction in lowest terms?",
+     "answer": "19/24",
+     "output": "To add fractions, you need to have the same denominator. In this case, we need to convert 3/8 to 15/48.\n\nTo convert 3/8 to 15/48, we multiply the numerator and denominator by 3.\n",
+     "correct": false
+    },
+    {
+     "question": "How many times is the digit 7 written when you write out every whole number from 1 to 100?",
+     "answer": "20",
+     "output": "The digit 7 is written 10 times when you write out every whole number from 1 to 100.",
+     "correct": false
+    }
+   ]
+  }
+ }
+}
