@@ -694,6 +694,12 @@ def test_unavailable_or_empty_junit_keeps_diagnostic_summary_and_blocks_pass(
 
 def test_actual_failed_pytest_keeps_junit_case_summary(notebook_helpers: dict) -> None:
     namespace = notebook_helpers
+    # The real checkout registers these markers in pyproject.toml. Pytest 9.2
+    # also validates names in -m expressions when --strict-markers is enabled.
+    (namespace["CHECKOUT"] / "pytest.ini").write_text(
+        "[pytest]\nmarkers =\n    gpu: CUDA device required\n    smoke: slow training smoke test\n",
+        encoding="utf-8",
+    )
     fixture = namespace["CHECKOUT"] / "test_isolated_failure.py"
     fixture.write_text(
         'def test_isolated_failure():\n    assert False, "isolated failure"\n', encoding="utf-8"
