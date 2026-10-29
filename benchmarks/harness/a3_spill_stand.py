@@ -1269,9 +1269,9 @@ def drive_signal(child: Any, entry: Dict[str, Any], deadline: float, *,
                  sleep: Callable[[float], None] = time.sleep,
                  clock: Callable[[], float] = time.monotonic,
                  exit_timeout: float = SIGNAL_EXIT_TIMEOUT_S) -> Dict[str, Any]:
-    """Wait until the child holds inside optimizer step 2 (its marker's phase is ``hold``),
-    list the spill directory, read the target's SIGINT disposition from /proc, send ONE
-    signal to the pid in the marker, wait for the exit, list the directory again."""
+    """Wait for the step-2 hold, list the spill directory, read the target's SIGINT status,
+    then send ONE signal. Polling and the exit wait share the session's monotonic deadline;
+    timeout cleanup still kills and reaps the launcher as ``run_child`` does."""
     marker_path = Path(entry["marker"])
     marker = None
     while True:
@@ -1281,31 +1281,39 @@ def drive_signal(child: Any, entry: Dict[str, Any], deadline: float, *,
                     "why": f"the child exited {code} before it held inside optimizer step 2",
                     "marker": marker}
         marker = read_json(marker_path)
-        if marker and marker.get("phase") == "hold":
-            break
-        if clock() > deadline:
+        remaining = deadline - clock()
+        if remaining <= 0:
             return {"signal": entry["signal_name"], "sent_unix": None, "why": "session deadline",
                     "marker": marker}
-        sleep(MARKER_POLL_S)
+        if marker and marker.get("phase") == "hold":
+            break
+        sleep(min(MARKER_POLL_S, remaining))
     before = list_files(entry["spill_dir"])
     pid = int(marker["pid"])
     target = read_status(pid)
+    if deadline - clock() <= 0:
+        return {"signal": entry["signal_name"], "sent_unix": None, "why": "session deadline",
+                "marker": marker, "files_before_signal": before, "target_at_send": target}
+    why = None
     try:
         send(pid, int(getattr(signal, entry["signal_name"])))
     except ProcessLookupError:
-        return {"signal": entry["signal_name"], "sent_unix": None, "returncode": child.wait(),
-                "why": "the child was gone when the signal was sent", "marker": marker,
-                "files_before_signal": before, "target_at_send": target}
-    sent = time.time()
+        sent = None
+        why = "the child was gone when the signal was sent"
+    else:
+        sent = time.time()
     try:
-        code, exited = child.wait(timeout=exit_timeout), True
+        code, exited = child.wait(timeout=max(0.0, min(exit_timeout, deadline - clock()))), True
     except subprocess.TimeoutExpired:
         child.kill()
         code, exited = child.wait(), False
-    return {"signal": entry["signal_name"], "sent_unix": sent, "marker": marker,
-            "child_pid": getattr(child, "pid", None), "files_before_signal": before,
-            "target_at_send": target, "files_after_exit": list_files(entry["spill_dir"]),
-            "exited": exited, "returncode": code}
+    result = {"signal": entry["signal_name"], "sent_unix": sent, "marker": marker,
+              "child_pid": getattr(child, "pid", None), "files_before_signal": before,
+              "target_at_send": target, "files_after_exit": list_files(entry["spill_dir"]),
+              "exited": exited, "returncode": code}
+    if why is not None:
+        result["why"] = why
+    return result
 
 
 def run_child(entry: Dict[str, Any], out: Path, env: Dict[str, str], deadline: float, *,

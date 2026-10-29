@@ -40,7 +40,8 @@ def _inputs(tmp_path, *, plan=None, a=None, a_value=A_STEP_S):
                    "exit": "normal", "spill_plan": _plan(**(plan or {}))}
     arm = {"arm": "cost/b00_p0_A", "kind": "cost", "role": "A", "device": "cuda",
            "exit": "normal", "spill_plan": _plan(), "value": a_value,
-           "timed_step_s": [a_value] * 5, "env": {"gpu_facts": {"gpu": "RTX 3090"}}}
+           "timed_step_s": [a_value * scale for scale in (0.9, 1.1, 1.0, 0.95, 1.05)],
+           "env": {"gpu_facts": {"gpu": "RTX 3090"}}}
     arm.update(a or {})
     plan_path, a_path = tmp_path / "calibration.json", tmp_path / "A.json"
     plan_path.write_text(json.dumps(calibration))
@@ -183,6 +184,63 @@ def test_inputs_that_cannot_set_the_schedule_are_refused(adm, tmp_path, plan, a,
         adm.load_inputs(*_inputs(tmp_path, plan=plan, a=a))
 
 
+@pytest.mark.parametrize("value", [True, False, float("nan"), float("inf"),
+                                  float("-inf"), 0, -1, "2.0", None])
+def test_a_step_value_must_be_a_finite_positive_number(adm, tmp_path, value):
+    with pytest.raises(adm.InputError):
+        adm.load_inputs(*_inputs(tmp_path, a={"value": value}))
+
+
+@pytest.mark.parametrize("value", [True, False, float("nan"), float("inf"),
+                                  float("-inf"), 0, -1, "2.0", None])
+def test_every_a_timed_step_must_be_a_finite_positive_number(adm, tmp_path, value):
+    timed = [1.8, 2.2, value, 1.9, 2.1]
+    with pytest.raises(adm.InputError):
+        adm.load_inputs(*_inputs(tmp_path, a={"timed_step_s": timed}))
+
+
+@pytest.mark.parametrize("timed", [None, 5, "22222", {"0": 2.0}])
+def test_a_timed_steps_must_be_an_explicit_list(adm, tmp_path, timed):
+    with pytest.raises(adm.InputError):
+        adm.load_inputs(*_inputs(tmp_path, a={"timed_step_s": timed}))
+
+
+def test_a_value_must_equal_the_median_of_its_five_timed_steps(adm, tmp_path):
+    with pytest.raises(adm.InputError):
+        adm.load_inputs(*_inputs(tmp_path, a={"value": 2.1,
+                                            "timed_step_s": [1.8, 2.2, 2.0, 1.9, 2.1]}))
+
+
+def test_a_nan_a_record_is_refused_before_exercising_the_volume(adm, tmp_path, monkeypatch):
+    plan_path, a_path = _inputs(tmp_path, a_value=float("nan"))
+    monkeypatch.setattr(adm, "spill_volume", lambda d: pytest.fail("invalid input touched disk"))
+    out = tmp_path / "admission.json"
+    code = adm.main(["--spill-dir", str(tmp_path / "spill"), "--plan", str(plan_path),
+                     "--a", str(a_path), "--out", str(out),
+                     "--cycles", str(tmp_path / "cycles.csv")])
+    assert code == 2 and not out.exists()
+
+
+@pytest.mark.parametrize("key", ["cycle_bytes", "a_value_s", "volume_bytes"])
+@pytest.mark.parametrize("value", [True, False, float("nan"), float("inf"),
+                                  float("-inf"), 0, -1, "2.0", None])
+def test_the_schedule_refuses_invalid_numeric_inputs(adm, key, value):
+    args = {"cycle_bytes": 1000, "a_value_s": 2.0, "volume_bytes": 20_000}
+    args[key] = value
+    with pytest.raises(adm.InputError):
+        adm.schedule(**args)
+
+
+@pytest.mark.parametrize("cycle, step, volume", [
+    (1e308, 1e-308, 1e308),  # an infinite demand
+    (1e-308, 1e308, 1e-308),  # a zero demand
+    (1.0, 1e308, 1e308),  # an infinite scheduled duration
+])
+def test_the_schedule_refuses_nonfinite_or_zero_derived_timings(adm, cycle, step, volume):
+    with pytest.raises(adm.InputError):
+        adm.schedule(cycle_bytes=cycle, a_value_s=step, volume_bytes=volume)
+
+
 def test_a_cpu_calibration_is_refused(adm, tmp_path):
     plan_path, a_path = _inputs(tmp_path)
     data = json.loads(plan_path.read_text())
@@ -282,6 +340,32 @@ def test_fewer_cycles_than_scheduled_are_refused(adm):
     judged = adm.judgement(run, n_cycles=20)
     assert not judged["admitted"] and "19 of 20" in judged["problems"][0]
     assert adm.judgement({**run, "cycles": run["cycles"] * 2}, n_cycles=38)["admitted"]
+
+
+@pytest.mark.parametrize("field", [0, 1, 2, 3])
+@pytest.mark.parametrize("value", [True, False, float("nan"), float("inf"),
+                                  float("-inf"), "0.1", None])
+def test_invalid_cycle_timing_cannot_admit(adm, field, value):
+    row = [0.0, 0.0, 0.1, -0.9, 0]
+    row[field] = value
+    run = {"cycles": [tuple(row)] * 20, "mismatched_chunks": 0,
+           "left_behind": False, "path": "x"}
+    judged = adm.judgement(run, n_cycles=20)
+    assert not judged["admitted"]
+    assert judged["problems"]
+
+
+@pytest.mark.parametrize("n_cycles", [True, False, 0, -1, float("nan"), float("inf")])
+def test_a_vacuous_or_invalid_cycle_count_cannot_admit(adm, n_cycles):
+    run = {"cycles": [], "mismatched_chunks": 0, "left_behind": False, "path": "x"}
+    assert not adm.judgement(run, n_cycles=n_cycles)["admitted"]
+
+
+@pytest.mark.parametrize("limit", [True, False, 0, -1, float("nan"), float("inf")])
+def test_invalid_lateness_limit_cannot_admit(adm, limit):
+    run = {"cycles": [(0.0, 0.0, 0.1, -0.9, 0)] * 20, "mismatched_chunks": 0,
+           "left_behind": False, "path": "x"}
+    assert not adm.judgement(run, n_cycles=20, limit_s=limit)["admitted"]
 
 
 def test_a_sector_with_another_stamp_fails_even_with_the_right_bytes(adm):

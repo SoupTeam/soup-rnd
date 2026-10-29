@@ -147,14 +147,22 @@ def judge(out: Path, results: Dict[str, Dict[str, Any]], *, scoped: bool
            {"phase": kmarker.get("phase"), "spill_path": kpath,
             "after_exit": killed.get("files_after_exit"), "returncode": killed.get("returncode")})
     nxt = stand.read_json(out / "cleanup" / "kill9_next.json") or {}
-    after = results["kill9_next"].get("spill_files_after_exit") or []
+    after_train = nxt.get("spill_files_after_train")
+    after_exit = results["kill9_next"].get("spill_files_after_exit")
+    expected_steps = -(-ROWS // K)
+    training = stand.rule.training_problems(nxt, n_layers=LAYERS)
+    spill = stand.rule.spill_problems(nxt, spilled=True)
     _check(checks, "kill9_next: removed the killed run's file at start and trained every step",
            results["kill9_next"].get("returncode") == 0 and nxt.get("exit") == "normal"
            and bool(kpath) and kpath in (nxt.get("stale_removed") or [])
-           and kpath not in (nxt.get("spill_files_after_train") or []) and kpath not in after
-           and nxt.get("steps") == nxt.get("expected_steps"),
+           and isinstance(after_train, list) and isinstance(after_exit, list)
+           and kpath not in after_train and kpath not in after_exit
+           and nxt.get("steps") == nxt.get("expected_steps") == expected_steps
+           and not training and not spill,
            {"stale_removed": nxt.get("stale_removed"), "steps": nxt.get("steps"),
-            "expected_steps": nxt.get("expected_steps"), "exit": nxt.get("exit")})
+            "expected_steps": expected_steps, "record_expected_steps": nxt.get("expected_steps"),
+            "exit": nxt.get("exit"), "after_train": after_train, "after_exit": after_exit,
+            "training_problems": training, "spill_problems": spill})
     if scoped:
         for arm, rec in (("sigint", sigint), ("kill9_next", nxt)):
             cgroup = rec.get("cgroup_start") or {}

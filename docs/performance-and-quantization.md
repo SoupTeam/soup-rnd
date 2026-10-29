@@ -869,9 +869,13 @@ one spill file. Before the first step the run compares the store with the host-R
   `inactive_file` from that level's `memory.stat`; on v1 they are `memory.limit_in_bytes`,
   `memory.usage_in_bytes` and `total_inactive_file`. Page-locked memory is charged as shmem
   and counts. Levels without a limit are skipped; a parent can limit a child whose own limit
-  is `max`. A level whose limit cannot be read, or whose `memory.stat` cannot be read (then
-  `limit - used` is used), is logged. Without psutil and without a cgroup limit no budget is
-  known and everything stays in RAM.
+  is `max`. Mountinfo maps controller co-mounts and subtree roots to the process's visible
+  cgroup ancestry. If an inherited mount predates a cgroup namespace and its membership
+  cannot be mapped, only its proven accessible ancestor is counted; a warning notes that a
+  tighter nested limit may be unknown. Unrelated or shadowed mounts are not charged. A level
+  whose limit cannot be read, or whose `memory.stat` cannot be read (then `limit - used` is
+  used), is logged. Without psutil and without a cgroup limit no budget is known and everything
+  stays in RAM.
 - **Cost.** On CUDA each chunk is a separate pinned allocation that torch rounds up to a power
   of two, so a 17 MiB chunk costs 32 MiB. Spilling needs two staging rings of 4 pinned buffers
   of one chunk (rounded up to 4096 bytes) plus 4096 bytes each.
@@ -897,10 +901,12 @@ allocate more.
 The file lives in `training.l2l_spill_dir`, by default `<output>/_l2l_spill`. Use a local drive
 with room; the path is not held to the working directory. The run stops with the directory,
 the reason and the fix when the directory is on tmpfs, ramfs, devtmpfs, overlay, aufs,
-squashfs or a network filesystem (read from `/proc/self/mountinfo` on Linux; network drives
-and RAM disks on Windows), when its drive has less free space than the file plus the larger
-of 1 GiB and 10% of the file, or when a 1 MiB unbuffered write and read there do not return
-the same bytes. When the weights stream from disk, the spill must not share their physical
+squashfs or a network filesystem (Linux mountinfo; Windows drive type; native filesystem
+locality and diskutil backing information on macOS). macOS also refuses RAM/image-backed or
+unverifiable backing. The run refuses when the drive has less free space than the file plus
+the larger of 1 GiB and 10% of the file, or when a 1 MiB unbuffered write and read there do not
+return the same bytes.
+When the weights stream from disk, the spill must not share their physical
 disk (read from `/sys/dev/block` on Linux; unknown on Windows and macOS): with the default
 directory, the same or an unknown disk stops the run; with `training.l2l_spill_dir` set, the
 run continues with a warning.
@@ -939,8 +945,29 @@ Cleanup is best-effort. The file is removed at normal end, on an exception, on C
 when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
 The next run with the same directory removes it at start if the process that created it is
 no longer alive. Otherwise remove it by hand; its path is in the console line. Files are named
-`soup-l2l-spill-<pid>-<8 hex>.bin`; the start-up sweep touches only those names (and its own
-`soup-l2l-probe-*` files) directly in that directory and never follows links.
+`soup-l2l-spill-<pid>-<8 hex>.bin`; the start-up sweep selects only those names (and its own
+`soup-l2l-probe-*` files) directly in that directory and never follows links. POSIX cleanup
+atomically claims a candidate into a private `.soup-l2l-sweep-*` directory and verifies its
+identity before deletion. If a replacement wins the race, it is restored without overwriting
+another file when possible; otherwise it is preserved at a logged recovery path, never deleted
+as stale. Such recovery directories are not automatically swept. Windows deletes through a
+verified no-follow file handle while holding directory replacement guards.
+
+**Changes after the GPU measurement.** Session 3 measured commit `ec795ef1`, not the later
+audit corrections. Those corrections make stale cleanup unlink inspected names rather than
+resolved link targets, discover non-default cgroup mounts, classify macOS volume backing,
+bound raw I/O requests to sector-aligned platform limits, and use blocking host transfers on
+non-CUDA devices. Store construction and close now retain buffers until started workers and
+pending transfers complete. A larger unknown-length window releases the previous store before
+rebudgeting; on CUDA, public `torch.accelerator.empty_host_cache()` is used when available.
+Older torch without that API may conservatively refuse growth while idle pinned cache remains
+charged; a warning explains this rather than assuming those bytes are reusable.
+
+These later changes have CPU regression and real CPU spill/interrupt/restart checks, not a new
+GPU measurement, native MPS run, native macOS volume test or 2 GiB Windows transfer run.
+Cleanup remains best-effort, including interruption inside CPython's native thread-launch
+window before it publishes a worker identity. The frozen GPU verdict is not reinterpreted as
+coverage of every later error path.
 
 **Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
 attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch

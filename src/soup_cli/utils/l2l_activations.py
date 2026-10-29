@@ -39,6 +39,8 @@ DEFAULT_RING = 8
 _FILE_SHARE_READ = 0x00000001
 _FILE_SHARE_WRITE = 0x00000002
 _FILE_FLAG_NO_BUFFERING = 0x20000000
+# CPython caps Windows FileIO requests at INT_MAX, which is not sector-aligned.
+_RAW_IO_MAX_BYTES = (1 << 31) - 1
 
 
 def sector_round_up(nbytes: int) -> int:
@@ -65,9 +67,10 @@ def aligned_buffer(nbytes: int, *, pin: bool) -> Any:
 def _write_all(handle: io.FileIO, offset: int, buf: Any) -> None:
     handle.seek(offset)
     view = memoryview(buf.numpy())
+    max_request = _RAW_IO_MAX_BYTES // SECTOR_BYTES * SECTOR_BYTES
     done = 0
     while done < len(view):
-        got = handle.write(view[done:])
+        got = handle.write(view[done : done + max_request])
         if not got:
             raise OSError(f"short write, {done} of {len(view)} bytes at offset {offset}")
         done += got
@@ -76,9 +79,10 @@ def _write_all(handle: io.FileIO, offset: int, buf: Any) -> None:
 def _read_all(handle: io.FileIO, offset: int, buf: Any) -> None:
     handle.seek(offset)
     view = memoryview(buf.numpy())
+    max_request = _RAW_IO_MAX_BYTES // SECTOR_BYTES * SECTOR_BYTES
     done = 0
     while done < len(view):
-        got = handle.readinto(view[done:])
+        got = handle.readinto(view[done : done + max_request])
         if not got:
             raise OSError(f"short read, {done} of {len(view)} bytes at offset {offset}")
         done += got
@@ -251,11 +255,29 @@ class _Ring:
                 if abort():
                     return None
         if event is not None:
-            event.synchronize()
+            try:
+                event.synchronize()
+            except BaseException:
+                self._free.put((buf, event))
+                raise
         return buf
 
     def release(self, buf: Any, event: Any = None) -> None:
         self._free.put((buf, event))
+
+    def close(self) -> None:
+        """Finish outstanding copies before releasing the host buffers they read."""
+        while True:
+            try:
+                buf, event = self._free.get_nowait()
+            except queue.Empty:
+                return
+            if event is not None:
+                try:
+                    event.synchronize()
+                except BaseException:
+                    self._free.put((buf, event))
+                    raise
 
 
 @dataclass
@@ -320,26 +342,40 @@ class ActivationStore:
         self.slot_bytes = sector_round_up(self.chunk_bytes)
         self._error: Optional[BaseException] = None
         self._closing = False
+        self._closed = False
         self._shapes: Dict[Key, Tuple[int, ...]] = {}
         self._resident: Dict[Key, Any] = {}
-        for layer in range(self.spill_layers, self.n_layers):
-            for mb in range(self.k):
-                self._resident[(layer, mb)] = torch.empty(self.shape, dtype=dtype, pin_memory=pin)
+        self._spill: Optional[SpillBackend] = None
+        self.spill_path: Optional[str] = None
+        self._write_ring: Optional[_Ring] = None
+        self._read_ring: Optional[_Ring] = None
+        self._writes: Optional[queue.Queue[Any]] = None
+        self._reads: Optional[queue.Queue[Any]] = None
+        self._cond: Optional[threading.Condition] = None
+        self._written: Set[Key] = set()
+        self._requested: Set[Key] = set()
+        self._ready: Dict[Key, Any] = {}
+        self._step_keys: Set[Key] = set()
+        self._threads: List[threading.Thread] = []
+        self._worker_done: List[threading.Event] = []
         self.stats = StoreStats(
             chunk_bytes=self.chunk_bytes,
-            resident_chunks=len(self._resident),
+            resident_chunks=(self.n_layers - self.spill_layers) * self.k,
             spilled_chunks=self.spill_layers * self.k,
             spill_layers=self.spill_layers,
             pinned=bool(pin),
             direct=None,
         )
-        self._spill: Optional[SpillBackend] = None
-        self.spill_path: Optional[str] = None
-        if not self.spill_layers:
-            return
-        self._spill = spill_factory(self.spill_layers * self.k * self.slot_bytes)
-        self.spill_path = self._spill.path
         try:
+            for layer in range(self.spill_layers, self.n_layers):
+                for mb in range(self.k):
+                    self._resident[(layer, mb)] = torch.empty(
+                        self.shape, dtype=dtype, pin_memory=pin
+                    )
+            if not self.spill_layers:
+                return
+            self._spill = spill_factory(self.spill_layers * self.k * self.slot_bytes)
+            self.spill_path = self._spill.path
             self.stats.direct = bool(self._spill.direct)
             self._write_ring = _Ring(
                 [aligned_buffer(self.slot_bytes, pin=pin) for _ in range(ring)]
@@ -347,25 +383,20 @@ class ActivationStore:
             self._read_ring = _Ring(
                 [aligned_buffer(self.slot_bytes, pin=pin) for _ in range(ring)]
             )
+            self._writes = queue.Queue()
+            self._reads = queue.Queue()
+            self._cond = threading.Condition()
+            self._worker_done = [threading.Event(), threading.Event()]
+            self._threads = [
+                threading.Thread(target=self._write_loop, name="l2l-spill-writer", daemon=True),
+                threading.Thread(target=self._read_loop, name="l2l-spill-reader", daemon=True),
+            ]
+            for thread in self._threads:
+                thread.start()
         except BaseException:
-            # The file exists from here on; a ring that fails to allocate must not leave it.
-            self._spill.close(remove=True)
-            self.stats.spill_left_behind = self._spill.left_behind
-            self._spill = None
+            # A failed constructor never reaches the caller's store assignment/finally.
+            self.close()
             raise
-        self._writes: "queue.Queue[Any]" = queue.Queue()
-        self._reads: "queue.Queue[Any]" = queue.Queue()
-        self._cond = threading.Condition()
-        self._written: Set[Key] = set()
-        self._requested: Set[Key] = set()
-        self._ready: Dict[Key, Any] = {}
-        self._step_keys: Set[Key] = set()
-        self._threads = [
-            threading.Thread(target=self._write_loop, name="l2l-spill-writer", daemon=True),
-            threading.Thread(target=self._read_loop, name="l2l-spill-reader", daemon=True),
-        ]
-        for thread in self._threads:
-            thread.start()
 
     # -- placement -----------------------------------------------------------
     def is_spilled(self, layer: int) -> bool:
@@ -444,7 +475,7 @@ class ActivationStore:
         key = (layer, mb)
         shape = self._fit(tensor)
         if not self.is_spilled(layer):
-            self._view(self._resident[key], shape).copy_(tensor, non_blocking=True)
+            self._view(self._resident[key], shape).copy_(tensor, non_blocking=self.is_cuda)
             self._shapes[key] = shape
             return
         started = time.perf_counter()
@@ -453,7 +484,8 @@ class ActivationStore:
         self._raise_if_failed()
         if buf is None:
             raise RuntimeError("the activation store was closed during a put")
-        self._typed(buf, shape).copy_(tensor, non_blocking=True)
+        # Only CUDA has events protecting the writer from a pending host transfer.
+        self._typed(buf, shape).copy_(tensor, non_blocking=self.is_cuda)
         event = self._record()
         with self._cond:
             self._written.discard(key)
@@ -469,7 +501,11 @@ class ActivationStore:
                     return
                 key, buf, event, nbytes = item
                 if event is not None:
-                    event.synchronize()
+                    try:
+                        event.synchronize()
+                    except BaseException:
+                        self._write_ring.release(buf, event)
+                        raise
                 self._spill.write(self._offset(key), buf[:nbytes])
                 with self._cond:
                     self.stats.bytes_written += nbytes
@@ -478,6 +514,8 @@ class ActivationStore:
                 self._write_ring.release(buf, None)
         except BaseException as exc:  # noqa: BLE001 — surfaced on the next put/get
             self._fail(exc)
+        finally:
+            self._worker_done[0].set()
 
     # -- the backward --------------------------------------------------------
     def _request(self, key: Key) -> None:
@@ -522,6 +560,8 @@ class ActivationStore:
                     self._cond.notify_all()
         except BaseException as exc:  # noqa: BLE001 — surfaced on the next put/get
             self._fail(exc)
+        finally:
+            self._worker_done[1].set()
 
     def get(self, layer: int, mb: int) -> Any:
         """The stored activation as a NEW tensor on the store's device, in its put shape."""
@@ -530,7 +570,7 @@ class ActivationStore:
         shape = self._shapes.get(key, self.shape)
         if not self.is_spilled(layer):
             return self._view(self._resident[key], shape).to(
-                self.device, non_blocking=True, copy=True
+                self.device, non_blocking=self.is_cuda, copy=True
             )
         self._request(key)
         started = time.perf_counter()
@@ -543,7 +583,7 @@ class ActivationStore:
             self._requested.discard(key)
         self.stats.get_wait_s += time.perf_counter() - started
         self._raise_if_failed()
-        out = self._typed(buf, shape).to(self.device, non_blocking=True, copy=True)
+        out = self._typed(buf, shape).to(self.device, non_blocking=self.is_cuda, copy=True)
         self._read_ring.release(buf, self._record())
         return out
 
@@ -562,15 +602,69 @@ class ActivationStore:
             )
 
     def close(self) -> None:
-        if self._spill is None:
+        """Stop I/O and release every host allocation, retaining only store metadata."""
+        if self._closed:
             return
         self._closing = True
-        self._writes.put(None)
-        self._reads.put(None)
-        with self._cond:
-            self._cond.notify_all()
-        for thread in self._threads:
-            thread.join(timeout=30)
-        self._spill.close(remove=True)
-        self.stats.spill_left_behind = self._spill.left_behind
-        self._spill = None
+        if self._writes is not None:
+            self._writes.put(None)
+        if self._reads is not None:
+            self._reads.put(None)
+        if self._cond is not None:
+            with self._cond:
+                self._cond.notify_all()
+        for thread, done in zip(self._threads, self._worker_done):
+            # An interrupted CPython join may report stopped before the target exits.
+            if thread.ident is not None:
+                thread.join()
+                done.wait()
+        self._threads.clear()
+        self._worker_done.clear()
+        try:
+            if self.is_cuda and self._resident:
+                import torch
+
+                # Resident copies have no ring event and may use another CUDA stream.
+                torch.cuda.synchronize(self.device)
+            if self._writes is not None:
+                while True:
+                    try:
+                        item = self._writes.get_nowait()
+                    except queue.Empty:
+                        break
+                    if item is not None and item[2] is not None:
+                        try:
+                            item[2].synchronize()
+                        except BaseException:
+                            self._writes.put(item)
+                            raise
+            for ring in (self._write_ring, self._read_ring):
+                if ring is not None:
+                    ring.close()
+        finally:
+            if self._spill is not None:
+                try:
+                    self._spill.close(remove=True)
+                finally:
+                    self.stats.spill_left_behind = self._spill.left_behind
+                self._spill = None
+        # A failed synchronization leaves its source queued for a later close retry.
+        self._write_ring = self._read_ring = None
+        self._writes = self._reads = None
+        self._ready.clear()
+        self._resident.clear()
+        self._shapes.clear()
+        self._written.clear()
+        self._requested.clear()
+        self._step_keys.clear()
+        # Chained backend exceptions can retain the transfer buffer in several frames.
+        errors = [self._error]
+        seen: Set[int] = set()
+        while errors:
+            error = errors.pop()
+            if error is None or id(error) in seen:
+                continue
+            seen.add(id(error))
+            error.__traceback__ = None
+            errors.extend((error.__cause__, error.__context__))
+        self._closed = True

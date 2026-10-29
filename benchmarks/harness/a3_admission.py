@@ -122,10 +122,19 @@ def _positive_int(plan: Dict[str, Any], key: str, what: str) -> int:
     return value
 
 
+def _finite_number(value: Any) -> bool:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 def load_inputs(plan_path: Path, a_path: Path) -> Dict[str, Any]:
     """The plan's numbers and the A arm's step, each with its file and SHA-256. Refuses a
-    CPU record, a failed child, an A arm that spilled or did not time its 5 steps, and an
-    A arm whose store had another shape than the plan's."""
+    CPU/failed/spilling A arm, a differently shaped store, or anything other than the median
+    of exactly five finite positive timed steps."""
     plan_rec, a_rec = _record(plan_path, "--plan"), _record(a_path, "--a")
     for what, rec in (("--plan", plan_rec), ("--a", a_rec)):
         if rec.get("device") != "cuda":
@@ -151,11 +160,17 @@ def load_inputs(plan_path: Path, a_path: Path) -> Dict[str, Any]:
         if a_plan.get(key) != numbers[key]:
             raise InputError(f"--a: its store has {key} {a_plan.get(key)!r}, the plan's "
                              f"{numbers[key]}")
-    timed = a_rec.get("timed_step_s") or []
+    timed = a_rec.get("timed_step_s")
     value = a_rec.get("value")
-    if len(timed) != stand.COST_STEPS or not isinstance(value, (int, float)) or value <= 0:
+    if not isinstance(timed, list):
+        raise InputError("--a: timed_step_s must be an explicit list of timed steps")
+    if (len(timed) != stand.COST_STEPS or not _finite_number(value) or value <= 0
+            or any(not _finite_number(step) or step <= 0 for step in timed)):
         raise InputError(f"--a: value {value!r} over {len(timed)} timed steps; "
-                         f"{stand.COST_STEPS} timed steps and a positive median are needed")
+                         f"{stand.COST_STEPS} finite positive timed steps and a finite "
+                         "positive median are needed")
+    if value != statistics.median(timed):
+        raise InputError(f"--a: value {value!r} is not the median of its timed steps {timed!r}")
     return {
         "plan": {**numbers, "pin": plan.get("pin"), "file": str(plan_path),
                  "sha256": sha256_file(plan_path)},
@@ -178,12 +193,25 @@ def session_volume(cycle_bytes: int) -> Dict[str, Any]:
 
 
 def schedule(*, cycle_bytes: int, a_value_s: float, volume_bytes: float) -> Dict[str, Any]:
-    """D, the period, N and the duration from the cycle, the A step and V."""
+    """D, the period, N and the duration from the finite positive cycle, A step and V."""
+    for key, value in (("cycle_bytes", cycle_bytes), ("a_value_s", a_value_s),
+                       ("volume_bytes", volume_bytes)):
+        if not _finite_number(value) or value <= 0:
+            raise InputError(f"schedule: {key} {value!r} is not finite and positive")
     demand = cycle_bytes / a_value_s
+    if not _finite_number(demand) or demand <= 0:
+        raise InputError(f"schedule: demand {demand!r} is not finite and positive")
     period = cycle_bytes / (MARGIN * demand)
-    n_cycles = max(MIN_CYCLES, math.ceil(volume_bytes / cycle_bytes))
+    cycles = volume_bytes / cycle_bytes
+    if (not _finite_number(period) or period <= 0
+            or not _finite_number(cycles) or cycles <= 0):
+        raise InputError("schedule: period or volume in cycles is not finite and positive")
+    n_cycles = max(MIN_CYCLES, math.ceil(cycles))
+    duration = n_cycles * period
+    if not _finite_number(duration) or duration <= 0:
+        raise InputError(f"schedule: duration {duration!r} is not finite and positive")
     return {"demand_bytes_per_s": demand, "period_s": period, "n_cycles": n_cycles,
-            "duration_s": n_cycles * period, "margin": MARGIN, "min_cycles": MIN_CYCLES}
+            "duration_s": duration, "margin": MARGIN, "min_cycles": MIN_CYCLES}
 
 
 def admission_plan(inputs: Dict[str, Any], *, spill_layers: int = stand.TARGET_SPILL
@@ -367,15 +395,28 @@ def exercise(directory: str, *, n_cycles: int, period_s: float, spill_layers: in
 
 def judgement(run: Dict[str, Any], *, n_cycles: int,
               limit_s: float = MAX_LATENESS_S) -> Dict[str, Any]:
-    """Admitted iff all ``n_cycles`` ran, none ended more than ``limit_s`` behind its
-    schedule, no chunk read back other bytes than its cycle wrote, and the file is gone."""
-    lateness = [row[3] for row in run["cycles"]]
-    late = [i for i, value in enumerate(lateness) if value > limit_s]
+    """Admitted iff all scheduled cycles have finite timing and none exceeds ``limit_s``,
+    every chunk matched its cycle's write, and the file is gone."""
+    cycles = run["cycles"]
+    invalid = {i for i, row in enumerate(cycles)
+               if not isinstance(row, (list, tuple)) or len(row) != 5
+               or not all(_finite_number(value) for value in row[:4])}
+    lateness = [row[3] for i, row in enumerate(cycles) if i not in invalid]
+    valid_limit = _finite_number(limit_s) and limit_s > 0
+    late = [i for i, row in enumerate(cycles)
+            if i not in invalid and valid_limit and row[3] > limit_s]
     problems: List[str] = []
-    if len(lateness) != n_cycles:
-        problems.append(f"{len(lateness)} of {n_cycles} scheduled cycles ran")
+    if not isinstance(n_cycles, int) or isinstance(n_cycles, bool) or n_cycles <= 0:
+        problems.append(f"scheduled cycle count {n_cycles!r} is not a positive integer")
+    elif len(cycles) != n_cycles:
+        problems.append(f"{len(cycles)} of {n_cycles} scheduled cycles ran")
+    if invalid:
+        problems.append(f"{len(invalid)} cycle(s) have missing or non-finite timing "
+                        f"(first: cycle {min(invalid)})")
+    if not valid_limit:
+        problems.append(f"lateness limit {limit_s!r} is not finite and positive")
     if late:
-        problems.append(f"{len(late)} of {len(lateness)} cycle(s) ended more than {limit_s:g} s "
+        problems.append(f"{len(late)} of {len(cycles)} cycle(s) ended more than {limit_s:g} s "
                         f"behind the schedule (worst {max(lateness):.2f} s; first: cycle "
                         f"{late[0]})")
     if run["mismatched_chunks"]:

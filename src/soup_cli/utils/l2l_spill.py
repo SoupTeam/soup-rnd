@@ -37,9 +37,11 @@ import os
 import re
 import secrets
 import shutil
+import stat
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, FrozenSet, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Iterator, List, Optional, Sequence, Tuple
 
 from rich.console import Console
 
@@ -344,21 +346,75 @@ def cgroup_levels(
     *, proc_root: Optional[str] = None, v2_root: Optional[str] = None,
     v1_root: Optional[str] = None,
 ) -> Tuple[List[CgroupLevel], List[Dict[str, str]]]:
-    """Every limited level of this process's cgroup chains (v2 and the v1 memory
-    controller), and the levels whose limit exists but could not be read."""
+    """Every limited accessible ancestor of this process's memory cgroups.
+
+    Mountinfo maps hierarchy membership to its visible mount, including controller
+    co-mounts and subtree roots. Explicit roots keep the fixture convention: membership
+    is relative to that root. The conventional roots also work without mountinfo.
+    """
     proc_root = PROC_ROOT if proc_root is None else proc_root
-    v2_root = CGROUP_V2_ROOT if v2_root is None else v2_root
-    v1_root = CGROUP_V1_ROOT if v1_root is None else v1_root
     text, _problem = _read(os.path.join(proc_root, "self", "cgroup"))
+    mount_text, _problem = _read(os.path.join(proc_root, "self", "mountinfo"))
+    mounts = _mountinfo_entries(mount_text or "")
+    mount_points, stacked_points = set(), set()
+    for mount in mounts:
+        point = mount["mount_point"]
+        if point in mount_points:
+            stacked_points.add(point)
+        mount_points.add(point)
     levels: List[CgroupLevel] = []
     failed: List[Dict[str, str]] = []
-    for version, root in ((2, v2_root), (1, v1_root)):
+    roots = ((2, v2_root, CGROUP_V2_ROOT), (1, v1_root, CGROUP_V1_ROOT))
+    for version, explicit_root, conventional_root in roots:
         parts = _hierarchy(text or "", v2=version == 2)
         if parts is None:
             continue
-        for directory in _chain(parts, root):
-            # A container sees its host path here; those directories do not exist in
-            # its mount namespace, and its own group is mounted at the root.
+        memory_mounts = [
+            mount for mount in mounts
+            if (version == 2 and mount["fstype"] == "cgroup2")
+            or (version == 1 and mount["fstype"] == "cgroup"
+                and "memory" in mount["super_options"].split(","))
+        ]
+        if explicit_root is not None or not memory_mounts:
+            directories = _chain(parts, explicit_root or conventional_root)
+        else:
+            directories = []
+            for mount in memory_mounts:
+                mount_parts = [part for part in mount["root"].split("/") if part]
+                if mount_parts and all(part == ".." for part in mount_parts):
+                    # An inherited mount above the cgroup namespace hides the names
+                    # leading to its root. The mount itself is a proven ancestor;
+                    # joining the membership suffix here would guess a sibling group.
+                    candidates = [mount["mount_point"]]
+                    logger.warning(
+                        "cgroup membership /%s cannot be fully mapped through inherited "
+                        "mount %s (root %s); only its known ancestor is read, so a "
+                        "tighter nested memory limit may be unknown",
+                        "/".join(parts), mount["mount_point"], mount["root"],
+                    )
+                elif parts[:len(mount_parts)] != mount_parts:
+                    continue  # A bind mount of another group does not contain this process.
+                else:
+                    candidates = _chain(parts[len(mount_parts):], mount["mount_point"])
+                for directory in candidates:
+                    if any(
+                        directory == point or directory.startswith(point.rstrip("/") + "/")
+                        for point in stacked_points
+                    ):
+                        logger.warning(
+                            "cgroup ancestor %s is ambiguous under stacked mounts; its "
+                            "memory limit is unknown through this path", directory,
+                        )
+                        continue
+                    visible = _mount_at(mounts, directory)
+                    if visible is mount:
+                        directories.append(directory)
+                    else:
+                        logger.warning(
+                            "cgroup ancestor %s is hidden by another mount; its memory "
+                            "limit cannot be read through this path", directory,
+                        )
+        for directory in dict.fromkeys(directories):
             if not os.path.isdir(directory):
                 continue
             try:
@@ -534,39 +590,117 @@ def spill_file_name(prefix: str = SPILL_FILE_PREFIX) -> str:
     return f"{prefix}{os.getpid()}-{secrets.token_hex(4)}.bin"
 
 
-def _own_entries(directory: str) -> List[Tuple[str, int]]:
-    """``(realpath, pid)`` of our regular files directly inside ``directory``. Symlinks
-    and junctions are skipped, never followed; so is anything resolving outside it."""
+def _plain_entry(info: os.stat_result, *, directory: bool = False) -> bool:
+    """Regular entries only, excluding every Windows reparse point (not just symlinks)."""
+    kind = stat.S_ISDIR if directory else stat.S_ISREG
+    return kind(info.st_mode) and not (getattr(info, "st_file_attributes", 0) & 0x400)
+
+
+@contextmanager
+def _windows_directory_guard(root: str) -> Iterator[None]:
+    """Keep every resolved path component from being renamed or replaced while sweeping."""
+    import ctypes
+    from ctypes import wintypes
+
+    class AttributeTagInfo(ctypes.Structure):
+        _fields_ = [("attributes", wintypes.DWORD), ("reparse_tag", wintypes.DWORD)]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateFileW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    ]
+    kernel32.CreateFileW.restype = wintypes.HANDLE
+    kernel32.GetFileInformationByHandleEx.argtypes = [
+        wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD,
+    ]
+    kernel32.GetFileInformationByHandleEx.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    ancestors = [root]
+    while os.path.dirname(ancestors[-1]) != ancestors[-1]:
+        ancestors.append(os.path.dirname(ancestors[-1]))
+    handles = []
     try:
-        root = os.path.realpath(directory)
-        entries = list(os.scandir(root))
-    except OSError:
-        return []
+        for path in reversed(ancestors):
+            # FILE_LIST_DIRECTORY participates in sharing checks; metadata-only access
+            # does not. Share reads/writes but not delete/rename for every ancestor.
+            # BACKUP_SEMANTICS opens directories, OPEN_REPARSE_POINT never follows them.
+            handle = kernel32.CreateFileW(path, 0x1, 3, None, 3, 0x02200000, None)
+            if handle == wintypes.HANDLE(-1).value:
+                raise ctypes.WinError(ctypes.get_last_error())
+            handles.append(handle)
+            info = AttributeTagInfo()
+            if not kernel32.GetFileInformationByHandleEx(
+                handle, 9, ctypes.byref(info), ctypes.sizeof(info),
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if info.attributes & 0x400 or not info.attributes & 0x10:
+                raise OSError(
+                    f"spill directory component is a reparse point or not a directory: {path}",
+                )
+        yield
+    finally:
+        for handle in reversed(handles):
+            kernel32.CloseHandle(handle)
+
+
+@contextmanager
+def _spill_directory(directory: str) -> Iterator[Tuple[str, Optional[int], os.stat_result]]:
+    """Anchor the actual directory; a pathname replacement must not redirect deletion."""
+    root = os.path.realpath(directory)
+    identity = os.lstat(root)
+    if not _plain_entry(identity, directory=True):
+        raise OSError(f"spill directory is not a plain directory: {root}")
+    if os.name == "nt":
+        with _windows_directory_guard(root):
+            if not os.path.samestat(identity, os.lstat(root)):
+                raise OSError(f"spill directory changed before it could be anchored: {root}")
+            yield root, None, identity
+    else:
+        descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            if not os.path.samestat(identity, os.fstat(descriptor)):
+                raise OSError(f"spill directory changed before it could be anchored: {root}")
+            yield root, descriptor, identity
+        finally:
+            os.close(descriptor)
+
+
+def _own_entries(
+    root: str, descriptor: Optional[int],
+) -> List[Tuple[str, int, os.stat_result]]:
+    """Original basenames, PIDs and no-follow identities inside the anchored directory."""
     found = []
-    for entry in entries:
-        match = _OWN_FILE.match(entry.name)
-        if match is None:
-            continue
-        try:
-            if entry.is_symlink() or getattr(entry, "is_junction", lambda: False)():
+    with os.scandir(root if descriptor is None else descriptor) as entries:
+        for entry in entries:
+            match = _OWN_FILE.match(entry.name)
+            if match is None:
                 continue
-            if not entry.is_file(follow_symlinks=False):
+            try:
+                # DirEntry.stat on Windows omits st_ino/st_dev; lstat supplies the
+                # actual identity. Still inspect the entry without following links.
+                identity = os.lstat(os.path.join(root, entry.name)) if descriptor is None else (
+                    entry.stat(follow_symlinks=False)
+                )
+                if descriptor is None and not _plain_entry(entry.stat(follow_symlinks=False)):
+                    continue
+            except OSError:
                 continue
-        except OSError:
-            continue
-        path = os.path.realpath(entry.path)
-        try:
-            inside = os.path.commonpath([root, path]) == root and os.path.dirname(path) == root
-        except ValueError:
-            inside = False
-        if inside:
-            found.append((path, int(match.group(1))))
+            if _plain_entry(identity):
+                found.append((entry.name, int(match.group(1)), identity))
     return sorted(found)
 
 
 def spill_files(directory: str) -> List[str]:
-    """Absolute paths of this module's spill and probe files in ``directory``, sorted."""
-    return [path for path, _pid in _own_entries(directory)]
+    """Absolute original paths of this module's regular spill and probe files, sorted."""
+    try:
+        with _spill_directory(directory) as (root, descriptor, _identity):
+            return [
+                os.path.join(root, name) for name, _pid, _stat in _own_entries(root, descriptor)
+            ]
+    except OSError:
+        return []
 
 
 def process_alive(pid: int) -> bool:
@@ -611,6 +745,117 @@ def _windows_process_alive(pid: int) -> bool:
         kernel32.CloseHandle(handle)
 
 
+def _posix_remove_stale(
+    root: str, descriptor: int, name: str, identity: os.stat_result,
+) -> bool:
+    """Claim by atomic rename, then dispose only a verified object in a private directory."""
+    quarantine = f".soup-l2l-sweep-{os.getpid()}-{secrets.token_hex(8)}"
+    os.mkdir(quarantine, 0o700, dir_fd=descriptor)  # Exclusive; never reuse a directory.
+    quarantine_fd = None
+    captured = False
+    captured_path = os.path.join(root, quarantine, name)
+    try:
+        created = os.stat(quarantine, dir_fd=descriptor, follow_symlinks=False)
+        quarantine_fd = os.open(
+            quarantine, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor,
+        )
+        private = os.fstat(quarantine_fd)
+        if (not stat.S_ISDIR(private.st_mode) or private.st_uid != os.geteuid()
+                or stat.S_IMODE(private.st_mode) != 0o700
+                or not os.path.samestat(created, private)
+                or not os.path.samestat(
+                    private, os.stat(quarantine, dir_fd=descriptor, follow_symlinks=False),
+                )):
+            raise OSError("the stale-file quarantine is not a private anchored directory")
+        captured = True  # Set before the syscall: interruption may arrive as it returns.
+        os.rename(name, name, src_dir_fd=descriptor, dst_dir_fd=quarantine_fd)
+        current = os.stat(name, dir_fd=quarantine_fd, follow_symlinks=False)
+        if _plain_entry(current) and os.path.samestat(identity, current):
+            os.unlink(name, dir_fd=quarantine_fd)
+            captured = False
+            return True
+        # A replacement won the claim race. link() restores without overwriting a
+        # concurrent replacement and never follows a captured symlink. Unsupported
+        # links, directories or occupied names remain preserved in quarantine.
+        try:
+            os.link(
+                name, name, src_dir_fd=quarantine_fd, dst_dir_fd=descriptor,
+                follow_symlinks=False,
+            )
+        except OSError:
+            return False
+        os.unlink(name, dir_fd=quarantine_fd)
+        captured = False
+        return False
+    finally:
+        if quarantine_fd is not None:
+            os.close(quarantine_fd)
+        try:
+            os.rmdir(quarantine, dir_fd=descriptor)  # Empty only, even if capture failed.
+        except OSError as exc:
+            if captured:
+                logger.warning(
+                    "stale-file cleanup preserved an unverified or unremoved file at %s",
+                    captured_path,
+                )
+            else:
+                logger.warning("could not remove empty spill quarantine %s: %s",
+                               os.path.join(root, quarantine), exc)
+
+
+def _windows_dispose_file(kernel32: Any, handle: Any) -> None:
+    """Mark the already-verified no-follow handle for deletion; never look up its path."""
+    import ctypes
+    from ctypes import wintypes
+
+    class DispositionInfo(ctypes.Structure):
+        _fields_ = [("delete_file", ctypes.c_ubyte)]
+
+    kernel32.SetFileInformationByHandle.argtypes = [
+        wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD,
+    ]
+    kernel32.SetFileInformationByHandle.restype = wintypes.BOOL
+    disposition = DispositionInfo(1)
+    if not kernel32.SetFileInformationByHandle(
+        handle, 4, ctypes.byref(disposition), ctypes.sizeof(disposition),
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _windows_remove_stale(path: str, identity: os.stat_result) -> bool:
+    """Open the original basename without following reparses, verify, delete by handle."""
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateFileW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    ]
+    kernel32.CreateFileW.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    # DELETE | FILE_READ_ATTRIBUTES, share reads/writes but not replacement. Reparse
+    # points are opened themselves, never traversed (including directory junctions).
+    handle = kernel32.CreateFileW(path, 0x10080, 3, None, 3, 0x02200000, None)
+    if handle == wintypes.HANDLE(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    descriptor = None
+    try:
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY)
+        current = os.fstat(descriptor)
+        if not _plain_entry(current) or not os.path.samestat(identity, current):
+            return False
+        _windows_dispose_file(kernel32, handle)
+        return True
+    finally:
+        if descriptor is None:
+            kernel32.CloseHandle(handle)
+        else:
+            os.close(descriptor)  # The CRT owns the native handle after open_osfhandle.
+
+
 def sweep_stale(
     directory: Optional[str], *, notify: Optional[Callable[[str], Any]] = None
 ) -> List[str]:
@@ -619,18 +864,39 @@ def sweep_stale(
     Only our own names, only directly inside the directory, never through a link, never
     a file whose process still runs. Returns the removed paths and names them in one line.
     """
-    if not directory or not os.path.isdir(directory):
-        return []
     removed = []
-    for path, pid in _own_entries(directory):
-        if process_alive(pid):
-            continue
-        try:
-            os.remove(path)
-        except OSError as exc:
-            logger.warning("could not remove the stale spill file %s: %s", path, exc)
-            continue
-        removed.append(path)
+    if not directory:
+        return removed
+    try:
+        with _spill_directory(directory) as (root, descriptor, directory_identity):
+            for name, pid, identity in _own_entries(root, descriptor):
+                if process_alive(pid):
+                    continue
+                path = os.path.join(root, name)
+                try:
+                    current_root = os.lstat(root)
+                    if not _plain_entry(current_root, directory=True) or not os.path.samestat(
+                        directory_identity, current_root,
+                    ):
+                        break
+                    current = (
+                        os.lstat(path) if descriptor is None
+                        else os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+                    )
+                    if not _plain_entry(current) or not os.path.samestat(identity, current):
+                        continue
+                    if descriptor is None:
+                        deleted = _windows_remove_stale(path, identity)
+                    else:
+                        deleted = _posix_remove_stale(root, descriptor, name, identity)
+                    if not deleted:
+                        continue
+                except OSError as exc:
+                    logger.warning("could not remove the stale spill file %s: %s", path, exc)
+                    continue
+                removed.append(path)
+    except OSError:
+        return removed
     if removed:
         from soup_cli.utils.terminal import for_terminal
 
@@ -709,22 +975,42 @@ def open_spill_file(path: str, size: int) -> Any:
 # ---------------------------------------------------------------------------
 # the spill volume
 # ---------------------------------------------------------------------------
+def _mountinfo_entries(text: str) -> List[Dict[str, str]]:
+    """Mount records shared by the cgroup and filesystem checks."""
+    def unescape(value: str) -> str:
+        return re.sub(r"\\([0-7]{3})", lambda match: chr(int(match.group(1), 8)), value)
+
+    mounts = []
+    for line in text.splitlines():
+        left, sep, right = line.partition(" - ")
+        fields, tail = left.split(), right.split()
+        if not sep or len(fields) < 6 or len(tail) < 3:
+            continue
+        mounts.append({
+            "root": unescape(fields[3]), "mount_point": unescape(fields[4]),
+            "fstype": tail[0], "source": unescape(tail[1]), "super_options": tail[2],
+        })
+    return mounts
+
+
+def _mount_at(mounts: List[Dict[str, str]], path: str) -> Optional[Dict[str, str]]:
+    """The visible longest-prefix record, retaining its filesystem root for cgroups."""
+    best: Optional[Dict[str, str]] = None
+    for mount in mounts:
+        mount_point = mount["mount_point"]
+        inside = path == mount_point or path.startswith(mount_point.rstrip("/") + "/")
+        if inside and (best is None or len(mount_point) >= len(best["mount_point"])):
+            best = mount
+    return best
+
+
 def parse_mountinfo(text: str, path: str) -> Optional[Dict[str, str]]:
     """The mount holding ``path`` (resolved, ``/``-separated), from mountinfo text: the
     longest mount point that is a prefix of it."""
-    best: Optional[Dict[str, str]] = None
-    for line in text.splitlines():
-        left, sep, right = line.partition(" - ")
-        if not sep:
-            continue
-        fields, tail = left.split(), right.split()
-        if len(fields) < 5 or len(tail) < 2:
-            continue
-        mount_point = fields[4].replace("\\040", " ")
-        inside = path == mount_point or path.startswith(mount_point.rstrip("/") + "/")
-        if inside and (best is None or len(mount_point) >= len(best["mount_point"])):
-            best = {"mount_point": mount_point, "fstype": tail[0], "source": tail[1]}
-    return best
+    best = _mount_at(_mountinfo_entries(text), path)
+    return None if best is None else {
+        key: best[key] for key in ("mount_point", "fstype", "source")
+    }
 
 
 def classify_fs(fstype: str) -> Optional[str]:
@@ -751,9 +1037,100 @@ def _windows_drive_type(path: str) -> Optional[int]:
         return None
 
 
+def _darwin_mount_info(path: str) -> Dict[str, Any]:
+    """Native statfs64 locality, type, exact mount point and source device."""
+    import ctypes
+
+    class StatFs(ctypes.Structure):
+        _fields_ = [
+            ("bsize", ctypes.c_uint32), ("iosize", ctypes.c_int32),
+            ("blocks", ctypes.c_uint64), ("bfree", ctypes.c_uint64),
+            ("bavail", ctypes.c_uint64), ("files", ctypes.c_uint64),
+            ("ffree", ctypes.c_uint64), ("fsid", ctypes.c_int32 * 2),
+            ("owner", ctypes.c_uint32), ("type", ctypes.c_uint32),
+            ("flags", ctypes.c_uint32), ("subtype", ctypes.c_uint32),
+            ("fstype", ctypes.c_char * 16), ("mount_point", ctypes.c_char * 1024),
+            ("source", ctypes.c_char * 1024), ("reserved", ctypes.c_uint32 * 8),
+        ]
+
+    libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+    # Intel's legacy statfs symbol uses the old layout; arm64 is inode64-only.
+    native_statfs = getattr(libc, "statfs$INODE64", None) or libc.statfs
+    native_statfs.argtypes = [ctypes.c_char_p, ctypes.POINTER(StatFs)]
+    native_statfs.restype = ctypes.c_int
+    result = StatFs()
+    if native_statfs(os.fsencode(path), ctypes.byref(result)):
+        number = ctypes.get_errno()
+        raise OSError(number, os.strerror(number), path)
+    return {
+        "flags": int(result.flags), "fstype": os.fsdecode(result.fstype),
+        "mount_point": os.fsdecode(result.mount_point), "source": os.fsdecode(result.source),
+    }
+
+
+def _darwin_filesystem_refusal(path: str) -> Optional[str]:
+    """Filesystem locality is distinct from the optional physical-disk identity check."""
+    import plistlib
+    import subprocess
+
+    from soup_cli.utils.layer_stream import (
+        _darwin_apfs_physical_stores,
+        _darwin_bsd_whole_disk,
+        _resolve_tool,
+    )
+
+    try:
+        mount = _darwin_mount_info(path)
+    except (OSError, AttributeError, ValueError) as exc:
+        return f"its local filesystem and disk backing could not be verified ({exc})"
+    reason = classify_fs(mount["fstype"])
+    if reason is not None:
+        return reason
+    if not mount["flags"] & 0x1000:  # MNT_LOCAL, not a physical-disk identity heuristic.
+        return f"it is {mount['fstype']}, a network filesystem, not a local drive"
+    tool = _resolve_tool("diskutil", "/usr/sbin/diskutil")
+    if tool is None:
+        return "its disk backing could not be verified (diskutil is unavailable)"
+    target = mount["source"]
+    if _darwin_bsd_whole_disk(target) is None:
+        target = mount["mount_point"]  # diskutil accepts exact mount points, not child paths.
+    pending, seen = [target], set()
+    while pending:
+        target = pending.pop()
+        if target in seen:
+            continue
+        seen.add(target)
+        try:
+            result = subprocess.run(
+                [tool, "info", "-plist", target], capture_output=True, timeout=60,
+                check=False, shell=False,
+            )
+            info = plistlib.loads(result.stdout) if result.returncode == 0 else None
+        except (OSError, ValueError, TypeError, plistlib.InvalidFileException,
+                subprocess.SubprocessError) as exc:
+            return f"its disk backing could not be verified ({exc})"
+        if not isinstance(info, dict):
+            return "its disk backing could not be verified (diskutil returned no volume info)"
+        reason = classify_fs(str(info.get("FilesystemType", "")))
+        if reason is not None:
+            return reason
+        hints = " ".join(str(info.get(key, "")) for key in (
+            "BusProtocol", "MediaName", "MediaType", "DeviceModel",
+        )).lower()
+        if info.get("DiskImage") is True or "disk image" in hints or "ram disk" in hints:
+            return "it is a RAM disk or disk image whose disk backing cannot be verified"
+        stores = _darwin_apfs_physical_stores(info)
+        if not stores and not str(info.get("BusProtocol", "")).strip():
+            return "its disk backing could not be verified (diskutil reports no backing protocol)"
+        # A synthesized APFS volume may be disk-backed or live on a RAM disk. Follow
+        # only the stores diskutil reports; missing whole-disk IDs alone prove neither.
+        pending.extend("/dev/" + disk for disk in stores)
+    return None
+
+
 def filesystem_refusal(resolved: str) -> Optional[str]:
-    """Why the volume holding ``resolved`` cannot hold a spill, where that is detectable:
-    Linux mountinfo (the longest mount-point prefix) and the Windows drive type."""
+    """Why the volume cannot hold a spill: Linux mountinfo, Windows drive type, or
+    Darwin's native locality flag and diskutil backing information."""
     text, _problem = _read(os.path.join(PROC_ROOT, "self", "mountinfo"))
     if text:
         mount = parse_mountinfo(text, resolved.replace(os.sep, "/"))
@@ -767,6 +1144,8 @@ def filesystem_refusal(resolved: str) -> Optional[str]:
             return "it is a network drive, not a local drive"
         if kind == _DRIVE_RAMDISK:
             return "it is a RAM disk: a spill there frees no memory"
+    if sys.platform == "darwin":
+        return _darwin_filesystem_refusal(resolved)
     return None
 
 

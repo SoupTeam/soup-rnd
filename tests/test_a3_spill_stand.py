@@ -774,11 +774,13 @@ class FakeChild:
 
     def __init__(self, code=None):
         self.code = code
+        self.waits = []
 
     def poll(self):
         return self.code
 
     def wait(self, timeout=None):
+        self.waits.append(timeout)
         if self.code is None:
             raise subprocess.TimeoutExpired("child", timeout)
         return self.code
@@ -848,6 +850,245 @@ def test_no_signal_after_the_session_deadline(stand, tmp_path):
     assert not [e for e in events if e[0] == "send"]
 
 
+def _held_signal_entry(stand, tmp_path):
+    marker = tmp_path / "marker.json"
+    stand.write_json(marker, {"pid": 4242, "steps_done": 1, "phase": "hold",
+                              "spill_path": SPILL})
+    return {"marker": str(marker), "signal_name": "SIGINT", "spill_dir": "/spill/sigint"}
+
+
+@pytest.mark.parametrize("now", [5.0, 6.0])
+def test_an_already_written_hold_cannot_bypass_the_deadline(stand, tmp_path, now):
+    entry = _held_signal_entry(stand, tmp_path)
+    sent = []
+    out = stand.drive_signal(FakeChild(), entry, 5.0, list_files=lambda d: [SPILL],
+                             send=lambda pid, sig: sent.append((pid, sig)),
+                             read_status=lambda pid: {"pid": pid}, clock=lambda: now)
+    assert out["sent_unix"] is None and out["why"] == "session deadline"
+    assert sent == []
+
+
+@pytest.mark.parametrize("slow_read", ["listing", "status"])
+def test_pre_send_observations_cannot_spend_the_last_deadline_budget(
+    stand, tmp_path, slow_read
+):
+    entry = _held_signal_entry(stand, tmp_path)
+    now, sent = [0.0], []
+
+    def files(directory):
+        if slow_read == "listing":
+            now[0] = 5.0
+        return [SPILL]
+
+    def status(pid):
+        if slow_read == "status":
+            now[0] = 5.0
+        return {"pid": pid}
+
+    out = stand.drive_signal(FakeChild(), entry, 5.0, list_files=files,
+                             send=lambda pid, sig: sent.append((pid, sig)),
+                             read_status=status, clock=lambda: now[0])
+    assert out["sent_unix"] is None and out["why"] == "session deadline"
+    assert sent == []
+
+
+def test_marker_poll_sleep_is_limited_to_the_remaining_deadline(stand, tmp_path):
+    now, slept = [4.99], []
+
+    def sleep(seconds):
+        slept.append(seconds)
+        now[0] += seconds
+
+    entry = {"marker": str(tmp_path / "missing.json"), "signal_name": "SIGINT",
+             "spill_dir": "/spill/sigint"}
+    out = stand.drive_signal(FakeChild(), entry, 5.0, list_files=lambda d: [],
+                             send=lambda pid, sig: pytest.fail("expired parent sent a signal"),
+                             sleep=sleep, clock=lambda: now[0])
+    assert out["sent_unix"] is None
+    assert slept == [pytest.approx(0.01)]
+
+
+@pytest.mark.parametrize("pid_gone", [False, True])
+@pytest.mark.parametrize("exit_timeout, expected_wait", [(600.0, 2.0), (1.0, 1.0)])
+def test_signal_and_disappearing_target_waits_use_only_the_remaining_deadline(
+    stand, tmp_path, pid_gone, exit_timeout, expected_wait
+):
+    entry = _held_signal_entry(stand, tmp_path)
+    now = [0.0]
+
+    class LiveLauncher(FakeChild):
+        def wait(self, timeout=None):
+            if self.code is None:
+                assert timeout is not None, "live launcher wait must be bounded"
+            return super().wait(timeout=timeout)
+
+    child = LiveLauncher()
+
+    def files(directory):
+        now[0] += 1.0
+        return [SPILL]
+
+    def status(pid):
+        now[0] += 1.0
+        return {"pid": pid}
+
+    def send(pid, sig):
+        now[0] += 1.0
+        if pid_gone:
+            raise ProcessLookupError(pid)
+
+    out = stand.drive_signal(child, entry, 5.0, list_files=files, send=send,
+                             read_status=status, clock=lambda: now[0],
+                             exit_timeout=exit_timeout)
+    assert child.waits == [expected_wait, None]  # SIGKILL is followed by mandatory reap
+    assert child.code == out["returncode"] == -9 and out["exited"] is False
+    assert (out["sent_unix"] is None) is pid_gone
+
+
+@pytest.mark.parametrize("pid_gone", [False, True])
+def test_a_send_that_uses_the_last_budget_cannot_extend_the_exit_wait(
+    stand, tmp_path, pid_gone
+):
+    entry = _held_signal_entry(stand, tmp_path)
+    now, child = [0.0], FakeChild()
+
+    def send(pid, sig):
+        now[0] = 5.0
+        if pid_gone:
+            raise ProcessLookupError(pid)
+
+    out = stand.drive_signal(child, entry, 5.0, list_files=lambda d: [SPILL], send=send,
+                             read_status=lambda pid: {"pid": pid}, clock=lambda: now[0])
+    assert child.waits == [0.0, None]
+    assert out["returncode"] == -9 and out["exited"] is False
+
+
+def test_a_disappearing_signal_target_can_still_reap_an_exited_launcher(stand, tmp_path):
+    entry = _held_signal_entry(stand, tmp_path)
+    child = FakeChild()
+
+    def send(pid, sig):
+        child.code = 0
+        raise ProcessLookupError(pid)
+
+    out = stand.drive_signal(child, entry, 5.0, list_files=lambda d: [], send=send,
+                             read_status=lambda pid: None, clock=lambda: 3.0)
+    assert child.waits == [2.0]
+    assert out["sent_unix"] is None and out["returncode"] == 0 and out["exited"] is True
+
+
+def _preflight_records(stand, tmp_path):
+    path = "/spill/kill9/soup-l2l-spill-4242-0badcafe.bin"
+    sigint = {"exit": "interrupted", "at_interrupt": {
+        "in_step": True, "steps_done": 1, "hold": {"released": "interrupt", "pass": "backward"}},
+        "spill_files_after_train": [],
+        "sigint_handling": {"installed": {"handler": "default_int_handler"}}}
+    rates = [0.001, 0.0005, 0.0]
+    restart = {"arm": "kill9_next", "kind": "cleanup", "exit": "normal", "k": 4,
+               "steps": 3, "expected_steps": 3, "stale_removed": [path],
+               "spill_files_after_train": [], "rates": rates,
+               "rows": {"count": 10, "row_sha256": ["a" * 64] * 10},
+               "logs": [{"loss": 2.0 - index * 0.1, "learning_rate": rate}
+                        for index, rate in enumerate(rates)],
+               "grads": [{
+                   f"base_model.model.model.layers.{layer}.self_attn."
+                   f"{projection}_proj.lora_{matrix}.default.weight": {
+                       "sha256": "b" * 64, "dtype": "float32",
+                       "shape": [4, 64] if matrix == "A" else [64, 4],
+                       "finite": True, "nonzero": True}
+                   for layer in range(8) for projection in ("q", "k", "v", "o")
+                   for matrix in ("A", "B")} for _ in range(3)],
+               "spill_plan": {"spill_layers": 4},
+               "store_io": {"bytes_written": 65_536, "bytes_read": 65_536}}
+    results = {
+        "sigint": {"signal": {"sent_unix": 1.0, "marker": {
+            "phase": "hold", "steps_done": 1, "spill_path": SPILL},
+            "files_before_signal": [SPILL], "files_after_exit": [],
+            "exited": True, "returncode": 130}},
+        "kill9": {"signal": {"sent_unix": 2.0, "marker": {
+            "phase": "hold", "steps_done": 1, "spill_path": path},
+            "files_before_signal": [path], "files_after_exit": [path], "returncode": -9}},
+        "kill9_next": {"returncode": 0, "spill_files_after_exit": []},
+    }
+    stand.write_json(tmp_path / "cleanup" / "sigint.json", sigint)
+    return restart, results
+
+
+def test_preflight_requires_a_real_three_step_spill_restart(stand, tmp_path):
+    preflight = _load("a3_signal_preflight")
+    restart, results = _preflight_records(stand, tmp_path)
+    stand.write_json(tmp_path / "cleanup" / "kill9_next.json", restart)
+    assert all(check["pass"] for check in preflight.judge(tmp_path, results, scoped=False))
+
+
+@pytest.mark.parametrize("observation", ["after_train", "after_exit"])
+@pytest.mark.parametrize("missing", [None, "absent"])
+def test_preflight_does_not_infer_cleanup_from_a_missing_listing(
+    stand, tmp_path, observation, missing
+):
+    preflight = _load("a3_signal_preflight")
+    restart, results = _preflight_records(stand, tmp_path)
+    record, key = ((restart, "spill_files_after_train") if observation == "after_train"
+                   else (results["kill9_next"], "spill_files_after_exit"))
+    if missing == "absent":
+        del record[key]
+    else:
+        record[key] = missing
+    stand.write_json(tmp_path / "cleanup" / "kill9_next.json", restart)
+    assert not preflight.judge(tmp_path, results, scoped=False)[-1]["pass"]
+
+
+@pytest.mark.parametrize("damage", ["missing_steps", "zero_steps", "one_step", "no_grads",
+                                    "zero_grads", "nonfinite_loss", "no_spill", "no_write",
+                                    "no_read"])
+def test_preflight_rejects_vacuous_invalid_or_nonspilling_restart(stand, tmp_path, damage):
+    preflight = _load("a3_signal_preflight")
+    restart, results = _preflight_records(stand, tmp_path)
+    if damage == "missing_steps":
+        del restart["steps"], restart["expected_steps"]
+    elif damage in ("zero_steps", "one_step"):
+        steps = 0 if damage == "zero_steps" else 1
+        restart.update(steps=steps, expected_steps=steps, grads=restart["grads"][:steps],
+                       logs=restart["logs"][:steps], rates=restart["rates"][:steps])
+    elif damage == "no_grads":
+        restart["grads"] = []
+    elif damage == "zero_grads":
+        for digest in restart["grads"][0].values():
+            digest["nonzero"] = False
+    elif damage == "nonfinite_loss":
+        restart["logs"][0]["loss"] = float("nan")
+    elif damage == "no_spill":
+        restart["spill_plan"]["spill_layers"] = 0
+    else:
+        key = "bytes_written" if damage == "no_write" else "bytes_read"
+        restart["store_io"][key] = 0
+    stand.write_json(tmp_path / "cleanup" / "kill9_next.json", restart)
+    assert not preflight.judge(tmp_path, results, scoped=False)[-1]["pass"]
+
+
+@pytest.mark.parametrize("field", ["spill_layers", "bytes_written", "bytes_read"])
+@pytest.mark.parametrize("value", [None, True, float("nan"), float("inf"), -1, 0])
+def test_preflight_requires_positive_observed_spill_participation(
+    stand, tmp_path, field, value
+):
+    preflight = _load("a3_signal_preflight")
+    restart, results = _preflight_records(stand, tmp_path)
+    record = restart["spill_plan"] if field == "spill_layers" else restart["store_io"]
+    record[field] = value
+    stand.write_json(tmp_path / "cleanup" / "kill9_next.json", restart)
+    assert not preflight.judge(tmp_path, results, scoped=False)[-1]["pass"]
+
+
+def test_preflight_rejects_a_restart_missing_one_lora_parameter_at_every_step(stand, tmp_path):
+    preflight = _load("a3_signal_preflight")
+    restart, results = _preflight_records(stand, tmp_path)
+    name = "base_model.model.model.layers.7.self_attn.o_proj.lora_B.default.weight"
+    for step in restart["grads"]:
+        del step[name]
+    stand.write_json(tmp_path / "cleanup" / "kill9_next.json", restart)
+    assert not preflight.judge(tmp_path, results, scoped=False)[-1]["pass"]
+
+
 # --------------------------------------------------------------------------
 # compare: the unpublished tensors
 # --------------------------------------------------------------------------
@@ -869,7 +1110,8 @@ def _write_arm(stand, session, tensors, name, grads):
     steps = len(grads)
     stand.write_json(session / "arms" / f"{name}.json", {
         "arm": name, "exit": "normal", "dtype": "float32", "l2l": name.startswith("l2l"),
-        "steps": steps, "rates": [0.001 * (steps - s) for s in range(steps)],
+        "steps": steps, "expected_steps": steps,
+        "rates": [0.001 * (steps - s) for s in range(steps)],
         "logs": [{"loss": 2.0 - 0.1 * s, "learning_rate": 0.001 * (steps - s)}
                  for s in range(steps)],
         "grads": [{n: stand.grad_digest(t) for n, t in sorted(g.items())} for g in grads],
@@ -989,11 +1231,12 @@ def test_a_spill_child_equals_a_no_spill_child_and_cleans_up(stand, rule, tmp_pa
     assert spill["steps"] == spill["expected_steps"] == 3  # windows 4, 4, 2
     assert spill["deterministic"]["algorithms"] is True
     assert spill["deterministic"]["sdpa"] == "MATH"
-    assert rule.training_problems(spill) == [] and rule.training_problems(nospill) == []
+    assert rule.training_problems(spill, n_layers=8) == []
+    assert rule.training_problems(nospill, n_layers=8) == []
     assert rule.spill_problems(spill, spilled=True) == []
     assert rule.spill_problems(nospill, spilled=False) == []
     assert rule.fingerprint(spill) == rule.fingerprint(nospill)
-    assert rule.compare_records(nospill, spill)["equal"] is True
+    assert rule.compare_records(nospill, spill, n_layers=8)["equal"] is True
 
     out = tmp_path / "compare.json"
     stand.compare_main(argparse.Namespace(session=str(tmp_path / "session"),

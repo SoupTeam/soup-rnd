@@ -108,6 +108,20 @@ def _held_bytes(store) -> int:
     return held
 
 
+def _allocation_refs(store):
+    """Weak references to each owned host allocation, including staging-buffer bases."""
+    import weakref
+
+    tensors = list(store._resident.values())
+    if store.spill_layers:
+        for ring in (store._write_ring, store._read_ring):
+            tensors.extend(
+                buf._base if buf._base is not None else buf
+                for buf, _event in list(ring._free.queue)
+            )
+    return [(weakref.ref(tensor), tensor.untyped_storage().nbytes()) for tensor in tensors]
+
+
 def _run(model, runtime, tmp_path, data, *, k, name, free, set_free, max_seq=MAX_SEQ,
          spill_dir=None, resume=None, callbacks=(), **overrides) -> Run:
     import torch
@@ -448,6 +462,179 @@ def test_without_max_seq_only_a_larger_window_rebuilds_and_makes_a_second_file(
     finally:
         state.close()
     assert not os.path.exists(opened[1])
+
+
+@pytest.mark.parametrize("budget_bytes,first_spill,bigger_spill",
+                         [(400_000, 5, 8), (600_000, 0, 6)])
+def test_growth_releases_old_allocations_and_store_before_reading_ram_budget(
+    tmp_path, ram, monkeypatch, budget_bytes, first_spill, bigger_spill
+):
+    import weakref
+    from types import SimpleNamespace
+
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils import l2l_spill
+
+    ram((512 << 20) + budget_bytes)
+    stepper = SimpleNamespace(
+        causal=SimpleNamespace(config=SimpleNamespace(hidden_size=64)), layers=range(N_LAYERS)
+    )
+    state = L2LState(runtime=SimpleNamespace(tier="ram"), dtype=torch.float32,
+                     output_dir=str(tmp_path / "growth"), max_rows=1, max_k=4)
+    allocations, observations = [], []
+    old_store = None
+    real_budget = l2l_spill.ram_budget
+
+    def live_bytes():
+        return sum(nbytes for ref, nbytes in allocations if ref() is not None)
+
+    def budget():
+        observations.append((old_store is not None and old_store() is not None, live_bytes()))
+        return real_budget()
+
+    # Unlike a constant free-RAM mock, still-live old allocations reduce the new budget.
+    monkeypatch.setattr("soup_cli.utils.layer_stream.free_ram_bytes",
+                        lambda: (512 << 20) + budget_bytes - live_bytes())
+    monkeypatch.setattr(l2l_spill, "ram_budget", budget)
+    try:
+        first = _store_for(state, stepper, (1, 64), 4, "cpu")
+        assert first.spill_layers == first_spill
+        old_store = weakref.ref(first)
+        allocations = _allocation_refs(first)
+        assert live_bytes() > 0
+        assert _store_for(state, stepper, (1, 8), 2, "cpu") is first
+        del first
+
+        bigger = _store_for(state, stepper, (1, 128), 4, "cpu")
+        assert bigger.shape == (1, 128, 64) and bigger.spill_layers == bigger_spill
+        assert observations == [(False, 0), (False, 0)]
+        assert state.spill_plan["budget_bytes"] == budget_bytes
+        assert _store_for(state, stepper, (1, 16), 1, "cpu") is bigger
+        assert len(observations) == 2
+    finally:
+        state.close()
+
+
+@pytest.mark.parametrize("public_cache_api", [True, False])
+def test_cuda_growth_releases_idle_pinned_cache_before_rebudget_or_warns_without_public_api(
+    tmp_path, ram, monkeypatch, caplog, public_cache_api
+):
+    import weakref
+    from types import SimpleNamespace
+
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils import l2l_activations, l2l_spill
+
+    ram((512 << 20) + 600_000)
+    stepper = SimpleNamespace(
+        causal=SimpleNamespace(config=SimpleNamespace(hidden_size=64)), layers=range(N_LAYERS)
+    )
+    state = L2LState(runtime=SimpleNamespace(tier="ram"), dtype=torch.float32,
+                     output_dir=str(tmp_path / "cuda-growth"), max_rows=1, max_k=4)
+    real_store = l2l_activations.ActivationStore
+
+    def cpu_store(**kwargs):
+        # Keep real allocation/close behavior, without requiring CUDA in this planner test.
+        return real_store(**{**kwargs, "device": "cpu", "pin": False})
+
+    monkeypatch.setattr(l2l_activations, "ActivationStore", cpu_store)
+    allocations, observations, releases = [], [], []
+    old_store = None
+    idle_cache = 0
+    real_budget = l2l_spill.ram_budget
+
+    def empty_host_cache():
+        nonlocal idle_cache
+        assert old_store is not None and old_store() is None
+        assert all(ref() is None for ref, _nbytes in allocations)
+        releases.append(idle_cache)
+        idle_cache = 0
+
+    def budget():
+        observations.append(idle_cache)
+        return real_budget()
+
+    accelerator = SimpleNamespace()
+    if public_cache_api:
+        accelerator.empty_host_cache = empty_host_cache
+    monkeypatch.setattr(torch, "accelerator", accelerator, raising=False)
+    monkeypatch.setattr("soup_cli.utils.layer_stream.free_ram_bytes",
+                        lambda: (512 << 20) + 600_000 - idle_cache)
+    monkeypatch.setattr(l2l_spill, "ram_budget", budget)
+    try:
+        first = _store_for(state, stepper, (1, 64), 4, "cuda:0")
+        assert first.spill_layers == 0
+        old_store = weakref.ref(first)
+        allocations = _allocation_refs(first)
+        # CUDA's 32 resident chunks are 16 KiB each; deletion moves them to its cache.
+        idle_cache = 524_288
+        assert _store_for(state, stepper, (1, 8), 2, "cuda:0") is first
+        assert releases == [] and observations == [0]
+        del first
+
+        if public_cache_api:
+            bigger = _store_for(state, stepper, (1, 128), 4, "cuda:0")
+            assert bigger.shape == (1, 128, 64) and bigger.spill_layers == 8
+            assert observations == [0, 0] and releases == [524_288]
+            assert _store_for(state, stepper, (1, 16), 1, "cuda:0") is bigger
+            assert len(observations) == 2 and len(releases) == 1
+        else:
+            with pytest.raises(l2l_spill.SpillRefusedError, match="every layer spilled"):
+                _store_for(state, stepper, (1, 128), 4, "cuda:0")
+            assert old_store() is None and all(ref() is None for ref, _nbytes in allocations)
+            assert observations == [0, 524_288] and releases == []
+            assert "empty_host_cache" in caplog.text and "remain charged" in caplog.text
+    finally:
+        state.close()
+
+
+def test_known_cuda_capacity_keeps_one_plan_without_flushing_pinned_cache(
+    tmp_path, ram, monkeypatch
+):
+    from types import SimpleNamespace
+
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils import l2l_activations, l2l_spill
+
+    ram(PLENTY)
+    real_store = l2l_activations.ActivationStore
+    real_budget = l2l_spill.ram_budget
+    budgets = []
+
+    def forbidden():
+        raise AssertionError("a fixed-capacity store flushed the pinned cache")
+
+    def budget():
+        budgets.append(real_budget())
+        return budgets[-1]
+
+    monkeypatch.setattr(torch, "accelerator", SimpleNamespace(empty_host_cache=forbidden),
+                        raising=False)
+    monkeypatch.setattr(l2l_activations, "ActivationStore",
+                        lambda **kw: real_store(**{**kw, "device": "cpu", "pin": False}))
+    monkeypatch.setattr(l2l_spill, "ram_budget", budget)
+    stepper = SimpleNamespace(
+        causal=SimpleNamespace(config=SimpleNamespace(hidden_size=64)), layers=range(N_LAYERS)
+    )
+    state = L2LState(runtime=SimpleNamespace(tier="ram"), dtype=torch.float32,
+                     output_dir=str(tmp_path / "known"), max_rows=2, max_seq=100, max_k=4)
+    try:
+        store = _store_for(state, stepper, (1, 8), 1, "cuda:0")
+        assert store.shape == (2, 128, 64) and store.k == 4
+        plan = state.spill_plan
+        for shape, k in (((1, 64), 2), ((2, 128), 4), ((1, 16), 1)):
+            assert _store_for(state, stepper, shape, k, "cuda:0") is store
+            assert state.spill_plan is plan
+        assert len(budgets) == 1
+        assert plan["spill_layers"] == 0 and plan["pin"] is True
+    finally:
+        state.close()
 
 
 def test_the_trainer_max_length_sizes_the_store_when_max_seq_is_not_given(deep, ram):

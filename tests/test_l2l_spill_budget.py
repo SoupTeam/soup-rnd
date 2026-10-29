@@ -8,6 +8,7 @@ reads are module constants, pointed here at trees under ``tmp_path``; psutil is 
 from __future__ import annotations
 
 import logging
+import os
 
 import pytest
 
@@ -291,6 +292,173 @@ def test_a_level_missing_from_this_mount_namespace_is_skipped(tmp_path, monkeypa
     assert _budget().limiting_level == root
 
 
+def _mounted_cgroup_tree(tmp_path, monkeypatch, levels, *, v1=False, own="/tenant/job",
+                         mount_root="/"):
+    """An actual mountinfo target, deliberately different from both conventional roots."""
+    from pathlib import Path
+
+    from soup_cli.utils import l2l_spill
+
+    conventional = Path(cgroup_tree(tmp_path, monkeypatch, levels, v1=v1, own=own))
+    mounted = conventional.with_name("cpu,cpuacct,memory" if v1 else "unified memory")
+    conventional.rename(mounted)
+    mount_point = str(mounted).replace(os.sep, "/").replace(" ", "\\040")
+    fstype, controllers = ("cgroup", "cpu,cpuacct,memory") if v1 else ("cgroup2", "")
+    (tmp_path / "tree" / "proc" / "self" / "mountinfo").write_text(
+        "22 1 8:1 / / rw,relatime - ext4 /dev/sda1 rw\n"
+        f"40 22 0:50 {mount_root} {mount_point} rw,relatime - "
+        f"{fstype} cgroup rw{',' + controllers if controllers else ''}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(l2l_spill, "CGROUP_V1_ROOT", str(tmp_path / "absent-v1"))
+    monkeypatch.setattr(l2l_spill, "CGROUP_V2_ROOT", str(tmp_path / "absent-v2"))
+    return str(mounted).replace(os.sep, "/")
+
+
+def test_a_nondefault_v2_mount_keeps_a_nested_limit_out_of_the_host_budget(
+    tmp_path, monkeypatch,
+):
+    from soup_cli.utils.l2l_spill import plan_spill
+
+    root = _mounted_cgroup_tree(tmp_path, monkeypatch, {
+        "": _v2(limit=16 * GIB),
+        "tenant": _v2(limit=8 * GIB),
+        "tenant/job": _v2(limit=4 * GIB, current=GIB),
+    })
+    budget = _budget()
+    assert budget.limiting_level == root + "/tenant/job"
+    assert budget.available_bytes == 3 * GIB
+    assert budget.budget_bytes == int(3 * GIB * 0.7)
+    plan = plan_spill(budget.budget_bytes, n_layers=40, k=8, chunk_bytes=16 * MIB, pin=False)
+    assert plan.spill_layers > 0
+
+
+@pytest.mark.parametrize("v1", [False, True])
+def test_a_cgroup_subtree_mount_translates_membership_and_reads_nested_ancestry(
+    tmp_path, monkeypatch, v1,
+):
+    files = _v1 if v1 else _v2
+    root = _mounted_cgroup_tree(tmp_path, monkeypatch, {
+        "": files(16 * GIB, GIB),
+        "service": files(4 * GIB, 3 * GIB),
+        "service/job": files(8 * GIB, GIB),
+    }, v1=v1, own="/host/tenant/service/job", mount_root="/host/tenant")
+    budget = _budget()
+    assert budget.limiting_level == root + "/service"
+    assert budget.available_bytes == GIB
+    assert budget.budget_bytes == 512 * MIB
+    assert {level.path for level in budget.levels} == {
+        root, root + "/service", root + "/service/job",
+    }
+
+
+@pytest.mark.parametrize("v1", [False, True])
+@pytest.mark.parametrize("mount_root,own", [("/..", "/"), ("/../..", "/job")])
+def test_an_inherited_namespace_mount_keeps_its_known_ancestor_limit(
+    tmp_path, monkeypatch, caplog, v1, mount_root, own,
+):
+    files = _v1 if v1 else _v2
+    root = _mounted_cgroup_tree(tmp_path, monkeypatch, {
+        "": files(4 * GIB, 3 * GIB),
+        # The hidden namespace root may be another child: root/job is not self/job.
+        "job": files(512 * MIB, 0),
+    }, v1=v1, own=own, mount_root=mount_root)
+    with caplog.at_level(logging.WARNING, logger="soup_cli.utils.l2l_spill"):
+        budget = _budget()
+    assert budget.limiting_level == root
+    assert budget.available_bytes == GIB
+    assert budget.budget_bytes == 512 * MIB
+    assert [level.path for level in budget.levels] == [root]
+    assert any(
+        "tighter nested memory limit may be unknown" in record.getMessage()
+        and root in record.getMessage()
+        for record in caplog.records
+    )
+
+
+@pytest.mark.parametrize("v1", [False, True])
+def test_an_unrelated_namespace_bind_mount_is_not_a_memory_ancestor(tmp_path, monkeypatch, v1):
+    files = _v1 if v1 else _v2
+    _mounted_cgroup_tree(tmp_path, monkeypatch, {
+        "": files(512 * MIB, 0), "job": files(512 * MIB, 0),
+    }, v1=v1, own="/job", mount_root="/../sibling")
+    budget = _budget()
+    assert budget.levels == []
+    assert budget.limiting_level == "psutil"
+    assert budget.available_bytes == PLENTY
+
+
+@pytest.mark.parametrize("v1", [False, True])
+def test_a_shadowing_cgroup_bind_cannot_charge_an_unrelated_group(tmp_path, monkeypatch, v1):
+    files = _v1 if v1 else _v2
+    root = _mounted_cgroup_tree(tmp_path, monkeypatch, {
+        "": files(4 * GIB, GIB),
+        # These visible directories belong to /other, not this process's /tenant.
+        "tenant": files(GIB, 0),
+        "tenant/job": files(512 * MIB, 0),
+    }, v1=v1)
+    mount_point = (root + "/tenant").replace(" ", "\\040")
+    fstype, options = ("cgroup", "rw,cpu,cpuacct,memory") if v1 else ("cgroup2", "rw")
+    mountinfo = tmp_path / "tree" / "proc" / "self" / "mountinfo"
+    with mountinfo.open("a", encoding="utf-8") as handle:
+        handle.write(f"41 40 0:50 /other {mount_point} rw - {fstype} cgroup {options}\n")
+    budget = _budget()
+    assert [level.path for level in budget.levels] == [root]
+    assert budget.limiting_level == root
+    assert budget.available_bytes == 3 * GIB
+    assert budget.budget_bytes == int(3 * GIB * 0.7)
+
+
+@pytest.mark.parametrize("v1", [False, True])
+def test_a_stacked_overmount_cannot_expose_a_hidden_child_cgroup_limit(
+    tmp_path, monkeypatch, caplog, v1,
+):
+    files = _v1 if v1 else _v2
+    root = _mounted_cgroup_tree(tmp_path, monkeypatch, {
+        "": files(4 * GIB, GIB),
+        # The old child mount is hidden below the later overmount. These visible
+        # files now belong to /other/subtree, not this process's /tenant.
+        "subtree": files(GIB, 0), "subtree/job": files(512 * MIB, 0),
+    }, v1=v1)
+    known = tmp_path / "known-ancestor"
+    known.mkdir()
+    for name, content in files(4 * GIB, GIB).items():
+        (known / name).write_text(str(content), encoding="utf-8")
+    known_path = str(known).replace(os.sep, "/")
+    mount_point = root.replace(" ", "\\040")
+    known_point = known_path.replace(" ", "\\040")
+    fstype, options = ("cgroup", "rw,cpu,cpuacct,memory") if v1 else ("cgroup2", "rw")
+    mountinfo = tmp_path / "tree" / "proc" / "self" / "mountinfo"
+    with mountinfo.open("a", encoding="utf-8") as handle:
+        handle.write(
+            f"41 40 0:50 /tenant {mount_point}/subtree rw - {fstype} cgroup {options}\n"
+            f"42 40 0:50 /other {mount_point} rw - {fstype} cgroup {options}\n"
+            f"43 22 0:50 / {known_point} rw - {fstype} cgroup {options}\n"
+        )
+    with caplog.at_level(logging.WARNING, logger="soup_cli.utils.l2l_spill"):
+        budget = _budget()
+    assert [level.path for level in budget.levels] == [known_path]
+    assert budget.limiting_level == known_path
+    assert budget.available_bytes == 3 * GIB
+    assert budget.budget_bytes == int(3 * GIB * 0.7)
+    assert any("stacked mounts" in record.getMessage() for record in caplog.records)
+
+
+def test_explicit_cgroup_roots_keep_the_fixture_path_convention(tmp_path, monkeypatch):
+    from soup_cli.utils import l2l_spill
+
+    root = cgroup_tree(tmp_path, monkeypatch, {"user.slice": _v2(limit=2 * GIB)})
+    proc = tmp_path / "tree" / "proc"
+    (proc / "self" / "mountinfo").write_text(
+        "40 22 0:50 / /unrelated rw - cgroup2 cgroup rw\n", encoding="utf-8",
+    )
+    budget = l2l_spill.ram_budget(
+        proc_root=str(proc), v2_root=root, v1_root=str(tmp_path / "absent"),
+    )
+    assert budget.limiting_level == root + "/user.slice"
+    assert budget.available_bytes == 2 * GIB
+
+
 # --------------------------------------------------------------------------
 # v1
 # --------------------------------------------------------------------------
@@ -324,3 +492,15 @@ def test_v1_total_inactive_file_is_reclaimable_and_shmem_is_not(tmp_path, monkey
         "user.slice/run.scope": _v1(8 * GIB, usage=6 * GIB, inactive=1 * GIB, shmem=3 * GIB),
     }, v1=True, name="shmem")
     assert _budget().available_bytes == 3 * GIB
+
+
+def test_a_nondefault_v1_memory_comount_limits_its_nested_group(tmp_path, monkeypatch):
+    root = _mounted_cgroup_tree(tmp_path, monkeypatch, {
+        "": _v1(16 * GIB),
+        "tenant": _v1(8 * GIB),
+        "tenant/job": _v1(4 * GIB, GIB),
+    }, v1=True)
+    budget = _budget()
+    assert budget.limiting_level == root + "/tenant/job"
+    assert budget.available_bytes == 3 * GIB
+    assert budget.budget_bytes == int(3 * GIB * 0.7)

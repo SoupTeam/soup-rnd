@@ -357,6 +357,526 @@ def test_the_sweep_never_follows_or_removes_a_junction(tmp_path):
     _assert_link_untouched(directory, link, target)
 
 
+def _race_after_entry_inspection(monkeypatch, name, replace):
+    """Keep the real directory/stat results; replace the file after a cached inspection."""
+    real_scandir = os.scandir
+    replaced = False
+
+    def swap():
+        nonlocal replaced
+        if not replaced:
+            replaced = True
+            replace()
+
+    class Entry:
+        def __init__(self, entry):
+            self.entry = entry
+
+        def __getattr__(self, attribute):
+            return getattr(self.entry, attribute)
+
+        def is_file(self, **kwargs):
+            answer = self.entry.is_file(**kwargs)
+            if self.entry.name == name:
+                swap()
+            return answer
+
+        def stat(self, **kwargs):
+            answer = self.entry.stat(**kwargs)
+            if self.entry.name == name:
+                swap()
+            return answer
+
+    class Scan:
+        def __init__(self, directory):
+            self.scan = real_scandir(directory)
+
+        def __iter__(self):
+            return (Entry(entry) for entry in self.scan)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.scan.close()
+
+    monkeypatch.setattr(os, "scandir", Scan)
+
+
+@pytest.mark.requires_symlink
+def test_the_sweep_keeps_an_inside_target_when_a_checked_file_becomes_a_symlink(
+    tmp_path, monkeypatch,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    target = directory / "notes.bin"
+    target.write_bytes(b"foreign notes")
+
+    def replace():
+        candidate.unlink()
+        candidate.symlink_to(target)
+
+    _race_after_entry_inspection(monkeypatch, candidate.name, replace)
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    assert l2l_spill.sweep_stale(str(directory)) == []
+    assert target.read_bytes() == b"foreign notes"
+    assert candidate.is_symlink()
+
+
+def test_the_sweep_keeps_a_regular_file_replaced_after_entry_inspection(tmp_path, monkeypatch):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    retired = directory / "retired.bin"
+
+    def replace():
+        candidate.rename(retired)
+        candidate.write_bytes(b"a replacement owned by another writer")
+
+    _race_after_entry_inspection(monkeypatch, candidate.name, replace)
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    assert l2l_spill.sweep_stale(str(directory)) == []
+    assert candidate.read_bytes() == b"a replacement owned by another writer"
+    assert retired.read_bytes() == b"stale activation"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="junctions are a Windows construct")
+def test_the_sweep_keeps_a_file_replaced_by_a_junction_after_inspection(tmp_path, monkeypatch):
+    import _winapi
+
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    target = directory / "notes"
+    target.mkdir()
+    (target / "notes.bin").write_bytes(b"foreign notes")
+
+    def replace():
+        candidate.unlink()
+        _winapi.CreateJunction(str(target), str(candidate))
+
+    _race_after_entry_inspection(monkeypatch, candidate.name, replace)
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    assert l2l_spill.sweep_stale(str(directory)) == []
+    assert os.path.lexists(candidate)
+    assert (target / "notes.bin").read_bytes() == b"foreign notes"
+
+
+def test_the_sweep_cannot_delete_from_a_replacement_directory(tmp_path, monkeypatch):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    name = "soup-l2l-spill-1234567890-0123abcd.bin"
+    (directory / name).write_bytes(b"stale activation")
+    retired = tmp_path / "retired"
+    replaced = False
+
+    def replace_directory(pid):
+        nonlocal replaced
+        try:
+            directory.rename(retired)
+        except PermissionError:
+            # Windows may lock the scanned directory against replacement.
+            return False
+        replaced = True
+        directory.mkdir()
+        (directory / name).write_bytes(b"foreign replacement")
+        return False
+
+    monkeypatch.setattr(l2l_spill, "process_alive", replace_directory)
+    removed = l2l_spill.sweep_stale(str(directory))
+    if replaced:
+        assert (directory / name).read_bytes() == b"foreign replacement"
+        assert (retired / name).read_bytes() == b"stale activation"
+        assert removed == []
+    else:
+        assert not (directory / name).exists()
+        assert removed == [os.path.realpath(directory / name)]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows sharing semantics")
+@pytest.mark.parametrize("replace_ancestor", [False, True])
+def test_windows_sweep_blocks_directory_replacement_at_the_disposition_boundary(
+    tmp_path, monkeypatch, replace_ancestor,
+):
+    from soup_cli.utils import l2l_spill
+
+    ancestor = tmp_path / "owned"
+    directory = ancestor / "spill"
+    directory.mkdir(parents=True)
+    name = "soup-l2l-spill-1234567890-0123abcd.bin"
+    (directory / name).write_bytes(b"stale activation")
+    moving = ancestor if replace_ancestor else directory
+    retired = tmp_path / "retired"
+    replacement = tmp_path / "incoming"
+    replacement_spill = replacement / "spill" if replace_ancestor else replacement
+    replacement_spill.mkdir(parents=True)
+    (replacement_spill / name).write_bytes(b"foreign replacement")
+    # Establish that these exact directories are renameable before the guard opens.
+    moving.rename(retired)
+    retired.rename(moving)
+    real_dispose = l2l_spill._windows_dispose_file
+    blocked = []
+
+    def replace_then_dispose(kernel32, handle):
+        try:
+            moving.rename(retired)
+        except PermissionError as exc:
+            blocked.append(exc.winerror)
+        else:
+            replacement.rename(moving)
+        return real_dispose(kernel32, handle)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(l2l_spill, "_windows_dispose_file", replace_then_dispose)
+    removed = l2l_spill.sweep_stale(str(directory), notify=lambda line: None)
+    assert len(blocked) == 1 and blocked[0] in (5, 32)  # Access denied/sharing violation.
+    assert removed == [os.path.realpath(directory / name)]
+    assert not (directory / name).exists()
+    assert (replacement_spill / name).read_bytes() == b"foreign replacement"
+    assert not retired.exists()
+    # Closing the guard releases the share lock, including any ancestor handle.
+    moving.rename(retired)
+    retired.rename(moving)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows file handle identity")
+def test_windows_sweep_rejects_a_file_replaced_before_the_delete_handle_opens(
+    tmp_path, monkeypatch,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    retired = directory / "retired.bin"
+    real_remove = l2l_spill._windows_remove_stale
+
+    def replace_then_open(path, identity):
+        candidate.rename(retired)
+        candidate.write_bytes(b"foreign replacement")
+        return real_remove(path, identity)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(l2l_spill, "_windows_remove_stale", replace_then_open)
+    assert l2l_spill.sweep_stale(str(directory)) == []
+    assert candidate.read_bytes() == b"foreign replacement"
+    assert retired.read_bytes() == b"stale activation"
+    candidate.rename(directory / "replacement-after-sweep.bin")  # No leaked delete handle.
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows sharing semantics")
+def test_windows_sweep_blocks_basename_replacement_at_the_disposition_boundary(
+    tmp_path, monkeypatch,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    retired = directory / "retired.bin"
+    foreign = directory / "incoming.bin"
+    foreign.write_bytes(b"foreign replacement")
+    real_dispose = l2l_spill._windows_dispose_file
+    blocked = []
+
+    def replace_then_dispose(kernel32, handle):
+        try:
+            candidate.rename(retired)
+        except PermissionError as exc:
+            blocked.append(exc.winerror)
+        else:
+            foreign.rename(candidate)
+        return real_dispose(kernel32, handle)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(l2l_spill, "_windows_dispose_file", replace_then_dispose)
+    assert l2l_spill.sweep_stale(str(directory), notify=lambda line: None) == [
+        os.path.realpath(candidate),
+    ]
+    assert len(blocked) == 1 and blocked[0] in (5, 32)
+    assert foreign.read_bytes() == b"foreign replacement"
+    assert not candidate.exists() and not retired.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows file handle cleanup")
+@pytest.mark.parametrize("interrupt", [False, True])
+def test_windows_failed_disposition_keeps_the_file_and_closes_the_verified_handle(
+    tmp_path, monkeypatch, interrupt,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"keep after failed disposition")
+    calls = []
+
+    def fail_dispose(kernel32, handle):
+        calls.append(handle)
+        if interrupt:
+            raise KeyboardInterrupt
+        raise OSError(errno.EIO, "disposition failed")
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(l2l_spill, "_windows_dispose_file", fail_dispose)
+    if interrupt:
+        with pytest.raises(KeyboardInterrupt):
+            l2l_spill.sweep_stale(str(directory))
+    else:
+        assert l2l_spill.sweep_stale(str(directory)) == []
+    assert len(calls) == 1
+    assert candidate.read_bytes() == b"keep after failed disposition"
+    candidate.rename(directory / "after-sweep.bin")  # The native handle was closed.
+
+
+@pytest.mark.skipif(os.name == "nt", reason="relative directory-fd unlink is POSIX only")
+def test_the_sweep_unlinks_in_the_anchored_directory_when_it_moves_at_unlink(
+    tmp_path, monkeypatch,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    name = "soup-l2l-spill-1234567890-0123abcd.bin"
+    (directory / name).write_bytes(b"stale activation")
+    retired = tmp_path / "retired"
+    real_unlink = os.unlink
+
+    def replace_then_unlink(path, *args, **kwargs):
+        directory.rename(retired)
+        directory.mkdir()
+        (directory / name).write_bytes(b"foreign replacement")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(os, "unlink", replace_then_unlink)
+    monkeypatch.setattr(os, "remove", replace_then_unlink)
+    l2l_spill.sweep_stale(str(directory), notify=lambda line: None)
+    assert (directory / name).read_bytes() == b"foreign replacement"
+    assert not (retired / name).exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX quarantine capture")
+def test_the_sweep_keeps_a_foreign_basename_created_at_the_unlink_boundary(tmp_path, monkeypatch):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    retired = directory / "retired.bin"
+    real_unlink = os.unlink
+
+    def replace_then_unlink(path, *args, **kwargs):
+        if candidate.exists():
+            candidate.rename(retired)
+        candidate.write_bytes(b"foreign replacement")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(os, "unlink", replace_then_unlink)
+    l2l_spill.sweep_stale(str(directory), notify=lambda line: None)
+    assert candidate.read_bytes() == b"foreign replacement"
+    assert list(directory.iterdir()) == [candidate]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX quarantine capture")
+@pytest.mark.parametrize("occupy_original", [False, True])
+def test_the_sweep_restores_or_preserves_a_foreign_file_captured_during_rename(
+    tmp_path, monkeypatch, caplog, occupy_original,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    retired = directory / "retired.bin"
+    real_rename = os.rename
+
+    def replace_then_capture(src, dst, *args, **kwargs):
+        real_rename(candidate, retired)
+        candidate.write_bytes(b"foreign captured file")
+        answer = real_rename(src, dst, *args, **kwargs)
+        if occupy_original:
+            candidate.write_bytes(b"another foreign replacement")
+        return answer
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(os, "rename", replace_then_capture)
+    with caplog.at_level("WARNING", logger="soup_cli.utils.l2l_spill"):
+        assert l2l_spill.sweep_stale(str(directory)) == []
+    assert retired.read_bytes() == b"stale activation"
+    preserved = [path for path in directory.iterdir() if path.is_dir()]
+    if occupy_original:
+        assert candidate.read_bytes() == b"another foreign replacement"
+        assert len(preserved) == 1
+        captured = list(preserved[0].iterdir())
+        assert len(captured) == 1 and captured[0].read_bytes() == b"foreign captured file"
+        assert str(captured[0]) in caplog.text
+    else:
+        assert candidate.read_bytes() == b"foreign captured file"
+        assert preserved == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX quarantine capture")
+def test_the_sweep_preserves_a_foreign_directory_captured_during_rename(
+    tmp_path, monkeypatch, caplog,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"stale activation")
+    retired = directory / "retired.bin"
+    real_rename = os.rename
+
+    def replace_then_capture(src, dst, *args, **kwargs):
+        real_rename(candidate, retired)
+        candidate.mkdir()
+        (candidate / "notes.bin").write_bytes(b"foreign directory content")
+        return real_rename(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(os, "rename", replace_then_capture)
+    with caplog.at_level("WARNING", logger="soup_cli.utils.l2l_spill"):
+        assert l2l_spill.sweep_stale(str(directory)) == []
+    assert retired.read_bytes() == b"stale activation"
+    preserved = [path for path in directory.iterdir() if path.is_dir()]
+    assert len(preserved) == 1
+    captured = list(preserved[0].iterdir())
+    assert len(captured) == 1
+    assert (captured[0] / "notes.bin").read_bytes() == b"foreign directory content"
+    assert str(captured[0]) in caplog.text
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX quarantine capture")
+def test_a_failed_capture_inspection_preserves_the_file_and_closes_directory_fds(
+    tmp_path, monkeypatch, caplog,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"keep an unverified captured file")
+    real_open, real_stat = os.open, os.stat
+    opened = []
+
+    def track_open(*args, **kwargs):
+        descriptor = real_open(*args, **kwargs)
+        opened.append(descriptor)
+        return descriptor
+
+    def fail_captured_stat(path, *args, **kwargs):
+        if len(opened) == 2 and kwargs.get("dir_fd") == opened[1]:
+            raise OSError(errno.EIO, "capture inspection failed")
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(os, "open", track_open)
+    monkeypatch.setattr(os, "stat", fail_captured_stat)
+    with caplog.at_level("WARNING", logger="soup_cli.utils.l2l_spill"):
+        assert l2l_spill.sweep_stale(str(directory)) == []
+    preserved = [path for path in directory.iterdir() if path.is_dir()]
+    assert len(preserved) == 1
+    captured = list(preserved[0].iterdir())
+    assert len(captured) == 1
+    assert captured[0].read_bytes() == b"keep an unverified captured file"
+    assert str(captured[0]) in caplog.text
+    assert len(opened) == 2
+    for descriptor in opened:
+        with pytest.raises(OSError) as caught:
+            os.fstat(descriptor)
+        assert caught.value.errno == errno.EBADF
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX quarantine capture")
+def test_an_interrupted_capture_keeps_the_claimed_file_and_closes_directory_fds(
+    tmp_path, monkeypatch, caplog,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"preserve on interruption")
+    real_open, real_stat = os.open, os.stat
+    opened = []
+
+    def track_open(*args, **kwargs):
+        descriptor = real_open(*args, **kwargs)
+        opened.append(descriptor)
+        return descriptor
+
+    def interrupt_captured_stat(path, *args, **kwargs):
+        if len(opened) == 2 and kwargs.get("dir_fd") == opened[1]:
+            raise KeyboardInterrupt
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(os, "open", track_open)
+    monkeypatch.setattr(os, "stat", interrupt_captured_stat)
+    with caplog.at_level("WARNING", logger="soup_cli.utils.l2l_spill"):
+        with pytest.raises(KeyboardInterrupt):
+            l2l_spill.sweep_stale(str(directory))
+    preserved = [path for path in directory.iterdir() if path.is_dir()]
+    assert len(preserved) == 1
+    captured = list(preserved[0].iterdir())
+    assert len(captured) == 1 and captured[0].read_bytes() == b"preserve on interruption"
+    assert str(captured[0]) in caplog.text
+    for descriptor in opened:
+        with pytest.raises(OSError) as caught:
+            os.fstat(descriptor)
+        assert caught.value.errno == errno.EBADF
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX quarantine capture")
+def test_a_failed_quarantine_open_keeps_the_original_and_removes_the_empty_directory(
+    tmp_path, monkeypatch,
+):
+    from soup_cli.utils import l2l_spill
+
+    directory = tmp_path / "spill"
+    directory.mkdir()
+    candidate = directory / "soup-l2l-spill-1234567890-0123abcd.bin"
+    candidate.write_bytes(b"never captured")
+    real_open = os.open
+    opened = []
+
+    def fail_quarantine_open(path, *args, **kwargs):
+        if kwargs.get("dir_fd") is not None:
+            raise OSError(errno.EACCES, "quarantine cannot be opened")
+        descriptor = real_open(path, *args, **kwargs)
+        opened.append(descriptor)
+        return descriptor
+
+    monkeypatch.setattr(l2l_spill, "process_alive", lambda pid: False)
+    monkeypatch.setattr(os, "open", fail_quarantine_open)
+    assert l2l_spill.sweep_stale(str(directory)) == []
+    assert list(directory.iterdir()) == [candidate]
+    assert candidate.read_bytes() == b"never captured"
+    assert len(opened) == 1
+    with pytest.raises(OSError) as caught:
+        os.fstat(opened[0])
+    assert caught.value.errno == errno.EBADF
+
+
 def test_a_process_is_alive_until_it_exits():
     from soup_cli.utils.l2l_spill import process_alive
 
@@ -410,6 +930,90 @@ def test_ram_stacked_and_network_filesystems_are_refused(tmp_path, monkeypatch, 
     message = str(caught.value)
     assert str(directory) in message and reason in message
     assert "training.l2l_spill_dir" in message
+
+
+def _fake_darwin_volume(tmp_path, monkeypatch, *, fstype="apfs", flags=0x1000,
+                        info=None, stores=None):
+    import plistlib
+
+    from soup_cli.utils import l2l_spill, layer_stream
+
+    monkeypatch.setattr(l2l_spill.sys, "platform", "darwin")
+    monkeypatch.setattr(l2l_spill, "PROC_ROOT", str(tmp_path / "no-proc"))
+    monkeypatch.setattr(l2l_spill, "_darwin_mount_info", lambda path: {
+        "fstype": fstype, "flags": flags, "mount_point": "/Volumes/spill",
+        "source": "/dev/disk7s1",
+    }, raising=False)
+    monkeypatch.setattr(layer_stream, "_resolve_tool", lambda name, *fallbacks: (
+        "/usr/sbin/diskutil" if name == "diskutil" else None
+    ))
+    volumes = {"/dev/disk7s1": {"BusProtocol": "Apple Fabric"} if info is None else info}
+    volumes.update(stores or {})
+
+    def run(args, **kwargs):
+        assert args[:-1] == ["/usr/sbin/diskutil", "info", "-plist"]
+        assert kwargs.get("shell") is False
+        payload = volumes[args[-1]]
+        return types.SimpleNamespace(
+            returncode=0,
+            stdout=payload if isinstance(payload, bytes) else plistlib.dumps(payload),
+        )
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(l2l_spill, "_round_trip", lambda directory: None)
+    monkeypatch.setattr(l2l_spill.shutil, "disk_usage", lambda path: types.SimpleNamespace(
+        free=10**15,
+    ))
+
+
+@pytest.mark.parametrize("fstype", ["nfs", "smbfs", "afpfs"])
+def test_darwin_refuses_nonlocal_volumes_even_when_unbuffered_io_would_succeed(
+    tmp_path, monkeypatch, fstype,
+):
+    from soup_cli.utils.l2l_spill import SpillRefusedError
+
+    _fake_darwin_volume(tmp_path, monkeypatch, fstype=fstype, flags=0)
+    with pytest.raises(SpillRefusedError, match="network filesystem"):
+        _prepare(tmp_path / "spill")
+
+
+@pytest.mark.parametrize("fstype,info,stores", [
+    ("tmpfs", {}, {}),
+    ("hfs", {"BusProtocol": "Disk Image", "MediaName": "Apple RAM Disk Media"}, {}),
+    ("apfs", {"BusProtocol": "Apple Fabric", "VirtualOrPhysical": "Virtual",
+              "APFSPhysicalStores": [{"APFSPhysicalStore": "disk2s1"}]},
+     {"/dev/disk2": {"BusProtocol": "Disk Image", "DiskImage": True}}),
+])
+def test_darwin_refuses_ram_and_ram_backed_apfs_volumes(
+    tmp_path, monkeypatch, fstype, info, stores,
+):
+    from soup_cli.utils.l2l_spill import SpillRefusedError
+
+    _fake_darwin_volume(tmp_path, monkeypatch, fstype=fstype, info=info, stores=stores)
+    with pytest.raises(SpillRefusedError, match="RAM"):
+        _prepare(tmp_path / "spill")
+
+
+def test_darwin_local_apfs_without_a_physical_disk_id_keeps_the_explicit_warning_policy(
+    tmp_path, monkeypatch,
+):
+    _fake_darwin_volume(tmp_path, monkeypatch, info={
+        "FilesystemType": "apfs", "BusProtocol": "Apple Fabric", "VirtualOrPhysical": "Virtual",
+    })
+    lines = []
+    directory = tmp_path / "spill"
+    assert _prepare(directory, tier="disk", weight_dirs=[str(tmp_path / "weights")],
+                    notify=lines.append) == os.path.realpath(directory)
+    assert len(lines) == 1 and "could not verify" in lines[0]
+
+
+@pytest.mark.parametrize("info", [b"not a diskutil plist", {}])
+def test_darwin_cannot_accept_unknown_volume_backing_as_a_local_disk(tmp_path, monkeypatch, info):
+    from soup_cli.utils.l2l_spill import SpillRefusedError
+
+    _fake_darwin_volume(tmp_path, monkeypatch, info=info)
+    with pytest.raises(SpillRefusedError, match="backing could not be verified"):
+        _prepare(tmp_path / "spill")
 
 
 def test_a_volume_without_unbuffered_io_is_refused(tmp_path, monkeypatch):

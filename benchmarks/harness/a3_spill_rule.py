@@ -56,6 +56,11 @@ CORRECTNESS_ARMS = (*NOSPILL, SPILL, *GA, FLOOR)
 SDPA = {**{arm: "MATH" for arm in (*NOSPILL, SPILL, *GA)}, FLOOR: "EFFICIENT_ATTENTION"}
 CLEANUP_ARMS = ("sigint", "kill9", "kill9_next")
 
+# Independent fixture sizes: ten correctness/restart rows in windows of four; cost
+# uses two warm-up and five timed windows. Never trust a child's expected_steps alone.
+_TRAINING_STEPS = -(-10 // 4)
+_COST_WARMUP, _COST_TIMED = 2, 5
+
 RULE = {
     "profile": "a3-spill-gpu-check-v3",
     "1": "l2l_spill (tight limit; spill_layers > 0) equals l2l_nospill_1 (generous limit; "
@@ -214,34 +219,108 @@ def determinism_problems(rec: Dict[str, Any], arm: str) -> List[str]:
     return [f"V2: deterministic setup {wrong} differs from {expected}"] if wrong else []
 
 
-def training_problems(rec: Dict[str, Any]) -> List[str]:
-    """V8: the arm trained, every number finite, no all-zero step, every planned step."""
+def _finite_number(value: Any) -> bool:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
+def _step_problems(rec: Dict[str, Any], expected: int) -> List[str]:
+    """Numerical evidence common to digest-recording and lightweight cost children."""
     why = []
     if rec.get("exit") != "normal":
         why.append(f"V8: exit {rec.get('exit')!r} ({rec.get('error')})")
-    grads = rec.get("grads") or []
-    if rec.get("steps") != rec.get("expected_steps") or len(grads) != rec.get("steps"):
-        why.append(f"V8: {rec.get('steps')} optimizer steps and {len(grads)} gradient records, "
-                   f"{rec.get('expected_steps')} expected")
-    losses = [row.get("loss") for row in rec.get("logs") or []]
-    if not losses or not all(isinstance(x, (int, float)) and math.isfinite(x) for x in losses):
-        why.append(f"V8: losses {losses} are missing or not finite")
-    if not all(digest.get("finite") for step in grads for digest in step.values()):
-        why.append("V8: a non-finite LoRA gradient")
-    if not all(any(digest.get("nonzero") for digest in step.values()) for step in grads):
-        why.append("V8: a step with all-zero LoRA gradients")
+    if (not isinstance(rec.get("steps"), int) or isinstance(rec.get("steps"), bool)
+            or rec.get("steps") != expected or rec.get("expected_steps") != expected):
+        why.append(f"V8: {rec.get('steps')} optimizer steps, child expected "
+                   f"{rec.get('expected_steps')}, fixture expected {expected}")
+    logs = rec.get("logs")
+    if not isinstance(logs, list) or len(logs) != expected:
+        why.append(f"V8: complete per-step loss/rate logs missing ({expected} expected)")
+        logs = logs if isinstance(logs, list) else []
+    for field in ("loss", "learning_rate"):
+        values = [row.get(field) if isinstance(row, dict) else None for row in logs]
+        if not values or not all(_finite_number(value) for value in values):
+            why.append(f"V8: {field} values {values} are missing or not finite")
+    rates = rec.get("rates")
+    if (not isinstance(rates, list) or len(rates) != expected
+            or not all(_finite_number(value) for value in rates)):
+        why.append(f"V8: complete finite per-step rates missing ({expected} expected)")
     return why
+
+
+def _gradient_problems(rec: Dict[str, Any], expected: int, n_layers: int) -> List[str]:
+    grads = rec.get("grads")
+    if not isinstance(grads, list) or len(grads) != expected:
+        return [f"V8: {len(grads) if isinstance(grads, list) else 0} gradient records, "
+                f"{expected} expected"]
+    why = []
+    # The stand fixes q/k/v/o adapters, each with A/B matrices, in every decoder layer.
+    # n_layers comes from the caller's fixed fixture (32 Mistral, 8 CPU preflight), never
+    # from the child's JSON, which could omit the same parameters as its peers.
+    expected_names = {
+        f"base_model.model.model.layers.{layer}.self_attn.{projection}_proj."
+        f"lora_{matrix}.default.weight"
+        for layer in range(n_layers) for projection in ("q", "k", "v", "o")
+        for matrix in ("A", "B")
+    }
+    for index, step in enumerate(grads):
+        if not isinstance(step, dict) or not step:
+            why.append(f"V8: step {index} has no LoRA gradient records")
+            continue
+        if set(step) != expected_names:
+            why.append(f"V8: step {index} LoRA gradient coverage differs from the fixed "
+                       f"fixture ({len(expected_names - set(step))} missing, "
+                       f"{len(set(step) - expected_names)} unexpected)")
+        for name, digest in step.items():
+            if not isinstance(digest, dict):
+                why.append(f"V8: step {index} gradient {name} has no digest")
+                continue
+            sha, dtype, shape = (digest.get(field) for field in ("sha256", "dtype", "shape"))
+            if (not isinstance(sha, str) or len(sha) != 64
+                    or any(c not in "0123456789abcdefABCDEF" for c in sha)
+                    or dtype not in ("float16", "bfloat16", "float32", "float64")
+                    or not isinstance(shape, list) or not shape
+                    or not all(isinstance(n, int) and not isinstance(n, bool) and n > 0
+                               for n in shape)):
+                why.append(f"V8: step {index} gradient {name} needs a valid SHA-256, dtype "
+                           "and shape")
+            if digest.get("finite") is not True:
+                why.append(f"V8: step {index} has a non-finite LoRA gradient ({name})")
+            if not isinstance(digest.get("nonzero"), bool):
+                why.append(f"V8: step {index} gradient {name} has no nonzero evidence")
+        if not any(isinstance(digest, dict) and digest.get("nonzero") is True
+                   for digest in step.values()):
+            why.append(f"V8: step {index} has all-zero LoRA gradients")
+    return why
+
+
+def training_problems(rec: Dict[str, Any], *, n_layers: int = 32) -> List[str]:
+    """V8 for the fixed ten-row, k=4 correctness/restart fixture (also CPU preflight).
+
+    Validate evidence before equality: matching missing digests, losses or rates prove
+    nothing. n_layers is the caller's independent fixture size, not a child-record field.
+    Device/cgroup checks belong to the caller, not this shared numerical check.
+    """
+    return (_step_problems(rec, _TRAINING_STEPS)
+            + _gradient_problems(rec, _TRAINING_STEPS, n_layers))
 
 
 def spill_problems(rec: Dict[str, Any], *, spilled: bool) -> List[str]:
     """V4: the spill happened where planned, and nowhere else."""
     layers = (rec.get("spill_plan") or {}).get("spill_layers")
+    valid_layers = isinstance(layers, int) and not isinstance(layers, bool)
     if not spilled:
-        return [] if layers == 0 else [f"V4: the no-spill arm planned spill_layers {layers!r}"]
+        return [] if valid_layers and layers == 0 else [
+            f"V4: the no-spill arm planned spill_layers {layers!r}"]
     io = rec.get("store_io") or {}
-    if not layers:
+    if not valid_layers or layers <= 0:
         return [f"V4: spill_layers {layers!r}: the spill did not happen, the arm is invalid"]
-    if not io.get("bytes_written") or not io.get("bytes_read"):
+    if not all(_finite_number(io.get(key)) and io[key] > 0
+               for key in ("bytes_written", "bytes_read")):
         return [f"V4: spill_layers {layers} but the store moved {io.get('bytes_written')!r} B "
                 f"out and {io.get('bytes_read')!r} B back: the spill did not happen"]
     return []
@@ -252,9 +331,16 @@ def fingerprint(rec: Dict[str, Any]) -> Optional[str]:
     return None if rows is None else json.dumps(rows)
 
 
-def compare_records(ref: Dict[str, Any], cand: Dict[str, Any]) -> Dict[str, Any]:
+def compare_records(ref: Dict[str, Any], cand: Dict[str, Any], *, n_layers: int = 32
+                    ) -> Dict[str, Any]:
     """Bit equality of two runs from their JSON: per-step gradient digests (SHA-256 of the
     raw bytes, dtype, shape), losses, the step count and the lr at every step."""
+    # compare_records is also callable directly; omissions must not become equality merely
+    # because both inputs omit the same required numerical evidence.
+    if training_problems(ref, n_layers=n_layers) or training_problems(cand, n_layers=n_layers):
+        return {"grads_equal": False, "losses_equal": False, "rates_equal": False,
+                "steps_equal": False, "steps": [ref.get("steps"), cand.get("steps")],
+                "first_difference": None, "equal": False}
 
     def key(digest: Dict[str, Any]) -> Tuple[Any, ...]:
         return digest.get("sha256"), digest.get("dtype"), tuple(digest.get("shape") or ())
@@ -439,7 +525,21 @@ def _tight_oom_part(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
     oom = entry.get("kernel_oom")
     if not isinstance(oom, dict) or not oom.get("read"):
-        if code == -9 and not entry.get("signal_name"):
+        sent = entry.get("signal")
+        sent = sent if isinstance(sent, dict) else {}
+        marker = sent.get("marker")
+        marker = marker if isinstance(marker, dict) else {}
+        before = sent.get("files_before_signal")
+        path = marker.get("spill_path")
+        intentional = (name == "kill9" and entry.get("signal_name") == "SIGKILL"
+                       and sent.get("signal") == "SIGKILL"
+                       and _finite_number(sent.get("sent_unix")) and sent["sent_unix"] > 0
+                       and marker.get("phase") == "hold" and marker.get("in_step") is True
+                       and marker.get("steps_done") == 1
+                       and isinstance(path, str) and bool(path)
+                       and isinstance(before, list) and path in before
+                       and sent.get("exited") is True and sent.get("returncode") == -9)
+        if code == -9 and not intentional:
             why = (oom or {}).get("error") if isinstance(oom, dict) else "no kernel log read"
             return _crit(NONE, f"{name}: killed (exit -9) and the kernel log cannot tell "
                          f"whether it was an OOM kill ({why})")
@@ -502,11 +602,11 @@ def _normal_cleanup(rec: Optional[Dict[str, Any]],
         return _crit(NONE, "normal: " + "; ".join(problems))
     after_train = rec.get("spill_files_after_train")
     after_exit = entry.get("spill_files_after_exit")
-    if after_train is None or after_exit is None:
-        return _crit(NONE, "normal: the spill directory was not listed after the run")
-    if after_train or after_exit:
+    if any(isinstance(files, list) and files for files in (after_train, after_exit)):
         return _crit(FAIL, f"normal: spill files left after train() {after_train}, after the "
                      f"process exit {after_exit}")
+    if not isinstance(after_train, list) or not isinstance(after_exit, list):
+        return _crit(NONE, "normal: the spill directory was not listed after the run")
     return _crit(PASS, "normal: no spill file after train() nor after the process exit")
 
 
@@ -564,12 +664,14 @@ def _sigint(rec: Optional[Dict[str, Any]], entry: Optional[Dict[str, Any]]) -> D
 def _kill9(entry: Optional[Dict[str, Any]], next_rec: Optional[Dict[str, Any]],
            next_entry: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     sent = (entry or {}).get("signal")
-    if not sent:
+    if not isinstance(sent, dict) or not sent:
         return _crit(NONE, "kill9: not run")
-    marker = sent.get("marker") or {}
+    marker = sent.get("marker")
+    marker = marker if isinstance(marker, dict) else {}
     path = marker.get("spill_path")
-    before = sent.get("files_before_signal") or []
-    if sent.get("sent_unix") is None or not path or path not in before:
+    before = sent.get("files_before_signal")
+    if (sent.get("sent_unix") is None or not path or not isinstance(before, list)
+            or path not in before):
         return _crit(NONE, f"kill9: the scenario was not reached (spill file {path!r}, files "
                      f"before SIGKILL {before}, {sent.get('why')})")
     if marker.get("phase") != "hold":
@@ -579,7 +681,10 @@ def _kill9(entry: Optional[Dict[str, Any]], next_rec: Optional[Dict[str, Any]],
     problems = child_problems(marker, entry)
     if problems:
         return _crit(NONE, "kill9: " + "; ".join(problems))
-    if path not in (sent.get("files_after_exit") or []):
+    after_kill = sent.get("files_after_exit")
+    if not isinstance(after_kill, list):
+        return _crit(NONE, "kill9: the spill directory was not listed after SIGKILL")
+    if path not in after_kill:
         return _crit(FAIL, f"kill9: {path} is gone after SIGKILL; the documented behaviour is "
                      "that it stays")
     if next_entry is None:
@@ -591,15 +696,28 @@ def _kill9(entry: Optional[Dict[str, Any]], next_rec: Optional[Dict[str, Any]],
     problems = child_problems(next_rec, next_entry)
     if problems:
         return _crit(NONE, "kill9: next child " + "; ".join(problems))
-    removed = next_rec.get("stale_removed") or []
-    left = [p for p in (next_rec.get("spill_files_after_train") or [],
-                        next_entry.get("spill_files_after_exit") or []) if path in p]
-    if path not in removed or left:
+    removed = next_rec.get("stale_removed")
+    after_train = next_rec.get("spill_files_after_train")
+    after_exit = next_entry.get("spill_files_after_exit")
+    # An observed leftover is a failure even when the other observation is missing.
+    if any(isinstance(files, list) and files for files in (after_train, after_exit)):
         return _crit(FAIL, f"kill9: the next start did not remove {path} (stale_removed "
-                     f"{removed}; still listed {bool(left)})")
+                     f"{removed}; spill files after train() {after_train}, "
+                     f"after exit {after_exit})")
+    if not isinstance(after_train, list) or not isinstance(after_exit, list):
+        return _crit(NONE, "kill9: the next spill directory was not listed after train() "
+                     "and after the process exit")
+    if not isinstance(removed, list):
+        return _crit(NONE, "kill9: the next child did not record stale_removed")
+    if path not in removed:
+        return _crit(FAIL, f"kill9: the next start did not remove {path} (stale_removed "
+                     f"{removed}; still listed False)")
     trained = training_problems(next_rec)
     if trained:
         return _crit(FAIL, "kill9: the next child did not train normally: " + "; ".join(trained))
+    problems = spill_problems(next_rec, spilled=True)
+    if problems:
+        return _crit(NONE, "kill9: next child " + "; ".join(problems))
     return _crit(PASS, f"kill9: {path} left by SIGKILL, removed at the next start, which trained "
                  f"{next_rec.get('steps')} optimizer steps")
 
@@ -627,13 +745,25 @@ def load_cost(root: Path) -> List[Dict[str, Any]]:
 
 
 def _cost_problems(rec: Dict[str, Any], entry: Optional[Dict[str, Any]]) -> List[str]:
-    why = child_problems(rec, entry)
-    if rec.get("exit") != "normal" or rec.get("value") is None:
-        why.append(f"exit {rec.get('exit')!r}, value {rec.get('value')!r}")
+    expected = _COST_WARMUP + _COST_TIMED
+    why = child_problems(rec, entry) + _step_problems(rec, expected)
     why += spill_problems(rec, spilled=rec.get("role") == "B")
-    if not all(isinstance(row.get("loss"), (int, float)) and math.isfinite(row["loss"])
-               for row in rec.get("logs") or [{}]):
-        why.append("a non-finite loss")
+    logs = rec.get("logs") if isinstance(rec.get("logs"), list) else []
+    if not all(isinstance(row, dict) and _finite_number(row.get("grad_norm"))
+               and row["grad_norm"] > 0 for row in logs) or len(logs) != expected:
+        why.append("V8: complete positive finite per-step grad_norm evidence missing")
+    step_s = rec.get("step_s")
+    if (not isinstance(step_s, list) or len(step_s) != expected
+            or not all(_finite_number(value) and value > 0 for value in step_s)):
+        why.append(f"{expected} positive finite optimizer-step timings required")
+    timed = rec.get("timed_step_s")
+    if (not isinstance(timed, list) or len(timed) != _COST_TIMED
+            or not all(_finite_number(value) and value > 0 for value in timed)):
+        why.append(f"{_COST_TIMED} positive finite timed optimizer steps required")
+    elif isinstance(step_s, list) and timed != step_s[_COST_WARMUP:]:
+        why.append("timed steps do not match the post-warmup optimizer-step timings")
+    elif not _finite_number(rec.get("value")) or rec["value"] != statistics.median(timed):
+        why.append(f"value {rec.get('value')!r} is not the median of the five timed steps")
     return why
 
 
@@ -652,7 +782,7 @@ def criterion_4(rows: Sequence[Dict[str, Any]], entries: Dict[str, Dict[str, Any
         why += _named(rec["_name"], _cost_problems(rec, entries.get(rec["_name"])))
     blocks: Dict[int, Dict[int, Dict[str, Any]]] = {}
     for rec in rows:
-        if rec.get("value") is not None:
+        if _finite_number(rec.get("value")) and rec["value"] > 0:
             blocks.setdefault(int(rec["block"]), {})[int(rec["position"])] = rec
     ordered = [[arms[p] for p in range(4)] for _, arms in sorted(blocks.items())
                if set(arms) == {0, 1, 2, 3}

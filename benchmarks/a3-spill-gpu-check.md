@@ -597,3 +597,29 @@ private archive `m3-final.tar` (212 entries, SHA-256
 operational tooling and private API/billing snapshots are not published. The private
 archive and sibling tensors remain available for recomputation; the LF `SHA256SUMS` covers
 the public evidence and provenance, and `.gitattributes` preserves their bytes.
+
+## 12. Post-measurement audit corrections
+
+Session 3 and its published records stay pinned to `ec795ef1`; their numbers and verdict
+are unchanged. Later GPT 6.1 Sol reviews found invalid-input and error-path defects in the
+stand and product. The current rule requires complete parameter/digest/loss/rate evidence
+and the fixed expected step counts; matching omissions no longer count as equality. Cost
+arms require seven steps, five finite positive timings and their median, and finite positive
+gradient norms. Missing cleanup listings are not evidence of absence, and observed leftovers
+take failure priority. Only an actually recorded intentional kill9 SIGKILL exempts an
+unexplained -9. The signal driver respects the remaining session deadline, and nonfinite
+timing or lateness cannot admit a machine. These enforce the existing criteria and leave
+the declared rule/profile, thresholds and historical records unchanged.
+
+Product corrections address stale-entry replacement races, non-default cgroup mounts, macOS
+volume backing, non-CUDA transfer ordering, sector-aligned raw-I/O request limits, constructor
+and teardown resource lifetimes, and old-store release before a larger-window RAM replan.
+On older torch without public pinned-cache release, growth may still conservatively refuse
+while idle cache remains charged. Cleanup is best-effort, including the native thread-launch
+interrupt window before CPython publishes a worker identity.
+
+Local CPU checks exercise real spill/no-spill equality, inherited-SIGINT interruption at the
+hold, SIGKILL/next-start cleanup, and POSIX stale-entry replacement. They are not a new CUDA,
+native MPS, native macOS-volume or 2 GiB Windows transfer measurement. Regression evidence for
+invalid records and resource failures is separate from the frozen GPU result. Replaying the
+stricter rule on session 3 still yields its byte-identical verdict.

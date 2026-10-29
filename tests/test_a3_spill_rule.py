@@ -8,6 +8,7 @@ criterion it belongs to. The rule reads JSON only, so nothing here needs torch o
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -21,6 +22,8 @@ TIGHT = 9_000 << 20
 SPILL_DIR = "/mnt/nvme/a3-spill"
 KILLED_FILE = f"{SPILL_DIR}/kill9/soup-l2l-spill-4242-0badcafe.bin"
 SIGINT_FILE = f"{SPILL_DIR}/sigint/soup-l2l-spill-4343-0badf00d.bin"
+GRAD_A = "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight"
+GRAD_B = "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight"
 
 
 @pytest.fixture()
@@ -32,8 +35,18 @@ def rule():
 # a passing synthetic session
 # --------------------------------------------------------------------------
 def _digest(seed: str, step: int) -> Dict[str, Any]:
-    return {"sha256": f"{seed}-{step}", "dtype": "float32", "shape": [8, 4096],
+    return {"sha256": hashlib.sha256(f"{seed}-{step}".encode()).hexdigest(),
+            "dtype": "float32", "shape": [8, 4096],
             "finite": True, "nonzero": True}
+
+
+def _gradients(seed: str, step: int) -> Dict[str, Any]:
+    # The fixed Mistral fixture: 32 layers, q/k/v/o adapters, both LoRA matrices.
+    return {
+        f"base_model.model.model.layers.{layer}.self_attn.{projection}_proj."
+        f"lora_{matrix}.default.weight": _digest(f"{seed}-{layer}-{projection}-{matrix}", step)
+        for layer in range(32) for projection in ("q", "k", "v", "o") for matrix in ("A", "B")
+    }
 
 
 def _cgroup(limit: int, *, oom: int = 0, peak: Optional[int] = None) -> Dict[str, Any]:
@@ -64,9 +77,9 @@ def _arm(name: str, limit: int, *, layers: Optional[int], sdpa: str = "MATH",
         "deterministic": {"CUBLAS_WORKSPACE_CONFIG": ":4096:8", "algorithms": True,
                           "warn_only": False, "sdpa": sdpa},
         "exit": "normal", "steps": steps, "expected_steps": steps,
-        "grads": [{"lora_A": _digest(grads, s), "lora_B": _digest(grads + "B", s)}
-                  for s in range(steps)],
-        "logs": [{"loss": 2.5 - 0.1 * s, "learning_rate": 0.001 * (steps - s)}
+        "grads": [] if name.startswith("cost/") else [_gradients(grads, s) for s in range(steps)],
+        "logs": [{"loss": 2.5 - 0.1 * s, "learning_rate": 0.001 * (steps - s),
+                  "grad_norm": 1.0 + s}
                  for s in range(steps)],
         "rates": [0.001 * (steps - s) for s in range(steps)],
         "rows": {"row_sha256": ["r0", "r1", "r2"]},
@@ -92,7 +105,8 @@ def _cost(block: int, position: int, role: str, value: float) -> Dict[str, Any]:
     limit = GENEROUS if role == "A" else TIGHT
     rec = _arm(f"cost/b{block:02d}_p{position}_{role}", limit,
                layers=16 if role == "B" else 0, steps=7)
-    rec.update(role=role, block=block, position=position, value=value, outcome="ok")
+    rec.update(role=role, block=block, position=position, value=value, outcome="ok",
+               grads=[], step_s=[value] * 7, timed_step_s=[value] * 5)
     return rec
 
 
@@ -208,7 +222,7 @@ def test_a_training_margin_warning_is_reported_and_changes_nothing(rule, tmp_pat
 # --------------------------------------------------------------------------
 def test_unequal_no_spill_runs_give_no_verdict_not_fail(rule, tmp_path):
     session = Session()
-    session.arms["l2l_nospill_2"]["grads"][1]["lora_A"]["sha256"] = "drift"
+    session.arms["l2l_nospill_2"]["grads"][1][GRAD_A]["sha256"] = _digest("drift", 1)["sha256"]
     result = _judge(rule, session, tmp_path)
     assert result["criteria"]["1"]["status"] == "NO VERDICT"
     assert "does not repeat" in result["criteria"]["1"]["detail"]
@@ -217,13 +231,11 @@ def test_unequal_no_spill_runs_give_no_verdict_not_fail(rule, tmp_path):
 
 
 @pytest.mark.parametrize("damage, word", [
-    (lambda rec: rec["grads"][2]["lora_B"].update(sha256="other"), "grads"),
-    (lambda rec: rec["grads"][0]["lora_A"].update(dtype="bfloat16"), "grads"),
-    (lambda rec: rec["grads"][0]["lora_A"].update(shape=[4096, 8]), "grads"),
+    (lambda rec: rec["grads"][2][GRAD_B].update(sha256=_digest("other", 2)["sha256"]), "grads"),
+    (lambda rec: rec["grads"][0][GRAD_A].update(dtype="bfloat16"), "grads"),
+    (lambda rec: rec["grads"][0][GRAD_A].update(shape=[4096, 8]), "grads"),
     (lambda rec: rec["logs"][1].update(loss=2.4000001), "losses"),
     (lambda rec: rec["rates"].__setitem__(2, 0.5), "rates"),
-    (lambda rec: rec.update(steps=4, expected_steps=4,
-                            grads=rec["grads"] + [rec["grads"][0]]), "steps"),
 ])
 def test_spill_unequal_to_no_spill_fails_and_refuses_the_cost_blocks(rule, tmp_path, damage,
                                                                       word):
@@ -323,7 +335,7 @@ def test_a_cgroup_readback_unequal_to_the_plan_voids_the_arm(rule, tmp_path, dam
     (lambda rec: rec.update(exit="error", error="boom"), "exit"),
     (lambda rec: rec["logs"][0].update(loss=float("nan")), "not finite"),
     (lambda rec: [d.update(nonzero=False) for d in rec["grads"][1].values()], "all-zero"),
-    (lambda rec: rec["grads"][0]["lora_A"].update(finite=False), "non-finite"),
+    (lambda rec: rec["grads"][0][GRAD_A].update(finite=False), "non-finite"),
     (lambda rec: rec.update(expected_steps=4), "expected"),
 ])
 def test_an_arm_that_did_not_train_properly_gives_no_verdict(rule, tmp_path, damage, word):
@@ -333,6 +345,96 @@ def test_an_arm_that_did_not_train_properly_gives_no_verdict(rule, tmp_path, dam
     result = _judge(rule, session, tmp_path)
     assert result["criteria"]["1"]["status"] == "NO VERDICT"
     assert word in result["criteria"]["1"]["detail"]
+
+
+@pytest.mark.parametrize("damage", [
+    lambda rec: [d.pop("sha256") for step in rec["grads"] for d in step.values()],
+    lambda rec: [d.pop("dtype") for step in rec["grads"] for d in step.values()],
+    lambda rec: [d.pop("shape") for step in rec["grads"] for d in step.values()],
+    lambda rec: [d.pop("finite") for step in rec["grads"] for d in step.values()],
+    lambda rec: [d.pop("nonzero") for step in rec["grads"] for d in step.values()],
+    lambda rec: [d.update(sha256="not-a-sha256") for step in rec["grads"]
+                 for d in step.values()],
+    lambda rec: [d.update(dtype="") for step in rec["grads"] for d in step.values()],
+    lambda rec: [d.update(dtype="not-a-floating-dtype") for step in rec["grads"]
+                 for d in step.values()],
+    lambda rec: [d.update(shape=[]) for step in rec["grads"] for d in step.values()],
+    lambda rec: [d.update(shape=[8, -1]) for step in rec["grads"] for d in step.values()],
+    lambda rec: rec.update(grads=[{} for _ in range(3)]),
+    lambda rec: rec.pop("rates"),
+    lambda rec: rec.update(rates=[0.001]),
+    lambda rec: rec["rates"].__setitem__(1, float("inf")),
+    lambda rec: [row.pop("learning_rate") for row in rec["logs"]],
+    lambda rec: rec["logs"][0].update(learning_rate=float("nan")),
+    lambda rec: rec.update(logs=rec["logs"][:1]),
+    lambda rec: rec["logs"][0].update(loss=True),
+    lambda rec: [row.pop("loss") for row in rec["logs"]],
+], ids=["missing-sha256", "missing-dtype", "missing-shape", "missing-finite",
+        "missing-nonzero", "invalid-sha256", "empty-dtype", "invalid-dtype", "empty-shape",
+        "invalid-dimension", "empty-gradient-steps", "missing-rates", "short-rates",
+        "infinite-rate", "missing-logged-rate", "nan-logged-rate", "short-logs",
+        "boolean-loss", "missing-loss"])
+def test_matching_missing_numerical_evidence_cannot_prove_equality(rule, tmp_path, damage):
+    session = Session()
+    for name in ("l2l_nospill_1", "l2l_nospill_2", "l2l_spill"):
+        damage(session.arms[name])
+    root = session.write(tmp_path / "session")
+    result = rule.evaluate(str(root))
+    assert result["criteria"]["1"]["status"] == "NO VERDICT"
+    assert result["criteria"]["4"]["refused"] is True
+    assert rule.cost_gate(str(root))[0] is False
+    compared = rule.compare_records(session.arms["l2l_nospill_1"], session.arms["l2l_spill"])
+    assert compared["equal"] is False
+
+
+@pytest.mark.parametrize("omit", ["one-parameter", "all-lora-B", "last-layer"])
+def test_matching_whole_parameter_omissions_cannot_prove_equality(rule, tmp_path, omit):
+    session = Session()
+    for name in ("l2l_nospill_1", "l2l_nospill_2", "l2l_spill"):
+        for step in session.arms[name]["grads"]:
+            removed = [name for name in step if (name == GRAD_B if omit == "one-parameter"
+                       else ".lora_B." in name if omit == "all-lora-B"
+                       else ".layers.31." in name)]
+            for name in removed:
+                del step[name]
+    root = session.write(tmp_path / "session")
+    assert rule.evaluate(str(root))["criteria"]["1"]["status"] == "NO VERDICT"
+    assert rule.cost_gate(str(root))[0] is False
+    assert not rule.compare_records(
+        session.arms["l2l_nospill_1"], session.arms["l2l_spill"]
+    )["equal"]
+
+
+@pytest.mark.parametrize("steps", [0, 1, 4])
+def test_matching_self_reported_step_counts_do_not_replace_the_three_step_fixture(
+        rule, tmp_path, steps):
+    session = Session()
+    for name in ("l2l_nospill_1", "l2l_nospill_2", "l2l_spill"):
+        rec = session.arms[name]
+        rec.update(steps=steps, expected_steps=steps,
+                   grads=[copy.deepcopy(rec["grads"][0]) for _ in range(steps)],
+                   logs=[copy.deepcopy(rec["logs"][0]) for _ in range(max(1, steps))],
+                   rates=[0.001] * steps)
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["1"]["status"] == "NO VERDICT"
+    assert result["criteria"]["4"]["refused"] is True
+
+
+def test_training_evidence_validation_is_shared_with_cpu_preflight(rule):
+    rec = _arm("kill9_next", TIGHT, layers=16)
+    rec["device"] = "cpu"
+    assert rule.training_problems(rec) == []
+    rec.update(steps=0, expected_steps=0, grads=[])
+    assert rule.training_problems(rec)
+
+
+def test_incidental_record_metadata_does_not_change_numerical_validity(rule, tmp_path):
+    session = Session()
+    for rec in session.arms.values():
+        rec.update(argv=None, pid="not-used-by-numerical-comparison", log_history=None)
+        for row in rec["logs"]:
+            row.update(epoch="not-used", step="not-used")
+    assert _judge(rule, session, tmp_path)["criteria"]["1"]["status"] == "PASS"
 
 
 def test_a_missing_arm_gives_no_verdict(rule, tmp_path):
@@ -495,6 +597,107 @@ def test_the_parents_sigkill_of_kill9_is_not_an_oom(rule, tmp_path):
     assert _judge(rule, session, tmp_path)["criteria"]["2"]["status"] == "PASS"
 
 
+@pytest.mark.parametrize("signal_name, sent_signal, sent_unix, name", [
+    ("SIGINT", "SIGINT", 1.0, "sigint"),
+    ("SIGKILL", "SIGKILL", None, "kill9"),
+    ("SIGKILL", "SIGINT", 1.0, "kill9"),
+    ("SIGKILL", "SIGKILL", 1.0, "sigint"),
+    ("SIGKILL", "SIGKILL", 0.0, "kill9"),
+    ("SIGKILL", "SIGKILL", float("nan"), "kill9"),
+], ids=["sigint", "unsent-kill9", "wrong-sent-signal", "wrong-child", "zero-timestamp",
+        "nan-timestamp"])
+def test_only_an_actually_sent_planned_kill9_exempts_an_unexplained_kill(
+        rule, tmp_path, signal_name, sent_signal, sent_unix, name):
+    session = Session()
+    entry = session.entries[name]
+    entry.update(limit="tight", returncode=-9, signal_name=signal_name,
+                 kernel_oom={"read": False, "error": "kernel log unavailable"})
+    entry["signal"].update(signal=sent_signal, sent_unix=sent_unix)
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["2"]["status"] == "NO VERDICT"
+    assert "cannot tell" in _part(result, "2", name)["detail"]
+
+
+def test_an_actually_sent_planned_kill9_does_not_need_a_kernel_log(rule, tmp_path):
+    session = Session()
+    session.entries["kill9"].update(limit="tight", signal_name="SIGKILL",
+                                    kernel_oom={"read": False, "error": "unavailable"})
+    assert _judge(rule, session, tmp_path)["criteria"]["2"]["status"] == "PASS"
+
+
+@pytest.mark.parametrize("damage", [
+    lambda sent: sent["marker"].update(phase="enter"),
+    lambda sent: sent["marker"].update(steps_done=0),
+    lambda sent: sent.update(files_before_signal=[]),
+], ids=["not-held", "wrong-step", "no-spill-file"])
+def test_a_kill9_label_without_the_planned_spill_hold_cannot_explain_a_kill(
+        rule, tmp_path, damage):
+    session = Session()
+    entry = session.entries["kill9"]
+    entry.update(limit="tight", signal_name="SIGKILL", kernel_oom={"read": False})
+    damage(entry["signal"])
+    assert _judge(rule, session, tmp_path)["criteria"]["2"]["status"] == "NO VERDICT"
+
+
+@pytest.mark.parametrize("path", [None, ""])
+def test_a_missing_spill_path_cannot_exempt_an_unexplained_kill(rule, tmp_path, path):
+    session = Session()
+    entry = session.entries["kill9"]
+    entry.update(limit="tight", signal_name="SIGKILL", kernel_oom={"read": False})
+    entry["signal"]["marker"]["spill_path"] = path
+    entry["signal"]["files_before_signal"] = [path]
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["2"]["status"] == "NO VERDICT"
+    assert "cannot tell" in _part(result, "2", "kill9")["detail"]
+
+
+@pytest.mark.parametrize("container", [1, True, "not-a-container", []])
+@pytest.mark.parametrize("field", ["signal", "marker", "files_before_signal"])
+@pytest.mark.parametrize("known_oom", [False, True])
+def test_malformed_kill_exemption_evidence_cannot_hide_unknown_or_known_oom(
+        rule, tmp_path, container, field, known_oom):
+    session = Session()
+    entry = session.entries["kill9"]
+    entry.update(limit="tight", signal_name="SIGKILL", kernel_oom={"read": False})
+    if field == "signal":
+        entry[field] = container
+    else:
+        entry["signal"][field] = container
+    if known_oom:
+        session.entries["calibration_check_1"] = _tight_child(
+            "calibration_check_1", returncode=-9, kernel=KILLED_BY_KERNEL, marker=FIRST_STEP)
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["2"]["status"] == ("FAIL" if known_oom else "NO VERDICT")
+    assert "cannot tell" in _part(result, "2", "kill9")["detail"]
+
+
+@pytest.mark.parametrize("field", ["loss", "learning_rate", "rate", "bytes_read"])
+def test_oversized_json_integer_evidence_does_not_abort_the_rule(rule, tmp_path, field):
+    session = Session()
+    rec = session.arms["l2l_spill"]
+    if field == "bytes_read":
+        rec["store_io"][field] = 10**400
+    elif field == "rate":
+        rec["rates"][0] = 10**400
+    else:
+        rec["logs"][0][field] = 10**400
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["1"]["status"] == "NO VERDICT"
+
+
+def test_a_known_kernel_oom_still_fails_even_for_the_intentional_kill9(rule, tmp_path):
+    session = Session()
+    session.entries["kill9"].update(limit="tight", signal_name="SIGKILL",
+                                    kernel_oom=KILLED_BY_KERNEL, marker_after_exit=FIRST_STEP)
+    # Unknown evidence in another child must not mask this known OOM failure.
+    session.entries["sigint"].update(limit="tight", returncode=-9, signal_name="SIGINT",
+                                     kernel_oom={"read": False})
+    result = _judge(rule, session, tmp_path)
+    assert result["criteria"]["2"]["status"] == "FAIL"
+    assert _part(result, "2", "kill9")["status"] == "FAIL"
+    assert result["verdict"] == "SPILL NOT SAFE IN THE TRAINER: criterion 2 failed"
+
+
 def test_a_kernel_oom_before_the_first_step_is_the_stands_limit_not_a_fail(rule, tmp_path):
     session = Session()
     session.entries["sigint"] = _tight_child("sigint", returncode=-9, kernel=KILLED_BY_KERNEL)
@@ -588,6 +791,30 @@ def test_a_file_left_after_a_normal_end_fails_cleanup(rule, tmp_path, where):
     assert _part(result, "3", "normal")["status"] == "FAIL"
 
 
+@pytest.mark.parametrize("where", ["after_train", "after_exit"])
+def test_normal_cleanup_observed_file_fails_despite_the_other_missing_listing(
+        rule, tmp_path, where):
+    session = Session()
+    if where == "after_train":
+        session.arms["l2l_spill"]["spill_files_after_train"] = ["/spill/left.bin"]
+        session.entries["l2l_spill"].pop("spill_files_after_exit")
+    else:
+        session.arms["l2l_spill"].pop("spill_files_after_train")
+        session.entries["l2l_spill"]["spill_files_after_exit"] = ["/spill/left.bin"]
+    assert _part(_judge(rule, session, tmp_path), "3", "normal")["status"] == "FAIL"
+
+
+@pytest.mark.parametrize("where", ["after_train", "after_exit"])
+@pytest.mark.parametrize("observation", [None, False, 0, "", {}])
+def test_normal_cleanup_requires_actual_directory_lists(rule, tmp_path, where, observation):
+    session = Session()
+    if where == "after_train":
+        session.arms["l2l_spill"]["spill_files_after_train"] = observation
+    else:
+        session.entries["l2l_spill"]["spill_files_after_exit"] = observation
+    assert _part(_judge(rule, session, tmp_path), "3", "normal")["status"] == "NO VERDICT"
+
+
 def test_a_file_left_after_sigint_fails_cleanup(rule, tmp_path):
     session = Session()
     session.entries["sigint"]["signal"]["files_after_exit"] = [SIGINT_FILE]
@@ -673,6 +900,73 @@ def test_kill9_fails_when_the_file_is_claimed_removed_but_still_listed(rule, tmp
     session = Session()
     session.cleanup["kill9_next"]["spill_files_after_train"] = [KILLED_FILE]
     assert _part(_judge(rule, session, tmp_path), "3", "kill9")["status"] == "FAIL"
+
+
+@pytest.mark.parametrize("where", ["after_train", "after_exit", "both"])
+@pytest.mark.parametrize("missing", [None, "absent"])
+def test_restart_cleanup_needs_explicit_directory_observations(rule, tmp_path, where, missing):
+    session = Session()
+    if where in ("after_train", "both"):
+        if missing == "absent":
+            session.cleanup["kill9_next"].pop("spill_files_after_train")
+        else:
+            session.cleanup["kill9_next"]["spill_files_after_train"] = None
+    if where in ("after_exit", "both"):
+        if missing == "absent":
+            session.entries["kill9_next"].pop("spill_files_after_exit")
+        else:
+            session.entries["kill9_next"]["spill_files_after_exit"] = None
+    result = _judge(rule, session, tmp_path)
+    assert _part(result, "3", "kill9")["status"] == "NO VERDICT"
+    assert result["criteria"]["3"]["status"] == "NO VERDICT"
+
+
+@pytest.mark.parametrize("where", ["after_train", "after_exit"])
+def test_a_real_restart_file_fails_even_if_the_other_listing_is_missing(rule, tmp_path, where):
+    session = Session()
+    if where == "after_train":
+        session.cleanup["kill9_next"]["spill_files_after_train"] = [KILLED_FILE]
+        session.entries["kill9_next"].pop("spill_files_after_exit")
+    else:
+        session.cleanup["kill9_next"].pop("spill_files_after_train")
+        session.entries["kill9_next"]["spill_files_after_exit"] = [KILLED_FILE]
+    assert _part(_judge(rule, session, tmp_path), "3", "kill9")["status"] == "FAIL"
+
+
+@pytest.mark.parametrize("where", ["after_train", "after_exit"])
+def test_any_restart_spill_file_left_fails_even_when_the_killed_file_is_gone(rule, tmp_path, where):
+    session = Session()
+    left = [f"{SPILL_DIR}/kill9/soup-l2l-spill-99-new.bin"]
+    if where == "after_train":
+        session.cleanup["kill9_next"]["spill_files_after_train"] = left
+    else:
+        session.entries["kill9_next"]["spill_files_after_exit"] = left
+    assert _part(_judge(rule, session, tmp_path), "3", "kill9")["status"] == "FAIL"
+
+
+@pytest.mark.parametrize("steps", [0, 1])
+def test_a_restart_cannot_self_report_a_shorter_successful_fixture(rule, tmp_path, steps):
+    session = Session()
+    rec = session.cleanup["kill9_next"]
+    rec.update(steps=steps, expected_steps=steps, grads=rec["grads"][:steps],
+               logs=rec["logs"][:max(1, steps)], rates=rec["rates"][:steps])
+    assert _part(_judge(rule, session, tmp_path), "3", "kill9")["status"] == "FAIL"
+
+
+def test_restart_training_without_spill_participation_has_no_verdict(rule, tmp_path):
+    session = Session()
+    session.cleanup["kill9_next"]["store_io"]["bytes_read"] = 0
+    assert _part(_judge(rule, session, tmp_path), "3", "kill9")["status"] == "NO VERDICT"
+
+
+@pytest.mark.parametrize("field", ["spill_layers", "bytes_written", "bytes_read"])
+@pytest.mark.parametrize("value", [-1, float("nan"), float("inf"), True])
+def test_restart_spill_participation_needs_positive_finite_measurements(
+        rule, tmp_path, field, value):
+    session = Session()
+    rec = session.cleanup["kill9_next"]
+    (rec["spill_plan"] if field == "spill_layers" else rec["store_io"])[field] = value
+    assert _part(_judge(rule, session, tmp_path), "3", "kill9")["status"] == "NO VERDICT"
 
 
 def test_kill9_fails_when_the_next_run_does_not_train(rule, tmp_path):
@@ -793,6 +1087,63 @@ def test_no_cost_block_gives_no_verdict(rule, tmp_path):
     result = _judge(rule, Session([]), tmp_path)
     assert result["criteria"]["4"]["status"] == "NO VERDICT"
     assert result["criteria"]["4"]["detail"] == "no cost block ran"
+
+
+@pytest.mark.parametrize("steps", [0, 1, 6])
+def test_a_truncated_cost_child_cannot_supply_a_block_value(rule, tmp_path, steps):
+    session = Session()
+    rec = session.cost[0]
+    rec.update(steps=steps, expected_steps=steps, grads=[],
+               logs=rec["logs"][:max(1, steps)], rates=rec["rates"][:steps],
+               step_s=rec["step_s"][:steps], timed_step_s=rec["timed_step_s"][:max(1, steps - 2)])
+    assert _judge(rule, session, tmp_path)["criteria"]["4"]["status"] == "NO VERDICT"
+
+
+@pytest.mark.parametrize("damage", [
+    lambda rec: rec.pop("timed_step_s"),
+    lambda rec: rec.update(timed_step_s=[1.0] * 4),
+    lambda rec: rec["timed_step_s"].__setitem__(0, 0.0),
+    lambda rec: rec["timed_step_s"].__setitem__(0, float("nan")),
+    lambda rec: rec["timed_step_s"].__setitem__(0, float("inf")),
+    lambda rec: rec["timed_step_s"].__setitem__(0, True),
+    lambda rec: rec.update(value=1.001),
+    lambda rec: rec.update(value=0.0),
+    lambda rec: rec.update(value=float("nan")),
+    lambda rec: rec.update(logs=rec["logs"][:1]),
+    lambda rec: rec.pop("rates"),
+    lambda rec: rec["logs"][0].pop("learning_rate"),
+    lambda rec: rec["logs"][0].update(learning_rate=float("inf")),
+    lambda rec: rec["logs"][0].pop("grad_norm"),
+    lambda rec: rec["logs"][0].update(grad_norm=0.0),
+    lambda rec: rec["logs"][0].update(grad_norm=float("inf")),
+    lambda rec: rec["logs"][0].update(grad_norm=True),
+    lambda rec: rec.update(steps=6),
+    lambda rec: rec.update(expected_steps=6),
+    lambda rec: rec.pop("step_s"),
+    lambda rec: rec.update(step_s=rec["step_s"][:6]),
+    lambda rec: rec["step_s"].__setitem__(0, 0.0),
+    lambda rec: rec["rates"].__setitem__(0, float("nan")),
+    lambda rec: rec["logs"][0].update(loss=float("inf")),
+    lambda rec: rec.update(step_s=[1.0, 1.0, 0.9, 1.0, 1.0, 1.0, 1.1]),
+], ids=["missing-timings", "four-timings", "zero-timing", "nan-timing", "infinite-timing",
+        "boolean-timing", "not-median", "zero-value", "nan-value", "short-logs",
+        "missing-rates", "missing-logged-rate", "infinite-logged-rate", "missing-grad-norm",
+        "zero-grad-norm", "infinite-grad-norm", "boolean-grad-norm", "six-steps",
+        "wrong-expected-steps", "missing-step-times", "short-step-times", "zero-warmup-time",
+        "nan-rate", "infinite-loss", "unrelated-timed-suffix"])
+def test_cost_requires_complete_timing_and_lightweight_training_evidence(rule, tmp_path, damage):
+    session = Session()
+    damage(session.cost[0])
+    assert _judge(rule, session, tmp_path)["criteria"]["4"]["status"] == "NO VERDICT"
+
+
+def test_cost_accepts_the_median_not_the_mean_of_five_timed_steps(rule, tmp_path):
+    session = Session()
+    rec = session.cost[0]
+    rec.update(step_s=[3.0, 2.0, 0.8, 1.0, 0.9, 1.2, 1.5],
+               timed_step_s=[0.8, 1.0, 0.9, 1.2, 1.5], value=1.0)
+    assert rec["grads"] == []  # cost deliberately avoids full gradient copies
+    assert _judge(rule, session, tmp_path)["criteria"]["4"]["status"] == "PASS"
 
 
 # --------------------------------------------------------------------------

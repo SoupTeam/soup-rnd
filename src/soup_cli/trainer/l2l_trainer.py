@@ -266,10 +266,25 @@ def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, de
     if store is not None and shape[0] * shape[1] * hidden <= store.capacity and k <= store.k:
         return store
     rows, seq, k_cap = _capacity(state, shape, k)
+    pin = str(device).startswith("cuda")
+    rebuilding_cuda = store is not None and pin
     state.close()
+    # close() releases the old chunks/rings; do not retain the old store while replanning.
+    del store
+    if rebuilding_cuda:
+        empty_host_cache = getattr(getattr(torch, "accelerator", None), "empty_host_cache", None)
+        if empty_host_cache is not None:
+            empty_host_cache()
+        else:
+            # Older torch has no supported cache-release API. Do not invent reusable-byte
+            # credit: a larger window can need different pinned allocation size buckets.
+            logger.warning(
+                "training.l2l is growing its CUDA activation store, but this torch has no "
+                "torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged "
+                "to host RAM, so the new plan may need extra free RAM."
+            )
     n_layers = len(stepper.layers)
     itemsize = torch.empty((), dtype=state.dtype).element_size()
-    pin = str(device).startswith("cuda")
     budget = l2l_spill.ram_budget()
     logger.info(
         "training.l2l activation budget: %s [limiting level %s: %s]",
