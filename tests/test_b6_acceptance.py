@@ -207,6 +207,18 @@ def test_ram_fit_is_not_claimed_after_failed_or_incomplete_run(defect):
     assert result["ram_32gib_constrained_pilot_passed"] is (defect == "none")
 
 
+def test_missing_kernel_peak_is_reported_as_unavailable_instead_of_zero():
+    from benchmarks.harness.b6_ram import REQUIRED_PHASES, summarize_ram
+
+    samples = [dict(phase=phase, memory_current=10, memory_peak=None, swap_current=0,
+                    swap_peak=None, events={"oom_kill": 0}, process_rss_bytes=8,
+                    memory_max=32 * 2**30) for phase in sorted(REQUIRED_PHASES)]
+    result = summarize_ram(samples, {"kind": "cgroup_v2", "hard_limit_bytes": 32 * 2**30}, 0)
+    assert result["ram_32gib_constrained_pilot_passed"] is True
+    assert result["max_sampled_cgroup_bytes"] == 10
+    assert result["kernel_cgroup_peak_bytes"] is None
+
+
 @pytest.mark.parametrize("defect", ["none", "wide_ram", "tokens", "late_before", "baseline"])
 def test_combined_verdict_requires_all_prospective_evidence(defect):
     import hashlib

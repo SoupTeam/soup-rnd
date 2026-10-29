@@ -43,12 +43,14 @@ def summarize_ram(samples, constraint, returncode):
                      and r.get("host_swap_total") == 0 for r in samples)
     passed = (stable and returncode == 0 and REQUIRED_PHASES.issubset(phases) and events_known
               and (oom_delta in (0, None)) and swap_known and swap_peak == 0)
+    currents = [r["memory_current"] for r in samples if r.get("memory_current") is not None]
+    peaks = [r["memory_peak"] for r in samples if r.get("memory_peak") is not None]
     return {"ram_32gib_constrained_pilot_passed": passed, "constraint": constraint,
             "returncode": returncode, "constraint_stable": stable,
             "observed_phases": phases, "samples": len(samples),
             "oom_kill_delta": oom_delta, "swap_peak_observed_bytes": swap_peak,
-            "max_sampled_cgroup_bytes": max((r.get("memory_current") or 0 for r in samples)),
-            "kernel_cgroup_peak_bytes": max((r.get("memory_peak") or 0 for r in samples)),
+            "max_sampled_cgroup_bytes": max(currents, default=None),
+            "kernel_cgroup_peak_bytes": max(peaks, default=None),
             "max_sampled_process_rss_bytes": max(r["process_rss_bytes"] for r in samples),
             "start_unix": samples[0].get("unix"), "end_unix": samples[-1].get("unix")}
 
