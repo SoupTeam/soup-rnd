@@ -6,6 +6,7 @@ import copy
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -325,7 +326,9 @@ def test_forward_accepts_a_grad_bearing_input_and_reads_only_hit_experts(tmp_pat
         pool.close()
 
 
-def test_forward_builds_no_graph_under_no_grad_or_without_a_grad_bearing_input(tmp_path):
+def test_forward_builds_no_graph_under_no_grad_or_without_a_grad_bearing_input(
+    tmp_path: Path,
+) -> None:
     import torch
 
     module, _ = _experts()

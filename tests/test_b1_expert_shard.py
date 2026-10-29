@@ -438,7 +438,9 @@ def test_fp8_to_nf4_expert_storage_matches_b3_reference(tmp_path):
 
 
 @pytest.mark.parametrize("layout", ["sharded_by_hand", "PER_EXPERT", "per_expert "])
-def test_runtime_refuses_an_expert_layout_it_cannot_stream_before_touching_the_model(layout):
+def test_runtime_refuses_an_expert_layout_it_cannot_stream_before_touching_the_model(
+    layout: str,
+) -> None:
     """The boundary is the layout, not "anything with an expert layout": ``per_expert`` and the
     fused default are streamed (tests/test_b13_moe_runtime.py); an unfamiliar one is refused."""
     from types import SimpleNamespace
@@ -456,18 +458,18 @@ def test_runtime_refuses_an_expert_layout_it_cannot_stream_before_touching_the_m
 
 @pytest.mark.parametrize("layout", ["sharded_by_hand", "PER_EXPERT"])
 def test_model_builder_refuses_an_unknown_expert_layout_before_materializing_weights(
-    monkeypatch, layout
-):
+    monkeypatch: pytest.MonkeyPatch, layout: str
+) -> None:
     from types import SimpleNamespace
 
     from soup_cli.utils import layer_stream_runtime
 
-    def unexpected(*args, **kwargs):
+    def unexpected(*args: object, **kwargs: object) -> None:
         pytest.fail("an unsupported expert layout must be refused before weight materialization")
 
     built = []
 
-    def meta_skeleton(*args, **kwargs):
+    def meta_skeleton(*args: object, **kwargs: object) -> object:
         built.append(True)
         return object()
 
