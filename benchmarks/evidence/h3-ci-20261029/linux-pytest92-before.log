@@ -1,0 +1,264 @@
+Traceback (most recent call last):
+  File "/h3-pytest/_pytest/main.py", line 333, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+                         ^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/main.py", line 387, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/logging.py", line 829, in pytest_runtestloop
+    return (yield)  # Run all the tests.
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/terminal.py", line 723, in pytest_runtestloop
+    result = yield
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/usr/local/lib/python3.12/site-packages/pytest_cov/plugin.py", line 327, in pytest_runtestloop
+    return (yield)
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 147, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/main.py", line 411, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/warnings.py", line 75, in pytest_runtest_protocol
+    return (yield)
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/assertion/__init__.py", line 212, in pytest_runtest_protocol
+    return (yield)
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/unittest.py", line 610, in pytest_runtest_protocol
+    return (yield)
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/faulthandler.py", line 102, in pytest_runtest_protocol
+    return (yield)
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 147, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/runner.py", line 118, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "/h3-pytest/_pytest/runner.py", line 139, in runtestprotocol
+    reports.append(call_and_report(item, "call", log))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/runner.py", line 254, in call_and_report
+    report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/tmpdir.py", line 385, in pytest_runtest_makereport
+    rep = yield
+          ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/skipping.py", line 280, in pytest_runtest_makereport
+    rep = yield
+          ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 147, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/runner.py", line 385, in pytest_runtest_makereport
+    return TestReport.from_item_and_call(item, call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/reports.py", line 465, in from_item_and_call
+    longrepr = _format_failed_longrepr(item, call, excinfo)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/reports.py", line 282, in _format_failed_longrepr
+    longrepr = item.repr_failure(excinfo)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/python.py", line 1840, in repr_failure
+    return self._repr_failure_py(excinfo, style=style)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/nodes.py", line 477, in _repr_failure_py
+    return excinfo.getrepr(
+           ^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/_code/code.py", line 784, in getrepr
+    return fmt.repr_excinfo(self)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/_code/code.py", line 1243, in repr_excinfo
+    reprtraceback = self.repr_traceback(excinfo_)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/_code/code.py", line 1141, in repr_traceback
+    traceback = filter_excinfo_traceback(self.tbfilter, excinfo)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/_code/code.py", line 1651, in filter_excinfo_traceback
+    return tbfilter(excinfo)
+           ^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/python.py", line 1812, in _traceback_filter
+    ntraceback = ntraceback.filter(filter_traceback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/_code/code.py", line 446, in filter
+    return Traceback(filter(fn, self))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/_code/code.py", line 378, in __init__
+    super().__init__(tb)
+  File "/h3-pytest/_pytest/_code/code.py", line 1638, in filter_traceback
+    if _PLUGGY_DIR in parents:
+       ^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen _collections_abc>", line 1033, in __contains__
+  File "<frozen _collections_abc>", line 1026, in __iter__
+  File "/usr/local/lib/python3.12/pathlib.py", line 285, in __getitem__
+    return self._path._from_parsed_parts(self._drv, self._root,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/pathlib.py", line 422, in _from_parsed_parts
+    path = self.with_segments(path_str)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/pathlib.py", line 385, in with_segments
+    return type(self)(*pathsegments)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/pathlib.py", line 1434, in __new__
+    raise NotImplementedError(
+NotImplementedError: cannot instantiate 'WindowsPath' on your system
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/h3-pytest/_pytest/main.py", line 353, in wrap_session
+    config.notify_exception(excinfo, config.option)
+  File "/h3-pytest/_pytest/config/__init__.py", line 1432, in notify_exception
+    res = self.hook.pytest_internalerror(excrepr=excrepr, excinfo=excinfo)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 147, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/capture.py", line 919, in pytest_internalerror
+    self.stop_global_capturing()
+  File "/h3-pytest/_pytest/capture.py", line 784, in stop_global_capturing
+    self._global_capturing.pop_outerr_to_orig()
+  File "/h3-pytest/_pytest/capture.py", line 665, in pop_outerr_to_orig
+    out, err = self.readouterr()
+               ^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/capture.py", line 712, in readouterr
+    out = self.out.snap() if self.out else ""
+          ^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/capture.py", line 595, in snap
+    if os.fstat(self.tmpfile.fileno()).st_size == 0:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'MockSwappedFstat' object has no attribute 'st_size'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/h3-pytest/pytest/__main__.py", line 9, in <module>
+    raise SystemExit(_console_main())
+                     ^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/config/__init__.py", line 286, in _console_main
+    code = _main(prog=_get_prog_name(sys.argv))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/config/__init__.py", line 262, in _main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 147, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/main.py", line 380, in pytest_cmdline_main
+    return wrap_session(config, _main)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/main.py", line 368, in wrap_session
+    config.hook.pytest_sessionfinish(
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/logging.py", line 901, in pytest_sessionfinish
+    return (yield)
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/terminal.py", line 992, in pytest_sessionfinish
+    result = yield
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+  File "/h3-pytest/_pytest/warnings.py", line 104, in pytest_sessionfinish
+    return (yield)
+            ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/pluggy/_execution.py", line 147, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/runner.py", line 112, in pytest_sessionfinish
+    session._setupstate.teardown_exact(None)
+  File "/h3-pytest/_pytest/runner.py", line 579, in teardown_exact
+    raise exceptions[0]
+  File "/h3-pytest/_pytest/runner.py", line 568, in teardown_exact
+    fin()
+  File "/h3-pytest/_pytest/fixtures.py", line 1235, in finish
+    raise exceptions[0]
+  File "/h3-pytest/_pytest/fixtures.py", line 1225, in finish
+    fin()
+  File "/h3-pytest/_pytest/fixtures.py", line 1083, in _teardown_yield_fixture
+    next(it)
+  File "/h3-pytest/_pytest/capture.py", line 1127, in capfd
+    capture_fixture.close()
+  File "/h3-pytest/_pytest/capture.py", line 960, in close
+    out, err = self._capture.pop_outerr_to_orig()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/capture.py", line 665, in pop_outerr_to_orig
+    out, err = self.readouterr()
+               ^^^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/capture.py", line 712, in readouterr
+    out = self.out.snap() if self.out else ""
+          ^^^^^^^^^^^^^^^
+  File "/h3-pytest/_pytest/capture.py", line 595, in snap
+    if os.fstat(self.tmpfile.fileno()).st_size == 0:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'MockSwappedFstat' object has no attribute 'st_size'
