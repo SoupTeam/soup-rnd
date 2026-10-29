@@ -33,7 +33,9 @@ VALID_SET = "l2l-ticket04-valid-5070ti"
 LIMITS = [
     "weight reads from disk not measured (page cache warm, counter near 0)",
     "activation spill to a separate disk not measured (A4 spill is not wired into the trainer)",
-    "one model family measured (Mistral-7B v0.1 NF4); one card per set",
+    "one model family measured (Mistral-7B v0.1 NF4); the verdict covers one card and one host "
+    "(RTX 5070 Ti 16 GB); earlier cards have foreign_reads unknown and are not read",
+    "speed: the F1 repeats rule was not met at the 7-block cap on this host, so no speed claim",
     "real 70B and 1T not measured (the 70B run uses random weights of its shape)",
 ]
 
