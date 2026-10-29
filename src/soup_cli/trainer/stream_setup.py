@@ -261,6 +261,45 @@ def _validate_stream_staging_ram_fit(
     )
 
 
+def _expert_buffer_requirements(shard_dir, index, *, device="cpu"):
+    """Read headers only and budget the reusable expert arena and host staging."""
+    from soup_cli.utils.expert_shard import ExpertShardReader
+    from soup_cli.utils.expert_stream import expert_allocation_budget, plan_expert_buffer
+    from soup_cli.utils.layer_shard import expert_paths
+
+    if getattr(index, "expert_layout", "") != "per_expert":
+        return 0, 0
+    paths = expert_paths(shard_dir, index)
+    if not paths:
+        raise ValueError("per_expert cache has no expert files")
+    weight_bytes = staging_bytes = 0
+    for path in paths.values():
+        reader = ExpertShardReader(
+            path, count=index.expert_count, shapes=index.expert_shapes,
+            quant_specs=index.expert_quant_specs, dtype=index.dtype,
+        )
+        try:
+            plan = plan_expert_buffer(reader, dtype=index.dtype)
+            weight_bytes = max(weight_bytes, expert_allocation_budget(plan, device=device))
+            staging_bytes = max(staging_bytes, plan.host_staging_bytes)
+        finally:
+            reader.close()
+    return weight_bytes, staging_bytes
+
+
+def _require_known_expert_disk_bound(expert_layout, source_files=()):
+    """Do not use a coarse weight-size estimate to authorize giant cache writes."""
+    if expert_layout:
+        if source_files:
+            from soup_cli.utils.expert_cache_budget import new_expert_cache_budget
+
+            return new_expert_cache_budget(source_files)
+        raise ValueError(
+            "per_expert streaming requires a validated disk-space upper bound from source "
+            "headers before copying or sharding; the existing estimate is not an upper bound"
+        )
+
+
 def _warn_if_ngram_source_unused(*, arch: str, requested: str, ngram_bytes: int, notify) -> None:
     """Make a user-supplied PLE policy visible when the checkpoint has no PLE."""
     if arch == "qwen4_exp" and requested != "auto" and not ngram_bytes:
@@ -587,6 +626,12 @@ class StreamingSetupMixin:
         # this configuration cannot work, and finding out minutes into disk I/O
         # is worse than finding out now.
         refuse_if_data_parallel(self.device)
+        if (getattr(tcfg, "stream_expert_layout", "fused") == "per_expert"
+                and tcfg.quantization != "4bit"):
+            raise ValueError(
+                "training.stream_expert_layout='per_expert' requires quantization='4bit' "
+                "for its disk budget"
+            )
 
         from soup_cli.utils.layer_shard import (
             QUANT_NF4,
@@ -645,6 +690,12 @@ class StreamingSetupMixin:
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)
+        expert_layout = (
+            "per_expert" if getattr(tcfg, "stream_expert_layout", "fused") == "per_expert"
+            else ""
+        )
+        if expert_layout and arch != "deepseek_v3":
+            raise ValueError("per_expert streaming supports DeepSeek-V3-family bases only")
 
         on_cuda = str(self.device).startswith("cuda")
         # #385 — ASK THE CARD. bf16 needs Ampere, and a T4 (Colab free), a P100
@@ -678,6 +729,8 @@ class StreamingSetupMixin:
             double_quant=double_quant, trust_remote_code=self._trust_remote_code,
             on_cuda=on_cuda, console=console,
         )
+        if expert_layout and any(".experts." in tensor.name for tensor in adapter_plan.tensors):
+            raise ValueError("per_expert streaming cannot train routed-expert adapters")
         available_adapter_bytes = None
         if on_cuda:
             import torch
@@ -722,6 +775,19 @@ class StreamingSetupMixin:
         layout = adapter_plan.layout
 
         def _disk_preflight(weights_plan) -> None:
+            expert_bound = None
+            if expert_layout:
+                if quant != QUANT_NF4 or double_quant or stripe_roots:
+                    raise ValueError(
+                        "per_expert disk budget requires NF4 without double quant and one disk"
+                    )
+                if os.path.isdir(shard_dir) and os.listdir(shard_dir):
+                    raise ValueError("per_expert disk budget requires a new cache directory")
+                source_paths = [
+                    os.path.join(weights_plan.source_dir, entry[0])
+                    for entry in weights_plan.source_files
+                ]
+                expert_bound = _require_known_expert_disk_bound(expert_layout, source_paths)
             shard_estimate = estimate_stream_store_bytes(
                 weights_plan.source_bytes,
                 dtype=dtype,
@@ -736,6 +802,8 @@ class StreamingSetupMixin:
             )
             if oq_shard_estimate is not None:
                 shard_estimate = oq_shard_estimate
+            if expert_bound is not None:
+                shard_estimate = expert_bound
             cached = None
             if not weights_plan.needs_materialization:
                 source_components = checkpoint_source_components(
@@ -756,6 +824,7 @@ class StreamingSetupMixin:
                     "qwen4_ple" if arch == "qwen4_exp" else "",
                     stripe_roots=stripe_roots,
                     layout=layout,
+                    expert_layout=expert_layout,
                 )
             write_total = 0 if cached is not None else shard_estimate
             shares = _stripe_write_shares(write_total, 1 + len(stripe_roots))
@@ -825,6 +894,7 @@ class StreamingSetupMixin:
             quant_device=str(self.device),
             stripe_roots=stripe_roots,
             notify=console.print,
+            expert_layout=expert_layout,
         )
         # R4: decided once, from the roots the index actually carries (a reused cache keeps its
         # own), so the plan's staging figure, the host pre-flight and the reader all agree. Read
@@ -852,9 +922,14 @@ class StreamingSetupMixin:
             large_buffer_bytes, len(large_layer_specs(shard_dir, index))
         )
         ngram_bytes = external_tensor_bytes(getattr(index, "external_tensors", None) or {})
+        expert_weight_bytes, expert_staging_bytes = _expert_buffer_requirements(
+            shard_dir, index, device=str(self.device)
+        )
 
         free_ram = free_ram_bytes()
         total_ram = total_ram_bytes()
+        if free_ram is None and expert_layout:
+            raise ValueError("per_expert streaming requires available host RAM for its preflight")
         if free_ram is None:
             console.print(
                 "[yellow]psutil unavailable — cannot size the RAM tier; "
@@ -1000,7 +1075,7 @@ class StreamingSetupMixin:
         # operator has to scroll past a summary to find reads as an afterthought.
         if plan.tier == TIER_DISK:
             _validate_stream_staging_ram_fit(
-                staging_bytes=plan.staging_bytes,
+                staging_bytes=plan.staging_bytes + expert_staging_bytes,
                 read_ahead=read_ahead,
                 free_ram=free_ram,
                 resident_ram=embed_bytes,
@@ -1021,6 +1096,7 @@ class StreamingSetupMixin:
             index=index,
             on_cuda=on_cuda,
             adapter_budget=adapter_plan.budget,
+            expert_weight_bytes=expert_weight_bytes,
         )
         console.print(render_stream_panel(plan, forecast_lines))
         console.print(
@@ -1174,6 +1250,7 @@ class StreamingSetupMixin:
         on_cuda,
         large_layer_bytes=0,
         adapter_budget=None,
+        expert_weight_bytes=0,
     ):
         """Predict peak VRAM + bracket throughput, and REFUSE a run that cannot fit.
 
@@ -1212,6 +1289,11 @@ class StreamingSetupMixin:
         # dominant one (measured 146x the buffer pool at batch 8).
         rows = batch * self._STREAM_ROWS_PER_EXAMPLE
         if not (vocab and hidden and inter):
+            if expert_weight_bytes:
+                raise ValueError(
+                    "per_expert streaming requires vocab_size, hidden_size and "
+                    "intermediate_size for its VRAM preflight"
+                )
             # Never silently: skipping the budget also skips the refusal that
             # stops a run from OOMing (or, on Windows, spilling to host memory
             # and running an order of magnitude slower with no error at all).
@@ -1244,7 +1326,7 @@ class StreamingSetupMixin:
                     "[yellow]The full VRAM forecast uses the legacy 16 B/parameter "
                     "fallback for an unverified optimizer; it is not a verified fit.[/]"
                 )
-        predicted = estimate_stream_peak_vram(
+        predicted = expert_weight_bytes + estimate_stream_peak_vram(
             layer_bytes=layer_bytes,
             buffers=tcfg.stream_buffers,
             extras_bytes=embed_bytes,
@@ -1269,6 +1351,8 @@ class StreamingSetupMixin:
             f"  peak VRAM    ~{predicted / 1e9:.2f} GB at batch {batch} x seq "
             f"{seq_len}{paired} (logits {logits / 1e9:.2f} GB)"
         ]
+        if expert_weight_bytes:
+            lines.append(f"  expert arena {expert_weight_bytes / 1e9:.3f} GB included above")
         if calibrated > LOGITS_BYTES_PER_ELEMENT:
             lines.append(
                 f"  logits       calibrated {calibrated:.3f} B/element on this stack, "

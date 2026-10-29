@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.7.0 -- /root/b6/venv/bin/python
+cachedir: .pytest_cache
+rootdir: /root/b6/repo
+configfile: pyproject.toml
+collecting ... collected 55 items / 46 deselected / 9 selected
+
+tests/test_b1_expert_forward.py::test_backward_restores_forward_autocast[cuda] PASSED [ 11%]
+tests/test_b1_expert_forward.py::test_nf4_backward_matches_stored_weight_reference[cuda-False] PASSED [ 22%]
+tests/test_b1_expert_forward.py::test_nf4_backward_matches_stored_weight_reference[cuda-True] PASSED [ 33%]
+tests/test_b1_expert_forward.py::test_full_moe_block_preserves_router_shared_and_dense_parts[cuda-False] PASSED [ 44%]
+tests/test_b1_expert_forward.py::test_full_moe_block_preserves_router_shared_and_dense_parts[cuda-True] PASSED [ 55%]
+tests/test_b1_expert_forward.py::test_cuda_forward_and_weight_arena_peak[False-False] PASSED [ 66%]
+tests/test_b1_expert_forward.py::test_cuda_forward_and_weight_arena_peak[True-False] PASSED [ 77%]
+tests/test_b1_expert_forward.py::test_cuda_forward_and_weight_arena_peak[True-True] PASSED [ 88%]
+tests/test_b6_expert_training_internal.py::test_internal_per_expert_training_and_adapter_reload[cuda] PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_b1_expert_forward.py::test_cuda_forward_and_weight_arena_peak[False-False]
+tests/test_b1_expert_forward.py::test_cuda_forward_and_weight_arena_peak[True-False]
+tests/test_b1_expert_forward.py::test_cuda_forward_and_weight_arena_peak[True-True]
+  tests/test_b1_expert_forward.py:623: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.gpu
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------------- generated xml file: /root/b6/results/junit.xml ----------------
+================ 9 passed, 46 deselected, 3 warnings in 16.35s =================

@@ -120,7 +120,8 @@ class TestOpenNoFollow:
         assert "Reparse point not allowed" in str(exc_info.value)
 
     def test_post_open_toctou_swap_detected_on_windows(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_os: SimpleNamespace
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture, windows_os: SimpleNamespace
     ) -> None:
         real_file = tmp_path / "swap_candidate.txt"
         real_file.write_text("content", encoding="utf-8")
@@ -130,13 +131,17 @@ class TestOpenNoFollow:
             st_ino = 99999
             st_dev = 88888
 
-        # fstat returns different ino/dev than lstat on existing file
-        monkeypatch.setattr(windows_os, "fstat", lambda fd: MockSwappedFstat())
-
-        with pytest.raises(OSError) as exc_info:
-            open_no_follow(real_file, os.O_RDONLY)
-        assert exc_info.value.errno == errno.ELOOP
-        assert "File swapped during open" in str(exc_info.value)
+        with monkeypatch.context() as scoped:
+            # fstat returns different ino/dev than lstat on existing file
+            scoped.setattr(windows_os, "fstat", lambda fd: MockSwappedFstat())
+            with pytest.raises(OSError) as exc_info:
+                open_no_follow(real_file, os.O_RDONLY)
+            assert exc_info.value.errno == errno.ELOOP
+            assert "File swapped during open" in str(exc_info.value)
+            # Pytest capture must still stat its own real file descriptors.
+            capfd.readouterr()
+            with real_file.open("rb") as unaffected:
+                assert os.fstat(unaffected.fileno()).st_size == len(b"content")
 
     def test_post_open_symlink_swap_on_create_windows(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_os: SimpleNamespace

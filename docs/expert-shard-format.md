@@ -18,6 +18,20 @@ It currently admits the canonical `deepseek_v3` architecture with a B2
 zero, be contiguous and agree across projections. Fused-only source tensors and
 other architectures are refused. Existing/default calls keep the fused format.
 
+The writer collects one layer's stored expert tensors in host memory before
+writing its file. The expert execution arena does not bound this preparation
+peak. Peak RAM for preparing a real DeepSeek-V3 or Kimi K2 checkpoint has not
+been measured; a 32 GB host is not established to fit.
+
+The header-only cache budget defaults to FP32 upper bounds for non-expert
+weights. An explicit decoder layer count and exact NF4 suffix selection can
+tighten that bound to the actual writer layout, while retaining the largest
+layer, vocab-copy and metadata reserves. The B6 source planner reads bounded
+ranges from a pinned checkpoint, then verifies every planned header/size and
+the model config against the full downloaded files. Its harness independently
+matches the plan to the constructed writer layout before conversion. All source
+payloads are still downloaded; per-write free-space checks remain in force.
+
 For decoder layer N:
 
 | File | Contents |
