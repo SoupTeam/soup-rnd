@@ -106,6 +106,42 @@ def test_unreleased_pinned_borrow_is_refused_on_cpu(tmp_path, monkeypatch, facto
     )
 
 
+@pytest.mark.parametrize("depth", [1, 2])
+@pytest.mark.parametrize(("contract", "kwargs"), [
+    ("test_cached_mixed_dtypes_scalars_match_disk_in_both_directions", {"depth": 2}),
+    ("test_cached_layers_are_never_requeued_for_disk_reads", {}),
+])
+def test_ram_cache_contracts(tmp_path, monkeypatch, factory, depth, contract, kwargs):
+    from tests import test_stream_ram_cache as cached_reference
+
+    monkeypatch.setattr(cached_reference, "AsyncDiskSource", factory(depth))
+    getattr(cached_reference, contract)(tmp_path, monkeypatch, **kwargs)
+
+
+@pytest.mark.parametrize("depth", [1, 2])
+def test_admission_skips_promoted_ram_and_gpu_layers(tmp_path, monkeypatch, factory, depth):
+    from tests import test_stream_ram_cache as cached_reference
+
+    source_type = factory(depth)
+    release = threading.Event()
+    monkeypatch.setattr(source_type, "_run", lambda self: release.wait(5))
+    monkeypatch.setattr(cached_reference, "AsyncDiskSource", source_type)
+    _folder, _specs, source = cached_reference.source(tmp_path, monkeypatch)
+    try:
+        source.set_resident_layers([1])
+        cached = source.ram_cache_stats()["indices"]
+        assert cached and 1 not in cached
+        with source._ready:
+            source._queue = [cached[0], 1, 0, 2]
+            admitted = source._claim_reads()
+            assert admitted and admitted[0][0].idx == 0
+            assert all(read.idx not in set(cached) | {1} for read, _event in admitted)
+            assert cached[0] not in source._queue and 1 not in source._queue
+    finally:
+        release.set()
+        source.close()
+
+
 @pytest.mark.gpu(reason="real delayed CUDA copies must retain their host staging bytes")
 @pytest.mark.parametrize("depth", [1, 2])
 def test_real_pool_cuda_copies_keep_the_requested_layer(tmp_path, monkeypatch, factory, depth):
