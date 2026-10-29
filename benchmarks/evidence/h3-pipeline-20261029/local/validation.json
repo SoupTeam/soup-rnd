@@ -1,0 +1,128 @@
+{
+  "scope": "final harness, real CPU/Gloo GPipe on random four-layer fixture; NOT GPU evidence",
+  "fixture": "cpu-fixture-final",
+  "source_base_commit": "301c555d2f5a51edcec1a6452fc100964c03c9d9",
+  "source_harness_sha256": "a7397ae6b7d2f908fcf67158cd277126b13d09a5b4663c7607e99b183ffab6cd",
+  "test_sha256": "2ead4388504b20bb7a512fe7b3a1a1ad7de5a12fe70c7386098ac283b1be7b26",
+  "versions": {
+    "torch": "2.13.0",
+    "transformers": "5.17.0",
+    "peft": "0.20.0",
+    "pydantic": "2.13.4",
+    "pytest": "9.1.1",
+    "ruff": "0.16.4"
+  },
+  "plan": {
+    "stages": 2,
+    "microbatches": 2,
+    "micro_batch": 2,
+    "schedule_batch": 4,
+    "accumulation": 2,
+    "global_batch": 8
+  },
+  "stage_calls": [
+    {
+      "forward": 8,
+      "backward": 8
+    },
+    {
+      "forward": 8,
+      "backward": 8
+    }
+  ],
+  "max_gradient_error": 0.0,
+  "max_adapter_error": 0.0,
+  "reload": {
+    "pid": 25164,
+    "device": "cpu",
+    "max_logit_error": 0.0,
+    "adapter_keys": 16,
+    "passed": true
+  },
+  "files": {
+    "output/environment.json": {
+      "bytes": 1499,
+      "sha256": "b65a1772566705504171c6cb7333aceeeb1ad9722ac3c148a0a3ab8c110e9aa6"
+    },
+    "output/eval-before-save.pt": {
+      "bytes": 9832,
+      "sha256": "994b75ceb97c7015677a7312d0d2bdb5d638e0039760bede14ad3b8bfc47ccac"
+    },
+    "output/eval-input.pt": {
+      "bytes": 34366,
+      "sha256": "35fec1349992236fe12feb933827701b0bdac615de1d321ad3ec547bd695ea85"
+    },
+    "output/reload.json": {
+      "bytes": 111,
+      "sha256": "7ac945b6758f555e8b9583871f20ce838dde2c5e1a68c1a53a457d37ff670379"
+    },
+    "output/adapter/adapter_config.json": {
+      "bytes": 1215,
+      "sha256": "69090bc838fd718e92f356cf9f7a65364ebbd04bd03dcbb0edde134837ea64dd"
+    },
+    "output/adapter/adapter_model.safetensors": {
+      "bytes": 16352,
+      "sha256": "626f8884402a497c5d60813a62b9f8fa8c074cf8ac6b83a67defd759b6400e85"
+    },
+    "output/adapter/README.md": {
+      "bytes": 5368,
+      "sha256": "62269f74498ac2ef09a0987b75a9bd89e14f4a34712e6f4a3824ed938b3d9b9f"
+    },
+    "output/rank-0/adapter.pt": {
+      "bytes": 10573,
+      "sha256": "b688bad34034ea6879bc03f96aae9918df63d7c44393cd35e8ab1f498aeea4f2"
+    },
+    "output/rank-0/control.pt": {
+      "bytes": 38467,
+      "sha256": "fe9e37938aa5315228db9cdcc25b0d461c959525620097b42ecd7485cc3df9f5"
+    },
+    "output/rank-0/first-step.pt": {
+      "bytes": 20213,
+      "sha256": "b172b734cdc8ae37c88d82148eb45b5bc4531e6fbfa5c8090e8c353aa5248fec"
+    },
+    "output/rank-0/record.json": {
+      "bytes": 2075,
+      "sha256": "c66cfb81d59833c2faad80825956563fdb6dc7ef880804bbb1a0cfb59095f370"
+    },
+    "output/rank-1/adapter.pt": {
+      "bytes": 10573,
+      "sha256": "09de4175f2fa32778e16124adb0aeae68f6132cbb0586fea9a944ae0d9db092a"
+    },
+    "output/rank-1/control.pt": {
+      "bytes": 38467,
+      "sha256": "2165b75eae3cae25e28304c4dd16430afde2ae3b9ed6d4c4c1be94a211a9b5ce"
+    },
+    "output/rank-1/first-step.pt": {
+      "bytes": 20213,
+      "sha256": "5b941f6d169f94cdf551b030f0c7d241faca887464e01bb339e4c74affe60ff4"
+    },
+    "output/rank-1/record.json": {
+      "bytes": 2143,
+      "sha256": "ecbd95f189beba9a76dcf6b088e84f1866935eddec94ccdc2b0b482ab487e923"
+    },
+    "prepared/config.json": {
+      "bytes": 9899,
+      "sha256": "df17f3e2142f70c45ec2971a7c7af194757a542c86a69fed03804331969bd12c"
+    },
+    "prepared/prepared.json": {
+      "bytes": 820,
+      "sha256": "3d3de95dad25c18191195649dc8ad87658129a7c84b9e88998219bdecce39546"
+    },
+    "prepared/tokens.pt": {
+      "bytes": 34274,
+      "sha256": "d4ecdc42106b0a73a85e0148e46100440907d1b6d881f4e1ee346fbb5e7c7429"
+    },
+    "prepared/base/config.json": {
+      "bytes": 863,
+      "sha256": "b01649ac59b53190c1f54b988ee2b222fdc4348c386f35b5c8833b29c6a9b883"
+    },
+    "prepared/base/generation_config.json": {
+      "bytes": 160,
+      "sha256": "d4f77b611b24b472f9302b64e2d900e723bf5e15a21fb12beb2bf30564d313c6"
+    },
+    "prepared/base/model.safetensors": {
+      "bytes": 162864,
+      "sha256": "fc0e2c101e59f80a0c674bb1647abd7174ef5292e6dfc206a6fc008d33eeb787"
+    }
+  }
+}

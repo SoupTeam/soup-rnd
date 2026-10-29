@@ -1210,6 +1210,40 @@ A candidate is refused when the step raises an out-of-memory error **or** when i
 
 ## Multi-GPU / DeepSpeed / FSDP
 
+The R&D [H3 first-stage report](../benchmarks/h3-fsdp-followup-20261027.md) records
+matched one/two-GPU FP32 FSDP2 + LoRA training, separate-process adapter reload
+and per-rank memory. Four accepted RTX 3090 arms measured negative scaling for
+Qwen2.5-0.5B/global batch 8: speedup 0.4922, efficiency 0.2461. All eight reloads
+had zero output error. The separate
+[conservative BF16 follow-up](../benchmarks/h3-bf16-result-20261027.md) passed
+the unchanged strict first-step gate and eight reloads on two RTX 4090s:
+6932.17 → 7584.77 input tokens/s, speedup 1.0941, efficiency 0.5471.
+It uses deterministic math SDPA and FP32 intermediate reductions. The later
+[native Flash BF16 validation](../benchmarks/h3-flash-bf16-result-20261027.md)
+passed with deterministic algorithms and ordinary BF16 GEMM reduction enabled:
+all first-step differences and eight reload errors were zero. Its matched
+throughput was 8178.13 → 8102.46 input tokens/s (speedup 0.9907). Actual Flash
+forward/backward operators were recorded on every rank. Nondeterministic Flash
+defaults failed the unchanged strict gate and remain excluded from scaling.
+Resume, 4/8 GPUs and larger-model scaling are unmeasured.
+The harness records the
+actual FSDP plugin version: older preset option names do not establish which
+implementation a particular Transformers/Accelerate environment selected.
+
+For transformers SFT with FSDP2, frozen tied input embeddings and the output head
+are placed jointly in one sharding group before the rest of the model is wrapped.
+This prevents Torch 2.13's first-forward rejection when Accelerate 1.14 places
+the two uses of a shared parameter in separate groups. Untied embeddings,
+trainable embedding/head modules and FSDP1 are left to their existing paths.
+With `cpu_ram_efficient_loading=True`, joint placement is deferred until after
+Accelerate captures the full state and moves/re-ties the model on meta, before
+child wrapping. This preserves rank 0's full tensors for broadcast and avoids
+distributing an already-local shard as a full weight. The compatibility binding
+is local to this accelerator; an unsupported preparation API fails explicitly.
+The [review follow-up](../benchmarks/h3-fsdp-review-20261028.md) covers this
+loading contract with real two-rank CPU/Gloo tests, including BF16 master-weight
+upcasting and optimizer parameter remapping. This mode has no new GPU result.
+
 Train on multiple GPUs with DeepSpeed or PyTorch FSDP2:
 
 ```bash
@@ -1356,6 +1390,16 @@ training:
 
 Config validation ships in v0.27.0; live execution ships in v0.27.1. See
 `recipes/deepseek-v3-pipeline` for a full scaffold.
+
+The separate [H3 two-stage pipeline experiment](../benchmarks/h3-pipeline-protocol-20261029.md)
+uses an explicit native `torch.distributed.pipelining` harness for Qwen2 + LoRA.
+It checks microbatch/gradient accumulation against ordinary training and merges
+stage adapters for separate-process reload. This research recipe does not change
+the CLI route above. The [GPU result](../benchmarks/h3-pipeline-result-20261029.md)
+records two passing four-step runs on two RTX 3090s, strict ordinary-control
+gradient/update checks and two zero-error adapter reloads. CPU fixtures and the
+[H3 acceptance map](../benchmarks/h3-acceptance-20261029.md) remain separately
+labelled; no pipeline throughput or general CLI support is claimed.
 
 
 ## Performance + Long-Context

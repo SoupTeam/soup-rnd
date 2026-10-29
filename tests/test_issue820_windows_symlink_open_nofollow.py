@@ -120,7 +120,11 @@ class TestOpenNoFollow:
         assert "Reparse point not allowed" in str(exc_info.value)
 
     def test_post_open_toctou_swap_detected_on_windows(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_os: SimpleNamespace
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        windows_os: SimpleNamespace,
+        capfd: pytest.CaptureFixture,
     ) -> None:
         real_file = tmp_path / "swap_candidate.txt"
         real_file.write_text("content", encoding="utf-8")
@@ -132,6 +136,11 @@ class TestOpenNoFollow:
 
         # fstat returns different ino/dev than lstat on existing file
         monkeypatch.setattr(windows_os, "fstat", lambda fd: MockSwappedFstat())
+
+        # Pytest must still be able to inspect its capture descriptors while
+        # the Windows race simulation is active (the Ubuntu CI failure).
+        assert os.fstat(1).st_size >= 0
+        capfd.readouterr()
 
         with pytest.raises(OSError) as exc_info:
             open_no_follow(real_file, os.O_RDONLY)

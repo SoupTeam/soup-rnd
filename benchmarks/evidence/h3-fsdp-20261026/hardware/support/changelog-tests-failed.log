@@ -1,0 +1,11 @@
+................F....                                                    [100%]
+================================== FAILURES ===================================
+_____________ test_repository_fragments_match_the_newest_release ______________
+tests\test_issue487_changelog_fragments.py:261: in test_repository_fragments_match_the_newest_release
+    fragments = validate_fragments(root)
+scripts\assemble_changelog.py:129: in validate_fragments
+    raise ChangelogError(f"{path}: fragment must reference #{number}")
+E   scripts.assemble_changelog.ChangelogError: C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\changelog.d\0.75.1\42.fixed.md: fragment must reference #42
+=========================== short test summary info ===========================
+FAILED tests/test_issue487_changelog_fragments.py::test_repository_fragments_match_the_newest_release
+1 failed, 20 passed in 2.00s

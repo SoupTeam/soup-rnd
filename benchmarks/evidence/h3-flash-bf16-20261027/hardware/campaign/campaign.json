@@ -1,0 +1,45 @@
+{
+  "status": "incomplete",
+  "arms": [
+    "repeat-1-gpu-1",
+    "repeat-1-gpu-2",
+    "repeat-2-gpu-2",
+    "repeat-2-gpu-1"
+  ],
+  "args": {
+    "prepared": "/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/prepared",
+    "output": "/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/live/campaign",
+    "repeats": 2,
+    "measured_steps": 10,
+    "precision": "bf16",
+    "bf16_conservative": false,
+    "bf16_flash": true,
+    "flash_deterministic": false,
+    "archive_arms": true,
+    "archive_receipt_timeout": 180.0,
+    "timeout_seconds": 600,
+    "campaign_seconds": 1800,
+    "summarize_only": false
+  },
+  "argv": [
+    "benchmarks/harness/h3_fsdp_campaign.py",
+    "--prepared",
+    "/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/prepared",
+    "--output",
+    "/workspace/h3-soup/benchmarks/evidence/h3-flash-bf16-20261027/live/campaign",
+    "--precision",
+    "bf16",
+    "--bf16-flash",
+    "--archive-arms",
+    "--archive-receipt-timeout",
+    "180",
+    "--repeats",
+    "2",
+    "--measured-steps",
+    "10",
+    "--timeout-seconds",
+    "600",
+    "--campaign-seconds",
+    "1800"
+  ]
+}

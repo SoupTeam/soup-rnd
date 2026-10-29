@@ -1,0 +1,56 @@
+"""Analyze retained failed first-step tensors; never admit its throughput."""
+import json
+from pathlib import Path
+from rich.console import Console
+
+
+def main():
+    import torch
+    torch.set_num_threads(2)
+    root=Path(__file__).parent
+    campaign=root/'evidence/live/campaign'
+    states={world:{name:torch.load(campaign/f'repeat-1-gpu-{world}'/name,
+                                 weights_only=True,map_location='cpu')
+                   for name in ('first-gradients.pt','first-adapter.pt','initial-adapter.pt')}
+            for world in (1,2)}
+    for key in states[1]['initial-adapter.pt']:
+        assert torch.equal(states[1]['initial-adapter.pt'][key],states[2]['initial-adapter.pt'][key])
+    differences={}
+    for name in ('first-gradients.pt','first-adapter.pt'):
+        a,b=[states[world][name] for world in (1,2)]
+        assert a.keys()==b.keys()
+        mismatches=[]
+        maximum=0
+        for key in a:
+            maximum=max(maximum,float((a[key]-b[key]).abs().max()))
+            if not torch.allclose(a[key],b[key],atol=1e-5,rtol=.02):
+                mismatches.append({'key':key,'max_abs_error':float((a[key]-b[key]).abs().max()),
+                    'elements_outside_tolerance':int((~torch.isclose(a[key],b[key],atol=1e-5,rtol=.02)).sum())})
+        left=torch.cat([v.flatten().double() for v in a.values()])
+        right=torch.cat([v.flatten().double() for v in b.values()])
+        differences[name]={'max_abs_error':maximum,'failed_tensors':mismatches,
+            'relative_l2':float((left-right).norm()/left.norm()),
+            'sign_flips':int(((left*right)<0).sum()),'atol':1e-5,'rtol':.02}
+    replay=[]
+    for world in (1,2):
+        parameters={key:torch.nn.Parameter(value.clone())
+                    for key,value in states[world]['initial-adapter.pt'].items()}
+        for key,value in parameters.items():
+            value.grad=states[world]['first-gradients.pt'][key].clone()
+        optimizer=torch.optim.AdamW(parameters.values(),lr=.0002,weight_decay=0,
+                                    betas=(.9,.999),eps=1e-8,foreach=False)
+        optimizer.step()
+        error=max(float((value.detach()-states[world]['first-adapter.pt'][key]).abs().max())
+                  for key,value in parameters.items())
+        replay.append({'world':world,'max_abs_cpu_adamw_replay_error':error})
+    result={'status':'strict_first_step_failed','scaling':'not_admitted',
+        'initial_adapters_equal':True,'cross_world':differences,'own_cpu_adamw_replay':replay,
+        'scope':'CPU analysis of retained GPU records; no new hardware validation'}
+    (root/'default-diagnostic.json').write_text(json.dumps(result,indent=2)+'\n')
+    Console().print({name:{k:v for k,v in item.items() if k!='failed_tensors'}
+                     for name,item in differences.items()})
+    Console().print(replay)
+
+
+if __name__=='__main__':
+    main()

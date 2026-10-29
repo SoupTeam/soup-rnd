@@ -1,0 +1,81 @@
+{
+  "status": "record_checks_passed",
+  "default_scaling_admitted": false,
+  "accepted_case": "campaign-deterministic",
+  "all_initial_adapter_hashes_equal": true,
+  "configs_equal_across_cases_at_each_world_size": true,
+  "data_windows_equal": true,
+  "only_observed_backend_control_differences": [
+    "deterministic",
+    "workspace"
+  ],
+  "scope": "CPU verification of retained GPU records, not new hardware execution",
+  "saves_and_reloads": [
+    {
+      "case": "campaign",
+      "arm": "repeat-1-gpu-1",
+      "adapter_tensors_per_save": 96,
+      "root_and_checkpoint_match_presave_reference": true,
+      "reload_errors": [
+        0.0,
+        0.0
+      ],
+      "fresh_reload_processes": true
+    },
+    {
+      "case": "campaign",
+      "arm": "repeat-1-gpu-2",
+      "adapter_tensors_per_save": 96,
+      "root_and_checkpoint_match_presave_reference": true,
+      "reload_errors": [
+        0.0,
+        0.0
+      ],
+      "fresh_reload_processes": true
+    },
+    {
+      "case": "campaign-deterministic",
+      "arm": "repeat-1-gpu-1",
+      "adapter_tensors_per_save": 96,
+      "root_and_checkpoint_match_presave_reference": true,
+      "reload_errors": [
+        0.0,
+        0.0
+      ],
+      "fresh_reload_processes": true
+    },
+    {
+      "case": "campaign-deterministic",
+      "arm": "repeat-1-gpu-2",
+      "adapter_tensors_per_save": 96,
+      "root_and_checkpoint_match_presave_reference": true,
+      "reload_errors": [
+        0.0,
+        0.0
+      ],
+      "fresh_reload_processes": true
+    },
+    {
+      "case": "campaign-deterministic",
+      "arm": "repeat-2-gpu-1",
+      "adapter_tensors_per_save": 96,
+      "root_and_checkpoint_match_presave_reference": true,
+      "reload_errors": [
+        0.0,
+        0.0
+      ],
+      "fresh_reload_processes": true
+    },
+    {
+      "case": "campaign-deterministic",
+      "arm": "repeat-2-gpu-2",
+      "adapter_tensors_per_save": 96,
+      "root_and_checkpoint_match_presave_reference": true,
+      "reload_errors": [
+        0.0,
+        0.0
+      ],
+      "fresh_reload_processes": true
+    }
+  ]
+}

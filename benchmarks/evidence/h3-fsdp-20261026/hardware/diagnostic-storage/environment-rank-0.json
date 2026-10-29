@@ -1,0 +1,43 @@
+{
+  "versions": {
+    "torch": "2.13.0+cu130",
+    "transformers": "5.17.0",
+    "accelerate": "1.14.0",
+    "peft": "0.20.0",
+    "trl": "0.29.1",
+    "datasets": "5.0.1",
+    "psutil": "7.2.2"
+  },
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "commit": "34b99878fae66b423f88942762aba11091bcca66",
+  "git_status": "",
+  "cuda": "13.0",
+  "argv": [
+    "benchmarks/harness/h3_fsdp_run.py",
+    "train",
+    "--prepared",
+    "benchmarks/evidence/h3-fsdp-20261026/prepared",
+    "--output",
+    "benchmarks/evidence/h3-fsdp-20261026/live/diagnostic-storage",
+    "--correctness-steps",
+    "1",
+    "--warmup-steps",
+    "1",
+    "--measured-steps",
+    "1"
+  ],
+  "device": "NVIDIA GeForce RTX 3090",
+  "pid": 1869,
+  "host": "1961db20da7e",
+  "nccl": [
+    2,
+    29,
+    7
+  ],
+  "harness_sha256": {
+    "h3_fsdp_gate.py": "de651d68cd0d40cfb2e3722d2857e401fda1de508e7743387b07cce02d65783a",
+    "h3_fsdp_run.py": "4e3bad8c02317a222c1b6731b4dae5d2f5248f1df683f3a8e931db46eb23e7bf",
+    "fsdp_sharding_probe.py": "10b6497ad083c16b5cdac85912e548802f52e9d86a69d5ed907ac8b9e5b585b5"
+  }
+}

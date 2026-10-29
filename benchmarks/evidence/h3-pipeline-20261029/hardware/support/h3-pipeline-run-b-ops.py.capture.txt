@@ -1,0 +1,216 @@
+from __future__ import annotations
+import datetime
+import hashlib
+import json
+import pathlib
+import shlex
+import sys
+import threading
+import time
+import uuid
+import paramiko
+import requests
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from rich.console import Console
+
+ROOT = pathlib.Path(__file__).parent
+STATE = ROOT / 'rental.json'
+COMMIT = 'e74469aa129b8604da77a6b9b4c8240dffc23ec0'
+OUT = '/workspace/h3-pp-output'
+console = Console(force_terminal=False, color_system=None)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
+def save(path, value):
+    path.write_text(json.dumps(value, indent=2)+'\n', encoding='utf-8')
+
+def session():
+    value = requests.Session()
+    key = (pathlib.Path.home()/'.config/vastai/vast_api_key').read_text().strip()
+    value.headers['Authorization'] = 'Bearer '+key
+    return value
+
+def instances():
+    response = session().get('https://console.vast.ai/api/v1/instances', timeout=25)
+    response.raise_for_status()
+    data = response.json()
+    return data.get('instances',[]) if isinstance(data,dict) else data
+
+def guard():
+    state = json.loads(STATE.read_text())
+    baseline = json.loads((ROOT/'existing-instances-do-not-touch.json').read_text())
+    assert state['authorized_new_usd'] == 1 and state['authorized_total_usd'] == 4
+    assert state['label'].startswith('h3-pp-20261029-')
+    assert type(state['new_contract']) is int and state['new_contract'] not in baseline['instance_ids']
+    assert state['offer']['machine_id'] not in baseline['machine_ids']
+    assert state['deadline_epoch'] <= state['created_epoch']+3600
+    return state
+
+def status():
+    state = guard()
+    response = session().get(f"https://console.vast.ai/api/v0/instances/{state['new_contract']}",timeout=25)
+    response.raise_for_status()
+    row = response.json()
+    row = row.get('instances',row)
+    if isinstance(row,list):
+        row = next(x for x in row if x['id']==state['new_contract'])
+    assert row['id']==state['new_contract'] and row['label']==state['label']
+    assert row['machine_id']==state['offer']['machine_id']
+    return row
+
+def destroy(reason):
+    state = guard()
+    row = status()
+    response = session().delete(f"https://console.vast.ai/api/v0/instances/{state['new_contract']}", timeout=25)
+    response.raise_for_status()
+    save(ROOT/'destroy.json', {'id':state['new_contract'],'label':state['label'],'reason':reason,
+        'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'response':response.json(),
+        'duration_seconds':time.time()-state['created_epoch'],
+        'estimated_compute_storage_usd':(time.time()-state['created_epoch'])/3600*state['hourly_upper']})
+    console.print('Destroyed only new pipeline instance',state['new_contract'])
+
+def connect():
+    row = status()
+    ports = row.get('ports',{}).get('22/tcp',[])
+    endpoints = []
+    if ports:
+        endpoints.append((row['public_ipaddr'],int(ports[0]['HostPort'])))
+    endpoints.append((row['ssh_host'],int(row['ssh_port'])))
+    error = None
+    for host, port in endpoints:
+        client = paramiko.SSHClient()
+        hostfile = ROOT/'known-hosts'
+        if hostfile.exists(): client.load_host_keys(str(hostfile))
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            client.connect(host,port=port,username='root',key_filename=str(ROOT/'id_h3_pp'),
+                           timeout=10,auth_timeout=12,banner_timeout=15,
+                           allow_agent=False,look_for_keys=False)
+            client.save_host_keys(str(hostfile))
+            return client
+        except Exception as exc:
+            error = exc
+            client.close()
+    raise error
+
+def command(command, data=None, timeout=45):
+    client = connect()
+    timer = threading.Timer(timeout,client.close)
+    timer.start()
+    try:
+        stdin, stdout, stderr = client.exec_command(command,timeout=timeout)
+        if data is not None:
+            stdin.write(data);stdin.flush();stdin.channel.shutdown_write()
+        output, error = stdout.read(),stderr.read()
+        code = stdout.channel.recv_exit_status()
+        if code: raise RuntimeError(f'remote exit {code}: '+error.decode(errors='replace'))
+        return output
+    finally:
+        timer.cancel();client.close()
+
+def select():
+    assert not STATE.exists(), 'Never replace an existing rental journal'
+    old = instances()
+    save(ROOT/'existing-instances-do-not-touch.json',{'instance_ids':[x['id'] for x in old],
+        'machine_ids':[x['machine_id'] for x in old], 'utc':datetime.datetime.now(datetime.timezone.utc).isoformat()})
+    query={'limit':150,'type':'on-demand','verified':{'eq':True},'rentable':{'eq':True},
+        'rented':{'eq':False},'num_gpus':{'eq':2},'cpu_ram':{'gte':32000},'disk_space':{'gte':30},
+        'reliability2':{'gte':.97},'inet_down':{'gte':300},'inet_up':{'gte':150},
+        'direct_port_count':{'gte':1},'cuda_max_good':{'gte':13},
+        'gpu_name':{'in':['RTX 3090','RTX 4090']},'order':[['dph_total','asc']]}
+    response=session().post('https://console.vast.ai/api/v0/bundles',json=query,timeout=30)
+    response.raise_for_status()
+    fields=['id','machine_id','gpu_name','num_gpus','cpu_name','cpu_ram','dph_total','storage_cost',
+            'inet_down_cost','inet_up_cost','reliability2','geolocation','direct_port_count']
+    rows=[{k:x.get(k) for k in fields} for x in response.json()['offers']
+        if x['machine_id'] not in {r['machine_id'] for r in old}|{55636,135008,116189,48612}
+        and x['dph_total']+30*x['storage_cost']/720<=.60
+        and max(x['inet_down_cost'],x['inet_up_cost'])<=.02]
+    save(ROOT/'offers.json',{'query':query,'offers':rows})
+    preferred=[x for x in rows if any(region in x['geolocation'] for region in
+        ['North Macedonia','Ukraine','Spain','Norway','Estonia','Czechia','Germany','Poland','France'])]
+    assert preferred, 'No matching predeclared low-cost European offer; do not rent'
+    offer=min(preferred,key=lambda x:(not any(cpu in x['cpu_name'] for cpu in ['EPYC','Threadripper']),x['dph_total']))
+    key=ed25519.Ed25519PrivateKey.generate()
+    (ROOT/'id_h3_pp').write_bytes(key.private_bytes(serialization.Encoding.PEM,
+        serialization.PrivateFormat.OpenSSH,serialization.NoEncryption()))
+    public=key.public_key().public_bytes(serialization.Encoding.OpenSSH,
+        serialization.PublicFormat.OpenSSH).decode()+' h3-pp-20261029'
+    (ROOT/'id_h3_pp.pub').write_text(public+'\n')
+    hourly=offer['dph_total']+30*offer['storage_cost']/720
+    save(STATE,{'label':'h3-pp-20261029-'+uuid.uuid4().hex[:8],'offer':offer,
+        'hourly_upper':hourly,'authorized_new_usd':1,'authorized_total_usd':4,
+        'prior_provider_reported_usd':2.348,'prior_conservative_upper_usd':2.60,
+        'approval':'User explicitly authorized up to $1 for this pipeline run; cumulative <= $4; existing machines excluded.',
+        'commit':COMMIT,'new_contract':None,'created_epoch':None,'deadline_epoch':None})
+    console.print({'offer':offer,'hourly_with_storage':hourly,'existing_instances_excluded':len(old),'rented':False})
+
+def create():
+    state=json.loads(STATE.read_text())
+    assert state['new_contract'] is None and not (ROOT/'create-request.json').exists()
+    assert state['offer']['machine_id'] not in {x['machine_id'] for x in instances()}
+    assert state['hourly_upper']<=.60 and 2.60+1<=4
+    public=(ROOT/'id_h3_pp.pub').read_text().strip()
+    previous=json.loads((ROOT.parent/'h3-pipeline-run/rental.json').read_text())
+    assert (ROOT.parent/'h3-pipeline-run/destroy.json').exists()
+    assert previous['new_contract'] not in {x['id'] for x in instances()}
+    payload={'image':'pytorch/pytorch:2.13.0-cuda13.0-cudnn9-runtime','disk':30,
+        'label':state['label'],'runtype':'ssh_direct','target_state':'running','cancel_unavail':True,
+        'onstart':'#!/bin/bash\necho H3_NEW_CONTAINER_KEY_SETUP\nmkdir -p /root/.ssh\nchown root:root /root/.ssh\nchmod 700 /root/.ssh\nprintf "%s\\n" '+shlex.quote(public)+' >> /root/.ssh/authorized_keys\nchown root:root /root/.ssh/authorized_keys\nchmod 600 /root/.ssh/authorized_keys\n'}
+    state['created_epoch']=time.time();state['deadline_epoch']=previous['deadline_epoch']
+    state['pipeline_started_epoch']=previous['created_epoch']
+    assert state['deadline_epoch']-state['created_epoch']>20*60
+    save(STATE,state);save(ROOT/'create-request.json',payload)
+    response=session().put(f"https://console.vast.ai/api/v0/asks/{state['offer']['id']}",json=payload,timeout=45)
+    response.raise_for_status();result=response.json();save(ROOT/'create-response.json',result)
+    assert result.get('success') and isinstance(result.get('new_contract'),int),result
+    state['new_contract']=result['new_contract'];save(STATE,state)
+    console.print({'new_id':state['new_contract'],'label':state['label'],'deadline_utc':datetime.datetime.fromtimestamp(state['deadline_epoch'],datetime.timezone.utc).isoformat()})
+
+def watchdog():
+    while not (ROOT/'destroy.json').exists():
+        try:
+            state=json.loads(STATE.read_text())
+            if state.get('created_epoch') and state.get('new_contract') is None:
+                matches=[x for x in instances() if x.get('label')==state['label']]
+                if len(matches)==1:
+                    state['new_contract']=matches[0]['id'];save(STATE,state)
+            if state.get('new_contract') and time.time()>=state['deadline_epoch']:
+                destroy('60-minute authorized deadline enforced by scoped watchdog');return
+        except Exception as exc:
+            with (ROOT/'watchdog-errors.log').open('a') as stream:
+                stream.write(f'{type(exc).__name__}: {exc}\n')
+        time.sleep(10)
+
+def preflight():
+    data=__import__('os').urandom(4194304)
+    digest=hashlib.sha256(data).hexdigest();start=time.monotonic()
+    response=command('cat > /tmp/h3-pp-transfer.bin && sha256sum /tmp/h3-pp-transfer.bin',data,45)
+    assert response.decode().split()[0]==digest
+    returned=command('cat /tmp/h3-pp-transfer.bin',timeout=45)
+    assert len(returned)==len(data) and hashlib.sha256(returned).hexdigest()==digest
+    value={'status':'passed','upload_bytes':len(data),'download_bytes':len(returned),
+           'sha256':digest,'seconds':time.monotonic()-start,'transport':'fresh SSH exec per operation'}
+    save(ROOT/'transfer-preflight.json',value)
+    command('cat > /tmp/h3-pp-transfer-preflight.json',json.dumps(value).encode())
+    console.print(value)
+
+if __name__=='__main__':
+    action=sys.argv[1]
+    if action=='select': select()
+    elif action=='create': create()
+    elif action=='watchdog': watchdog()
+    elif action=='preflight': preflight()
+    elif action=='attach-key':
+        state=guard();status()
+        response=session().post(f"https://console.vast.ai/api/v0/instances/{state['new_contract']}/ssh",
+            json={'ssh_key':(ROOT/'id_h3_pp.pub').read_text().strip()},timeout=25)
+        response.raise_for_status();save(ROOT/'attach-key-response.json',response.json())
+        console.print('Dedicated key attached only to new instance',state['new_contract'])
+    elif action=='status':
+        row=status();save(ROOT/'last-status.json',row)
+        console.print({k:row.get(k) for k in ['id','label','actual_status','status_msg','num_gpus','machine_id']})
+    elif action=='run': console.print(command(sys.argv[2],timeout=45).decode(errors='replace'))
+    elif action=='destroy': destroy(sys.argv[2])
+    else: raise ValueError(action)

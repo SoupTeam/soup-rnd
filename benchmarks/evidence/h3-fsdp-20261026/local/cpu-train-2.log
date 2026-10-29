@@ -1,0 +1,43 @@
+Loading tokenizer: 
+C:\Users\esenb\Documents\Codex\2026-10-26\h3-preparation\cpu-fixture\tiny-base
+Loading model: 
+C:\Users\esenb\Documents\Codex\2026-10-26\h3-preparation\cpu-fixture\tiny-base
+
+Loading weights:   0%|          | 0/15 [00:00<?, ?it/s]
+Loading weights: 100%|##########| 15/15 [00:00<00:00, 11092.13it/s]
+LoRA applied: 1,024 trainable / 15,552 total (6.58%)
+pre-tokenized cache has no metadata.json � assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+cpu-fixture\data
+
+Map:   0%|          | 0/32 [00:00<?, ? examples/s]
+Map: 100%|##########| 32/32 [00:00<00:00, 1809.16 examples/s]
+
+Truncating train dataset:   0%|          | 0/32 [00:00<?, ? examples/s]
+Truncating train dataset: 100%|##########| 32/32 [00:00<00:00, 1588.36 examples/s]
+
+  0%|          | 0/5 [00:00<?, ?it/s]Traceback (most recent call last):
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\harness\h3_fsdp_run.py", line 503, in <module>
+    main()
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\harness\h3_fsdp_run.py", line 497, in main
+    run(args)
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\harness\h3_fsdp_run.py", line 413, in run
+    wrapper.train()
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\src\soup_cli\trainer\sft.py", line 2349, in train
+    self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+  File "C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\transformers\trainer.py", line 1520, in train
+    return inner_training_loop(
+  File "C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\transformers\trainer.py", line 1595, in _inner_training_loop
+    self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
+  File "C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\transformers\trainer_callback.py", line 492, in on_train_begin
+    return self.call_event("on_train_begin", args, state, control, **kwargs)
+  File "C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\transformers\trainer_callback.py", line 545, in call_event
+    result = getattr(callback, event)(
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\harness\h3_fsdp_run.py", line 279, in on_train_begin
+    plugin = trainer.accelerator.state.fsdp_plugin
+  File "C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\accelerate\state.py", line 1222, in __getattr__
+    raise AttributeError(
+AttributeError: `AcceleratorState` object has no attribute `fsdp_plugin`. This happens if `AcceleratorState._reset_state()` was called and an `Accelerator` or `PartialState` was not reinitialized.
+
+  0%|          | 0/5 [00:00<?, ?it/s]

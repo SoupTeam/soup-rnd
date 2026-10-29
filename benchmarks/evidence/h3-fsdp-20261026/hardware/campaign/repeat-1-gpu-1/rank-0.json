@@ -1,0 +1,3995 @@
+{
+  "status": "training_passed_reload_pending",
+  "world_size": 1,
+  "rank": 0,
+  "cpu_fixture": false,
+  "setup_seconds": 42.83299456886016,
+  "gradient_accumulation_steps": 8,
+  "micro_batch": 1,
+  "global_batch": 8,
+  "steps": 28,
+  "correctness_steps": 2,
+  "warmup_steps": 5,
+  "measured_steps": 20,
+  "fsdp_version": null,
+  "shards": [
+    {
+      "local": 494573440,
+      "units": 0
+    }
+  ],
+  "logical_total_parameters": 494573440,
+  "wrapper_classes": {
+    "PeftModelForCausalLM": 1,
+    "LoraModel": 1,
+    "Qwen2ForCausalLM": 1,
+    "Linear": 313,
+    "Qwen2Model": 1,
+    "Qwen2RotaryEmbedding": 1,
+    "Qwen2RMSNorm": 49,
+    "ModuleList": 1,
+    "Qwen2DecoderLayer": 24,
+    "Qwen2MLP": 24,
+    "SiLUActivation": 24,
+    "Qwen2Attention": 24,
+    "ModuleDict": 192,
+    "ParameterDict": 96,
+    "Identity": 48,
+    "Embedding": 1
+  },
+  "parameter_storage": {
+    "base_model.model.model.embed_tokens.weight": {
+      "logical_shape": [
+        151936,
+        896
+      ],
+      "local_numel": 136134656,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.0.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.0.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.0.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.1.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.1.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.1.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.2.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.2.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.2.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.3.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.3.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.3.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.4.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.4.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.4.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.4.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.4.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.5.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.5.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.5.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.5.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.5.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.6.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.6.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.6.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.6.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.6.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.7.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.7.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.7.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.7.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.7.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.8.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.8.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.8.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.8.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.8.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.9.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.9.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.9.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.9.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.9.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.10.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.10.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.10.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.10.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.10.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.11.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.11.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.11.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.11.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.11.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.12.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.12.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.12.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.12.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.12.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.13.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.13.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.13.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.13.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.13.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.14.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.14.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.14.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.14.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.14.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.15.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.15.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.15.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.15.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.15.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.16.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.16.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.16.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.16.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.16.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.17.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.17.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.17.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.17.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.17.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.18.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.18.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.18.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.18.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.18.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.19.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.19.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.19.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.19.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.19.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.20.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.20.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.20.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.20.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.20.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.21.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.21.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.21.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.21.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.21.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.22.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.22.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.22.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.22.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.22.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.base_layer.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.base_layer.bias": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.23.self_attn.q_proj.lora_B.default.weight": {
+      "logical_shape": [
+        896,
+        8
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.23.self_attn.k_proj.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.self_attn.k_proj.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.base_layer.weight": {
+      "logical_shape": [
+        128,
+        896
+      ],
+      "local_numel": 114688,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.base_layer.bias": {
+      "logical_shape": [
+        128
+      ],
+      "local_numel": 128,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.lora_A.default.weight": {
+      "logical_shape": [
+        8,
+        896
+      ],
+      "local_numel": 7168,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.23.self_attn.v_proj.lora_B.default.weight": {
+      "logical_shape": [
+        128,
+        8
+      ],
+      "local_numel": 1024,
+      "placements": "None",
+      "trainable": true
+    },
+    "base_model.model.model.layers.23.self_attn.o_proj.weight": {
+      "logical_shape": [
+        896,
+        896
+      ],
+      "local_numel": 802816,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.mlp.gate_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.mlp.up_proj.weight": {
+      "logical_shape": [
+        4864,
+        896
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.mlp.down_proj.weight": {
+      "logical_shape": [
+        896,
+        4864
+      ],
+      "local_numel": 4358144,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.input_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.layers.23.post_attention_layernorm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    },
+    "base_model.model.model.norm.weight": {
+      "logical_shape": [
+        896
+      ],
+      "local_numel": 896,
+      "placements": "None",
+      "trainable": false
+    }
+  },
+  "base_before_sha256": "725d22577a231eaf6b9a21eddd581b9edb596fd09f2d4d0d6df3fc6a4760fb46",
+  "gradient_checks": [
+    {
+      "optimizer_step": 1,
+      "finite": true,
+      "some_nonzero": true,
+      "frozen_gradients_absent": true,
+      "reconstructed_sha256_per_rank": [
+        "bd69021b1bd4e70c5eba8fd76dcdaccaef29f983249acba0887ab1a94fa9c633"
+      ]
+    },
+    {
+      "optimizer_step": 2,
+      "finite": true,
+      "some_nonzero": true,
+      "frozen_gradients_absent": true,
+      "reconstructed_sha256_per_rank": [
+        "2cd814e8efa519696ee30443dde86808babb625d39641e1cb76d99bd91e95c2e"
+      ]
+    },
+    {
+      "optimizer_step": 28,
+      "finite": true,
+      "some_nonzero": true,
+      "frozen_gradients_absent": true,
+      "reconstructed_sha256_per_rank": [
+        "aab79baf2bd91302ae4da2e30f7f674a31ba4a3c019970791f3a57777d6cb8c7"
+      ]
+    }
+  ],
+  "first_gradient_sha256": "bd69021b1bd4e70c5eba8fd76dcdaccaef29f983249acba0887ab1a94fa9c633",
+  "data_windows": [
+    [
+      "0a59fdc6892669928eafa080c798712494252d9040f5613886a27d8b067fc330",
+      "1267a9f9451c68920f8e57b6f04e10fd0ff1fa4255b0047c9f1e511f593dbb04",
+      "3dd05e5092f5ed5cdb61b28027c8465a1c690e61495432baec62e0ebde4f6295",
+      "514d44b0a6d1795c35eaf0f807df9f82829ad8149e579db13595eb8966c3a583",
+      "869caeb490981ebe731ef73c9b9cc15c5de38c4cb3607702bc997ff64460836b",
+      "b62a0decfa54ee0a2c9a87756d255f76eb7351edbeeef559737786302a31f9b7",
+      "ed5893d6b78bfe7f8c692aac01dc3ae051818cb60f3c600839b0ffd4379677ac",
+      "fd72c3ddf600e7e22145bd1497697873d6c10deefa3cb1c0aa69aa715ed18b2d"
+    ],
+    [
+      "1c684d06ccc5b538ddce177243993ab390beebb64e69b8e6e8ea1fc7785a7219",
+      "58839f9946bbbc78483be745854174a06b70ba5a5779733ec89520e9b328070e",
+      "893ebd5dc4a2400a495d0e54b564af81ade3348bc2067c25e14bb896a5a74e9e",
+      "8fc76b41b24564addc763bfcf28b3df028fba8905e27c48efbb43c042bc2eaf5",
+      "9b3da31406e98e968e2e53bc4cc4ac142bd95ad3101f8020444ca4523b348660",
+      "c2e3ac410236c670117744b2a4b21667c8c643e834c712f943feaebddea76967",
+      "d445fc45c0a983fff34a6805e042360df1dc125735b3bb4431a4049f5c088e91",
+      "e1fa1a4e04aac353c888c9537edfa34430827a9cb1de98418ad3d8bf5cdff0ac"
+    ]
+  ],
+  "updates": [
+    {
+      "changed_tensors": [
+        "base_model.model.model.layers.0.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.0.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.1.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.1.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.10.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.10.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.11.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.11.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.12.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.12.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.13.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.13.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.14.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.14.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.15.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.15.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.16.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.16.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.17.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.17.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.18.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.18.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.19.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.19.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.2.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.2.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.20.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.20.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.21.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.21.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.22.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.22.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.23.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.23.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.3.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.3.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.4.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.4.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.5.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.5.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.6.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.6.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.7.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.7.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.8.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.8.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.9.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.9.self_attn.v_proj.lora_B.weight"
+      ],
+      "tensor_count": 96
+    },
+    {
+      "changed_tensors": [
+        "base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.0.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.0.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.0.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.1.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.1.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.1.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.1.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.10.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.10.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.10.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.10.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.11.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.11.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.11.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.11.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.12.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.12.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.12.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.12.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.13.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.13.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.13.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.13.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.14.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.14.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.14.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.14.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.15.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.15.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.15.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.15.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.16.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.16.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.16.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.16.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.17.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.17.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.17.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.17.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.18.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.18.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.18.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.18.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.19.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.19.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.19.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.19.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.2.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.2.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.2.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.2.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.20.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.20.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.20.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.20.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.21.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.21.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.21.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.21.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.22.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.22.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.22.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.22.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.23.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.23.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.23.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.23.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.3.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.3.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.3.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.3.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.4.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.4.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.4.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.4.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.5.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.5.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.5.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.5.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.6.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.6.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.6.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.6.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.7.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.7.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.7.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.7.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.8.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.8.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.8.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.8.self_attn.v_proj.lora_B.weight",
+        "base_model.model.model.layers.9.self_attn.q_proj.lora_A.weight",
+        "base_model.model.model.layers.9.self_attn.q_proj.lora_B.weight",
+        "base_model.model.model.layers.9.self_attn.v_proj.lora_A.weight",
+        "base_model.model.model.layers.9.self_attn.v_proj.lora_B.weight"
+      ],
+      "tensor_count": 96
+    }
+  ],
+  "training_memory": {
+    "allocated_peak_bytes": 2506250240,
+    "reserved_peak_bytes": 2770337792,
+    "rank_rss_peak_sampled_bytes": 1997836288,
+    "host_used_peak_sampled_bytes": 28818264064,
+    "host_sample_interval_seconds": 0.05
+  },
+  "base_after_sha256": "725d22577a231eaf6b9a21eddd581b9edb596fd09f2d4d0d6df3fc6a4760fb46",
+  "losses": [
+    1.6771092414855957,
+    1.6994737386703491,
+    1.6892063617706299,
+    1.6845120191574097,
+    1.716744303703308,
+    1.700437307357788,
+    1.7127766609191895,
+    1.6780164241790771,
+    1.6905288696289062,
+    1.7000311613082886,
+    1.6923195123672485,
+    1.684929370880127,
+    1.696707010269165,
+    1.6748847961425781,
+    1.6864465475082397,
+    1.6719261407852173,
+    1.6901473999023438,
+    1.688730239868164,
+    1.6685212850570679,
+    1.6662369966506958,
+    1.6899778842926025,
+    1.6698731184005737,
+    1.6697577238082886,
+    1.6732832193374634,
+    1.672425627708435,
+    1.6682500839233398,
+    1.6699304580688477,
+    1.6770700216293335,
+    1.6838080883026123,
+    1.6618523597717285,
+    1.6547291278839111,
+    1.6544698476791382,
+    1.674060583114624,
+    1.6587265729904175,
+    1.6456016302108765,
+    1.6516939401626587,
+    1.6451473236083984,
+    1.658514380455017,
+    1.6595548391342163,
+    1.6437931060791016,
+    1.6558871269226074,
+    1.6568855047225952,
+    1.6476644277572632,
+    1.6635736227035522,
+    1.642613410949707,
+    1.6453179121017456,
+    1.6488823890686035,
+    1.6314183473587036,
+    1.6272472143173218,
+    1.6336742639541626,
+    1.625434398651123,
+    1.6268635988235474,
+    1.613345742225647,
+    1.6337624788284302,
+    1.6269043684005737,
+    1.6416624784469604,
+    1.6300239562988281,
+    1.6247916221618652,
+    1.6143770217895508,
+    1.618589997291565,
+    1.6257765293121338,
+    1.6251270771026611,
+    1.6255770921707153,
+    1.6212387084960938,
+    1.6154117584228516,
+    1.6133050918579102,
+    1.613664984703064,
+    1.6287635564804077,
+    1.6122857332229614,
+    1.6243191957473755,
+    1.6114946603775024,
+    1.6241135597229004,
+    1.6229217052459717,
+    1.6105353832244873,
+    1.6162207126617432,
+    1.605818748474121,
+    1.6033709049224854,
+    1.5941537618637085,
+    1.6039289236068726,
+    1.6011602878570557,
+    1.6059527397155762,
+    1.595365285873413,
+    1.5931905508041382,
+    1.5949389934539795,
+    1.6025340557098389,
+    1.5993309020996094,
+    1.6055470705032349,
+    1.6010656356811523,
+    1.5990222692489624,
+    1.5961668491363525,
+    1.5926625728607178,
+    1.5990300178527832,
+    1.5998975038528442,
+    1.5883616209030151,
+    1.5913597345352173,
+    1.5926263332366943,
+    1.583328366279602,
+    1.5808320045471191,
+    1.5933176279067993,
+    1.5832364559173584,
+    1.585508108139038,
+    1.5834438800811768,
+    1.5879204273223877,
+    1.586948037147522,
+    1.579838752746582,
+    1.5863149166107178,
+    1.5861523151397705,
+    1.568418264389038,
+    1.5837472677230835,
+    1.573311686515808,
+    1.58314847946167,
+    1.5819681882858276,
+    1.5708471536636353,
+    1.5746384859085083,
+    1.5698144435882568,
+    1.5730708837509155,
+    1.563218116760254,
+    1.579216718673706,
+    1.569027066230774,
+    1.5764410495758057,
+    1.5660873651504517,
+    1.5639177560806274,
+    1.5614842176437378,
+    1.579033613204956,
+    1.5700397491455078,
+    1.5680676698684692,
+    1.5596513748168945,
+    1.5695555210113525,
+    1.5562705993652344,
+    1.5622437000274658,
+    1.566483974456787,
+    1.5609444379806519,
+    1.5658366680145264,
+    1.5620148181915283,
+    1.5710681676864624,
+    1.562760829925537,
+    1.551603078842163,
+    1.5562211275100708,
+    1.5594056844711304,
+    1.5582977533340454,
+    1.5474926233291626,
+    1.5527653694152832,
+    1.5596481561660767,
+    1.5599044561386108,
+    1.5537786483764648,
+    1.5582270622253418,
+    1.550437092781067,
+    1.5513054132461548,
+    1.5525339841842651,
+    1.5475082397460938,
+    1.5506854057312012,
+    1.557248830795288,
+    1.5426570177078247,
+    1.5438827276229858,
+    1.5459606647491455,
+    1.5533565282821655,
+    1.5469669103622437,
+    1.5448347330093384,
+    1.5524938106536865,
+    1.5504260063171387,
+    1.536800742149353,
+    1.5525447130203247,
+    1.5516549348831177,
+    1.5447897911071777,
+    1.5494033098220825,
+    1.5375721454620361,
+    1.5365252494812012,
+    1.543724536895752,
+    1.540149450302124,
+    1.5453970432281494,
+    1.5447224378585815,
+    1.54111647605896,
+    1.544935703277588,
+    1.547793984413147,
+    1.5379153490066528,
+    1.5431735515594482,
+    1.5388250350952148,
+    1.5351935625076294,
+    1.5341278314590454,
+    1.536142349243164,
+    1.541841983795166,
+    1.536093831062317,
+    1.5386444330215454,
+    1.541202425956726,
+    1.5408025979995728,
+    1.5360628366470337,
+    1.533673882484436,
+    1.5358808040618896,
+    1.5442537069320679,
+    1.5338176488876343,
+    1.53554368019104,
+    1.5384705066680908,
+    1.5353198051452637,
+    1.531064510345459,
+    1.528086543083191,
+    1.5312061309814453,
+    1.5235798358917236,
+    1.5363565683364868,
+    1.529821753501892,
+    1.5288037061691284,
+    1.5347261428833008,
+    1.5344345569610596,
+    1.5227024555206299,
+    1.5328696966171265,
+    1.5332380533218384,
+    1.5299348831176758,
+    1.5264948606491089,
+    1.5281703472137451,
+    1.5239839553833008,
+    1.524703025817871,
+    1.5350676774978638,
+    1.5294272899627686,
+    1.5227774381637573,
+    1.5339611768722534,
+    1.5269004106521606,
+    1.5293569564819336,
+    1.5305428504943848,
+    1.5234510898590088,
+    1.5226960182189941,
+    1.532095193862915,
+    1.5303130149841309,
+    1.529983401298523,
+    1.5359116792678833,
+    1.5197430849075317
+  ],
+  "final_update": {
+    "changed_tensors": [
+      "base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.0.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.0.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.0.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.1.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.1.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.1.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.1.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.10.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.10.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.10.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.10.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.11.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.11.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.11.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.11.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.12.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.12.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.12.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.12.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.13.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.13.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.13.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.13.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.14.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.14.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.14.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.14.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.15.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.15.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.15.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.15.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.16.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.16.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.16.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.16.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.17.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.17.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.17.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.17.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.18.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.18.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.18.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.18.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.19.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.19.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.19.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.19.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.2.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.2.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.2.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.2.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.20.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.20.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.20.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.20.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.21.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.21.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.21.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.21.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.22.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.22.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.22.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.22.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.23.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.23.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.23.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.23.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.3.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.3.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.3.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.3.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.4.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.4.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.4.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.4.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.5.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.5.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.5.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.5.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.6.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.6.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.6.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.6.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.7.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.7.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.7.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.7.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.8.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.8.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.8.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.8.self_attn.v_proj.lora_B.weight",
+      "base_model.model.model.layers.9.self_attn.q_proj.lora_A.weight",
+      "base_model.model.model.layers.9.self_attn.q_proj.lora_B.weight",
+      "base_model.model.model.layers.9.self_attn.v_proj.lora_A.weight",
+      "base_model.model.model.layers.9.self_attn.v_proj.lora_B.weight"
+    ],
+    "tensor_count": 96
+  },
+  "rank_step_seconds": [
+    9.648896808968857,
+    9.628088661003858,
+    9.498849252937362,
+    9.600803341949359,
+    9.521644797176123,
+    9.690573537023738,
+    10.205133908893913,
+    9.733122199075297,
+    9.795102964853868,
+    9.668528750073165,
+    9.826476013986394,
+    9.515698361909017,
+    9.518632872030139,
+    9.62141877389513,
+    9.51851346110925,
+    9.684111020993441,
+    9.637315137078986,
+    9.895561798941344,
+    9.760111158946529,
+    9.542989905923605
+  ],
+  "rank_input_tokens": 81920,
+  "tokens_per_second": 423.33385464066157,
+  "seconds_per_optimizer_step": 9.675578636338468,
+  "measured_seconds": 193.51157272676937,
+  "measured_optimizer_steps": 20,
+  "input_tokens": 81920,
+  "checkpoint_files": {
+    "config-rank-0.json": 9564,
+    "environment-rank-0.json": 1133,
+    "pip-freeze.txt": 1637,
+    "nvidia-smi.txt": 26713,
+    "topology.txt": 644,
+    "first-gradients.pt": 2196595,
+    "first-adapter.pt": 2196391,
+    "README.md": 1625,
+    "reload-reference.pt": 41093477,
+    "adapter_model.safetensors": 2175168,
+    "adapter_config.json": 1169,
+    "chat_template.jinja": 2507,
+    "tokenizer_config.json": 693,
+    "tokenizer.json": 11421892,
+    "training_args.bin": 5649,
+    "checkpoint-28/README.md": 5396,
+    "checkpoint-28/adapter_model.safetensors": 2175168,
+    "checkpoint-28/adapter_config.json": 1169,
+    "checkpoint-28/chat_template.jinja": 2507,
+    "checkpoint-28/tokenizer_config.json": 693,
+    "checkpoint-28/tokenizer.json": 11421892,
+    "checkpoint-28/training_args.bin": 5649,
+    "checkpoint-28/optimizer.pt": 4406667,
+    "checkpoint-28/scheduler.pt": 1465,
+    "checkpoint-28/rng_state.pth": 14645,
+    "checkpoint-28/trainer_state.json": 766
+  }
+}

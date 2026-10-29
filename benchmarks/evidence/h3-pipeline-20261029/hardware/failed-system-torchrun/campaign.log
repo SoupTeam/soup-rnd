@@ -1,0 +1,69 @@
++ export OMP_NUM_THREADS=2
++ OMP_NUM_THREADS=2
++ export PYTHONPATH=/workspace/h3-pp-soup/src
++ PYTHONPATH=/workspace/h3-pp-soup/src
++ export CUBLAS_WORKSPACE_CONFIG=:4096:8
++ CUBLAS_WORKSPACE_CONFIG=:4096:8
++ git rev-parse HEAD
+++ git status --porcelain
++ test -z ''
++ python -m pip check
+No broken requirements found.
++ python -
++ python -m pip freeze
++ nvidia-smi -q
++ nvidia-smi topo -m
++ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py prepare --prepared /workspace/h3-pp-output/prepared
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 6 files:  17%|█▋        | 1/6 [00:00<00:00,  5.61it/s]Fetching 6 files:  67%|██████▋   | 4/6 [00:00<00:00, 12.32it/s]Fetching 6 files: 100%|██████████| 6/6 [00:03<00:00,  1.35it/s]Fetching 6 files: 100%|██████████| 6/6 [00:03<00:00,  1.69it/s]
+Prepared pipeline experiment: /workspace/h3-pp-output/prepared
++ for repeat in 1 2
++ output=/workspace/h3-pp-output/repeat-1
++ timeout 600 torchrun --standalone --nproc-per-node=2 benchmarks/harness/h3_pipeline_smoke.py train --prepared /workspace/h3-pp-output/prepared --output /workspace/h3-pp-output/repeat-1 --device cuda --steps 4
+Traceback (most recent call last):
+  File "/workspace/h3-pp-soup/benchmarks/harness/h3_pipeline_smoke.py", line 23, in <module>
+    from rich.console import Console
+ModuleNotFoundError: No module named 'rich'
+Traceback (most recent call last):
+  File "/workspace/h3-pp-soup/benchmarks/harness/h3_pipeline_smoke.py", line 23, in <module>
+    from rich.console import Console
+ModuleNotFoundError: No module named 'rich'
+E1029 06:58:39.776000 1038 torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 0 (pid: 1045) of binary: /usr/bin/python3
+Traceback (most recent call last):
+  File "/usr/local/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 367, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/run.py", line 1028, in main
+    run(args)
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/run.py", line 1019, in run
+    elastic_launch(
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/launcher/api.py", line 194, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/launcher/api.py", line 383, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+benchmarks/harness/h3_pipeline_smoke.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-10-29_06:58:39
+  host      : 5cbe423e0b0a
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 1046) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-10-29_06:58:39
+  host      : 5cbe423e0b0a
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 1045) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

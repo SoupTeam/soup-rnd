@@ -1,0 +1,36 @@
+{
+  "number": 39,
+  "title": "v0.27.1: live pipeline-parallel execution via torch.distributed.pipelining",
+  "state": "open",
+  "state_reason": null,
+  "body": "## Context\n\nv0.27.0 ships `training.parallelism: pipeline` + `pipeline_stages: N` config fields + `utils/pipeline.validate_pipeline_config` validator, but the trainer does NOT actually execute pipelined forward/backward. When the validator passes, a Rich Panel notifies the user:\n\n> Pipeline parallelism is configured (N stages) but live execution wiring ships in v0.27.1. Your config is validated and the trainer will run in data-parallel mode for now.\n\n## Proposal for v0.27.1\n\nWire `torch.distributed.pipelining` (aka PiPPy / torch.pipelining) to partition the model across `pipeline_stages` devices with micro-batches:\n1. On trainer setup, detect `cfg.training.parallelism == \"pipeline\"`\n2. Use `torch.distributed.pipelining.pipeline(module, num_stages=N, example_args=...)` to partition\n3. Replace the HF Trainer's forward with a pipeline-aware step\n4. Micro-batch size auto-calculated as `batch_size // pipeline_stages`\n\n## Acceptance criteria\n\n- [ ] Works for `base: meta-llama/Llama-3.1-70B-Instruct` with `pipeline_stages: 4` on a 4xA100 node\n- [ ] Automatic micro-batch split + accumulation\n- [ ] Gradient accumulation remains correct across stages\n- [ ] Recipe `deepseek-v3-pipeline` trains a smoke batch end-to-end\n- [ ] Integration test that mocks `torch.distributed.pipelining` and verifies the partition call\n\n## Proposed fix path\n\n1. New `soup_cli/trainer/pipeline.py` \u2014 `PipelineTrainerWrapper` that subclasses the HF `Trainer` with a pipelined `training_step`\n2. `commands/train.py` routes `cfg.training.parallelism == \"pipeline\"` to the new wrapper\n3. Drop the Panel notice once execution lands\n\n## Risk notes\n\n- `torch.distributed.pipelining` is experimental in torch 2.3+; pin minimum\n- Requires matching `accelerate launch --num_processes N` where N == pipeline_stages\n- Checkpointing semantics change \u2014 `save_steps` may need adjustment",
+  "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/39",
+  "updated_at": "2026-10-08T08:26:00Z",
+  "comments": [
+    {
+      "body": "hey @MakazhanAlpamys \nwould love to work on this",
+      "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/39#issuecomment-5620092059",
+      "updated_at": "2026-09-10T14:13:26Z"
+    },
+    {
+      "body": "@AaronProbha18 \u2014 before I assign this, read the scope honestly, because it is one of the largest open items in the tracker and I would rather you choose it knowing that than discover it in week two.\n\n**What it actually requires.** Acceptance criterion 1 is `Llama-3.1-70B-Instruct` with `pipeline_stages: 4` on a **4xA100 node**. Not a proxy, not a mock: pipeline parallelism is a distributed execution change, and a partitioned forward/backward that \"looks right\" on one GPU tells you almost nothing about whether gradient accumulation stayed correct across stages. Criterion 5 (a mocked partition call) is the only part a laptop can prove, and it is the least valuable of the five.\n\n**So the first question is hardware.** Do you have multi-GPU access \u2014 owned, institutional, or a cloud budget you are willing to spend? If yes, say which and this is yours. If no, I would rather point you somewhere your work can be verified than have you write a large PR neither of us can accept.\n\n**If you want it anyway with no hardware**, there is an honest version: land `soup_cli/trainer/pipeline.py` with the partition wiring and the mocked integration test, leave the Rich notice in place, and state plainly in the PR that criteria 1-4 are unverified. I would review it and probably merge it as a foundation, but I would not let it claim pipeline parallelism works, and the notice would stay until someone measures it. That is a real contribution; it is just a smaller one than the issue title promises.\n\n**Alternatives sized for a first contribution here**, all currently unclaimed and all verifiable on one machine:\n\n- **#783** \u2014 the path-containment scanner does not inspect `contextlib.suppress(ValueError)`. One node type, a clear acceptance list, and the surrounding test file shows you the pattern.\n- **#780 (the guard half)** \u2014 a startup-budget test expressed as a ratio against the interpreter floor. Self-contained, and the measurement is already in the issue.\n- **#761** \u2014 four documented config settings that do nothing. Pick one, prove it is ignored, wire or refuse it.\n\nTell me which way you want to go and I will assign it. No pressure toward the smaller ones if you have the GPUs \u2014 this issue has been open a long time precisely because nobody with the hardware has picked it up.\n",
+      "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/39#issuecomment-5629569705",
+      "updated_at": "2026-09-11T04:39:37Z"
+    },
+    {
+      "body": "Hey, thanks for pointing that out! I don\u2019t have access to the GPUs needed for this one, so I\u2019ll go with something I can properly verify.\n\nI\u2019ll pick up **#783 \u2014 Path-containment ratchet does not inspect `contextlib.suppress(ValueError)`, which is already an idiom in this repo.**\n",
+      "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/39#issuecomment-5630353603",
+      "updated_at": "2026-09-11T06:20:36Z"
+    },
+    {
+      "body": "Unassigning @AaronProbha18 \u2014 they declined this on 2026-09-11 (\"I don't have access to the GPUs needed for this one\") and took #783 instead, but the assignee field was never cleared. That is my bookkeeping error, and the cost is real: a large `help wanted` issue has been reading as taken for a week.\n\n**This is open and unclaimed.** It needs multi-GPU hardware to validate, which is the reason it has sat \u2014 say so on the thread before starting so nobody duplicates the effort.\n",
+      "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/39#issuecomment-5731397746",
+      "updated_at": "2026-09-18T14:23:46Z"
+    },
+    {
+      "body": "Adding `infra-blocked`: the acceptance criteria need a 4xA100 node (Llama-3.1-70B with `pipeline_stages: 4`), which cannot be verified in the local harness. It stays open and `help wanted` stays on for anyone with multi-GPU access; please comment here before starting.\n",
+      "html_url": "https://github.com/MakazhanAlpamys/Soup/issues/39#issuecomment-6055865276",
+      "updated_at": "2026-10-08T08:25:58Z"
+    }
+  ]
+}

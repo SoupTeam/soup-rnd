@@ -1,0 +1,152 @@
+import ast
+import hashlib
+import json
+import shutil
+import subprocess
+from pathlib import Path
+import torch
+from safetensors.torch import load_file
+from rich.console import Console
+
+ROOT=Path(__file__).parent
+RENTAL=ROOT.parent
+FIRST=RENTAL.parent/'h3-pipeline-run'
+REPO=Path('C:/Users/esenb/.codex/worktrees/h3-fsdp-lora-20261026/soup-rnd-d2')
+PUBLIC=REPO/'benchmarks/evidence/h3-pipeline-20261029/hardware'
+COMMIT='55f675e17a20812d548054956d5af7edc7815d09'
+assert not PUBLIC.exists()
+assert json.loads((ROOT/'campaign-result.json').read_text())['accepted']
+assert json.loads((RENTAL/'deletion-verification.json').read_text())['all_task_rentals_absent']
+source=subprocess.check_output(['git','show',COMMIT+':benchmarks/harness/h3_pipeline_smoke.py'],cwd=REPO)
+old_source=subprocess.check_output(['git','show','e74469aa:benchmarks/harness/h3_pipeline_smoke.py'],cwd=REPO)
+functions=lambda text:{x.name:ast.dump(x,include_attributes=False) for x in ast.parse(text).body if isinstance(x,ast.FunctionDef)}
+before,after=functions(old_source),functions(source)
+numerical=['plan','prepare','verify_prepared','load_model','build_stage','loss','snapshot','assert_state',
+           'frozen_digest','optimizer_for','baseline','merge_adapter_shards','train','reload_adapter']
+assert all(before[name]==after[name] for name in numerical)
+
+def sha(path):
+    digest=hashlib.sha256()
+    with path.open('rb') as stream:
+        for chunk in iter(lambda:stream.read(1024*1024),b''): digest.update(chunk)
+    return digest.hexdigest()
+
+def save(path,value):
+    path.write_text(json.dumps(value,indent=2,allow_nan=False)+'\n',encoding='utf-8')
+
+archives=[]
+for name in ['repeat-1','repeat-2','metadata','support']:
+    marker=json.loads((ROOT/f'archives/{name}.verified.json').read_text())
+    archive=ROOT/f'archives/{name}.tar.gz'
+    assert sha(archive)==marker['sha256'] and archive.stat().st_size==marker['bytes']
+    for filename,item in marker['files'].items():
+        path=ROOT/'evidence'/name/filename
+        assert path.stat().st_size==item['bytes'] and sha(path)==item['sha256']
+    archives.append(marker)
+
+prepared=ROOT/'evidence/metadata/prepared'
+manifest=json.loads((prepared/'prepared.json').read_text())
+assert not manifest['cpu_fixture'] and manifest['revision']=='7ae557604adf67be50417f59c2c2f167def9a775'
+assert sha(prepared/'config.json')==manifest['config_sha256']
+assert sha(prepared/'tokens.pt')==manifest['tokens_sha256']
+tokens=torch.load(prepared/'tokens.pt',weights_only=True)
+assert tokens.shape==(64,128)
+first_manifest=json.loads((RENTAL/'evidence/diagnostics/prepared/prepared.json').read_text())
+assert first_manifest['base_files_sha256']==manifest['base_files_sha256']
+assert torch.equal(torch.load(RENTAL/'evidence/diagnostics/prepared/tokens.pt',weights_only=True),tokens)
+summary=[]
+all_pids=[]
+all_final=[]
+for name in ['repeat-1','repeat-2']:
+    folder=ROOT/'evidence'/name
+    env=json.loads((folder/'environment.json').read_text())
+    assert env['source_commit']==COMMIT and env['harness_sha256']==hashlib.sha256(source).hexdigest()
+    assert env['prepared']==manifest and not env['cpu_fixture']
+    ranks=[];merged={};initial={};first_adapter={}
+    for rank in range(2):
+        d=folder/f'rank-{rank}'
+        r=json.loads((d/'record.json').read_text())
+        assert r['rank']==rank and r['device']==f'cuda:{rank}'
+        assert r['layers']==list(range(12*rank,12*(rank+1)))
+        assert r['observed_stage_calls']=={'forward':16,'backward':16}
+        assert r['trainable_numel']==270336 and r['changed_adapter_tensors']==48
+        assert r['frozen_before']==r['frozen_after']
+        assert r['plan']=={'stages':2,'microbatches':2,'micro_batch':2,'schedule_batch':4,'accumulation':2,'global_batch':8}
+        assert len(r['records'])==4
+        for index,step in enumerate(r['records']):
+            assert step['row_ids']==list(range(index*8,(index+1)*8))
+        control=torch.load(d/'control.pt',weights_only=True,map_location='cpu')
+        actual=torch.load(d/'first-step.pt',weights_only=True,map_location='cpu')
+        final=torch.load(d/'adapter.pt',weights_only=True,map_location='cpu')
+        for observed,expected in [(actual['gradients'],control['first_gradient']),
+                                   (actual['adapter'],control['first_adapter']),
+                                   (final,control['final_adapter'])]:
+            assert observed.keys()==expected.keys() and len(observed)==48
+            for key in observed:
+                assert observed[key].dtype==torch.float32 and torch.isfinite(observed[key]).all()
+                torch.testing.assert_close(observed[key],expected[key],atol=1e-5,rtol=.02)
+        assert not merged.keys()&final.keys()
+        merged.update(final);initial.update(control['initial']);first_adapter.update(actual['adapter'])
+        all_pids.append(r['pid']);ranks.append(r)
+    serialized=load_file(folder/'adapter/adapter_model.safetensors')
+    assert serialized.keys()==merged.keys() and len(merged)==96
+    assert sum(x.numel() for x in merged.values())==540672
+    for key in merged:
+        assert 'lora_' in key
+        torch.testing.assert_close(serialized[key],merged[key],atol=0,rtol=0)
+    fixed=torch.load(folder/'eval-input.pt',weights_only=True)
+    reference=torch.load(folder/'eval-before-save.pt',weights_only=True)
+    assert torch.equal(fixed,tokens[:1,:32]) and reference.shape==(1,32,151936)
+    assert reference.dtype==torch.float32 and torch.isfinite(reference).all()
+    reload=json.loads((folder/'reload.json').read_text())
+    assert reload['passed'] and reload['adapter_keys']==96 and reload['max_logit_error']==0
+    assert reload['pid'] not in all_pids
+    all_pids.append(reload['pid'])
+    changed_first=sum(not torch.equal(initial[key],first_adapter[key]) for key in merged)
+    assert changed_first==48
+    summary.append({'repeat':name,'source_commit':COMMIT,'ranks':ranks,'reload':reload,
+        'max_gradient_error':max(step['gradient_error'] for r in ranks for step in r['records']),
+        'max_adapter_error':max(step['adapter_error'] for r in ranks for step in r['records']),
+        'first_changed_tensors':changed_first,'final_changed_tensors':sum(r['changed_adapter_tensors'] for r in ranks)})
+    all_final.append(merged)
+assert len(all_pids)==len(set(all_pids))
+assert all(torch.equal(all_final[0][key],all_final[1][key]) for key in all_final[0])
+PUBLIC.mkdir(parents=True)
+for name in ['repeat-1','repeat-2','metadata','support']:
+    shutil.copytree(ROOT/'evidence'/name,PUBLIC/name)
+for name in ['campaign.log','bootstrap.log']:
+    shutil.copy2(ROOT/'evidence'/name,PUBLIC/name)
+shutil.copytree(RENTAL/'evidence/diagnostics',PUBLIC/'failed-system-torchrun')
+shutil.copytree(RENTAL/'evidence/support',PUBLIC/'failed-system-torchrun-support')
+support=PUBLIC/'support'
+for filename,origin in [
+    ('rental-first.json',FIRST/'rental.json'),('rental-second.json',RENTAL/'rental.json'),
+    ('destroy-first.json',FIRST/'destroy.json'),('destroy-second.json',RENTAL/'destroy.json'),
+    ('owned-instance-charges.json',RENTAL/'owned-instance-charges.json'),
+    ('deletion-verification.json',RENTAL/'deletion-verification.json'),
+    ('launcher-fix-pytest.log',RENTAL/'launcher-fix-pytest.log'),
+    ('transfer-preflight.json',RENTAL/'transfer-preflight.json'),
+]: shutil.copy2(origin,support/filename)
+for origin in [FIRST/'ops.py',RENTAL/'ops.py',ROOT/'collector.py',ROOT/'publish.py']:
+    label=origin.parent.name+'-'+origin.name+'.capture.txt'
+    shutil.copy2(origin,support/label)
+(support/'executed-harness.py.capture.txt').write_bytes(source)
+startup=FIRST/'startup.log'
+save(support/'first-rental-infrastructure-failure.json',{
+    'status':'not_measured','id':58210461,'reason':'sshd rejected authorized_keys ownership or modes; one scoped reboot did not repair it; no training launched',
+    'raw_startup_log_path':str(startup),'raw_startup_log_sha256':sha(startup),
+    'matching_error_lines':[line for line in startup.read_text().splitlines() if 'Authentication refused: bad ownership' in line]})
+validation={'status':'passed','source_commit':COMMIT,'harness_sha256':hashlib.sha256(source).hexdigest(),
+    'numerical_function_asts_unchanged_from_preparation':True,'function_names_checked':numerical,
+    'source_data_unchanged_after_launcher_fix':True,'all_archive_and_member_hashes_verified':True,
+    'all_first_and_final_tensor_comparisons_replayed':True,'both_serialized_adapters_bitwise_match_stage_shards':True,
+    'both_repeats_final_adapter_bitwise_equal':True,'distinct_training_and_reload_pids':all_pids,
+    'summary':summary}
+save(PUBLIC/'validation.json',validation)
+failed_archives=[json.loads(p.read_text()) for p in sorted((RENTAL/'archives').glob('*.verified.json'))]
+save(PUBLIC/'archive-ledger.json',{'accepted_archives':archives,'diagnostic_archives':failed_archives,
+    'note':'Accepted raw references/data are also copied into this public evidence folder; base weights are the external immutable HF snapshot.'})
+Console().print({'public_root':str(PUBLIC),'accepted_repeats':2,'first_changed':48,'final_changed':96,
+    'max_grad_error':max(x['max_gradient_error'] for x in summary),
+    'max_adapter_error':max(x['max_adapter_error'] for x in summary),
+    'reload_errors':[x['reload']['max_logit_error'] for x in summary]})

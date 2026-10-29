@@ -21,6 +21,16 @@ benchmarks/harness/c2_f1_campaign.py text eol=lf
 benchmarks/c2-linux-nvme-diagnostic-20261018.md text eol=lf
 benchmarks/harness/q2_0_codec.py text eol=lf
 benchmarks/harness/c5_data.py text eol=lf
+benchmarks/h3-fsdp-linux.sh text eol=lf
+benchmarks/h3-pipeline-linux.sh text eol=lf
+# H3 raw captures must retain their original bytes.
+benchmarks/evidence/h3-fsdp-20261026/** -text -whitespace
+benchmarks/evidence/h3-fsdp-20261027/** -text -whitespace
+benchmarks/evidence/h3-bf16-20261027/** -text -whitespace
+benchmarks/evidence/h3-bf16-replay-20261027/** -text -whitespace
+benchmarks/evidence/h3-flash-bf16-20261027/** -text -whitespace
+benchmarks/evidence/h3-fsdp-review-20261028/** -text -whitespace
+benchmarks/evidence/h3-pipeline-20261029/** -text -whitespace
 
 # Preserve A0 capture bytes and recorded SHA256.
 benchmarks/results/a0-vast-rtx3070/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

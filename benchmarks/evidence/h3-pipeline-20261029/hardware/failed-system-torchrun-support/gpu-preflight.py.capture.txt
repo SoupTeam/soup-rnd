@@ -1,0 +1,31 @@
+import datetime
+import json
+import os
+from pathlib import Path
+import torch
+import torch.distributed as dist
+
+rank = int(os.environ['RANK'])
+assert int(os.environ['WORLD_SIZE']) == 2 and torch.cuda.device_count() == 2
+assert torch.cuda.get_device_name(0) == torch.cuda.get_device_name(1)
+torch.cuda.set_device(rank)
+assert torch.cuda.get_device_properties(rank).total_memory >= 20*1024**3
+dist.init_process_group('nccl', timeout=datetime.timedelta(seconds=60))
+try:
+    value = torch.tensor([rank+1], dtype=torch.float32, device=f'cuda:{rank}')
+    dist.all_reduce(value)
+    assert value.item() == 3
+    if rank == 0:
+        value.fill_(42)
+        dist.send(value,1)
+    else:
+        dist.recv(value,0)
+        assert value.item() == 42
+    torch.cuda.synchronize()
+    Path(f'/workspace/h3-pp-support/gpu-preflight-rank-{rank}.json').write_text(json.dumps({
+        'rank':rank,'gpu':torch.cuda.get_device_name(rank),'nccl':torch.cuda.nccl.version(),
+        'cuda':torch.version.cuda,'total_vram':torch.cuda.get_device_properties(rank).total_memory,
+        'nccl_all_reduce_and_p2p_passed':True},indent=2))
+    dist.barrier()
+finally:
+    dist.destroy_process_group()

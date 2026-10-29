@@ -1,0 +1,56 @@
+{
+  "source_commit": "301c555d2f5a51edcec1a6452fc100964c03c9d9",
+  "harness_sha256": "0b99ab040447fab0dbc4d7e5fa0f18790d9bc6daa62482302174db04e949cf4e",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "command": [
+    "C:\\Users\\esenb\\AppData\\Local\\Programs\\Python\\Python310\\lib\\site-packages\\pytest\\__main__.py",
+    "tests/test_h3_pipeline_smoke.py",
+    "tests/test_h3_fsdp_tied_embeddings.py",
+    "tests/test_h3_fsdp_gate.py",
+    "tests/test_h3_fsdp_campaign.py",
+    "tests/test_issue373_fsdp_sharding_probe.py",
+    "tests/test_issue352_fsdp_peft_checkpoint.py",
+    "tests/test_issue350_fsdp_qlora.py",
+    "tests/test_issue1204_fsdp_deepspeed_forwarding.py",
+    "tests/test_performance.py",
+    "tests/test_multi_gpu.py",
+    "--no-cov",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "C:\\Users\\esenb\\Documents\\Codex\\2026-10-29\\h3-pipeline-preparation\\pytest-5d908efbfd0c46b296ee18297dc72b47"
+  ],
+  "cpu_fixture": true,
+  "cuda": null,
+  "nccl": null,
+  "devices": [
+    "cpu",
+    "cpu"
+  ],
+  "versions": {
+    "torch": "2.13.0",
+    "transformers": "5.17.0",
+    "peft": "0.20.0"
+  },
+  "prepared": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "offline-random-fixture",
+    "cpu_fixture": true,
+    "tokens_sha256": "d4ecdc42106b0a73a85e0148e46100440907d1b6d881f4e1ee346fbb5e7c7429",
+    "config_sha256": "e0861337a0bfd6fcd363e76911abf90cc66ef17ccf1bccabbb77507820eb7544",
+    "base_files_sha256": {
+      "config.json": "b01649ac59b53190c1f54b988ee2b222fdc4348c386f35b5c8833b29c6a9b883",
+      "generation_config.json": "d4f77b611b24b472f9302b64e2d900e723bf5e15a21fb12beb2bf30564d313c6",
+      "model.safetensors": "fc0e2c101e59f80a0c674bb1647abd7174ef5292e6dfc206a6fc008d33eeb787"
+    },
+    "description": "synthetic seeded tokens; no quality claim",
+    "plan": {
+      "stages": 2,
+      "microbatches": 2,
+      "micro_batch": 2,
+      "schedule_batch": 4,
+      "accumulation": 2,
+      "global_batch": 8
+    }
+  }
+}
