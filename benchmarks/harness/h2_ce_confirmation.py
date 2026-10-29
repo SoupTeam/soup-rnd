@@ -40,6 +40,17 @@ REPO = Path(__file__).parents[2]
 SPEC = REPO / 'benchmarks/h2'
 HARNESS = REPO / 'benchmarks/harness'
 PHASES = ('baseline_probes', 'ce_only_probes', 'baseline_training', 'ce_only_training')
+NOISE_FLOOR_PHASES = ('baseline_probes', 'ce_only_probes', 'baseline_probes_repeat',
+                      'ce_only_probes_repeat')
+# Every phase name maps to its arm flags and kind; repeats reuse the base arm's flags exactly.
+PHASE_ARMS = {
+    'baseline_probes': ('baseline', 'probes'), 'ce_only_probes': ('ce_only', 'probes'),
+    'baseline_training': ('baseline', 'training'), 'ce_only_training': ('ce_only', 'training'),
+    'baseline_probes_repeat': ('baseline', 'probes'),
+    'ce_only_probes_repeat': ('ce_only', 'probes'),
+}
+# The contract may only choose one of these fixed series; it can never carry a free-form list.
+SERIES = {'ce_confirmation': PHASES, 'noise_floor': NOISE_FLOOR_PHASES}
 ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
     'h2_ce_confirmation.py', 'h2_ce_training.py', 'h2_ce_workset.py',
     'h2_operator_patch.py', 'h2_operator_capture.py',
@@ -50,6 +61,7 @@ ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
     'CE_CONFIRMATION_PROTOCOL.txt', 'ce_confirmation_plan.json', 'ce_confirmation_workset.json',
     'CE_CONTROLS_PROTOCOL.txt',
     'CE_PREPARED_BATCHES_PROTOCOL.txt', 'CE_HARDENING_ADDENDUM.txt',
+    'CE_NOISE_FLOOR_ADDENDUM.txt',
 ))
 _USED = False
 CLEANUP_RESERVE_SECONDS = 40
@@ -82,8 +94,48 @@ def disarm_alarm() -> None:
         signal.alarm(0)
 
 
+def series_name(contract: dict) -> str:
+    """Series selected by the contract; an absent key is the original four-phase series."""
+    name = contract.get('series', 'ce_confirmation')
+    if type(name) is not str or name not in SERIES:
+        raise ValueError('Unknown CE series')
+    return name
+
+
+def series_phases(contract: dict) -> tuple[str, ...]:
+    return SERIES[series_name(contract)]
+
+
+def determinism_receipt(loaded: dict) -> dict:
+    """Recording only: settings that can explain run-to-run bf16 differences. Never raises."""
+    import torch
+
+    def read(getter: Any) -> Any:
+        try:
+            return getter()
+        except Exception as error:
+            return 'unavailable: ' + type(error).__name__
+
+    backends = torch.backends
+    return {
+        'attention_implementation': loaded.get('attention_implementation'),
+        'cublas_workspace_config': os.environ.get('CUBLAS_WORKSPACE_CONFIG'),
+        'deterministic_algorithms': read(torch.are_deterministic_algorithms_enabled),
+        'deterministic_warn_only': read(torch.is_deterministic_algorithms_warn_only_enabled),
+        'cudnn_deterministic': read(lambda: backends.cudnn.deterministic),
+        'cudnn_benchmark': read(lambda: backends.cudnn.benchmark),
+        'sdp_flash': read(backends.cuda.flash_sdp_enabled),
+        'sdp_mem_efficient': read(backends.cuda.mem_efficient_sdp_enabled),
+        'sdp_math': read(backends.cuda.math_sdp_enabled),
+        'sdp_cudnn': read(backends.cuda.cudnn_sdp_enabled),
+        'matmul_allow_tf32': read(lambda: backends.cuda.matmul.allow_tf32),
+        'float32_matmul_precision': read(torch.get_float32_matmul_precision),
+    }
+
+
 def validate_contract(contract: dict) -> dict:
     validate_authority(contract, 'baseline')
+    series_name(contract)
     study = json.loads((SPEC / 'operator_study.json').read_text())
     plan = json.loads((SPEC / 'ce_confirmation_plan.json').read_text())
     if (contract.get('schema') != 'h2-ce-authority-v1' or contract['max_seconds'] > 600
@@ -140,7 +192,7 @@ def read_child(root: Path, phase: str) -> dict:
                 or sha_file(Path(path)) != digest):
             raise ValueError('Child SHA/containment mismatch')
     data = json.loads((root / 'evidence.json').read_text())
-    arm = phase.removesuffix('_probes').removesuffix('_training')
+    arm, kind = PHASE_ARMS[phase]
     if data['status'] != 'COMPLETE_CE_CAPTURE' or data['phase'] != phase:
         raise ValueError('Incomplete/wrong child capture')
     validate_controls(json.loads((root / 'controls.json').read_text()), phase)
@@ -148,19 +200,21 @@ def read_child(root: Path, phase: str) -> dict:
     if (data['patch_after']['status'] != 'PASS_EXPLICIT_PATCH_BINDINGS'
             or data['patch_after']['arm'] != arm):
         raise ValueError('Invalid patch binding evidence')
-    trace = root / ('profile/kernel_trace.json' if phase.endswith('_training')
+    trace = root / ('profile/kernel_trace.json' if kind == 'training'
                     else 'probe_00/kernel_trace.json')
     kernel_audit(json.loads(trace.read_text())['traceEvents'], arm)
     return data
 
 
-def review_pair(root: Path, *, training: bool) -> dict:
+def review_pair(root: Path, *, training: bool, phases: tuple[str, str] | None = None,
+                strict: bool = True) -> dict:
+    """Review two children; strict=False (probes) reports policy failures instead of raising."""
     work = json.loads((SPEC / 'ce_confirmation_workset.json').read_text())
     policy = json.loads((SPEC / 'numerical_policy.json').read_text())
     suffix = '_training' if training else '_probes'
-    paths = [root / (arm + suffix) / 'runner' for arm in ('baseline', 'ce_only')]
-    evidence = [read_child(path, arm + suffix)
-                for path, arm in zip(paths, ('baseline', 'ce_only'))]
+    names = phases or tuple(arm + suffix for arm in ('baseline', 'ce_only'))
+    paths = [root / name / 'runner' for name in names]
+    evidence = [read_child(path, name) for path, name in zip(paths, names)]
     contract = json.loads((root / 'contract.json').read_text())
     if set(contract['artifacts_sha256']) != set(ARTIFACTS) or any(
             sha_file(REPO / name) != contract['artifacts_sha256'][name] for name in ARTIFACTS):
@@ -191,6 +245,7 @@ def review_pair(root: Path, *, training: bool) -> dict:
                 raise ValueError('Training tensors start from a different state')
         return review_training(*(p / 'training' for p in paths), policy, work['training_batches'])
     results = []
+    failures = []
     for index, expected in enumerate(work['probes']):
         captures = [p / f'probe_{index:02d}' / 'model_probe' for p in paths]
         tensors = []
@@ -205,13 +260,162 @@ def review_pair(root: Path, *, training: bool) -> dict:
             if {k.removeprefix('input.'): v.tolist() for k, v in values.items()
                     if k.startswith('input.')} != expected:
                 raise ValueError('Probe actual input differs from frozen workset')
+            if not strict and (type(data['loss']) not in (int, float)
+                               or not math.isfinite(data['loss'])):
+                raise ValueError('Probe loss missing or nonfinite')
             tensors.append({k: v for k, v in values.items() if k.startswith('gradient.')})
         result = compare_probes(*captures, policy)
+        reason = None
+        if not strict:
+            # Only tolerance exceedances are policy failures; evidence defects are never classified.
+            defects = [r for r in result['reasons'] if not r.startswith(TOLERANCE_REASONS)]
+            if defects:
+                raise ValueError('Probe evidence defect: ' + str(defects))
         if result['status'] != 'PASS_MODEL_PROBE_TOLERANCES':
-            raise ValueError('Probe comparison failed: ' + str(result['reasons']))
-        compare_tensors(*tensors, policy)
+            reason = 'Probe comparison failed: ' + str(result['reasons'])
+        else:
+            try:
+                compare_tensors(*tensors, policy)
+            except ValueError as error:
+                if not strict and not str(error).startswith('Tensor exceeds prospective tolerance'):
+                    raise
+                reason = str(error)
+        if reason is not None:
+            if strict:
+                raise ValueError(reason)
+            failures.append({'probe': index, 'reason': reason})
         results.append(result)
+    if failures:
+        return {'status': 'FAIL_PROBE_POLICY', 'probes': results, 'failures': failures,
+                'performance_verdict': 'NO_VERDICT'}
     return {'status': 'PASS_CE_PROBES', 'probes': results, 'performance_verdict': 'NO_VERDICT'}
+
+
+TOLERANCE_REASONS = ('Loss differs beyond prospective tolerance',
+                     'Gradient differs beyond prospective tolerance')
+NOISE_PRIMARY = ('baseline_probes', 'ce_only_probes')
+NOISE_WITHIN = (('baseline_probes', 'baseline_probes_repeat'),
+                ('ce_only_probes', 'ce_only_probes_repeat'))
+NOISE_CROSS_EXTRA = (('baseline_probes_repeat', 'ce_only_probes_repeat'),
+                     ('baseline_probes', 'ce_only_probes_repeat'),
+                     ('baseline_probes_repeat', 'ce_only_probes'))
+
+
+def _addendum_number(prefix: str) -> float | None:
+    for line in (SPEC / 'CE_NOISE_FLOOR_ADDENDUM.txt').read_text().splitlines():
+        if line.startswith(prefix + ' = '):
+            try:
+                value = float(line[len(prefix) + 3:].strip())
+            except ValueError:
+                return None
+            return value if math.isfinite(value) and value > 0 else None
+    return None
+
+
+def noise_floor_k() -> float | None:
+    """K of the optional NOISE_FLOOR_EQUIVALENT label, read from the addendum; None if unset."""
+    return _addendum_number('K')
+
+
+def noise_floor_f() -> float | None:
+    """Floor F of the within-arm noise (never divide by zero), read from the addendum."""
+    return _addendum_number('F')
+
+
+def equivalence_for_probe(g_cross: float | None, g_within: float | None, k: float,
+                          f: float) -> dict:
+    """G_cross <= K * max(G_within, F); marginal when G_cross is 0.9 to 1.1 times that threshold."""
+    if g_cross is None or g_within is None:
+        return {'ok': False, 'marginal': False, 'threshold': None, 'ratio': None,
+                'g_cross': g_cross, 'g_within': g_within}
+    threshold = k * max(g_within, f)
+    ratio = g_cross / threshold
+    return {'ok': g_cross <= threshold, 'marginal': 0.9 <= ratio <= 1.1,
+            'threshold': threshold, 'ratio': ratio, 'g_cross': g_cross, 'g_within': g_within}
+
+
+def global_lora_b_relative_l2(left: dict, right: dict) -> float | None:
+    """FP64 relative L2 of the concatenated LoRA-B gradients (left is the reference)."""
+    names = sorted(k for k in left if k.startswith('gradient.') and 'lora_B' in k)
+    if not names or set(names) != {k for k in right if k.startswith('gradient.') and 'lora_B' in k}:
+        raise ValueError('LoRA-B gradient manifest differs')
+    norm = delta = 0.0
+    for name in names:
+        first, second = left[name].double().reshape(-1), right[name].double().reshape(-1)
+        norm += first.square().sum().item()
+        delta += (first - second).square().sum().item()
+    return math.sqrt(delta / norm) if norm else (0.0 if not delta else None)
+
+
+def noise_floor_equivalence(root: Path, reports: dict, policy: dict, k: float | None,
+                            f: float | None) -> dict:
+    """Optional extra label only. It can never turn a result into PASS."""
+    base = {'label': 'NOISE_FLOOR_EQUIVALENT', 'can_produce_pass': False, 'k': k, 'f': f,
+            'note': 'Separate criterion; K and F were set after attempt015 was seen (not blind)'}
+    if k is None or f is None:
+        return {**base, 'status': 'NOT_EVALUATED_K_OR_F_UNSET'}
+    cross = [NOISE_PRIMARY, *NOISE_CROSS_EXTRA]
+    probes = []
+    for index in range(len(reports[NOISE_PRIMARY]['probes'])):
+        def load(name: str) -> tuple[dict, dict]:
+            return read_probe(root / name / 'runner' / f'probe_{index:02d}' / 'model_probe')
+        runs = {name: load(name) for name in NOISE_FLOOR_PHASES}
+
+        def g(pair: tuple[str, str]) -> float | None:
+            return global_lora_b_relative_l2(runs[pair[0]][1], runs[pair[1]][1])
+        within = [g(pair) for pair in NOISE_WITHIN]
+        crosses = {' vs '.join(pair): g(pair) for pair in cross}
+        g_within = None if None in within else max(within)
+        g_cross = None if None in crosses.values() else max(crosses.values())
+        losses_ok = all(
+            abs(runs[a][0]['loss'] - runs[b][0]['loss'])
+            <= policy['loss_atol'] + policy['loss_rtol'] * abs(runs[a][0]['loss'])
+            for a, b in cross)
+        cosines_ok = all(row['cosine'] >= policy['gradient_cosine_min']
+                         for pair in cross
+                         for row in reports[pair]['probes'][index]['gradient_metrics'].values())
+        verdict = equivalence_for_probe(g_cross, g_within, k, f)
+        verdict.update(probe=index, within_pairs=dict(zip(
+            (' vs '.join(pair) for pair in NOISE_WITHIN), within)), cross_pairs=crosses,
+            cosines_ok=cosines_ok, losses_ok=losses_ok)
+        verdict['ok'] = verdict['ok'] and cosines_ok and losses_ok
+        probes.append(verdict)
+    return {**base, 'status': 'NOISE_FLOOR_EQUIVALENT' if all(p['ok'] for p in probes)
+            else 'NOT_EQUIVALENT_UNDER_K', 'marginal': any(p['marginal'] for p in probes),
+            'probes': probes}
+
+
+def review_noise_floor(root: Path) -> dict:
+    """Classify the four-probe series with the unchanged policy; evidence errors raise (VOID)."""
+    contract = json.loads((root / 'contract.json').read_text())
+    if series_name(contract) != 'noise_floor':
+        raise ValueError('Not a noise-floor series')
+    policy = json.loads((SPEC / 'numerical_policy.json').read_text())
+    pairs = [NOISE_PRIMARY, *NOISE_WITHIN, *NOISE_CROSS_EXTRA]
+    reports = {pair: review_pair(root, training=False, phases=pair, strict=False)
+               for pair in pairs}
+    passed = {pair: reports[pair]['status'] == 'PASS_CE_PROBES' for pair in pairs}
+    noise_ok = all(passed[pair] for pair in NOISE_WITHIN)
+    if not noise_ok:
+        classification = 'INCONCLUSIVE'
+    elif passed[NOISE_PRIMARY]:
+        classification = 'PASS'
+    else:
+        classification = 'BLOCKED'
+    if classification == 'PASS':
+        equivalence = {'label': 'NOISE_FLOOR_EQUIVALENT', 'can_produce_pass': False,
+                       'status': 'NOT_EVALUATED_POLICY_PASS'}
+    else:
+        equivalence = noise_floor_equivalence(root, reports, policy, noise_floor_k(),
+                                              noise_floor_f())
+    return {'status': 'REVIEWED_NOISE_FLOOR', 'classification': classification,
+            'primary_pair_passes_policy': passed[NOISE_PRIMARY],
+            'within_arm_pairs_pass_policy': {' vs '.join(p): passed[p] for p in NOISE_WITHIN},
+            'pairs': {' vs '.join(p): reports[p] for p in pairs},
+            'noise_floor_equivalent': equivalence,
+            'policy_sha256': contract['numerical_policy_sha256'],
+            'scope': 'Probe-only; not H2 acceptance, not a speedup; same-box history only',
+            'performance_verdict': 'NO_VERDICT'}
 
 
 def collator_config(trainer: Any) -> dict:
@@ -270,7 +474,7 @@ def validate_workset_link(trainer: Any, work: dict, expected: list[dict]) -> dic
 
 def run_child(contract: dict, phase: str, out: Path) -> dict:
     global _USED
-    if _USED or phase not in PHASES:
+    if _USED or phase not in series_phases(contract):
         raise ValueError('Fresh process and declared phase required')
     _USED = True
     expected = Path(contract['evidence_root']) / phase / 'runner'
@@ -310,8 +514,8 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
         validate_live_identity(contract, boot,
                                str(torch.cuda.get_device_properties(0).uuid))
-        training = phase.endswith('_training')
-        arm = phase.removesuffix('_training').removesuffix('_probes')
+        arm, kind = PHASE_ARMS[phase]
+        training = kind == 'training'
         control = PatchController(arm)
         holder: dict = {}
         window = None
@@ -329,6 +533,7 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         wrapper.setup(load_dataset(config.data))
         loaded = validate_loaded(wrapper, 'operator_diagnostic')
         result['loaded'] = loaded
+        result['determinism_receipt'] = determinism_receipt(loaded)
         if (wrapper.trainer.optimizer is not None or bool(wrapper.trainer.args.use_liger_kernel)
                 != (arm == 'ce_only') or loaded['attention_implementation'] != 'sdpa'):
             raise ValueError('Unexpected Trainer/attention state')
@@ -402,8 +607,10 @@ def run_series(contract: dict, out: Path) -> dict:
     write_json(out / 'contract.json', contract)
     result = {'status': 'BLOCKED', 'phases': {}, 'performance_verdict': 'NO_VERDICT',
               'external_controls_required': True, 'provider_stop_performed': False}
+    series = series_name(contract)
+    reviewing = False
     try:
-        for index, phase in enumerate(PHASES):
+        for index, phase in enumerate(series_phases(contract)):
             remaining = contract['deadline_unix_s'] - time.time() - CLEANUP_RESERVE_SECONDS
             if remaining <= 2:
                 raise TimeoutError('Shared deadline cleanup reserve reached')
@@ -418,13 +625,22 @@ def run_series(contract: dict, out: Path) -> dict:
             evidence = json.loads((out / phase / 'runner/evidence.json').read_text())
             if evidence['status'] != 'COMPLETE_CE_CAPTURE':
                 raise ValueError('Incomplete child evidence')
-            if index in (1, 3):
+            if series == 'ce_confirmation' and index in (1, 3):
                 review = review_pair(out, training=index == 3)
                 write_json(out / ('training_review.json' if index == 3 else 'probe_review.json'),
                            review)
-        result['status'] = 'COMPLETE_CE_NUMERICAL_SERIES'
+        if series == 'noise_floor':
+            reviewing = True
+            review = review_noise_floor(out)
+            write_json(out / 'noise_floor_review.json', review)
+            result.update(status='COMPLETE_CE_NOISE_FLOOR_SERIES',
+                          classification=review['classification'])
+        else:
+            result['status'] = 'COMPLETE_CE_NUMERICAL_SERIES'
     except Exception as error:
         result['error'] = type(error).__name__ + ': ' + str(error)
+        if reviewing:
+            result['status'] = 'VOID'  # Identity/evidence failure after all four children ran.
     finally:
         write_json(out / 'series.json', result)
         tree_seal(out)
@@ -437,11 +653,17 @@ def main() -> None:
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--review-only', action='store_true')
     parser.add_argument('--child', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--phase', choices=PHASES, help=argparse.SUPPRESS)
+    parser.add_argument('--phase', choices=sorted(PHASE_ARMS), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.review_only:
         if args.child or args.phase or args.contract:
             parser.error('Offline review accepts only --out')
+        recorded = json.loads((args.out / 'contract.json').read_text())
+        if series_name(recorded) == 'noise_floor':
+            review = review_noise_floor(args.out)
+            Console().print('NOISE_FLOOR_' + review['classification']
+                            + '; external controls pending; NO_VERDICT')
+            return
         review_pair(args.out, training=False)
         review_pair(args.out, training=True)
         Console().print('PASS_CE_NUMERICAL_REVIEW; external controls pending; NO_VERDICT')
@@ -452,7 +674,8 @@ def main() -> None:
     result = run_child(contract, args.phase, args.out) if args.child else run_series(contract,
                                                                                    args.out)
     Console().print(result['status'] + '; performance=NO_VERDICT')
-    if result['status'] not in {'COMPLETE_CE_CAPTURE', 'COMPLETE_CE_NUMERICAL_SERIES'}:
+    if result['status'] not in {'COMPLETE_CE_CAPTURE', 'COMPLETE_CE_NUMERICAL_SERIES',
+                              'COMPLETE_CE_NOISE_FLOOR_SERIES'}:
         raise SystemExit(2)
 
 
