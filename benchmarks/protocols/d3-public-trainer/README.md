@@ -1,12 +1,23 @@
 # D3 public SFT/L2L prospective protocol
 
-**Status: prepared prospective protocol; operator commit/source freeze pending.**
-The new gate, fresh-process runner, offline analyzer and readiness checks exist.
-All eight preparation receipts are bound. The execution switch is promoted,
-but it cannot bypass an unfinished merge, dirty checkout or absent committed
-source packet. **No pretrained forward/training or formal series has run.**
+**Status: revision 2 preparation verified; awaiting the operator's new commit.**
+The operator committed/pushed `cd6515ac503b15a111050b35db5c33768d506a9b` and its
+canonical source/host/data freeze passed. The first formal native dense cell
+completed four training steps, then failed its post-training evaluation with
+nonfinite logits. F1 was OK; zero cells were accepted and no timing arms ran.
+See the [attempt report](../../results/d3-public-trainer-attempt-01-cd6515ac/report.md).
+The corrective revision passed the CPU/synthetic checks below and must be
+committed before a new formal session.
 The historical `protocol-draft.json` filename is retained; its explicit status,
 switch and bound evidence determine readiness.
+
+The new CPU regression proves that the evaluation callback created IDs on the
+streamed embedding's **meta placeholder** device. Evaluation now uses the real
+runtime device. The first synthetic fixture tied embedding/head and missed this
+path. Revision 2 requires a pinned **four-layer untied** fixture with both
+streamed boundary modules and more decoder layers than reusable buffer slots.
+The committed failed session remains failed; no criterion or old result is
+rewritten, and no pretrained rerun occurs under uncommitted corrective source.
 
 The authoritative machine-readable draft is [protocol-draft.json](protocol-draft.json).
 The source/assignment snapshot is [requirements.json](requirements.json); the
@@ -123,25 +134,28 @@ The new RTX4090 KVM identity/software/cuBLAS pins are recorded. The earlier
 - All **48 actual expert shards** were empirically mapped; the other bound files
   use that same guest filesystem. Actual-shard baseline/own/independent-foreign
   controls passed **OK/OK/VOID**. This is not physical-host/cache certification.
-- The final tiny **random-weight** CUDA launcher self-test passed **36 numerical
-  cells and 18 profiles**, including ordinary SFT/L2L, expert outputs, all-layer
-  derivatives, A/A, fixed negative/restored controls and same-recipe reload.
-- The selected current runtime CPU suite passed **999**, with eight skips and
-  116 GPU deselections; full-repository Ruff passed. Final planner/guard/analyzer
-  checks are recorded separately in CPU evidence. These are not full repository CI.
+- The corrective **four-layer untied random-weight** CUDA launcher self-test
+  passed **36 numerical cells and 18 profiles**, including ordinary SFT/L2L,
+  expert outputs, all-layer derivatives, A/A, fixed negative/restored controls
+  and same-recipe reload. Both embedding/head are confirmed streamed boundaries.
+- The corrective harness/planner/analyzer suite passes **74 CPU tests**.
+  The historical broad runtime selection passed **999**, with eight skips and
+  116 GPU deselections; production source files are unchanged by this callback
+  fix. Full-repository Ruff passes. These are not full repository pytest/CI.
 
 Before the formal run:
 
 1. Preserve the current preparation and exact host. A reboot, data mutation or
    software/GPU change requires rediscovery and a new prospective binding.
-2. The operator completes the pending merge and commits/pushes the implementation,
-   helpers, this rule and preparation evidence. No agent commit/push is performed.
+2. The main merge is already completed in `cd6515ac`. The operator commits/pushes
+   the corrective evaluation harness, revision-2 rule and retained evidence.
+   No agent commit/push is performed.
 3. Export only canonical committed Git blobs from a clean checkout. The remote
    runner requires `FROZEN-D3-TRAINER-SOURCE.json`, the rule verbatim and unchanged
    data/software/boot/GPU identities before any formal child allocation.
 
 The formal prepared-manifest path is fixed in the rule to
-`/root/d3-public-trainer-preparation-01/prepared-02/prepared-final.json`.
+`/root/d3-public-trainer-preparation-01/prepared-02/prepared-after-restart-r2.json`.
 Keep the output inside its bound workspace. Do not copy/alias that manifest to
 create a second marker directory, remove a session marker or retry under another
 output name. The runner records the complete child command for the reviewer.
@@ -155,16 +169,16 @@ python -m pytest tests/test_d3_trainer_protocol.py tests/test_d3_trainer_gate.py
 python benchmarks/protocols/d3-public-trainer/verify_evidence.py
 ```
 
-`check` currently exits 1 and identifies the dirty checkout and unfinished merge.
+`check` refuses an uncommitted corrective checkout; the main merge is finished.
 `plan` does not allocate GPU memory or start a child. `export` refuses missing or
 changed bindings, failed/stale launcher tests, dirty checkout and unfinished merge.
 Do not run the old `d3_training_gate.py`: it would test a different adapter fixture.
 
 The separate synthetic development launcher is `python -m
 benchmarks.harness.d3_trainer_selftest --synthetic-checkpoint PATH --library PATH
---out NEW_PATH`. It rejects all model bytes except the pinned two-layer random
-fixture; the original seed-71 generation recipe and exact software are retained
-in setup evidence. It is not a shortcut for the pretrained gate.
+--out NEW_PATH`. It rejects all model bytes except the pinned four-layer untied
+random fixture; the seed-71 generation recipe and exact software are retained
+in `untied-preflight.zip`. It is not a shortcut for the pretrained gate.
 
 ## Retained evidence and preparation repairs
 
@@ -183,11 +197,43 @@ locally and identified by SHA-256; they are **not claimed as Git-published
 payloads**. See `FULL-ARCHIVE-RETENTION.json` inside the published ZIP and
 [native-supplement.json](native-supplement.json). These are synthetic development
 artifacts, not trained OLMoE results. All exclusions/failures remain visible.
+`untied-preflight.zip` retains the corrective fixture, source, actual controls,
+positive adapter files and all 18 CUDA traces. `untied-full-archive.json` identifies
+the complete retained archive, including native tensors and redundant replay
+adapters; those extra payloads are not claimed as Git-published files.
+`r2-cpu-evidence.zip` retains the failing-before/passing-after device regression,
+74-case current CPU run and exact corrective source. The old preparation packets
+stay unchanged. `previous-attempt.json` retains the first formal FAIL; its full
+897 MB archive was downloaded and verified before preparing a new revision.
 The verifier checks published and nested archive hashes/CRCs without a GPU.
-Add `--backup-directory C:\ml\soup\work` to verify both retained local full
+Add `--backup-directory C:\ml\soup\work` to verify all four retained local full
 archives too; a reviewer can verify the Git publication without those local files.
 
 ## Verdict and final task scope
+
+The failed `cd6515ac` Linux CI also exposed publication lint, a global `os`
+test double breaking pytest capture, a readiness test assuming a dirty checkout
+and a missing opt-in default in the recipe snapshot. Those confirmed causes are
+repaired; the historical analyzer reproduces the same analysis bytes. See
+`ci-repair.json` and `ci-repair-evidence.zip` for local checks. Two integration
+cases reported FAIL before the CI crash but pass locally with the CI
+Transformers/PEFT versions. Linux reproduction traced both to an unfrozen CPU
+thread count: the default-thread run fails both, while an explicit one-thread
+CPU fixture gives **39/39 PASS**, including the full integration/security
+selection. The fixture restores the previous thread count; byte-exact assertions
+and CUDA math policy remain unchanged. This qualifies the declared one-thread
+CPU recipe, not arbitrary parallel BLAS. The formal runner already selects one
+CPU thread. The next committed head must complete full Linux CI; its later tests
+were never reached by the interrupted job.
+
+The operator restarted the server during investigation. Boot identity is now
+`2142c629-3e42-4d7c-a70f-0b42b8161c4d`. All 157 prepared file hashes remain
+unchanged; all 48 shards were remapped and F1 controls again passed OK/OK/VOID.
+The original prepared manifest and failed-session marker remain intact. The new
+manifest/rule binds the new boot; `d3-restart-evidence.zip` retains rediscovery.
+No pretrained forward/training was repeated. The historical 36/18 synthetic
+CUDA preflight remains evidence for the unchanged numerical source on the
+earlier boot, not a claim of a new CUDA preflight after this restart.
 
 A numerical mismatch fails; OOM, interruption, missing/ineffective controls,
 missing device traces, unknown/void F1, inactive required paths, identity drift or

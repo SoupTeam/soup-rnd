@@ -86,6 +86,13 @@ def test_rule_refuses_a_replaced_checkpoint_or_a_missing_backward_control():
         validate_rule(rule)
 
 
+def test_revision_two_refuses_reusing_the_tied_boundary_fixture():
+    rule = copy.deepcopy(read_rule())
+    rule["required_launcher_fixture"]["tie_word_embeddings"] = True
+    with pytest.raises(ValueError, match="untied"):
+        validate_rule(rule)
+
+
 def test_pilot_and_capped_plans_are_complete_unique_and_use_fresh_arm_names():
     rule = read_rule()
     plan = cell_plan(rule)
@@ -277,14 +284,28 @@ def test_export_refuses_the_draft_without_creating_an_archive(tmp_path):
     assert not archive.exists()
 
 
-def test_cli_check_is_read_only_and_reports_the_pending_merge_and_engine(tmp_path):
+@pytest.mark.parametrize("dirty", [False, True])
+def test_cli_check_is_read_only_in_clean_and_dirty_checkout(tmp_path, monkeypatch, dirty):
+    from types import SimpleNamespace
+
+    from benchmarks.harness import d3_trainer_protocol as protocol
+
+    def git_status(command, **kwargs):
+        if "status" in command:
+            return SimpleNamespace(returncode=0, stdout=" M source.py\n" if dirty else "")
+        assert "MERGE_HEAD" in command
+        return SimpleNamespace(returncode=1)
+
+    monkeypatch.setattr(protocol, "subprocess", SimpleNamespace(run=git_status))
     output = tmp_path / "readiness.json"
-    assert main(["check", "--out", str(output)]) == 1
+    assert main(["check", "--out", str(output)]) == int(dirty)
     result = json.loads(output.read_text())
     assert result["formal_execution_started"] is False
     assert result["pilot_plan_cells"] == 234
     assert result["max_plan_cells"] == 414
-    assert any("clean committed checkout" in row for row in result["launch_blockers"])
+    assert bool(result["launch_blockers"]) is dirty
+    if dirty:
+        assert any("clean committed checkout" in row for row in result["launch_blockers"])
 
 
 def test_final_launcher_receipt_requires_actual_success_and_current_runtime_bytes(tmp_path):
@@ -329,6 +350,7 @@ def test_final_launcher_receipt_requires_actual_success_and_current_runtime_byte
                 formal_execution=False,
                 pretrained_model_executed=False,
                 source_files=source,
+                fixture=rule.get("required_launcher_fixture"),
             )
         path.write_text(json.dumps(value))
         rule["preparation"][name] = dict(

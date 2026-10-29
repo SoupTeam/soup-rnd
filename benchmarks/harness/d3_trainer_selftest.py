@@ -76,12 +76,18 @@ def main():
         checkpoint = args.synthetic_checkpoint.resolve(strict=True)
         if (
             file_hash(checkpoint / "model.safetensors")
-            != "716a43a33905f83daa4c79681a18a4e772ce5df00b2a7ed7cd06940873697a39"
+            != "541a84fa8513d02da3381a8c2fbc83efe4e3ff89975d958f0cc3505dc91b550d"
         ):
             raise ValueError("self-test accepts only the pinned random-weight fixture")
         config = AutoConfig.from_pretrained(checkpoint, local_files_only=True)
-        if (config.num_hidden_layers, config.num_experts, config.vocab_size) != (2, 4, 64):
+        if (config.num_hidden_layers, config.num_experts, config.vocab_size) != (4, 4, 64) or (
+            config.tie_word_embeddings
+        ):
             raise ValueError("self-test refuses a pretrained model configuration")
+        record["fixture"] = {
+            "layers": 4, "experts": 4, "vocab": 64, "tie_word_embeddings": False,
+            "weight_sha256": file_hash(checkpoint / "model.safetensors"),
+        }
         rule = read_rule()
         prepared = dict(
             workspace=str(root), codecs={}, rows_path=str(root / "rows.jsonl"), library=args.library
@@ -117,6 +123,12 @@ def main():
             try:
                 with public_workspace(prepared, folder / "setup"):
                     owner.setup(dict(train=[], val=[]))
+                if not owner.model.get_input_embeddings().weight.is_meta or (
+                    len(owner._stream_runtime.large_pool.specs) != 2
+                ):
+                    raise ValueError("untied streamed embedding/head fixture was not exercised")
+                row["streamed_embedding_meta"] = True
+                row["large_boundaries"] = sorted(owner._stream_runtime.large_pool.specs)
                 save_file(
                     {
                         key: value.detach().cpu().contiguous().clone()

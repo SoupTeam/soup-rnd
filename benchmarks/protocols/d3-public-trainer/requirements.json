@@ -57,10 +57,13 @@
     "a3_tolerance_not_inherited": true,
     "b1_1_merge_in_main": "4b90b8d3",
     "b1_2_merge_in_main": "fdf067fc",
-    "f4_merge_in_main": "84042a12"
+    "f4_merge_in_main": "84042a12",
+    "snapshot_context": "working_head and pending_main_merge describe the retained pre-operator-commit snapshot",
+    "completed_merge_head": "cd6515ac503b15a111050b35db5c33768d506a9b",
+    "current_note": "The operator completed the merge, including A3. The first formal session failed; only corrective benchmark/control code and evidence now await another commit. B1.3 acceptance is not inferred."
   },
   "open_full_task_items": [
-    "Current public SFT/L2L source is uncommitted and lacks a frozen pretrained trainer verdict.",
+    "The public SFT/L2L integration is committed in cd6515ac; its first formal session failed the evaluation control. The corrective revision requires a new committed source freeze and an accepted pretrained trainer comparison.",
     "Current B1 technical interface contract accepted under explicit operator delegation on 2026-10-29. Historical coordination before earlier B1 measurements is not certified; final pretrained qualification remains required.",
     "Repository Issues UI currently disables New issue and states issue creation is restricted; maintainer tracking decision is outstanding. The historical HTTP 410 attempt is retained.",
     "The source uses the name grouped fused dequant-GEMM; current routed experts use separate grouped restoration and GEMM. Literal packed-weight dequant+GEMM kernel fusion is not implemented or claimed. Maintainer acceptance must resolve this distinction.",
@@ -79,5 +82,26 @@
     ],
     "historical_coordination_claim": false,
     "full_task_acceptance": false
+  },
+  "operator_commit_and_first_formal_attempt": {
+    "git_head": "cd6515ac503b15a111050b35db5c33768d506a9b",
+    "source_export_verified_files": 767,
+    "prepared_files_verified": 157,
+    "status": "FAIL in first native dense ordinary cell post-training evaluation",
+    "F1": "ok",
+    "accepted_cells": 0,
+    "timing_arms": 0,
+    "diagnosis": "Evaluation IDs were placed on streamed embedding meta placeholder; deterministic untied CPU regression fails before fix and passes after runtime-device correction.",
+    "uncommitted_corrective_source": true,
+    "new_formal_session_not_started": true
+  },
+  "current_ci_repair": {
+    "confirmed_causes": "publication lint, globally patched OS functions, dirty-checkout assumption, missing schema default, unfrozen CPU threads",
+    "linux_failed_before": 2,
+    "linux_passed_after": 39,
+    "local_ci_dependency_selection_passed": 259,
+    "full_repository_ci_on_new_commit": "pending",
+    "exact_numerical_checks_relaxed": false,
+    "cpu_parity_scope": "one CPU thread; previous count restored by fixture"
   }
 }

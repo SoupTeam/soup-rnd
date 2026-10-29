@@ -62,16 +62,33 @@ def verify(folder, backup_directory=None):
         "setup": check_archive(folder / "setup-evidence.zip"),
         "cpu": check_archive(folder / "cpu-evidence.zip"),
         "preparation_runtime_bindings": "passed",
-        "formal_execution_started": False,
-        "pretrained_trainer_verdict": "not measured",
+        "new_revision_formal_execution_started": False,
+        "pretrained_trainer_verdict": "previous attempt failed; corrected revision not measured",
         "full_task_accepted": False,
     }
+    if read_rule(root).get("protocol_revision", 1) >= 2:
+        result["corrective_untied"] = check_archive(folder / "untied-preflight.zip")
+        result["corrective_cpu"] = check_archive(folder / "r2-cpu-evidence.zip")
+        previous = json.loads((folder / "previous-attempt.json").read_text())
+        if previous["status"] != "fail" or previous["accepted_cells"] != 0:
+            raise ValueError("the failed first session was reclassified")
+        result["previous_attempt_retained"] = previous["formal_source"]
+    if (folder / "ci-repair-evidence.zip").is_file():
+        result["ci_repair"] = check_archive(folder / "ci-repair-evidence.zip")
+        result["linux_ci_reproduction"] = check_archive(folder / "d3-ci-linux-evidence.zip")
+        result["restart_rediscovery"] = check_archive(folder / "d3-restart-evidence.zip")
     if backup_directory is not None:
         with zipfile.ZipFile(folder / "setup-evidence.zip") as archive:
             full = json.loads(archive.read("FULL-ARCHIVE-RETENTION.json"))["retained_full_archive"]
         native = json.loads((folder / "native-supplement.json").read_text())
         result["local_backups"] = {}
-        for receipt in (full, native):
+        receipts = [full, native]
+        if read_rule(root).get("protocol_revision", 1) >= 2:
+            receipts += [
+                json.loads((folder / "untied-full-archive.json").read_text()),
+                previous["full_archive"],
+            ]
+        for receipt in receipts:
             path = contained(backup_directory, receipt["filename"])
             if digest(path) != receipt["sha256"]:
                 raise ValueError("local backup hash differs: " + str(path))

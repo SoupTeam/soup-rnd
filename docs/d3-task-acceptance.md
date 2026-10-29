@@ -5,10 +5,13 @@ is in **Обработка Фидбека**. The latest PR review remains **CHAN
 the earlier forward-only approval was dismissed. The board's 100% is an observed
 UI state, not independent evidence that the assigned task is complete.
 
-This audit covers the current working implementation, including the unfinished
-merge of main `9d8b1d7b4b3eabc1634a1f6c2318814c640535c3` into D3 head
-`98706ed06319603db802fda1a86b5b7f1f97b33e`. It does not relabel uncommitted code
-as the historical measured source.
+The initial integration/main merge was committed and pushed as
+`cd6515ac503b15a111050b35db5c33768d506a9b`, with parents `98706ed0` and
+`9d8b1d7b`. Its source freeze and all prepared data/host checks passed. The
+first formal public-trainer cell then failed its evaluation control after four
+finite training steps; no cell or timing comparison was accepted. The current
+corrective working code is not relabeled as that frozen source. See the
+[retained failure](../benchmarks/results/d3-public-trainer-attempt-01-cd6515ac/report.md).
 
 ## Sources and precedence
 
@@ -36,14 +39,14 @@ this audit does not silently choose the smaller interpretation.
 
 | Requirement | Delivered code/evidence | Remaining qualification or decision |
 | --- | --- | --- |
-| Use existing prerequisites | B1.1/#24 merged as `4b90b8d3`; B1.2/#25 as `fdf067fc`; F4/#11 as `84042a12`. A3 SFT/L2L/#34 is in main as `da1fc473` and in the pending merge. The new integration reuses its accumulation/activation/RNG path. | Commit the pending merge and new integration before a source-frozen run. This does not declare the separately tracked B1.3/B1.4 accepted. |
+| Use existing prerequisites | B1.1/#24 merged as `4b90b8d3`; B1.2/#25 as `fdf067fc`; F4/#11 as `84042a12`; A3/#34 as `da1fc473`. Main/integration are merged in `cd6515ac`. The integration reuses A3's accumulation/activation/RNG path. | The corrective evaluation harness needs a new source/rule commit after untied-boundary preflight. B1.3/B1.4 acceptance is not inferred. |
 | Coordinate the B1 interface before final B1 measurements | The operator identified themselves as B1.1/B1.2 owner and delegated the technical decision based on evidence/requirements on 2026-10-29. The current contract below is accepted on that basis. | Pretrained public-trainer qualification remains pending. No retrospective coordination before historical measurements is certified. |
 | Group weight restoration and expert matrix work | `expert_group.py`, `expert_group_decode.py`, `expert_group_gemm.py` and `expert_group_compute.py` implement the bounded grouped pipeline; `expert_group_autograd.py` supplies first-order reload/recompute; `expert_training.py` installs it through public SFT. | New public attention-LoRA trainer integration has synthetic qualification, but no pretrained trainer verdict yet. Backward GEMMs remain native one-expert recomputation; do not call them grouped backward GEMMs. |
 | Source phrase: grouped **fused** dequant-GEMM | Grouped NF4 restoration and GEMM are separate stages. Optional Triton SiLU/multiply is activation fusion. Main's checkpoint-visible bitsandbytes NF4 linear path already exists and is reused for supported non-expert linears. | There is no new single packed-weight NF4-dequant/GEMM kernel over routed experts. Maintainer acceptance must explicitly resolve whether the staged grouped implementation satisfies the assigned wording or whether literal fusion is still required. The trainer gate cannot itself settle this. |
 | Source page 10: do not build SwiGLU; wrap-only | The custom Triton activation study is retained as the operator-requested exploratory supplement, separate from core grouping. | It is not required D3 dequant/GEMM fusion and does not automatically satisfy the source's wrap-only constraint. Keep the distinction visible to the owner/reviewer; no production default selects it. |
 | Never materialize a full dense MoE layer in the streamed candidate | One bounded shared arena, separate host staging, lease completion, pre-read/pre-allocation refusals and failure/poisoning tests. Backward saves gathered activations, not reusable weight views. | Verify actual budgets, lifetimes and peaks in the new pretrained trainer. Full resident expert stacks are allowed only in explicitly separate correctness-oracle processes, never in streamed timing processes. |
 | Empty experts, variable rows, tails and partial groups | Existing CPU/CUDA routing, empty-token, shape/budget and derivative tests. The historical 69-case CUDA regression packet and later derivative/activation packets are preserved. | New trained runs must retain actual all-layer route/dispatch evidence. Do not modify routes after observing low grouped coverage or count native fallbacks as grouped execution. |
-| Exact sequential loop and resident/streamed parity | Historical whole-forward 12/12 cells and complete trained-step 84/84 cells retain exact native oracles and effective controls. New public-wrapper development preflight passes 18 synthetic cases and exact sequential comparisons/reloads. | Qualify forward **and** backward, attention-LoRA gradients/updates, A/A, effective negative/restored controls and save/reload through the actual wrapper on pinned trained OLMoE, for ordinary SFT and L2L. The old post-embedding adapter fixture is not that gate. |
+| Exact sequential loop and resident/streamed parity | Historical whole-forward 12/12 cells and complete trained-step 84/84 cells retain exact native oracles and effective controls. The corrective public-wrapper preflight passes 36 four-layer untied synthetic cases and exact sequential comparisons/reloads. | Qualify forward **and** backward, attention-LoRA gradients/updates, A/A, effective negative/restored controls and save/reload through the actual wrapper on pinned trained OLMoE, for ordinary SFT and L2L. The old post-embedding adapter fixture is not that gate. |
 | Speed, memory and actual GPU launches caused by grouping | RTX3060 layer study: 60 arms, 1,200 samples, six profiles. Historical RTX4090 trained-step study: native versus Triton activation with the same grouped pool. | Measure sequential/grouped and grouped/Triton contrasts separately in the new public trainer, with the same card, fresh processes, F1 and device traces. Historical percentages are not new-host/full-trainer effects. A positive speedup is not a new acceptance condition. |
 | Instrument validity and prospective decision rule | Reused F1 instruments pass actual-shard OK/OK/VOID controls on all 48 prepared expert shards; the complete bound input manifest contains 157 files. The earlier synthetic fixture remains separate. | Preserve the unchanged guest boot, storage identities and controls through source freeze/run; physical-host isolation/cache remain uncertified. |
 | Reproducible publication | Existing archive/source hashes, exclusions and byte-identical analysis are preserved; current trainer CPU/CUDA preflight packet has normalized Git-byte checksum verification. | Retain every new cell, failure, tensor/oracle, profile, source blob and command; regenerate analysis and verify hashes from a fresh checkout. Keep old studies and failed attempts unchanged. |
@@ -59,9 +62,14 @@ this audit does not silently choose the smaller interpretation.
   84 cells, frozen base and post-embedding residual adapter, four SGD steps.
   It compares native/Triton activation under the same grouped policy. Whole-step
   peaks did not decrease; mixed timing differences are retained as measured.
-- [Current synthetic public trainer preflight](../benchmarks/results/d3-trainer-integration-cuda-preflight-20261029/report.md):
-  eighteen CUDA cases, 933 current CPU passes, eight skips and 116 GPU deselections.
-  New protocol-only CPU checks are recorded separately, not added to those old counts.
+- [Earlier synthetic public trainer preflight](../benchmarks/results/d3-trainer-integration-cuda-preflight-20261029/report.md):
+  eighteen CUDA cases, 933 CPU passes, eight skips and 116 GPU deselections at that
+  preparation source. Later checks are recorded separately from those old counts.
+- [Corrective revision-2 preparation](../benchmarks/protocols/d3-public-trainer/README.md):
+  four-layer untied random fixture, 36 numerical cases, 18 CUDA profiles and 74
+  corrective CPU passes. The earlier broad 999-case runtime selection was not
+  rerun after the callback correction; all production source files are unchanged.
+  The first frozen pretrained session remains failed with zero accepted cells.
 
 No result above proves quality/convergence, 8 GiB model fit, a full platform
 matrix, physical-host isolation or a general performance improvement. Quality
@@ -112,10 +120,14 @@ they are not represented as a personally authored reviewer approval.
    `d3_training_gate.py` runs a different adapter fixture and cannot substitute.
 2. **Preparation complete:** checkpoint, public expert caches, exact inputs/labels,
    dtype-correct initial factors and actual-shard F1 mapping/controls are bound.
-   No pretrained model forward or training was executed during preparation.
+   No pretrained model forward or training was executed during initial preparation.
+   The subsequent first formal attempt is retained separately as failed.
 3. Promote the rule, commit the exact implementation, executable helpers and
    evidence, and export canonical Git blobs from a clean checkout. The operator
    performs commit/push. No formal training arm is authorized by a draft.
+   Revision 1 completed that freeze but failed its first cell's evaluation.
+   Revision 2 fixes the meta-input instrumentation bug and adds four-layer
+   untied controls; no new pretrained session runs until that revision is committed.
 4. Run the finite correctness/timing/profile series; preserve any failures and
    stop under its declared budget. Review the results without weakening exactness
    or promising a positive speedup/VRAM reduction.

@@ -144,3 +144,10 @@ Literal packed-weight dequant/GEMM fusion, the source's wrap-only SwiGLU
 constraint, restricted issue creation and final task acceptance remain visible
 in the audit. The existing optional activation experiment is not substituted
 for the assigned dequant/GEMM work. Commit/source freeze must precede formal run.
+
+The first public-trainer session at `cd6515ac` is retained as
+[failed evaluation control](../benchmarks/results/d3-public-trainer-attempt-01-cd6515ac/report.md).
+Its native training steps were finite, but evaluation IDs were allocated on the
+streamed embedding's meta placeholder device. The callback now uses the runtime
+execution device. Revision 2 adds untied four-layer CPU/CUDA coverage and requires
+a new prospective commit; it does not retrospectively pass that first cell.

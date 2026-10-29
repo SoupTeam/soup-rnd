@@ -12,6 +12,8 @@ import pytest
 from benchmarks.harness.d3_trainer_analysis import analyze, replay_native_tensors
 from benchmarks.harness.d3_trainer_gate import (
     NumericalFailureError,
+    assemble,
+    capture_class,
     correctness,
     make_config,
     numerical_view,
@@ -26,8 +28,7 @@ from benchmarks.harness.d3_trainer_protocol import cell_plan, read_rule
 from benchmarks.harness.d3_trainer_series import child, child_command, oracle_path, parent
 
 
-@pytest.fixture
-def tiny_prepared(tmp_path):
+def _prepare_tiny(tmp_path, *, tied=True, layers=2):
     import torch
     from datasets import Dataset
     from peft import get_peft_model_state_dict
@@ -47,7 +48,7 @@ def tiny_prepared(tmp_path):
     config = OlmoeConfig(
         hidden_size=32,
         intermediate_size=16,
-        num_hidden_layers=2,
+        num_hidden_layers=layers,
         num_attention_heads=4,
         num_key_value_heads=4,
         num_experts=4,
@@ -56,7 +57,7 @@ def tiny_prepared(tmp_path):
         max_position_embeddings=128,
         output_router_logits=False,
         attention_dropout=0.0,
-        tie_word_embeddings=True,
+        tie_word_embeddings=tied,
         pad_token_id=0,
         eos_token_id=1,
     )
@@ -102,6 +103,69 @@ def tiny_prepared(tmp_path):
     finally:
         wrapper._close_stream_runtime()
     return rule, prepared
+
+
+@pytest.fixture
+def tiny_prepared(tmp_path):
+    return _prepare_tiny(tmp_path)
+
+
+def test_control_evaluation_uses_execution_device_not_meta_embedding(tmp_path):
+
+    rule, prepared = _prepare_tiny(tmp_path, tied=False)
+    wrapper = assemble(
+        rule,
+        prepared,
+        tmp_path / "untied-eval",
+        "dense",
+        "native-resident",
+        "ordinary",
+        device="cpu",
+    )
+    capture = capture_class()(wrapper)
+    embedding = wrapper.model.get_input_embeddings()
+    assert embedding.weight.is_meta
+    observed = []
+
+    def check(_module, args):
+        observed.append(args[0].device.type)
+        assert not args[0].is_meta, "control allocated token IDs on the meta placeholder device"
+        assert args[0].device.type == "cpu"
+
+    hook = embedding.register_forward_pre_hook(check)
+    try:
+        capture.on_train_end(None, None, None, model=wrapper.model)
+        assert observed == ["cpu"]
+        assert capture.eval_logits["shape"] == [1, rule["tokens"], 64]
+    finally:
+        hook.remove()
+        capture.close()
+        wrapper._close_stream_runtime()
+
+
+@pytest.mark.parametrize("training", ["ordinary", "l2l"])
+def test_untied_streamed_boundaries_train_control_and_reload_exactly(tmp_path, training):
+    rule, prepared = _prepare_tiny(tmp_path, tied=False, layers=4)
+    native = one_replay(
+        rule,
+        prepared,
+        tmp_path / "untied-native",
+        "dense",
+        "native-resident",
+        "ordinary",
+        raw_oracle=True,
+        device="cpu",
+    )
+    output = tmp_path / "untied-controls"
+    output.mkdir()
+    result = correctness(rule, prepared, output, "dense", "grouped", training, native, device="cpu")
+    assert result["A_A"] and result["negative_effective"] and result["restored"]
+    assert result["save_reload"]
+    require_exact(
+        result["reload"]["evaluation"],
+        result["numerical"]["evaluation"],
+        "untied four-layer reload",
+    )
 
 
 def test_tensor_comparison_keeps_signed_zero_shape_dtype_and_scalar_cases():

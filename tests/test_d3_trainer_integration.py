@@ -18,7 +18,24 @@ def _same_bits(left, right):
 
 
 @pytest.fixture
-def checkpoint(tmp_path):
+def cpu_reference_threads():
+    """Freeze the CPU arithmetic recipe; parallel BLAS can change rounding.
+
+    This fixture qualifies one-thread CPU parity, not arbitrary CPU thread
+    counts. CUDA parity has its own frozen math policy and qualification.
+    """
+    import torch
+
+    previous = torch.get_num_threads()
+    torch.set_num_threads(1)
+    try:
+        yield
+    finally:
+        torch.set_num_threads(previous)
+
+
+@pytest.fixture
+def checkpoint(tmp_path, cpu_reference_threads):
     import torch
     from transformers import OlmoeConfig, OlmoeForCausalLM
 
@@ -117,11 +134,12 @@ def test_public_builder_loss_gradients_updates_and_close(checkpoint, tmp_path, b
     streamed, runtime, _index, _folder = _build(checkpoint, tmp_path, backend=backend)
     try:
         reference = _reference(checkpoint, streamed)
+        assert reference.config._attn_implementation == streamed.config._attn_implementation
         ids = torch.tensor([[1, 5, 9, 7, 3, 2]])
         optimizers = [torch.optim.SGD((p for p in m.parameters() if p.requires_grad), lr=.1)
                       for m in (reference, streamed)]
         initial = {n: p.clone() for n, p in streamed.named_parameters() if p.requires_grad}
-        for _ in range(2):
+        for step in range(2):
             results = []
             for model, optimizer in zip((reference, streamed), optimizers):
                 model.train()
@@ -132,9 +150,11 @@ def test_public_builder_loss_gradients_updates_and_close(checkpoint, tmp_path, b
                 results.append((output.logits.detach(), output.loss.detach(), grads))
                 optimizer.step()
             want, got = results
-            assert _same_bits(want[0], got[0])
-            assert _same_bits(want[1], got[1])
-            assert all(_same_bits(want[2][key], got[2][key]) for key in want[2])
+            context = f"{backend}, step {step}, torch {torch.__version__}"
+            assert _same_bits(want[0], got[0]), f"logits: {context}"
+            assert _same_bits(want[1], got[1]), f"loss: {context}"
+            for key in want[2]:
+                assert _same_bits(want[2][key], got[2][key]), f"gradient {key}: {context}"
         assert any(not _same_bits(initial[n], p) for n, p in streamed.named_parameters()
                    if p.requires_grad)
         assert runtime.stats()["expert_fetches"] > 0

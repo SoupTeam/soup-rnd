@@ -94,6 +94,17 @@ def read_rule(root: Path = ROOT) -> dict:
 
 def validate_rule(rule: dict) -> None:
     """Protect numerical gates, independent contrasts and the finite attempt plan."""
+    revision = rule.get("protocol_revision", 1)
+    if type(revision) is not int or revision not in (1, 2):
+        raise ValueError("unknown prospective protocol revision")
+    if revision == 2 and rule.get("required_launcher_fixture") != {
+        "layers": 4,
+        "experts": 4,
+        "vocab": 64,
+        "tie_word_embeddings": False,
+        "weight_sha256": "541a84fa8513d02da3381a8c2fbc83efe4e3ff89975d958f0cc3505dc91b550d",
+    }:
+        raise ValueError("revision 2 requires the pinned four-layer untied launcher fixture")
     fixed = {
         "schema_version": 1,
         "task": "D3 public Soup SFT/L2L qualification",
@@ -330,22 +341,26 @@ def launch_blockers(rule: dict, root: Path = ROOT, *, check_git: bool = True) ->
                 or evidence.get("pretrained_model_executed") is not False
             ):
                 blockers.append("new launcher synthetic controls/profiles have not all passed")
+            if rule.get("protocol_revision", 1) >= 2 and (
+                evidence.get("fixture") != rule["required_launcher_fixture"]
+            ):
+                blockers.append("launcher self-test did not cover the required untied boundaries")
             # Numerical/runtime source must match the tested snapshot. The pure
             # planner/readiness validator and offline analyzer have separate CPU
             # tests; they are not CUDA numerical kernels.
             critical = [
-                item for item in ENGINE_FILES
-                if not item.endswith("d3_trainer_analysis.py")
+                item for item in ENGINE_FILES if not item.endswith("d3_trainer_analysis.py")
             ]
-            critical += [item.relative_to(root).as_posix()
-                         for item in (root / "src").rglob("*.py")]
+            critical += [item.relative_to(root).as_posix() for item in (root / "src").rglob("*.py")]
             sources = evidence.get("source_files", {})
             for item in critical:
                 current = contained(root, item)
                 expected = sources.get(item, {}).get("lf_sha256")
-                if not current.is_file() or hashlib.sha256(
-                    current.read_bytes().replace(b"\r\n", b"\n")
-                ).hexdigest() != expected:
+                if (
+                    not current.is_file()
+                    or hashlib.sha256(current.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+                    != expected
+                ):
                     blockers.append(f"launcher self-test runtime source differs: {item}")
     for name in ENGINE_FILES:
         if not contained(root, name).is_file():

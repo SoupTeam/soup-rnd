@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "task": "D3 public Soup SFT/L2L qualification",
-  "status": "prospective_prepared_pending_operator_commit_and_source_freeze",
+  "status": "revision_2_prepared_for_operator_commit_after_failed_first_session",
   "execution_enabled": true,
   "scope_is_full_task_acceptance": false,
   "model_id": "allenai/OLMoE-1B-7B-0924",
@@ -205,7 +205,7 @@
     "gpu": "NVIDIA GeForce RTX 4090",
     "minimum_vram_bytes": 17179869184,
     "minimum_available_ram_bytes_before_prepare": 34359738368,
-    "boot_id": "420aedd3-7599-46d7-a86e-1e1e51bed1ef",
+    "boot_id": "2142c629-3e42-4d7c-a70f-0b42b8161c4d",
     "virtualization": "KVM",
     "counter_scope": "guest-visible virtual disk vda only",
     "observed_torch_total_memory_bytes": 25250627584,
@@ -240,7 +240,7 @@
     },
     "shards": {
       "path": "benchmarks/protocols/d3-public-trainer/shards.json",
-      "sha256": "6d8f2dd2fb35c2c9839b2549fc41ed7dbdd73e402bf72f7d6d5fa0af5fa9d7df"
+      "sha256": "c08edd10ebab999355f5657bdb54221546ee347eca6cd47566f7192066afb978"
     },
     "datasets": {
       "path": "benchmarks/protocols/d3-public-trainer/datasets.json",
@@ -252,11 +252,11 @@
     },
     "mapping": {
       "path": "benchmarks/protocols/d3-public-trainer/mapping.json",
-      "sha256": "cf6ce154ed606c0c5670721ff15e6612db6be7e6db84e998e83037dfc4587aa1"
+      "sha256": "3f4618e9657ccfb2a53573f25bc29b3d3fa8871ca443c4567e3e1bcf47554775"
     },
     "actual_shard_controls": {
       "path": "benchmarks/protocols/d3-public-trainer/actual-shard-controls.json",
-      "sha256": "8d24458c8f7a0aac45bf59e1349d82fac0dd39cd0fb73f2c86eeca1dbb7cede8"
+      "sha256": "875cd688c56b16df48a71fdcdfa605eada27a1683ff59a994e0c9e93e3d7dad5"
     },
     "software": {
       "path": "benchmarks/protocols/d3-public-trainer/software.json",
@@ -264,13 +264,13 @@
     },
     "launcher_self_test": {
       "path": "benchmarks/protocols/d3-public-trainer/launcher-self-test.json",
-      "sha256": "b4bbf4508e40bcce856417c06ff05e0a39f0870929c273f36e3826b0205254ff"
+      "sha256": "50098a97e90b030f8822483f16b69fd5d6d2b1e4c03040473db9ccb722d2dcfb"
     }
   },
-  "promotion": "All eight preparation bindings and tested numerical runtime are present. This switch alone cannot launch: the operator must complete the pending merge, commit/push and export canonical committed Git blobs from a clean checkout. The remote runner requires that source receipt and unchanged bound data/software/GPU/boot identities. No formal or pretrained session has run.",
+  "promotion": "Revision 2 has all eight preparation bindings, the corrected numerical runtime and passing untied four-layer synthetic controls. The first cd6515ac session failed and remains retained. This switch alone cannot launch: the operator must commit/push the corrective rule/source/evidence and export canonical Git blobs from a clean checkout. A new formal session requires that new source receipt and unchanged bound data/software/GPU/boot identities. No corrected-revision formal session has run.",
   "retention": "Preserve all historical studies and failed/incomplete formal sessions and all preliminary trainer preflight failures. Keep raw tensors/native oracle, state/route/gradient hashes, logs, F1 records, profiles, source packet, manifests and offline byte-identical analysis. Verify publication from normalized committed bytes in a fresh checkout.",
   "separate_full_task_items": [
-    "Current public SFT/L2L source is uncommitted and lacks a frozen pretrained trainer verdict.",
+    "The public SFT/L2L integration is committed in cd6515ac; its first formal session failed the evaluation control. The corrective revision requires a new committed source freeze and an accepted pretrained trainer comparison.",
     "Current B1 technical interface contract accepted under explicit operator delegation on 2026-10-29. Historical coordination before earlier B1 measurements is not certified; final pretrained qualification remains required.",
     "Repository Issues UI currently disables New issue and states issue creation is restricted; maintainer tracking decision is outstanding. The historical HTTP 410 attempt is retained.",
     "The source uses the name grouped fused dequant-GEMM; current routed experts use separate grouped restoration and GEMM. Literal packed-weight dequant+GEMM kernel fusion is not implemented or claimed. Maintainer acceptance must resolve this distinction.",
@@ -287,10 +287,39 @@
   "readiness_repairs": [
     "Preserve the native Trainer tensor num_items_in_batch through L2L; Python-int conversion changes CUDA loss rounding. No tolerance relaxation.",
     "Capture expert output from initial forward as well as derivatives from recomputation: checkpoint early-stop may skip module post-hooks during ordinary backward.",
-    "Correct the unexecuted draft capacity threshold to the source/Trello 16 GiB+ requirement; retain actual CUDA-visible capacity discovery and the rejected draft value. Numerical policy and byte-exact gates are unchanged."
+    "Correct the unexecuted draft capacity threshold to the source/Trello 16 GiB+ requirement; retain actual CUDA-visible capacity discovery and the rejected draft value. Numerical policy and byte-exact gates are unchanged.",
+    "Revision 2: construct evaluation token IDs on the actual runtime device, not a streamed embedding meta placeholder. Require untied four-layer synthetic controls; retain the failed first pretrained session without reclassification. No numerical tolerance, data/optimizer recipe or timing/attempt budget is relaxed."
   ],
   "activation_scope": "The C/Triton arm is an operator-requested research supplement. Source page 10 says SwiGLU should be wrap-only; custom activation fusion is not counted as required D3 dequant/GEMM fusion or automatically accepted production integration. Retain the independent grouping contrast even if the activation result is unfavorable.",
-  "prepared_manifest_path": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-final.json",
+  "prepared_manifest_path": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-after-restart-r2.json",
   "formal_output_workspace": "/root/d3-public-trainer-preparation-01/prepared-02",
-  "prepared_path_rule": "Use the exact bound prepared_manifest_path; do not copy/alias the manifest to create another session-marker directory. Keep the single per-commit marker and all started sessions."
+  "prepared_path_rule": "Use the exact bound prepared_manifest_path; do not copy/alias the manifest to create another session-marker directory. Keep the single per-commit marker and all started sessions.",
+  "protocol_revision": 2,
+  "previous_formal_attempt": {
+    "git_head": "cd6515ac503b15a111050b35db5c33768d506a9b",
+    "status": "FAIL",
+    "F1": "ok",
+    "started_cells": 1,
+    "accepted_cells": 0,
+    "timing_arms": 0,
+    "evidence": "benchmarks/results/d3-public-trainer-attempt-01-cd6515ac/report.md",
+    "full_archive_sha256": "08b731f604368dc03a21d7def54be095617428d03753aea4504ef65aa5309bcb"
+  },
+  "required_launcher_fixture": {
+    "layers": 4,
+    "experts": 4,
+    "vocab": 64,
+    "tie_word_embeddings": false,
+    "weight_sha256": "541a84fa8513d02da3381a8c2fbc83efe4e3ff89975d958f0cc3505dc91b550d"
+  },
+  "restart_revalidation": {
+    "original_manifest": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-final.json",
+    "original_manifest_sha256": "6d8f2dd2fb35c2c9839b2549fc41ed7dbdd73e402bf72f7d6d5fa0af5fa9d7df",
+    "previous_boot": "420aedd3-7599-46d7-a86e-1e1e51bed1ef",
+    "current_boot": "2142c629-3e42-4d7c-a70f-0b42b8161c4d",
+    "unchanged_input_hashes": 157,
+    "controls": "/root/d3-public-trainer-preparation-01/actual-shard-controls-after-restart-01/controls/report.json",
+    "new_model_execution": false,
+    "prior_failed_session_and_marker_preserved": true
+  }
 }

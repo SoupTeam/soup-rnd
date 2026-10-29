@@ -407,7 +407,9 @@ def capture_class() -> Any:
             model.eval()
             ids = torch.tensor(
                 [self.wrapper.trainer.train_dataset[0]["input_ids"]],
-                device=model.get_input_embeddings().weight.device,
+                # Untied streamed embeddings keep a meta placeholder parameter;
+                # it describes storage, not the execution device for real IDs.
+                device=self.wrapper._stream_runtime.device,
             )
             with (
                 torch.no_grad(),
