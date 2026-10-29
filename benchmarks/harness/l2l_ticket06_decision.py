@@ -3,7 +3,8 @@
 
 The rule is in ``benchmarks/l2l-readiness-rule-a5.md`` (written before this script). R1: loss
 within the A3-07 tolerance in every ticket-04 rerun campaign. R2: the mixed-length forward and
-backward checks of ticket 07, rerun on the final code (GA backward outside autocast), all pass. R3: L2L peak VRAM at most the GA peak in every campaign.
+backward checks of ticket 07, rerun on the final code (GA backward outside autocast), all
+pass. R3: L2L peak VRAM at most the GA peak in every campaign.
 A criterion with no records fails. R1 and R3 read arms, so every arm they read needs each
 required validity check ``ok`` (``benchmarks/METHOD.md``): a required check that is ``unknown`` or
 ``void`` gives "no verdict" ("нет вердикта"), which is not "not ready". With all three met the
