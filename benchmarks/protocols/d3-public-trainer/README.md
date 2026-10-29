@@ -1,6 +1,6 @@
 # D3 public SFT/L2L prospective protocol
 
-**Status: revision 3 time-budget correction prepared; awaiting the operator's commit.**
+**Status: revision 3 time-budget correction is committed at `77a6bc3`; its first formal launch ended with no verdict.**
 On `76d2c42`, required current-head Ubuntu tests, lint, gate and merge freshness
 passed. Its formal session stopped at the declared three-hour cap with 39 cells
 complete and one timing cell without a verdict. It is retained as an incomplete
@@ -16,7 +16,18 @@ path. Revision 2 requires a pinned **four-layer untied** fixture with both
 streamed boundary modules and more decoder layers than reusable buffer slots.
 The failed `cd6515ac` session and the incomplete `76d2c42` session remain
 distinct and unchanged. Revision 3 fixes only the prospective time envelope;
-it must be committed before another pretrained session starts.
+it was committed at `77a6bc3` before the failed formal launch recorded below.
+
+The formal session at `77a6bc3` (`formal-77a6bc35-01`) started but its first
+correctness child exited before model setup with `ModuleNotFoundError:
+No module named 'soup_cli'`. The remote launcher supplied the checkout root in
+`PYTHONPATH` but omitted `checkout_root/src`. The complete failed session,
+protocol and no-verdict cell record are retained in
+[`d3-public-trainer-launch-attempt-77a6bc35-20261029`](../../results/d3-public-trainer-launch-attempt-77a6bc35-20261029/).
+No pretrained forward, training step or performance measurement completed.
+This attempt is not deleted, relabeled or reused. The import-only correction
+was verified by importing both `soup_cli.trainer.sft` and the benchmark gate
+with `PYTHONPATH` set to the checkout root **and** its `src` directory.
 
 The authoritative machine-readable draft is [protocol-draft.json](protocol-draft.json).
 The source/assignment snapshot is [requirements.json](requirements.json); the
@@ -156,8 +167,9 @@ Before the formal run:
 
 1. Preserve the current preparation and exact host. A reboot, data mutation or
    software/GPU change requires rediscovery and a new prospective binding.
-2. The main merge is already completed in `cd6515ac`. The operator commits/pushes
-   the revision-3 prospective time cap and retained incomplete-session evidence.
+2. The main merge is already completed in `cd6515ac`; revision 3 is committed at
+   `77a6bc3`. The operator commits/pushes this retained launch failure and the
+   corrected import-path requirement as a new head before another formal session.
    No agent commit/push is performed.
 3. Export only canonical committed Git blobs from a clean checkout. The remote
    runner requires `FROZEN-D3-TRAINER-SOURCE.json`, the rule verbatim and unchanged
@@ -168,6 +180,9 @@ The formal prepared-manifest path is fixed in the rule to
 Keep the output inside its bound workspace. Do not copy/alias that manifest to
 create a second marker directory, remove a session marker or retry under another
 output name. The runner records the complete child command for the reviewer.
+The remote parent and every child must receive
+`PYTHONPATH=<checkout_root>:<checkout_root>/src`; the root is needed for
+`benchmarks`, and `src` is needed for `soup_cli`.
 
 Read-only local checks, from the repository root:
 
@@ -248,10 +263,12 @@ this restart.
 A numerical mismatch fails; OOM, interruption, missing/ineffective controls,
 missing device traces, unknown/void F1, inactive required paths, identity drift or
 exhausted precision/time/attempt budget gives no verdict. Preserve every result.
-The revision-2 run is `incomplete_no_task_verdict`; revision 3 is not yet
-committed, frozen or started. No pretrained qualification or throughput verdict
-is claimed. The failed run's raw directory remains on the server; its first
-packaging attempt is truncated and must be rebuilt under a new archive name.
+The revision-2 run is `incomplete_no_task_verdict`. Revision 3 is committed and
+frozen at `77a6bc3`, but its first session ended before model setup with no
+verdict due to the recorded launcher environment error. No pretrained
+qualification or throughput verdict is claimed. Any subsequent formal session
+must use a new committed head and the corrected `PYTHONPATH`; preserve this
+attempt unchanged.
 
 The current B1 interface contract is accepted under the identified owner's
 delegation, with no retrospective coordination claim. The new gate does not
