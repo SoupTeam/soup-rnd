@@ -149,7 +149,7 @@ class World:
                 if world.network_down or name in world.upload_fail:
                     raise OSError("network down")
                 world.events.append(("upload", name))
-                world.uploaded[name] = path.read_bytes().decode("utf-8")
+                world.uploaded[name] = path.read_bytes()
 
             return upload
 
@@ -256,7 +256,7 @@ def test_a_resume_after_an_upload_outage_keeps_the_original_reports(
     assert len(world.trained()) == 2
     for name, data in originals.items():
         assert (world.workdir / name).read_bytes() == data
-        assert world.uploaded[name] == data.decode("utf-8")
+        assert world.uploaded[name] == data
     assert world.events[-1] == ("destroy", None)
 
 
