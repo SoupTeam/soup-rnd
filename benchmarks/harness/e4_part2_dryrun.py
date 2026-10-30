@@ -13,8 +13,8 @@ every record has the schema of a real one by construction. The numbers are not r
 A dry-run record carries a ``dry_run`` block; ``dry_run_mix_problem`` keeps dry-run and real
 records out of one ``--out``. ``--inject RUN_ID=KIND[@all]`` forces one of the attempt endings
 a paid run can have: ``oom`` (F: the arm's OOM result; T, W, N, P: an OutOfMemoryError crash),
-``kill`` (SIGKILL of the child), ``void`` (a void reason), ``fail`` (a failed result). A kind
-hits the first attempt of that run only, or every attempt with ``@all``.
+``kill`` (SIGKILL on Unix, TerminateProcess via SIGTERM on Windows), ``void`` (a void reason),
+``fail`` (a failed result). A kind hits the first attempt only, or every attempt with ``@all``.
 """
 
 from __future__ import annotations
@@ -251,7 +251,7 @@ def stage_body(cal, args, stage: str, arm: Optional[str], run_id: str, attempt_n
     recipe = dry_recipe(cal)
     kind = injected_kind(parse_inject(args.inject), run_id, attempt_number)
     if kind == "kill":
-        os.kill(os.getpid(), signal.SIGKILL)
+        os.kill(os.getpid(), getattr(signal, "SIGKILL", signal.SIGTERM))
     oom = kind == "oom"
     out = Path(args.out)
     torch.manual_seed(args.recipe_seed)

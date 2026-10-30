@@ -143,7 +143,9 @@ class TestFullDryRun:
             self, full_run):
         first, second = full_run["runs"]["F_A_on"]
         assert first["record_source"] == "driver" and first["outcome"] == "void"
-        assert first["killed"]["signal"] == "SIGKILL" and first["failure_kind"] == "killed"
+        assert first["failure_kind"] == "killed"
+        assert first["killed"]["returncode"] == (15 if os.name == "nt" else -9)
+        assert first["killed"]["signal"] == (None if os.name == "nt" else "SIGKILL")
         assert first["box_stamp_before"] is None and first["box_stamp_after"]["gpu_uuid"]
         assert not common.identity_problems(first["identity"])
         assert second["record_source"] == "run" and second["outcome"] == "ok"
@@ -315,12 +317,13 @@ class TestExecuteAttemptIdentityAndCard:
 
 
 class TestDriverRecord:
-    def test_a_child_killed_by_a_signal_gets_a_driver_record_with_the_signal(self, tmp_path):
+    def test_a_terminated_child_gets_a_driver_record_with_its_exit_status(self, tmp_path):
         journal = common.AttemptsJournal(tmp_path / "attempts.jsonl")
         code = (f"import sys; sys.path.insert(0, {str(common.HARNESS_DIR)!r});"
-                "import e4_part2_common as c, os, signal;"
+                "import e4_part2_common as c, e4_part2_calibration as cal, e4_part2_dryrun as dry;"
+                "from types import SimpleNamespace;"
                 f"c.AttemptsJournal({str(tmp_path / 'attempts.jsonl')!r}).start('W', 'W');"
-                "os.kill(os.getpid(), signal.SIGKILL)")
+                "dry.stage_body(cal, SimpleNamespace(inject='W=kill'), 'W', None, 'W', 1, {})")
         stamp = dryrun.fake_stamp("a100-40", "i-1")
         cal.drive_child(journal, "W", ["-c", code], runs_dir=tmp_path / "runs",
                         stamp=lambda: stamp,
@@ -328,9 +331,9 @@ class TestDriverRecord:
                             now, common.library_versions(), {"soup_commit": "s"}, "rev"))
         (record,) = records(tmp_path)
         assert record["record_source"] == "driver" and record["kind"] == "W"
-        assert record["killed"] == {
-            "returncode": -9, "signal": "SIGKILL",
-            "note": "the child process ended without closing its attempt"}
+        assert record["failure_kind"] == "killed"
+        assert record["killed"]["returncode"] == (15 if os.name == "nt" else -9)
+        assert record["killed"]["signal"] == (None if os.name == "nt" else "SIGKILL")
         assert record["identity"]["dataset_revision"] == "rev"
         assert journal.attempts("W")[0]["outcome"] == "void"
 
