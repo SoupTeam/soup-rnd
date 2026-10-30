@@ -2,12 +2,13 @@
 
 import copy
 import json
+import subprocess
 
 import pytest
 
-from benchmarks.harness.d3_trainer_analysis import analyze
+from benchmarks.harness.d3_trainer_analysis import analyze, committed_protocol
 from benchmarks.harness.d3_trainer_gate import save, tensor_record
-from benchmarks.harness.d3_trainer_protocol import cell_plan, file_hash, read_rule
+from benchmarks.harness.d3_trainer_protocol import ROOT, cell_plan, file_hash
 
 
 @pytest.fixture
@@ -15,13 +16,20 @@ def complete_series(tmp_path):
     import torch
     from safetensors.torch import save_file
 
-    rule = read_rule()
+    source = {
+        "git_head": subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    }
+    rule, protocol_sha256 = committed_protocol(source)
     save(tmp_path / "protocol.json", rule)
-    source = {"git_head": "synthetic-unit-fixture-not-a-measurement"}
     session = dict(
         status="complete_pending_offline_analysis_and_review",
         source=source,
-        protocol_sha256=file_hash(tmp_path / "protocol.json"),
+        protocol_sha256=protocol_sha256,
         session_id="synthetic-unit-fixture",
         cells=[],
     )
@@ -152,6 +160,12 @@ def complete_series(tmp_path):
     return tmp_path
 
 
+def test_replay_accepts_serialized_protocol_copy_with_committed_identity(complete_series):
+    session = json.loads((complete_series / "session.json").read_text())
+    assert session["protocol_sha256"] != file_hash(complete_series / "protocol.json")
+    assert analyze(complete_series)["complete_public_trainer_series"]
+
+
 def test_complete_offline_replay_never_claims_full_task_acceptance(complete_series):
     result = analyze(complete_series)
     assert result["complete_public_trainer_series"]
@@ -160,6 +174,14 @@ def test_complete_offline_replay_never_claims_full_task_acceptance(complete_seri
     assert result["profile_cells"] == 18
     assert result["native_tensor_payloads_verified"] > 50
     assert len(result["timing"]) == 6
+    assert set(result["timing"]["dense/ordinary"]["modes"]) == {
+        "sequential",
+        "grouped",
+        "triton",
+    }
+    assert result["timing"]["dense/ordinary"]["modes"]["grouped"][
+        "median_input_tokens_per_second"
+    ] > 0
 
 
 @pytest.mark.parametrize(

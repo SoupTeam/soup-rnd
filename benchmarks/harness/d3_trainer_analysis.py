@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import re
 import statistics
+import subprocess
 from pathlib import Path
 
 from benchmarks.harness.d3_trainer_gate import numerical_view, require_exact, save, tensor_record
 from benchmarks.harness.d3_trainer_protocol import (
     CODECS,
+    PROTOCOL,
+    ROOT,
     TIMING_MODES,
     TRAINING_MODES,
     cell_plan,
@@ -62,21 +67,39 @@ def replay_native_tensors(folder: Path, evidence: dict) -> int:
     return total
 
 
+def committed_protocol(source: dict) -> tuple[dict, str]:
+    """Read and hash the rule from the measured commit, not its JSON copy."""
+    head = source.get("git_head")
+    if not isinstance(head, str) or re.fullmatch(r"[0-9a-f]{40}", head) is None:
+        raise ValueError("session lacks a canonical committed source revision")
+    completed = subprocess.run(
+        ["git", "-C", str(ROOT), "show", f"{head}:{PROTOCOL}"],
+        check=True,
+        capture_output=True,
+    )
+    payload = completed.stdout
+    return json.loads(payload), hashlib.sha256(payload).hexdigest()
+
+
 def analyze(folder: Path) -> dict:
-    rule = json.loads((folder / "protocol.json").read_text())
-    validate_rule(rule)
     session = json.loads((folder / "session.json").read_text())
+    saved_rule = json.loads((folder / "protocol.json").read_text())
+    rule, source_protocol_sha256 = committed_protocol(session["source"])
+    validate_rule(rule)
     complete = session["status"] == "complete_pending_offline_analysis_and_review"
     summary = {
         "status": "incomplete_no_task_verdict",
         "d3_accepted": False,
         "source": session["source"],
-        "protocol_sha256": file_hash(folder / "protocol.json"),
+        "protocol_sha256": session["protocol_sha256"],
         "session_id": session["session_id"],
         "retained_cells": len(session["cells"]),
         "complete_public_trainer_series": False,
     }
-    if summary["protocol_sha256"] != session["protocol_sha256"]:
+    if (
+        summary["protocol_sha256"] != source_protocol_sha256
+        or saved_rule != rule
+    ):
         raise ValueError("session/protocol identities differ")
     if not complete:
         summary["reason"] = session.get("traceback", "series did not complete")
@@ -171,6 +194,9 @@ def analyze(folder: Path) -> dict:
             ]
             if len(rows) % 6:
                 raise ValueError("partial symmetric block")
+            mode_seconds = {mode: [] for mode in ("sequential", "grouped", "triton")}
+            mode_allocated = {mode: [] for mode in mode_seconds}
+            mode_reserved = {mode: [] for mode in mode_seconds}
             for row in rows:
                 result = row["result"]
                 require_exact(result["windows"], native["windows"], "timed input windows")
@@ -209,6 +235,20 @@ def analyze(folder: Path) -> dict:
                 if tuple(row["mode"] for row in block) != TIMING_MODES:
                     raise ValueError("symmetric block is missing or reordered")
                 blocks.append(block)
+                for mode in mode_seconds:
+                    pair = [row for row in group if row["cell"]["mode"] == mode]
+                    if len(pair) != 2:
+                        raise ValueError("each mode must occur twice per symmetric block")
+                    mode_seconds[mode].append(statistics.mean(
+                        row["result"]["seconds_per_input_token"] for row in pair
+                    ))
+                    for key, output in (
+                        ("allocated", mode_allocated),
+                        ("reserved", mode_reserved),
+                    ):
+                        peaks = [row["result"].get("peaks", {}).get(key) for row in pair]
+                        if all(isinstance(value, (int, float)) for value in peaks):
+                            output[mode].append(statistics.mean(peaks))
             estimate = repeat_target(blocks)
             if estimate["status"] != "complete":
                 raise ValueError("the declared repetition rule is not satisfied")
@@ -230,10 +270,27 @@ def analyze(folder: Path) -> dict:
                     "paired_percent_changes": changes,
                     "median_percent_change": statistics.median(changes),
                 }
+            mode_summary = {}
+            for mode, samples in mode_seconds.items():
+                median_seconds = statistics.median(samples)
+                mode_summary[mode] = {
+                    "paired_block_seconds_per_input_token": samples,
+                    "median_seconds_per_input_token": median_seconds,
+                    "median_input_tokens_per_second": 1 / median_seconds,
+                }
+                for key, source_values in (
+                    ("allocated", mode_allocated),
+                    ("reserved", mode_reserved),
+                ):
+                    if len(source_values[mode]) == len(samples):
+                        mode_summary[mode][f"median_peak_{key}_bytes"] = statistics.median(
+                            source_values[mode]
+                        )
             contrasts[f"{codec}/{training}"] = {
                 "blocks": len(blocks),
                 "repeat_calculation": estimate,
                 "contrasts": values,
+                "modes": mode_summary,
             }
     for row in observed.values():
         if row["cell"]["kind"] != "profile":
