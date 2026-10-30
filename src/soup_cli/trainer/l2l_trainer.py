@@ -45,6 +45,8 @@ def refuse_unsupported_l2l(
             f"training.l2l does not support model_type {arch!r}: the L2L step "
             f"re-implements the top-level forward of {' and '.join(SUPPORTED_ARCHS)} only."
         )
+    if arch == "olmoe" and getattr(model_config, "output_router_logits", False):
+        raise ValueError("OLMoE L2L does not yet support the router auxiliary loss")
     if n_gpu > 1:
         raise ValueError(
             f"training.l2l is single-GPU, but {n_gpu} GPUs are visible. Re-run with "
@@ -297,7 +299,7 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                 losses = stepper.run(
                     ids_list,
                     store,
-                    n_items=int(num_items_in_batch),
+                    n_items=num_items_in_batch,
                     labels=label_list,
                 )
             state.steps += 1

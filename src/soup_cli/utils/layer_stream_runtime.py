@@ -2933,6 +2933,9 @@ class StreamRuntime:
     #: Read-only Qwen4 PLE mappings, if the N-gram table is SSD-backed.
     external_sources: Tuple[Any, ...] = ()
 
+    # Readers/pool/backend must outlive every expert autograd graph.
+    expert_resources: Any = None
+
     def close(self) -> None:
         """Release the weight source and detach the prefetch hook.
 
@@ -2943,19 +2946,26 @@ class StreamRuntime:
         mapping charges Windows commit for the file's whole size (#926).
         A no-op for the RAM tier, which owns neither a thread nor handles.
         """
-        source_close = getattr(self.source, "close", None)
-        if callable(source_close):
-            source_close()
-        for external in self.external_sources:
-            external_close = getattr(external, "close", None)
-            if callable(external_close):
-                external_close()
-        if self.hook is not None:
-            self.hook.remove()
-            self.hook = None
+        from contextlib import ExitStack
+
+        # Attempt every cleanup even if stopping a disk source or expert handle fails.
+        with ExitStack() as cleanup:
+            if self.hook is not None:
+                cleanup.callback(self.hook.remove)
+                self.hook = None
+            for external in reversed(self.external_sources):
+                external_close = getattr(external, "close", None)
+                if callable(external_close):
+                    cleanup.callback(external_close)
+            if self.expert_resources is not None:
+                cleanup.callback(self.expert_resources.close)
+            source_close = getattr(self.source, "close", None)
+            if callable(source_close):
+                cleanup.callback(source_close)
 
     def stats(self) -> Dict[str, Any]:
         return {
+            **(self.expert_resources.stats() if self.expert_resources is not None else {}),
             "n_layers": self.n_layers,
             "buffers": self.pool.n,
             "buffer_bytes": self.pool.nbytes + getattr(self.large_pool, "nbytes", 0),
@@ -3042,6 +3052,7 @@ def install_streaming(
     read_ahead: int = DEFAULT_STREAM_READ_AHEAD,
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    expert_resources: Any = None,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3082,7 +3093,8 @@ def install_streaming(
         pin = False
         require_pin = False
 
-    _refuse_expert_storage_cache(index)
+    if expert_resources is None:
+        _refuse_expert_storage_cache(index)
 
     # Validate the index BEFORE touching the model: an index whose `quant` and
     # `quant_specs` disagree passes the cache key (which reads `quant`) and
@@ -3295,6 +3307,7 @@ def install_streaming(
         hook=handle,
         total_params=int(getattr(index, "total_params", 0) or 0),
         tier=tier,
+        expert_resources=expert_resources,
     )
 
 
@@ -3649,6 +3662,7 @@ def build_streamed_model(
     ngram_source: str = "disk",
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    expert_options: Any = None,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
@@ -3665,7 +3679,12 @@ def build_streamed_model(
     # Architecture / Hub-code refusals must run before ANY access to the cache
     # index (B2). The skeleton is meta-only; reject storage-only layouts before
     # materializing extras, decoder buffers or adapters.
-    _refuse_expert_storage_cache(index)
+    if expert_options is None:
+        _refuse_expert_storage_cache(index)
+    else:
+        from soup_cli.utils.expert_training import validate_expert_training
+
+        validate_expert_training(model.config, expert_options, device=device, dtype=dtype)
     external_tensors = dict(getattr(index, "external_tensors", None) or {})
     external_sources: Tuple[Any, ...] = ()
     if external_tensors:
@@ -3679,6 +3698,7 @@ def build_streamed_model(
             external_tensors=external_tensors,
             source=ngram_source,
         )
+    expert_resources = None
     try:
         extras = materialize_extras(model, shard_dir, index, device=device, dtype=dtype)
         materialize_layer_buffers(model, shard_dir, index, device=device)
@@ -3690,6 +3710,13 @@ def build_streamed_model(
         model = attach_adapter(model, lora_config)
         materialize_meta_adapters(model, seed=seed, device=device)
         assert_trainable_adapters_materialized(model)
+        if expert_options is not None:
+            from soup_cli.utils.expert_training import install_expert_training
+
+            expert_resources = install_expert_training(
+                model, shard_dir, index, expert_options, device=device, dtype=dtype,
+                codes=extras.codes,
+            )
         runtime = install_streaming(
             model,
             shard_dir=shard_dir,
@@ -3704,8 +3731,11 @@ def build_streamed_model(
             read_ahead=read_ahead,
             refill_before_backward=refill_before_backward,
             read_ahead_decision=read_ahead_decision,
+            expert_resources=expert_resources,
         )
     except BaseException:
+        if expert_resources is not None:
+            expert_resources.close()
         for external in external_sources:
             external.close()
         raise

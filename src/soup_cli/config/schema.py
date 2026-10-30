@@ -4,7 +4,7 @@ import math
 import re
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # Stream-buffer, read-ahead and noise-floor bounds come from a dependency-free
 # leaf that layer_stream, async_disk_source and ship_verdict re-export, so the
@@ -1111,6 +1111,26 @@ class EvalGateConfig(BaseModel):
             raise ValueError(
                 "eval_gate.suite is required when eval_gate.enabled=true"
             )
+        return self
+
+
+class ExpertStreamConfig(BaseModel):
+    """Explicit, bounded OLMoE expert runtime; disabled unless configured."""
+
+    model_config = ConfigDict(extra="forbid")
+    backend: Literal["sequential", "grouped", "triton"] = "grouped"
+    group_width: int = Field(default=4, ge=1, le=4, strict=True)
+    weight_budget_bytes: int = Field(default=64 * 2**20, ge=1, strict=True)
+    activation_budget_bytes: int = Field(default=256 * 2**20, ge=1, strict=True)
+    call_budget_bytes: int = Field(default=64 * 2**20, ge=1, strict=True)
+    cublas_library: Optional[str] = None
+    native_rows_max: Literal[16, 128] = 128
+    native_rows_from: Optional[int] = Field(default=481, ge=129, strict=True)
+
+    @model_validator(mode="after")
+    def _validate_row_policy(self):
+        if self.native_rows_from is not None and self.native_rows_from <= self.native_rows_max:
+            raise ValueError("native_rows_from must exceed native_rows_max")
         return self
 
 
@@ -3503,6 +3523,10 @@ class TrainingConfig(BaseModel):
             "accumulation. Slower than resident training, but these models did "
             "not run on the card at all."
         ),
+    )
+    stream_experts: Optional[ExpertStreamConfig] = Field(
+        default=None,
+        description="Opt-in bounded OLMoE expert streaming for SFT; routed weights stay frozen.",
     )
     l2l: bool = Field(
         default=False,
@@ -6373,6 +6397,18 @@ class SoupConfig(BaseModel):
         for rather than just saying no.
         """
         tcfg = self.training
+        if tcfg.stream_experts is not None:
+            if not tcfg.stream_layers or self.task != "sft":
+                raise ValueError(
+                    "training.stream_experts requires stream_layers=true and task='sft'"
+                )
+            if tcfg.moe_lora:
+                raise ValueError("stream_experts does not support LoRA inside routed experts")
+            if tcfg.moe_aux_loss_coeff != 0:
+                raise ValueError(
+                    "stream_experts requires explicit moe_aux_loss_coeff=0; "
+                    "router auxiliary-loss integration is not supported"
+                )
         if tcfg.l2l:
             # ADR 0002: reject what would make L2L differ from gradient
             # accumulation rather than switch the mode off silently.

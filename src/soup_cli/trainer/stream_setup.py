@@ -645,6 +645,10 @@ class StreamingSetupMixin:
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)
+        expert_options = getattr(tcfg, "stream_experts", None)
+        expert_layout = "per_expert" if expert_options is not None else ""
+        if arch == "olmoe" and expert_options is None:
+            raise ValueError("OLMoE streaming requires explicit training.stream_experts")
 
         on_cuda = str(self.device).startswith("cuda")
         # #385 — ASK THE CARD. bf16 needs Ampere, and a T4 (Colab free), a P100
@@ -652,6 +656,12 @@ class StreamingSetupMixin:
         # made the entire free tier unsupported without saying so, and could not
         # fail on the Ampere card every published measurement came from.
         dtype = resolve_stream_dtype(str(self.device))
+        if expert_options is not None:
+            from soup_cli.utils.expert_training import validate_expert_training
+
+            validate_expert_training(
+                model_config, expert_options, device=str(self.device), dtype=dtype,
+            )
 
         # v0.72.2 — NF4. The decoder linears ship as packed nibbles + per-block
         # absmax, so the RAM store is ~0.26x its bf16 size; embeddings, norms and
@@ -756,6 +766,7 @@ class StreamingSetupMixin:
                     "qwen4_ple" if arch == "qwen4_exp" else "",
                     stripe_roots=stripe_roots,
                     layout=layout,
+                    expert_layout=expert_layout,
                 )
             write_total = 0 if cached is not None else shard_estimate
             shares = _stripe_write_shares(write_total, 1 + len(stripe_roots))
@@ -820,6 +831,7 @@ class StreamingSetupMixin:
             quant_suffixes=quant_suffixes,
             layout=layout,
             double_quant=double_quant,
+            expert_layout=expert_layout,
             # Quantise on the device that will run the model: CPU and CUDA agree
             # on the packed nibbles but not on every float32 nested statistic.
             quant_device=str(self.device),
@@ -846,6 +858,13 @@ class StreamingSetupMixin:
         layer_bytes = self._stream_layer_budget_bytes(layer_specs)
         layer_store_bytes = sum(layer_byte_sizes)
         embed_bytes = extras_resident_bytes(shard_dir)
+        expert_reservations = {"host_bytes": 0, "device_bytes": 0}
+        if expert_options is not None:
+            from soup_cli.utils.expert_training import expert_training_reservations
+
+            expert_reservations = expert_training_reservations(
+                shard_dir, index, expert_options, dtype=dtype,
+            )
         large_store_bytes = large_layer_store_bytes(shard_dir, index)
         large_buffer_bytes = large_layer_buffer_bytes(shard_dir, index)
         large_budget_bytes = self._stream_large_budget_bytes(
@@ -855,6 +874,10 @@ class StreamingSetupMixin:
 
         free_ram = free_ram_bytes()
         total_ram = total_ram_bytes()
+        if free_ram is not None:
+            if expert_reservations["host_bytes"] >= free_ram * RAM_TIER_HEADROOM:
+                raise ValueError("expert host staging exceeds the available RAM budget")
+            free_ram = max(0, free_ram - expert_reservations["host_bytes"])
         if free_ram is None:
             console.print(
                 "[yellow]psutil unavailable — cannot size the RAM tier; "
@@ -1016,7 +1039,7 @@ class StreamingSetupMixin:
             tcfg,
             model_config=model_config,
             layer_bytes=layer_bytes,
-            embed_bytes=embed_bytes,
+            embed_bytes=embed_bytes + expert_reservations["device_bytes"],
             large_layer_bytes=large_budget_bytes,
             index=index,
             on_cuda=on_cuda,
@@ -1048,6 +1071,7 @@ class StreamingSetupMixin:
             shard_dir=shard_dir,
             index=index,
             lora_config=lora_config,
+            expert_options=expert_options,
             device=self.device,
             dtype=dtype,
             buffers=tcfg.stream_buffers,
@@ -1079,6 +1103,13 @@ class StreamingSetupMixin:
         if probe_plan is not None:
             self._run_stream_vram_probe(model, probe_plan)
         stats = runtime.stats()
+        if expert_options is not None:
+            console.print(
+                "[cyan]Expert streaming:[/] independently buffered disk reads; "
+                f"group width={stats['expert_group_width']}, "
+                f"weight arena={stats['expert_weight_bytes'] / 2**20:.2f} MiB. "
+                "stream_source controls the non-expert layer store."
+            )
         source_line = _stream_source_line(stats)
         large_runtime_buffer = stats.get("large_buffer_bytes", 0)
         decoder_buffers = stats["buffer_bytes"] - large_runtime_buffer

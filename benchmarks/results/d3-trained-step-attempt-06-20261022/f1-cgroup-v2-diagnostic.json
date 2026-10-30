@@ -1,0 +1,41 @@
+{
+  "kind": "F1 counter-source diagnostic; not a D3 measurement",
+  "scope": "Vast container cgroup-v2 io.stat; host-wide I/O/physical-host isolation are not certified",
+  "integrated_controls": {
+    "status": "controls_passed",
+    "outcomes": [
+      [
+        "baseline",
+        "ok"
+      ],
+      [
+        "own",
+        "ok"
+      ],
+      [
+        "foreign",
+        "void"
+      ]
+    ]
+  },
+  "direct_read_correlation": {
+    "file": "prepared/dense/experts_000.safetensors",
+    "operation": "20,480 aligned O_DIRECT reads of 1 MiB",
+    "bytes_read": 21474836480,
+    "cgroup_v2": {
+      "loop0_device": "7:0",
+      "loop0_rbytes_before": 102975651840,
+      "loop0_rbytes_after": 124450488320,
+      "nvme0n1_device": "259:0",
+      "nvme0n1_rbytes_before": 91961765888,
+      "nvme0n1_rbytes_after": 91961765888
+    },
+    "global_diskstats": {
+      "loop0_read_bytes_before": 305777180672,
+      "loop0_read_bytes_after": 327252017152,
+      "nvme0n1_read_bytes_before": 268526663680,
+      "nvme0n1_read_bytes_after": 268526663680
+    }
+  },
+  "interpretation": "The cgroup loop0 counter increased by exactly the process direct-read bytes while the cgroup NVMe counter did not move. The host-global loop0 counter also rose by the same amount in this diagnostic; the failed formal cell additionally saw large host-global NVMe activity, causing its loop0 foreign-read bound to become unknown. The revised cgroup counters passed baseline/own/independent-foreign controls."
+}

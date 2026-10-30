@@ -552,7 +552,47 @@ def test_real_linux_disk_sensors_return_values(validity):
     json.dumps(watch.record)
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sensors only")
+def test_cgroup_io_reads_parse_read_bytes_and_reject_ambiguous_rows(
+    validity, monkeypatch, tmp_path
+):
+    io_stat = tmp_path / "io.stat"
+    io_stat.write_text(
+        "259:0 rbytes=900 wbytes=10 rios=3 wios=1\n"
+        "7:0 rbytes=120 wbytes=20 rios=4 wios=2\n"
+    )
+    monkeypatch.setattr(validity, "CGROUP_IO_STAT_PATH", str(io_stat))
+
+    assert validity.cgroup_io_reads() == {"259:0": 900, "7:0": 120}
+
+    io_stat.write_text("7:0 rbytes=1\n7:0 rbytes=2\n")
+    with pytest.raises(ValueError, match="duplicate"):
+        validity.cgroup_io_reads()
+
+
+def test_cgroup_disk_sensors_use_container_counters_and_exclude_target(
+    validity, monkeypatch, tmp_path
+):
+    sys_block = tmp_path / "sys" / "block"
+    (sys_block / "loop0").mkdir(parents=True)
+    (sys_block / "nvme0n1").mkdir()
+    (sys_block / "loop0" / "dev").write_text("7:0\n")
+    (sys_block / "nvme0n1" / "dev").write_text("259:0\n")
+    io_stat = tmp_path / "io.stat"
+    io_stat.write_text("259:0 rbytes=900\n7:0 rbytes=120\n")
+    monkeypatch.setattr(validity, "SYS_BLOCK_DIR", str(sys_block))
+    monkeypatch.setattr(validity, "CGROUP_IO_STAT_PATH", str(io_stat))
+
+    assert validity.cgroup_disk_reads("loop0") == 120
+    assert validity.cgroup_other_disk_reads("loop0") == 900
+
+    io_stat.write_text("259:0 rbytes=900\n")
+    assert validity.cgroup_disk_reads("loop0") == 0
+
+
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux") or os.getuid() == 0,
+    reason="requires non-root Linux /proc permissions for an unreaped child",
+)
 def test_unreaped_child_makes_foreign_reads_unknown_with_reason(validity):
     child = None
     with validity.ArmWatch(
