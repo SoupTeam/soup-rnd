@@ -279,16 +279,22 @@ def test_same_process_positive_negative_restored_and_reload_use_the_public_wrapp
 
 
 def test_offline_analysis_never_labels_an_incomplete_series_complete(tmp_path):
-    from benchmarks.harness.d3_trainer_protocol import file_hash
+    import subprocess
 
-    save(tmp_path / "protocol.json", read_rule())
+    from benchmarks.harness.d3_trainer_protocol import PROTOCOL, ROOT, file_hash
+
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_bytes((ROOT / PROTOCOL).read_bytes())
+    head = subprocess.check_output(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True
+    ).strip()
     save(
         tmp_path / "session.json",
         {
             "status": "incomplete",
             "session_id": "synthetic-no-run",
-            "source": {"git_head": "x"},
-            "protocol_sha256": file_hash(tmp_path / "protocol.json"),
+            "source": {"git_head": head},
+            "protocol_sha256": file_hash(protocol_path),
             "cells": [],
             "traceback": "synthetic timeout record",
         },
@@ -361,8 +367,8 @@ def test_parent_time_budget_stops_before_spawning_and_preserves_session(tmp_path
     monkeypatch.setattr(series, "frozen_source", lambda: {"git_head": "synthetic-budget"})
     monkeypatch.setattr(series, "verify_prepared", lambda *args: {})
     monkeypatch.setattr(series, "verify_host", lambda *args: None)
-    ticks = iter([0.0, 10801.0])
-    monkeypatch.setattr(series.time, "monotonic", lambda: next(ticks))
+    ticks = iter([0.0, float(read_rule()["session_timeout_seconds"] + 1)])
+    monkeypatch.setattr(series, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
 
     def forbidden(*args, **kwargs):
         pytest.fail("spawned after the complete-session budget was exhausted")
