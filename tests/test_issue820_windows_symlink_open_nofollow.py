@@ -19,12 +19,22 @@ from typing import List, Tuple
 
 import pytest
 
-from soup_cli.utils import paths
 from soup_cli.utils.audit_log import AuditEvent, append_audit_event
 from soup_cli.utils.draft import _registry_lock, list_drafts
 from soup_cli.utils.paths import open_no_follow
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "soup_cli"
+
+
+@pytest.fixture
+def windows_os(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """Exercise the Windows branch without patching the OS calls used by pytest capture."""
+    import soup_cli.utils.paths as paths
+
+    windows = SimpleNamespace(**vars(os))
+    windows.name = "nt"
+    monkeypatch.setattr(paths, "os", windows)
+    return windows
 
 
 # ===========================================================================
@@ -89,7 +99,7 @@ class TestOpenNoFollow:
         assert not nonexistent.exists()
 
     def test_reparse_point_rejection_on_windows(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_os: SimpleNamespace
     ) -> None:
         real_file = tmp_path / "reparse_candidate.txt"
         real_file.write_text("content", encoding="utf-8")
@@ -102,12 +112,7 @@ class TestOpenNoFollow:
             st_dev = 200
             st_file_attributes = fake_reparse
 
-        # Keep simulated Windows OS calls local to the module under test;
-        # pytest's capture/path handling must retain the real os functions.
-        fake_os = SimpleNamespace(**vars(os))
-        fake_os.name = "nt"
-        fake_os.lstat = lambda p: MockStatWithReparse()
-        monkeypatch.setattr(paths, "os", fake_os)
+        monkeypatch.setattr(windows_os, "lstat", lambda p: MockStatWithReparse())
 
         with pytest.raises(OSError) as exc_info:
             open_no_follow(real_file, os.O_RDONLY)
@@ -115,14 +120,10 @@ class TestOpenNoFollow:
         assert "Reparse point not allowed" in str(exc_info.value)
 
     def test_post_open_toctou_swap_detected_on_windows(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_os: SimpleNamespace
     ) -> None:
         real_file = tmp_path / "swap_candidate.txt"
         real_file.write_text("content", encoding="utf-8")
-
-        fake_os = SimpleNamespace(**vars(os))
-        fake_os.name = "nt"
-        monkeypatch.setattr(paths, "os", fake_os)
 
         class MockSwappedFstat:
             st_mode = stat.S_IFREG | 0o644
@@ -130,14 +131,7 @@ class TestOpenNoFollow:
             st_dev = 88888
 
         # fstat returns different ino/dev than lstat on existing file
-        fake_os.fstat = lambda fd: MockSwappedFstat()
-
-        # The replacement must not poison pytest's own file descriptors.
-        fd = os.open(real_file, os.O_RDONLY)
-        try:
-            assert os.fstat(fd).st_size == len(b"content")
-        finally:
-            os.close(fd)
+        monkeypatch.setattr(windows_os, "fstat", lambda fd: MockSwappedFstat())
 
         with pytest.raises(OSError) as exc_info:
             open_no_follow(real_file, os.O_RDONLY)
@@ -145,13 +139,10 @@ class TestOpenNoFollow:
         assert "File swapped during open" in str(exc_info.value)
 
     def test_post_open_symlink_swap_on_create_windows(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_os: SimpleNamespace
     ) -> None:
         target = tmp_path / "new_target.txt"
 
-        fake_os = SimpleNamespace(**vars(os))
-        fake_os.name = "nt"
-        monkeypatch.setattr(paths, "os", fake_os)
         calls = 0
 
         class MockStatSymlink:
@@ -169,7 +160,7 @@ class TestOpenNoFollow:
             # post_lst: someone swapped in a symlink right after open
             return MockStatSymlink()
 
-        fake_os.lstat = fake_lstat
+        monkeypatch.setattr(windows_os, "lstat", fake_lstat)
 
         with pytest.raises(OSError) as exc_info:
             open_no_follow(target, os.O_CREAT | os.O_WRONLY, 0o600)

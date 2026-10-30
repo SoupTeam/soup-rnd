@@ -494,6 +494,25 @@ checkpointed step. The fused arm reduces saved-weight VRAM but its backward stil
 dequantises because bitsandbytes exposes no transposed 4-bit GEMM; it is therefore a
 bounded memory/time trade, not a claim that #842's full kernel ceiling is complete.
 
+The [scoped D1 kernel study](../benchmarks/d1-vm-f1-result-20261019.md) demonstrates
+157 MiB lower peak allocated and 140 MiB lower peak reserved memory on a synthetic
+four-layer, hidden4096, seq128 decoder through Soup's RAM-backed streaming runtime.
+The BF16 candidate is an explicit research backend; production keeps native dispatch.
+A separate fixed1200 MHz RTX 3090 VM cohort passed all five preregistered ABBA
+blocks, same-session GEMM and telemetry gates: native51.568 ms vs candidate83.512 ms
+per full step, with no additional blocks required. The candidate is slower here;
+earlier clock-spread cohorts retain NO_VERDICT. These results do not establish
+performance at stock clocks, for pretrained larger models or the cold disk tier. [Raw evidence and historical reports](../benchmarks/D1_EVIDENCE.md)
+are archived separately with per-file integrity checks; full D1 acceptance is open.
+
+A separate [pretrained Mistral-7B RAM streaming screen](../benchmarks/d1-real7b-result-20261019.md)
+uses all32 layers, BF16/nested NF4, two pageable buffers, batch1/seq128 and q/v LoRA
+rank4. Three native/candidate updates match exactly (774 quantities). Full-step
+peaks fall804.24→740.74 MiB allocated (−63.5 MiB/7.90%) and826→794 MiB reserved
+(−32 MiB/3.87%). One clean ABBA block measures1.726→1.730 s; this short screen
+establishes no reliable speed difference, long-run quality or OOM-to-fit benefit.
+The synthetic40% memory saving does not transfer to this real-model configuration.
+
 **Qwen3.8-Flash-Next / Qwen4-Exp PLE.** The frozen PLE N-gram table is not a
 decoder-layer weight for storage purposes: putting it in the PLE layer's shard
 would make the shared layer buffer as large as the whole table. Soup keeps the
