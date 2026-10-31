@@ -136,7 +136,9 @@ class _Rows:
         return self.rows[i]
 
 
-def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, **targs):
+def _train(
+    base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, batch_size=1, **targs
+):
     import torch
     from transformers import TrainerCallback, TrainingArguments
 
@@ -150,7 +152,7 @@ def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, 
 
     args = TrainingArguments(
         output_dir=str(tmp_path / ("l2l" if l2l else "ga")),
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=k,
         learning_rate=0.5,
         optim="sgd",

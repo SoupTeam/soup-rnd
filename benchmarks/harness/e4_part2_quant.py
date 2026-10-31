@@ -44,12 +44,13 @@ SAFETENSORS_METADATA = {"format": "pt"}
 
 
 def _peak_rss_bytes() -> Optional[int]:
-    """Peak RSS excluding children, or None where the Unix resource module is unavailable."""
+    """This process's peak RSS in bytes; None when Unix resource telemetry is unavailable."""
     try:
         import resource
     except ImportError:
         return None
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # macOS reports bytes; Linux reports KiB.
     return peak if sys.platform == "darwin" else peak * 1024
 
 

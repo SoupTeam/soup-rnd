@@ -488,6 +488,25 @@ checkpointed step. The fused arm reduces saved-weight VRAM but its backward stil
 dequantises because bitsandbytes exposes no transposed 4-bit GEMM; it is therefore a
 bounded memory/time trade, not a claim that #842's full kernel ceiling is complete.
 
+The [scoped D1 kernel study](../benchmarks/d1-vm-f1-result-20261019.md) demonstrates
+157 MiB lower peak allocated and 140 MiB lower peak reserved memory on a synthetic
+four-layer, hidden4096, seq128 decoder through Soup's RAM-backed streaming runtime.
+The BF16 candidate is an explicit research backend; production keeps native dispatch.
+A separate fixed1200 MHz RTX 3090 VM cohort passed all five preregistered ABBA
+blocks, same-session GEMM and telemetry gates: native51.568 ms vs candidate83.512 ms
+per full step, with no additional blocks required. The candidate is slower here;
+earlier clock-spread cohorts retain NO_VERDICT. These results do not establish
+performance at stock clocks, for pretrained larger models or the cold disk tier. [Raw evidence and historical reports](../benchmarks/D1_EVIDENCE.md)
+are archived separately with per-file integrity checks; full D1 acceptance is open.
+
+A separate [pretrained Mistral-7B RAM streaming screen](../benchmarks/d1-real7b-result-20261019.md)
+uses all32 layers, BF16/nested NF4, two pageable buffers, batch1/seq128 and q/v LoRA
+rank4. Three native/candidate updates match exactly (774 quantities). Full-step
+peaks fall804.24→740.74 MiB allocated (−63.5 MiB/7.90%) and826→794 MiB reserved
+(−32 MiB/3.87%). One clean ABBA block measures1.726→1.730 s; this short screen
+establishes no reliable speed difference, long-run quality or OOM-to-fit benefit.
+The synthetic40% memory saving does not transfer to this real-model configuration.
+
 **Qwen3.8-Flash-Next / Qwen4-Exp PLE.** The frozen PLE N-gram table is not a
 decoder-layer weight for storage purposes: putting it in the PLE layer's shard
 would make the shared layer buffer as large as the whole table. Soup keeps the
@@ -881,6 +900,60 @@ With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Wind
 different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
 each new shape costs one extra forward pass. Speed and memory were not measured, and the check
 used random tokens, not real text. MoE and multi-GPU are out of scope.
+
+**Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
+number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
+window. L2L divides the summed cross-entropy of every micro-batch by that one number, not by
+the token count of each micro-batch, so rows of different lengths and masked prefixes weigh
+the same as in gradient accumulation. A dataset whose size is not a multiple of k ends with a
+shorter window. The loop counts only the micro-batches that window really has, so
+`num_items_in_batch` covers them, the last window is a normal optimizer step with fewer
+micro-batches, and the number of optimizer steps, `l2l_steps` and the learning rate at every
+step equal those of accumulation. Resume from a checkpoint does not shift the windows.
+
+**Mistral-7B NF4.** `Mistral-7B-v0.1` with NF4 weights in RAM, RTX 3060 12 GB, k = 4 against
+`gradient_accumulation_steps: 4`, three optimizer steps on synthetic rows (random tokens, rows
+of different lengths, `-100` labels, a last window of 2 rows). Real data was not run and model
+quality was not measured. Report and raw logs:
+[`benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md`](../benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md).
+
+- Two accumulation runs equal each other bit for bit, so the stand itself is deterministic.
+- L2L and accumulation are **not** bit-identical in bf16. The relative L2 error of the LoRA
+  gradients is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
+  the SDPA backend inside accumulation gives 1.4%, 1.5% and 4.5%, the same order.
+- In fp32 the two agree to 2.1e-6, 3.1e-6 and 8.3e-6 (rounding noise, not bit-equal). The bf16
+  gap is bf16 rounding, not a different computation in the L2L step.
+- The number of steps and the learning rate per step match in both runs.
+- Open: `l2l_weight_restores` stayed 0 on this model (210 on SmolLM2), loads were not
+  compared with k = 1, and the `gemm_4bit` path counter was empty for L2L. L2L made 184 layer
+  loads in 3 steps (about 61 per step, two passes over 32 layers).
+- A tolerance in place of the bit criterion is set in ticket 07 and was not applied to these
+  numbers yet.
+
+**RAM for Mistral-7B NF4.** The NF4 weight store takes about 4.1 GB. The activation cache is
+
+```text
+cache = 32 layers x k x batch x seq x 4096 x 2 bytes
+```
+
+with `seq` rounded up to a multiple of 64 and, on CUDA, each chunk rounded up to a power of
+two. The run needs free RAM of at least `cache / 0.7` after the weight store. For k = 4 the
+cache is 1 GiB at batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq
+2048, so the last one needs about 11.5 GiB free on top of the weights. These figures come
+from the formula, not from a measurement on a loaded host.
+
+**Bit-for-bit equality.** Equal bits against accumulation need all of:
+
+- one card, with the same architecture and SM count in both runs;
+- the same CUDA toolkit and the same `bitsandbytes` version;
+- one fixed SDPA backend in both runs (the stand pins `MATH`; Flash, Efficient and cuDNN
+  backward are not deterministic, and different backends do not agree bit for bit);
+- `CUBLAS_WORKSPACE_CONFIG=:4096:8`, set before torch starts CUDA (it has no effect afterwards);
+- `torch.use_deterministic_algorithms(True)` without `warn_only`.
+
+On SmolLM2-135M this gave equal bits. On Mistral-7B NF4 in bf16 it did not (see above), so
+compare 7B runs with a tolerance. The stand is
+[`benchmarks/harness/l2l_mistral_stand.py`](../benchmarks/harness/l2l_mistral_stand.py).
 
 **Counters.** Each logged training step carries four cumulative fields:
 

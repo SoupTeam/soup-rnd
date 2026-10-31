@@ -127,3 +127,13 @@ def test_fetch_commands_pin_the_commit(setup_mod, tmp_path):
 def test_fetch_commands_refuse_a_destination_inside_the_repo(setup_mod):
     with pytest.raises(ValueError, match="inside the repository"):
         setup_mod.fetch_commands("https://example.org/r.git", "abc", REPO / "foreign")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows drive letters")
+def test_fetch_commands_allow_a_destination_on_another_drive(setup_mod, monkeypatch):
+    monkeypatch.setattr(setup_mod, "REPO", Path("C:/repo"))
+    dest = Path("D:/foreign")
+    assert setup_mod.fetch_commands("https://example.org/r.git", "abc123", dest) == [
+        ["git", "clone", "--no-checkout", "https://example.org/r.git", str(dest)],
+        ["git", "-C", str(dest), "checkout", "--detach", "abc123"],
+    ]

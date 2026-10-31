@@ -1,0 +1,56 @@
+ram_plan n_layers              32
+ram_plan hidden                4096
+ram_plan k                     4
+ram_plan batch                 1
+ram_plan seq                   256
+ram_plan chunk_bytes           2097152
+ram_plan block_bytes           2097152
+ram_plan cache_bytes           268435456
+ram_plan need_free_for_cache   383479222.85714287
+ram_plan weights_bytes         4124704768.0
+ram_plan workspace_bytes       1000000000
+ram_plan need_total            5508183990.857142
+RUN: L2L vs gradient accumulation, mistralai/Mistral-7B-v0.1 nf4
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 9 files:  22%|██▏       | 2/9 [00:00<00:01,  5.77it/s]Fetching 9 files:  44%|████▍     | 4/9 [00:00<00:00,  9.76it/s]Fetching 9 files:  78%|███████▊  | 7/9 [00:17<00:00,  9.76it/s]Fetching 9 files:  89%|████████▉ | 8/9 [01:17<00:12, 12.04s/it]Fetching 9 files: 100%|██████████| 9/9 [01:51<00:00, 16.11s/it]Fetching 9 files: 100%|██████████| 9/9 [01:51<00:00, 12.37s/it]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: Memory efficient kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1240.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: Memory Efficient attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:600.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: Flash attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1242.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: Flash Attention does not support non-null attn_mask. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:281.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1244.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:922.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:588.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+/root/soup/benchmarks/harness/l2l_mistral_stand.py:194: UserWarning: cuDNN SDPA is not deterministic. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:934.)
+  res = torch.nn.functional.scaled_dot_product_attention(
+[RANK 0] Detected kernel version 5.4.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+[RANK 0] Detected kernel version 5.4.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+[RANK 0] Detected kernel version 5.4.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+[RANK 0] Detected kernel version 5.4.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+[yellow]Re-sharding layer cache:[/] cache index is missing or unreadable.
+bnb #2034 probe: neutralized
+{'loss': '12.66', 'grad_norm': '74.32', 'learning_rate': '0', 'epoch': '0.4'}
+{'loss': '12.28', 'grad_norm': '71.34', 'learning_rate': '0.001', 'epoch': '0.8'}
+{'loss': '12.38', 'grad_norm': '70.3', 'learning_rate': '0.0005', 'epoch': '1'}
+{'train_runtime': '8.694', 'train_samples_per_second': '1.15', 'train_steps_per_second': '0.345', 'train_loss': '12.44', 'epoch': '1'}
+{'loss': '12.66', 'grad_norm': '74.32', 'learning_rate': '0', 'epoch': '0.4'}
+{'loss': '12.28', 'grad_norm': '71.34', 'learning_rate': '0.001', 'epoch': '0.8'}
+{'loss': '12.38', 'grad_norm': '70.3', 'learning_rate': '0.0005', 'epoch': '1'}
+{'train_runtime': '8.242', 'train_samples_per_second': '1.213', 'train_steps_per_second': '0.364', 'train_loss': '12.44', 'epoch': '1'}
+{'loss': '12.66', 'grad_norm': '74.33', 'learning_rate': '0', 'l2l_steps': 1, 'l2l_layer_loads': 62, 'l2l_large_loads': 3, 'l2l_weight_restores': 0, 'epoch': '0.4'}
+{'loss': '12.28', 'grad_norm': '71.59', 'learning_rate': '0.001', 'l2l_steps': 2, 'l2l_layer_loads': 123, 'l2l_large_loads': 5, 'l2l_weight_restores': 0, 'epoch': '0.8'}
+{'loss': '12.38', 'grad_norm': '70.31', 'learning_rate': '0.0005', 'l2l_steps': 3, 'l2l_layer_loads': 184, 'l2l_large_loads': 7, 'l2l_weight_restores': 0, 'epoch': '1'}
+{'train_runtime': '10.03', 'train_samples_per_second': '0.997', 'train_steps_per_second': '0.299', 'train_loss': '12.44', 'epoch': '1'}
+{'loss': '12.66', 'grad_norm': '74.36', 'learning_rate': '0', 'epoch': '0.4'}
+{'loss': '12.28', 'grad_norm': '71.37', 'learning_rate': '0.001', 'epoch': '0.8'}
+{'loss': '12.37', 'grad_norm': '70.17', 'learning_rate': '0.0005', 'epoch': '1'}
+{'train_runtime': '7.937', 'train_samples_per_second': '1.26', 'train_steps_per_second': '0.378', 'train_loss': '12.44', 'epoch': '1'}
+verdict within_tolerance: within tolerance
+wrote /root/runs/mistral7b-07-bf16/report.md
