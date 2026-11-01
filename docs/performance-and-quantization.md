@@ -608,11 +608,14 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
 `training.stream_partial_ram` keeps a fixed subset of decoder layers in CPU RAM
 and sends only the remaining layers to the existing asynchronous disk reader.
 It is off by default. The first supported path is **dense Llama, unquantized
-Transformers SFT, explicit disk tier, without L2L**. CPU correctness tests and a
-bounded synthetic CUDA pilot pass. The pilot matched losses, gradients and final
-adapters exactly; it does not establish correctness for every model or an accepted
-throughput improvement. Representative hardware validation and shared A4 integration
-remain open. This is not full C3 acceptance.
+Transformers SFT, explicit disk tier**. CPU correctness tests and a
+bounded synthetic CUDA pilot pass. A subsequent frozen Llama 3.1 8B BF16 comparison
+completed 20 isolated CUDA runs with identical losses, gradients and final adapters.
+Physical process reads decreased by 25% on that controlled-text configuration.
+Performance remains **NO_VERDICT**: the unchanged repeats rule requires 20 blocks,
+but five were run. The low-level shared A4 bridge passes three CUDA spill controls;
+the public RAM-only L2L trainer integration passes local tests and its tiny-model
+CUDA control passed in attempt019. This is not full C3 acceptance.
 
 ```yaml
 training:
@@ -627,13 +630,25 @@ training:
     cache_bytes: 2147483648     # at most 2 GiB of resident allocations
 ```
 
+With `l2l: true`, use a fixed integer `batch_size`. Before optional weight caching,
+the trainer additionally reserves the maximum configured RAM activation window
+(`max_length` rounded up to the L2L shape bucket, accumulation count, hidden size,
+layer count and actual pinned allocation rounding). Do not include this automatically
+reserved window again in `reserved_bytes`; that field covers other users and safety.
+The actual store has its own bounded partition. Shape changes within the plan release
+the old store before replacement; a larger or incompatible window is refused.
+This public path uses uncompressed RAM activations, not activation spilling or dynamic
+weight eviction. Failed activation drains retain their leases and prevent weight cleanup.
+
 These values illustrate the configuration, not a measured safe recipe. Choose
 reservations for the actual workload. The trainer also charges resident extras
 and RAM-backed auxiliary weights, and caps the envelope using the existing
 free/physical-RAM headroom rules. The source checks the envelope **before buffer
 allocation**: caller/trainer reservations + resident allocations + disk staging
 allocations + the largest selected shard's loading map must fit. Pinned arena
-rounding and pageable staging alignment overhead count against the envelope.
+rounding and both pinned/pageable staging alignment overhead count against the envelope.
+Disk staging aligns the actual buffer address: pinned allocations are not assumed
+to start on a sector boundary. Per-arena alignment slack is reserved before allocation.
 An oversized plan is refused; it does not silently reduce reservations, change
 pinning or restart with another plan.
 
@@ -647,9 +662,12 @@ released. Constructor failures close any already-started disk reader.
 
 The envelope bounds accounted allocations, **not process RSS**. Python overhead,
 allocator retention, the OS page cache and unrelated processes are not controlled.
-There is no dynamic pressure-driven eviction. The shared A4 reservation contract
-is not integrated, so L2L combination is rejected rather than risking double
-allocation. `resident_tensor_bytes_served` counts logical tensor requests served
+There is no dynamic pressure-driven eviction. An experimental low-level bridge
+shares allocation leases with resident/spilled A4 activation buffers. Its zero/partial/full
+spill CUDA controls passed in attempt017. The public RAM-only L2L trainer uses the
+separate maximum-window reservation described above; its tiny-model CUDA control
+passed in attempt019. This does not validate public activation spilling or an 8B
+L2L performance claim. `resident_tensor_bytes_served` counts logical tensor requests served
 from RAM; it is neither physical SSD bytes saved nor a measured speedup. Runtime
 statistics distinguish resident tensor bytes, staging bytes, owned host
 allocations and the reserved peak including the loading transient.

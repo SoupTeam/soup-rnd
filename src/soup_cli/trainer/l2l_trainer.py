@@ -35,9 +35,7 @@ SHAPE_ROUND = 64
 MAX_CACHED_SHAPES = 64
 
 
-def refuse_unsupported_l2l(
-    model_config: Any, *, n_gpu: int, fp16: bool = False
-) -> None:
+def refuse_unsupported_l2l(model_config: Any, *, n_gpu: int, fp16: bool = False) -> None:
     """Refuse at launch what the schema cannot see: the model, the GPU count, fp16."""
     arch = str(getattr(model_config, "model_type", ""))
     if arch not in SUPPORTED_ARCHS:
@@ -70,6 +68,7 @@ class L2LState:
     totals: LoadCounters = field(default_factory=LoadCounters)
     store: Any = None
     steps_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
+    c3_plan: Any = None
 
     def log_fields(self) -> Dict[str, int]:
         return {
@@ -155,9 +154,7 @@ def _has_dropout(model: Any) -> bool:
     )
 
 
-def _l2l_step_for(
-    state: L2LState, model: Any, shape: Tuple[int, int], ids: Any
-) -> Any:
+def _l2l_step_for(state: L2LState, model: Any, shape: Tuple[int, int], ids: Any) -> Any:
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
     stepper = state.steps_by_shape.get(shape)
@@ -207,12 +204,33 @@ def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, de
     from soup_cli.utils.layer_stream import free_ram_bytes
 
     hidden = int(stepper.causal.config.hidden_size)
+    n_layers = len(stepper.layers)
+    pin = str(device).startswith("cuda")
+    if state.c3_plan is not None:
+        state.c3_plan.validate_window(
+            n_layers=n_layers,
+            shape=(*shape, hidden),
+            k=k,
+            dtype=str(state.dtype).removeprefix("torch."),
+            pin=pin,
+        )
     if state.store is None or state.store.shape[:2] != shape or state.store.k < k:
         state.close()
-        n_layers = len(stepper.layers)
         itemsize = torch.empty((), dtype=state.dtype).element_size()
         chunk_bytes = shape[0] * shape[1] * hidden * itemsize
-        pin = str(device).startswith("cuda")
+        if state.c3_plan is not None:
+            from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+
+            state.store = BudgetedActivationStore(
+                host_budget=state.c3_plan.activations,
+                n_layers=n_layers,
+                k=k,
+                chunk_shape=(*shape, hidden),
+                dtype=state.dtype,
+                device=device,
+                pin=pin,
+            )
+            return state.store
         check_activation_budget(
             free_ram=free_ram_bytes(),
             n_layers=n_layers,
@@ -313,8 +331,8 @@ def make_l2l_trainer_class(base_cls: type) -> type:
     return L2LTrainer
 
 
-def attach_l2l_state(trainer: Any, runtime: Any, *, dtype: Any) -> L2LState:
+def attach_l2l_state(trainer: Any, runtime: Any, *, dtype: Any, c3_plan: Any = None) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime."""
-    state = L2LState(runtime=runtime, dtype=dtype)
+    state = L2LState(runtime=runtime, dtype=dtype, c3_plan=c3_plan)
     trainer._soup_l2l = state
     return state

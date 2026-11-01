@@ -1054,6 +1054,7 @@ class StreamingSetupMixin:
             )
 
         partial_budget = None
+        self._c3_l2l_plan = None
         if partial_config is not None:
             # Free RAM already excludes live allocations. This intentionally conservative
             # envelope also reserves caller-declared activations/A4 plus resident extras.
@@ -1071,9 +1072,22 @@ class StreamingSetupMixin:
                 + (ngram_bytes if ngram_source == "ram" else 0),
                 partial_config.cache_bytes,
             )
+            if tcfg.l2l:
+                from soup_cli.trainer.l2l_trainer import SHAPE_ROUND
+                from soup_cli.utils.c3_l2l_budget import plan_c3_l2l
+
+                self._c3_l2l_plan = plan_c3_l2l(
+                    partial_budget, n_layers=int(model_config.num_hidden_layers),
+                    batch_size=tcfg.batch_size, max_length=cfg.data.max_length,
+                    hidden_size=int(model_config.hidden_size),
+                    microbatches=tcfg.gradient_accumulation_steps, dtype=dtype,
+                    pin=on_cuda, shape_round=SHAPE_ROUND,
+                )
+                partial_budget = self._c3_l2l_plan.weights
             console.print(
                 "[yellow]C3 partial RAM is experimental: caller reserves other host users; "
-                "CUDA performance and A4/L2L integration are not validated.[/]"
+                "L2L, when enabled, reserves its maximum RAM activation window automatically. "
+                "The allocation envelope is not a process-RSS limit.[/]"
             )
 
         model, runtime = build_streamed_model(
@@ -1166,6 +1180,11 @@ class StreamingSetupMixin:
 
     def _close_stream_runtime(self) -> None:
         """Release the streaming weight source, if this run had one."""
+        state = getattr(getattr(self, "trainer", None), "_soup_l2l", None)
+        if state is not None and state.c3_plan is not None:
+            # A failed drain retains the activation lease and the weight runtime.
+            # Do not free weights while an activation transfer may still be live.
+            state.close()
         runtime = getattr(self, "_stream_runtime", None)
         if runtime is not None:
             runtime.close()

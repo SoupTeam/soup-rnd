@@ -261,7 +261,7 @@ def test_synthetic_training_matches_disk_exactly(tmp_path, device):
     [
         {"stream_layers": False},
         {"stream_source": "auto"},
-        {"l2l": True},
+        {"l2l": True, "batch_size": "auto"},
     ],
 )
 def test_schema_rejects_unwired_modes(override):

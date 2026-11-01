@@ -3578,7 +3578,7 @@ class TrainingConfig(BaseModel):
         description=(
             "Experimental dense Llama, unquantized SFT disk cache. Explicit limit_bytes, "
             "reserved_bytes for activations/other consumers, and cache_bytes allocation cap. "
-            "No L2L until the shared A4 memory contract is integrated."
+            "L2L reserves its configured maximum RAM activation window additionally."
         ),
     )
 
@@ -6399,14 +6399,15 @@ class SoupConfig(BaseModel):
         """
         tcfg = self.training
         if tcfg.stream_partial_ram is not None:
-            if (not tcfg.stream_layers or tcfg.stream_source != "disk" or tcfg.l2l
+            if (not tcfg.stream_layers or tcfg.stream_source != "disk"
                     or self.task != "sft" or self.backend != "transformers"
                     or tcfg.quantization != "none"):
                 raise ValueError(
                     "training.stream_partial_ram requires unquantized transformers SFT, "
-                    "stream_layers=true, stream_source='disk', and l2l=false; "
-                    "A4 shared-memory integration and other modes are pending"
+                    "stream_layers=true and stream_source='disk'; other modes are pending"
                 )
+            if tcfg.l2l and type(tcfg.batch_size) is not int:
+                raise ValueError("stream_partial_ram with l2l requires a fixed batch_size")
         if tcfg.l2l:
             # ADR 0002: reject what would make L2L differ from gradient
             # accumulation rather than switch the mode off silently.
