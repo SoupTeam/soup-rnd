@@ -5,7 +5,7 @@ activations before optional C3 residency to preserve A4's priority. This is not
 a process-RSS limit. The public L2L path uses a separately reserved RAM partition.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from soup_cli.utils.host_memory_budget import HostMemoryBudget
@@ -52,6 +52,7 @@ class BudgetedActivationStore(ActivationStore):
         dtype: Any,
         device: Any,
         pin: bool,
+        mb_shapes: Sequence[tuple[int, ...]] | None = None,
         spill_layers: int = 0,
         spill_factory: Callable[[int], SpillBackend] | None = None,
         ring: int = DEFAULT_RING,
@@ -85,6 +86,7 @@ class BudgetedActivationStore(ActivationStore):
                 dtype=dtype,
                 device=device,
                 pin=pin,
+                mb_shapes=mb_shapes,
                 spill_layers=spill_layers,
                 spill_factory=spill_factory,
                 ring=ring,

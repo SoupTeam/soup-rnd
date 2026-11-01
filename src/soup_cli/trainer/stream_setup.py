@@ -1073,15 +1073,14 @@ class StreamingSetupMixin:
                 partial_config.cache_bytes,
             )
             if tcfg.l2l:
-                from soup_cli.trainer.l2l_trainer import SHAPE_ROUND
-                from soup_cli.utils.c3_l2l_budget import plan_c3_l2l
+                from soup_cli.utils.c3_l2l_budget import RESERVATION_ROUND, plan_c3_l2l
 
                 self._c3_l2l_plan = plan_c3_l2l(
                     partial_budget, n_layers=int(model_config.num_hidden_layers),
                     batch_size=tcfg.batch_size, max_length=cfg.data.max_length,
                     hidden_size=int(model_config.hidden_size),
                     microbatches=tcfg.gradient_accumulation_steps, dtype=dtype,
-                    pin=on_cuda, shape_round=SHAPE_ROUND,
+                    pin=on_cuda, shape_round=RESERVATION_ROUND,
                 )
                 partial_budget = self._c3_l2l_plan.weights
             console.print(

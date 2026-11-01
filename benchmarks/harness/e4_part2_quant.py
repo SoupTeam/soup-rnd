@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import resource
 import shutil
 import sys
 import time
@@ -42,6 +41,17 @@ EXPECTED_UNITS = 3136
 #: keys in an order that changes from process to process, so a header with two keys is not
 #: reproducible. The double-quant setting is in the directory name and in the manifest.
 SAFETENSORS_METADATA = {"format": "pt"}
+
+
+def _peak_rss_bytes() -> Optional[int]:
+    """This process's peak RSS in bytes; None when Unix resource telemetry is unavailable."""
+    try:
+        import resource
+    except ImportError:
+        return None
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # macOS reports bytes; Linux reports KiB.
+    return peak if sys.platform == "darwin" else peak * 1024
 
 
 class OutputSetError(RuntimeError):
@@ -629,7 +639,7 @@ def run(source: Path, out: Path, manifest: Path, part1_rows_path: Optional[Path]
         "source_files": source_files,
         "seconds": {t: p["seconds"] for t, p in passes.items()} | {
             "total": round(time.time() - started, 1)},
-        "peak_rss_bytes_all_children_excluded": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "peak_rss_bytes_all_children_excluded": _peak_rss_bytes(),
         "bnb_cpu_backends": backends,
         "fused_slice_equals_checkpoint_tensor": {
             t: {"mismatches": p["mapping_mismatch"], "pass": not p["mapping_mismatch"]}

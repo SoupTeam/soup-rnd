@@ -10,6 +10,10 @@ from dataclasses import dataclass
 from soup_cli.utils.host_memory_budget import HostMemoryBudget
 from soup_cli.utils.partial_ram_source import PartialRamBudget
 
+#: Sequence rounding of the reserved window. L2L no longer pads micro-batches to a
+#: bucket, so this only over-reserves slightly; it keeps the CUDA-tested reservation.
+RESERVATION_ROUND = 64
+
 
 @dataclass(frozen=True)
 class C3L2LPlan:
@@ -36,6 +40,17 @@ class C3L2LPlan:
             or pin != self.pinned
         ):
             raise ValueError("C3 L2L window exceeds or differs from the reserved activation plan")
+
+    def validate_microbatches(
+        self, *, n_layers: int, shapes: list[tuple[int, int, int]], dtype: str, pin: bool
+    ) -> None:
+        """Check a window whose micro-batches may differ in shape (rows of other lengths)."""
+        if not shapes:
+            raise ValueError("C3 L2L window needs at least one micro-batch")
+        for shape in shapes:
+            self.validate_window(
+                n_layers=n_layers, shape=shape, k=len(shapes), dtype=dtype, pin=pin
+            )
 
 
 def plan_c3_l2l(

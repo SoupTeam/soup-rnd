@@ -68,26 +68,60 @@ def test_insufficient_fixed_budget_refuses_before_any_weight_allocation():
         )
 
 
-def test_shape_replacement_releases_old_activation_lease_and_oversize_retains_it():
+def _ids(*shapes):
     import torch
 
-    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    return [torch.zeros(shape, dtype=torch.long) for shape in shapes]
 
-    plan = _plan()
+
+def _state_and_stepper(plan):
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState
+
     state = L2LState(runtime=None, dtype=torch.float32, c3_plan=plan)
     stepper = SimpleNamespace(
         causal=SimpleNamespace(config=SimpleNamespace(hidden_size=33)), layers=[None] * 3
     )
+    return state, stepper
+
+
+def test_shape_replacement_releases_old_activation_lease_and_oversize_retains_it():
+    from soup_cli.trainer.l2l_trainer import _store_for
+
+    plan = _plan()
+    state, stepper = _state_and_stepper(plan)
     try:
-        first = _store_for(state, stepper, (1, 32), 2, "cpu")
+        first = _store_for(state, stepper, _ids((1, 32), (1, 32)), "cpu")
         assert plan.activations.used_bytes == 3 * 2 * 32 * 33 * 4
-        second = _store_for(state, stepper, (1, 128), 2, "cpu")
+        assert _store_for(state, stepper, _ids((1, 16), (1, 32)), "cpu") is first
+        second = _store_for(state, stepper, _ids((1, 128), (1, 128)), "cpu")
         assert first is not second
         assert plan.activations.used_bytes == plan.activations.limit_bytes
-        with pytest.raises(ValueError):
-            _store_for(state, stepper, (1, 129), 2, "cpu")
-        assert state.store is second
-        assert plan.activations.used_bytes == plan.activations.limit_bytes
+        for window in (_ids((1, 129), (1, 1)), _ids((1, 1), (1, 1), (1, 1)), _ids((2, 64))):
+            with pytest.raises(ValueError):
+                _store_for(state, stepper, window, "cpu")
+            assert state.store is second
+            assert plan.activations.used_bytes == plan.activations.limit_bytes
+    finally:
+        state.close()
+    assert plan.activations.used_bytes == 0
+
+
+def test_mixed_length_window_fits_reserved_partition():
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import _store_for
+
+    plan = _plan()
+    state, stepper = _state_and_stepper(plan)
+    try:
+        store = _store_for(state, stepper, _ids((1, 128), (1, 5)), "cpu")
+        assert store.mb_shapes == [(128 * 33,), (5 * 33,)]
+        assert plan.activations.used_bytes <= plan.activations.limit_bytes
+        short = torch.arange(5 * 33, dtype=torch.float32).view(1, 5, 33)
+        store.put(0, 1, short)
+        assert torch.equal(store.get(0, 1), short)
     finally:
         state.close()
     assert plan.activations.used_bytes == 0
