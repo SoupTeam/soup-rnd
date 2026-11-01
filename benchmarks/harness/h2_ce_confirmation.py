@@ -48,20 +48,29 @@ PHASE_ARMS = {
     'baseline_training': ('baseline', 'training'), 'ce_only_training': ('ce_only', 'training'),
     'baseline_probes_repeat': ('baseline', 'probes'),
     'ce_only_probes_repeat': ('ce_only', 'probes'),
+    # attempt018 fp64-reference arm: ref64 children are probe captures; the two perturbation
+    # children run 18 backward passes each on one decisive probe.
+    'ref64_probes': ('ref64', 'probes'), 'ref64_probes_repeat': ('ref64', 'probes'),
+    'ref64_perturbed_probe02': ('ref64', 'perturbed'),
+    'ref64_perturbed_probe03': ('ref64', 'perturbed'),
 }
+REF64_PHASES = ('baseline_probes', 'ce_only_probes', 'ref64_probes', 'ref64_probes_repeat',
+                'ref64_perturbed_probe02', 'ref64_perturbed_probe03')
+PERTURBED_PROBE = {'ref64_perturbed_probe02': 2, 'ref64_perturbed_probe03': 3}
 # The contract may only choose one of these fixed series; it can never carry a free-form list.
-SERIES = {'ce_confirmation': PHASES, 'noise_floor': NOISE_FLOOR_PHASES}
+SERIES = {'ce_confirmation': PHASES, 'noise_floor': NOISE_FLOOR_PHASES, 'ref64': REF64_PHASES}
 ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
     'h2_ce_confirmation.py', 'h2_ce_training.py', 'h2_ce_workset.py',
     'h2_operator_patch.py', 'h2_operator_capture.py',
     'h2_ce_controls.py', 'arm_validity.py', 'l2l_box.py',
+    'h2_ce_ref64.py', 'h2_ce_ref64_review.py', 'h2_ce_ref64_evidence.py',
 })) + tuple('benchmarks/h2/' + n for n in (
     'operator_study.json', 'numerical_policy.json', 'candidate_configs/baseline.json',
     'runtime_candidate.lock', 'synthetic_fixture.jsonl', 'prepared_fixture_candidate.jsonl',
     'CE_CONFIRMATION_PROTOCOL.txt', 'ce_confirmation_plan.json', 'ce_confirmation_workset.json',
     'CE_CONTROLS_PROTOCOL.txt',
     'CE_PREPARED_BATCHES_PROTOCOL.txt', 'CE_HARDENING_ADDENDUM.txt',
-    'CE_NOISE_FLOOR_ADDENDUM.txt',
+    'CE_NOISE_FLOOR_ADDENDUM.txt', 'CE_FP64_REFERENCE_ADDENDUM.txt',
 ))
 _USED = False
 CLEANUP_RESERVE_SECONDS = 40
@@ -200,8 +209,8 @@ def read_child(root: Path, phase: str) -> dict:
     if (data['patch_after']['status'] != 'PASS_EXPLICIT_PATCH_BINDINGS'
             or data['patch_after']['arm'] != arm):
         raise ValueError('Invalid patch binding evidence')
-    trace = root / ('profile/kernel_trace.json' if kind == 'training'
-                    else 'probe_00/kernel_trace.json')
+    trace = root / {'training': 'profile/kernel_trace.json', 'probes': 'probe_00/kernel_trace.json',
+                    'perturbed': 'pass_0_0/kernel_trace.json'}[kind]
     kernel_audit(json.loads(trace.read_text())['traceEvents'], arm)
     return data
 
@@ -472,6 +481,28 @@ def validate_workset_link(trainer: Any, work: dict, expected: list[dict]) -> dic
     return {'status': 'PASS_WORKSET_LINKED_TO_PREPARED_ROWS', 'rows': indices}
 
 
+def write_hook_evidence(directory: Path, hooks: Any) -> None:
+    """lm_head output hashes per probe/pass and the cloned bf16 dlogits of the probe children."""
+    from safetensors.torch import save_file
+
+    directory.mkdir()
+    write_json(directory / 'lm_head_sha256.json', hooks.sha)
+    for key, grad in hooks.dlogits.items():
+        save_file({'dlogits': grad.contiguous()}, str(directory / f'{key}.safetensors'))
+
+
+def ref64_record(wrapper: Any) -> dict:
+    """CE64 call count and integrity for the receipt; zero for the arms that never install it."""
+    if wrapper is None:
+        return {'ce64_calls': 0, 'integrity_ok': True, 'refusals': [], 'flips': []}
+    state = wrapper.ce64_state
+    return {'ce64_calls': state.calls,
+            'integrity_ok': len(state.integrity) == state.calls and all(
+                row['ok'] for row in state.integrity),
+            'refusals': list(state.refusals), 'flips': list(state.flips),
+            'config': 'real' if state.real else 'test'}
+
+
 def run_child(contract: dict, phase: str, out: Path) -> dict:
     global _USED
     if _USED or phase not in series_phases(contract):
@@ -517,6 +548,13 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         arm, kind = PHASE_ARMS[phase]
         training = kind == 'training'
         control = PatchController(arm)
+        ref64_series = series_name(contract) == 'ref64'
+        ce64 = None
+        if arm == 'ref64':
+            import h2_ce_ref64
+
+            ce64 = h2_ce_ref64.install()  # rebinds the same attribute as the CE-only arm, once
+            control.reference_ce = ce64
         holder: dict = {}
         window = None
         if training:
@@ -568,16 +606,56 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
             trace = out / 'profile/kernel_trace.json'
         else:
             result['patch_lifecycle'] = control.prepare_capture(wrapper.trainer, wrapper.model)
-            for index, batch in enumerate(work['probes']):
-                tensors = {k: torch.tensor(v, dtype=torch.long) for k, v in batch.items()}
-                path = out / f'probe_{index:02d}'
-                if index == 0:
-                    collect(wrapper.model, tensors, names, path, cuda=True,
-                            expected_identity=study['reference_identity'])
-                else:
-                    collect_probe(wrapper.model, tensors, names, path / 'model_probe', bf16=True)
-            trace = out / 'probe_00/kernel_trace.json'
+            hooks, peaks = None, {}
+            if ref64_series:
+                import h2_ce_ref64
+
+                hooks = h2_ce_ref64.LmHeadHooks(wrapper.model, keep_gradients=kind == 'probes')
+
+            def run_pass(key, call):
+                if hooks is not None:
+                    hooks.begin(key)
+                    h2_ce_ref64.peak_memory_start()
+                call()
+                if hooks is not None:
+                    hooks.end()
+                    peaks[key] = h2_ce_ref64.peak_memory_bytes()
+
+            if kind == 'perturbed':
+                index = PERTURBED_PROBE[phase]
+                tensors = {k: torch.tensor(v, dtype=torch.long)
+                           for k, v in work['probes'][index].items()}
+                for level_index in range(len(h2_ce_ref64.GRID)):
+                    for seed_index in range(h2_ce_ref64.SEEDS_PER_LEVEL):
+                        key = f'pass_{level_index}_{seed_index}'
+                        h2_ce_ref64.set_perturbation(ce64, level_index, seed_index)
+                        if (level_index, seed_index) == (0, 0):
+                            run_pass(key, lambda: collect(wrapper.model, tensors, names,
+                                                          out / key, cuda=True))
+                        else:
+                            target = out / key / 'model_probe'
+                            run_pass(key, lambda: collect_probe(
+                                wrapper.model, tensors, names, target, bf16=True))
+                trace = out / 'pass_0_0/kernel_trace.json'
+            else:
+                for index, batch in enumerate(work['probes']):
+                    tensors = {k: torch.tensor(v, dtype=torch.long) for k, v in batch.items()}
+                    path = out / f'probe_{index:02d}'
+                    if index == 0:
+                        run_pass(f'probe_{index:02d}', lambda: collect(
+                            wrapper.model, tensors, names, path, cuda=True,
+                            expected_identity=study['reference_identity']))
+                    else:
+                        run_pass(f'probe_{index:02d}', lambda: collect_probe(
+                            wrapper.model, tensors, names, path / 'model_probe', bf16=True))
+                trace = out / 'probe_00/kernel_trace.json'
+            if hooks is not None:
+                write_hook_evidence(out / 'hooks', hooks)
+                hooks.remove()
+                result['peak_memory_bytes'] = peaks
         result['patch_after'] = control.verify(wrapper.model)
+        if ref64_series:
+            result['ref64'] = ref64_record(ce64)
         result['kernels'] = kernel_audit(json.loads(trace.read_text())['traceEvents'], arm)
         result.update(status='COMPLETE_CE_CAPTURE', source_commit=contract['source_commit'],
                       gpu_uuid=contract['gpu_uuid'], boot_id=contract['boot_id'])
@@ -597,6 +675,17 @@ def run_child(contract: dict, phase: str, out: Path) -> dict:
         write_json(out / 'contract.json', contract)
         tree_seal(out)
     return result
+
+
+def ref64_failure_status(child: Path) -> str:
+    """INCOMPLETE only when the child left no readable evidence (killed or crashed) or hit the
+    deadline TimeoutError; every other recorded child error is VOID (addendum row 1: pins, GPU,
+    bindings, CE64 refusals, non-finite values, hooks, memory, preflight and identity failures)."""
+    try:
+        error = json.loads((child / 'evidence.json').read_text()).get('error') or ''
+    except (OSError, ValueError):
+        return 'INCOMPLETE'
+    return 'INCOMPLETE' if error.startswith('TimeoutError') else 'VOID'
 
 
 def run_series(contract: dict, out: Path) -> dict:
@@ -621,15 +710,28 @@ def run_series(contract: dict, out: Path) -> dict:
             result['phases'][phase] = report
             if (report['status'] != 'CHILD_EXITED' or not report['group_cleanup_confirmed']
                     or report.get('child_status', {}).get('returncode') != 0):
+                if series == 'ref64':
+                    result['status'] = ref64_failure_status(out / phase / 'runner')
                 raise ValueError('Child failed; no subsequent phases or retries')
             evidence = json.loads((out / phase / 'runner/evidence.json').read_text())
             if evidence['status'] != 'COMPLETE_CE_CAPTURE':
                 raise ValueError('Incomplete child evidence')
+            if series == 'ref64':
+                read_child(out / phase / 'runner', phase)
             if series == 'ce_confirmation' and index in (1, 3):
                 review = review_pair(out, training=index == 3)
                 write_json(out / ('training_review.json' if index == 3 else 'probe_review.json'),
                            review)
-        if series == 'noise_floor':
+        if series == 'ref64':
+            reviewing = True
+            import h2_ce_ref64_review
+
+            review = h2_ce_ref64_review.review_ref64(out)
+            write_json(out / 'ref64_review.json', h2_ce_ref64_review.sanitize(review))
+            result.update(status=review['run_status'] if review['run_status'] in
+                          ('VOID', 'INCOMPLETE') else 'COMPLETE_CE_REF64_SERIES',
+                          label=review['label'])
+        elif series == 'noise_floor':
             reviewing = True
             review = review_noise_floor(out)
             write_json(out / 'noise_floor_review.json', review)
@@ -640,7 +742,9 @@ def run_series(contract: dict, out: Path) -> dict:
     except Exception as error:
         result['error'] = type(error).__name__ + ': ' + str(error)
         if reviewing:
-            result['status'] = 'VOID'  # Identity/evidence failure after all four children ran.
+            result['status'] = 'VOID'  # Identity/evidence failure after all children ran.
+        elif series == 'ref64' and result['status'] == 'BLOCKED':
+            result['status'] = 'INCOMPLETE' if isinstance(error, TimeoutError) else 'VOID'
     finally:
         write_json(out / 'series.json', result)
         tree_seal(out)
@@ -659,6 +763,12 @@ def main() -> None:
         if args.child or args.phase or args.contract:
             parser.error('Offline review accepts only --out')
         recorded = json.loads((args.out / 'contract.json').read_text())
+        if series_name(recorded) == 'ref64':
+            import h2_ce_ref64_review
+
+            Console().print('REF64_' + h2_ce_ref64_review.review_ref64(args.out)['label']
+                            + '; external controls pending; NO_VERDICT')
+            return
         if series_name(recorded) == 'noise_floor':
             review = review_noise_floor(args.out)
             Console().print('NOISE_FLOOR_' + review['classification']
@@ -675,7 +785,7 @@ def main() -> None:
                                                                                    args.out)
     Console().print(result['status'] + '; performance=NO_VERDICT')
     if result['status'] not in {'COMPLETE_CE_CAPTURE', 'COMPLETE_CE_NUMERICAL_SERIES',
-                              'COMPLETE_CE_NOISE_FLOOR_SERIES'}:
+                              'COMPLETE_CE_NOISE_FLOOR_SERIES', 'COMPLETE_CE_REF64_SERIES'}:
         raise SystemExit(2)
 
 

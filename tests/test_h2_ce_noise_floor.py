@@ -39,7 +39,7 @@ def test_phase_map_and_series_constants():
         "baseline_probes_repeat",
         "ce_only_probes_repeat",
     )
-    assert set(runner.PHASE_ARMS) == set(runner.PHASES) | set(FOUR)
+    assert set(runner.PHASE_ARMS) == set(runner.PHASES) | set(FOUR) | set(runner.REF64_PHASES)
     for repeat in ("baseline_probes_repeat", "ce_only_probes_repeat"):
         # A repeat uses exactly the base arm's flags and kind.
         assert runner.PHASE_ARMS[repeat] == runner.PHASE_ARMS[repeat.removesuffix("_repeat")]

@@ -12,18 +12,23 @@ ARMS = {
     'rope_only': ('rope',), 'swiglu_only': ('swiglu',),
     'combined': ('rope', 'fused_linear_cross_entropy', 'rms_norm', 'swiglu'),
 }
+# The attempt018 fp64-reference arm patches no Liger entry point; it is kept out of ARMS so that the
+# operator-diagnostic matrix (which iterates ARMS) is unchanged.
+REFERENCE_ARMS = {'ref64': ()}
+NO_PATCH_ARMS = ('baseline', 'ref64')
 _INSTALLED = False
 
 
 def patch_flags(arm: str) -> dict[str, bool]:
-    if arm not in ARMS:
+    table = {**ARMS, **REFERENCE_ARMS}
+    if arm not in table:
         raise ValueError('Unknown operator arm')
-    return {name: name in ARMS[arm] for name in FLAGS}
+    return {name: name in table[arm] for name in FLAGS}
 
 
 def validate_counts(arm: str, counts: dict[str, int]) -> None:
     patch_flags(arm)
-    expected = 0 if arm == 'baseline' else 1
+    expected = 0 if arm in NO_PATCH_ARMS else 1
     if counts != {'class': expected, 'instance': expected}:
         raise ValueError('Missing/duplicate/unexpected patch point')
 
@@ -57,6 +62,7 @@ class PatchController:
         self.arm = arm
         self.counts = {'class': 0, 'instance': 0}
         self.capture_prepared = False
+        self.reference_ce = None  # the CE64 wrapper, ref64 arm only
         import torch.nn.functional as functional
         import transformers.trainer as trainer
         from transformers.models.llama import modeling_llama
@@ -98,14 +104,14 @@ class PatchController:
                 'cross_entropy': self.functional.cross_entropy}
 
     def class_patch(self, model_name: str) -> bool:
-        if self.arm == 'baseline' or self.counts['class'] or self.counts['instance']:
+        if self.arm in NO_PATCH_ARMS or self.counts['class'] or self.counts['instance']:
             raise ValueError('Unexpected class patch invocation')
         self.patch.apply_liger_kernel_to_llama(**self.flags)
         self.counts['class'] += 1
         return True
 
     def instance_patch(self, model: Any, kernel_config: dict | None) -> None:
-        if (self.arm == 'baseline' or self.counts != {'class': 1, 'instance': 0}
+        if (self.arm in NO_PATCH_ARMS or self.counts != {'class': 1, 'instance': 0}
                 or kernel_config not in (None, {}, self.flags)):
             raise ValueError('Unexpected instance patch invocation/configuration')
         self.patch.apply_liger_kernel_to_llama(model=self.unwrap(model), **self.flags)
@@ -117,7 +123,7 @@ class PatchController:
             raise ValueError('Capture lifecycle already prepared; no retry')
         # Consume even a failed attempt: partial patching cannot be retried safely.
         self.capture_prepared = True
-        enabled = self.arm != 'baseline'
+        enabled = self.arm not in NO_PATCH_ARMS
         if (trainer.model is not model or trainer.model_wrapped is not model
                 or trainer.args.use_liger_kernel is not enabled
                 or trainer.args.liger_kernel_config not in (None, {}, self.flags)
@@ -138,6 +144,12 @@ class PatchController:
         validate_counts(self.arm, self.counts)
         expected = {key: self.treatment[key] if self.flags[key] else value
                     for key, value in self.original.items()}
+        if self.arm == 'ref64':
+            # Only the cross_entropy binding may differ from stock: the installed CE64 wrapper.
+            module = getattr(self.reference_ce, '__module__', '')
+            if self.reference_ce is None or module != 'h2_ce_ref64':
+                raise ValueError('ref64 arm requires the installed CE64 wrapper')
+            expected['cross_entropy'] = self.reference_ce
         if self.bindings() != expected:
             raise ValueError('Unexpected global patch binding')
         base = self.unwrap(model)
