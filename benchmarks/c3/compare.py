@@ -93,7 +93,17 @@ def run(destination: Path, mode: str) -> dict[str, Any]:
     if destination.exists():
         raise FileExistsError("output must be a new directory; no retry or overwrite")
     destination.mkdir(parents=True)
+    settings = None
     try:
+        import torch
+
+        settings = (
+            torch.get_num_threads(),
+            torch.are_deterministic_algorithms_enabled(),
+            torch.is_deterministic_algorithms_warn_only_enabled(),
+            torch.backends.cuda.matmul.allow_tf32,
+            torch.backends.cudnn.allow_tf32,
+        )
         return _run(destination, mode)
     except BaseException as error:
         receipt = destination / "result.json"
@@ -101,6 +111,13 @@ def run(destination: Path, mode: str) -> dict[str, Any]:
         result.update(status="FAILED", error=repr(error), performance_verdict="NO_VERDICT")
         save(receipt, result)
         raise
+    finally:
+        if settings is not None:
+            threads, deterministic, warn_only, matmul_tf32, cudnn_tf32 = settings
+            torch.set_num_threads(threads)
+            torch.use_deterministic_algorithms(deterministic, warn_only=warn_only)
+            torch.backends.cuda.matmul.allow_tf32 = matmul_tf32
+            torch.backends.cudnn.allow_tf32 = cudnn_tf32
 
 
 def _run(destination: Path, mode: str) -> dict[str, Any]:

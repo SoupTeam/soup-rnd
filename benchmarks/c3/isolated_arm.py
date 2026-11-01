@@ -17,16 +17,19 @@ from typing import Any
 from benchmarks.c3.compare import ReadCounter, save, tensor_digest
 
 
-def run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
+def run(destination: Path, mode: str, arm: str, prepared: Path | None = None) -> dict[str, Any]:
     if arm not in ("A", "B"):
         raise ValueError("arm must be A or B")
-    if mode not in ("cpu-smoke", "cuda-pilot"):
+    if mode not in ("cpu-smoke", "cuda-pilot", "cuda-representative"):
         raise ValueError("unknown comparison mode")
+    if (mode == "cuda-representative" and prepared is None
+            or mode == "cuda-pilot" and prepared is not None):
+        raise ValueError("representative mode needs prepared inputs; synthetic pilot forbids them")
     if destination.exists():
         raise FileExistsError("output must be a new directory; no retry or overwrite")
     destination.mkdir(parents=True)
     try:
-        return _run(destination, mode, arm)
+        return _run(destination, mode, arm, prepared)
     except BaseException as error:
         receipt = destination / "result.json"
         result = json.loads(receipt.read_text()) if receipt.exists() else {"mode": mode}
@@ -35,18 +38,25 @@ def run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
         raise
 
 
-def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
+def _run(destination: Path, mode: str, arm: str, prepared: Path | None = None) -> dict[str, Any]:
     import torch
     from peft import LoraConfig, TaskType
     from transformers import LlamaConfig, LlamaForCausalLM
 
     from benchmarks.c3.io_calibration import difference, snapshot
     from benchmarks.harness.arm_validity import ArmWatch
-    from soup_cli.utils.layer_shard import shard_checkpoint
+    from soup_cli.utils.layer_shard import read_shard_index, shard_checkpoint
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
     from soup_cli.utils.partial_ram_source import PartialRamBudget
 
-    cuda = mode == "cuda-pilot"
+    cuda = mode != "cpu-smoke"
+    workload = None
+    digest_tensors = tensor_digest
+    if prepared is not None:
+        from benchmarks.c3.representative_workload import load_prepared
+        from benchmarks.c3.representative_workload import tensor_digest as digest_tensors
+
+        workload = load_prepared(prepared, cuda=cuda)
     device = "cuda:0" if cuda else "cpu"
     if cuda and (not torch.cuda.is_available() or torch.cuda.device_count() != 1):
         raise RuntimeError("the pilot requires exactly one CUDA device")
@@ -79,26 +89,38 @@ def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
         tie_word_embeddings=False,
         max_position_embeddings=256,
     )
-    base = LlamaForCausalLM(config).to(torch.float32).eval()
-    weights = destination / "weights"
-    base.save_pretrained(weights, safe_serialization=True)
-    del base
-    directory = destination / "shards"
-    index = shard_checkpoint(str(weights), str(directory), dtype="float32", arch="llama")
-    identity = {
-        str(p.relative_to(destination)): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in weights.iterdir()
-        if p.is_file()
-    }
+    if workload is None:
+        base = LlamaForCausalLM(config).to(torch.float32).eval()
+        weights = destination / "weights"
+        base.save_pretrained(weights, safe_serialization=True)
+        del base
+        directory = destination / "shards"
+        index = shard_checkpoint(str(weights), str(directory), dtype="float32", arch="llama")
+        identity = {
+            str(p.relative_to(destination)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in weights.iterdir() if p.is_file()
+        }
+    else:
+        weights = Path(workload["weights"])
+        config = LlamaConfig.from_pretrained(str(weights), local_files_only=True)
+        directory = prepared.parent / "shards"
+        index = read_shard_index(str(directory))
+        identity = workload["identity"]
     records = []
     order = [arm]
     steps, warmup = (6, 2) if cuda else (3, 0)
     cache = 128 << 20 if cuda else 45_000
     envelope = 512 << 20 if cuda else 10_000_000
     reserved = 64 << 20 if cuda else 0
+    if workload is not None:
+        steps, warmup = workload["steps"], workload["warmup"]
+        cache, envelope = workload["cache_bytes"], workload["limit_bytes"]
+        reserved = workload["reserved_bytes"]
     result: dict[str, Any] = {
         "mode": mode,
-        "source_model": "synthetic random dense Llama",
+        "source_model": workload["kind"] if workload else "synthetic random dense Llama",
+        "workload_sha256": hashlib.sha256(prepared.read_bytes()).hexdigest() if workload else None,
+        "effective_tokens_per_step": workload["effective_tokens_per_step"] if workload else None,
         "config": config.to_dict(),
         "weight_sha256": identity,
         "steps_per_arm": steps,
@@ -136,7 +158,7 @@ def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
                         task_type=TaskType.CAUSAL_LM,
                     ),
                     device=device,
-                    dtype="float32",
+                    dtype=workload["dtype"] if workload else "float32",
                     pin=cuda,
                     seed=3,
                     tier="disk",
@@ -162,7 +184,7 @@ def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
                 params = {
                     name: param for name, param in model.named_parameters() if param.requires_grad
                 }
-                row["initial_adapter_sha256"] = tensor_digest(params)
+                row["initial_adapter_sha256"] = digest_tensors(params)
                 optimizer = torch.optim.AdamW(params.values(), lr=0.001)
                 model.train()
                 watch = ArmWatch(
@@ -170,10 +192,13 @@ def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
                 )
                 with watch:
                     for step in range(steps):
-                        ids = (
-                            (torch.arange(128 if cuda else 8).reshape(1, -1) + step)
-                            % config.vocab_size
-                        ).to(device)
+                        if workload:
+                            ids = torch.tensor([workload["tokens"][step]], device=device)
+                        else:
+                            ids = (
+                                (torch.arange(128 if cuda else 8).reshape(1, -1) + step)
+                                % config.vocab_size
+                            ).to(device)
                         optimizer.zero_grad()
                         if cuda:
                             torch.cuda.synchronize()
@@ -192,7 +217,7 @@ def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
                         if cuda:
                             torch.cuda.synchronize()
                         elapsed = time.perf_counter() - tick
-                        grad_hash = tensor_digest(gradients)
+                        grad_hash = digest_tensors(gradients)
                         tick = time.perf_counter()
                         optimizer.step()
                         if cuda:
@@ -211,11 +236,20 @@ def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
                             }
                         )
                         if cuda:
-                            row["updates"][-1]["physical_io"] = difference(
-                                io_before, snapshot(directory)
-                            )
+                            io_after = snapshot(directory)
+                            row["updates"][-1]["physical_io"] = difference(io_before, io_after)
+                            if workload:
+                                # Shared boundary for physical I/O and instrumented time.
+                                wall = io_after["monotonic_s"] - io_before["monotonic_s"]
+                                row["updates"][-1].update(
+                                    instrumented_window_seconds=wall,
+                                    effective_tokens=workload["effective_tokens_per_step"],
+                                    instrumented_tokens_per_second=(
+                                        workload["effective_tokens_per_step"] / wall
+                                    ),
+                                )
                 row["f1"] = watch.record
-                row["final_adapter_sha256"] = tensor_digest(params)
+                row["final_adapter_sha256"] = digest_tensors(params)
                 row["changed_adapter"] = (
                     row["final_adapter_sha256"] != row["initial_adapter_sha256"]
                 )
@@ -269,10 +303,12 @@ def _run(destination: Path, mode: str, arm: str) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--mode", choices=["cpu-smoke", "cuda-pilot"], default="cpu-smoke")
+    parser.add_argument("--mode", choices=["cpu-smoke", "cuda-pilot", "cuda-representative"],
+                        default="cpu-smoke")
+    parser.add_argument("--prepared", type=Path)
     parser.add_argument("--arm", choices=["A", "B"], required=True)
     args = parser.parse_args()
-    result = run(args.output, args.mode, args.arm)
+    result = run(args.output, args.mode, args.arm, args.prepared)
     from rich.console import Console
 
     Console().print(f"{result['status']}; performance={result['performance_verdict']}")

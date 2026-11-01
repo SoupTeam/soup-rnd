@@ -7,8 +7,38 @@ import pytest
 from benchmarks.c3.compare import run
 
 
-def test_cpu_comparison_preserves_exactness_and_measures_reads(tmp_path):
+def _settings():
+    import torch
+
+    return (
+        torch.get_num_threads(),
+        torch.are_deterministic_algorithms_enabled(),
+        torch.is_deterministic_algorithms_warn_only_enabled(),
+        torch.backends.cuda.matmul.allow_tf32,
+        torch.backends.cudnn.allow_tf32,
+    )
+
+
+@pytest.fixture
+def caller_settings():
+    import torch
+
+    original = _settings()
+    try:
+        torch.set_num_threads(1)
+        torch.use_deterministic_algorithms(False, warn_only=True)
+        yield _settings()
+    finally:
+        threads, deterministic, warn_only, matmul_tf32, cudnn_tf32 = original
+        torch.set_num_threads(threads)
+        torch.use_deterministic_algorithms(deterministic, warn_only=warn_only)
+        torch.backends.cuda.matmul.allow_tf32 = matmul_tf32
+        torch.backends.cudnn.allow_tf32 = cudnn_tf32
+
+
+def test_cpu_comparison_preserves_exactness_and_measures_reads(tmp_path, caller_settings):
     result = run(tmp_path / "run", "cpu-smoke")
+    assert _settings() == caller_settings
     assert result["status"] == "NUMERICAL_PASS"
     assert result["exact_training_match"]
     assert result["performance_verdict"] == "NO_VERDICT"
@@ -25,7 +55,7 @@ def test_existing_output_cannot_be_reused(tmp_path):
     assert (tmp_path / "sentinel").read_text() == "keep"
 
 
-def test_setup_failure_is_preserved(tmp_path, monkeypatch):
+def test_setup_failure_is_preserved(tmp_path, monkeypatch, caller_settings):
     from soup_cli.utils import layer_shard
 
     def fail(*args, **kwargs):
@@ -35,6 +65,7 @@ def test_setup_failure_is_preserved(tmp_path, monkeypatch):
     target = tmp_path / "failed"
     with pytest.raises(OSError, match="injected"):
         run(target, "cpu-smoke")
+    assert _settings() == caller_settings
     result = json.loads((target / "result.json").read_text())
     assert result["status"] == "FAILED"
     assert "injected" in result["error"]

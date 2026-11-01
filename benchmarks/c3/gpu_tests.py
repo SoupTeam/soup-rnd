@@ -4,6 +4,23 @@ import json
 from pathlib import Path
 
 
+def pytest_arguments(repo: Path) -> list[str]:
+    """Keep CUDA fixtures on the repository's admitted data filesystem and within CWD."""
+    return [
+        "-o",
+        "addopts=",
+        "-m",
+        "gpu",
+        "-q",
+        "--junitxml=/data/c3/evidence/cuda_tests.xml",
+        f"--basetemp={repo / '.c3_cuda_test_tmp'}",
+        "tests/test_c3_partial_ram.py",
+        "tests/test_c3_host_budget.py",
+        "tests/test_c3_l2l_shared_runtime.py",
+        "tests/test_c3_public_l2l.py",
+    ]
+
+
 def main() -> int:
     from benchmarks.harness.l2l_box import confirm_gpu_owner, gpu_compute_pids
 
@@ -26,18 +43,7 @@ def main() -> int:
         raise RuntimeError("GPU ownership unresolved")
     import pytest
 
-    return pytest.main(
-        [
-            "-o",
-            "addopts=",
-            "-m",
-            "gpu",
-            "-q",
-            "--junitxml=/data/c3/evidence/cuda_tests.xml",
-            "tests/test_c3_partial_ram.py",
-            "tests/test_c3_host_budget.py",
-        ]
-    )
+    return pytest.main(pytest_arguments(Path.cwd()))
 
 
 if __name__ == "__main__":

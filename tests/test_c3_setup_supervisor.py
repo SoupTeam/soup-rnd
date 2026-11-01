@@ -1,4 +1,5 @@
 """Setup lifecycle controls; no GPU, package install, rental or remote process."""
+
 import hashlib
 import json
 import os
@@ -46,9 +47,13 @@ def test_invalid_authority_never_executes_script(tmp_path, problem):
     if problem == "existing":
         out.mkdir()
     with pytest.raises((ValueError, FileExistsError)):
-        supervise(path, "0" * 64 if problem == "hash" else sha, out,
-                  1801 if problem == "oversized" else 2,
-                  time.time() - 1 if problem == "expired" else time.time() + 10)
+        supervise(
+            path,
+            "0" * 64 if problem == "hash" else sha,
+            out,
+            1801 if problem == "oversized" else 2,
+            time.time() - 1 if problem == "expired" else time.time() + 10,
+        )
     assert not (tmp_path / "executed").exists()
 
 
@@ -57,10 +62,22 @@ def test_closed_client_pipe_and_hangup_do_not_kill_setup(tmp_path):
     out = tmp_path / "out"
     module = Path(__file__).parents[1] / "benchmarks/c3/setup_supervisor.py"
     child = subprocess.Popen(
-        [sys.executable, str(module), "--script", str(path), "--sha256", sha,
-         "--output", str(out), "--max-seconds", "3",
-         "--deadline-unix-s", str(time.time() + 10)],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        [
+            sys.executable,
+            str(module),
+            "--script",
+            str(path),
+            "--sha256",
+            sha,
+            "--output",
+            str(out),
+            "--max-seconds",
+            "3",
+            "--deadline-unix-s",
+            str(time.time() + 10),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     try:
         child.stdout.close()
@@ -88,10 +105,22 @@ def test_supervisor_termination_stops_its_running_child(tmp_path):
     out = tmp_path / "out"
     module = Path(__file__).parents[1] / "benchmarks/c3/setup_supervisor.py"
     child = subprocess.Popen(
-        [sys.executable, str(module), "--script", str(path), "--sha256", sha,
-         "--output", str(out), "--max-seconds", "10",
-         "--deadline-unix-s", str(time.time() + 15)],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        [
+            sys.executable,
+            str(module),
+            "--script",
+            str(path),
+            "--sha256",
+            sha,
+            "--output",
+            str(out),
+            "--max-seconds",
+            "10",
+            "--deadline-unix-s",
+            str(time.time() + 15),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     try:
         end = time.monotonic() + 4
@@ -117,10 +146,38 @@ def test_supervisor_termination_stops_its_running_child(tmp_path):
 
 def test_successful_shell_cannot_leave_background_writer_alive(tmp_path):
     marker = tmp_path / "escaped"
-    path, sha = script(tmp_path, "(sleep 0.6; echo leaked > "
-                       + shlex.quote(str(marker)) + ") &\nexit 0\n")
+    path, sha = script(
+        tmp_path, "(sleep 0.6; echo leaked > " + shlex.quote(str(marker)) + ") &\nexit 0\n"
+    )
     result = supervise(path, sha, tmp_path / "out", 2, time.time() + 10)
     assert result["status"] == "PASS"
     assert result["group_cleanup_confirmed"] is True
     time.sleep(0.8)
     assert not marker.exists()
+
+
+def test_measurement_admits_5400_seconds_without_expanding_setup_limit(tmp_path):
+    path, sha = script(tmp_path, "echo measured; exit 0\n")
+    result = supervise(path, sha, tmp_path / "out", 5400, time.time() + 10, purpose="measurement")
+    assert result["status"] == "PASS"
+    assert result["purpose"] == "measurement"
+    assert result["group_cleanup_confirmed"]
+    assert (tmp_path / "out/stdout_stderr.log").read_text() == "measured\n"
+
+
+@pytest.mark.parametrize("purpose,bound", [("setup", 5400), ("measurement", 5401), ("unknown", 1)])
+def test_phase_bound_rejection_happens_before_launch(tmp_path, purpose, bound):
+    marker = tmp_path / "executed"
+    path, sha = script(tmp_path, "touch " + shlex.quote(str(marker)) + "\n")
+    with pytest.raises(ValueError):
+        supervise(path, sha, tmp_path / "out", bound, time.time() + 10, purpose=purpose)
+    assert not marker.exists()
+    assert not (tmp_path / "out").exists()
+
+
+def test_measurement_obeys_shared_deadline_despite_larger_phase_bound(tmp_path):
+    path, sha = script(tmp_path, "exec sleep 20\n")
+    result = supervise(path, sha, tmp_path / "out", 5400, time.time() + 0.2, purpose="measurement")
+    assert result["status"] == "TIMEOUT"
+    assert result["group_cleanup_confirmed"]
+    assert result["elapsed_seconds"] < 3

@@ -1,4 +1,5 @@
 """Prospective bounded POSIX setup supervisor; independent of SSH output pipes."""
+
 from __future__ import annotations
 
 import argparse
@@ -24,14 +25,34 @@ def group_leader(script: str, exit_path: str) -> None:
         signal.pause()
 
 
-def supervise(script: Path, expected_sha256: str, output: Path,
-              max_seconds: float, deadline_unix_s: float) -> dict:
+def validate_bounds(max_seconds: float, deadline_unix_s: float, *, purpose: str = "setup") -> None:
+    """Validate every planned phase before rental; setup keeps its original bound."""
+    bounds = {"setup": 1800, "measurement": 5400}
+    if purpose not in bounds:
+        raise ValueError("Unknown supervisor purpose")
+    limit = bounds[purpose]
+    if (
+        not math.isfinite(max_seconds)
+        or not 0 < max_seconds <= limit
+        or not math.isfinite(deadline_unix_s)
+        or deadline_unix_s <= time.time()
+    ):
+        raise ValueError(f"Unexpired deadline and {purpose} bound <={limit}s required")
+
+
+def supervise(
+    script: Path,
+    expected_sha256: str,
+    output: Path,
+    max_seconds: float,
+    deadline_unix_s: float,
+    *,
+    purpose: str = "setup",
+) -> dict:
     """Run a pinned setup script once; retain logs/exit status without stdout piping."""
     if os.name != "posix":
         raise ValueError("POSIX process groups are required")
-    if (not math.isfinite(max_seconds) or not 0 < max_seconds <= 1800
-            or not math.isfinite(deadline_unix_s) or deadline_unix_s <= time.time()):
-        raise ValueError("Unexpired deadline and setup bound <=1800s required")
+    validate_bounds(max_seconds, deadline_unix_s, purpose=purpose)
     if script.is_symlink() or not script.is_file():
         raise ValueError("Setup script must be a regular, non-symlink file")
     source = script.read_bytes()
@@ -43,9 +64,15 @@ def supervise(script: Path, expected_sha256: str, output: Path,
     frozen = output / "setup.sh"
     frozen.write_bytes(source)
     started = time.monotonic()
-    receipt = {"status": "STARTING", "script_sha256": expected_sha256,
-               "deadline_unix_s": deadline_unix_s, "max_seconds": max_seconds,
-               "performance_verdict": "NO_VERDICT", "provider_stop_performed": False}
+    receipt = {
+        "status": "STARTING",
+        "script_sha256": expected_sha256,
+        "deadline_unix_s": deadline_unix_s,
+        "max_seconds": max_seconds,
+        "purpose": purpose,
+        "performance_verdict": "NO_VERDICT",
+        "provider_stop_performed": False,
+    }
 
     def save() -> None:
         temporary = output / "result.tmp"
@@ -57,9 +84,17 @@ def supervise(script: Path, expected_sha256: str, output: Path,
         with (output / "stdout_stderr.log").open("xb") as log:
             child_exit = output / "child_exit.json"
             process = subprocess.Popen(
-                [sys.executable, os.path.realpath(__file__), "--group-leader",
-                 str(frozen), str(child_exit)], stdin=subprocess.DEVNULL,
-                stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
+                [
+                    sys.executable,
+                    os.path.realpath(__file__),
+                    "--group-leader",
+                    str(frozen),
+                    str(child_exit),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
             )
             try:
                 receipt.update(status="RUNNING", pid=process.pid, process_group=process.pid)
@@ -67,8 +102,9 @@ def supervise(script: Path, expected_sha256: str, output: Path,
                 while True:
                     if process.poll() is not None:
                         raise RuntimeError("Setup group leader exited unexpectedly")
-                    remaining = min(max_seconds - (time.monotonic() - started),
-                                    deadline_unix_s - time.time())
+                    remaining = min(
+                        max_seconds - (time.monotonic() - started), deadline_unix_s - time.time()
+                    )
                     if remaining <= 0:
                         raise subprocess.TimeoutExpired(process.args, max_seconds)
                     if child_exit.exists():
@@ -77,8 +113,10 @@ def supervise(script: Path, expected_sha256: str, output: Path,
                         break
                     time.sleep(min(0.05, remaining))
             except BaseException as error:
-                receipt.update(status="TIMEOUT" if isinstance(error, subprocess.TimeoutExpired)
-                               else "FAILED", error=repr(error))
+                receipt.update(
+                    status="TIMEOUT" if isinstance(error, subprocess.TimeoutExpired) else "FAILED",
+                    error=repr(error),
+                )
                 if not isinstance(error, subprocess.TimeoutExpired):
                     raise
             finally:
@@ -120,8 +158,9 @@ def main() -> int:
         raise InterruptedError("Setup supervisor termination requested")
 
     signal.signal(signal.SIGTERM, interrupted)
-    result = supervise(args.script, args.sha256, args.output,
-                       args.max_seconds, args.deadline_unix_s)
+    result = supervise(
+        args.script, args.sha256, args.output, args.max_seconds, args.deadline_unix_s
+    )
     return 0 if result["status"] == "PASS" else 1
 
 

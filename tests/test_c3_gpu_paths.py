@@ -1,0 +1,116 @@
+"""Exercise the real shard path guard with the rented host's directory relationship."""
+
+import os
+import sys
+import tempfile
+
+import pytest
+
+from benchmarks.c3.gpu_tests import pytest_arguments
+
+
+def test_cuda_fixture_path_is_within_cwd_without_expanding_allowed_roots(tmp_path, monkeypatch):
+    from soup_cli.utils.layer_shard import _validate_out_dir
+
+    owned = tmp_path / "owned_data"
+    repo = owned / "repo"
+    repo.mkdir(parents=True)
+    home = tmp_path / "home"
+    system_tmp = tmp_path / "system_tmp"
+    home.mkdir()
+    system_tmp.mkdir()
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(system_tmp))
+
+    # Attempt014 failed at this exact relationship: a sibling of CWD, outside TMPDIR.
+    with pytest.raises(ValueError, match="must be under"):
+        _validate_out_dir(str(owned / "test_tmp" / "case" / "shards"))
+
+    argument = next(item for item in pytest_arguments(repo) if item.startswith("--basetemp="))
+    base = argument.split("=", 1)[1]
+    shards = os.path.join(base, "case", "shards")
+    assert _validate_out_dir(shards) == os.path.realpath(shards)
+    assert os.path.commonpath([os.path.realpath(repo), os.path.realpath(shards)]) == (
+        os.path.realpath(repo)
+    )
+
+    # The fix must not admit unrelated storage paths.
+    with pytest.raises(ValueError, match="must be under"):
+        _validate_out_dir(str(tmp_path / "unrelated" / "shards"))
+
+
+def test_bad_prepared_path_refused_before_download(tmp_path, monkeypatch):
+    from benchmarks.c3 import representative_workload
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("HOME", str(repo))
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(repo))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prepare",
+            "--snapshot",
+            str(tmp_path / "model"),
+            "--output",
+            str(tmp_path / "prepared"),
+            "--download-deadline-unix-s",
+            "1",
+        ],
+    )
+    monkeypatch.setattr(
+        representative_workload,
+        "fetch_snapshot",
+        lambda *args: pytest.fail("invalid output must be rejected before any download"),
+    )
+    with pytest.raises(ValueError, match="must be under"):
+        representative_workload.main()
+    assert not (tmp_path / "model").exists()
+
+
+def test_correct_prepared_path_reaches_preparation(tmp_path, monkeypatch):
+    from benchmarks.c3 import representative_workload
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("HOME", str(repo))
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(repo))
+    output = repo / ".c3_prepared"
+    snapshot = tmp_path / "model"
+    monkeypatch.setattr(
+        sys, "argv", ["prepare", "--snapshot", str(snapshot), "--output", str(output)]
+    )
+    calls = []
+    monkeypatch.setattr(
+        representative_workload, "prepare", lambda source, dest: calls.append((source, dest))
+    )
+    representative_workload.main()
+    assert calls == [(snapshot, output)]
+    assert not output.exists(), "admission itself must not create the prepared output"
+
+
+def test_preparation_refuses_existing_output(tmp_path):
+    from benchmarks.c3.representative_workload import validate_preparation_destination
+
+    with pytest.raises(FileExistsError, match="must be new"):
+        validate_preparation_destination(tmp_path)
+
+
+def test_preparation_resolves_symlinked_parent_before_admission(tmp_path, monkeypatch):
+    from benchmarks.c3.representative_workload import validate_preparation_destination
+
+    repo = tmp_path / "repo"
+    outside = tmp_path / "outside"
+    repo.mkdir()
+    outside.mkdir()
+    (repo / "redirect").symlink_to(outside, target_is_directory=True)
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("HOME", str(repo))
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(repo))
+    with pytest.raises(ValueError, match="must be under"):
+        validate_preparation_destination(repo / "redirect" / "prepared")
+    assert not (outside / "prepared").exists()
