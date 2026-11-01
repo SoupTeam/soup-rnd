@@ -12,7 +12,10 @@ expert-streamed training remain gated.
 bounded grouping design, reused B1.2 controls and disabled draft protocol.
 It documents the restricted internal grouped candidate and its [completed layer comparison](../benchmarks/results/d3-grouped-layer-20261021/report.md):
 60 valid arms and six CUDA profiles, with higher grouped GPU memory.
-It does not enable a public training path or claim end-to-end D3 acceptance.
+The later opt-in [public trainer integration](d3-trainer-integration.md) has a
+completed pretrained study. The separate [packed fused NF4 candidate](d3-fused-dequant-gemm.md)
+adds a bounded hybrid forward/dX path with synthetic CUDA evidence; its own
+pretrained/performance qualification and final D3 acceptance remain pending.
 
 [← Back to the Soup README](../README.md)
 

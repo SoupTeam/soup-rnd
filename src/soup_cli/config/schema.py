@@ -1118,7 +1118,7 @@ class ExpertStreamConfig(BaseModel):
     """Explicit, bounded OLMoE expert runtime; disabled unless configured."""
 
     model_config = ConfigDict(extra="forbid")
-    backend: Literal["sequential", "grouped", "triton"] = "grouped"
+    backend: Literal["sequential", "grouped", "triton", "fused_nf4"] = "grouped"
     group_width: int = Field(default=4, ge=1, le=4, strict=True)
     weight_budget_bytes: int = Field(default=64 * 2**20, ge=1, strict=True)
     activation_budget_bytes: int = Field(default=256 * 2**20, ge=1, strict=True)
@@ -1129,6 +1129,12 @@ class ExpertStreamConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_row_policy(self):
+        if self.backend == "fused_nf4" and (
+            self.native_rows_max != 128 or self.native_rows_from is not None
+        ):
+            raise ValueError(
+                "fused_nf4 uses fixed native rows <=128; set native_rows_from: null"
+            )
         if self.native_rows_from is not None and self.native_rows_from <= self.native_rows_max:
             raise ValueError("native_rows_from must exceed native_rows_max")
         return self

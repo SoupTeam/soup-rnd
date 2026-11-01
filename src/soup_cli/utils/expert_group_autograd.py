@@ -2,8 +2,8 @@
 
 Reuses original Soup's reload/recompute design from expert_stream._ExpertMLP at
 4a78a7ba74d1b52c820fb156647ef1e78f3105a6. Forward groups weight restoration and,
-when supplied, uses the explicit D3 GEMM backend. Backward currently recomputes
-one expert at a time with native eager autograd. Only SiLU and first derivatives
+when supplied, uses the explicit D3 GEMM backend. Backward recomputes one expert
+at a time, using packed dX when configured and native SiLU derivatives. Only first derivatives
 are supported. GPU qualification is specific to the caller's source and recipe.
 """
 
@@ -72,13 +72,21 @@ def grouped_autograd_experts_class() -> Any:
                     with owner.pool.lease(owner.reader, [ctx.expert]) as weights:
                         owner._check_identity(ctx.identity)
                         gate_up, down = weights[0]
-                        with torch.enable_grad(), torch.autocast(
-                            hidden.device.type, **ctx.autocast,
-                        ):
-                            local = hidden.detach().requires_grad_(True)
-                            gate, up = functional.linear(local, gate_up).chunk(2, dim=-1)
-                            out = functional.linear(owner.act_fn(gate) * up, down)
-                            (grad_hidden,) = torch.autograd.grad(out, local, grad_output)
+                        if getattr(owner.pool, "packed_only", False):
+                            from soup_cli.utils.expert_group_fused_runtime import (
+                                packed_expert_backward,
+                            )
+
+                            grad_hidden = packed_expert_backward(
+                                owner, hidden, grad_output, (gate_up, down), ctx.autocast)
+                        else:
+                            with torch.enable_grad(), torch.autocast(
+                                hidden.device.type, **ctx.autocast,
+                            ):
+                                local = hidden.detach().requires_grad_(True)
+                                gate, up = functional.linear(local, gate_up).chunk(2, dim=-1)
+                                out = functional.linear(owner.act_fn(gate) * up, down)
+                                (grad_hidden,) = torch.autograd.grad(out, local, grad_output)
                     row["status"] = "ok"
                 except BaseException:
                     row["status"] = "error"
@@ -110,6 +118,10 @@ def grouped_autograd_experts_class() -> Any:
             if isinstance(act_fn, torch.nn.SiLU) and act_fn.inplace:
                 raise ValueError("in-place SiLU is unsupported")
             pool.validate_reader(reader)
+            if getattr(pool, "packed_only", False) and (
+                gemm is None or not hasattr(gemm, "input_gradient")
+            ):
+                raise ValueError("packed pool requires a packed forward/dX backend")
             if activation_backend not in ("native", "triton"):
                 raise ValueError("activation backend must be native or triton")
             if activation_backend == "triton" and (
@@ -168,6 +180,7 @@ def grouped_autograd_experts_class() -> Any:
                     rows = hidden.shape[0] * indices.shape[1]
                     columns = max(shape[0] for shape in self.reader.shapes.values())
                     bound = rows * columns * 2 + self.pool.group_width * 512 + 1536
+                    bound += getattr(self.gemm, "extra_call_bytes", 0)
                     if bound > self.gemm.call_budget_bytes:
                         raise ValueError("expert derivatives exceed GEMM budget before reads")
                 self.last_plan = plan

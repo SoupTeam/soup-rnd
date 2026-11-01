@@ -29,6 +29,8 @@ def validate_expert_training(config: Any, options: Any, *, device: str, dtype: s
         raise ValueError("stream_experts supports CPU or CUDA only")
     if options.backend == "triton" and (kind != "cuda" or dtype != "bfloat16"):
         raise ValueError("the Triton expert backend requires CUDA BF16")
+    if options.backend == "fused_nf4" and (kind != "cuda" or dtype != "bfloat16"):
+        raise ValueError("the fused NF4 expert backend requires Linux CUDA BF16")
     if kind == "cuda" and options.backend != "sequential":
         if sys.platform != "linux":
             raise ValueError("grouped CUDA expert compute currently requires Linux")
@@ -39,6 +41,11 @@ def validate_expert_training(config: Any, options: Any, *, device: str, dtype: s
         path = options.cublas_library
         if not path or not os.path.isabs(path) or not os.path.isfile(path):
             raise ValueError("grouped CUDA requires an explicit existing cublas_library path")
+        if options.backend == "fused_nf4":
+            import torch
+
+            if torch.cuda.get_device_capability(device) != (8, 6):
+                raise ValueError("packed WMMA training candidate is currently limited to sm_86")
 
 
 def expert_training_reservations(shard_dir, index, options, *, dtype):
@@ -56,12 +63,16 @@ def expert_training_reservations(shard_dir, index, options, *, dtype):
     )
     try:
         width = 1 if options.backend == "sequential" else options.group_width
-        plan = plan_grouped_expert_buffer(reader, dtype=dtype, group_width=width)
+        plan = plan_grouped_expert_buffer(reader, dtype=dtype, group_width=width,
+                                          packed_only=options.backend == "fused_nf4")
         if plan.weight_bytes > options.weight_budget_bytes:
             raise ValueError("expert weight arena exceeds weight_budget_bytes before allocation")
         return {
             "host_bytes": plan.host_staging_bytes,
-            "device_bytes": (plan.weight_bytes + options.activation_budget_bytes
+            # Packed arenas can occupy an allocator block larger than their
+            # requested size. Their constructor checks this configured ceiling.
+            "device_bytes": ((options.weight_budget_bytes if options.backend == "fused_nf4"
+                              else plan.weight_bytes) + options.activation_budget_bytes
                              + options.call_budget_bytes + 4 * 2**20),
         }
     finally:
@@ -159,18 +170,21 @@ def install_expert_training(model, shard_dir, index, options, *, device, dtype, 
             replacements.append((parent, attr, module, reader))
         width = 1 if options.backend == "sequential" else options.group_width
         first = readers[0]
-        plan = plan_grouped_expert_buffer(first, dtype=dtype, group_width=width)
+        plan = plan_grouped_expert_buffer(first, dtype=dtype, group_width=width,
+                                          packed_only=options.backend == "fused_nf4")
         if plan.weight_bytes > options.weight_budget_bytes:
             raise ValueError("expert weight arena exceeds weight_budget_bytes before allocation")
         if str(device).startswith("cuda"):
             _math_policy(stack)
-            required = (plan.weight_bytes + options.activation_budget_bytes
+            required = ((options.weight_budget_bytes if options.backend == "fused_nf4"
+                         else plan.weight_bytes) + options.activation_budget_bytes
                         + options.call_budget_bytes + 4 * 2**20)
             if required > torch.cuda.mem_get_info(device)[0]:
                 raise ValueError("expert arena/activation/workspace budgets exceed available VRAM")
         pool = GroupedExpertPool(
             first, device=device, dtype=dtype, group_width=width,
             weight_budget_bytes=options.weight_budget_bytes, codes=codes,
+            packed_only=options.backend == "fused_nf4",
         )
         stack.callback(pool.close)
         gemm = None
@@ -178,11 +192,17 @@ def install_expert_training(model, shard_dir, index, options, *, device, dtype, 
             from soup_cli.utils.expert_group_gemm import GroupedGemm
 
             with torch.cuda.device(device):
-                gemm = GroupedGemm(
-                    Path(options.cublas_library), call_budget_bytes=options.call_budget_bytes,
-                    native_olmoe_rows_max=options.native_rows_max,
-                    native_olmoe_rows_from=options.native_rows_from,
-                )
+                if options.backend == "fused_nf4":
+                    from soup_cli.utils.expert_group_fused_runtime import PackedGemm
+
+                    gemm = PackedGemm(first, device=pool.device,
+                                      call_budget_bytes=options.call_budget_bytes)
+                else:
+                    gemm = GroupedGemm(
+                        Path(options.cublas_library), call_budget_bytes=options.call_budget_bytes,
+                        native_olmoe_rows_max=options.native_rows_max,
+                        native_olmoe_rows_from=options.native_rows_from,
+                    )
             stack.callback(gemm.close)
         cls = grouped_autograd_experts_class()
         modules = []
@@ -204,7 +224,8 @@ def install_expert_training(model, shard_dir, index, options, *, device, dtype, 
         return ExpertTrainingResources(stack, pool, readers, modules, gemm, {
             "expert_backend": options.backend, "expert_group_width": width,
             "expert_source": "disk-buffered",
-            "expert_compute_backend": "native-eager" if gemm is None else "cublas-hybrid",
+            "expert_compute_backend": ("packed-hybrid-wmma" if options.backend == "fused_nf4"
+                                       else "native-eager" if gemm is None else "cublas-hybrid"),
             "expert_disk_bytes": sum(reader._size for reader in readers.values()),
             "expert_weight_bytes": plan.weight_bytes,
             "expert_host_staging_bytes": plan.host_staging_bytes,

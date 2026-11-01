@@ -1,4 +1,24 @@
-# D3 acceptance audit, 2026-10-29
+# D3 acceptance status, updated 2026-11-01
+
+The historical audit below records the state on 2026-10-29. These later results
+supersede its pending-status statements; its source/review links are retained
+as history and are not a claim about today's live Trello/PR state.
+
+| Requirement | Current evidence | Remaining work |
+| --- | --- | --- |
+| B1 format/runtime interface | B1.1/B1.2/F4/A3 ancestry and the owner-delegated contract below are retained. Packed-only storage reuses the same original NF4 bytes and reload/lease ownership. | Review the new source; no retrospective coordination claim. |
+| Actual public SFT and L2L | The [staged pretrained study](../benchmarks/results/d3-public-trainer-attempt-03-f781e927-20261030/report.md) completed 234/234 valid cells with separate ordinary/L2L and codec cohorts. | Its result does not qualify a later implementation. |
+| Literal grouped fused dequant-GEMM | The [new candidate](d3-fused-dequant-gemm.md) decodes packed weight tiles inside grouped WMMA forward/dX. Small rows use the explicitly counted native fallback; SiLU remains native. | New pretrained native and same-kernel resident/streamed gates remain open. |
+| New implementation readiness | RTX 3090 development: 20 arithmetic/control cells, eight dispatch profiles, eight MLP cases and two eight-child synthetic public-trainer matrices; selected CPU regressions pass. All unsuccessful candidates remain retained. | Freeze new implementation and then a fully tested executable rule/receipts before formal measurements. |
+| Speed, memory and actual launch evidence | Historical staged measurements remain valid in their published scope; the new primitive profiles show one fused kernel per eligible group. | Paired staged/fused trained-step timing, whole-trainer memory and actual launch profiles on the same host. No new speed/VRAM benefit is claimed. |
+| Validity, publication and acceptance | Synthetic development has source snapshots and checked raw publication; no formal pretrained fused session has started. | Actual-shard controls, frozen host/source/data, finite no-replacement session, offline verification, required CI and final reviewer acceptance. Existing issue-tracking limitation remains unresolved here. |
+
+The [next qualification plan](../benchmarks/protocols/d3-fused-trainer/README.md)
+is explicitly execution-disabled until its launcher, preparation and committed
+rule exist. Two SSDs, convergence studies and a new model-fit target are not
+added as D3 prerequisites.
+
+## Historical audit, 2026-10-29
 
 **D3 is not signed off.** The live Trello card shows all five items checked and
 is in **Обработка Фидбека**. The latest PR review remains **CHANGES_REQUESTED**;

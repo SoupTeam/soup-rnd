@@ -1,7 +1,8 @@
-"""Internal D3 grouped weight restore, with the unchanged B1.2 eager GEMMs.
+"""D3 bounded grouped expert storage with dense or packed-only leases.
 
-Forward only. CPU NF4 is a reference decoder; CUDA BF16 uses grouped Triton
-restore. This is not fused grouped GEMM, a public training path or D3 acceptance.
+The default pool restores dense weights using the original grouped decoder.
+The explicit packed-only variant serves original NF4 state to a separate GEMM
+consumer. Storage preparation alone makes no numerical or performance claim.
 """
 
 from __future__ import annotations
@@ -26,18 +27,41 @@ class GroupBufferPlan:
     host_staging_bytes: int
 
 
+def _group_layout(reader, dtype, packed_only):
+    plan, entries = _buffer_layout(reader, dtype)
+    if not packed_only:
+        return plan.weight_bytes, entries
+    if dtype != "bfloat16":
+        raise ValueError("packed NF4 expert descriptors require BF16 compute")
+    if set(reader.quant_specs) != set(EXPERT_PARTS):
+        raise ValueError("packed expert pool requires NF4 metadata for both projections")
+    offset, packed = 0, []
+    for name, shape, kind, _old, size in entries:
+        if name in EXPERT_PARTS or name == "scratch":
+            continue
+        offset = (offset + 255) // 256 * 256
+        packed.append((name, shape, kind, offset, size))
+        offset += size
+    return (offset + 511) // 512 * 512, packed
+
+
 def plan_grouped_expert_buffer(
     reader: ExpertShardReader, *, dtype: str, group_width: int,
+    packed_only: bool = False,
 ) -> GroupBufferPlan:
     """Count full B1.2 slots and padded pointer tables; no reads or allocations."""
+    from soup_cli.utils.safetensors_reader import SECTOR_BYTES
+
     if type(group_width) is not int or not 1 <= group_width <= 4:
         raise ValueError("group width must be an integer from 1 through 4")
-    slot, _layout = _buffer_layout(reader, dtype)
+    if type(packed_only) is not bool:
+        raise ValueError("packed_only must be boolean")
+    slot_bytes, _layout = _group_layout(reader, dtype, packed_only)
     # Two parts, five pointer tables each; each table is rounded to a 512-byte bin.
-    metadata = 10 * 512 if reader.quant_specs else 0
+    metadata = 10 * 512 if reader.quant_specs and not packed_only else 0
     return GroupBufferPlan(
-        group_width, slot.weight_bytes, metadata,
-        group_width * slot.weight_bytes + metadata, slot.host_staging_bytes,
+        group_width, slot_bytes, metadata,
+        group_width * slot_bytes + metadata, reader.max_span + SECTOR_BYTES,
     )
 
 
@@ -51,6 +75,7 @@ class GroupedExpertPool:
     def __init__(
         self, reader: ExpertShardReader, *, device: str, dtype: str,
         group_width: int, weight_budget_bytes: int, codes: Mapping | None = None,
+        packed_only: bool = False,
     ) -> None:
         import torch
 
@@ -59,7 +84,11 @@ class GroupedExpertPool:
 
         if type(weight_budget_bytes) is not int or weight_budget_bytes < 1:
             raise ValueError("weight budget must be a positive integer")
-        self.plan = plan_grouped_expert_buffer(reader, dtype=dtype, group_width=group_width)
+        self.plan = plan_grouped_expert_buffer(reader, dtype=dtype, group_width=group_width,
+                                              packed_only=packed_only)
+        self.packed_only = packed_only
+        self._lease_generation = 0
+        self._packed_active = False
         if self.plan.weight_bytes > weight_budget_bytes:
             raise ValueError(
                 f"group needs {self.plan.weight_bytes} bytes; budget is {weight_budget_bytes}"
@@ -88,7 +117,7 @@ class GroupedExpertPool:
         self.logical_bytes_read = 0
         self.groups_loaded = 0
         self.last_loads: list = []
-        _slot_plan, layout = _buffer_layout(reader, dtype)
+        _slot_bytes, layout = _group_layout(reader, dtype, packed_only)
         tables = {}
         for name, key in (("code", NF4_CODE_KEY), ("nested_code", NF4_NESTED_CODE_KEY)):
             if not any(row[0] == name for row in layout):
@@ -108,9 +137,10 @@ class GroupedExpertPool:
                 if (not torch.cuda.is_bf16_supported(including_emulation=False)
                         or torch.cuda.get_device_capability(self.device)[0] < 8):
                     raise ValueError("grouped CUDA NF4 requires sm_80+ and native BF16")
-            from soup_cli.utils.expert_group_decode import build_group_decoder
+            if not packed_only:
+                from soup_cli.utils.expert_group_decode import build_group_decoder
 
-            self._decoder = build_group_decoder()
+                self._decoder = build_group_decoder()
         before = torch.cuda.memory_allocated(self.device) if self.device.type == "cuda" else 0
         try:
             self._arena = torch.empty(self.plan.weight_bytes, dtype=torch.uint8, device=self.device)
@@ -125,7 +155,7 @@ class GroupedExpertPool:
                     buffers[name].copy_(value, non_blocking=False)
                 self._slots.append(SimpleNamespace(device=self.device, _buffers=buffers))
             self._staging_owner, self._staging = aligned_staging(reader.max_span)
-            if self._specs and self.device.type == "cuda":
+            if self._specs and self.device.type == "cuda" and not packed_only:
                 self._initialize_metadata()
             self._synchronize()
             self.cuda_allocation_delta = (
@@ -133,7 +163,11 @@ class GroupedExpertPool:
                 if self.device.type == "cuda" else 0
             )
             if self.cuda_allocation_delta > weight_budget_bytes:
-                raise ValueError("CUDA allocator rounded group above the weight budget")
+                raise ValueError(
+                    "CUDA allocator rounded group above the weight budget: "
+                    f"planned={self.plan.weight_bytes}, actual={self.cuda_allocation_delta}, "
+                    f"budget={weight_budget_bytes}"
+                )
         except BaseException:
             self._release()
             raise
@@ -200,6 +234,8 @@ class GroupedExpertPool:
             self.logical_bytes_read += row["logical_bytes_read"]
 
     def _restore(self, count: int) -> None:
+        if self.packed_only:
+            return
         for part, spec in self._specs.items():
             if self.device.type == "cpu":
                 for slot in self._slots[:count]:
@@ -239,9 +275,16 @@ class GroupedExpertPool:
                         self._load_raw(reader, expert, slot)
                     self._restore(len(experts))
                     self.groups_loaded += 1
-                    yield tuple((slot._buffers["gate_up"], slot._buffers["down"])
-                                for slot in self._slots[:len(experts)])
+                    self._lease_generation += 1
+                    self._packed_active = True
+                    if self.packed_only:
+                        yield tuple(self._packed_pair(slot, self._lease_generation)
+                                    for slot in self._slots[:len(experts)])
+                    else:
+                        yield tuple((slot._buffers["gate_up"], slot._buffers["down"])
+                                    for slot in self._slots[:len(experts)])
                 finally:
+                    self._packed_active = False
                     try:
                         self._synchronize()
                     except BaseException:
@@ -254,6 +297,30 @@ class GroupedExpertPool:
         finally:
             self._lock.release()
 
+    def _packed_pair(self, slot, generation):
+        from soup_cli.utils.expert_group_fused import PackedNF4
+
+        def check_owner():
+            if (self._closed or not self._packed_active
+                    or self._lease_generation != generation):
+                raise RuntimeError("packed expert lease expired or pool was recycled")
+
+        result = []
+        for part in EXPERT_PARTS:
+            spec = self._specs[part]
+            buffers = slot._buffers
+            packed = buffers[f"{part}:0"].reshape(-1)
+            packed._soup_stream_owner_check = check_owner
+            result.append(PackedNF4(
+                packed, buffers[f"{part}:1"].reshape(-1), buffers["code"], self._shapes[part],
+                blocksize=spec.blocksize,
+                nested_scales=buffers[f"{part}:2"].reshape(-1) if spec.nested else None,
+                nested_code=buffers["nested_code"] if spec.nested else None,
+                offset=buffers[f"{part}:3"].reshape(1) if spec.nested else None,
+                nested_blocksize=spec.nested_blocksize if spec.nested else 256,
+            ))
+        return tuple(result)
+
     def stats(self) -> dict:
         return {
             "plan": asdict(self.plan), "weight_budget_bytes": self.weight_budget_bytes,
@@ -261,11 +328,12 @@ class GroupedExpertPool:
             "fetches": self.fetches, "logical_bytes_read": self.logical_bytes_read,
             "groups_loaded": self.groups_loaded, "closed": self._closed,
             "decode_backend": (
-                "none" if not self._specs else
+                "packed-only" if self.packed_only else "none" if not self._specs else
                 "cpu-reference" if self.device.type == "cpu" else "triton-grouped"
             ),
-            "gemm_backend": "unchanged-eager",
-            "cpu_nf4_temporaries": self.device.type == "cpu" and bool(self._specs),
+            "gemm_backend": "caller-packed" if self.packed_only else "unchanged-eager",
+            "cpu_nf4_temporaries": (not self.packed_only and self.device.type == "cpu"
+                                    and bool(self._specs)),
         }
 
     def _release(self) -> None:

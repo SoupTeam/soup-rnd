@@ -1,0 +1,326 @@
+{
+  "kind": "synthetic packed expert MLP; no pretrained/trainer claim",
+  "source_sha256": {
+    "benchmarks/harness/d3_fused_nf4_mlp.py": "a83f158748388fe13354f221f8650580f798e7f2a71bc94e0113f071ca068b24",
+    "src/soup_cli/utils/expert_group.py": "9a8b11af6d2d06f113ec9add8cea236f609a8b2ded693da5ffc2e47f0f9e15f4",
+    "src/soup_cli/utils/expert_group_autograd.py": "66d2c0ca9216ae5318705c0b039393a4998b56ee7ebc8df86001fdcae3091b94",
+    "src/soup_cli/utils/expert_group_fused.py": "133935cec871b211aa6083d4da5c6bab1bcf66ee4a20b3a22be5f325c02bc33a",
+    "src/soup_cli/utils/expert_group_fused_runtime.py": "63a3c79af67d9c5b9df1d1cae914f565fabe69a52171ddb02f412cd79c172e2c",
+    "src/soup_cli/utils/expert_group_fused_wmma.py": "299b513eab86ec48ea43450d73585d2845e9122a5a641290385c11e2eee8614f"
+  },
+  "cells": [
+    {
+      "nested": false,
+      "width": 1,
+      "pattern": "balanced",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 20,
+        "dx_calls": 8,
+        "fused_matrices": 20,
+        "native_matrices": 0,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 1,
+          "slot_weight_bytes": 3539456,
+          "metadata_bytes": 0,
+          "weight_bytes": 3539456,
+          "host_staging_bytes": 3559424
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 3539456,
+        "fetches": 8,
+        "logical_bytes_read": 28311552,
+        "groups_loaded": 8,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    },
+    {
+      "nested": false,
+      "width": 1,
+      "pattern": "mixed",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 35,
+        "dx_calls": 14,
+        "fused_matrices": 30,
+        "native_matrices": 5,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 1,
+          "slot_weight_bytes": 3539456,
+          "metadata_bytes": 0,
+          "weight_bytes": 3539456,
+          "host_staging_bytes": 3559424
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 3539456,
+        "fetches": 14,
+        "logical_bytes_read": 49545216,
+        "groups_loaded": 14,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    },
+    {
+      "nested": false,
+      "width": 4,
+      "pattern": "balanced",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 14,
+        "dx_calls": 8,
+        "fused_matrices": 20,
+        "native_matrices": 0,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 4,
+          "slot_weight_bytes": 3539456,
+          "metadata_bytes": 0,
+          "weight_bytes": 14157824,
+          "host_staging_bytes": 3559424
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 14157824,
+        "fetches": 8,
+        "logical_bytes_read": 28311552,
+        "groups_loaded": 5,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    },
+    {
+      "nested": false,
+      "width": 4,
+      "pattern": "mixed",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 25,
+        "dx_calls": 14,
+        "fused_matrices": 30,
+        "native_matrices": 5,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 4,
+          "slot_weight_bytes": 3539456,
+          "metadata_bytes": 0,
+          "weight_bytes": 14157824,
+          "host_staging_bytes": 3559424
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 14157824,
+        "fetches": 14,
+        "logical_bytes_read": 49545216,
+        "groups_loaded": 9,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    },
+    {
+      "nested": true,
+      "width": 1,
+      "pattern": "balanced",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 20,
+        "dx_calls": 8,
+        "fused_matrices": 20,
+        "native_matrices": 0,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 1,
+          "slot_weight_bytes": 3247616,
+          "metadata_bytes": 0,
+          "weight_bytes": 3247616,
+          "host_staging_bytes": 3284992
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 3276800,
+        "fetches": 8,
+        "logical_bytes_read": 25964608,
+        "groups_loaded": 8,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    },
+    {
+      "nested": true,
+      "width": 1,
+      "pattern": "mixed",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 35,
+        "dx_calls": 14,
+        "fused_matrices": 30,
+        "native_matrices": 5,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 1,
+          "slot_weight_bytes": 3247616,
+          "metadata_bytes": 0,
+          "weight_bytes": 3247616,
+          "host_staging_bytes": 3284992
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 3276800,
+        "fetches": 14,
+        "logical_bytes_read": 45438064,
+        "groups_loaded": 14,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    },
+    {
+      "nested": true,
+      "width": 4,
+      "pattern": "balanced",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 14,
+        "dx_calls": 8,
+        "fused_matrices": 20,
+        "native_matrices": 0,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 4,
+          "slot_weight_bytes": 3247616,
+          "metadata_bytes": 0,
+          "weight_bytes": 12990464,
+          "host_staging_bytes": 3284992
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 12990464,
+        "fetches": 8,
+        "logical_bytes_read": 25964608,
+        "groups_loaded": 5,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    },
+    {
+      "nested": true,
+      "width": 4,
+      "pattern": "mixed",
+      "forward_exact": true,
+      "input_gradient_exact": true,
+      "router_gradient_exact": true,
+      "nonzero_gradient": true,
+      "gemm": {
+        "backend": "packed-hybrid-wmma",
+        "calls": 25,
+        "dx_calls": 14,
+        "fused_matrices": 30,
+        "native_matrices": 5,
+        "native_rows_max": 128,
+        "native_rows_from": null,
+        "call_budget_bytes": 67108864,
+        "closed": false
+      },
+      "pool": {
+        "plan": {
+          "slot_count": 4,
+          "slot_weight_bytes": 3247616,
+          "metadata_bytes": 0,
+          "weight_bytes": 12990464,
+          "host_staging_bytes": 3284992
+        },
+        "weight_budget_bytes": 67108864,
+        "cuda_allocation_delta": 12990464,
+        "fetches": 14,
+        "logical_bytes_read": 45438064,
+        "groups_loaded": 9,
+        "closed": false,
+        "decode_backend": "packed-only",
+        "gemm_backend": "caller-packed",
+        "cpu_nf4_temporaries": false
+      },
+      "pass": true
+    }
+  ],
+  "status": "development_mlp_pass"
+}
