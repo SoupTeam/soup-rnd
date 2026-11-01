@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "task": "D3 packed fused public trainer qualification",
+  "status": "prepared_ready_for_operator_commit_and_canonical_export",
+  "launch_environment": {
+    "pythonpath_entries": [
+      "checkout_root",
+      "checkout_root/src"
+    ],
+    "required_for_child_processes": true
+  },
+  "execution_enabled": true,
+  "scope_is_full_task_acceptance": false,
+  "model_id": "allenai/OLMoE-1B-7B-0924",
+  "model_revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "checkpoint_files": {
+    "config.json": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335",
+    "model-00001-of-00003.safetensors": "5e3cff7e367794685c241169072c940d200918617d5e2813f1c387dff52d845e",
+    "model-00002-of-00003.safetensors": "15ef5c730ee3cfed7199498788cd2faf337203fc74b529625e7502cdd759f4a7",
+    "model-00003-of-00003.safetensors": "a9abac4ac1b55c9adabac721a02fa39971f103eea9a65c310972b1246de76e04"
+  },
+  "formats": [
+    "nf4",
+    "nf4-dq"
+  ],
+  "training_modes": [
+    "ordinary",
+    "l2l"
+  ],
+  "correctness_modes": [
+    "native-resident",
+    "sequential",
+    "grouped-resident",
+    "grouped",
+    "fused-resident",
+    "fused"
+  ],
+  "entry_point": {
+    "wrapper": "soup_cli.trainer.sft.SFTTrainerWrapper",
+    "setup": "setup",
+    "train": "train",
+    "l2l": "soup_cli.trainer.l2l_trainer",
+    "adapter_targets": [
+      "q_proj",
+      "v_proj"
+    ]
+  },
+  "resident_reference_definition": "Resident means all routed-expert weights resident, independently restored from the identical prepared bytes using B1 native/bitsandbytes reconstruction. Non-expert layers retain the same public streaming setup. This is not mislabeled as a full-resident-model run.",
+  "reference": "Independent native-resident ordinary GA oracle for each codec, plus same-kernel resident/streamed staged and fused pairs.",
+  "same_kernel_pairs": [
+    [
+      "native-resident",
+      "sequential"
+    ],
+    [
+      "grouped-resident",
+      "grouped"
+    ],
+    [
+      "fused-resident",
+      "fused"
+    ]
+  ],
+  "batch": 1,
+  "tokens": 512,
+  "rows": 7,
+  "gradient_accumulation_steps": 2,
+  "optimizer_steps": 4,
+  "warmup_steps": 1,
+  "timed_steps": 3,
+  "timed_input_tokens": 2560,
+  "input_seed": 1729,
+  "adapter_seed": 19,
+  "data_seed": 29,
+  "adapter_rank": 4,
+  "adapter_alpha": 8,
+  "adapter_dropout": 0.0,
+  "optimizer": {
+    "name": "sgd",
+    "learning_rate": 0.01,
+    "momentum": 0.0,
+    "weight_decay": 0.0,
+    "scheduler": "constant",
+    "warmup": 0,
+    "max_grad_norm": 1.0,
+    "epochs": 1,
+    "gradient_windows": [
+      2,
+      2,
+      2,
+      1
+    ]
+  },
+  "moe_aux_loss_coeff": 0.0,
+  "data": {
+    "kind": "synthetic token IDs/targets through all sixteen pretrained OLMoE layers",
+    "format": "pre_tokenized",
+    "tokenized_path_metadata_required": true,
+    "input_range": "CPU torch.Generator seed 1729; randint(3, config.vocab_size), shape 7x512",
+    "labels": "copy input IDs; labels[:,0]=-100 and every eleventh position=-100",
+    "attention_mask": "all ones",
+    "packing": false,
+    "validation_split": 0.0,
+    "row_order": "Public Trainer sampler seed 29. Retain and compare actual delivered row/token/label hashes per accumulation window.",
+    "label_denominator": "Exact number of nonignored shifted next-token labels in each actual accumulation window, including the one-row final window.",
+    "prepared_shifted_label_counts_per_window": [
+      930,
+      930,
+      930,
+      465
+    ]
+  },
+  "adapter_initialization": "Prepare and pin complete attention LoRA initial factors before freeze. Load matching values after each Trainer setup, preserving actual per-codec adapter dtype (dense FP32; TRL QLoRA BF16). Save dtype/shape/raw bytes and initial state hashes.",
+  "numerics": {
+    "compute_dtype": "bfloat16",
+    "native_bf16_required": true,
+    "blas_library": "cublaslt",
+    "allow_tf32": false,
+    "bf16_reduced_precision_and_split_k": [
+      false,
+      false
+    ],
+    "cublas_workspace_config": ":4096:8",
+    "deterministic_algorithms": true,
+    "autocast": "Explicit CUDA BF16, including all matching save/reload evaluation paths",
+    "evaluation_output": "FP32 logits on both prepared-Trainer and restored-Trainer paths",
+    "attention_implementation": "Record and require identical native implementation across all cells; no attention/CE/kernel patch may differ between arms."
+  },
+  "exactness": "dtype_shape_and_bytes_including_signed_zero",
+  "allow_allclose": false,
+  "allow_noise_floor_tolerance": false,
+  "allow_value_dependent_fallback": false,
+  "numerical_gates": {
+    "forward": "Exact logits/loss/routing and expert outputs, separately stated.",
+    "backward": "Exact input/router gradients in every trained decoder layer and every trainable attention-LoRA parameter; finite values, nonzero effective gradients.",
+    "adapter_updates": "Exact complete adapter state after every real optimizer step; prove a nonzero change from initial state.",
+    "A_A": "Reset initial parameters, optimizer, sampler and CPU/CUDA RNG; two same-process runs reproduce every step, gradients and updates exactly.",
+    "negative": "In the same process, add +0.5 to column 0 of the lexicographically first v_proj lora_B before a reset replay. Logits and at least one nonzero gradient must differ; an ineffective control gives no verdict, not a larger perturbation or relaxed threshold.",
+    "restored": "Restore the exact initial factors, optimizer and RNG after the fixed negative control; replay must match the original exactly.",
+    "save_reload": "Save through wrapper.train(), construct the same public Trainer/dtype recipe, load the saved adapter; factors/dtypes/logits must match exactly. Repeat for ordinary SFT and L2L.",
+    "same_kernel_resident_streamed": "native/sequential, grouped-resident/grouped, packed fused-resident/fused with identical respective packed bytes, kernel and row policy."
+  },
+  "native_rows_max": 128,
+  "native_rows_from": 481,
+  "weight_budget_bytes": 67108864,
+  "activation_budget_bytes": 268435456,
+  "call_budget_bytes": 67108864,
+  "streaming": {
+    "stream_source": "ram",
+    "expert_source": "disk-buffered",
+    "group_widths": {
+      "sequential": 1,
+      "grouped": 4,
+      "fused": 4
+    },
+    "expert_full_dense_stack_allowed": false,
+    "resident_oracles": "Separate correctness-only processes; never left resident during streamed memory/timing arms.",
+    "dispatch": "staged: native 1..128 and 481..512; fused: native 1..128, WMMA 129..512; empty experts skipped. Distinct profiles are explicit; timing estimates the complete backend change, not fusion alone."
+  },
+  "timing_order": [
+    "grouped",
+    "fused",
+    "fused",
+    "grouped"
+  ],
+  "timing_contrasts": {
+    "packed_backend": {
+      "positions_zero_based": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "meaning": "staged versus packed hybrid including declared row-policy difference, restore/load/gather/scatter and public optimizer window"
+    }
+  },
+  "timing_definition": "Public optimizer windows 2/2/2/1; omit step zero; measure steps 1,2,3. Stop wall/CUDA windows before copying audit gradients; resume for optimizer work. Hashes, final evaluation and cleanup outside timing. Profiles are separate arms.",
+  "pilot_blocks": 5,
+  "max_blocks": 10,
+  "repeat_rule": "For each codec/training stratum, project each shared six-arm symmetric block into two actual ABBA pairs. Reuse unchanged arm_validity.repeats: sigma=sqrt((var(A)+var(B))/2), delta=0.10*mean(A), N=max(2,ceil(7.85*(sigma/delta)^2)). Joint first target=max(5,N_grouping,N_activation) from five pilot blocks. At that joint target recompute once from that prefix; joint final target=max(first,N_grouping,N_activation). No later top-up. If target exceeds ten, retain records and report no-verdict precision budget; never discard/replace a void block.",
+  "profiles": "Separate staged/fused CUDA profiles per codec and ordinary/L2L; actual CUPTI compute kernels, route counts and allocator peaks. Require positive fused work, including an executed fused WMMA kernel. Native fallback counted separately.",
+  "memory": "Separate training allocated/reserved peaks after warmup/reset, before evaluation/reload; synchronize. Record whole-child peak RSS, pinned/staging/arena budgets separately. F1 retains clock records; device-before/after CSV records memory, temperature and power endpoints (not telemetry peaks). No activation-only or optimizer-only result is called total-VRAM reduction.",
+  "attempt_budget": {
+    "correctness_cells": 24,
+    "timing_pilot_cells": 80,
+    "timing_max_cells": 160,
+    "profile_cells": 8,
+    "minimum_total_cells": 112,
+    "maximum_total_cells": 192
+  },
+  "sessions_per_commit": 1,
+  "replacements": 0,
+  "cell_timeout_seconds": 1200,
+  "session_timeout_seconds": 129600,
+  "budget_enforcement": "One session per committed source, zero replacements, 1200-second child and 129600-second whole-session cap; at most 192 children. Preserve incomplete cells; stop on first failure/no verdict.",
+  "hardware": {
+    "gpu_uuid": "GPU-ae20bed7-9089-a764-6363-b3ce5cd5e96e",
+    "boot_id": "cf8e2a36-9914-46f5-9526-5f561922ef71",
+    "minimum_vram_bytes": 24696061952,
+    "actual_vram_bytes": 25296044032
+  },
+  "software": {
+    "python": "3.12.16",
+    "torch": "2.14.1+cu130",
+    "triton": "3.8.0",
+    "transformers": "5.19.0",
+    "peft": "0.20.0",
+    "trl": "0.29.1",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0",
+    "cuda": "13.0",
+    "driver": "580.95.05",
+    "cublas_sha256": "25cde432108543626df85d887c730bf2cab96803ca16f9654e4abc8d2b45833e"
+  },
+  "disk_counter_source": "guest-diskstats",
+  "physical_host_isolation_claim": false,
+  "validity": "Reuse unchanged arm_validity.ArmWatch and empirical sysfs/guest mapping. Before freeze verify all prepared shard hashes and paths, baseline OK, complete aligned own-shard reads OK and an independent foreign O_DIRECT reader VOID. The existing 2 GiB fixture is instrument readiness only, not actual-shard acceptance. Require per-cell F1 OK, unchanged boot/data/source identities and the sole exposed CUDA workload. Missing required sensors, unknown/void F1, visible foreign workloads, restart or identity changes stop the series with no verdict; physical host/cache isolation remains uncertified.",
+  "decision": "Report exactness and observed staged/packed-hybrid time, memory and actual launches separately; no positive speedup, whole-VRAM reduction, convergence or final task acceptance is assumed.",
+  "preparation": {
+    "checkpoint": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/checkpoint.json",
+      "sha256": "ee5d23fb0ab2a762c39f487ad71403f85fa97aa006d3515b0162fa89dc308200"
+    },
+    "shards": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/shards.json",
+      "sha256": "bd1cae92a8f86c81348d80a1a99d3b281492d5c555fd54a6f911d34006f1d5d7"
+    },
+    "datasets": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/datasets.json",
+      "sha256": "4b5d24a4fa3b30ae7cfef09f1a1f36eb3beff9ce97c26a8feef872acc99964cd"
+    },
+    "initial_adapters": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/initial_adapters.json",
+      "sha256": "3d50231f87670a799175b0442788dac0177b33dd1945abe52926b24d24b0ee9a"
+    },
+    "mapping": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/mapping.json",
+      "sha256": "8e0bb49e90725408f66e9d795b871463b93bc5d66efe4658bb785bb58d3de260"
+    },
+    "actual_shard_controls": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/actual_shard_controls.json",
+      "sha256": "ee0602c8cba1b88c300ca7e7684fa776d97f1da6668194fb87ffad21ff491019"
+    },
+    "software": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/software.json",
+      "sha256": "a3e3d1fdc71a2b22f69edfa2c2419accea5cac12132a30a1290fc57cb03cbc42"
+    },
+    "launcher_self_test": {
+      "path": "benchmarks/protocols/d3-fused-trainer/preparation/launcher_self_test.json",
+      "sha256": "67b0112e5bb8d64fff0e48870254e64d9382c17aa6201eb245533424cd7c5528"
+    }
+  },
+  "promotion": "Prepare inputs and actual-shard controls, execute the pinned four-layer untied synthetic parent/child launcher, pass offline replay and fault tests; bind receipts and commit before canonical export/formal execution.",
+  "retention": "Preserve all historical studies and failed/incomplete formal sessions and all preliminary trainer preflight failures. Keep raw tensors/native oracle, state/route/gradient hashes, logs, F1 records, profiles, source packet, manifests and offline byte-identical analysis. Verify publication from normalized committed bytes in a fresh checkout.",
+  "separate_full_task_items": [
+    "The public SFT/L2L integration is committed in cd6515ac; its first formal session failed the evaluation control. The corrective revision requires a new committed source freeze and an accepted pretrained trainer comparison.",
+    "Current B1 technical interface contract accepted under explicit operator delegation on 2026-10-29. Historical coordination before earlier B1 measurements is not certified; final pretrained qualification remains required.",
+    "Repository Issues UI currently disables New issue and states issue creation is restricted; maintainer tracking decision is outstanding. The historical HTTP 410 attempt is retained.",
+    "The source uses the name grouped fused dequant-GEMM; current routed experts use separate grouped restoration and GEMM. Literal packed-weight dequant+GEMM kernel fusion is not implemented or claimed. Maintainer acceptance must resolve this distinction.",
+    "Source page 10 wrap-only/do-not-build SwiGLU constraint versus retained custom activation experiment requires explicit scope visibility; do not count it as core D3 fusion.",
+    "Current-head repository CI and final owner/reviewer task acceptance remain outstanding."
+  ],
+  "limitations": [
+    "Synthetic IDs and four SGD steps do not establish quality or convergence.",
+    "Frozen experts plus attention LoRA; no routed-expert LoRA, nonzero router auxiliary loss, second derivatives or full-weight fine-tuning.",
+    "Ordinary/L2L results are specific to this source, GPU and recipe; A3 Mistral noise-floor/tolerance criteria do not relax D3 byte exactness.",
+    "Staged grouped NF4 restoration plus GEMM is not one fused packed-weight GEMM kernel.",
+    "Separate owner/reviewer full-task acceptance is still required."
+  ],
+  "activation_scope": "Native SiLU and multiply in both arms. No custom activation kernel in this study.",
+  "protocol_revision": 1,
+  "required_launcher_fixture": {
+    "layers": 4,
+    "experts": 4,
+    "vocab": 64,
+    "tie_word_embeddings": false,
+    "weight_sha256": "541a84fa8513d02da3381a8c2fbc83efe4e3ff89975d958f0cc3505dc91b550d"
+  },
+  "restart_revalidation": {
+    "original_manifest": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-final.json",
+    "original_manifest_sha256": "6d8f2dd2fb35c2c9839b2549fc41ed7dbdd73e402bf72f7d6d5fa0af5fa9d7df",
+    "previous_boot": "420aedd3-7599-46d7-a86e-1e1e51bed1ef",
+    "current_boot": "2142c629-3e42-4d7c-a70f-0b42b8161c4d",
+    "unchanged_input_hashes": 157,
+    "controls": "/root/d3-public-trainer-preparation-01/actual-shard-controls-after-restart-01/controls/report.json",
+    "new_model_execution": false,
+    "prior_failed_session_and_marker_preserved": true
+  },
+  "variant": "packed-fused-v1",
+  "fused_native_rows_from": null,
+  "fused_native_rows_max": 128,
+  "compute_capability": [
+    8,
+    6
+  ],
+  "candidate_commit": "d1e0e2ca523242c5aad7e7e7a3137f0bfa4d7892"
+}

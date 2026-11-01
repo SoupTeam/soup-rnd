@@ -41,7 +41,10 @@ def metadata(config: object) -> dict:
     }
 
 
-def prepare(checkpoint: Path, out: Path) -> dict:
+def prepare(
+    checkpoint: Path, out: Path, *, rule: dict | None = None,
+    codecs: tuple[str, ...] = CODECS, library: str | None = None, expected_layers: int = 16,
+) -> dict:
     """Dataset, public sharding/setup, initial factors; no pretrained loss/training."""
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     import torch
@@ -53,7 +56,9 @@ def prepare(checkpoint: Path, out: Path) -> dict:
     from soup_cli.trainer.sft import SFTTrainerWrapper
     from soup_cli.utils.layer_shard import resolve_shard_dir
 
-    rule = read_rule()
+    rule = read_rule() if rule is None else rule
+    if not codecs or len(set(codecs)) != len(codecs) or not set(codecs) <= set(CODECS):
+        raise ValueError("unsupported or repeated preparation codecs")
     out.mkdir(parents=True, exist_ok=False)
     record = {
         "status": "preparing",
@@ -61,7 +66,7 @@ def prepare(checkpoint: Path, out: Path) -> dict:
         "workspace": str(out.resolve()),
         "pretrained_model_executed": False,
         "codecs": {},
-        "library": (
+        "library": library or (
             "/root/d3-trainer-venv/lib/python3.12/site-packages/nvidia/cu13/lib/libcublas.so.13"
         ),
         "rows_path": str(out / "input-rows.jsonl"),
@@ -76,10 +81,13 @@ def prepare(checkpoint: Path, out: Path) -> dict:
         config = AutoConfig.from_pretrained(checkpoint, local_files_only=True)
         if (
             config.model_type != "olmoe"
-            or config.num_hidden_layers != 16
+            or config.num_hidden_layers != expected_layers
             or (config.hidden_size, config.intermediate_size) != (2048, 1024)
         ):
-            raise ValueError("not the declared pretrained OLMoE recipe")
+            raise ValueError("not the declared OLMoE preparation geometry")
+        record["model_geometry"] = {"layers": config.num_hidden_layers,
+                                    "experts": config.num_experts, "vocab": config.vocab_size,
+                                    "tie_word_embeddings": config.tie_word_embeddings}
         generator = torch.Generator().manual_seed(rule["input_seed"])
         ids = torch.randint(
             3, config.vocab_size, (rule["rows"], rule["tokens"]), generator=generator
@@ -92,7 +100,7 @@ def prepare(checkpoint: Path, out: Path) -> dict:
         ]
         Path(record["rows_path"]).write_text("".join(json.dumps(row) + "\n" for row in rows))
         save(out / "progress.json", record)
-        for codec in CODECS:
+        for codec in codecs:
             base = out / codec
             base.mkdir()
             alias = base / "checkpoint"

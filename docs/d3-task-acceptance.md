@@ -13,10 +13,11 @@ as history and are not a claim about today's live Trello/PR state.
 | Speed, memory and actual launch evidence | Historical staged measurements remain valid in their published scope; the new primitive profiles show one fused kernel per eligible group. | Paired staged/fused trained-step timing, whole-trainer memory and actual launch profiles on the same host. No new speed/VRAM benefit is claimed. |
 | Validity, publication and acceptance | Synthetic development has source snapshots and checked raw publication; no formal pretrained fused session has started. | Actual-shard controls, frozen host/source/data, finite no-replacement session, offline verification, required CI and final reviewer acceptance. Existing issue-tracking limitation remains unresolved here. |
 
-The [next qualification plan](../benchmarks/protocols/d3-fused-trainer/README.md)
-is explicitly execution-disabled until its launcher, preparation and committed
-rule exist. Two SSDs, convergence studies and a new model-fit target are not
-added as D3 prerequisites.
+The [qualification packet](../benchmarks/protocols/d3-fused-trainer/README.md)
+now has executable helpers, trained-input/actual-shard bindings, 32 successful
+synthetic children and byte-identical offline replay. It awaits operator commit
+and canonical export; the pretrained fused experiment remains unexecuted. Two
+SSDs, convergence studies and a new model-fit target are not added as prerequisites.
 
 ## Historical audit, 2026-10-29
 

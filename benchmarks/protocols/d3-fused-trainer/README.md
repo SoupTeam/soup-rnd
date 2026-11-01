@@ -1,8 +1,13 @@
 # D3 packed fused trainer qualification: preparation plan
 
-Status on 2026-11-01: **execution disabled**. This is the next-phase plan,
-not an executable frozen protocol or an authorization to reuse an old session.
-The operator performs Git commits/pushes. No pretrained fused cell has run.
+Status on 2026-11-01: executable helpers and all preparation bindings are ready
+for **operator commit and canonical export**. The execution switch is enabled
+in the prospective rule; dirty/uncommitted source and missing canonical receipts
+still prevent formal launch. No pretrained fused cell has run.
+
+The [preparation record](../../results/d3-fused-trainer-preparation-20261101/report.md)
+retains the two launcher development errors, completed 32-child synthetic gate,
+748 native tensor checks, byte-identical analyzer replay and 141 CPU passes.
 
 The completed [234-cell staged public-trainer study](../../results/d3-public-trainer-attempt-03-f781e927-20261030/report.md)
 and new [synthetic fused development](../../results/d3-fused-nf4-development-20261101/report.md)
@@ -10,6 +15,9 @@ remain distinct. The existing `d3_trainer_series.py` accepts the old staged rule
 it must not be launched with a renamed JSON to claim fused qualification.
 
 ## Preparation before the next freeze
+
+Items 1–5 below are complete. Item 6 has populated receipts/rule; operator
+commit and canonical export are the remaining prerequisite to formal launch.
 
 1. Commit the candidate implementation and development evidence. Export canonical
    Git bytes; do not execute a dirty working-tree overlay as that commit.
@@ -34,8 +42,8 @@ it must not be launched with a renamed JSON to claim fused qualification.
 
 ## Proposed bounded comparison
 
-These are proposed parameters to implement and validate before the final freeze;
-this document does not claim they are already a committed executable rule.
+These parameters are implemented in `protocol.json` and the separate
+`d3_fused_trainer_*` helpers. Commit them before any pretrained measurement.
 
 - One RTX 3090 sm_86 with 24 GiB VRAM, at least 64 GiB host RAM and 100 GiB disk
   suffices for preparation. Check actual free capacity before construction.
@@ -62,11 +70,10 @@ this document does not claim they are already a committed executable rule.
   per cohort, a prospective precision calculation, at most ten blocks, zero
   replacements and one session per frozen revision. The existing native-loop
   timing study remains historical context, not a new-host measurement.
-- The pilot would contain 24 correctness cells, 80 timing arms and eight separate
+- The pilot contains 24 correctness cells, 80 timing arms and eight separate
   CUDA profiles: **112 children**, excluding synthetic preparation. The ten-block
-  ceiling would be 192. Cell/session time caps must be fixed after the synthetic
-  launcher check and before commit; do not promise a completion time from the
-  short primitive screen.
+  ceiling is 192. The child cap is 1,200 seconds; the session cap is 129,600
+  seconds. These are abort ceilings, not predicted completion times.
 - Require positive fused work in candidate runs and actual fused CUDA kernel
   events in profiles. Count the native <=128-row fallback separately. Record
   wall/CUDA step time, input tokens/s, allocated/reserved VRAM, process RSS,
@@ -79,3 +86,28 @@ After execution, independently replay the analyzer, verify archive and canonical
 publication hashes, update the acceptance map and run required repository CI.
 Faster performance, less VRAM, convergence or final reviewer acceptance is not
 inferred from passing the synthetic development screens.
+
+## Canonical freeze and launch
+
+From a clean operator-committed checkout:
+
+```sh
+PYTHONPATH=.:src python -m benchmarks.harness.d3_fused_trainer_protocol --export /path/to/new-fused-source.zip
+```
+
+The exporter reads actual Git blobs and includes the tested source, CPU tests,
+rule and bound preparation receipts. It verifies the raw publication artifacts
+before export. The bulky preparation ZIPs are audit artifacts, not dependencies
+of every model child; canonical receipts/source and live prepared data remain
+verified by each child.
+
+Extract the packet to a fresh directory on the prepared host and use its root
+and `src` in `PYTHONPATH`. After checking the source receipt and unchanged host:
+
+```sh
+python -m benchmarks.harness.d3_fused_trainer_series parent --prepared /root/d3-fused-data/inputs-01/prepared.json --out /root/d3-fused-data/inputs-01/formal-session-01
+```
+
+There is no resume/replacement command. A failed or unknown cell preserves an
+incomplete session and stops. The operator, not this preparation phase, performs
+Git commit/push; no formal process was launched during preparation.

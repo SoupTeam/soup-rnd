@@ -130,11 +130,14 @@ def verify_host(rule: dict, prepared: dict) -> None:
         raise ValueError("another exposed CUDA workload is running")
 
 
-def performance(rule: dict, prepared: dict, out: Path, cell: dict, oracle: dict) -> dict:
+def performance(
+    rule: dict, prepared: dict, out: Path, cell: dict, oracle: dict, *, assemble_fn=None,
+) -> dict:
     import torch
     from transformers import TrainerCallback
 
-    wrapper = assemble(
+    factory = assemble if assemble_fn is None else assemble_fn
+    wrapper = factory(
         rule, prepared, out / "adapter", cell["codec"], cell["mode"], cell["training"]
     )
     # Compile every possible routed-row activation shape before timing. The
@@ -146,6 +149,12 @@ def performance(rule: dict, prepared: dict, out: Path, cell: dict, oracle: dict)
         for width in range(1, resources.pool.group_width + 1):
             with resources.pool.lease(reader, list(range(width))):
                 pass
+        if cell["mode"] == "fused":
+            from soup_cli.utils.expert_group_fused_wmma import compile_kernel
+
+            # Row counts are runtime descriptors, not specializations. Compile
+            # this candidate even when the first warmup has only native rows.
+            compile_kernel(torch.bfloat16, 64, 256, tile=32, reduction_tile=64)
         if cell["mode"] == "triton":
             from soup_cli.utils.expert_group_activation import fused_swiglu
 
@@ -290,9 +299,10 @@ def performance(rule: dict, prepared: dict, out: Path, cell: dict, oracle: dict)
         if tokens != rule["timed_input_tokens"]:
             raise ValueError("timed token count differs from frozen partial-window rule")
         stats = callback.stats_after
+        counter = "fused_matrices" if cell["mode"] == "fused" else "grouped_matrices"
         if cell["mode"] != "sequential" and (
-            stats["expert_gemm"]["grouped_matrices"]
-            - callback.stats_before["expert_gemm"]["grouped_matrices"] <= 0
+            stats["expert_gemm"][counter]
+            - callback.stats_before["expert_gemm"][counter] <= 0
         ):
             raise ValueError("no positive grouped dispatch")
         record = {
@@ -317,6 +327,8 @@ def performance(rule: dict, prepared: dict, out: Path, cell: dict, oracle: dict)
             record["profile_sha256"] = file_hash(out / "cuda-profile.json")
             record["profile_routes"] = profile_routes
             record["kernel_names"] = [row["name"] for row in kernels]
+            if cell["mode"] == "fused" and "fused" not in record["kernel_names"]:
+                raise ValueError("profile records no executed packed fused WMMA kernel")
             if cell["mode"] == "triton" and not any(
                 "activate" in name for name in record["kernel_names"]
             ):

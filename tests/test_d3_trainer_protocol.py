@@ -300,6 +300,15 @@ def test_cli_check_is_read_only_in_clean_and_dirty_checkout(tmp_path, monkeypatc
         return SimpleNamespace(returncode=1)
 
     monkeypatch.setattr(protocol, "subprocess", SimpleNamespace(run=git_status))
+    # Readiness of a historical measured snapshot is independent of later
+    # harness edits. Exercise the real validator on a complete isolated fixture.
+    root = tmp_path / "ready-checkout"
+    root.mkdir()
+    rule = _ready_rule(root)
+    validator = protocol.launch_blockers
+    monkeypatch.setattr(protocol, "read_rule", lambda: rule)
+    monkeypatch.setattr(protocol, "launch_blockers", lambda value: validator(value, root))
+    before = {p: file_hash(p) for p in root.rglob("*") if p.is_file()}
     output = tmp_path / "readiness.json"
     assert main(["check", "--out", str(output)]) == int(dirty)
     result = json.loads(output.read_text())
@@ -307,14 +316,14 @@ def test_cli_check_is_read_only_in_clean_and_dirty_checkout(tmp_path, monkeypatc
     assert result["pilot_plan_cells"] == 234
     assert result["max_plan_cells"] == 414
     assert bool(result["launch_blockers"]) is dirty
+    assert before == {p: file_hash(p) for p in root.rglob("*") if p.is_file()}
     if dirty:
         assert any("clean committed checkout" in row for row in result["launch_blockers"])
 
 
-def test_final_launcher_receipt_requires_actual_success_and_current_runtime_bytes(tmp_path):
+def _ready_rule(root):
     import hashlib
 
-    root = tmp_path
     rule = copy.deepcopy(read_rule())
     rule["execution_enabled"] = True
     folder = root / "benchmarks/protocols/d3-public-trainer"
@@ -359,6 +368,14 @@ def test_final_launcher_receipt_requires_actual_success_and_current_runtime_byte
         rule["preparation"][name] = dict(
             path=path.relative_to(root).as_posix(), sha256=file_hash(path)
         )
+    return rule
+
+
+def test_final_launcher_receipt_requires_actual_success_and_current_runtime_bytes(tmp_path):
+    root = tmp_path
+    rule = _ready_rule(root)
+    model = root / "src/synthetic.py"
+    folder = root / "benchmarks/protocols/d3-public-trainer"
     assert launch_blockers(rule, root, check_git=False) == []
     model.write_text("# altered runtime\n")
     assert "launcher self-test runtime source differs: src/synthetic.py" in launch_blockers(

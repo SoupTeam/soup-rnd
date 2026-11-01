@@ -193,13 +193,16 @@ def assemble(
     training: str,
     *,
     device: str = "cuda",
+    config_factory=None,
+    resident_factory=None,
 ) -> Any:
     from peft import get_peft_model_state_dict, set_peft_model_state_dict
     from safetensors.torch import load_file
 
     from soup_cli.trainer.sft import SFTTrainerWrapper
 
-    config = make_config(rule, prepared, out, codec, mode, training)
+    factory = make_config if config_factory is None else config_factory
+    config = factory(rule, prepared, out, codec, mode, training)
     wrapper = SFTTrainerWrapper(config, device=device, report_to="none")
     try:
         with public_workspace(prepared, out):
@@ -222,7 +225,8 @@ def assemble(
             "initial factors",
         )
         if mode.endswith("-resident"):
-            wrapper._d3_resident_references = restore_resident_experts(
+            resident = restore_resident_experts if resident_factory is None else resident_factory
+            wrapper._d3_resident_references = resident(
                 wrapper,
                 prepared["codecs"][codec],
                 mode,
@@ -439,6 +443,7 @@ def one_replay(
     negative: bool = False,
     raw_oracle: bool = False,
     device: str = "cuda",
+    assemble_fn=None,
 ) -> dict:
     import torch
     from peft import get_peft_model_state_dict
@@ -448,7 +453,8 @@ def one_replay(
     wrapper = None
     capture = None
     try:
-        wrapper = assemble(rule, prepared, out / "adapter", codec, mode, training, device=device)
+        factory = assemble if assemble_fn is None else assemble_fn
+        wrapper = factory(rule, prepared, out / "adapter", codec, mode, training, device=device)
         initial = {
             name: tensor_record(value)
             for name, value in get_peft_model_state_dict(wrapper.model).items()
@@ -491,7 +497,8 @@ def one_replay(
             "attention": wrapper.model.config._attn_implementation,
         }
         if mode not in ("native-resident", "sequential") and device.startswith("cuda"):
-            if record["runtime"]["expert_gemm"]["grouped_matrices"] <= 0:
+            counter = "fused_matrices" if mode.startswith("fused") else "grouped_matrices"
+            if record["runtime"]["expert_gemm"][counter] <= 0:
                 raise ValueError("required grouped path was inactive")
         save(out / "record.json", record)
         return record
@@ -520,6 +527,7 @@ def correctness(
     oracle: dict | None,
     *,
     device: str = "cuda",
+    assemble_fn=None,
 ) -> dict:
     import torch
     from peft import get_peft_model_state_dict, set_peft_model_state_dict
@@ -534,22 +542,27 @@ def correctness(
         training,
         raw_oracle=mode == "native-resident" and training == "ordinary",
         device=device,
+        assemble_fn=assemble_fn,
     )
-    again = one_replay(rule, prepared, out / "A-A", codec, mode, training, device=device)
+    again = one_replay(rule, prepared, out / "A-A", codec, mode, training, device=device,
+                       assemble_fn=assemble_fn)
     require_exact(numerical_view(again), numerical_view(positive), "same-process A/A")
     negative = one_replay(
-        rule, prepared, out / "negative", codec, mode, training, negative=True, device=device
+        rule, prepared, out / "negative", codec, mode, training, negative=True, device=device,
+        assemble_fn=assemble_fn,
     )
     if negative["evaluation"] == positive["evaluation"] or all(
         a["parameter_gradients"] == b["parameter_gradients"]
         for a, b in zip(negative["steps"], positive["steps"], strict=True)
     ):
         raise ValueError("predeclared negative control is ineffective")
-    restored = one_replay(rule, prepared, out / "restored", codec, mode, training, device=device)
+    restored = one_replay(rule, prepared, out / "restored", codec, mode, training, device=device,
+                          assemble_fn=assemble_fn)
     require_exact(numerical_view(restored), numerical_view(positive), "restored replay")
     if oracle is not None:
         require_exact(numerical_view(positive), numerical_view(oracle), "native ordinary GA oracle")
-    wrapper = assemble(rule, prepared, out / "reload", codec, mode, training, device=device)
+    factory = assemble if assemble_fn is None else assemble_fn
+    wrapper = factory(rule, prepared, out / "reload", codec, mode, training, device=device)
     try:
         state = load_file(positive["artifact"])
         result = set_peft_model_state_dict(wrapper.model, state)

@@ -111,9 +111,12 @@ Completed development checks:
   trained logits, with same-recipe adapter reload.
 - 154 selected CPU tests; the full repository suite is not claimed by this count.
 
-Still required for this new implementation: prepare/pin trained OLMoE inputs
-and actual-shard validity controls on this host; freeze an executable prospective
-rule and committed sources; run native and same-kernel resident/streamed
-correctness, then paired staged/fused timing, memory and actual-launch profiles.
-No pretrained run, speedup, convergence claim or final D3 acceptance follows
-from this development packet. See the [qualification plan](../benchmarks/protocols/d3-fused-trainer/README.md).
+Preparation follow-up: the [separate launcher packet](../benchmarks/results/d3-fused-trainer-preparation-20261101/report.md)
+now binds trained checkpoint/caches/data and actual-shard controls, completes
+32 fresh-process random-fixture children and byte-identical CPU analysis, and
+passes 141 selected CPU regressions. Its executable rule is ready for operator
+commit/export. Still required: the frozen-source trained native/same-kernel
+resident/streamed gate, paired staged/fused timing, memory and actual-launch
+profiles, followed by offline publication and review. No pretrained fused run,
+speedup, convergence claim or final D3 acceptance follows from this development.
+See the [qualification protocol](../benchmarks/protocols/d3-fused-trainer/README.md).
