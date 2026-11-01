@@ -9,14 +9,18 @@ as history and are not a claim about today's live Trello/PR state.
 | B1 format/runtime interface | B1.1/B1.2/F4/A3 ancestry and the owner-delegated contract below are retained. Packed-only storage reuses the same original NF4 bytes and reload/lease ownership. | Review the new source; no retrospective coordination claim. |
 | Actual public SFT and L2L | The [staged pretrained study](../benchmarks/results/d3-public-trainer-attempt-03-f781e927-20261030/report.md) completed 234/234 valid cells with separate ordinary/L2L and codec cohorts. | Its result does not qualify a later implementation. |
 | Literal grouped fused dequant-GEMM | The [new candidate](d3-fused-dequant-gemm.md) decodes packed weight tiles inside grouped WMMA forward/dX. Small rows use the explicitly counted native fallback; SiLU remains native. | New pretrained native and same-kernel resident/streamed gates remain open. |
-| New implementation readiness | RTX 3090 development: 20 arithmetic/control cells, eight dispatch profiles, eight MLP cases and two eight-child synthetic public-trainer matrices; selected CPU regressions pass. All unsuccessful candidates remain retained. | Freeze new implementation and then a fully tested executable rule/receipts before formal measurements. |
+| New implementation readiness | Candidate `d1e0e2ca`; qualification helpers/receipts committed at `f93483a3`. RTX 3090 synthetic qualification completes 32 fresh children, 748 native tensor audits and byte-identical analysis; 141 selected CPU regressions pass. All unsuccessful candidates remain retained. | Commit the prelaunch descriptive-metadata correction, export canonical source and verify unchanged live identities before formal measurements. |
 | Speed, memory and actual launch evidence | Historical staged measurements remain valid in their published scope; the new primitive profiles show one fused kernel per eligible group. | Paired staged/fused trained-step timing, whole-trainer memory and actual launch profiles on the same host. No new speed/VRAM benefit is claimed. |
-| Validity, publication and acceptance | Synthetic development has source snapshots and checked raw publication; no formal pretrained fused session has started. | Actual-shard controls, frozen host/source/data, finite no-replacement session, offline verification, required CI and final reviewer acceptance. Existing issue-tracking limitation remains unresolved here. |
+| Validity, publication and acceptance | Actual trained-shard OK/OK/VOID controls, prepared host/data bindings and synthetic publication are retained; no formal pretrained fused session has started. | Canonical export, live identity verification, finite no-replacement session, offline verification, required CI and final reviewer acceptance. Existing issue-tracking limitation remains unresolved here. |
 
 The [qualification packet](../benchmarks/protocols/d3-fused-trainer/README.md)
 now has executable helpers, trained-input/actual-shard bindings, 32 successful
-synthetic children and byte-identical offline replay. It awaits operator commit
-and canonical export; the pretrained fused experiment remains unexecuted. Two
+synthetic children and byte-identical offline replay committed at `f93483a3`.
+The prelaunch reread found inherited descriptive metadata from the old staged
+study (six-arm prose, obsolete restart receipt and outdated pending statements).
+The correction leaves executable code, numerical gates, input bindings and
+attempt budgets unchanged and must be committed before canonical export;
+the pretrained fused experiment remains unexecuted. Two
 SSDs, convergence studies and a new model-fit target are not added as prerequisites.
 
 ## Historical audit, 2026-10-29

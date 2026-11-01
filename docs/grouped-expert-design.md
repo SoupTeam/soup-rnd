@@ -1,5 +1,17 @@
 # D3: bounded grouped expert compute — layer evidence and whole-model forward gate
 
+Current status, 2026-11-01: the staged implementation completed the
+[234-cell public SFT/L2L study](../benchmarks/results/d3-public-trainer-attempt-03-f781e927-20261030/report.md).
+The current B1 contract is recorded in the [acceptance map](d3-task-acceptance.md).
+The new [packed fused candidate](d3-fused-dequant-gemm.md) and its 32-child
+synthetic qualification are committed, but its pretrained correctness/performance
+series has not started. Commit the prelaunch descriptive correction before
+canonical export. The dated design/development sections below retain their
+historical status and do not supersede this current map; final D3 acceptance
+still requires the remaining evidence and reviewer decision.
+
+## Historical forward design and evidence
+
 Status: an internal bounded grouped NF4 restore and restricted hybrid GEMM
 candidate is implemented and development-tested. The [prospective layer series](../benchmarks/results/d3-grouped-layer-20261021/report.md)
 is complete: 60 valid arms / 1,200 samples and six CUDA profiles. **D3 end-to-end

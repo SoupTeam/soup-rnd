@@ -3,7 +3,8 @@
 Preparation date: 2026-11-01. Candidate implementation is committed at
 `d1e0e2ca523242c5aad7e7e7a3137f0bfa4d7892`. New qualification helpers and their
 receipts were developed afterwards; they are not relabeled as that commit.
-The operator must commit the new prospective packet before formal execution.
+The operator committed the new prospective packet at `f93483a3` before formal
+execution. The prelaunch descriptive correction below still needs its own commit.
 
 **No pretrained fused forward/backward or timing cell has run.** Trained-model
 work so far consists of downloading/hash verification, creating caches/data and
@@ -98,7 +99,8 @@ payloads where supported.
 ## Remaining formal experiment
 
 The [executable prospective packet](../../protocols/d3-fused-trainer/README.md)
-is ready for operator commit and canonical export. Its pilot is 24 correctness
+was committed at `f93483a3` and awaits canonical export after the prelaunch
+descriptive correction. Its pilot is 24 correctness
 children, 80 fresh-process ABBA timing arms and eight profiles: **112 children**,
 with a prospective ten-block ceiling of 192, no replacements and fixed time caps.
 The complete staged and packed-hybrid backends have explicitly different high-row
@@ -108,3 +110,19 @@ After the operator commits/pushes, export Git blobs, verify the live host/data
 identities, execute the finite trained-model series, replay/publish its results,
 and wait for required CI/review. No speedup, whole-trainer VRAM reduction,
 convergence result or final D3 acceptance is asserted by this preparation.
+
+## Prelaunch document reconciliation
+
+Before any pretrained fused cell, the requirements/protocol reread found old
+staged-study descriptions inherited in the new rule: six-arm/two-contrast repeat
+prose despite executable four-arm/single-contrast ABBA, an unrelated old-host
+restart receipt, stale claims that no packed kernel exists, and unsupported
+per-cell temperature/power CSV descriptions. The corrected rule describes the
+actual resident references, pinned adapter dtype, F1 telemetry and current scope.
+
+Only descriptive fields and documentation change. The executed source, numerical
+gates, prepared identities, dispatch policies, repeat calculation and finite
+attempt budget are unchanged. All raw archives and synthetic results remain
+unchanged; their source snapshots retain the originally executed descriptions.
+Commit the corrected prospective packet before exporting or starting the formal
+trained-model session. This is not a retrospective change to measured evidence.

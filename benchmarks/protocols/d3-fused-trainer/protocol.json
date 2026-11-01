@@ -45,7 +45,7 @@
       "v_proj"
     ]
   },
-  "resident_reference_definition": "Resident means all routed-expert weights resident, independently restored from the identical prepared bytes using B1 native/bitsandbytes reconstruction. Non-expert layers retain the same public streaming setup. This is not mislabeled as a full-resident-model run.",
+  "resident_reference_definition": "Resident means all routed-expert weights resident. Native and staged references reconstruct identical prepared bytes using their declared B1/native or staged path; the fused reference retains the original packed bytes/statistics and uses the same fused kernel and row policy as streaming. Non-expert layers retain the same public streaming setup. These are correctness-only references, not full-resident-model timing runs.",
   "reference": "Independent native-resident ordinary GA oracle for each codec, plus same-kernel resident/streamed staged and fused pairs.",
   "same_kernel_pairs": [
     [
@@ -110,7 +110,7 @@
       465
     ]
   },
-  "adapter_initialization": "Prepare and pin complete attention LoRA initial factors before freeze. Load matching values after each Trainer setup, preserving actual per-codec adapter dtype (dense FP32; TRL QLoRA BF16). Save dtype/shape/raw bytes and initial state hashes.",
+  "adapter_initialization": "Prepare and pin complete attention LoRA initial factors before freeze. Load matching values after each Trainer setup, preserving the actual TRL QLoRA BF16 adapter dtype for both NF4 codecs. Save dtype/shape/raw bytes and initial state hashes.",
   "numerics": {
     "compute_dtype": "bfloat16",
     "native_bf16_required": true,
@@ -177,9 +177,9 @@
   "timing_definition": "Public optimizer windows 2/2/2/1; omit step zero; measure steps 1,2,3. Stop wall/CUDA windows before copying audit gradients; resume for optimizer work. Hashes, final evaluation and cleanup outside timing. Profiles are separate arms.",
   "pilot_blocks": 5,
   "max_blocks": 10,
-  "repeat_rule": "For each codec/training stratum, project each shared six-arm symmetric block into two actual ABBA pairs. Reuse unchanged arm_validity.repeats: sigma=sqrt((var(A)+var(B))/2), delta=0.10*mean(A), N=max(2,ceil(7.85*(sigma/delta)^2)). Joint first target=max(5,N_grouping,N_activation) from five pilot blocks. At that joint target recompute once from that prefix; joint final target=max(first,N_grouping,N_activation). No later top-up. If target exceeds ten, retain records and report no-verdict precision budget; never discard/replace a void block.",
+  "repeat_rule": "For each codec/training stratum, use complete four-arm grouped/fused/fused/grouped ABBA blocks for the single packed-backend contrast. Reuse unchanged arm_validity.repeats: sigma=sqrt((var(A)+var(B))/2), delta=0.10*mean(A), N=max(2,ceil(7.85*(sigma/delta)^2)). First target=max(5,N) from five pilot blocks. At that target recompute N once from that prefix; final target=max(first,N). No later top-up. If target exceeds ten, retain records and report no-verdict precision budget; never discard/replace a void block.",
   "profiles": "Separate staged/fused CUDA profiles per codec and ordinary/L2L; actual CUPTI compute kernels, route counts and allocator peaks. Require positive fused work, including an executed fused WMMA kernel. Native fallback counted separately.",
-  "memory": "Separate training allocated/reserved peaks after warmup/reset, before evaluation/reload; synchronize. Record whole-child peak RSS, pinned/staging/arena budgets separately. F1 retains clock records; device-before/after CSV records memory, temperature and power endpoints (not telemetry peaks). No activation-only or optimizer-only result is called total-VRAM reduction.",
+  "memory": "Separate training allocated/reserved peaks after warmup/reset, before evaluation/reload; synchronize. Record whole-child peak RSS and pinned/staging/arena budgets separately. F1 retains sampled GPU clocks/event reasons and before/after box stamps including GPU used-memory, RAM availability, commit charge and power-source readings; these endpoints are not telemetry peaks. This launcher does not record per-cell temperature/power-draw CSV endpoints. No activation-only or optimizer-only result is called total-VRAM reduction.",
   "attempt_budget": {
     "correctness_cells": 24,
     "timing_pilot_cells": 80,
@@ -214,7 +214,7 @@
   },
   "disk_counter_source": "guest-diskstats",
   "physical_host_isolation_claim": false,
-  "validity": "Reuse unchanged arm_validity.ArmWatch and empirical sysfs/guest mapping. Before freeze verify all prepared shard hashes and paths, baseline OK, complete aligned own-shard reads OK and an independent foreign O_DIRECT reader VOID. The existing 2 GiB fixture is instrument readiness only, not actual-shard acceptance. Require per-cell F1 OK, unchanged boot/data/source identities and the sole exposed CUDA workload. Missing required sensors, unknown/void F1, visible foreign workloads, restart or identity changes stop the series with no verdict; physical host/cache isolation remains uncertified.",
+  "validity": "Reuse unchanged arm_validity.ArmWatch and empirical sysfs/guest mapping. Before freeze verify all prepared shard hashes and paths, baseline OK, complete aligned own-shard reads OK and an independent foreign O_DIRECT reader VOID. Actual trained-shard controls are bound separately from synthetic-fixture controls in preparation receipts. Require per-cell F1 OK, unchanged boot/data/source identities and the sole exposed CUDA workload. Missing required validity sensors, unknown/void F1, visible foreign workloads, restart or identity changes stop the series with no verdict. GPU clock telemetry retains its own OK/unknown status; physical host/cache isolation remains uncertified.",
   "decision": "Report exactness and observed staged/packed-hybrid time, memory and actual launches separately; no positive speedup, whole-VRAM reduction, convergence or final task acceptance is assumed.",
   "preparation": {
     "checkpoint": {
@@ -253,10 +253,10 @@
   "promotion": "Prepare inputs and actual-shard controls, execute the pinned four-layer untied synthetic parent/child launcher, pass offline replay and fault tests; bind receipts and commit before canonical export/formal execution.",
   "retention": "Preserve all historical studies and failed/incomplete formal sessions and all preliminary trainer preflight failures. Keep raw tensors/native oracle, state/route/gradient hashes, logs, F1 records, profiles, source packet, manifests and offline byte-identical analysis. Verify publication from normalized committed bytes in a fresh checkout.",
   "separate_full_task_items": [
-    "The public SFT/L2L integration is committed in cd6515ac; its first formal session failed the evaluation control. The corrective revision requires a new committed source freeze and an accepted pretrained trainer comparison.",
+    "The staged public SFT/L2L study at f781e927 completed 234/234 cells; prior failed/incomplete sessions remain retained. That historical result does not qualify the new packed-fused backend, whose pretrained native/same-kernel correctness and paired performance gates remain required.",
     "Current B1 technical interface contract accepted under explicit operator delegation on 2026-10-29. Historical coordination before earlier B1 measurements is not certified; final pretrained qualification remains required.",
     "Repository Issues UI currently disables New issue and states issue creation is restricted; maintainer tracking decision is outstanding. The historical HTTP 410 attempt is retained.",
-    "The source uses the name grouped fused dequant-GEMM; current routed experts use separate grouped restoration and GEMM. Literal packed-weight dequant+GEMM kernel fusion is not implemented or claimed. Maintainer acceptance must resolve this distinction.",
+    "The candidate implementation at d1e0e2ca decodes packed NF4 tiles inside grouped WMMA forward/dX for rows 129..512; rows 1..128 use the explicitly counted native fallback. Qualify this hybrid on trained OLMoE and disclose both its coverage and the comparator's different high-row policy before final acceptance.",
     "Source page 10 wrap-only/do-not-build SwiGLU constraint versus retained custom activation experiment requires explicit scope visibility; do not count it as core D3 fusion.",
     "Current-head repository CI and final owner/reviewer task acceptance remain outstanding."
   ],
@@ -264,7 +264,7 @@
     "Synthetic IDs and four SGD steps do not establish quality or convergence.",
     "Frozen experts plus attention LoRA; no routed-expert LoRA, nonzero router auxiliary loss, second derivatives or full-weight fine-tuning.",
     "Ordinary/L2L results are specific to this source, GPU and recipe; A3 Mistral noise-floor/tolerance criteria do not relax D3 byte exactness.",
-    "Staged grouped NF4 restoration plus GEMM is not one fused packed-weight GEMM kernel.",
+    "The comparator performs staged grouped restoration/GEMM. The candidate is a hybrid: packed fused WMMA for rows 129..512 and counted native restoration/GEMM for rows 1..128. Their high-row dispatch policies differ; timing estimates the complete backend change, not fusion alone.",
     "Separate owner/reviewer full-task acceptance is still required."
   ],
   "activation_scope": "Native SiLU and multiply in both arms. No custom activation kernel in this study.",
@@ -275,16 +275,6 @@
     "vocab": 64,
     "tie_word_embeddings": false,
     "weight_sha256": "541a84fa8513d02da3381a8c2fbc83efe4e3ff89975d958f0cc3505dc91b550d"
-  },
-  "restart_revalidation": {
-    "original_manifest": "/root/d3-public-trainer-preparation-01/prepared-02/prepared-final.json",
-    "original_manifest_sha256": "6d8f2dd2fb35c2c9839b2549fc41ed7dbdd73e402bf72f7d6d5fa0af5fa9d7df",
-    "previous_boot": "420aedd3-7599-46d7-a86e-1e1e51bed1ef",
-    "current_boot": "2142c629-3e42-4d7c-a70f-0b42b8161c4d",
-    "unchanged_input_hashes": 157,
-    "controls": "/root/d3-public-trainer-preparation-01/actual-shard-controls-after-restart-01/controls/report.json",
-    "new_model_execution": false,
-    "prior_failed_session_and_marker_preserved": true
   },
   "variant": "packed-fused-v1",
   "fused_native_rows_from": null,

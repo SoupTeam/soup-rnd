@@ -1,7 +1,8 @@
 # D3 packed fused trainer qualification: preparation plan
 
-Status on 2026-11-01: executable helpers and all preparation bindings are ready
-for **operator commit and canonical export**. The execution switch is enabled
+Status on 2026-11-01: executable helpers and all preparation bindings were
+committed at `f93483a3`. A prelaunch descriptive-metadata correction must be
+committed before **canonical export**. The execution switch is enabled
 in the prospective rule; dirty/uncommitted source and missing canonical receipts
 still prevent formal launch. No pretrained fused cell has run.
 
@@ -16,8 +17,11 @@ it must not be launched with a renamed JSON to claim fused qualification.
 
 ## Preparation before the next freeze
 
-Items 1–5 below are complete. Item 6 has populated receipts/rule; operator
-commit and canonical export are the remaining prerequisite to formal launch.
+Items 1–6 below were committed at `f93483a3`. The prelaunch reread corrects
+inherited six-arm repeat prose, an unrelated historical restart receipt and
+outdated status/telemetry descriptions. Executable code, numerical gates,
+prepared input bindings and attempt budgets are unchanged. Commit this correction,
+export canonical Git bytes and verify live identities before formal launch.
 
 1. Commit the candidate implementation and development evidence. Export canonical
    Git bytes; do not execute a dirty working-tree overlay as that commit.

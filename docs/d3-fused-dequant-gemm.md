@@ -114,8 +114,10 @@ Completed development checks:
 Preparation follow-up: the [separate launcher packet](../benchmarks/results/d3-fused-trainer-preparation-20261101/report.md)
 now binds trained checkpoint/caches/data and actual-shard controls, completes
 32 fresh-process random-fixture children and byte-identical CPU analysis, and
-passes 141 selected CPU regressions. Its executable rule is ready for operator
-commit/export. Still required: the frozen-source trained native/same-kernel
+passes 141 selected CPU regressions. The qualification packet was committed at
+`f93483a3`; a subsequent prelaunch correction removes inherited descriptive
+metadata without changing executable code, numerical gates or budgets. Commit
+that correction before canonical export. Still required: the frozen-source trained native/same-kernel
 resident/streamed gate, paired staged/fused timing, memory and actual-launch
 profiles, followed by offline publication and review. No pretrained fused run,
 speedup, convergence claim or final D3 acceptance follows from this development.
