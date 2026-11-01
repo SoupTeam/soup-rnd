@@ -1,0 +1,8 @@
+# before the fix (src without _backward_context), device=cpu
+dev=cpu model=bfloat16 autocast=False: GA vs GA 0.00e+00   GA vs L2L 0.00e+00
+dev=cpu model=bfloat16 autocast=True: GA vs GA 0.00e+00   GA vs L2L 0.00e+00
+dev=cpu: GA(backward inside autocast) vs L2L 0.00e+00;  GA(backward outside) vs GA(backward inside) 0.00e+00
+# after the fix, device=cpu
+dev=cpu model=bfloat16 autocast=False: GA vs GA 0.00e+00   GA vs L2L 0.00e+00
+dev=cpu model=bfloat16 autocast=True: GA vs GA 0.00e+00   GA vs L2L 0.00e+00
+dev=cpu: GA(backward inside autocast) vs L2L 0.00e+00;  GA(backward outside) vs GA(backward inside) 0.00e+00

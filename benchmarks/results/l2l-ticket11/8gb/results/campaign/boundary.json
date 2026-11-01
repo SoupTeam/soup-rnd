@@ -1,0 +1,32 @@
+{
+ "c1": {
+  "ok": true,
+  "oom": false,
+  "returncode": 0,
+  "failure": null,
+  "peak_allocated": 7098387968,
+  "peak_reserved": 7423918080,
+  "log": "runs/fit-c1.log"
+ },
+ "c2": {
+  "largest_ok": null,
+  "failed_at": 2,
+  "tried": [
+   {
+    "batch_size": 2,
+    "ok": false,
+    "oom": true,
+    "returncode": 1,
+    "failure": "OutOfMemoryError: CUDA out of memory. Tried to allocate 112.00 MiB. GPU 0 has a total capacity of 7.65 GiB of which 17.94 MiB is free. Process 911758 has 7.60 GiB memory in use. Of the allocated memory 7.19 GiB is allocated by PyTorch, and 197.53 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)",
+    "peak_allocated": 7806550528,
+    "peak_reserved": 7925137408,
+    "log": "runs/boundary-c2-b2.log"
+   }
+  ],
+  "peak_at_largest_ok": null,
+  "peak_at_failure": {
+   "peak_allocated": 7806550528,
+   "peak_reserved": 7925137408
+  }
+ }
+}

@@ -1,10 +1,13 @@
 # D3 packed NF4 grouped GEMM candidate
 
 Status, 2026-11-01: the packed-only pool, fused forward/dX, lease-safe first
-derivatives and explicit public SFT/L2L opt-in are implemented. Synthetic CUDA
-screens pass on RTX 3090 (sm_86); pretrained qualification and performance are
-pending. The existing completed OLMoE studies measured the staged restore/GEMM
-path and do not qualify this new implementation.
+derivatives and explicit public SFT/L2L opt-in are implemented. The separately
+frozen [pretrained qualification](../benchmarks/results/d3-fused-trained-921d86a1-20261101/report.md)
+at `921d86a1` completes 112/112 cells on RTX 3090 (sm_86). The candidate is exact
+in this recipe and saves 52–53.61 MiB peak allocated training memory, but takes
+22.24–30.62% longer and increases total device launches. Existing defaults remain
+unchanged. This is a measured memory/time tradeoff, not a general speedup or
+final D3 acceptance.
 
 ## Existing implementations inspected
 
@@ -116,9 +119,13 @@ now binds trained checkpoint/caches/data and actual-shard controls, completes
 32 fresh-process random-fixture children and byte-identical CPU analysis, and
 passes 141 selected CPU regressions. The qualification packet was committed at
 `f93483a3`; a subsequent prelaunch correction removes inherited descriptive
-metadata without changing executable code, numerical gates or budgets. Commit
-that correction before canonical export. Still required: the frozen-source trained native/same-kernel
-resident/streamed gate, paired staged/fused timing, memory and actual-launch
-profiles, followed by offline publication and review. No pretrained fused run,
-speedup, convergence claim or final D3 acceptance follows from this development.
+metadata without changing executable code, numerical gates or budgets. The
+operator committed that correction before canonical export at `921d86a1`.
+The subsequent trained study completes all native/same-kernel pairs, paired
+timing, memory and launch profiles. Original CPU replay verifies 2,908 retained
+native tensors; all four repeat targets remain five. Source-host full-data audit
+and local small-report checks are distinct; the complete raw archive still needs
+another verified copy before deleting the source instance. Required CI and
+independent final review remain open. Development screens alone are not the
+trained qualification and no convergence claim follows.
 See the [qualification protocol](../benchmarks/protocols/d3-fused-trainer/README.md).

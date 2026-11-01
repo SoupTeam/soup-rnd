@@ -7,21 +7,25 @@ as history and are not a claim about today's live Trello/PR state.
 | Requirement | Current evidence | Remaining work |
 | --- | --- | --- |
 | B1 format/runtime interface | B1.1/B1.2/F4/A3 ancestry and the owner-delegated contract below are retained. Packed-only storage reuses the same original NF4 bytes and reload/lease ownership. | Review the new source; no retrospective coordination claim. |
-| Actual public SFT and L2L | The [staged pretrained study](../benchmarks/results/d3-public-trainer-attempt-03-f781e927-20261030/report.md) completed 234/234 valid cells with separate ordinary/L2L and codec cohorts. | Its result does not qualify a later implementation. |
-| Literal grouped fused dequant-GEMM | The [new candidate](d3-fused-dequant-gemm.md) decodes packed weight tiles inside grouped WMMA forward/dX. Small rows use the explicitly counted native fallback; SiLU remains native. | New pretrained native and same-kernel resident/streamed gates remain open. |
-| New implementation readiness | Candidate `d1e0e2ca`; qualification helpers/receipts committed at `f93483a3`. RTX 3090 synthetic qualification completes 32 fresh children, 748 native tensor audits and byte-identical analysis; 141 selected CPU regressions pass. All unsuccessful candidates remain retained. | Commit the prelaunch descriptive-metadata correction, export canonical source and verify unchanged live identities before formal measurements. |
-| Speed, memory and actual launch evidence | Historical staged measurements remain valid in their published scope; the new primitive profiles show one fused kernel per eligible group. | Paired staged/fused trained-step timing, whole-trainer memory and actual launch profiles on the same host. No new speed/VRAM benefit is claimed. |
-| Validity, publication and acceptance | Actual trained-shard OK/OK/VOID controls, prepared host/data bindings and synthetic publication are retained; no formal pretrained fused session has started. | Canonical export, live identity verification, finite no-replacement session, offline verification, required CI and final reviewer acceptance. Existing issue-tracking limitation remains unresolved here. |
+| Actual public SFT and L2L | The staged study completed 234/234 cells. The separately frozen [packed-backend study](../benchmarks/results/d3-fused-trained-921d86a1-20261101/report.md) completes 112/112 on trained OLMoE, with ordinary/L2L and NF4/nested NF4 kept separate. | Current-head CI and independent final review; historical results are not substituted for the new study. |
+| Literal grouped fused dequant-GEMM | Packed WMMA forward/dX executes in the trained model; all eight fused resident/streamed cells pass native exactness and actual profiles contain positive fused work. Small rows retain the counted native fallback; SiLU remains native. | Review the declared hybrid boundary; no all-row-fusion or cross-device claim. |
+| New implementation qualification | Candidate `d1e0e2ca`, helpers `f93483a3`, prelaunch correction/freeze `921d86a1`. All 24 correctness cells pass; original CPU replay verifies 805 source blobs and 2,908 native tensors. Prior development failures remain retained. | No additional GPU run is requested by the completed rule. The earlier 141 selected CPU passes are preparation evidence, not a full publication-head CI claim. |
+| Speed, memory and actual launch evidence | All 80 timing arms and eight profiles pass. Packed hybrid takes 22.24–30.62% longer, saves 52–53.61 MiB peak allocated training memory, and increases total device kernel launches in these four recipes. | Interpret the complete-backend contrast, including its row-policy difference. No faster default or general speedup is recommended. |
+| Validity, publication and acceptance | All 112 F1 outcomes are OK; every repeat target is five, with zero additions/replacements. Source-host CPU and full-ZIP audits pass; the small report, source identities and cell ledger are verified locally. | Full raw archive remains on the source instance without a complete local backup. Preserve it before deleting the instance. Required CI, issue-tracking decision and final reviewer acceptance remain separate. |
 
-The [qualification packet](../benchmarks/protocols/d3-fused-trainer/README.md)
-now has executable helpers, trained-input/actual-shard bindings, 32 successful
-synthetic children and byte-identical offline replay committed at `f93483a3`.
-The prelaunch reread found inherited descriptive metadata from the old staged
-study (six-arm prose, obsolete restart receipt and outdated pending statements).
-The correction leaves executable code, numerical gates, input bindings and
-attempt budgets unchanged and must be committed before canonical export;
-the pretrained fused experiment remains unexecuted. Two
-SSDs, convergence studies and a new model-fit target are not added as prerequisites.
+The prospective packet and prelaunch descriptive correction were committed
+before the measured session at `921d86a1`. The canonical export, actual trained
+inputs and host bindings passed before execution. All 112 declared children
+completed and all four repeat calculations requested zero additions. The
+original CPU analyzer then replayed the recorded evidence on the source host;
+the complete ZIP's 4,131 payload hashes and CRCs also pass.
+
+The [published result](../benchmarks/results/d3-fused-trained-921d86a1-20261101/report.md)
+distinguishes source-host full-data replay from local small-report/source/ledger
+verification. The full 2.94 GB raw archive has not been backed up completely
+locally. This is a retention requirement before destroying its only complete
+copy, not a request to repeat the measurements. Two SSDs, convergence studies
+and a new model-fit target are not added as prerequisites.
 
 ## Historical audit, 2026-10-29
 

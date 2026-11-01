@@ -3,10 +3,13 @@
 Current status, 2026-11-01: the staged implementation completed the
 [234-cell public SFT/L2L study](../benchmarks/results/d3-public-trainer-attempt-03-f781e927-20261030/report.md).
 The current B1 contract is recorded in the [acceptance map](d3-task-acceptance.md).
-The new [packed fused candidate](d3-fused-dequant-gemm.md) and its 32-child
-synthetic qualification are committed, but its pretrained correctness/performance
-series has not started. Commit the prelaunch descriptive correction before
-canonical export. The dated design/development sections below retain their
+The new [packed fused candidate](d3-fused-dequant-gemm.md) now completes the
+separate 112-cell pretrained study at `921d86a1`: all correctness/timing/profile
+cells and F1 outcomes pass, with no added repeats. It saves 52–53.61 MiB allocated
+training memory but takes 22.24–30.62% longer and increases total device launches
+in this recipe. Full raw evidence remains on the source instance; the report
+separates source-host replay from local small-publication checks. The dated
+design/development sections below retain their
 historical status and do not supersede this current map; final D3 acceptance
 still requires the remaining evidence and reviewer decision.
 

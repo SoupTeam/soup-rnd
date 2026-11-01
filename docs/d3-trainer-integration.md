@@ -2,9 +2,12 @@
 
 Status update, 2026-11-01: the existing staged implementation completed the
 [234-cell pretrained public-trainer study](../benchmarks/results/d3-public-trainer-attempt-03-f781e927-20261030/report.md).
-The separately added [packed fused backend](d3-fused-dequant-gemm.md) has synthetic
-CPU/CUDA development evidence and still requires its own prospective pretrained
-qualification. Final D3 acceptance is a separate reviewer decision. The
+The separately added [packed fused backend](d3-fused-dequant-gemm.md) completes
+its own 112/112-cell prospective pretrained qualification at `921d86a1`, including
+all eight fused resident/streamed ordinary/L2L cells for NF4/nested NF4. The
+measured backend saves allocated training memory but is slower; existing defaults
+are unchanged. See its report for the source-host/local-audit distinction and
+remaining raw-backup requirement. Final D3 acceptance is a separate reviewer decision. The
 historical 84-cell experiment used another adapter fixture and remains unchanged.
 The [CPU evidence packet](../benchmarks/results/d3-trainer-integration-cpu-20261029/report.md)
 retains the selected-suite log, JUnit, environment and working source snapshot.
@@ -13,6 +16,14 @@ retains 18 actual public-wrapper runs on RTX 4090, exact sequential comparisons,
 adapter restoration, preliminary failures and separate guest-disk controls. Its
 current CPU recheck passes 933 cases, including 24 integration tests. These
 development runs use random two-layer weights, not pretrained OLMoE.
+
+The integration with `main` at `01aa9d6d` retains A5's per-micro-batch shape capture,
+unpadded activation storage and backward autocast policy, together with D3's
+OLMoE guards and original tensor loss denominator. The merge passes 117 selected
+CPU tests, including actual Trainer ordinary/L2L runs, NF4/nested NF4, mixed
+lengths, incomplete windows and tensor-identity regressions. This is CPU merge
+validation; the 112-process GPU study remains pinned to `921d86a1` and does not
+certify the new merged source as a fresh CUDA measurement.
 
 ## Execution path
 
@@ -28,7 +39,7 @@ autograd boundary. Backward reloads one expert at a time and recomputes its loca
 first derivative. The D3 GEMM groups forward compute; backward is native eager
 recomputation in the staged backends. The explicit `fused_nf4` candidate instead
 uses packed forward/dX with native SiLU derivatives; backward still reloads one
-expert at a time. See its narrower device/format boundary and pending gate.
+expert at a time. See its narrower device/format boundary and separate qualification.
 
 The sharder accepts both separately stored projection tensors and the native
 OLMoE fused tensors. A fused checkpoint is sliced one expert at a time, without
