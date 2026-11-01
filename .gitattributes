@@ -24,3 +24,7 @@ benchmarks/harness/c5_data.py text eol=lf
 
 # Preserve A0 capture bytes and recorded SHA256.
 benchmarks/results/a0-vast-rtx3070/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# Preserve archived C3 CUDA evidence bytes; replay_evidence.py checks them against the archive manifest.
+benchmarks/c3/evidence/20261031_attempt017/** -text -whitespace
+benchmarks/c3/evidence/20261031_attempt019/** -text -whitespace

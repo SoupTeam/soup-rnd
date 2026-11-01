@@ -1,0 +1,238 @@
+{
+  "reason": "Early termination after confirmed frozen F1 foreign-read gate violations; no retry or threshold change",
+  "observed_unix_s": 1793441273.6508648,
+  "completed_arms_before_abort": 22,
+  "violations": [
+    {
+      "index": 14,
+      "f1": {
+        "arm": "B",
+        "round": 0,
+        "run": 0,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "void",
+        "box_stamp_before": {
+          "unix_s": 1793440740.4445214,
+          "ram_available_bytes": 101371637760,
+          "commit_charge": {
+            "used_bytes": 209219928064,
+            "limit_bytes": 143645265920
+          },
+          "power_source": "mains",
+          "gpu_processes": [
+            {
+              "pid": 1105535,
+              "type": "C",
+              "name": "",
+              "used_mib": 2318
+            }
+          ],
+          "gpu_memory_used_mib": 2342,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793440765.8882077,
+          "ram_available_bytes": 100195205120,
+          "commit_charge": {
+            "used_bytes": 211529220096,
+            "limit_bytes": 143645265920
+          },
+          "power_source": "mains",
+          "gpu_processes": [
+            {
+              "pid": 1105535,
+              "type": "C",
+              "name": "",
+              "used_mib": 3118
+            }
+          ],
+          "gpu_memory_used_mib": 3142,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 2520 to 2730 MHz over 14 samples; clock event reasons seen: none",
+          "samples": 14,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 2520,
+            "median": 2520.0,
+            "max": 2730
+          },
+          "reasons_seen": {}
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -8.00006091594696e-07,
+              "sleep_offset_end_s": -9.799987310543656e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 14 power samples, so on mains",
+            "evidence": {
+              "samples": 14,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "void",
+            "reason": "at least 1182859264 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+            "evidence": {
+              "model_path": "/data/c3/repo/.c3_prepared/shards",
+              "device": "nvme0n1",
+              "disk_read_bytes_start": 3532477621760,
+              "disk_read_bytes_end": 3653543421440,
+              "other_disk_read_bytes_start": 0,
+              "other_disk_read_bytes_end": 0,
+              "own_read_bytes": 119882940416,
+              "foreign_read_bytes": 1182859264,
+              "foreign_read_bytes_min": 1182859264,
+              "foreign_read_bytes_max": 1182859264,
+              "uninspectable_processes": 0
+            },
+            "readers": [],
+            "unattributed_bytes": 1182859264
+          }
+        }
+      }
+    },
+    {
+      "index": 19,
+      "f1": {
+        "arm": "A",
+        "round": 0,
+        "run": 0,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "void",
+        "box_stamp_before": {
+          "unix_s": 1793441068.998261,
+          "ram_available_bytes": 103350521856,
+          "commit_charge": {
+            "used_bytes": 207413039104,
+            "limit_bytes": 143645265920
+          },
+          "power_source": "mains",
+          "gpu_processes": [
+            {
+              "pid": 1110670,
+              "type": "C",
+              "name": "",
+              "used_mib": 2318
+            }
+          ],
+          "gpu_memory_used_mib": 2334,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793441099.5400627,
+          "ram_available_bytes": 103059582976,
+          "commit_charge": {
+            "used_bytes": 208299454464,
+            "limit_bytes": 143645265920
+          },
+          "power_source": "mains",
+          "gpu_processes": [
+            {
+              "pid": 1110670,
+              "type": "C",
+              "name": "",
+              "used_mib": 3118
+            }
+          ],
+          "gpu_memory_used_mib": 3134,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 2520 to 2730 MHz over 16 samples; clock event reasons seen: none",
+          "samples": 16,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 2520,
+            "median": 2520.0,
+            "max": 2730
+          },
+          "reasons_seen": {}
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -9.899958968162537e-07,
+              "sleep_offset_end_s": -1.0699877748265862e-06,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 17 power samples, so on mains",
+            "evidence": {
+              "samples": 17,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "void",
+            "reason": "at least 2191523840 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+            "evidence": {
+              "model_path": "/data/c3/repo/.c3_prepared/shards",
+              "device": "nvme0n1",
+              "disk_read_bytes_start": 4223003411968,
+              "disk_read_bytes_end": 4384774632960,
+              "other_disk_read_bytes_start": 0,
+              "other_disk_read_bytes_end": 0,
+              "own_read_bytes": 159579697152,
+              "foreign_read_bytes": 2191523840,
+              "foreign_read_bytes_min": 2191523840,
+              "foreign_read_bytes_max": 2191523840,
+              "uninspectable_processes": 0
+            },
+            "readers": [],
+            "unattributed_bytes": 2191523840
+          }
+        }
+      }
+    }
+  ],
+  "worker_pid": 3670,
+  "supervisor_group": 3669,
+  "action": "SIGTERM current owned arm only; existing supervisors retain cleanup and failure receipts"
+}

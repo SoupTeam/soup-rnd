@@ -7,6 +7,9 @@ Trainer control. It completed 22/80 planned arms with exact loss/gradient/final-
 parity, then stopped early: arms14 and19 failed the unchanged F1 foreign-read gate.
 Both resources are deleted and all186 evidence files verified on Mac and external
 storage. See `reports/20261031_attempt019/REPORT_RU.txt`.
+Raw per-arm, calibration, foreign-reader and CUDA-control evidence for attempts 017 and 019,
+with the frozen source manifests, is in `evidence/`; `python benchmarks/c3/replay_evidence.py
+benchmarks/c3/evidence/<packet>` recomputes the gates without a GPU (see `evidence/README.md`).
 Attempt017 retains NO_VERDICT_INSUFFICIENT_REPETITIONS; attempt018 remains a
 supervisor-admission failure with zero measured arms. Neither history is rewritten.
 Branch: `research/c3-partial-ram`. Pilot source commit:

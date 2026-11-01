@@ -1,0 +1,328 @@
+{
+  "note": "Measured source = evidence/source_manifest.json of each attempt (base 79df4a8 plus an unpublished overlay). c3_commits = f211051 (the three C3 commits as first pushed); head = 3698ba7 (after the main merge and the close() fix). Rows list every C3 file whose bytes differ from what was measured; files that differ only because main was merged are listed by path.",
+  "attempts": {
+    "017": {
+      "measured_files": 2940,
+      "identical_at_head": 2909,
+      "c3_differences": [
+        {
+          "path": "benchmarks/c3/STATUS.md",
+          "measured_sha256": "592587197252ba3f40c3b31a0ef601bb1118ad2da940ff4b1bd653bac1f937c0",
+          "c3_commits_sha256": "93f0e1c86b9b7220c0aaf672b12ac5c07063931fd50ca678e286b20f5e807364",
+          "head_sha256": "93f0e1c86b9b7220c0aaf672b12ac5c07063931fd50ca678e286b20f5e807364",
+          "identical_in_c3_commits": false,
+          "note": "documentation"
+        },
+        {
+          "path": "benchmarks/c3/compare.py",
+          "measured_sha256": "f480892e2851df1bbf4ec09565bb062868867394d671700ed8d64aa6c5868d67",
+          "c3_commits_sha256": "74d315a2e3741e428c949b2e1e17b5e34a5854f3b53b33c22137d4b97644096f",
+          "head_sha256": "74d315a2e3741e428c949b2e1e17b5e34a5854f3b53b33c22137d4b97644096f",
+          "identical_in_c3_commits": false,
+          "note": "CPU smoke harness restores caller torch settings; not used by the 8B series."
+        },
+        {
+          "path": "benchmarks/c3/gpu_tests.py",
+          "measured_sha256": "1173cd9d9b7f56bab68f364eb4daa27ca9fa8b36f1908387722042750531e967",
+          "c3_commits_sha256": "bea9037e4c8fbe7208e50720e70029575168bf2cfd66e57ea958873bd960b688",
+          "head_sha256": "bea9037e4c8fbe7208e50720e70029575168bf2cfd66e57ea958873bd960b688",
+          "identical_in_c3_commits": false,
+          "note": "adds the public L2L CUDA control (run in attempt019)."
+        },
+        {
+          "path": "benchmarks/c3/isolated_compare.py",
+          "measured_sha256": "b421e8a4b412e8c5376e131eaf5469f2b81a2d84859b69370586e0419e44c659",
+          "c3_commits_sha256": "19104b50dcf1c9f4b4639d39037ef573ea0b39eee3a5c185d5fef20473824ccb",
+          "head_sha256": "19104b50dcf1c9f4b4639d39037ef573ea0b39eee3a5c185d5fef20473824ccb",
+          "identical_in_c3_commits": false,
+          "note": "adds a prospective stop on the first invalid CUDA arm; compare_results unchanged. Replay uses the frozen measured copy."
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt013/billing_after_destroy.json",
+          "measured_sha256": "fb80f9ae3f74a5e6835acabcb77b0268c564ad118cc62ff391b49a929480ae7e",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt014/billing_after_destroy.json",
+          "measured_sha256": "c954f7725ae9f322295fabe98be16ff9f3077f6cf910dcad8228a6b7cfaeab19",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt015/billing.json",
+          "measured_sha256": "5d4f40cc1d4adb281830f6ec8fa2b55b3418d071301cea88e01368826a110549",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt015/upload_status.json",
+          "measured_sha256": "e21b5d57b11f05c7b1bc15a0a4c27870bb1b7c97428c2af5534d7234aec66769",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/setup_supervisor.py",
+          "measured_sha256": "24ac0ff6f6832ffeba01564432bcd901f9888accaf9383501b2c073a53d55bc6",
+          "c3_commits_sha256": "ad3f884225d73c9090a8f01dae85fd953d01f8b1bbd1e3a167a1615f807a8d89",
+          "head_sha256": "ad3f884225d73c9090a8f01dae85fd953d01f8b1bbd1e3a167a1615f807a8d89",
+          "identical_in_c3_commits": false,
+          "note": "phase-specific supervisor bounds after attempt018 (orchestration only)."
+        },
+        {
+          "path": "benchmarks/harness/c2_source_depth.py",
+          "measured_sha256": "3a514c690e12b776ec5a8811324b5d56549688f756e77f3648264a6c6a4fed66",
+          "c3_commits_sha256": "e9e2fced0a987fdd70a08b362aeab6cc98ede7937c60722968ae5235e8363544",
+          "head_sha256": "e9e2fced0a987fdd70a08b362aeab6cc98ede7937c60722968ae5235e8363544",
+          "identical_in_c3_commits": false,
+          "note": "C2 harness pin of the shipped async_disk_source hash; not used by C3."
+        },
+        {
+          "path": "src/soup_cli/config/schema.py",
+          "measured_sha256": "3a778473a5c1ba1131bb8e679aa746dd820cb9f4e43fd24dd165c90d69b1dc69",
+          "c3_commits_sha256": "3899ccf7436108c3e9b91ddebbcb9778922825ec735b0349ee78d69a8eb18a84",
+          "head_sha256": "3899ccf7436108c3e9b91ddebbcb9778922825ec735b0349ee78d69a8eb18a84",
+          "identical_in_c3_commits": false,
+          "note": "public RAM-only L2L integration added after attempt017 (its timed path is non-L2L); attempt019 measured this version, including the sixth CUDA control."
+        },
+        {
+          "path": "src/soup_cli/trainer/l2l_trainer.py",
+          "measured_sha256": "f506f5dfa286d1c558f3aac4410a6a39e02c5267cd2d9957c3f1d468dd838e08",
+          "c3_commits_sha256": "7ad6d5582b513db5355b054d7e56537a9f141d2a7b0d8ef51911650bbac05cd9",
+          "head_sha256": "c069b5ef6ccc514a2ddee6e344a483c1646191bbed7613d33a46de3d8a112012",
+          "identical_in_c3_commits": false,
+          "note": "public RAM-only L2L integration added after attempt017 (its timed path is non-L2L); attempt019 measured this version, including the sixth CUDA control. Later changed again: merge with main #46: per-micro-batch windows; the C3 plan validates every micro-batch. Not GPU-measured."
+        },
+        {
+          "path": "src/soup_cli/trainer/sft.py",
+          "measured_sha256": "08b5601864dde6bca00c183d9e447847fca258be45bf97e33ae8e7bbd55778e0",
+          "c3_commits_sha256": "158f7b21f2f02c4e08b61a4b70ece618c47a275dd4f23d7a09a2bd91d9f88785",
+          "head_sha256": "158f7b21f2f02c4e08b61a4b70ece618c47a275dd4f23d7a09a2bd91d9f88785",
+          "identical_in_c3_commits": false,
+          "note": "public RAM-only L2L integration added after attempt017 (its timed path is non-L2L); attempt019 measured this version, including the sixth CUDA control."
+        },
+        {
+          "path": "src/soup_cli/trainer/stream_setup.py",
+          "measured_sha256": "664c7f5cd5bf0264c7d5c1668586c06b5de9507d5637544442d7a4eee37c2c4e",
+          "c3_commits_sha256": "151d22566a08a5b685da540f22ec6d74ac8530be7adb8cbde73368a133e3910e",
+          "head_sha256": "0c460a61076f27e8cea1deac3223bbc18fbf5ab23d1786782ac4746a5272694c",
+          "identical_in_c3_commits": false,
+          "note": "public RAM-only L2L integration added after attempt017 (its timed path is non-L2L); attempt019 measured this version, including the sixth CUDA control. Later changed again: uses RESERVATION_ROUND instead of the SHAPE_ROUND removed by main (merge)."
+        },
+        {
+          "path": "src/soup_cli/utils/budgeted_activations.py",
+          "measured_sha256": "3f8e917348dbf97513b35e144794d9f632a16cae3cf0d873f3728a1d52f9e38d",
+          "c3_commits_sha256": "4e97d51d5a3dcdd2bcc4ca58f5a5bcc59b69ef3055b2b550cda4e8ce44c32da5",
+          "head_sha256": "49216ade68f42c0b2bedf8c77b14a7bc72e9b5a5307724a365f61bd57f8254b1",
+          "identical_in_c3_commits": false,
+          "note": "public RAM-only L2L integration added after attempt017 (its timed path is non-L2L); attempt019 measured this version, including the sixth CUDA control. Later changed again: forwards main's mb_shapes to the A4 store (merge). Not GPU-measured."
+        },
+        {
+          "path": "src/soup_cli/utils/partial_ram_source.py",
+          "measured_sha256": "11b45bca43aa358296257dc1331acff0d6f99f77c0220902fb6b27d7982e6da4",
+          "c3_commits_sha256": "11b45bca43aa358296257dc1331acff0d6f99f77c0220902fb6b27d7982e6da4",
+          "head_sha256": "e551ba101ddfe990867be9dc7c5ca9d2b871a7d79da1c24832a9addf08666487",
+          "identical_in_c3_commits": true,
+          "note": "close() drain/lease fix after review (cleanup path only; residency selection, get and release unchanged)."
+        },
+        {
+          "path": "tests/test_c3_comparison.py",
+          "measured_sha256": "3e5a0b7aa5bb3f6242321bfa66eb5aa586d1f0cf3111db7053ccf244326b7d48",
+          "c3_commits_sha256": "febc1be824648c726a745b8f6a767c40e3dafaa6c2d0145baa07fb809fda6910",
+          "head_sha256": "febc1be824648c726a745b8f6a767c40e3dafaa6c2d0145baa07fb809fda6910",
+          "identical_in_c3_commits": false,
+          "note": "tests"
+        },
+        {
+          "path": "tests/test_c3_isolated_compare.py",
+          "measured_sha256": "68296e051e25272602a61573f7fa7c50a6036c56ff6361c5d92d20993645b64e",
+          "c3_commits_sha256": "a0fc58057a46f8243bdf7f9eddcc88693dab64111dfd35543a915c4de00053f4",
+          "head_sha256": "a0fc58057a46f8243bdf7f9eddcc88693dab64111dfd35543a915c4de00053f4",
+          "identical_in_c3_commits": false,
+          "note": "tests"
+        },
+        {
+          "path": "tests/test_c3_partial_ram.py",
+          "measured_sha256": "847cca60c90eff0b7c98632ca2f479d17c8e094d8bbe48c3855cb9ea3d5c6b96",
+          "c3_commits_sha256": "4c3da1c2cc0bb183b19c756e9992f3f2802d5a7b2b5a8e3d96ed46679384c4c7",
+          "head_sha256": "4c3da1c2cc0bb183b19c756e9992f3f2802d5a7b2b5a8e3d96ed46679384c4c7",
+          "identical_in_c3_commits": false,
+          "note": "tests"
+        },
+        {
+          "path": "tests/test_c3_setup_supervisor.py",
+          "measured_sha256": "9200e41a83c18b7769e92ee889fb435f59b1ca1bb279b44e6649a86a3df0649d",
+          "c3_commits_sha256": "f5511dc62dd05f4ca5fe3cf51a181b60ee22f6b1700243b5ea338d980fb49b71",
+          "head_sha256": "f5511dc62dd05f4ca5fe3cf51a181b60ee22f6b1700243b5ea338d980fb49b71",
+          "identical_in_c3_commits": false,
+          "note": "tests"
+        }
+      ],
+      "changed_by_main_merge_only": [
+        "benchmarks/README.md",
+        "benchmarks/harness/e4_part2_quant.py",
+        "benchmarks/harness/f3_setup.py",
+        "src/soup_cli/utils/l2l_activations.py",
+        "src/soup_cli/utils/l2l_step.py",
+        "tests/test_f3_rental.py",
+        "tests/test_f3_setup.py",
+        "tests/test_issue820_windows_symlink_open_nofollow.py",
+        "tests/test_l2l_probe_harness.py",
+        "tests/test_l2l_step.py",
+        "tests/test_l2l_trainer_mode.py"
+      ]
+    },
+    "019": {
+      "measured_files": 3392,
+      "identical_at_head": 3362,
+      "c3_differences": [
+        {
+          "path": "benchmarks/c3/STATUS.md",
+          "measured_sha256": "6ab635dcfedaa40427f4ced28b592047a102cc45cc3c653d2e32891331445fca",
+          "c3_commits_sha256": "93f0e1c86b9b7220c0aaf672b12ac5c07063931fd50ca678e286b20f5e807364",
+          "head_sha256": "93f0e1c86b9b7220c0aaf672b12ac5c07063931fd50ca678e286b20f5e807364",
+          "identical_in_c3_commits": false,
+          "note": "documentation"
+        },
+        {
+          "path": "benchmarks/c3/compare.py",
+          "measured_sha256": "f480892e2851df1bbf4ec09565bb062868867394d671700ed8d64aa6c5868d67",
+          "c3_commits_sha256": "74d315a2e3741e428c949b2e1e17b5e34a5854f3b53b33c22137d4b97644096f",
+          "head_sha256": "74d315a2e3741e428c949b2e1e17b5e34a5854f3b53b33c22137d4b97644096f",
+          "identical_in_c3_commits": false,
+          "note": "CPU smoke harness restores caller torch settings; not used by the 8B series."
+        },
+        {
+          "path": "benchmarks/c3/isolated_compare.py",
+          "measured_sha256": "f306de1fa88cf0e8968888bd492d94197c65ce4f2d0840a83a0734fc71764354",
+          "c3_commits_sha256": "19104b50dcf1c9f4b4639d39037ef573ea0b39eee3a5c185d5fef20473824ccb",
+          "head_sha256": "19104b50dcf1c9f4b4639d39037ef573ea0b39eee3a5c185d5fef20473824ccb",
+          "identical_in_c3_commits": false,
+          "note": "adds a prospective stop on the first invalid CUDA arm; compare_results unchanged. Replay uses the frozen measured copy."
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt013/billing_after_destroy.json",
+          "measured_sha256": "fb80f9ae3f74a5e6835acabcb77b0268c564ad118cc62ff391b49a929480ae7e",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt014/billing_after_destroy.json",
+          "measured_sha256": "c954f7725ae9f322295fabe98be16ff9f3077f6cf910dcad8228a6b7cfaeab19",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt015/billing.json",
+          "measured_sha256": "5d4f40cc1d4adb281830f6ec8fa2b55b3418d071301cea88e01368826a110549",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261030_attempt015/upload_status.json",
+          "measured_sha256": "e21b5d57b11f05c7b1bc15a0a4c27870bb1b7c97428c2af5534d7234aec66769",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261031_attempt016/billing.json",
+          "measured_sha256": "32722bc43d8eff514d2320eeefa7bb385c7a14dc3be9ca96d8013db0b4e7db79",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/c3/reports/20261031_attempt017/billing.json",
+          "measured_sha256": "3ef7e60c289827f70e5a9528ed38b40d57d50c164b3884764bc343695b379a2e",
+          "head_sha256": null,
+          "note": "private billing/endpoint receipt; deliberately not committed"
+        },
+        {
+          "path": "benchmarks/harness/c2_source_depth.py",
+          "measured_sha256": "3a514c690e12b776ec5a8811324b5d56549688f756e77f3648264a6c6a4fed66",
+          "c3_commits_sha256": "e9e2fced0a987fdd70a08b362aeab6cc98ede7937c60722968ae5235e8363544",
+          "head_sha256": "e9e2fced0a987fdd70a08b362aeab6cc98ede7937c60722968ae5235e8363544",
+          "identical_in_c3_commits": false,
+          "note": "C2 harness pin of the shipped async_disk_source hash; not used by C3."
+        },
+        {
+          "path": "src/soup_cli/trainer/l2l_trainer.py",
+          "measured_sha256": "7ad6d5582b513db5355b054d7e56537a9f141d2a7b0d8ef51911650bbac05cd9",
+          "c3_commits_sha256": "7ad6d5582b513db5355b054d7e56537a9f141d2a7b0d8ef51911650bbac05cd9",
+          "head_sha256": "c069b5ef6ccc514a2ddee6e344a483c1646191bbed7613d33a46de3d8a112012",
+          "identical_in_c3_commits": true,
+          "note": "merge with main #46: per-micro-batch windows; the C3 plan validates every micro-batch. Not GPU-measured."
+        },
+        {
+          "path": "src/soup_cli/trainer/stream_setup.py",
+          "measured_sha256": "151d22566a08a5b685da540f22ec6d74ac8530be7adb8cbde73368a133e3910e",
+          "c3_commits_sha256": "151d22566a08a5b685da540f22ec6d74ac8530be7adb8cbde73368a133e3910e",
+          "head_sha256": "0c460a61076f27e8cea1deac3223bbc18fbf5ab23d1786782ac4746a5272694c",
+          "identical_in_c3_commits": true,
+          "note": "uses RESERVATION_ROUND instead of the SHAPE_ROUND removed by main (merge)."
+        },
+        {
+          "path": "src/soup_cli/utils/budgeted_activations.py",
+          "measured_sha256": "4e97d51d5a3dcdd2bcc4ca58f5a5bcc59b69ef3055b2b550cda4e8ce44c32da5",
+          "c3_commits_sha256": "4e97d51d5a3dcdd2bcc4ca58f5a5bcc59b69ef3055b2b550cda4e8ce44c32da5",
+          "head_sha256": "49216ade68f42c0b2bedf8c77b14a7bc72e9b5a5307724a365f61bd57f8254b1",
+          "identical_in_c3_commits": true,
+          "note": "forwards main's mb_shapes to the A4 store (merge). Not GPU-measured."
+        },
+        {
+          "path": "src/soup_cli/utils/c3_l2l_budget.py",
+          "measured_sha256": "19aba7602163e4b69693f49c8ecc3c26929f9f3099049e1e442c7f40ee683d7c",
+          "c3_commits_sha256": "19aba7602163e4b69693f49c8ecc3c26929f9f3099049e1e442c7f40ee683d7c",
+          "head_sha256": "1ba5d23e3fa5fd012f4138819f270613f6ab1bdb86d93e5b85daa3cdfd48ac95",
+          "identical_in_c3_commits": true,
+          "note": "validate_microbatches for mixed-length windows; RESERVATION_ROUND keeps the measured 64-token reservation (merge)."
+        },
+        {
+          "path": "src/soup_cli/utils/partial_ram_source.py",
+          "measured_sha256": "11b45bca43aa358296257dc1331acff0d6f99f77c0220902fb6b27d7982e6da4",
+          "c3_commits_sha256": "11b45bca43aa358296257dc1331acff0d6f99f77c0220902fb6b27d7982e6da4",
+          "head_sha256": "e551ba101ddfe990867be9dc7c5ca9d2b871a7d79da1c24832a9addf08666487",
+          "identical_in_c3_commits": true,
+          "note": "close() drain/lease fix after review (cleanup path only; residency selection, get and release unchanged)."
+        },
+        {
+          "path": "tests/test_c3_comparison.py",
+          "measured_sha256": "3e5a0b7aa5bb3f6242321bfa66eb5aa586d1f0cf3111db7053ccf244326b7d48",
+          "c3_commits_sha256": "febc1be824648c726a745b8f6a767c40e3dafaa6c2d0145baa07fb809fda6910",
+          "head_sha256": "febc1be824648c726a745b8f6a767c40e3dafaa6c2d0145baa07fb809fda6910",
+          "identical_in_c3_commits": false,
+          "note": "tests"
+        },
+        {
+          "path": "tests/test_c3_isolated_compare.py",
+          "measured_sha256": "4c86a92fc22cd38c10802f9072c6aaa0db3d8a58f1e0b0db70dac812720a33ab",
+          "c3_commits_sha256": "a0fc58057a46f8243bdf7f9eddcc88693dab64111dfd35543a915c4de00053f4",
+          "head_sha256": "a0fc58057a46f8243bdf7f9eddcc88693dab64111dfd35543a915c4de00053f4",
+          "identical_in_c3_commits": false,
+          "note": "tests"
+        },
+        {
+          "path": "tests/test_c3_public_l2l.py",
+          "measured_sha256": "0dfd7803b4cf121797a2c7b641dfb50db04ed928b313f29a04541451407ebd12",
+          "c3_commits_sha256": "0dfd7803b4cf121797a2c7b641dfb50db04ed928b313f29a04541451407ebd12",
+          "head_sha256": "51afc68784885141d65585e8d5e5ba9979ec0466adcf24776968f5bb2ab70bc7",
+          "identical_in_c3_commits": true,
+          "note": "tests"
+        }
+      ],
+      "changed_by_main_merge_only": [
+        "benchmarks/README.md",
+        "benchmarks/harness/e4_part2_quant.py",
+        "benchmarks/harness/f3_setup.py",
+        "docs/performance-and-quantization.md",
+        "src/soup_cli/utils/l2l_activations.py",
+        "src/soup_cli/utils/l2l_step.py",
+        "tests/test_f3_rental.py",
+        "tests/test_f3_setup.py",
+        "tests/test_issue820_windows_symlink_open_nofollow.py",
+        "tests/test_l2l_probe_harness.py",
+        "tests/test_l2l_step.py",
+        "tests/test_l2l_trainer_mode.py"
+      ]
+    }
+  }
+}
