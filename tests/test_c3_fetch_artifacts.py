@@ -115,6 +115,7 @@ def test_bad_inventory_refused_before_network_or_mkdir(case, fault):
     assert not case[3] and not case[1].exists()
 
 
+@pytest.mark.requires_symlink
 def test_expired_deadline_and_symlink_destination(case):
     with pytest.raises(ValueError, match="deadline"):
         module.fetch(*case[:3], time.time() - 1)

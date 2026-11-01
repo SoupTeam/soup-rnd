@@ -32,14 +32,12 @@ def test_path_escape(tmp_path, name):
         verify_bundle(tmp_path, manifest)
 
 
+@pytest.mark.requires_symlink
 def test_symlink_rejected(tmp_path):
     wheel, manifest = fixture(tmp_path)
     target = tmp_path / 'target'
     wheel.rename(target)
-    try:
-        wheel.symlink_to(target)
-    except OSError:
-        pytest.skip('symlinks unavailable')
+    wheel.symlink_to(target)
     with pytest.raises(ValueError, match='regular'):
         verify_bundle(tmp_path, manifest)
 

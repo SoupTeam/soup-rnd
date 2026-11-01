@@ -100,6 +100,7 @@ def test_preparation_refuses_existing_output(tmp_path):
         validate_preparation_destination(tmp_path)
 
 
+@pytest.mark.requires_symlink
 def test_preparation_resolves_symlinked_parent_before_admission(tmp_path, monkeypatch):
     from benchmarks.c3.representative_workload import validate_preparation_destination
 

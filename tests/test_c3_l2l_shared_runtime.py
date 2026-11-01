@@ -18,9 +18,8 @@ def test_shared_runtime_l2l_matches_disk_l2l(tmp_path, spill_layers, device):
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
     from soup_cli.utils.partial_ram_source import PartialRamBudget
 
+    # The gpu marker skips the CUDA case where no device exists (tests/conftest.py).
     cuda = device.startswith("cuda")
-    if cuda and not torch.cuda.is_available():
-        pytest.skip("CUDA required")
     backend = DirectSpillFile if cuda else BufferedSpillFile
     torch.set_num_threads(2)
     torch.manual_seed(7)

@@ -206,9 +206,8 @@ def test_public_hf_loop_matches_disk_only_l2l(tmp_path, device):
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
     from tests.test_l2l_trainer_mode import _adapters, _Rows
 
+    # The gpu marker skips the CUDA case where no device exists (tests/conftest.py).
     cuda = device.startswith("cuda")
-    if cuda and not torch.cuda.is_available():
-        pytest.skip("CUDA required")
     torch.set_num_threads(2)
     torch.manual_seed(7)
     weights = tmp_path / "weights"
