@@ -6,8 +6,14 @@ Python/allocator overhead and safety headroom, including A4's live allocations.
 """
 
 import os
+import threading
+import time
 from dataclasses import dataclass
 from typing import Any
+
+#: Total seconds one close() waits for disk reader/range workers before it gives up and
+#: keeps the lease charged; a later close() waits again.
+CLOSE_JOIN_SECONDS = 10.0
 
 
 def _bytes(value: int, name: str) -> None:
@@ -68,6 +74,8 @@ class PartialRamSource:
         roots = AsyncDiskSource._normalize_layer_roots(layer_roots, n_layers)
         sizes = [_spec_bytes(entry) for entry in specs]
         self._closed = False
+        self._closing = False
+        self._disk_events: list[Any] = []
         self._disk = None
         self._ram = None
         self._events: list[Any] = []
@@ -152,12 +160,15 @@ class PartialRamSource:
             self.disk_bytes = sum(sizes[idx] for idx in self.disk_indices)
             self._lease.resize(self.host_allocated_bytes)
         except BaseException:
-            self.close()
+            try:
+                self.close()
+            except BaseException:  # noqa: BLE001 - lease stays charged; report the cause
+                pass
             raise
 
     def _check(self, idx: int) -> None:
-        if self._closed:
-            raise RuntimeError("partial RAM source is closed")
+        if self._closed or self._closing:
+            raise RuntimeError("partial RAM source is closed or closing")
         if type(idx) is not int:
             raise TypeError("layer index must be an integer")
         if not 0 <= idx < self.n_layers:
@@ -180,14 +191,51 @@ class PartialRamSource:
             self._events = [held for held in self._events if not held.query()]
             self._events.append(event)
 
+    @staticmethod
+    def _disk_threads(disk: Any) -> list[Any]:
+        threads = [getattr(disk, "_thread", None)]
+        for pool in getattr(disk, "_pools", {}).values():
+            threads.extend(getattr(pool, "_threads", ()))
+        return [thread for thread in threads if thread is not None]
+
     def close(self) -> None:
+        """Release the weight lease only after every user of its memory has finished.
+
+        AsyncDiskSource.close joins with a timeout, so a reader or range worker can
+        outlive it while still writing into staging, and it drops the slots' pending
+        disk-copy events without waiting on them. Those events are captured first and
+        synchronized here, as are cached-layer transfer events. If a worker is still
+        alive or an event fails, this raises and keeps buffers and lease charged;
+        no further get/release is accepted, and a later close() resumes the drain.
+        """
         if self._closed:
             return
-        if self._disk is not None:
-            self._disk.close()
-        for event in self._events:
-            event.synchronize()
-        self._events.clear()
+        self._closing = True
+        disk = self._disk
+        if disk is not None:
+            ready = getattr(disk, "_ready", None)
+            if ready is not None:
+                with ready:
+                    self._disk_events.extend(
+                        event for event in getattr(disk, "_drain", ()) if event is not None
+                    )
+            disk.close()
+            deadline = time.monotonic() + CLOSE_JOIN_SECONDS
+            for thread in self._disk_threads(disk):
+                if thread.ident is not None and thread is not threading.current_thread():
+                    thread.join(timeout=max(0.0, deadline - time.monotonic()))
+            alive = [thread.name for thread in self._disk_threads(disk) if thread.is_alive()]
+            if alive:
+                raise RuntimeError(
+                    f"disk staging is still owned by {alive}; the c3.weights lease is "
+                    "retained until a later close() finds them finished"
+                )
+        while self._disk_events:
+            self._disk_events[0].synchronize()
+            self._disk_events.pop(0)
+        while self._events:
+            self._events[0].synchronize()
+            self._events.pop(0)
         self._ram = None
         self._disk = None
         self.nbytes = 0
