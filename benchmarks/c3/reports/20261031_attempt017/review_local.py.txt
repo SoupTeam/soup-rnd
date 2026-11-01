@@ -1,0 +1,71 @@
+"""Recompute C3 evidence checks without running CUDA or changing frozen rules."""
+import hashlib,json,math,statistics,sys,xml.etree.ElementTree as ET
+from pathlib import Path
+p=Path(__file__).parent;repo=Path('/Users/nurseiitzhuzbay/Documents/Codex/soup-rnd-c3')
+e=Path(sys.argv[1]);read=lambda f:json.loads(f.read_text())
+rental=read(p/'rental.json');manifest=read(p/'source_manifest.json')
+for rel in ['benchmarks/c3/isolated_compare.py','benchmarks/c3/io_calibration.py','benchmarks/c3/foreign_read_control.py','benchmarks/harness/arm_validity.py']:
+ assert hashlib.sha256((repo/rel).read_bytes()).hexdigest()==manifest['files'][rel]['sha256'],rel
+sys.path.insert(0,str(repo))
+from benchmarks.c3.isolated_compare import compare_results
+from benchmarks.c3.io_calibration import assess as assess_calibration
+from benchmarks.c3.foreign_read_control import assess as assess_foreign
+from benchmarks.harness.arm_validity import CHECKS,Run,arm_outcome,repeats,blocks_to_add
+checks={};errors=[]
+def check(name,condition):
+ checks[name]=bool(condition)
+ if not condition:errors.append(name)
+check('rental_identity',read(e/'rental.json')==rental)
+pipe=read(e/'pipeline.json')
+for name in ['fetch','setup','controls','prepare','measurement']:
+ row=read(e/(name+'_supervised')/'result.json')
+ check(name+'_supervised',row['status']=='PASS' and row['returncode']==0 and row['group_cleanup_confirmed'] is True)
+cases=ET.parse(e/'cuda_tests.xml').findall('.//testcase')
+check('five_cuda_passes',len(cases)==5 and all(not any(c.find(k) is not None for k in ('failure','error','skipped')) for c in cases))
+fetch=read(e/'artifact_fetch.json');check('artifacts_readback',fetch['status']=='PASS_ALL_ARTIFACTS_SHA_READBACK' and fetch['verified_bytes']==fetch['expected_bytes']==3288520713 and len(fetch['files'])==109)
+model=read(e/'input_receipts/model/C3_DOWNLOAD_RECEIPT.json');expected=read(repo/'benchmarks/c3/representative_model.json')
+check('model_all_sha_sizes',model['status']=='PASS_DOWNLOAD_SHA256' and model['files']==expected['files'])
+m=e/'comparison';result=read(m/'result.json');order=list('ABBA')*5
+check('complete_abba_order',result['order']==order and len(result['arms'])==20)
+check('cleanup_reserve',result['outer_deadline_unix_s']-result['work_deadline_unix_s']==40)
+prepared_path=e/'input_receipts/repo/.c3_prepared/prepared.json';prepared=read(prepared_path)
+check('prepared_identity',hashlib.sha256(prepared_path.read_bytes()).hexdigest()==result['prepared_sha256'] and prepared['identity']==expected)
+cal=read(m/'io_calibration/receipt.json')
+check('calibration',assess_calibration(cal['samples'])['status']=='PASS_COUNTER_CALIBRATION' and cal['boot_id']==rental['boot_id'] and cal['device']=='nvme0n1')
+for i,s in enumerate(cal['samples']):
+ check('raw_calibration_'+str(i),s['raw_device_end']-s['raw_device_start']==s['device_bytes'] and s['raw_process_end']-s['raw_process_start']==s['process_bytes'])
+foreign=read(m/'foreign_read_control/receipt.json')
+check('foreign_reader',assess_foreign(foreign['f1'],foreign['completed_bytes'],foreign['hashes_match'])['status']=='PASS_FOREIGN_READER_DETECTED' and foreign['f1']['observer_pid']!=foreign['f1']['reader_pid'])
+items=[];rows=[]
+for i,arm in enumerate(order):
+ item=read(m/f'arm_{i:02d}_{arm}'/'result.json');items.append(item);r=item['records'][0]
+ check(f'arm{i}_aggregate_copy',item==result['arms'][i])
+ sup=read(m/f'supervisor_{i:02d}'/'result.json');check(f'arm{i}_supervision',sup['status']=='PASS' and sup['returncode']==0 and sup['group_cleanup_confirmed'] is True)
+ check(f'arm{i}_workload',item['workload_sha256']==result['prepared_sha256'] and item['mode']=='cuda-representative' and item['effective_tokens_per_step']==255 and item['weight_sha256']==expected)
+ f1=r['f1'];check(f'arm{i}_f1',set(f1['required'])==set(CHECKS) and set(f1['checks'])==set(CHECKS) and arm_outcome(f1['checks'],CHECKS)=='ok')
+ ck=f1['gpu_clock'];check(f'arm{i}_clock',ck['outcome']=='ok' and ck['samples']>=2 and ck['unknown_samples']==0)
+ owner=item['gpu_ownership'];check(f'arm{i}_ownership',owner['before']==[] and owner['after']==[item['pid']] and owner['context_active'] is True and owner['single_device'] is True and owner['method']=='exclusive-local-CUDA-initialization')
+ stats=r['initial_stats'];check(f'arm{i}_allocation',stats['host_allocated_bytes']<=10*(1<<30) and stats['pinned'] is True)
+ check(f'arm{i}_residency',r['resident_indices']==[] if arm=='A' else 0<len(r['resident_indices'])<32 and stats['resident_bytes']<=4*(1<<30))
+ check(f'arm{i}_direct_io',r['direct_io'] is True)
+ if arm=='B':
+  check(f'arm{i}_accounted_peak',stats['accounted_peak_bytes']<=16*(1<<30))
+  check(f'arm{i}_cache_served',r['final_stats']['resident_tensor_bytes_served']>0 and r['final_stats']['resident_bytes']==stats['resident_bytes'])
+ steps=[s for s in r['updates'] if not s['warmup']]
+ check(f'arm{i}_steps',len(steps)==4 and len(r['updates'])==6 and [s['warmup'] for s in r['updates']]==[True,True,False,False,False,False])
+ for s in steps:
+  check(f'arm{i}_step{s["step"]}_timing',math.isfinite(s['instrumented_window_seconds']) and s['instrumented_window_seconds']>0 and s['effective_tokens']==255 and math.isclose(s['instrumented_tokens_per_second'],255/s['instrumented_window_seconds'],rel_tol=1e-12))
+ rows.append({'index':i,'arm':arm,'f1':f1['outcome'],'clock':ck['outcome'],'median_window_seconds':statistics.median(s['instrumented_window_seconds'] for s in steps),'median_training_seconds':statistics.median(s['training_seconds'] for s in steps),'mean_process_read_bytes':statistics.mean(s['physical_io']['process_bytes'] for s in steps),'mean_device_read_bytes':statistics.mean(s['physical_io']['device_bytes'] for s in steps),'mean_logical_read_bytes':statistics.mean(s['range_read_bytes'] for s in steps),'resident_layers':r['resident_indices'],'resident_bytes':stats['resident_bytes'],'host_allocated_bytes':stats['host_allocated_bytes'],'accounted_peak_including_reserve_bytes':stats['accounted_peak_bytes'],'resident_tensor_bytes_served':r['final_stats']['resident_tensor_bytes_served'],'process_lifetime_peak_rss_bytes':r['process_lifetime_maxrss_kib']*1024,'peak_cuda_allocated_bytes':r['peak_cuda_allocated_bytes'],'peak_cuda_reserved_bytes':r['peak_cuda_reserved_bytes'],'setup_seconds':r['setup_seconds'],'setup_physical_io':r['setup_physical_io']})
+num=compare_results(items,order);check('numerical_exact',num['status']=='NUMERICAL_PASS')
+blocks=[[Run(rows[i+j]['median_window_seconds'],rows[i+j]['f1']) for j in range(4)] for i in range(0,20,4)]
+try:
+ rep=repeats(blocks);extra=blocks_to_add(blocks);repetition={'sigma':rep.sigma,'mean_a':rep.mean_a,'blocks_needed':rep.blocks_needed,'blocks_to_add':extra};check('repetition_sufficient',extra==0)
+except ValueError as exc:repetition={'error':str(exc)};check('repetition_sufficient',False)
+summary={}
+for arm in ('A','B'):
+ g=[r for r in rows if r['arm']==arm];summary[arm]={k:statistics.mean(r[k] for r in g) for k in ['median_window_seconds','median_training_seconds','mean_process_read_bytes','mean_device_read_bytes','mean_logical_read_bytes','resident_bytes','host_allocated_bytes','process_lifetime_peak_rss_bytes','peak_cuda_allocated_bytes','peak_cuda_reserved_bytes','setup_seconds']};summary[arm]['tokens_per_second_from_mean_arm_median']=255/summary[arm]['median_window_seconds']
+paired=[statistics.mean(rows[i+j]['median_window_seconds'] for j in (0,3))-statistics.mean(rows[i+j]['median_window_seconds'] for j in (1,2)) for i in range(0,20,4)]
+mean_delta=statistics.mean(paired);half=2.7764451051977987*statistics.stdev(paired)/math.sqrt(5)
+uncertainty={'quantity':'A minus B instrumented seconds, paired ABBA block means','block_differences':paired,'mean':mean_delta,'descriptive_95pct_student_t_df4_interval':[mean_delta-half,mean_delta+half],'scope':'descriptive interval; no post-hoc decision threshold'}
+report={'status':'PASS_RECOMPUTED_EVIDENCE' if not errors else 'EVIDENCE_GATES_NOT_MET','review_type':'local self-review, not independent review','checks':checks,'failed_checks':errors,'numerical':num,'cuda_controls_passed':len(cases),'completed_arms':len(items),'optimizer_updates':120,'measured_updates':80,'repetitions':repetition,'descriptive_uncertainty':uncertainty,'summary':summary,'per_arm':rows,'descriptive_ratios':{'window_speed_ratio_A_over_B':summary['A']['median_window_seconds']/summary['B']['median_window_seconds'],'physical_process_read_reduction_pct':100*(1-summary['B']['mean_process_read_bytes']/summary['A']['mean_process_read_bytes'])},'performance_verdict':'NO_VERDICT_INSUFFICIENT_REPETITIONS' if 'repetition_sufficient' in errors else 'NO_VERDICT_PENDING_REPORT_REVIEW','public_l2l_enabled':False,'scope':'One frozen dense 8B bf16 controlled-text configuration. Instrumented windows include numerical checks; RSS includes setup. Low-level A4 bridge CUDA controls do not enable the public L2L combination.'}
+(p/'local_review.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({k:v for k,v in report.items() if k not in ('checks','per_arm')},indent=2))

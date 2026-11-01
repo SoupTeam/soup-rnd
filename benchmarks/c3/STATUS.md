@@ -1,7 +1,14 @@
 # C3: partial dense weights in RAM
 
-Status (2026-10-28): synthetic CUDA pilot **NUMERICAL_PASS**;
-**task acceptance incomplete / NO_VERDICT on performance**.
+Status (2026-10-31): dense Llama 3.1 8B CUDA numerical parity is confirmed for
+completed arms; **task acceptance incomplete / performance NO_VERDICT**.
+Attempt019 passed all six CUDA controls, including the public RAM-only C3+L2L
+Trainer control. It completed 22/80 planned arms with exact loss/gradient/final-adapter
+parity, then stopped early: arms14 and19 failed the unchanged F1 foreign-read gate.
+Both resources are deleted and all186 evidence files verified on Mac and external
+storage. See `reports/20261031_attempt019/REPORT_RU.txt`.
+Attempt017 retains NO_VERDICT_INSUFFICIENT_REPETITIONS; attempt018 remains a
+supervisor-admission failure with zero measured arms. Neither history is rewritten.
 Branch: `research/c3-partial-ram`. Pilot source commit:
 `5bcd74b4792ec6b3580babf9aaf0266d30dff2c0` (attempt010). Earlier pilot report published in `7c061bc84`;
 no PR creation or merge is claimed here.
@@ -50,35 +57,41 @@ Card: https://trello.com/c/h3rVZVsO
 
 | Requirement | Current evidence / remaining work |
 |---|---|
-| Choose a dense model | Synthetic dense Llama is the CPU control; representative model/run still needed. |
-| Budget after buffers and L2L | Explicit static reservations and staging checks implemented; shared A4 contract unresolved. L2L combination is refused. |
-| Keep selected weights resident | Implemented and tested with real CPU tensors and safetensors. |
-| Free resources and enforce limits | Local failure/cleanup tests and two CUDA controls pass; full C3/A4 reservation and lifetime acceptance remains open. |
-| Compare training, disk bytes and speed | Synthetic CUDA numerical parity, physical SSD counter calibration and injected foreign-reader rejection pass in attempt010. Representative-model throughput acceptance remains open. |
+| Choose a dense model | Frozen pretrained Llama 3.1 8B BF16 completed 20 CUDA arms on controlled text in attempt017. |
+| Budget after buffers and L2L | Allocation envelope and shared A4 low-level budget/lifetime bridge pass CUDA zero/partial/full spill controls. Public RAM-only trainer integration passes local tests and attempt019's actual tiny-model CUDA Trainer parity/accounting control. This is not an 8B L2L performance claim. |
+| Keep selected weights resident | Attempt017 retained 8/32 real 8B decoder layers with pinned H2D; exact loss/gradient/final-adapter parity across 20 arms. |
+| Free resources and enforce limits | Local failure/overbooking tests plus all five CUDA controls pass; low-level shared leases return on close. Public trainer cleanup also passes the new sixth CUDA control in attempt019; failed-drain retention is covered locally. |
+| Compare training, disk bytes and speed | Attempt017: 8B numerical parity, NVMe calibration, foreign-reader rejection and all F1/clock gates pass; process physical reads decrease 25%. Observed 42.53 to 57.49 tokens/s is descriptive only: repetitions require 20 blocks, but 5 ran. Performance NO_VERDICT. Attempt019 confirmation was aborted after F1 rejected foreign reads in two arms. |
 
 Do not mark the entire card complete based on CPU evidence. No dynamic eviction,
 NF4 validation, accepted A4 integration or throughput claim is included.
-CUDA correctness evidence is limited to the synthetic pilot below.
+CUDA correctness now includes the frozen pretrained dense 8B comparison in attempt017;
+its controlled text is not a model-quality evaluation.
 
 A proposed `HostMemoryBudget` now atomically leases bytes to actual weight and
-RAM-only activation consumers. Tests cover overbooking, concurrent requests and
-release. `BudgetedActivationStore` is an experimental bridge, not A4 spill-scheduler
-integration; the public L2L combination remains refused.
+resident/spilled activation consumers. Tests cover overbooking, concurrent requests and
+release. `BudgetedActivationStore` now accounts for both aligned staging rings and drains
+workers/transfers before releasing its lease. The runtime accepts the same budget
+owner. The public RAM-only L2L path now reserves a maximum activation partition before C3 weights;
+its end-to-end Trainer parity test passes locally and on CUDA in attempt019 (tiny model).
 
-## Next validation, requiring a separate agreed run
+## Remaining acceptance work
 
-1. Connect A4's published reservation ownership/lifetime contract before enabling
-   L2L; test simultaneous consumers and failure cleanup.
-2. Freeze a representative dense model, data/order, dtype, seed and short step
-   budget. Compare disk-only and partial residency on the same GPU/NVMe host.
-3. Check losses/gradients/updates under declared tolerances, pinned allocation,
-   peak RAM/VRAM, shutdown and allocation-failure behavior.
-4. Measure startup/cache-fill separately from steady-state training; capture F1
-   power/suspend/foreign-I/O controls, physical device counters, logical reader
-   bytes and useful tokens/time. Report all attempts and exclusions.
-5. Review evidence before declaring speedup or updating the Trello checklist.
+1. Obtain a valid separate dense-8B confirmation series on a sufficiently quiet
+   physical NVMe host. Keep 20 pre-registered ABBA blocks and all numerical/F1/clock
+   rules unchanged. Attempt019 cannot be repaired by dropping its void arms or
+   appending runs. A frozen count is not a guaranteed performance pass.
+2. Preserve and review the new evidence, publish only the measured configuration,
+   and prepare the PR with full validation limitations. Public RAM-only C3+L2L
+   functionality now has a real CUDA control; public spill/compression and 8B L2L
+   throughput remain outside this change.
 
-User separately authorized USD5 for C3. The frozen `GPU_PROTOCOL.md` defines one
+The current cumulative cap is USD6. After attempt019, conservative planning spend
+is USD4.14, leaving USD1.86; dashboard values are not invoices. No active C3 lease.
+`CONFIRMATION_PROTOCOL.txt` is the preserved pre-run attempt019 plan, not a claim
+that another run has started. Its historical budget figures must not be reused.
+
+The original authorization was USD5 for C3 (subsequently raised to USD6 as above). The frozen `GPU_PROTOCOL.md` defines one
 bounded synthetic CUDA pilot; its outcome must be recorded separately. The 2026-10-26 series has separate task budgets. Attempt010 instance58131635 and volume58131634 are deleted; provider absence is confirmed in report closure_status.json. A changelog draft is provided separately; use an actual PR number when
 creating the required release fragment, rather than inventing one now.
 
@@ -135,7 +148,9 @@ passed full per-file SHA readback. Published offline setup installed successfull
 by two CUDA controls and the bounded measurement pilot. See `OFFLINE_SETUP_PROTOCOL.txt` and
 `offline_preparation_review.json`.
 
-Representative workload and shared A4 reservation/lifetime integration remain open.
+At the time of attempt010, representative workload and shared A4 reservation/lifetime
+integration remained open. Attempt017 subsequently validated the dense workload and
+low-level bridge; public integration and performance acceptance remain open.
 
 
 ## Measurement pilot010, 2026-10-28
@@ -155,3 +170,89 @@ Do not generalize these observations to a representative model, claim an isolate
 RSS reduction, or declare the C3/A4 integration complete. Performance NO_VERDICT
 and the remaining representative-model/shared-reservation acceptance gates stay
 open. Resource deletion status is recorded separately in closure_status.json.
+
+## Prospective shared-budget and dense-8B validation, 2026-10-30
+
+The uncompressed bridge matches 128 captured layouts from the published A4
+planner at d6f7f733e09599327c61e67a3cf5434bfaa78164. Tests exercise actual
+layer-major backward with partial cached weights and zero/partial/full activation
+spill, exact loss/gradient/adapter parity, and cleanup failures. CUDA variants
+require pinned buffers and direct I/O; CPU results do not establish those properties.
+
+`REPRESENTATIVE_PROTOCOL.txt` and the frozen model/token manifests define the next
+comparison. The prepared-input runner passes a real fresh-process CPU fixture,
+rejects changed inputs, and preserves the synthetic pilot's default behavior.
+This was the pre-run status on October30. Attempt017 below subsequently completed
+the 8B workload. Public C3+L2L remains disabled.
+See `shared_budget_local_review.json` for exact validation/source hashes, including
+known baseline failures in the broader regression selection.
+
+## Attempt013 and local alignment recovery, 2026-10-30
+
+On a physical Samsung990PRO NVMe/XFS host, offline setup passed and CUDA controls
+returned 2 passed / 3 failed. All three new L2L controls rejected buffered fallback:
+the pinned staging base address was not sector-aligned. No representative arm or
+8B download started; no paid retry was made. All25evidence files and their archive
+passed SHA verification. Instance58432891 and volume58432890 were destroyed.
+Displayed cost was USD0.15 +0.01; recent billing may be delayed.
+
+The subsequent local correction reserves worst-case base-alignment slack in each
+pinned staging arena before allocation, then aligns the absolute address. Existing
+default RAM-store planning is unchanged. CPU regression tests exercise deliberately
+misaligned bases and preallocation budget refusal. This correction was subsequently validated by all five CUDA controls in attempt017;
+it does not change attempt013's BLOCKED result.
+See `reports/20261030_attempt013/REPORT_RU.txt`. Performance remains NO_VERDICT.
+
+## Attempt014 path admission (2026-10-30)
+
+Physical NVMe and offline setup passed. CUDA controls returned 1 passed / 4 failed:
+the new basetemp was outside HOME/CWD/TMPDIR. The existing shard containment guard
+correctly rejected it before alignment validation. No model download or measurement
+ran. All 26 evidence files and external archive passed SHA verification; instance
+58437082 and volume 58437081 were destroyed. Performance remains NO_VERDICT.
+See reports/20261030_attempt014/REPORT_RU.txt. A prospective local path correction
+keeps control fixtures under repository CWD; it does not amend this failed run.
+
+## Attempt015 upload timeout, 2026-10-30
+
+Physical Samsung990PRO NVMe/XFS and SSH preflight passed. The one-shot offline
+bundle upload exceeded1200s after2429982720 of3288719360bytes. No setup, CUDA
+controls, model download or representative arms ran; no retry was made. All16
+evidence files and archive passed local SHA and external readback verification.
+Instance58440604 and volume58440603 were destroyed with user confirmation;
+both are absent from provider lists. Displayed cost USD0.17 +0.01 =0.18,
+subject to billing delay. The lease guard was deleted. See
+`reports/20261030_attempt015/`. Performance remains NO_VERDICT.
+
+## Attempt016 startup failure and attempt017 dense CUDA validation, 2026-10-31
+
+Attempt016 failed host container image extraction (no space left on device), before
+any setup/GPU work. All17diagnostic files were preserved; instance58444781 and
+volume58444780 are deleted. See `reports/20261031_attempt016/`.
+
+Attempt017 used a new RTX4090/64GB host with physical NVMe/XFS. Direct fetching of
+109 pinned artifacts and setup passed, followed by five CUDA controls without skips.
+The shared-budget L2L controls cover zero/partial/full activation spill with pinned
+buffers/O_DIRECT, exact gradients/updates and lease cleanup. This validates the
+low-level bridge, not public C3+L2L trainer integration.
+
+The frozen pretrained dense Llama3.1 8B BF16 controlled-text comparison completed
+five ABBA blocks,20fresh processes,120optimizer updates and80measured steps. All
+losses, gradients and final adapters matched exactly; adapters changed. NVMe
+calibration, injected-reader rejection, all20F1/clock/ownership gates passed. Eight
+of32layers stayed in RAM. Physical process reads fell from26,173,685,760 to
+19,630,264,320bytes/step (25%). Instrumented useful tokens/s were42.53 and57.49.
+The observed ratio1.3518 is descriptive only: unchanged repetitions require20blocks,
+not the5available. Performance remains NO_VERDICT_INSUFFICIENT_REPETITIONS; no
+post-hoc extension or accepted speedup is claimed. RSS includes setup/cache fill;
+VRAM peaks were unchanged. See the report for allocation rounding and timing scope.
+
+All167evidence files are verified internally and in a second external copy. The
+external archive SHA matches; a first ExFAT extraction produced a calibration
+file with a mismatching hash (cause undetermined) and is retained separately with an incident record. Instance58496976 and volume58496975 were deleted after exact-ID confirmation;
+provider absence is confirmed and the lease guard deleted. Displayed usage is
+USD0.26+0.03=0.29 (recent billing may be delayed). Conservative series spending
+including rounding margin isUSD3.60 of5.00.
+See `reports/20261031_attempt017/closure_status.json` for current cleanup status.
+No commit/push/PR or independent review is claimed. Whole-card acceptance remains
+open on public integration and sufficient performance repetitions.
