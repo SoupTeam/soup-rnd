@@ -11,7 +11,8 @@ as history and are not a claim about today's live Trello/PR state.
 | Literal grouped fused dequant-GEMM | Packed WMMA forward/dX executes in the trained model; all eight fused resident/streamed cells pass native exactness and actual profiles contain positive fused work. Small rows retain the counted native fallback; SiLU remains native. | Review the declared hybrid boundary; no all-row-fusion or cross-device claim. |
 | New implementation qualification | Candidate `d1e0e2ca`, helpers `f93483a3`, prelaunch correction/freeze `921d86a1`. All 24 correctness cells pass; original CPU replay verifies 805 source blobs and 2,908 native tensors. Prior development failures remain retained. | No additional GPU run is requested by the completed rule. The earlier 141 selected CPU passes are preparation evidence, not a full publication-head CI claim. |
 | Speed, memory and actual launch evidence | All 80 timing arms and eight profiles pass. Packed hybrid takes 22.24–30.62% longer, saves 52–53.61 MiB peak allocated training memory, and increases total device kernel launches in these four recipes. | Interpret the complete-backend contrast, including its row-policy difference. No faster default or general speedup is recommended. |
-| Validity, publication and acceptance | All 112 F1 outcomes are OK; every repeat target is five, with zero additions/replacements. Source-host CPU and full-ZIP audits pass; the small report, source identities and cell ledger are verified locally. | Full raw archive remains on the source instance without a complete local backup. Preserve it before deleting the instance. Required CI, issue-tracking decision and final reviewer acceptance remain separate. |
+| CPU qualification | Review of `95edd026` found exact logits/gradient failures on Apple Silicon despite a single CPU thread. The public installer now rejects unqualified CPU platforms before cache reads/arena allocation; admitted CPU development requires Linux/Windows x86-64, float32 and one thread. Exact gates are unchanged. | Review this explicit boundary; no claim that Apple CPU arithmetic was fixed or qualified. |
+| Validity, publication and acceptance | All 112 F1 outcomes are OK; every repeat target is five, with zero additions/replacements. Both full raw archives are retained outside Git, and the fused copy now also passes local SHA/CRC/all-payload verification. | Operator must deliver reviewer-accessible raw ZIPs and obtain receipt; [portable replay](d3-evidence-replay.md) is supplied. Required CI, issue-tracking decision and final reviewer acceptance remain separate. |
 
 The prospective packet and prelaunch descriptive correction were committed
 before the measured session at `921d86a1`. The canonical export, actual trained
@@ -22,10 +23,12 @@ the complete ZIP's 4,131 payload hashes and CRCs also pass.
 
 The [published result](../benchmarks/results/d3-fused-trained-921d86a1-20261101/report.md)
 distinguishes source-host full-data replay from local small-report/source/ledger
-verification. The full 2.94 GB raw archive has not been backed up completely
-locally. This is a retention requirement before destroying its only complete
-copy, not a request to repeat the measurements. Two SSDs, convergence studies
-and a new model-fit target are not added as prerequisites.
+verification. The full 2.94 GB raw archive now has a complete local backup with
+all 4,131 payload hashes verified. That resolves backup retention, not artifact
+access: the operator will send both complete raw archives directly to the
+reviewer. Until the hand-off and replay are confirmed, evidence-access approval
+remains open. Two SSDs, convergence studies and a new model-fit target are not
+added as prerequisites.
 
 ## Historical audit, 2026-10-29
 

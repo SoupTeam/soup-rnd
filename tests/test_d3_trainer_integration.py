@@ -29,6 +29,12 @@ def cpu_reference_threads():
     previous = torch.get_num_threads()
     torch.set_num_threads(1)
     try:
+        from soup_cli.utils.expert_training import validate_cpu_expert_recipe
+
+        try:
+            validate_cpu_expert_recipe(dtype="float32")
+        except ValueError as exc:
+            pytest.skip(str(exc))
         yield
     finally:
         torch.set_num_threads(previous)
@@ -431,7 +437,9 @@ def test_actual_sft_trainer_steps_and_adapter_roundtrip(checkpoint, tmp_path, l2
         target = tmp_path / "adapter"
         trainer.save_model(str(target))
         if codec == "none":
-            reloaded = PeftModel.from_pretrained(copy.deepcopy(checkpoint[0]), target).eval()
+            reloaded = PeftModel.from_pretrained(
+                copy.deepcopy(checkpoint[0]), target, torch_device="cpu",
+            ).eval()
             with torch.no_grad():
                 assert _same_bits(reloaded(input_ids=ids).logits, wanted)
         else:
@@ -507,6 +515,8 @@ def test_public_sft_wrapper_trains_saves_and_releases_experts(checkpoint, tmp_pa
     )}]} for i in range(3)]
     try:
         wrapper.setup({"train": rows, "val": []})
+        assert wrapper.trainer.args.use_cpu is True
+        assert wrapper.trainer.args.device.type == "cpu"
         runtime = wrapper._stream_runtime
         result = wrapper.train()
         assert result["total_steps"] == 2

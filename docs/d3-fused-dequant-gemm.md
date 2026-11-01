@@ -124,8 +124,9 @@ operator committed that correction before canonical export at `921d86a1`.
 The subsequent trained study completes all native/same-kernel pairs, paired
 timing, memory and launch profiles. Original CPU replay verifies 2,908 retained
 native tensors; all four repeat targets remain five. Source-host full-data audit
-and local small-report checks are distinct; the complete raw archive still needs
-another verified copy before deleting the source instance. Required CI and
+and local small-report checks are distinct; the complete raw archive now also has
+a full local SHA/CRC/payload-verified backup. Reviewer artifact hand-off and
+[portable replay](d3-evidence-replay.md) are separate from retention. Required CI and
 independent final review remain open. Development screens alone are not the
 trained qualification and no convergence claim follows.
 See the [qualification protocol](../benchmarks/protocols/d3-fused-trainer/README.md).

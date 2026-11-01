@@ -28,6 +28,19 @@ from benchmarks.harness.d3_trainer_protocol import (
 from benchmarks.harness.d3_trainer_series import oracle_path
 
 
+def cuda_kernel_names(path: Path) -> list[str]:
+    """Keep every ordered CUPTI kernel name without materializing a multi-GB trace."""
+    try:
+        import ijson
+    except ImportError:
+        events = json.loads(path.read_text())["traceEvents"]
+        return [row["name"] for row in events
+                if row.get("cat") == "kernel" and row.get("ph") == "X"]
+    with path.open("rb") as stream:
+        return [row["name"] for row in ijson.items(stream, "traceEvents.item")
+                if row.get("cat") == "kernel" and row.get("ph") == "X"]
+
+
 def replay_native_tensors(folder: Path, evidence: dict) -> int:
     """Verify saved native data, not only the candidate's asserted PASS booleans."""
     from safetensors import safe_open
@@ -298,9 +311,7 @@ def analyze(folder: Path) -> dict:
         trace_path = contained(folder, row["cell"]["name"] + "/cuda-profile.json")
         if file_hash(trace_path) != row["result"]["profile_sha256"]:
             raise ValueError("device trace hash changed")
-        trace = json.loads(trace_path.read_text())
-        names = [item["name"] for item in trace["traceEvents"]
-                 if item.get("cat") == "kernel" and item.get("ph") == "X"]
+        names = cuda_kernel_names(trace_path)
         if not names or names != row["result"]["kernel_names"] or (
             len(names) != row["result"]["cuda_kernel_events"]
         ):

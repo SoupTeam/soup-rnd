@@ -7,6 +7,7 @@ the returned resource. No benchmark modules are imported by the training path.
 from __future__ import annotations
 
 import os
+import platform
 import sys
 import threading
 from contextlib import ExitStack
@@ -14,6 +15,30 @@ from pathlib import Path
 from typing import Any
 
 _MATH_LOCK = threading.Lock()
+
+
+def _cpu_training_platform() -> tuple[str, str]:
+    return sys.platform, platform.machine().lower()
+
+
+def validate_cpu_expert_recipe(*, dtype: str) -> None:
+    """Admit the qualified CPU development recipe, not unverified Apple arithmetic."""
+    operating_system, machine = _cpu_training_platform()
+    if operating_system not in ("linux", "win32") or machine not in ("amd64", "x86_64"):
+        raise ValueError(
+            "CPU stream_experts exactness is qualified on Linux/Windows x86-64 only; "
+            "Apple Silicon/other CPU platforms are unqualified. Use the qualified "
+            "Linux CUDA recipe or disable training.stream_experts."
+        )
+    if str(dtype).removeprefix("torch.") != "float32":
+        raise ValueError("CPU stream_experts exactness requires float32 model weights")
+    import torch
+
+    if torch.get_num_threads() != 1:
+        raise ValueError(
+            "CPU stream_experts exactness requires one CPU thread; set "
+            "OMP_NUM_THREADS=1 before starting Python or torch.set_num_threads(1)."
+        )
 
 
 def validate_expert_training(config: Any, options: Any, *, device: str, dtype: str) -> None:
@@ -31,6 +56,8 @@ def validate_expert_training(config: Any, options: Any, *, device: str, dtype: s
         raise ValueError("the Triton expert backend requires CUDA BF16")
     if options.backend == "fused_nf4" and (kind != "cuda" or dtype != "bfloat16"):
         raise ValueError("the fused NF4 expert backend requires Linux CUDA BF16")
+    if kind == "cpu":
+        validate_cpu_expert_recipe(dtype=dtype)
     if kind == "cuda" and options.backend != "sequential":
         if sys.platform != "linux":
             raise ValueError("grouped CUDA expert compute currently requires Linux")

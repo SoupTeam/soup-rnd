@@ -978,6 +978,8 @@ class SFTTrainerWrapper(StreamingSetupMixin):
 
         training_kwargs = {
             "output_dir": str(output_dir),
+            # Honour an explicit CPU execution device even on hosts with MPS/CUDA.
+            "use_cpu": str(self.device) == "cpu",
             "num_train_epochs": tcfg.epochs,
             "per_device_train_batch_size": batch_size,
             "gradient_accumulation_steps": tcfg.gradient_accumulation_steps,

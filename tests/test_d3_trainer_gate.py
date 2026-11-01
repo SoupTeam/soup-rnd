@@ -28,6 +28,18 @@ from benchmarks.harness.d3_trainer_protocol import cell_plan, read_rule
 from benchmarks.harness.d3_trainer_series import child, child_command, oracle_path, parent
 
 
+@pytest.fixture(autouse=True)
+def one_cpu_thread():
+    import torch
+
+    previous = torch.get_num_threads()
+    torch.set_num_threads(1)
+    try:
+        yield
+    finally:
+        torch.set_num_threads(previous)
+
+
 def _prepare_tiny(tmp_path, *, tied=True, layers=2):
     import torch
     from datasets import Dataset
@@ -38,8 +50,13 @@ def _prepare_tiny(tmp_path, *, tied=True, layers=2):
     from transformers import OlmoeConfig, OlmoeForCausalLM, PreTrainedTokenizerFast
 
     from soup_cli.trainer.sft import SFTTrainerWrapper
+    from soup_cli.utils.expert_training import validate_cpu_expert_recipe
     from soup_cli.utils.layer_shard import resolve_shard_dir
 
+    try:
+        validate_cpu_expert_recipe(dtype="float32")
+    except ValueError as exc:
+        pytest.skip(str(exc))
     rule = copy.deepcopy(read_rule())
     rule.update(tokens=64, rows=3, optimizer_steps=2)
     rule["optimizer"]["gradient_windows"] = [2, 1]

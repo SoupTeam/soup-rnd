@@ -13,7 +13,7 @@ from pathlib import Path
 
 from benchmarks.harness import d3_fused_trainer_protocol as protocol
 from benchmarks.harness import d3_trainer_protocol as historical
-from benchmarks.harness.d3_trainer_analysis import replay_native_tensors
+from benchmarks.harness.d3_trainer_analysis import cuda_kernel_names, replay_native_tensors
 from benchmarks.harness.d3_trainer_gate import numerical_view, require_exact, save
 
 
@@ -197,10 +197,7 @@ def analyze(folder):
         if cell["kind"] == "profile":
             path = folder / name / "cuda-profile.json"
             require_exact(historical.file_hash(path), result["profile_sha256"], "actual trace")
-            trace = json.loads(path.read_text())["traceEvents"]
-            kernels = [
-                row["name"] for row in trace if row.get("cat") == "kernel" and row.get("ph") == "X"
-            ]
+            kernels = cuda_kernel_names(path)
             require_exact(kernels, result["kernel_names"], "actual CUPTI kernel names")
             if not kernels or (cell["mode"] == "fused" and "fused" not in kernels):
                 raise ValueError("no actual fused candidate dispatch")

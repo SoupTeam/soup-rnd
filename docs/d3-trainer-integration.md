@@ -7,7 +7,9 @@ its own 112/112-cell prospective pretrained qualification at `921d86a1`, includi
 all eight fused resident/streamed ordinary/L2L cells for NF4/nested NF4. The
 measured backend saves allocated training memory but is slower; existing defaults
 are unchanged. See its report for the source-host/local-audit distinction and
-remaining raw-backup requirement. Final D3 acceptance is a separate reviewer decision. The
+reviewer artifact-access requirement. Both original archives now have local
+verification and full CPU replay; see the [portable replay guide](d3-evidence-replay.md).
+Final D3 acceptance is a separate reviewer decision. The
 historical 84-cell experiment used another adapter fixture and remains unchanged.
 The [CPU evidence packet](../benchmarks/results/d3-trainer-integration-cpu-20261029/report.md)
 retains the selected-suite log, JUnit, environment and working source snapshot.
@@ -50,8 +52,15 @@ allocating a full dense expert stack. Existing fused caches/defaults are unchang
 - Native OLMoE, frozen routed weights, first derivatives and stateless SiLU.
 - LoRA on explicitly selected attention modules, e.g. `q_proj` and `v_proj`.
   Routed-expert adapters are refused. Other architectures are not silently admitted.
-- CPU float32 development checks use eager GEMMs. They do not qualify grouped
-  CUDA compute or Triton.
+- CPU development is explicitly limited to Linux/Windows x86-64, float32 model
+  weights and one CPU thread (`OMP_NUM_THREADS=1` before Python, or
+  `torch.set_num_threads(1)`). Apple Silicon/macOS and other CPU platforms are
+  refused before cache reads or arena allocation: their arithmetic has not
+  passed the unchanged exact native gate. CPU qualification does not qualify
+  CUDA compute or Triton. An explicitly selected CPU device also pins Trainer
+  and adapter reload to CPU rather than automatically selecting MPS.
+  The [CPU review evidence](../benchmarks/results/d3-cpu-review-20261101/report.md)
+  distinguishes real Windows tests from simulated platform refusals.
 - Grouped/Triton CUDA requires Linux, native BF16, qualified OLMoE geometry
   (hidden 2048, intermediate 1024), and an explicit cuBLAS 12/13 library path.
 - The runtime owns/restores the explicit cuBLASLt/full-BF16-reduction policy for
