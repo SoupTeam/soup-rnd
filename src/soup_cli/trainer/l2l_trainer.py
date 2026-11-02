@@ -26,7 +26,13 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, Tuple
 
-from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters, LossHead, sft_head
+from soup_cli.utils.l2l_step import (
+    SUPPORTED_ARCHS,
+    LoadCounters,
+    LossHead,
+    ReferencePass,
+    sft_head,
+)
 
 #: Captured layer arguments kept per shape; the cache restarts when a run exceeds it. A new
 #: shape costs one forward to capture them.
@@ -208,6 +214,10 @@ class WindowLoss:
     read_window: Callable[..., Tuple[List[Any], Any]]
     #: ``(extras, divisor) -> LossHead``; the head returns the loss already scaled.
     make_head: Callable[[Any, int], LossHead]
+    #: ``extras -> ReferencePass`` for a loss that needs a reference model (DPO); ``None``
+    #: for a loss that does not. The policy head reads the pass's ``outputs`` after the step
+    #: filled them, so both come from the same ``extras``.
+    make_reference: Optional[Callable[[Any], ReferencePass]] = None
 
     def divisor(self, k: int, num_items: Optional[int]) -> int:
         """The number the window's loss is divided by. The one place the scale rule lives."""
@@ -393,7 +403,8 @@ def run_window(
     stepper, calls = _l2l_step_for(state, model, ids_list)
     store = _store_for(state, stepper, ids_list, device)
     head = strategy.make_head(label_list, divisor)
-    losses = stepper.run(ids_list, store, calls=calls, head=head)
+    reference = None if strategy.make_reference is None else strategy.make_reference(label_list)
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
     return losses, stepper.counters
 
 

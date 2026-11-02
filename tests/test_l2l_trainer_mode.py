@@ -64,7 +64,7 @@ def test_l2l_with_nonzero_lora_dropout_is_accepted():
 
 def test_l2l_for_a_task_other_than_sft_is_refused():
     with pytest.raises(ValueError, match=r"l2l.*sft"):
-        load_config_from_string(_yaml(task="dpo", l2l=True))
+        load_config_from_string(_yaml(task="ipo", l2l=True))
 
 
 def test_lora_dropout_is_only_checked_when_l2l_is_on():

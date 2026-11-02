@@ -51,7 +51,7 @@ _MAX_LORA_PATTERN_KEY_SHOWN = 80
 
 # Tasks that training.l2l accepts. A task joins the tuple when its L2L window loss
 # (trainer/l2l_trainer.py WindowLoss) ships; the refusal below reads the tuple.
-L2L_SUPPORTED_TASKS = ("sft", "orpo", "simpo")
+L2L_SUPPORTED_TASKS = ("sft", "orpo", "simpo", "dpo")
 
 # v0.71.23 #266 — Spectrum targeted-training unfrozen-parameter caps
 _MAX_UNFROZEN_PARAMETERS = 50_000
@@ -6367,6 +6367,30 @@ class SoupConfig(BaseModel):
             )
         return self
 
+    @staticmethod
+    def _refuse_dpo_l2l_unsupported(tcfg: Any) -> None:
+        """training.l2l with task='dpo' reproduces TRL's sigmoid DPO against a frozen ``ref``
+        adapter at a fixed beta. Refuse what changes that between steps or draws random numbers
+        in the reference forward, which the layer-major walk cannot replay. A regenerated
+        reference (dpo_ref_regen_epochs) is refused for every DPO run by the variants check."""
+        if tcfg.dpo_beta_schedule is not None or tcfg.dpo_beta_end is not None:
+            raise ValueError(
+                "training.l2l with task='dpo' keeps beta fixed: remove "
+                "training.dpo_beta_schedule and training.dpo_beta_end."
+            )
+        if tcfg.lora.dropout > 0:
+            raise ValueError(
+                "training.l2l with task='dpo' needs training.lora.dropout=0: the reference "
+                "forward draws dropout masks in gradient accumulation, and the L2L replay "
+                f"covers the policy's draws only (got lora.dropout={tcfg.lora.dropout})."
+            )
+        if tcfg.neftune_alpha is not None:
+            raise ValueError(
+                "training.l2l with task='dpo' does not support training.neftune_alpha: the "
+                "reference forward draws NEFTune noise between the policy forwards, an "
+                "order the layer-major walk does not reproduce."
+            )
+
     @model_validator(mode="after")
     def _validate_stream_layers_compat(self) -> "SoupConfig":
         """v0.72.0 BETA — layer-streaming compatibility gates.
@@ -6390,6 +6414,8 @@ class SoupConfig(BaseModel):
                     f"training.l2l supports task in {list(L2L_SUPPORTED_TASKS)}; "
                     f"got task={self.task!r}."
                 )
+            if self.task == "dpo":
+                self._refuse_dpo_l2l_unsupported(tcfg)
         if not tcfg.stream_layers:
             # Footgun: a non-default stream_* while streaming is off almost
             # certainly means the user forgot stream_layers=true.

@@ -284,15 +284,15 @@ def test_the_list_of_supported_tasks_starts_with_sft():
     assert L2L_SUPPORTED_TASKS[0] == "sft"
 
 
-def test_the_refusal_names_the_task_and_the_supported_list():
+def test_the_refusal_names_the_task_and_the_supported_list(monkeypatch):
+    from soup_cli.config import schema
     from soup_cli.config.loader import load_config_from_string
 
+    monkeypatch.setattr(schema, "L2L_SUPPORTED_TASKS", ("sft", "orpo"))
     with pytest.raises(ValueError) as caught:
         load_config_from_string(_l2l_yaml("dpo"))
     message = str(caught.value)
-    from soup_cli.config.schema import L2L_SUPPORTED_TASKS
-
-    assert f"training.l2l supports task in {list(L2L_SUPPORTED_TASKS)}" in message
+    assert "training.l2l supports task in ['sft', 'orpo']" in message
     assert "got task='dpo'" in message
 
 
@@ -300,9 +300,9 @@ def test_the_refusal_reads_the_list_instead_of_a_hardcoded_task(monkeypatch):
     from soup_cli.config import schema
     from soup_cli.config.loader import load_config_from_string
 
-    monkeypatch.setattr(schema, "L2L_SUPPORTED_TASKS", ("sft", "dpo"))
-    assert load_config_from_string(_l2l_yaml("dpo")).training.l2l is True
-    with pytest.raises(ValueError, match=r"supports task in \['sft', 'dpo'\].*got task='simpo'"):
+    monkeypatch.setattr(schema, "L2L_SUPPORTED_TASKS", ("sft", "orpo"))
+    assert load_config_from_string(_l2l_yaml("orpo")).training.l2l is True
+    with pytest.raises(ValueError, match=r"supports task in \['sft', 'orpo'\].*got task='simpo'"):
         load_config_from_string(_l2l_yaml("simpo"))
 
 

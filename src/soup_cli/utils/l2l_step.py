@@ -22,6 +22,11 @@ and walk the backward the same way in reverse.
   with ``num_items_in_batch``. ``capture_layer_call`` records the layer kwargs
   from a real forward instead of rebuilding the rotary embeddings and the mask.
 
+* A preference loss with a reference model (DPO) passes a ``ReferencePass``: after each
+  layer's policy micro-batches the same loaded layer runs the k micro-batches again under
+  the frozen ``ref`` adapter, without grad and without writing to the activation store, then
+  the reference head turns each last hidden state into the reference log-probabilities. It
+  adds no layer load: the extra calls land on a layer the pool already owns.
 * With ``lora.dropout`` > 0 the step replays the random stream of plain gradient
   accumulation: every layer call, in the forward and in the recompute, runs at the
   generator state accumulation reaches for that (micro-batch, layer) pair, and the outer
@@ -33,7 +38,7 @@ No optimizer step. torch is imported inside functions.
 from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 SUPPORTED_ARCHS = ("llama", "mistral")
@@ -132,6 +137,21 @@ def sft_head(labels: Sequence[Any], n_items: int) -> LossHead:
     return head
 
 
+@dataclass
+class ReferencePass:
+    """A second, gradient-free pass over the same layers with another adapter active.
+
+    ``adapter`` is the PEFT adapter name (TRL's ``ref``). ``head`` has the shape of a
+    :data:`LossHead`; the step calls it under ``no_grad`` with the adapter active on the
+    reference hidden state of micro-batch ``mb`` and stores the result in ``outputs[mb]``.
+    The policy head reads ``outputs`` after the step has filled it.
+    """
+
+    adapter: str
+    head: LossHead
+    outputs: Dict[int, Any] = field(default_factory=dict)
+
+
 class _CapturedError(Exception):
     """Raised from layer 0's pre-hook to end a capture forward before any layer runs."""
 
@@ -193,6 +213,7 @@ class L2LStep:
         call: LayerCall,
     ):
         self.causal, self.owner = model_parts(model)
+        self.model = model
         self.layers = list(self.owner.layers)
         self.call = call
         hook = getattr(runtime, "hook", None)
@@ -217,6 +238,21 @@ class L2LStep:
             out = module(hidden, *call.args, **call.kwargs)
         return out[0] if isinstance(out, tuple) else out
 
+    @contextmanager
+    def _adapter(self, name: str) -> Iterator[None]:
+        """The named PEFT adapter active inside, the previous one after.
+
+        The semantics of TRL's ``use_adapter(model, name)``, which the DPO trainer wraps its
+        reference forward in. ``set_adapter`` moves ``requires_grad`` to the active adapter
+        and back; the reference pass runs under ``no_grad``, so no graph keeps the flag.
+        """
+        previous = self.model.active_adapter
+        self.model.set_adapter(name)
+        try:
+            yield
+        finally:
+            self.model.set_adapter(previous)
+
     @staticmethod
     def _backward_context(ids: Any) -> Any:
         """Autocast off around a backward call, the state HF's accumulation runs it in.
@@ -239,6 +275,7 @@ class L2LStep:
         labels: Optional[Sequence[Any]] = None,
         calls: Optional[Sequence[LayerCall]] = None,
         head: Optional[LossHead] = None,
+        reference: Optional[ReferencePass] = None,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
@@ -248,11 +285,15 @@ class L2LStep:
 
         ``head`` replaces the SFT head and loss (see :data:`LossHead`); it owns its labels
         and its scale, so it excludes ``labels`` and ``n_items``.
+
+        ``reference`` adds the gradient-free second pass (see :class:`ReferencePass`). It
+        refuses a model whose layers draw dropout: accumulation's reference forward would
+        draw masks too, and the replay of ``l2l_rng`` covers the policy's draws only.
         """
         if head is not None and (labels is not None or n_items is not None):
             raise ValueError("a custom head owns its labels and scale: pass no labels or n_items")
         with count_loads(self.runtime) as counters:
-            losses = self._run(micro_batches, store, n_items, labels, calls, head)
+            losses = self._run(micro_batches, store, n_items, labels, calls, head, reference)
         self.counters = counters
         return losses
 
@@ -264,6 +305,7 @@ class L2LStep:
         labels: Optional[Sequence[Any]],
         calls: Optional[Sequence[LayerCall]],
         head: Optional[LossHead],
+        reference: Optional[ReferencePass] = None,
     ) -> List[Any]:
         import torch
 
@@ -286,20 +328,43 @@ class L2LStep:
             total = label_tokens(micro_batches) if n_items is None else int(n_items)
             head = sft_head(labels, total)
 
+        if reference is not None and l2l_rng.has_draws(self.call.draws):
+            raise ValueError(
+                "the L2L reference pass does not support dropout: the reference forward "
+                "of gradient accumulation draws dropout masks too, and the replay covers "
+                "the policy's draws only. Set lora.dropout and attention_dropout to 0."
+            )
         replayed = None
         if l2l_rng.has_draws(self.call.draws):
             replayed = l2l_rng.replay(self.call.draws, k)
         states = replayed[0] if replayed else None
 
         self._prime(self.owner, ())
+        ref_hidden: List[Any] = []
         with torch.no_grad():
             hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
+            if reference is not None:
+                with self._adapter(reference.adapter):
+                    ref_hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
                     hidden[mb] = self._layer(
                         layer, hidden[mb], states[mb][idx] if states else None, calls[mb]
                     )
+                if reference is not None:
+                    # Same loaded layer, frozen adapter: nothing is stored, nothing loads.
+                    with self._adapter(reference.adapter):
+                        for mb in range(k):
+                            ref_hidden[mb] = self._layer(layer, ref_hidden[mb], None, calls[mb])
+            if reference is not None:
+                reference.outputs.clear()
+                with self._adapter(reference.adapter):
+                    for mb in range(k):
+                        reference.outputs[mb] = reference.head(
+                            self.causal, self.owner, ref_hidden[mb], mb
+                        )
+                        ref_hidden[mb] = None
 
         losses: List[Any] = []
         grads: List[Any] = []

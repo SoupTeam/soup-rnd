@@ -1,0 +1,46 @@
+# DPO on L2L: a short run on synthetic preference pairs
+#
+# Each streamed decoder layer loads once per optimizer step and runs all
+# gradient_accumulation_steps micro-batches (training.l2l). DPO needs the reference
+# log-probabilities too: they come from the frozen "ref" adapter TRL makes as a copy of the
+# policy adapter, through the SAME loaded layer, without grad. That adds no layer load and
+# no second read of the weights. The LoRA gradients equal gradient accumulation at the same k.
+#
+# The pairs in examples/data/dpo_pairs_synthetic.jsonl are SYNTHETIC: written by hand
+# to show the format and to exercise the run. They teach a model nothing useful.
+#
+# training.l2l with task dpo needs lora.dropout 0, no neftune_alpha and a fixed beta
+# (no dpo_beta_schedule). L2L supports Llama and Mistral architectures on one GPU.
+# Check layer loads in the training log: l2l_layer_loads stays flat in k, while plain
+# streaming loads k times more.
+#
+# Usage:
+#   soup train --config examples/configs/dpo_l2l_short.yaml
+
+base: HuggingFaceTB/SmolLM2-135M-Instruct
+task: dpo
+
+data:
+  train: examples/data/dpo_pairs_synthetic.jsonl
+  format: dpo
+  max_length: 256
+
+training:
+  epochs: 1
+  lr: 1e-5
+  dpo_beta: 0.1
+  quantization: none
+  batch_size: 2
+  gradient_accumulation_steps: 4   # k: micro-batches per optimizer step
+  stream_layers: true
+  l2l: true
+  warmup_ratio: 0.1
+  logging_steps: 1
+  save_steps: 100
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0
+    target_modules: auto
+
+output: ./output_dpo_l2l_short/

@@ -362,7 +362,7 @@ def test_the_schema_accepts_simpo_with_l2l():
 def test_the_schema_still_refuses_the_tasks_that_have_no_window_loss_yet():
     from soup_cli.config.loader import load_config_from_string
 
-    for task in ("dpo", "ipo"):
+    for task in ("ipo",):
         with pytest.raises(ValueError, match=f"got task='{task}'"):
             load_config_from_string(_l2l_yaml(task))
 
