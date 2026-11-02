@@ -1,0 +1,58 @@
+/usr/lib/python3.12/importlib/__init__.py:90: TRLExperimentalWarning: You are importing from 'trl.experimental'. APIs here are unstable and may change or be removed without notice. Silence this warning by setting environment variable TRL_EXPERIMENTAL_SILENCE=1.
+  return _bootstrap._gcd_import(name[level:], package, level)
+Loading tokenizer: HuggingFaceTB/SmolLM2-135M
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 230,400 parameters; weights=921600, 
+gradients=921600, optimizer=0 CUDA bytes; CPU tensors=0 bytes. Excludes base 
+buffers, activations and optimizer temporaries.
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 1075.70it/s]
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 0.27 GB                                                     │
+│ Soup materialized copy: 0.27 GB (no write required)                          │
+│ Layer-shard cache: 0.27 GB (write required)                                  │
+│ Projected total on disk: 0.81 GB                                             │
+│ Additional writes before training: 0.27 GB                                   │
+│ Free on target volume (layer-shard cache): 48.12 GB                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> 
+/root/results/a6/orpo/k4/attempt0/ga2-work/cache/HuggingFaceTB__SmolLM2-135M
+Re-sharding layer cache: cache index is missing or unreadable.
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch llama, tier ram                                  │
+│   base store   0.21 GB across 30 layers (pinned)                             │
+│   VRAM buffers 2 x 7 MB + 1 x 0 MB large-layer slot = 14 MB                  │
+│   resident     57 MB extras + adapters                                       │
+│   peak VRAM    ~0.83 GB at batch 2 x seq 256 (4 rows — chosen+rejected are   │
+│ one concatenated tensor) (logits 0.70 GB)                                    │
+│   free VRAM    12.36 GB                                                      │
+│   forecast     21745-31978 tok/s — a compute-bound bound, not a promise      │
+│                (from 25.81 TFLOPS measured on this card now using bfloat16 @ │
+│ 1777 MHz)                                                                    │
+│   ! accumulating 4x at batch 2: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 8 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 30 layers, 0.21 GB pinned RAM store (0.27 GB 
+page-locked), 2 x 7 MB decoder buffers + 1 x 0 MB large-layer slot
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+LoRA applied: 230,400 trainable / 134,515,008 total (0.17%)
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 2392.87 examples/s]
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 3209.31 examples/s]
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 674.97 examples/s]
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 1103.91 examples/s]
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 0}.
+  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:02<00:02,  2.44s/it]                                              50%|█████     | 1/2 [00:02<00:02,  2.44s/it]100%|██████████| 2/2 [00:03<00:00,  1.57s/it]                                             100%|██████████| 2/2 [00:03<00:00,  1.57s/it]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+                                             100%|██████████| 2/2 [00:03<00:00,  1.57s/it]100%|██████████| 2/2 [00:03<00:00,  1.92s/it]
+{'loss': '3.222', 'grad_norm': '0.3271', 'learning_rate': '0.01', 'rewards/chosen': '-0.3148', 'rewards/rejected': '-0.4205', 'rewards/accuracies': '0.75', 'rewards/margins': '0.1057', 'logps/rejected': '-4.205', 'logps/chosen': '-3.148', 'logits/rejected': '10.08', 'logits/chosen': '10.26', 'nll_loss': '3.148', 'log_odds_ratio': '-0.7396', 'log_odds_chosen': '1.117', 'epoch': '0.6667'}
+{'loss': '4.178', 'grad_norm': '0.8293', 'learning_rate': '0.01', 'rewards/chosen': '-0.4914', 'rewards/rejected': '-0.5493', 'rewards/accuracies': '1', 'rewards/margins': '0.05789', 'logps/rejected': '-5.493', 'logps/chosen': '-4.914', 'logits/rejected': '12.13', 'logits/chosen': '10.07', 'nll_loss': '4.131', 'log_odds_ratio': '-0.4737', 'log_odds_chosen': '0.5836', 'epoch': '1'}
+{'train_runtime': '3.852', 'train_samples_per_second': '3.115', 'train_steps_per_second': '0.519', 'train_loss': '3.7', 'epoch': '1'}

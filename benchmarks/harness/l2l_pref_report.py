@@ -50,15 +50,21 @@ def results_section(records: Dict[str, Any]) -> List[str]:
         steps = len(attempt.get("losses", {}).get("l2l", []))
         diff = attempt.get("max_abs", {}).get("l2l_vs_ga1", {})
         lines.append(
-            f"| {cell['k']} | {steps} | {judged['used_attempt']} | {eq.get('tier')} | "
+            f"| {cell['k']} | {steps} | {judged['used_attempt']} | {eq.get('tier') or 'нет'} | "
             f"{eq.get('a_vs_a_equal')} | {_fmt(diff.get('grad', 0.0))} | "
             f"{_fmt(diff.get('loss', 0.0))} | {VERDICT_TEXT[judged['verdict']]} |"
         )
-    problems = [
-        f"- k={cell['k']}: {problem}"
-        for cell, judged in zip(records["cells"], records["verdict"]["cells"])
-        for problem in _used(cell, judged)["equality"].get("problems", [])
-    ]
+    problems = []
+    for cell, judged in zip(records["cells"], records["verdict"]["cells"]):
+        found = _used(cell, judged)["equality"].get("problems", [])
+        tensors = [p for p in found if "differs" in p and "loss" not in p]
+        steps = sorted({int(p.split(":")[0].split()[1]) for p in tensors if p.startswith("step ")})
+        losses = [p for p in found if "loss" in p]
+        if found:
+            problems.append(
+                f"- k={cell['k']}: различаются {len(tensors)} записей градиента (на шагах {steps}) "
+                f"и {len(losses)} потерь; первое: {found[0]}"
+            )
     return lines + ([""] + problems if problems else [])
 
 
@@ -120,6 +126,36 @@ def validity_section(records: Dict[str, Any]) -> List[str]:
     return lines
 
 
+def excluded_text(records: Dict[str, Any]) -> str:
+    dropped = [(c["k"], e) for c in records["verdict"]["cells"] for e in c["excluded"]]
+    if not dropped:
+        return "В этом наборе испорченных замеров и неудачных запусков нет: по одной попытке на ячейку, все использованы."
+    return "Исключены попытки: " + "; ".join(f"k={k}, попытка {e['attempt']}: {e['reason']}" for k, e in dropped) + "."
+
+
+def what_showed(records: Dict[str, Any]) -> List[str]:
+    """One line per criterion of the rule, from the records."""
+    cells = list(zip(records["cells"], records["verdict"]["cells"]))
+    used = [(_used(c, j), j) for c, j in cells]
+    equal = [j["verdict"] for _a, j in used]
+    return [
+        "- Равенство L2L и накопления (ступень 1, побитово): "
+        + ("выполнено во всех ячейках." if all(a["equality"]["pass"] for a, _ in used)
+           else "**не выполнено** (таблица ниже)."),
+        "- Накопление против самого себя (`ga1` и `ga2`): "
+        + ("побитово равно во всех ячейках, значит стенд повторяем и ступень 2 (допуск A3-07 по полу шума) "
+           "не применяется." if all(a["equality"]["a_vs_a_equal"] for a, _ in used)
+           else "различается хотя бы в одной ячейке (ступень 2 применялась там)."),
+        "- «Лишнего чтения нет» (загрузки слоя за шаг равны L2L SFT): "
+        + ("выполнено во всех ячейках." if all(a["loads"]["pass"] for a, _ in used) else "**не выполнено**."),
+        "- Валидность плеч (`suspend`, `power`): "
+        + ("`ok` на всех плечах всех использованных попыток." if all(
+            all(v == "ok" for v in a["arms"].values()) for a, _ in used) else "есть плечи не `ok`, см. ниже."),
+        "- Метод **не отмечается готовым**." if "fail" in equal or any(j["verdict"] != "pass" for _a, j in used)
+        else "- Все три ячейки прошли.",
+    ]
+
+
 def render(method: str, records: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
            results_rel: str) -> str:
     name = METHOD_NAMES[method]
@@ -157,15 +193,20 @@ def render(method: str, records: Dict[str, Any], env: Dict[str, Any], rental: Di
         "## Команды",
         "",
         "```bash",
-        "bash benchmarks/harness/l2l_pref_check/remote.sh   # bootstrap, затем:",
-        "export PYTHONPATH=$PWD/src HF_HOME=/root/hf",
+        "# на сервере, из каталога /root/soup, дерево коммита выше:",
+        "CARD='RTX 3060 12GB' bash benchmarks/harness/l2l_pref_check/remote.sh",
+        "# внутри: bootstrap (a0-bootstrap.sh), затем одна команда на все четыре метода:",
         "python benchmarks/harness/l2l_pref_check.py run --device cuda --out /root/results/a6 \\",
-        f"    --methods {method}   # на сервере шли все четыре метода подряд одной командой без --methods",
+        '    --label "RTX 3060 12GB, synthetic data, SmolLM2-135M" --model-path /root/hf',
         "```",
         "",
         "k равен 1, 2, 4. Плечи: `ga1`, `ga2` (накопление дважды, A против A), `l2l`, `sft` (L2L SFT "
         "с теми же k и числом микропорций, для счёта загрузок). Каждое плечо идёт в своём процессе "
         "под `ArmWatch`, обязательные проверки `suspend` и `power`.",
+        "",
+        "## Что показали данные",
+        "",
+        *what_showed(records),
         "",
         "## Равенство потерь и градиентов LoRA",
         "",
@@ -177,9 +218,8 @@ def render(method: str, records: Dict[str, Any], env: Dict[str, Any], rental: Di
             "## Опорный проход не добавил загрузок слоя", ""]
     if method == "dpo":
         out += [
-            "Счётчики берутся из лога обучения, это счётчики рантайма. В DPO каждая микропорция "
-            "проходит через загруженный слой дважды: политика с градиентом и опорный проход без "
-            "градиента с адаптером `ref`. Условие правила: загрузок слоя за шаг столько же, сколько у "
+            "Счётчики берутся из лога обучения, это счётчики рантайма. В DPO опорный проход идёт "
+            "через тот же загруженный слой без градиента с адаптером `ref`. Условие правила: загрузок слоя за шаг столько же, сколько у "
             "L2L SFT с тем же k, больших загрузок и восстановлений весов не больше.",
             "",
         ]
@@ -188,11 +228,15 @@ def render(method: str, records: Dict[str, Any], env: Dict[str, Any], rental: Di
     out += validity_section(records)
     out += [
         "",
-        "Испорченными считаются плечи с проверкой `void`; их попытка отброшена по `benchmarks/METHOD.md`, "
-        "запись осталась в каталоге результатов. Неудачные попытки приложены ниже.",
+        "Испорченными считаются плечи с проверкой `void`; их попытка отбрасывается по `benchmarks/METHOD.md`, "
+        "запись остаётся в каталоге результатов. "
+        + excluded_text(records),
         "",
         "## Что не проверялось",
         "",
+        "- Причина расхождения L2L и накопления на CUDA не диагностирована. Известно только: веса загружены в `bfloat16` (журнал `l2l.out`), а в тестах тикетов 02 to 05 (CPU, float32, крошечная Llama) то же равенство побитовое. Эти два факта не доказывают, что причина в точности bf16.",
+        "- Допуск A3-07 с полом шума от второго бэкенда SDPA не измерялся: правило этого тикета берёт пол шума из `ga2` против `ga1`, а он равен 0, поэтому ступень 2 не включалась. Прогон с таким полом требует поправки правила до измерения и не входит в этот отчёт.",
+        "- Шаги после нулевого начинаются с адаптеров, которые уже обновлены разными градиентами, поэтому их различия не независимы от шага 0. Чистое сравнение даёт только шаг 0.",
         "- Скорость и память не измерялись.",
         "- Другие модели, другие карты, NF4, реальные наборы данных.",
         "- Размер набора: 12 строк, шесть микропорций по две строки; неполное последнее окно есть при k=4.",
