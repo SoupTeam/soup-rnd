@@ -70,6 +70,12 @@ def _completion_logps(logits: Any, shift_labels: Any, shift_mask: Any) -> Any:
     return per_token.sum(dim=1)
 
 
+def _completion_logps_of(causal: Any, owner: Any, hidden: Any, labels: Tuple[Any, Any]) -> Any:
+    """Final norm, ``lm_head`` and the completion sums of one micro-batch's last hidden state."""
+    logits = causal.lm_head(owner.norm(hidden)[:, slice(0, None), :])
+    return _completion_logps(logits, *labels)
+
+
 def dpo_loss(
     policy_logps: Any, ref_logps: Tuple[Any, Any], beta: float
 ) -> Any:
@@ -83,7 +89,7 @@ def dpo_loss(
     chosen, rejected = policy_logps.chunk(2, dim=0)
     ref_chosen, ref_rejected = ref_logps
     delta = (chosen - ref_chosen) - (rejected - ref_rejected)
-    return (-functional.logsigmoid(beta * delta)).mean() * 1.0
+    return (-functional.logsigmoid(beta * delta)).mean()
 
 
 @dataclass
@@ -103,10 +109,10 @@ def dpo_window_loss(*, args: Any) -> WindowLoss:
     """
     beta = float(args.beta)
 
-    def trainer_cls() -> Any:
+    def truncate(shim: Any, ids: Any, mask: Any, completion: Any) -> Tuple[Any, Any, Any]:
         from trl import DPOTrainer
 
-        return DPOTrainer
+        return DPOTrainer._truncate_inputs(shim, ids, mask, completion)
 
     def read_window(
         window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
@@ -116,7 +122,7 @@ def dpo_window_loss(*, args: Any) -> WindowLoss:
         # ``_truncate_inputs`` reads only ``self.args.max_length`` and ``truncation_mode``.
         shim = SimpleNamespace(args=args)
         for inputs in window:
-            ids, mask, completion = trainer_cls()._truncate_inputs(
+            ids, mask, completion = truncate(
                 shim,
                 inputs["input_ids"].to(device),
                 inputs["attention_mask"].to(device),
@@ -128,18 +134,14 @@ def dpo_window_loss(*, args: Any) -> WindowLoss:
         refuse_mixed_shapes(ids_list, neftune=neftune, has_dropout=has_dropout)
 
         def reference_head(causal: Any, owner: Any, hidden: Any, mb: int) -> Any:
-            logits = causal.lm_head(owner.norm(hidden)[:, slice(0, None), :])
-            shift_labels, shift_mask = labels[mb]
-            return _completion_logps(logits, shift_labels, shift_mask).chunk(2, dim=0)
+            return _completion_logps_of(causal, owner, hidden, labels[mb]).chunk(2, dim=0)
 
         reference = ReferencePass(adapter=REFERENCE_ADAPTER, head=reference_head)
         return ids_list, _Window(labels=labels, reference=reference)
 
     def make_head(extras: _Window, divisor: int) -> LossHead:
         def head(causal: Any, owner: Any, hidden: Any, mb: int) -> Any:
-            logits = causal.lm_head(owner.norm(hidden)[:, slice(0, None), :])
-            shift_labels, shift_mask = extras.labels[mb]
-            policy = _completion_logps(logits, shift_labels, shift_mask)
+            policy = _completion_logps_of(causal, owner, hidden, extras.labels[mb])
             return dpo_loss(policy, extras.reference.outputs[mb], beta) / divisor
 
         return head
