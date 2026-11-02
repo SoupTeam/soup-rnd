@@ -358,6 +358,18 @@ def cpu(args, max_length, packing=False):
 
 
 SFTTrainerWrapper._as_sft_config = staticmethod(cpu)
+setup = SFTTrainerWrapper.setup
+
+
+def bf16_setup(self, dataset):
+    # The GPU runs train bf16 adapters; reproduce that dtype on CPU (stage P attempt 1 failed
+    # on a numpy bf16 digest that fp32 CPU tests never reached).
+    result = setup(self, dataset)
+    self.trainer.model.to(torch.bfloat16)
+    return result
+
+
+SFTTrainerWrapper.setup = bf16_setup
 recipe = h2_perf_abba.load_recipe('A', str(model_dir), root / 'out')
 recipe['training'].pop('bnb_4bit_quant_storage')
 recipe['training'].update(quantization='none', auto_mixed_precision=False)
@@ -395,6 +407,7 @@ def test_update_audit_passes_on_a_real_cpu_run(tmp_path):
     assert audit["oracle"]["status"] == "PASS_UPDATE_EVIDENCE"
     assert audit["trainable_tensors"] == 2 * 7 * 2 and audit["gradient_observations"] == 20
     assert len(audit["losses"]) == 20 and audit["runtime"]["layers"] == 2
+    assert audit["runtime"]["trainable_dtypes"] == {"torch.bfloat16": 28}
     assert h2["step_tokens"] == STEPS
 
 
@@ -489,3 +502,25 @@ def test_children_run_outside_the_source_checkout(tmp_path, monkeypatch):
     (tmp_path / "s").mkdir()
     series._launch_child("A", tmp_path / "s" / "b00_0_A")
     assert Path(seen["cwd"]) == tmp_path / "s" and Path(seen["cwd"]) != abba.REPO
+
+
+def test_t_distribution_matches_published_values_without_scipy(monkeypatch):
+    # The box runtime (runtime_candidate.lock) has no scipy; stage P attempt 1 crashed on it.
+    monkeypatch.setitem(sys.modules, "scipy", None)
+    for df, value in ((1, 12.7062), (2, 4.3027), (4, 2.7764), (10, 2.2281), (11, 2.2010)):
+        assert abba.t_quantile(0.975, df) == pytest.approx(value, abs=1e-4)
+    assert abba.t_two_sided_p(2.2281388519649, 10) == pytest.approx(0.05, abs=1e-9)
+    assert abba.t_two_sided_p(0.0, 7) == pytest.approx(1.0)
+    rows = [[1000, 1100 + s, 1102 + s, 1001] for s in (0, 9, -7, 4, -3)]
+    pair = abba.analyze(records(rows), ("A", "L", "L", "A"))["pairs"]["L"]
+    assert pair["label"] == "FASTER" and 0 < pair["p_value"] < 0.05
+    with pytest.raises(ValueError):
+        abba.t_quantile(0.4, 3)
+
+
+def test_box_side_harness_imports_nothing_outside_the_runtime_lock():
+    lock = (ROOT / "benchmarks/h2/runtime_candidate.lock").read_text().lower()
+    for name in ("h2_perf_abba.py", "h2_close_updates.py", "arm_validity.py"):
+        source = (ROOT / "benchmarks/harness" / name).read_text()
+        assert "import scipy" not in source and "from scipy" not in source, name
+    assert "\nscipy==" not in lock

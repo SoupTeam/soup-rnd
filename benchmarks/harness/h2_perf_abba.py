@@ -381,9 +381,68 @@ def _final_n(blocks: list) -> Optional[int]:
     return max(first, arm_validity.blocks_needed(valid[:first]))
 
 
-def pair_verdict(records: Sequence[RunRecord], order: Sequence[str], arm: str) -> dict:
-    from scipy import stats
+def _betacf(a: float, b: float, x: float) -> float:
+    """Continued fraction of the incomplete beta function (modified Lentz)."""
+    tiny, eps = 1e-300, 1e-15
+    qab, qap, qam = a + b, a + 1.0, a - 1.0
+    c, d = 1.0, 1.0 - qab * x / qap
+    d = 1.0 / (d if abs(d) > tiny else tiny)
+    h = d
+    for m in range(1, 400):
+        m2 = 2 * m
+        for aa in (
+            m * (b - m) * x / ((qam + m2) * (a + m2)),
+            -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2)),
+        ):
+            d = 1.0 + aa * d
+            d = 1.0 / (d if abs(d) > tiny else tiny)
+            c = 1.0 + aa / c
+            c = c if abs(c) > tiny else tiny
+            h *= d * c
+        if abs(d * c - 1.0) < eps:
+            break
+    return h
 
+
+def _betainc(a: float, b: float, x: float) -> float:
+    """Regularized incomplete beta I_x(a, b)."""
+    if x <= 0.0:
+        return 0.0
+    if x >= 1.0:
+        return 1.0
+    front = math.exp(
+        math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b) + a * math.log(x) + b * math.log1p(-x)
+    )
+    if x < (a + 1.0) / (a + b + 2.0):
+        return front * _betacf(a, b, x) / a
+    return 1.0 - front * _betacf(b, a, 1.0 - x) / b
+
+
+def t_two_sided_p(t: float, df: int) -> float:
+    """Two-sided p-value of Student's t (stdlib only; the box runtime has no scipy)."""
+    if not math.isfinite(t):
+        return 0.0
+    return _betainc(df / 2.0, 0.5, df / (df + t * t))
+
+
+def t_quantile(q: float, df: int) -> float:
+    """Quantile q (> 0.5) of Student's t with df degrees of freedom, by bisection."""
+    if not 0.5 < q < 1.0 or df < 1:
+        raise ValueError("t_quantile needs 0.5 < q < 1 and df >= 1")
+    target = 2.0 * (1.0 - q)
+    low, high = 0.0, 1.0
+    while t_two_sided_p(high, df) > target:
+        high *= 2.0
+    for _ in range(200):
+        mid = (low + high) / 2.0
+        if t_two_sided_p(mid, df) > target:
+            low = mid
+        else:
+            high = mid
+    return (low + high) / 2.0
+
+
+def pair_verdict(records: Sequence[RunRecord], order: Sequence[str], arm: str) -> dict:
     blocks = _pair_blocks(records, order, arm)
     valid = arm_validity.valid_blocks(blocks)
     n = _final_n(blocks)
@@ -401,8 +460,10 @@ def pair_verdict(records: Sequence[RunRecord], order: Sequence[str], arm: str) -
     diffs = [(b[1].value + b[2].value) / 2 - (b[0].value + b[3].value) / 2 for b in used]
     mean_a, d = statistics.fmean(a_runs), statistics.fmean(diffs)
     sd = statistics.stdev(diffs)
-    half = stats.t.ppf(1 - ALPHA / 2, len(diffs) - 1) * sd / math.sqrt(len(diffs))
-    p = float(stats.ttest_1samp(diffs, 0.0).pvalue) if sd > 0 else (0.0 if d else 1.0)
+    df = len(diffs) - 1
+    se = sd / math.sqrt(len(diffs))
+    half = t_quantile(1 - ALPHA / 2, df) * se
+    p = t_two_sided_p(d / se, df) if sd > 0 else (0.0 if d else 1.0)
     low, high = d - half, d + half
     label = "FASTER" if low > 0 else "SLOWER" if high < 0 else "NO_DETECTABLE_DIFFERENCE"
     return {

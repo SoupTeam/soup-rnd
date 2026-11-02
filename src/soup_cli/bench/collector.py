@@ -82,11 +82,16 @@ def summarize_trainable(model: Any) -> ParamSnapshot:
 
 
 def _digest(named_params) -> str:
+    import torch
+
     hasher = hashlib.sha256()
     for name, param in named_params:
         hasher.update(name.encode("utf-8"))
-        detached = param.detach()
-        hasher.update(detached.cpu().contiguous().numpy().tobytes())
+        # Raw bytes through a uint8 view: numpy has no bfloat16, so ``.numpy()`` raised
+        # on bf16 adapters (H2 stage P, RTX 4090). For dtypes numpy does support the
+        # bytes are the same as before, so existing fingerprints do not change.
+        detached = param.detach().cpu().contiguous().reshape(-1)
+        hasher.update(detached.view(torch.uint8).numpy().tobytes())
     return hasher.hexdigest()
 
 
