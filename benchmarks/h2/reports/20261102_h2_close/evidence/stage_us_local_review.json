@@ -1,0 +1,245 @@
+{
+  "stage": "us",
+  "instance_id": 58810258,
+  "source_commit": "fc2880f914d0007f72c234b5b53d39f148d90526",
+  "stage_u_series": {
+    "status": "COMPLETE_H2_UPDATES_SERIES",
+    "phases": {
+      "baseline_training": {
+        "status": "CHILD_EXITED",
+        "argv": [
+          "/data/h2/env/bin/python",
+          "/data/h2/repo/benchmarks/harness/h2_ce_confirmation.py",
+          "--contract",
+          "/data/h2/evidence/h2close_U/contract.json",
+          "--child",
+          "--phase",
+          "baseline_training",
+          "--out",
+          "/data/h2/evidence/h2close_U/baseline_training/runner"
+        ],
+        "performance_verdict": "NO_VERDICT",
+        "provider_stop_performed": false,
+        "group_cleanup_confirmed": true,
+        "leader_pid": 4964,
+        "process_group": 4964,
+        "new_session_verified": true,
+        "child_status": {
+          "returncode": 0,
+          "child_pid": 4965
+        },
+        "term_sent_to_owned_group": true,
+        "kill_sent_to_owned_group": true,
+        "leader_reaped_after_cleanup": true,
+        "log_pipes_reached_eof": true,
+        "retained_log_bytes": {
+          "stdout": 1344,
+          "stderr": 3251
+        },
+        "discarded_log_bytes": {
+          "stdout": 0,
+          "stderr": 0
+        },
+        "elapsed_seconds": 65.856721193064
+      },
+      "ce_only_training": {
+        "status": "CHILD_EXITED",
+        "argv": [
+          "/data/h2/env/bin/python",
+          "/data/h2/repo/benchmarks/harness/h2_ce_confirmation.py",
+          "--contract",
+          "/data/h2/evidence/h2close_U/contract.json",
+          "--child",
+          "--phase",
+          "ce_only_training",
+          "--out",
+          "/data/h2/evidence/h2close_U/ce_only_training/runner"
+        ],
+        "performance_verdict": "NO_VERDICT",
+        "provider_stop_performed": false,
+        "group_cleanup_confirmed": true,
+        "leader_pid": 5233,
+        "process_group": 5233,
+        "new_session_verified": true,
+        "child_status": {
+          "returncode": 0,
+          "child_pid": 5234
+        },
+        "term_sent_to_owned_group": true,
+        "kill_sent_to_owned_group": true,
+        "leader_reaped_after_cleanup": true,
+        "log_pipes_reached_eof": true,
+        "retained_log_bytes": {
+          "stdout": 1209,
+          "stderr": 3483
+        },
+        "discarded_log_bytes": {
+          "stdout": 0,
+          "stderr": 0
+        },
+        "elapsed_seconds": 59.22293309122324
+      }
+    },
+    "performance_verdict": "NO_VERDICT",
+    "external_controls_required": true,
+    "provider_stop_performed": false,
+    "arms": {
+      "A": "UPDATES_PASS",
+      "L": "UPDATES_PASS"
+    }
+  },
+  "stage_u": {
+    "A": "UPDATES_PASS",
+    "L": "UPDATES_PASS"
+  },
+  "stage_u_details": {
+    "A": {
+      "outcome": "UPDATES_PASS",
+      "optimizer_updates": 4,
+      "microbatches": 16,
+      "num_items_in_batch": [
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24
+      ],
+      "losses": [
+        3.980772018432617,
+        3.961416244506836,
+        3.953123092651367,
+        3.962439775466919,
+        3.1967265605926514,
+        3.2379000186920166,
+        3.233607292175293,
+        3.226161241531372,
+        2.3408870697021484,
+        2.3347561359405518,
+        2.4498777389526367,
+        2.4716272354125977,
+        2.037785768508911,
+        2.007220983505249,
+        2.059065103530884,
+        2.0552752017974854
+      ],
+      "kernels": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 12557,
+        "family_events": {
+          "rope": 0,
+          "rms_norm": 0,
+          "swiglu": 0,
+          "cross_entropy": 0
+        },
+        "scope": "Family attribution, not numerical parity"
+      },
+      "patch_calls": {
+        "class": 0,
+        "instance": 0
+      }
+    },
+    "L": {
+      "outcome": "UPDATES_PASS",
+      "optimizer_updates": 4,
+      "microbatches": 16,
+      "num_items_in_batch": [
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24
+      ],
+      "losses": [
+        3.980772018432617,
+        3.961416244506836,
+        3.953123092651367,
+        3.962439775466919,
+        3.2013051509857178,
+        3.2391130924224854,
+        3.2306811809539795,
+        3.2308311462402344,
+        2.345095634460449,
+        2.3401405811309814,
+        2.4598214626312256,
+        2.4799416065216064,
+        2.0350770950317383,
+        2.0114495754241943,
+        2.0415890216827393,
+        2.043489694595337
+      ],
+      "kernels": {
+        "status": "PASS_DECLARED_KERNEL_FAMILIES",
+        "kernel_events": 12552,
+        "family_events": {
+          "rope": 0,
+          "rms_norm": 0,
+          "swiglu": 0,
+          "cross_entropy": 2
+        },
+        "scope": "Family attribution, not numerical parity"
+      },
+      "patch_calls": {
+        "class": 1,
+        "instance": 1
+      }
+    }
+  },
+  "stage_u_pair_measurements": {
+    "loss_difference_l_minus_a": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.004578590393066406,
+      0.00121307373046875,
+      -0.0029261112213134766,
+      0.004669904708862305,
+      0.004208564758300781,
+      0.0053844451904296875,
+      0.009943723678588867,
+      0.008314371109008789,
+      -0.0027086734771728516,
+      0.0042285919189453125,
+      -0.01747608184814453,
+      -0.011785507202148438
+    ],
+    "max_abs_loss_difference": 0.01747608184814453,
+    "adapter_delta_relative_l2": {
+      "max": 0.5509187534134417,
+      "median": 0.09313266430422298
+    },
+    "adapter_delta_cosine_min": 0.851496772365243,
+    "identical_final_adapters": false,
+    "gated": false
+  },
+  "stage_u_matches_box": true,
+  "stage_s": {
+    "outcome": "FAILED_SEE_ERROR (S1 decides UNSLOTH_INCOMPATIBLE)",
+    "error": "ValueError: Unsloth: Untrained tokens in rows [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95]] found.\nThe token ids are [[128009, 128006, 128007]] and tokens are [<|eot_id|><|start_header_id|><|end_header_id|>].\nThe issue is the embed_tokens & lm_head not trainable, which will cause NaNs. Restart then add `embed_tokens` & `lm_head` to `FastLanguageModel.get_peft_model(target_modules = [..., \"embed_tokens\", \"lm_head\",]). `Are you using the `base` model? Instead, use the `instruct` version to silence this warning.",
+    "traceback": "Traceback (most recent call last):\n  File \"/data/h2/repo/benchmarks/harness/h2_perf_abba.py\", line 281, in child\n    report = run_arm(\n             ^^^^^^^^\n  File \"/data/h2/repo/benchmarks/harness/h2_perf_abba.py\", line 242, in run_arm\n    report = run_bench_train(\n             ^^^^^^^^^^^^^^^^\n  File \"/data/h2/repo/src/soup_cli/bench/train_run.py\", line 219, in run_bench_train\n    wrapper.setup(load_dataset(cfg))\n  File \"/data/h2/repo/src/soup_cli/trainer/sft.py\", line 1245, in setup\n    self.trainer = self._build_rewind_trainer(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/data/h2/repo/src/soup_cli/trainer/sft.py\", line 701, in _build_rewind_trainer\n    trainer = make_rewind_trainer_class(base_cls)(**trainer_kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/data/h2/env/lib/python3.11/site-packages/unsloth/context_parallel.py\", line 625, in patched_init\n    original_init(self, *args, **kwargs)\n  File \"/data/h2/env/lib/python3.11/site-packages/unsloth/trainer.py\", line 1793, in new_init\n    original_init(self, *args, **kwargs)\n  File \"/data/h2/env/lib/python3.11/site-packages/unsloth/trainer.py\", line 1977, in new_init\n    original_init(self, *args, **kwargs)\n  File \"/data/h2/evidence/h2close_S/unsloth_compiled_cache/UnslothSFTTrainer.py\", line 2114, in __init__\n    fix_untrained_tokens(model, tokenizer, train_dataset, IGNORED_TOKENIZER_NAMES, eps = 1e-16)\n  File \"/data/h2/env/lib/python3.11/site-packages/unsloth_zoo/tokenizer_utils.py\", line 53, in wrapper\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/data/h2/env/lib/python3.11/site-packages/unsloth_zoo/tokenizer_utils.py\", line 690, in fix_untrained_tokens\n    raise ValueError(\nValueError: Unsloth: Untrained tokens in rows [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95]] found.\nThe token ids are [[128009, 128006, 128007]] and tokens are [<|eot_id|><|start_header_id|><|end_header_id|>].\nThe issue is the embed_tokens & lm_head not trainable, which will cause NaNs. Restart then add `embed_tokens` & `lm_head` to `FastLanguageModel.get_peft_model(target_modules = [..., \"embed_tokens\", \"lm_head\",]). `Are you using the `base` model? Instead, use the `instruct` version to silence this warning.\n"
+  },
+  "stage_p_admitted": "A,L",
+  "performance_verdict": "stage P pair labels only"
+}
