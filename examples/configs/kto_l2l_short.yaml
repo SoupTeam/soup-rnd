@@ -1,0 +1,52 @@
+# KTO on L2L: a short run on synthetic unpaired rows
+#
+# Each streamed decoder layer loads once per optimizer step and runs all
+# gradient_accumulation_steps micro-batches (training.l2l). KTO reads rows without pairs
+# (prompt, completion, label) and needs four forwards per micro-batch: the policy and the
+# reference (the same model with its LoRA adapters off) over the completions, and over the
+# "KL completions" (the answers shifted by one inside each micro-batch, for the KL estimate).
+# All four go through the SAME loaded layer, three of them without grad and without writing
+# to the activation store, so they add no layer load and no second read of the weights.
+# The LoRA gradients equal gradient accumulation at the same k.
+#
+# The rows in examples/data/kto_synthetic.jsonl are SYNTHETIC: written by hand to show the
+# format and to exercise the run. They teach a model nothing useful.
+#
+# Constraints of training.l2l with task kto: no neftune_alpha, one process, no
+# dataset_num_proc above 1 (the KL completions are built inside blocks of batch_size rows,
+# and each micro-batch has to be one block). batch_size must be at least 2: with 1 the KL
+# term equals the reward. TRL zeroes LoRA dropout for KTO, so lora.dropout makes no difference
+# here. L2L supports Llama and Mistral architectures on one GPU.
+# Check layer loads in the training log: l2l_layer_loads stays flat in k, while plain
+# streaming loads k times more.
+#
+# Usage:
+#   soup train --config examples/configs/kto_l2l_short.yaml
+
+base: HuggingFaceTB/SmolLM2-135M-Instruct
+task: kto
+
+data:
+  train: examples/data/kto_synthetic.jsonl
+  format: kto
+  max_length: 256
+
+training:
+  epochs: 1
+  lr: 1e-5
+  kto_beta: 0.1
+  quantization: none
+  batch_size: 2
+  gradient_accumulation_steps: 3   # k: micro-batches per optimizer step
+  stream_layers: true
+  l2l: true
+  warmup_ratio: 0.1
+  logging_steps: 1
+  save_steps: 100
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0
+    target_modules: auto
+
+output: ./output_kto_l2l_short/

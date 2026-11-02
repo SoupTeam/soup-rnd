@@ -24,13 +24,25 @@ from __future__ import annotations
 import functools
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from soup_cli.utils.l2l_step import (
     SUPPORTED_ARCHS,
     LoadCounters,
     LossHead,
     ReferencePass,
+    as_passes,
     sft_head,
 )
 
@@ -214,10 +226,13 @@ class WindowLoss:
     read_window: Callable[..., Tuple[List[Any], Any]]
     #: ``(extras, divisor) -> LossHead``; the head returns the loss already scaled.
     make_head: Callable[[Any, int], LossHead]
-    #: ``extras -> ReferencePass`` for a loss that needs a reference model (DPO); ``None``
-    #: for a loss that does not. The policy head reads the pass's ``outputs`` after the step
-    #: filled them, so both come from the same ``extras``.
-    make_reference: Optional[Callable[[Any], ReferencePass]] = None
+    #: ``extras -> ReferencePass`` or a sequence of them, for a loss that needs gradient-free
+    #: passes: a reference model (DPO, KTO) or an estimate from the policy itself (KTO's KL);
+    #: ``None`` for a loss that does not. The policy head reads the passes' ``outputs`` after
+    #: the step filled them, so both come from the same ``extras``.
+    make_reference: Optional[
+        Callable[[Any], Union[ReferencePass, Sequence[ReferencePass]]]
+    ] = None
 
     def divisor(self, k: int, num_items: Optional[int]) -> int:
         """The number the window's loss is divided by. The one place the scale rule lives."""
@@ -276,9 +291,9 @@ def _timed_capture(state: L2LState) -> Iterator[None]:
     state.capture_loads += counters.layer_loads
 
 
-def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any, List[Any]]:
-    """The window's L2L step and one captured ``LayerCall`` per micro-batch."""
-    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+def _calls_for(state: L2LState, model: Any, ids_list: Sequence[Any]) -> List[Any]:
+    """One captured ``LayerCall`` per micro-batch, from the shapes the run has seen."""
+    from soup_cli.utils.l2l_step import capture_layer_call
 
     if state.has_dropout is None:
         state.has_dropout = _has_dropout(model)
@@ -294,6 +309,14 @@ def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any
                 call = capture_layer_call(model, ids, draws=state.has_dropout)
             state.calls_by_shape[shape] = call
         calls.append(call)
+    return calls
+
+
+def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any, List[Any]]:
+    """The window's L2L step and one captured ``LayerCall`` per micro-batch."""
+    from soup_cli.utils.l2l_step import L2LStep
+
+    calls = _calls_for(state, model, ids_list)
     if state.stepper is None:
         state.stepper = L2LStep(model, state.runtime, calls[0])
     return state.stepper, calls
@@ -404,6 +427,10 @@ def run_window(
     store = _store_for(state, stepper, ids_list, device)
     head = strategy.make_head(label_list, divisor)
     reference = None if strategy.make_reference is None else strategy.make_reference(label_list)
+    for extra in as_passes(reference):
+        # A pass over ids of its own (KTO's KL completions) takes calls of its own shapes.
+        if extra.micro_batches is not None and extra.calls is None:
+            extra.calls = _calls_for(state, model, extra.micro_batches)
     losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
     return losses, stepper.counters
 

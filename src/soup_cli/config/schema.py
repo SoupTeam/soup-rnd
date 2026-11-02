@@ -51,7 +51,7 @@ _MAX_LORA_PATTERN_KEY_SHOWN = 80
 
 # Tasks that training.l2l accepts. A task joins the tuple when its L2L window loss
 # (trainer/l2l_trainer.py WindowLoss) ships; the refusal below reads the tuple.
-L2L_SUPPORTED_TASKS = ("sft", "orpo", "simpo", "dpo")
+L2L_SUPPORTED_TASKS = ("sft", "orpo", "simpo", "dpo", "kto")
 
 # v0.71.23 #266 — Spectrum targeted-training unfrozen-parameter caps
 _MAX_UNFROZEN_PARAMETERS = 50_000
@@ -6387,6 +6387,19 @@ class SoupConfig(BaseModel):
                 "order the layer-major walk does not reproduce."
             )
 
+    @staticmethod
+    def _refuse_kto_l2l_unsupported(tcfg: Any) -> None:
+        """training.l2l with task='kto' reproduces TRL's plain KTO against the policy with its
+        adapters off. Refuse what draws random numbers in the extra forwards, which the
+        layer-major walk cannot replay. lora.dropout is not refused: TRL's KTOTrainer zeroes
+        every nn.Dropout when it is built (``disable_dropout=True``)."""
+        if tcfg.neftune_alpha is not None:
+            raise ValueError(
+                "training.l2l with task='kto' does not support training.neftune_alpha: the "
+                "KL and reference forwards draw NEFTune noise between the policy forwards, "
+                "an order the layer-major walk does not reproduce."
+            )
+
     @model_validator(mode="after")
     def _validate_stream_layers_compat(self) -> "SoupConfig":
         """v0.72.0 BETA — layer-streaming compatibility gates.
@@ -6412,6 +6425,8 @@ class SoupConfig(BaseModel):
                 )
             if self.task == "dpo":
                 self._refuse_dpo_l2l_unsupported(tcfg)
+            if self.task == "kto":
+                self._refuse_kto_l2l_unsupported(tcfg)
         if not tcfg.stream_layers:
             # Footgun: a non-default stream_* while streaming is off almost
             # certainly means the user forgot stream_layers=true.
