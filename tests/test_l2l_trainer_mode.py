@@ -136,7 +136,9 @@ class _Rows:
         return self.rows[i]
 
 
-def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, **targs):
+def _train(
+    base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, batch_size=1, **targs
+):
     import torch
     from transformers import TrainerCallback, TrainingArguments
 
@@ -150,7 +152,7 @@ def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, 
 
     args = TrainingArguments(
         output_dir=str(tmp_path / ("l2l" if l2l else "ga")),
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=k,
         learning_rate=0.5,
         optim="sgd",
@@ -579,3 +581,44 @@ def test_sft_wrapper_refuses_an_unsupported_model_at_launch(tmp_path, monkeypatc
     monkeypatch.setattr(l2l_trainer, "refuse_unsupported_l2l", refuse)
     with pytest.raises(ValueError, match="qwen2"):
         _wrapper(tmp_path, monkeypatch)
+
+
+def test_activation_budget_sums_the_real_chunk_sizes():
+    from soup_cli.trainer.l2l_trainer import check_activation_budget
+
+    # k=4 with one long row (900 B) and three short ones (10 B): 2 layers x 930 B = 1860 B.
+    # Charging 4 x the longest would be 7200 B and refuse a window that fits in 2000 B.
+    kw = dict(n_layers=2, k=4, chunk_bytes=900, pinned=False)
+    check_activation_budget(free_ram=3000, mb_bytes=[900, 10, 10, 10], **kw)
+    with pytest.raises(ValueError, match="activation"):
+        check_activation_budget(free_ram=3000, **kw)
+    with pytest.raises(ValueError, match="activation"):
+        check_activation_budget(free_ram=2500, mb_bytes=[900, 10, 10, 10], **kw)
+
+
+def test_the_store_for_a_window_of_very_different_lengths_is_sized_per_micro_batch():
+    import types
+
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+
+    class _Stepper:
+        layers = [None, None]
+        causal = types.SimpleNamespace(config=types.SimpleNamespace(hidden_size=4))
+
+    state = L2LState(runtime=None, dtype=torch.float32)
+    window = [torch.zeros((1, n), dtype=torch.long) for n in (2, 64, 3)]
+    store = _store_for(state, _Stepper(), window, "cpu")
+    assert [chunk.numel() for chunk in (store._resident[(0, mb)] for mb in range(3))] == [
+        8, 256, 12,
+    ]
+    assert store.stats.resident_chunks == 2 * 3
+    # a later window that fits reuses it; a longer row at one position grows only that chunk
+    assert _store_for(state, _Stepper(), window[:2], "cpu") is store
+    longer = [torch.zeros((1, n), dtype=torch.long) for n in (2, 64, 10)]
+    grown = _store_for(state, _Stepper(), longer, "cpu")
+    assert [chunk.numel() for chunk in (grown._resident[(0, mb)] for mb in range(3))] == [
+        8, 256, 40,
+    ]
+    state.close()

@@ -37,10 +37,22 @@ def _plan_dict(budget, k=4):
     # All-pinned holds every chunk (32 layers x k x 4 MiB = 512 MiB at k = 4); a spill arm
     # holds its resident chunks plus two rings of 4 x (chunk + 4096) rounded to 8 MiB.
     held = (N_LAYERS - spill) * k * CHUNK + (2 * 4 * (8 << 20) if spill else 0)
+    cap = max(held, 256 << 20) if budget != "1" else 512 << 20
+    requested = (N_LAYERS - spill) * k * CHUNK + (8 * (CHUNK + 4096) if spill else 0)
+    allocations = []
+    if spill < N_LAYERS:
+        allocations.append({"kind": "resident_chunk", "request_bytes": CHUNK,
+                            "count": (N_LAYERS - spill) * k, "host_bytes_each": CHUNK})
+    if spill:
+        allocations.append({"kind": "ring_buffer", "request_bytes": CHUNK + 4096,
+                            "count": 8, "host_bytes_each": 8 << 20})
     return {"n_layers": N_LAYERS, "k": k, "chunk_bytes": CHUNK, "ring": 4, "pin": True,
-            "budget_bytes": max(held, 256 << 20) if budget != "1" else 512 << 20,
-            "spill_layers": spill, "spill_file_bytes": spill * k * CHUNK, "host_bytes": held,
-            "pinned_floor_bytes": 0}
+            "budget_bytes": cap, "spill_layers": spill, "resident_layers": N_LAYERS - spill,
+            "spill_file_bytes": spill * k * CHUNK, "host_bytes": held,
+            "pinned_floor_bytes": 0, "requested_bytes": requested,
+            "all_pinned_bytes": N_LAYERS * k * CHUNK, "minimum_bytes": 64 << 20,
+            "unused_bytes": cap - held, "granularity_waste_bytes": 0,
+            "allocations": allocations}
 
 
 def _correctness(k, *, budget_ok=True, control_differs=True, reproducible=True,
@@ -63,8 +75,10 @@ def _cleanup(ok=True, message="SPILL_ENOSPC: ... the plan spills 32 layers x k=4
              ("enospc_injected_mid_step", "SpillDiskFullError")]
     return {"meta": {}, "records": [{"kind": "cleanup", "scenarios": [
         {"scenario": name, "expected": exp, "raised": exp, "ok": ok,
+         "file_exists_after": not ok, "leftover_spill_files": [], "spill_threads_after": [],
          "allocator_baseline_bytes": allocator, "allocator_after_bytes": allocator,
-         "message": message if name.startswith("enospc") else "x"} for name, exp in names]}]}
+         "message": message if name.startswith("enospc") else "x"} for name, exp in names],
+        "ok": ok}]}
 
 
 def _arm(comparison, block, position, budget, value, *, tier="ram", weight=None,
@@ -164,6 +178,109 @@ def test_unreproducible_ga_uses_the_deterministic_rerun(rule, tmp_path):
     out = rule.evaluate(path)
     assert out["gates"]["G1"]["status"] == "pass"
     assert out["gates"]["G1"]["parts"][1]["deterministic"] is True
+
+
+@pytest.mark.parametrize("k", (2, 3, 4))
+@pytest.mark.parametrize("spec", ("0.5", "0.25", "min"))
+@pytest.mark.parametrize("omission", ("budget", "refused", "plan", "plan_field", "comparison",
+                                     "forward", "backward", "gradient_field", "skipped"))
+def test_g1_requires_every_registered_budget_and_complete_evidence(rule, tmp_path, k, spec,
+                                                                 omission):
+    payload = _correctness(k)
+    budgets = payload["records"][0]["budgets"]
+    entry = budgets[spec]
+    if omission == "budget":
+        del budgets[spec]
+    elif omission == "refused":
+        budgets[spec] = {"refused": "BUDGET_BELOW_MINIMUM: reviewer corruption",
+                         "code": "BUDGET_BELOW_MINIMUM"}
+    elif omission == "plan":
+        del entry["plan"]
+    elif omission == "plan_field":
+        del entry["plan"]["host_bytes"]
+    elif omission == "comparison":
+        del entry["vs_ga"]
+    elif omission == "forward":
+        del entry["vs_pinned"]["forward_equal"]
+    elif omission == "backward":
+        del entry["vs_ga"]["backward"]
+    elif omission == "gradient_field":
+        del entry["vs_ga"]["backward"]["all_zero"]
+    else:
+        entry["skipped"] = "not run"
+    out = rule.evaluate(_session(tmp_path, g1={k: payload}))
+    assert out["gates"]["G1"]["status"] == "no verdict"
+    assert out["verdict"] == "NO VERDICT"
+
+
+def test_g1_does_not_accept_only_the_minimum_budget(rule, tmp_path):
+    payload = _correctness(4)
+    budgets = payload["records"][0]["budgets"]
+    del budgets["0.5"], budgets["0.25"]
+    assert rule.evaluate(_session(tmp_path, g1={4: payload}))["gates"]["G1"]["status"] == (
+        "no verdict")
+
+
+@pytest.mark.parametrize("rerun", (False, True))
+def test_g1_checks_all_budgets_in_the_selected_run_only(rule, tmp_path, rerun):
+    default = _correctness(3, reproducible=not rerun)
+    deterministic = _correctness(3, deterministic=True)
+    selected = deterministic if rerun else default
+    del selected["records"][0]["budgets"]["0.25"]
+    path = _session(tmp_path, g1={3: default})
+    (tmp_path / "correctness_k3_det.json").write_text(json.dumps(deterministic))
+    assert rule.evaluate(path)["gates"]["G1"]["status"] == "no verdict"
+
+
+def test_g1_uses_complete_deterministic_evidence_without_combining_the_default(rule, tmp_path):
+    default = _correctness(3, reproducible=False)
+    default["records"][0]["budgets"] = {"min": {"refused": "not run"}}
+    path = _session(tmp_path, g1={3: default})
+    (tmp_path / "correctness_k3_det.json").write_text(
+        json.dumps(_correctness(3, deterministic=True)))
+    assert rule.evaluate(path)["gates"]["G1"]["status"] == "pass"
+
+
+@pytest.mark.parametrize("field", ("tensors", "unequal", "max_abs", "worst", "all_zero", "equal"))
+def test_g1_requires_the_complete_gradient_comparison(rule, tmp_path, field):
+    payload = _correctness(4)
+    del payload["records"][0]["budgets"]["min"]["vs_pinned"]["backward"][field]
+    assert rule.evaluate(_session(tmp_path, g1={4: payload}))["gates"]["G1"]["status"] == (
+        "no verdict")
+
+
+def test_g1_without_any_spilling_budget_is_no_verdict(rule, tmp_path):
+    payload = _correctness(4)
+    for entry in payload["records"][0]["budgets"].values():
+        entry["plan"] = _plan_dict("1")
+    assert rule.evaluate(_session(tmp_path, g1={4: payload}))["gates"]["G1"]["status"] == (
+        "no verdict")
+
+
+@pytest.mark.parametrize("ref", ("vs_pinned", "vs_ga"))
+@pytest.mark.parametrize("direction", ("forward", "backward", "all_zero"))
+def test_g1_fails_observed_mismatches_even_when_another_budget_is_missing(
+        rule, tmp_path, ref, direction):
+    payload = _correctness(2)
+    budgets = payload["records"][0]["budgets"]
+    del budgets["0.5"]
+    budgets["min"][ref] = _pair(forward=direction != "forward",
+                                backward=direction != "backward",
+                                zero=("x",) if direction == "all_zero" else ())
+    assert rule.evaluate(_session(tmp_path, g1={2: payload}))["gates"]["G1"]["status"] == "fail"
+
+
+@pytest.mark.parametrize("field", ("ga_vs_ga", "pinned_vs_pinned", "pinned_vs_ga", "control"))
+def test_g1_missing_reference_or_control_evidence_is_no_verdict(rule, tmp_path, field):
+    payload = _correctness(4)
+    del payload["records"][0][field]
+    assert rule.evaluate(_session(tmp_path, g1={4: payload}))["gates"]["G1"]["status"] == (
+        "no verdict")
+
+
+def test_g1_cannot_use_a_different_k_as_evidence(rule, tmp_path):
+    assert rule.evaluate(_session(tmp_path, g1={2: _correctness(4)}))["gates"]["G1"]["status"] == (
+        "no verdict")
 
 
 def test_cost_over_ten_percent_fails_g4_but_spill_stays_safe(rule, tmp_path):
@@ -345,6 +462,165 @@ def test_cleanup_without_allocator_counters_is_no_verdict(rule, tmp_path):
     assert "not measured" in out["gates"]["G3"]["detail"]
 
 
+@pytest.mark.parametrize("scenario", (0, 1, 2))
+@pytest.mark.parametrize("change", (
+    {"file_exists_after": True},
+    {"leftover_spill_files": ["a4-spill-left.bin"]},
+    {"spill_threads_after": ["l2l-spill-writer"]},
+    {"raised": "ValueError"},
+    {"raised": None},
+    {"expected": "ValueError", "raised": "ValueError"},
+    {"allocator_after_bytes": (1 << 30) + 1},
+    {"allocator_after_bytes": (1 << 30) - 1},
+))
+def test_g3_derives_failures_from_raw_fields_despite_stale_ok(rule, tmp_path, scenario, change):
+    payload = _cleanup()
+    payload["records"][0]["scenarios"][scenario].update(change)
+    out = rule.evaluate(_session(tmp_path, cleanup=payload))
+    assert out["gates"]["G3"]["status"] == "fail"
+    assert out["verdict"].startswith("SPILL NOT SAFE")
+
+
+@pytest.mark.parametrize("field", ("raised", "expected", "file_exists_after",
+                                   "leftover_spill_files", "spill_threads_after",
+                                   "allocator_baseline_bytes", "allocator_after_bytes"))
+def test_g3_missing_raw_evidence_is_no_verdict_despite_ok(rule, tmp_path, field):
+    payload = _cleanup()
+    del payload["records"][0]["scenarios"][0][field]
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+@pytest.mark.parametrize("field", ("allocator_baseline_bytes", "allocator_after_bytes"))
+@pytest.mark.parametrize("value", (float("nan"), float("inf"), -1, True, "1073741824"))
+def test_g3_invalid_allocator_counters_cannot_pass(rule, tmp_path, field, value):
+    payload = _cleanup()
+    payload["records"][0]["scenarios"][0][field] = value
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+def test_g3_equal_but_negative_allocator_counters_cannot_pass(rule, tmp_path):
+    assert rule.evaluate(_session(tmp_path, cleanup=_cleanup(allocator=-1)))["gates"]["G3"][
+        "status"] == "no verdict"
+
+
+def test_g3_accepts_zero_allocator_baseline(rule, tmp_path):
+    assert rule.evaluate(_session(tmp_path, cleanup=_cleanup(allocator=0)))["gates"]["G3"][
+        "status"] == "pass"
+
+
+@pytest.mark.parametrize("level", ("scenario", "record"))
+def test_g3_rejects_false_ok_that_contradicts_complete_safe_raw_fields(rule, tmp_path, level):
+    payload = _cleanup()
+    record = payload["records"][0]
+    target = record["scenarios"][0] if level == "scenario" else record
+    target["ok"] = False
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == "fail"
+
+
+def test_g3_does_not_require_summary_ok_when_raw_evidence_is_complete(rule, tmp_path):
+    payload = _cleanup()
+    record = payload["records"][0]
+    del record["ok"]
+    for scenario in record["scenarios"]:
+        del scenario["ok"]
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == "pass"
+
+
+def test_g3_missing_counter_is_not_a_failure_even_with_false_ok(rule, tmp_path):
+    payload = _cleanup()
+    scenario = payload["records"][0]["scenarios"][0]
+    scenario.update(allocator_after_bytes=None, ok=False)
+    payload["records"][0]["ok"] = False
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+@pytest.mark.parametrize("missing", ("scenario", "counter", "cleanup_record"))
+def test_g3_observed_failure_beats_missing_evidence(rule, tmp_path, missing):
+    payload = _cleanup()
+    record = payload["records"][0]
+    if missing == "scenario":
+        record["scenarios"].pop()
+    elif missing == "counter":
+        del record["scenarios"][0]["allocator_after_bytes"]
+    else:
+        payload["records"] = []
+    path = _session(tmp_path, cleanup=payload)
+    _edit_arm(path, "ram_k2_half", "b00_p1_B.json",
+              lambda row: row.update(spill_file_exists_after=True))
+    assert rule.evaluate(path)["gates"]["G3"]["status"] == "fail"
+
+
+@pytest.mark.parametrize("field", ("spill_file_exists_after", "leftover_spill_files"))
+def test_g3_requires_timed_arm_file_cleanup_evidence(rule, tmp_path, field):
+    path = _session(tmp_path)
+    _edit_arm(path, "ram_k2_half", "b00_p1_B.json", lambda row: row.pop(field))
+    assert rule.evaluate(path)["gates"]["G3"]["status"] == "no verdict"
+
+
+def test_g3_checks_optional_real_enospc_with_the_same_raw_rules(rule, tmp_path):
+    payload = _cleanup()
+    scenarios = payload["records"][0]["scenarios"]
+    scenarios.append({**scenarios[2], "scenario": "enospc_real",
+                      "spill_threads_after": ["l2l-spill-writer"]})
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == "fail"
+
+
+def test_g3_missing_enospc_message_is_no_verdict(rule, tmp_path):
+    payload = _cleanup()
+    del payload["records"][0]["scenarios"][2]["message"]
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+def test_g3_duplicate_scenarios_do_not_supply_complete_evidence(rule, tmp_path):
+    payload = _cleanup()
+    scenarios = payload["records"][0]["scenarios"]
+    scenarios.append(dict(scenarios[0]))
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+@pytest.mark.parametrize("field", ("file_exists_after", "leftover_spill_files",
+                                   "spill_threads_after"))
+def test_g3_null_cleanup_observations_are_not_evidence(rule, tmp_path, field):
+    payload = _cleanup()
+    payload["records"][0]["scenarios"][0][field] = None
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+def test_g3_scenario_failure_beats_another_missing_scenario(rule, tmp_path):
+    payload = _cleanup()
+    scenarios = payload["records"][0]["scenarios"]
+    scenarios.pop()
+    scenarios[0]["allocator_after_bytes"] += 1
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == "fail"
+
+
+def test_g3_a_skipped_cleanup_scenario_is_no_verdict(rule, tmp_path):
+    payload = _cleanup()
+    payload["records"][0]["scenarios"][0]["skipped"] = "not run"
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+def test_g3_no_scenario_is_not_a_raw_failure_despite_false_summary(rule, tmp_path):
+    payload = _cleanup()
+    payload["records"][0].update(scenarios=[], ok=False)
+    assert rule.evaluate(_session(tmp_path, cleanup=payload))["gates"]["G3"]["status"] == (
+        "no verdict")
+
+
+def test_g3_checks_timed_arm_leftovers_even_without_cleanup_record(rule, tmp_path):
+    path = _session(tmp_path, cleanup={"records": []})
+    _edit_arm(path, "ram_k2_half", "b00_p1_B.json",
+              lambda row: row.update(leftover_spill_files=["a4-spill-left.bin"]))
+    assert rule.evaluate(path)["gates"]["G3"]["status"] == "fail"
+
+
 @pytest.mark.parametrize("disks,why", [
     (("nvme0n1", "nvme1n1"), "nvme0n1 and nvme1n1"),
     ((None, "nvme0n1"), "physical disk unknown"),
@@ -389,3 +665,22 @@ def test_the_cli_writes_the_verdict(rule, tmp_path, capsys):
     saved = json.loads((tmp_path / "verdict.json").read_text())
     assert saved["summary"]["G4"] == "pass"
     assert "G1 pass" in capsys.readouterr().out
+
+
+def test_published_v3_replays_with_unchanged_gates_and_verdict(rule):
+    root = (Path(__file__).resolve().parents[1] / "benchmarks" / "results"
+            / "a4-v3-rtx3090-20261026")
+    published = json.loads((root / "verdict.json").read_text(encoding="utf-8"))
+    replay = rule.evaluate(str(root))
+    assert replay["gates"] == published["gates"]
+    assert replay["verdict"] == published["verdict"]
+    assert replay["summary"] == published["summary"]
+
+
+def test_published_v1_current_rule_illustration_keeps_its_safety_gates(rule):
+    root = (Path(__file__).resolve().parents[1] / "benchmarks" / "results"
+            / "a4-rtx3090-20261025")
+    replay = rule.evaluate(str(root))
+    assert {name: gate["status"] for name, gate in replay["gates"].items()} == {
+        "G1": "pass", "G2": "pass", "G3": "pass", "G4": "no verdict", "G5": "no verdict"}
+    assert replay["verdict"] == "SPILL SAFE, COST NO VERDICT"

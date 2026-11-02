@@ -1,0 +1,23 @@
+base: /private/tmp/claude-501/-Users-Asus-Documents-soup-rnd/0d21fa46-7da4-4636-8979-38558ad14e6d/scratchpad/stand/model
+task: sft
+backend: transformers
+data: {train: /private/tmp/claude-501/-Users-Asus-Documents-soup-rnd/0d21fa46-7da4-4636-8979-38558ad14e6d/scratchpad/stand/data.jsonl, format: alpaca, max_length: 64, val_split: 0.0, chat_template: chatml}
+training:
+  epochs: 1
+  lr: 2e-2
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  quantization: none
+  scheduler: linear
+  warmup_ratio: 0.1
+  weight_decay: 0.0
+  logging_steps: 1
+  seed: 42
+  data_seed: 42
+  rewind_log: false
+  save_steps: 1000
+  stream_layers: true
+  stream_source: ram
+  l2l: true
+  lora: {r: 4, alpha: 8, dropout: 0, target_modules: [q_proj, k_proj, v_proj, o_proj]}
+output: /private/tmp/claude-501/-Users-Asus-Documents-soup-rnd/0d21fa46-7da4-4636-8979-38558ad14e6d/scratchpad/stand/out_true/

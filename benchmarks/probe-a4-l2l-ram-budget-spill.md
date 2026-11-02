@@ -683,3 +683,17 @@ What this does and does not show:
   POSIX as soon as it is open, so on Linux those should leave no named file; on Windows a
   file can be left behind and has to be removed by hand.
 - v1 (`SPILL NOT SAFE` on rule v1's G2) stays v1's verdict; v3 does not re-judge it.
+
+### PR review: offline evidence validation
+
+The offline analyzer requires the complete registered correctness coverage for G1:
+budgets `0.5`, `0.25` and `min` at each of k = 2, 3 and 4, from the selected run.
+Missing or skipped budget evidence cannot establish a pass.
+
+For G3, a saved `ok` flag is not sufficient. Replay checks the observed exception,
+remaining files and threads and finite allocator counters.
+Contradictory cleanup observations cannot establish a pass.
+
+These are evidence-validation fixes, not changes to the decision thresholds. The
+published GPU inputs and historical verdict files remain unchanged. The regression
+tests cover truncated correctness coverage and stale cleanup summaries.

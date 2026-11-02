@@ -129,46 +129,97 @@ def _combine(parts: Sequence[Dict[str, Any]]) -> str:
 # ---------------------------------------------------------------------------
 # G1: bit-exactness
 # ---------------------------------------------------------------------------
-def _exact(pair: Dict[str, Any]) -> bool:
-    return bool(pair["backward"]["equal"] and pair["forward_equal"]
-                and not pair["backward"]["all_zero"])
+def _comparison_complete(pair: Any) -> bool:
+    """The forward flag and the full gradient comparison emitted by the probe."""
+    if not isinstance(pair, dict) or type(pair.get("forward_equal")) is not bool:
+        return False
+    backward = pair.get("backward")
+    return (isinstance(backward, dict) and type(backward.get("equal")) is bool
+            and type(backward.get("tensors")) is int and backward["tensors"] > 0
+            and all(isinstance(backward.get(key), list)
+                    for key in ("unequal", "worst", "all_zero"))
+            and type(backward.get("max_abs")) in (int, float))
+
+
+def _exact(pair: Any) -> bool:
+    return (_comparison_complete(pair) and pair["backward"]["equal"]
+            and pair["forward_equal"] and not pair["backward"]["all_zero"]
+            and not pair["backward"]["unequal"])
+
+
+def _comparison_problems(pair: Any, label: str) -> List[Tuple[str, str]]:
+    """Keep observed mismatches even when other comparison fields are missing."""
+    why = []
+    if not _comparison_complete(pair):
+        why.append((NONE, f"{label}: incomplete comparison"))
+    if isinstance(pair, dict):
+        if pair.get("forward_equal") is False:
+            why.append((FAIL, f"{label}: forward (losses) differ"))
+        backward = pair.get("backward")
+        if isinstance(backward, dict) and (backward.get("equal") is False
+                                         or backward.get("all_zero") or backward.get("unequal")):
+            why.append((FAIL, f"{label}: backward (grads) differ, max_abs "
+                             f"{backward.get('max_abs')}"))
+    return why
 
 
 def _g1_k(default: Optional[Dict[str, Any]], det: Optional[Dict[str, Any]], k: int
           ) -> Dict[str, Any]:
     chosen = _rows(default, "correctness")
     row = chosen[0] if chosen else None
-    reproducible = row is not None and _exact(row["ga_vs_ga"]) and _exact(row["pinned_vs_pinned"])
+    reproducible = (row is not None and _exact(row.get("ga_vs_ga"))
+                    and _exact(row.get("pinned_vs_pinned")))
     if not reproducible:
         det_rows = _rows(det, "correctness")
         row = det_rows[0] if det_rows else None
         if row is None:
             return _gate(NONE, f"k={k}: references not reproducible and no deterministic rerun")
-        if not (_exact(row["ga_vs_ga"]) and _exact(row["pinned_vs_pinned"])):
+        if not (_exact(row.get("ga_vs_ga")) and _exact(row.get("pinned_vs_pinned"))):
             return _gate(NONE, f"k={k}: references not reproducible even with --deterministic")
+    if row.get("k") != k:
+        return _gate(NONE, f"k={k}: correctness record is for k={row.get('k')}")
     control = row.get("control") or {}
-    if "vs_pinned" not in control:
+    if not _comparison_complete(control.get("vs_pinned")) or control.get("skipped"):
         return _gate(NONE, f"k={k}: no expected-to-differ control ({control.get('skipped')})")
     if control["vs_pinned"]["backward"]["equal"]:
         return _gate(NONE, f"k={k}: the corrupted-read control did not differ; the "
                      f"comparison cannot fail, so it proves nothing")
-    if not _exact(row["pinned_vs_ga"]):
+    why = _comparison_problems(row.get("pinned_vs_ga"), "all-pinned L2L vs GA")
+    if any(status == FAIL for status, _ in why):
         return _gate(FAIL, f"k={k}: all-pinned L2L differs from GA")
-    planned = {spec: entry for spec, entry in row["budgets"].items() if "plan" in entry}
-    if not any(entry["plan"]["spill_layers"] for entry in planned.values()):
-        return _gate(NONE, f"k={k}: no budget spilled anything")
-    bad = []
-    for spec, entry in sorted(planned.items()):
+    # Refused or omitted budgets are not evidence. In particular, a lone 'min' run
+    # cannot stand in for the registered 0.5 and 0.25 runs, even if it spills more.
+    entries = row.get("budgets") or {}
+    plan_fields = {
+        "n_layers", "k", "chunk_bytes", "pinned_floor_bytes", "ring", "pin", "budget_bytes",
+        "spill_layers", "resident_layers", "host_bytes", "requested_bytes", "all_pinned_bytes",
+        "minimum_bytes", "spill_file_bytes", "unused_bytes", "granularity_waste_bytes",
+        "allocations",
+    }
+    planned = {}
+    for spec in sorted(budget.ARM_BUDGETS[1:]):
+        entry = entries.get(spec)
+        if not isinstance(entry, dict) or entry.get("skipped") or entry.get("refused"):
+            why.append((NONE, f"budget {spec}: missing, skipped or refused"))
+            continue
+        plan = entry.get("plan")
+        if (not isinstance(plan, dict) or not plan_fields <= plan.keys()
+                or any(plan[field] is None for field in plan_fields) or plan["k"] != k
+                or type(plan["spill_layers"]) is not int or plan["spill_layers"] < 0):
+            why.append((NONE, f"budget {spec}: incomplete plan for k={k}"))
+        else:
+            planned[spec] = entry
         for ref in ("vs_pinned", "vs_ga"):
-            pair = entry[ref]
-            if not pair["forward_equal"]:
-                bad.append(f"budget {spec} {ref}: forward (losses) differ")
-            if not pair["backward"]["equal"] or pair["backward"]["all_zero"]:
-                bad.append(f"budget {spec} {ref}: backward (grads) differ, max_abs "
-                           f"{pair['backward']['max_abs']}")
+            why.extend(_comparison_problems(entry.get(ref), f"budget {spec} {ref}"))
+    bad = [text for status, text in why if status == FAIL]
     if bad:
         return _gate(FAIL, f"k={k}: " + "; ".join(bad))
-    spilled = {spec: entry["plan"]["spill_layers"] for spec, entry in planned.items()}
+    missing = [text for status, text in why if status == NONE]
+    if missing:
+        return _gate(NONE, f"k={k}: " + "; ".join(missing))
+    if not any(entry["plan"]["spill_layers"] for entry in planned.values()):
+        return _gate(NONE, f"k={k}: no budget spilled anything")
+    spilled = {spec: planned[spec]["plan"]["spill_layers"] for spec in budget.ARM_BUDGETS[1:]}
     return _gate(PASS, f"k={k}: forward and backward exact at spill layers {spilled}; "
                  f"control differs", deterministic=bool(row.get("deterministic")))
 
@@ -463,34 +514,107 @@ def gate_g2(arms: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
                  **extra)
 
 
+def _cleanup_problems(scenario: Dict[str, Any], expected: str) -> List[Tuple[str, str]]:
+    """Recompute the producer's cleanup checks instead of trusting its cached ``ok``."""
+    why = []
+    if scenario.get("skipped"):
+        why.append((NONE, "scenario skipped"))
+    for field in ("expected", "raised"):
+        if field not in scenario:
+            why.append((NONE, f"{field} error not recorded"))
+        elif scenario[field] != expected:
+            why.append((FAIL, f"{field} {scenario[field]!r}, required {expected}"))
+    exists = scenario.get("file_exists_after")
+    if type(exists) is not bool:
+        why.append((NONE, "file_exists_after not recorded"))
+    elif exists:
+        why.append((FAIL, "spill file remains"))
+    for field in ("leftover_spill_files", "spill_threads_after"):
+        remaining = scenario.get(field)
+        if not isinstance(remaining, list):
+            why.append((NONE, f"{field} not recorded"))
+        elif remaining:
+            why.append((FAIL, f"{field}: {remaining}"))
+    counters = [scenario.get(field) for field in ("allocator_baseline_bytes",
+                                                 "allocator_after_bytes")]
+    if any(type(value) not in (int, float) or value < 0
+           or (isinstance(value, float) and not math.isfinite(value)) for value in counters):
+        why.append((NONE, "return of page-locked memory not measured with finite nonnegative "
+                          "CUDA host allocator counters"))
+    elif counters[0] != counters[1]:
+        why.append((FAIL, f"host allocator did not return to baseline: {counters[1]} B "
+                          f"after vs {counters[0]} B before"))
+    if expected == "SpillDiskFullError":
+        message = scenario.get("message")
+        if not isinstance(message, str):
+            why.append((NONE, "ENOSPC message not recorded"))
+        elif not message.startswith("SPILL_ENOSPC") or "layers x k=" not in message:
+            why.append((FAIL, "ENOSPC without arithmetic"))
+    # A negative summary with complete, safe raw evidence is contradictory. Missing
+    # counters alone are not an observed leak, even if the producer marked ok=False.
+    if not why and "ok" in scenario and scenario["ok"] is not True:
+        why.append((FAIL, "ok contradicts the complete raw cleanup evidence"))
+    return why
+
+
 def gate_g3(root: Path, arms: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+    why = []
+    for group in arms.values():
+        for row in group:
+            if row.get("skipped"):
+                continue
+            for field in ("spill_file_exists_after", "leftover_spill_files"):
+                value = row.get(field)
+                valid = type(value) is bool if field == "spill_file_exists_after" else (
+                    isinstance(value, list))
+                if not valid:
+                    why.append((NONE, f"{row['_file']}: {field} not recorded"))
+                elif value:
+                    why.append((FAIL, f"{row['_file']}: left a spill file ({field})"))
     rows = _rows(_load(root / "cleanup.json"), "cleanup")
     if not rows:
-        return _gate(NONE, "no cleanup record")
-    record = rows[0]
-    bad = [s["scenario"] for s in record["scenarios"] if not s["ok"]]
-    names = {s["scenario"] for s in record["scenarios"]}
-    missing = {"ctrl_c_mid_backward", "exception_mid_forward",
-               "enospc_injected_mid_step"} - names
-    enospc = [s for s in record["scenarios"] if s["scenario"].startswith("enospc")]
-    unnamed = [s["scenario"] for s in enospc
-               if not (s["message"] or "").startswith("SPILL_ENOSPC")
-               or "layers x k=" not in (s["message"] or "")]
-    leaked = [row["_file"] for group in arms.values() for row in group
-              if not row.get("skipped")
-              and (row.get("spill_file_exists_after") or row.get("leftover_spill_files"))]
+        why.append((NONE, "no cleanup record"))
+    expected_errors = {"ctrl_c_mid_backward": "KeyboardInterrupt",
+                       "exception_mid_forward": "RuntimeError",
+                       "enospc_injected_mid_step": "SpillDiskFullError",
+                       "enospc_real": "SpillDiskFullError"}
+    names = set()
+    for record in rows:
+        scenarios = record.get("scenarios")
+        if not isinstance(scenarios, list):
+            why.append((NONE, "cleanup scenarios not recorded"))
+            continue
+        record_problems = []
+        for scenario in scenarios:
+            if not isinstance(scenario, dict):
+                why.append((NONE, "cleanup scenario not recorded"))
+                continue
+            name = scenario.get("scenario")
+            if name not in expected_errors:
+                why.append((NONE, f"unknown cleanup scenario {name!r}"))
+                continue
+            if name in names:
+                why.append((NONE, f"duplicate cleanup scenario {name}"))
+            names.add(name)
+            record_problems.extend((status, f"{name}: {text}")
+                                   for status, text in _cleanup_problems(
+                                       scenario, expected_errors[name]))
+        required = set(expected_errors) - {"enospc_real"}
+        recorded = {scenario.get("scenario") for scenario in scenarios
+                    if isinstance(scenario, dict)}
+        if (not record_problems and required <= recorded and "ok" in record
+                and record["ok"] is not True):
+            record_problems.append((FAIL, "cleanup ok contradicts the complete raw cleanup "
+                                         "evidence"))
+        why.extend(record_problems)
+    missing = set(expected_errors) - {"enospc_real"} - names
     if missing:
-        return _gate(NONE, f"scenarios not run: {sorted(missing)}")
-    if bad or unnamed or leaked:
-        return _gate(FAIL, f"failed {bad}; ENOSPC without arithmetic {unnamed}; arms that "
-                     f"left a spill file {leaked}")
-    unmeasured = [s["scenario"] for s in record["scenarios"]
-                  if s.get("allocator_baseline_bytes") is None
-                  or s.get("allocator_after_bytes") is None]
-    if unmeasured:
-        return _gate(NONE, f"{sorted(names)}: named, no file, no thread; the return of "
-                     f"page-locked memory was not measured on {unmeasured} (no CUDA host "
-                     f"allocator counters)")
+        why.append((NONE, f"scenarios not run: {sorted(missing)}"))
+    failures = [text for status, text in why if status == FAIL]
+    if failures:
+        return _gate(FAIL, "; ".join(failures))
+    if why:
+        return _gate(NONE, "; ".join(text for _, text in why))
     return _gate(PASS, f"{sorted(names)}: named, no file, no thread, pinned memory returned")
 
 

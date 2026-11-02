@@ -427,17 +427,26 @@ def test_no_store_buffer_is_reachable_when_the_pinned_cache_is_released(bud, spi
 
 def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spill, tmp_path,
                                                                        monkeypatch):
-    """Production-harness finding 3, injected deterministically: ActivationStore.__init__
-    pins the resident chunks, opens the spill file (l2l_activations.py:318), then pins the
-    rings (:320-321). The second ring buffer fails, as #901's page-lock refusal would.
-    The wrapper must remove the open file, start no thread, and leave neither the
-    resident chunks nor the first ring buffer reachable when it releases the cache."""
+    """The second ring buffer fails after the resident chunks and spill file are ready.
+    Keep the real file handles so open-before-failure and closed-after-cleanup are
+    observable on every platform, even where the open spill file has been unlinked.
+    The wrapper must leave neither the resident chunks nor the first ring buffer
+    reachable when it releases the cache, and must leave no file or thread behind."""
     acts = _shipped_acts()
     real_buffer, real_store = acts.aligned_buffer, acts.ActivationStore
-    made, seen_files, instances = [], [], []
+    made, opened, handles, instances = [], [], [], []
+
+    def record_open(kind, path, size):
+        backend = spill.open_spill(kind, path, size)
+        opened.append(backend)
+        handles.extend((backend._writer, backend._reader))
+        return backend
 
     def second_fails(nbytes, *, pin):
-        seen_files.extend(_open_spill_handles(spill, tmp_path / "spill") or [])
+        assert len(opened) == 1, "the spill file was not open yet when the ring was pinned"
+        for handle in handles:
+            assert not handle.closed
+            assert os.fstat(handle.fileno()).st_size == plan.spill_file_bytes
         if made:
             raise RuntimeError("CUDA error: out of memory (injected page-lock failure)")
         made.append(real_buffer(nbytes, pin=pin))
@@ -463,9 +472,10 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     plan = _plan(bud, 28672)  # 2 layers spilled, 1 resident layer of 3 chunks
     assert plan.spill_layers == 2
     with pytest.raises(RuntimeError, match="injected page-lock failure"):
-        _store(spill, plan, tmp_path, release=watch_then_release)
-    assert seen_files, "the spill file was not open yet when the ring was pinned"
-    assert not _open_spill_handles(spill, tmp_path / "spill")
+        _store(spill, plan, tmp_path, release=watch_then_release, opener=record_open)
+    assert len(opened) == 1
+    assert all(handle.closed for handle in handles)
+    _released(spill, opened[0].path)
     assert probe.calls == 1 and probe.alive == [0]
     assert _no_spill_threads()
 

@@ -1,0 +1,22 @@
+Loading config from ga.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 3090                                             │
+│ Memory:  23.6 GB                                                             │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 64 train samples
+Run ID: run_20261026_234314_81433803
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 6,815,744 parameters; weights=27262976, 
+gradients=27262976, optimizer=54525952 CUDA bytes; CPU tensors=1024 bytes. 
+Excludes base buffers, activations and optimizer temporaries.
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files:  56%|█████▌    | 5/9 [00:00<00:00,  8.23it/s]Fetching 9 files:  67%|██████▋   | 6/9 [00:00<00:00,  5.78it/s]
