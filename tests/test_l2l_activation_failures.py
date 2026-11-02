@@ -133,6 +133,47 @@ def test_noncuda_spilled_get_completes_before_read_ring_is_reused(tmp_path, monk
         store.close()
 
 
+def test_variable_capacity_resident_allocation_failure_releases_partial_store(
+    tmp_path, monkeypatch
+):
+    import torch
+
+    original_empty = torch.empty
+    stores = []
+    buffers = []
+    attempts = 0
+
+    def empty(*args, **kwargs):
+        nonlocal attempts
+        if "pin_memory" in kwargs:
+            attempts += 1
+            if attempts == 3:
+                raise MemoryError("injected resident allocation failure")
+            buf = original_empty(*args, **kwargs)
+            buffers.append((weakref.ref(buf), buf.numel()))
+            return buf
+        return original_empty(*args, **kwargs)
+
+    class CapturedStore(acts.ActivationStore):
+        def __new__(cls, **kwargs):
+            store = super().__new__(cls)
+            stores.append(store)
+            return store
+
+    path = tmp_path / "partial-resident.bin"
+    monkeypatch.setattr(torch, "empty", empty)
+    with pytest.raises(MemoryError, match="injected resident allocation failure"):
+        CapturedStore(
+            n_layers=3, k=2, chunk_shape=(1, 8, 512),
+            mb_shapes=[(1, 3, 512), (1, 8, 512)], dtype=torch.float32, device="cpu", pin=False,
+            spill_layers=1, spill_factory=lambda size: acts.BufferedSpillFile(str(path), size),
+        )
+    assert [size for _, size in buffers] == [1536, 4096]
+    assert all(ref() is None for ref, _ in buffers)
+    assert stores and all(not store._resident for store in stores)
+    assert not path.exists()
+
+
 @pytest.mark.parametrize("fail_at", [1, 2], ids=["writer", "reader"])
 @pytest.mark.parametrize("after_start", [False, True], ids=["before-start", "after-start"])
 @pytest.mark.parametrize("failure", [RuntimeError, KeyboardInterrupt])

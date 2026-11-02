@@ -11,16 +11,15 @@ logging, checkpoints, resume) and changes two calls:
   zero and compute nothing, so HF's accumulation of the returned losses and its one
   optimizer step per window stay as they are.
 
-The L2L step takes one shape for all k micro-batches. A window with rows of different
-lengths is right-padded to the longest one (rounded up to ``SHAPE_ROUND`` tokens) with
-labels ``-100``: the causal mask keeps real tokens from seeing the padding and the loss
-ignores it, so the result equals gradient accumulation.
+Each micro-batch runs at its own length, as in gradient accumulation: nothing is padded.
+The layer arguments (position ids, mask) are captured once per distinct shape and each
+micro-batch gets the call of its shape. The activation store sizes every micro-batch's
+chunks to that micro-batch, so a short row does not pay for the longest row of its window.
 
-The activation store is built once, for the largest window the run can produce
-(``per_device_train_batch_size`` rows of ``max_seq`` tokens, ``gradient_accumulation_steps``
-micro-batches), and serves every smaller window. When it does not fit the host-RAM budget,
-the lowest layers spill to one file (``soup_cli.utils.l2l_spill``); ``train`` removes it on
-every exit it sees and sweeps files of dead runs at start.
+Each micro-batch position keeps its largest capacity seen so far. A larger window grows
+the store after releasing its old allocations. When the store does not fit the host-RAM
+budget, the lowest layers spill to one file (``soup_cli.utils.l2l_spill``); ``train`` removes
+it on every exit it sees and sweeps files of dead runs at start.
 
 torch is imported inside functions.
 """
@@ -30,18 +29,16 @@ from __future__ import annotations
 import functools
 import logging
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters
 
 logger = logging.getLogger(__name__)
 
-#: Windows with mixed lengths pad to a multiple of this, so a run sees few distinct
-#: shapes. Each new shape costs one forward to capture the layer arguments.
-SHAPE_ROUND = 64
-
-#: Captured layer arguments kept per shape; the cache restarts when a run exceeds it.
+#: Captured layer arguments kept per shape; the cache restarts when a run exceeds it. A new
+#: shape costs one forward to capture them.
 MAX_CACHED_SHAPES = 64
 
 
@@ -79,24 +76,28 @@ class L2LState:
     has_dropout: Optional[bool] = None
     totals: LoadCounters = field(default_factory=LoadCounters)
     store: Any = None
-    steps_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
+    stepper: Any = None
+    calls_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
+    #: Capture forwards run, the layer loads they cost and their wall time (running totals).
+    captures: int = 0
+    capture_loads: int = 0
+    capture_seconds: float = 0.0
     #: ``training.l2l_spill_dir``; None means ``<output_dir>/_l2l_spill``.
     spill_dir: Optional[str] = None
     #: Directories the weights stream from (layer cache and stripe folders).
     weight_dirs: Tuple[str, ...] = ()
     output_dir: Optional[str] = None
-    #: The largest window: rows, sequence length (None: unknown) and micro-batches.
-    max_rows: int = 0
-    max_seq: Optional[int] = None
-    max_k: int = 0
     #: The plan of the current store (kept after it is closed); None before the first step.
     spill_plan: Optional[Dict[str, Any]] = None
     #: Files of dead runs the last ``train`` removed from the spill directory.
     stale_removed: List[str] = field(default_factory=list)
 
-    def log_fields(self) -> Dict[str, int]:
+    def log_fields(self) -> Dict[str, Any]:
         return {
             "l2l_steps": self.steps,
+            "l2l_captures": self.captures,
+            "l2l_capture_layer_loads": self.capture_loads,
+            "l2l_capture_seconds": self.capture_seconds,
             "l2l_layer_loads": self.totals.layer_loads,
             "l2l_large_loads": self.totals.large_loads,
             "l2l_weight_restores": self.totals.restores,
@@ -120,16 +121,14 @@ class L2LState:
 def _window_tensors(
     window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
 ) -> Tuple[List[Any], List[Any]]:
-    """Input ids and labels of each micro-batch, right-padded to one common shape.
+    """Input ids and labels of each micro-batch, each at its own shape.
 
-    With NEFTune on, a window that needs padding is refused: the noise scales with
-    ``1 / sqrt(seq * hidden)`` and is drawn per element, so padding the ids before
-    the embedding changes both its size and the RNG sequence of gradient accumulation.
-    Dropout is refused the same way: padding changes the shape of the layer input, so the
-    replay of ``l2l_rng`` would no longer consume the stream the unpadded rows consume.
+    A window whose micro-batches differ in shape is refused with NEFTune or dropout on.
+    Dropout: ``l2l_rng.replay`` builds the generator states from one draw plan shared by
+    all micro-batches, and rows of different lengths draw different masks. NEFTune: the
+    noise scales with ``1 / sqrt(seq * hidden)`` and the combination has not been checked
+    against gradient accumulation on rows of different lengths.
     """
-    import torch
-
     ids_list, label_list = [], []
     for inputs in window:
         ids = inputs["input_ids"].to(device)
@@ -146,30 +145,23 @@ def _window_tensors(
         ids_list.append(ids)
         label_list.append(labels)
     shapes = {tuple(ids.shape) for ids in ids_list}
-    if len(shapes) == 1:
-        return ids_list, label_list
-    if neftune:
+    mixed = len(shapes) > 1
+    if mixed and neftune:
         raise ValueError(
             "training.l2l with training.neftune_alpha needs every micro-batch of a window "
-            f"to have one shape, but this window has {sorted(shapes)}: padding them would "
-            "change the NEFTune noise. Use rows of one length, or turn neftune_alpha off."
+            f"to have one shape, but this window has {sorted(shapes)}: the L2L step has "
+            "not been checked against gradient accumulation for NEFTune noise on rows of "
+            "different lengths. Use rows of one length, or turn neftune_alpha off."
         )
-    if has_dropout:
+    if mixed and has_dropout:
         raise ValueError(
             "training.l2l with dropout (training.lora.dropout or attention_dropout above 0) "
             f"needs every micro-batch of a window to have one shape, but this window has "
-            f"{sorted(shapes)}: padding them would change the dropout masks. Use rows of "
+            f"{sorted(shapes)}: rows of different lengths draw different dropout masks, and "
+            "the replay of l2l_rng uses one draw plan for all micro-batches. Use rows of "
             "one length, or set the dropout to 0."
         )
-    rows = max(ids.shape[0] for ids in ids_list)
-    longest = max(ids.shape[1] for ids in ids_list)
-    seq = -(-longest // SHAPE_ROUND) * SHAPE_ROUND
-    padded_ids, padded_labels = [], []
-    for ids, labels in zip(ids_list, label_list):
-        pad = (0, seq - ids.shape[1], 0, rows - ids.shape[0])
-        padded_ids.append(torch.nn.functional.pad(ids, pad, value=0))
-        padded_labels.append(torch.nn.functional.pad(labels, pad, value=-100))
-    return padded_ids, padded_labels
+    return ids_list, label_list
 
 
 def _has_dropout(model: Any) -> bool:
@@ -187,56 +179,52 @@ def _has_dropout(model: Any) -> bool:
     )
 
 
-def longest_row(dataset: Any) -> Optional[int]:
-    """The longest ``input_ids`` row of a map-style HF ``datasets.Dataset``, or None.
+@contextmanager
+def _timed_capture(state: L2LState) -> Iterator[None]:
+    """Add one capture, its layer loads and its wall time to the state's totals."""
+    import time
 
-    Read from the Arrow table under the dataset (no Python lists), so after a ``select`` or
-    ``shuffle`` it is still an upper bound. None for an iterable or streaming dataset, one
-    without an ``input_ids`` column, or anything that cannot be read that way.
-    """
-    try:
-        import pyarrow.compute as pc
-        from datasets import Dataset
+    import torch
 
-        if not isinstance(dataset, Dataset) or "input_ids" not in dataset.column_names:
-            return None
-        longest = pc.max(pc.list_value_length(dataset.data.column("input_ids"))).as_py()
-    except Exception:  # noqa: BLE001 - an unknown length falls back to data.max_length
-        logger.debug("could not read the longest input_ids row", exc_info=True)
-        return None
-    return int(longest) if longest else None
+    from soup_cli.utils.l2l_step import count_loads
+
+    def sync() -> None:
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+    sync()
+    start = time.perf_counter()
+    with count_loads(state.runtime) as counters:
+        try:
+            yield
+        finally:
+            sync()
+            state.captures += 1
+            state.capture_seconds += time.perf_counter() - start
+    state.capture_loads += counters.layer_loads
 
 
-def _l2l_step_for(
-    state: L2LState, model: Any, shape: Tuple[int, int], ids: Any
-) -> Any:
+def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any, List[Any]]:
+    """The window's L2L step and one captured ``LayerCall`` per micro-batch."""
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
 
-    stepper = state.steps_by_shape.get(shape)
-    if stepper is None:
-        if len(state.steps_by_shape) >= MAX_CACHED_SHAPES:
-            state.steps_by_shape.clear()
-        stepper = L2LStep(model, state.runtime, capture_layer_call(model, ids))
-        state.steps_by_shape[shape] = stepper
-    return stepper
-
-
-def _capacity(state: L2LState, shape: Tuple[int, int], k: int) -> Tuple[int, int, int]:
-    """``(rows, seq, k)`` of the store for the largest window this run can produce.
-
-    A mixed-length window pads to a multiple of ``SHAPE_ROUND``, so a known ``max_seq`` is
-    rounded up to it. Without ``max_seq`` the store is sized to the largest shape seen so
-    far, and only a window larger than that rebuilds it.
-    """
-    rows = max(int(shape[0]), int(state.max_rows or 0))
-    seq = int(shape[1])
-    if state.max_seq:
-        seq = max(seq, -(-int(state.max_seq) // SHAPE_ROUND) * SHAPE_ROUND)
-    k = max(int(k), int(state.max_k or 0))
-    store = state.store
-    if store is not None:
-        rows, seq, k = max(rows, store.shape[0]), max(seq, store.shape[1]), max(k, store.k)
-    return rows, seq, k
+    if state.has_dropout is None:
+        state.has_dropout = _has_dropout(model)
+    calls = []
+    for ids in ids_list:
+        shape = (int(ids.shape[0]), int(ids.shape[1]))
+        call = state.calls_by_shape.get(shape)
+        if call is None:
+            if len(state.calls_by_shape) >= MAX_CACHED_SHAPES:
+                state.calls_by_shape.clear()
+            # Only a model with dropout needs the full forward, to record the draws.
+            with _timed_capture(state):
+                call = capture_layer_call(model, ids, draws=state.has_dropout)
+            state.calls_by_shape[shape] = call
+        calls.append(call)
+    if state.stepper is None:
+        state.stepper = L2LStep(model, state.runtime, calls[0])
+    return state.stepper, calls
 
 
 def _spill_line(plan: Dict[str, Any], budget: Any) -> str:
@@ -250,12 +238,16 @@ def _spill_line(plan: Dict[str, Any], budget: Any) -> str:
     )
 
 
-def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, device: Any) -> Any:
-    """The activation store, built once for the largest window and reused for smaller ones.
+def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) -> Any:
+    """The activation store for the window, grown only when a micro-batch does not fit.
 
-    The plan keeps as many layers resident as the RAM budget holds and spills the rest;
-    it is decided, and the spill directory checked, before anything is allocated.
+    Micro-batch ``i`` of every window uses chunk ``i``, so the store keeps the largest
+    size each position has needed. The plan sums those allocations for resident layers;
+    spill slots and staging buffers hold the largest chunk. Replanning and directory
+    validation happen after the old store is released and before the new allocation.
     """
+    import math
+
     import torch
 
     from soup_cli.utils import l2l_spill
@@ -263,9 +255,13 @@ def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, de
 
     hidden = int(stepper.causal.config.hidden_size)
     store = state.store
-    if store is not None and shape[0] * shape[1] * hidden <= store.capacity and k <= store.k:
+    need = [int(ids.shape[0]) * int(ids.shape[1]) * hidden for ids in ids_list]
+    have = [math.prod(shape) for shape in store.mb_shapes] if store is not None else []
+    if store is not None and len(need) <= len(have) and all(
+        n <= h for n, h in zip(need, have)
+    ):
         return store
-    rows, seq, k_cap = _capacity(state, shape, k)
+    caps = [max(n, h) for n, h in zip(need, have)] + need[len(have):] + have[len(need):]
     pin = str(device).startswith("cuda")
     rebuilding_cuda = store is not None and pin
     state.close()
@@ -293,8 +289,9 @@ def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, de
     plan = l2l_spill.plan_spill(
         budget.budget_bytes,
         n_layers=n_layers,
-        k=k_cap,
-        chunk_bytes=rows * seq * hidden * itemsize,
+        k=len(caps),
+        chunk_bytes=max(caps) * itemsize,
+        mb_bytes=[cap * itemsize for cap in caps],
         ring=l2l_spill.TRAINER_RING,
         pin=pin,
         budget_source=budget.describe(),
@@ -323,8 +320,9 @@ def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, de
         factory = functools.partial(l2l_spill.open_spill_file, record["spill_path"])
     state.store = ActivationStore(
         n_layers=n_layers,
-        k=k_cap,
-        chunk_shape=(rows, seq, hidden),
+        k=len(caps),
+        chunk_shape=(max(caps),),
+        mb_shapes=[(cap,) for cap in caps],
         dtype=state.dtype,
         device=device,
         pin=pin,
@@ -336,6 +334,21 @@ def _store_for(state: L2LState, stepper: Any, shape: Tuple[int, int], k: int, de
     if plan.spill_layers:
         l2l_spill.say(_spill_line(record, budget))
     return state.store
+
+
+def run_window(
+    state: L2LState,
+    model: Any,
+    ids_list: List[Any],
+    label_list: List[Any],
+    n_items: int,
+    device: Any,
+) -> Tuple[List[Any], Any]:
+    """One L2L step over the window; returns the losses and the step's load counters."""
+    stepper, calls = _l2l_step_for(state, model, ids_list)
+    store = _store_for(state, stepper, ids_list, device)
+    losses = stepper.run(ids_list, store, n_items=n_items, labels=label_list, calls=calls)
+    return losses, stepper.counters
 
 
 @functools.lru_cache(maxsize=None)
@@ -410,20 +423,14 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                 neftune=bool(self.args.neftune_noise_alpha),
                 has_dropout=state.has_dropout,
             )
-            shape = tuple(int(dim) for dim in ids_list[0].shape)
             # The step bypasses the wrapped forward, where the Trainer applies its mixed
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
-                stepper = _l2l_step_for(state, model, shape, ids_list[0])
-                store = _store_for(state, stepper, shape, len(window), device)
-                losses = stepper.run(
-                    ids_list,
-                    store,
-                    n_items=int(num_items_in_batch),
-                    labels=label_list,
+                losses, counters = run_window(
+                    state, model, ids_list, label_list, int(num_items_in_batch), device
                 )
             state.steps += 1
-            state.totals.add(stepper.counters)
+            state.totals.add(counters)
             return torch.stack(losses).sum().to(self.args.device)
 
         def log(self, logs, *args, **kwargs):  # type: ignore[override]
@@ -442,27 +449,19 @@ def attach_l2l_state(
     dtype: Any,
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
-    max_seq: Optional[int] = None,
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
-    ``spill_dir`` is ``training.l2l_spill_dir`` (None: ``<output_dir>/_l2l_spill``),
-    ``weight_dirs`` the directories the weights stream from on the disk tier, and
-    ``max_seq`` the longest row (``data.max_length``; None: the trainer's ``max_length``
-    if it has one, else the longest window seen so far).
+    ``spill_dir`` is ``training.l2l_spill_dir`` (None: ``<output_dir>/_l2l_spill``), and
+    ``weight_dirs`` lists the directories the weights stream from on the disk tier.
     """
     args = getattr(trainer, "args", None)
-    if max_seq is None:
-        max_seq = getattr(args, "max_length", None)
     state = L2LState(
         runtime=runtime,
         dtype=dtype,
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
         output_dir=getattr(args, "output_dir", None),
-        max_rows=int(getattr(args, "per_device_train_batch_size", 0) or 0),
-        max_seq=int(max_seq) if max_seq else None,
-        max_k=int(getattr(args, "gradient_accumulation_steps", 0) or 0),
     )
     trainer._soup_l2l = state
     return state

@@ -198,6 +198,99 @@ def test_a_smaller_tensor_lives_in_the_front_of_a_larger_slot(direct_dir):
         store.close()
 
 
+def test_per_microbatch_slots_keep_each_layers_shape_and_spill_only_its_bytes(tmp_path):
+    import torch
+
+    from soup_cli.utils.l2l_activations import ActivationStore, BufferedSpillFile
+
+    path = tmp_path / "mixed-shapes.bin"
+    store = ActivationStore(
+        n_layers=4, k=2, chunk_shape=(1, 8, 512),
+        mb_shapes=[(1, 3, 512), (1, 8, 512)], dtype=torch.float32, device="cpu", pin=False,
+        spill_layers=2, spill_factory=lambda size: BufferedSpillFile(str(path), size), ring=1,
+    )
+    try:
+        assert path.stat().st_size == 65_536
+        windows = [
+            ((1, 7), (3, 4), (2, 8), (3, 1)),
+            ((3, 2), (2, 8), (1, 6), (2, 5)),
+        ]
+        for step, lengths in enumerate(windows):
+            sent = {
+                (layer, mb): torch.full((1, seq, 512), float(step * 10 + layer * 2 + mb))
+                for layer, rows in enumerate(lengths)
+                for mb, seq in enumerate(rows)
+            }
+            for (layer, mb), tensor in sent.items():
+                store.put(layer, mb, tensor)
+            store.begin_backward()
+            for layer in range(3, -1, -1):
+                for mb in range(2):
+                    got = store.get(layer, mb)
+                    expected = sent[(layer, mb)]
+                    assert got.shape == expected.shape
+                    assert torch.equal(got, expected)
+                    got.zero_()
+                    if layer >= 2:
+                        assert torch.equal(store.get(layer, mb), expected)
+            store.end_step()
+            assert store.stats.bytes_written == store.stats.bytes_read == (36_864, 69_632)[step]
+    finally:
+        store.close()
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("layer", [0, 1], ids=["spilled", "resident"])
+def test_put_refuses_a_microbatch_over_its_own_capacity_without_replacing_it(tmp_path, layer):
+    import torch
+
+    from soup_cli.utils.l2l_activations import ActivationStore, BufferedSpillFile
+
+    store = ActivationStore(
+        n_layers=2, k=2, chunk_shape=(1, 8, 512),
+        mb_shapes=[(1, 3, 512), (1, 8, 512)], dtype=torch.float32, device="cpu", pin=False,
+        spill_layers=1,
+        spill_factory=lambda size: BufferedSpillFile(str(tmp_path / "bounded.bin"), size),
+    )
+    expected = torch.full((1, 3, 512), 17.0)
+    largest = torch.full((1, 8, 512), 29.0)
+    try:
+        store.put(layer, 0, expected)
+        store.put(layer, 1, largest)
+        with pytest.raises(ValueError, match="micro-batch 0"):
+            store.put(layer, 0, torch.zeros((1, 4, 512)))
+        store.begin_backward()
+        for mb, tensor in enumerate((expected, largest)):
+            got = store.get(layer, mb)
+            assert got.shape == tensor.shape
+            assert torch.equal(got, tensor)
+        store.end_step()
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize(
+    "mb_shapes, message",
+    [
+        ([(1, 3, 512)], "mb_shapes for k=2"),
+        ([(1, 3, 512), (1, 9, 512)], "larger than chunk_shape"),
+    ],
+)
+def test_microbatch_capacities_must_match_k_and_fit_the_spill_slot(tmp_path, mb_shapes, message):
+    import torch
+
+    from soup_cli.utils.l2l_activations import ActivationStore, BufferedSpillFile
+
+    path = tmp_path / "invalid-shapes.bin"
+    with pytest.raises(ValueError, match=message):
+        ActivationStore(
+            n_layers=2, k=2, chunk_shape=(1, 8, 512), mb_shapes=mb_shapes,
+            dtype=torch.float32, device="cpu", pin=False, spill_layers=1,
+            spill_factory=lambda size: BufferedSpillFile(str(path), size),
+        )
+    assert not path.exists()
+
+
 def test_a_short_window_reads_only_what_it_put(tmp_path):
     import torch
 

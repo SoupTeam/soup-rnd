@@ -52,7 +52,9 @@ def _train(base_cls, model, runtime, tmp_path, data, *, l2l, k, resume=None, **o
             rates.append(optimizer.param_groups[0]["lr"])
             store = holder["state"].store if l2l else None
             if store is not None:
-                stores.append((id(store), store.k, store.stats.resident_chunks))
+                stores.append(
+                    (id(store), store.k, store.stats.resident_chunks, tuple(store.mb_shapes))
+                )
 
     options = dict(
         output_dir=str(tmp_path / ("l2l" if l2l else "ga")),
@@ -151,7 +153,7 @@ def test_the_store_survives_short_windows_without_growing(streamed, tmp_path):  
     # windows 3, 3, 1, 3, 3, 1: the same full-size store serves all six steps
     assert len(l2l.stores) == 6
     assert len(set(l2l.stores)) == 1
-    _, k, resident = l2l.stores[0]
+    _, k, resident, _ = l2l.stores[0]
     assert k == 3
     assert resident == 3 * k  # three layers x k chunks, nothing accumulated
     assert l2l.state.window is None
@@ -159,26 +161,29 @@ def test_the_store_survives_short_windows_without_growing(streamed, tmp_path):  
     assert l2l.state.store is None
 
 
-def test_a_short_window_first_does_not_rebuild_the_store(streamed, tmp_path, monkeypatch):  # noqa: F811
+def test_a_short_window_before_a_full_one_replaces_the_store(streamed, tmp_path, monkeypatch):  # noqa: F811
     import torch
 
     from soup_cli.trainer.l2l_trainer import L2LState, _l2l_step_for, _store_for
 
     model, runtime = streamed
-    # what attach_l2l_state reads from the trainer: one row, k = 3
-    state = L2LState(runtime=runtime, dtype=torch.float32, max_rows=1, max_k=3)
+    state = L2LState(runtime=runtime, dtype=torch.float32)
     ids = torch.zeros((1, SEQ), dtype=torch.long)
-    shape = (1, SEQ)
-    stepper = _l2l_step_for(state, model, shape, ids)
+    stepper, _ = _l2l_step_for(state, model, [ids])
 
-    first = _store_for(state, stepper, shape, 1, "cpu")
-    assert first.k == 3  # sized for the full window although the first one is short
+    small = _store_for(state, stepper, [ids], "cpu")
     closed = []
-    monkeypatch.setattr(first, "close", lambda *a, **kw: closed.append(first))
-    assert _store_for(state, stepper, shape, 3, "cpu") is first
-    assert _store_for(state, stepper, shape, 1, "cpu") is first
-    assert closed == []  # never rebuilt, never released mid-run
-    monkeypatch.undo()
+    real_close = small.close
+
+    def close(*args, **kwargs):
+        closed.append(small)
+        real_close(*args, **kwargs)
+
+    monkeypatch.setattr(small, "close", close)
+    full = _store_for(state, stepper, [ids] * 3, "cpu")
+    assert full is not small and full.k == 3
+    assert closed == [small]  # the short-window store is released, not leaked
+    assert _store_for(state, stepper, [ids], "cpu") is full  # a later short window reuses it
     state.close()
 
 
@@ -222,3 +227,27 @@ def test_resume_does_not_shift_the_windows(streamed, tmp_path, monkeypatch):  # 
         assert [row["learning_rate"] for row in resumed.logs[-left:]] == [
             row["learning_rate"] for row in full.logs[-left:]
         ]
+
+
+@pytest.mark.parametrize("k,windows", [(1, 7), (2, 4), (4, 2)])
+def test_rows_of_different_lengths_match_accumulation_bit_for_bit(
+    streamed, tmp_path, k, windows  # noqa: F811
+):
+    from transformers import Trainer
+
+    harness = _load("l2l_schedule")
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    start = harness.snapshot_adapters(model)
+    # 7 rows, so the last window is incomplete for k=2 and k=4
+    lengths = [5, 8, 3, 6, 4, 7, 2]
+    data = _MaskedRows(lengths, [[(0, i % 3)] if i % 3 else [] for i in range(7)])
+    ga = _train(Trainer, model, runtime, tmp_path, data, l2l=False, k=k)
+    harness.restore_adapters(model, start)
+    l2l = _train(Trainer, model, runtime, tmp_path, data, l2l=True, k=k)
+    _assert_same_run(ga, l2l, windows)
+    # one captured call per distinct shape, and the store holds each row at its own size
+    assert len(l2l.state.calls_by_shape) == len({n for n in lengths})
+    assert l2l.state.store is None  # train closes the store on every exit
+    if k > 1:
+        assert len(set(l2l.stores[-1][3])) > 1

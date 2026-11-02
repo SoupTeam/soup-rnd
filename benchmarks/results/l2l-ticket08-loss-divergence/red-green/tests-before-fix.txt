@@ -1,0 +1,8 @@
+# before the fix (src of 12d3cbc0..f178017a: l2l_step.py without _backward_context)
+E       assert ([True, True, True, True, True, True, ...] and not True)
+E        +  where True = any([True, True, True, True, True, True, ...])
+E       assert ([True, True, True, True, True, True, ...] and not True)
+E        +  where True = any([True, True, True, True, True, True, ...])
+FAILED tests/test_l2l_backward_autocast.py::test_l2l_backward_runs_with_autocast_off_inside_the_trainers_autocast[1]
+FAILED tests/test_l2l_backward_autocast.py::test_l2l_backward_runs_with_autocast_off_inside_the_trainers_autocast[2]
+2 failed, 3 passed in 5.24s

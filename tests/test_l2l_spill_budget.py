@@ -504,3 +504,38 @@ def test_a_nondefault_v1_memory_comount_limits_its_nested_group(tmp_path, monkey
     assert budget.limiting_level == root + "/tenant/job"
     assert budget.available_bytes == 3 * GIB
     assert budget.budget_bytes == int(3 * GIB * 0.7)
+
+
+@pytest.mark.parametrize("pin,layer_bytes", [(False, 24 * MIB), (True, 42 * MIB)])
+def test_mixed_length_plan_sums_resident_blocks_but_keeps_largest_spill_slots(
+    tmp_path, monkeypatch, pin, layer_bytes
+):
+    from soup_cli.utils.l2l_spill import RAM_RESERVE_BYTES, plan_spill
+
+    sizes = [17 * MIB, 5 * MIB, MIB, MIB]
+    options = dict(n_layers=12, k=4, chunk_bytes=max(sizes), mb_bytes=sizes, pin=pin)
+    layout = plan_spill(None, **options)
+    # Pinned allocations round independently: 32 + 8 + 1 + 1 MiB, not 4 x 32 MiB.
+    assert layout.resident_layer_cost == layer_bytes
+    assert layout.all_resident_bytes == 12 * layer_bytes
+    assert layout.slot_bytes == 17 * MIB
+    assert layout.ring_buffer_cost == (32 * MIB if pin else 17 * MIB + 4096)
+
+    target = layout.minimum_bytes + 3 * layer_bytes + 1
+    cgroup_tree(tmp_path, monkeypatch, {}, psutil=RAM_RESERVE_BYTES + target)
+    budget = _budget()
+    assert budget.budget_bytes == target
+    plan = plan_spill(budget.budget_bytes, budget_source=budget.describe(), **options)
+    assert plan.spill_layers == 9
+    assert plan.host_bytes == target - 1
+    assert plan.host_bytes + layer_bytes > budget.budget_bytes
+    assert plan.spill_file_bytes == 9 * 4 * 17 * MIB
+    assert plan.as_dict()["mb_bytes"] == sizes
+
+
+@pytest.mark.parametrize("sizes", [[100], [100, 101], [100, -1]])
+def test_micro_batch_capacities_match_the_window_and_largest_slot(sizes):
+    from soup_cli.utils.l2l_spill import plan_spill
+
+    with pytest.raises(ValueError, match="mb_bytes"):
+        plan_spill(None, n_layers=2, k=2, chunk_bytes=100, mb_bytes=sizes, pin=False)

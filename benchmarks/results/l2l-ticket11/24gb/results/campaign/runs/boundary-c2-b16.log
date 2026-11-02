@@ -1,0 +1,37 @@
+Loading config from c2.yaml...
+╭─────────────────────────────── Training Setup ───────────────────────────────╮
+│ Device:  NVIDIA GeForce RTX 3090                                             │
+│ Memory:  23.6 GB                                                             │
+│ Model:   mistralai/Mistral-7B-v0.1                                           │
+│ Task:    sft                                                                 │
+│ Backend: transformers                                                        │
+│ LoRA:    r=8, alpha=16                                                       │
+│ Quant:   4bit                                                                │
+│ Seed:    42, data_seed=42                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loading dataset...
+Loaded: 64 train samples
+Run ID: run_20261028_172441_95384544
+Setting up model + trainer...
+Loading tokenizer: mistralai/Mistral-7B-v0.1
+Loading model: mistralai/Mistral-7B-v0.1
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|▏         | 4/291 [00:00<00:12, 22.52it/s]Loading weights:   5%|▍         | 14/291 [00:00<00:05, 54.30it/s]Loading weights:   8%|▊         | 24/291 [00:00<00:03, 67.53it/s]Loading weights:  13%|█▎        | 37/291 [00:00<00:02, 86.44it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:02, 91.93it/s]Loading weights:  20%|██        | 59/291 [00:00<00:02, 90.91it/s]Loading weights:  24%|██▎       | 69/291 [00:00<00:02, 90.52it/s]Loading weights:  28%|██▊       | 81/291 [00:00<00:02, 98.95it/s]Loading weights:  32%|███▏      | 94/291 [00:01<00:01, 103.01it/s]Loading weights:  36%|███▌      | 105/291 [00:01<00:01, 94.19it/s]Loading weights:  41%|████      | 118/291 [00:01<00:01, 102.43it/s]Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 102.81it/s]Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 95.17it/s] Loading weights:  53%|█████▎    | 154/291 [00:01<00:01, 102.97it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:01, 103.48it/s]Loading weights:  61%|██████    | 177/291 [00:01<00:01, 95.25it/s] Loading weights:  65%|██████▌   | 190/291 [00:02<00:00, 103.60it/s]Loading weights:  69%|██████▉   | 202/291 [00:02<00:00, 104.00it/s]Loading weights:  73%|███████▎  | 213/291 [00:02<00:00, 96.31it/s] Loading weights:  77%|███████▋  | 225/291 [00:02<00:00, 102.41it/s]Loading weights:  81%|████████  | 236/291 [00:02<00:00, 103.61it/s]Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 100.71it/s]Loading weights:  89%|████████▊ | 258/291 [00:02<00:00, 88.85it/s] Loading weights:  93%|█████████▎| 270/291 [00:02<00:00, 95.85it/s]Loading weights:  96%|█████████▌| 280/291 [00:02<00:00, 96.28it/s]Loading weights: 100%|██████████| 291/291 [00:03<00:00, 95.06it/s]
+LoRA applied: 6,815,744 trainable / 7,248,547,840 total (0.09%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/64 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map: 100%|██████████| 64/64 [00:00<00:00, 920.44 examples/s]
+Map:   0%|          | 0/64 [00:00<?, ? examples/s]Map: 100%|██████████| 64/64 [00:00<00:00, 9341.43 examples/s]
+Truncating train dataset:   0%|          | 0/64 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 64/64 [00:00<00:00, 18821.73 examples/s]
+Training started!
+
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 2}.
+  0%|          | 0/12 [00:00<?, ?it/s][W1028 17:24:51.795415231 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 178257920 bytes (free: 124846080, total: 25296044032).
+[W1028 17:24:52.039487826 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 52428800 bytes (free: 24182784, total: 25296044032).
+[W1028 17:24:52.039618391 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 52428800 bytes (free: 24182784, total: 25296044032).
+Crash bundle written: 
+/root/work/.soup-crashes/crash_20261028T172452Z_c6203c79.crash
+Attach this file when reporting the failure.
+[W1028 17:24:54.227213653 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1073741824 bytes (free: 22085632, total: 25296044032).
+c2.yaml: 0 steps, failure=OutOfMemoryError: CUDA out of memory. Tried to allocate 50.00 MiB. GPU 0 has a total capacity of 23.56 GiB of which 23.06 MiB is free. Including non-PyTorch memory, this process has 23.53 GiB memory in use. Of the allocated memory 22.89 GiB is allocated by PyTorch, and 317.26 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)

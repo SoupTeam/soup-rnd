@@ -11,11 +11,12 @@ the lowest layers go to an unbuffered file instead, as many as needed and no mor
   inactive_file)``: inactive file cache is reclaimable and does not count, page-locked host
   memory is shmem on the anon LRU and does. A level without a limit is skipped; a level whose
   limit cannot be read is reported and the other levels decide.
-* **Plan.** Real host bytes, as A4's planner counts them: a pinned chunk is its own
-  allocation and torch rounds it up to the next power of two; the two staging rings
-  (only when something spills) hold ``2 x ring`` buffers of one sector-rounded slot
-  plus the sector ``aligned_buffer`` over-allocates (#1531). The fewest layers spill
-  that make the rest fit; when even every layer spilled does not fit, the run stops.
+* **Plan.** Each resident chunk keeps its micro-batch position's capacity. A pinned chunk
+  is its own allocation and torch rounds it up to the next power of two. Spill slots hold
+  the largest chunk; the two staging rings (only when something spills) hold ``2 x ring``
+  buffers of one sector-rounded slot plus the sector ``aligned_buffer`` over-allocates
+  (#1531). The fewest layers spill that make the rest fit; when even every layer spilled
+  does not fit, the run stops.
 * **Spill directory.** ``training.l2l_spill_dir``, default ``<output>/_l2l_spill``.
   Refused: RAM-backed, stacked and network filesystems, a drive short of the file plus
   a margin, a volume where an unbuffered write and read do not round-trip, and (disk
@@ -483,6 +484,7 @@ class SpillPlan:
     pin: bool
     budget_bytes: Optional[int]
     spill_layers: int
+    mb_bytes: Optional[Tuple[int, ...]] = None
 
     @property
     def slot_bytes(self) -> int:
@@ -491,6 +493,13 @@ class SpillPlan:
     @property
     def chunk_cost(self) -> int:
         return allocation_cost(self.chunk_bytes, pin=self.pin)
+
+    @property
+    def resident_layer_cost(self) -> int:
+        """One resident layer: the sum of its per-position allocation costs."""
+        if self.mb_bytes is None:
+            return self.k * self.chunk_cost
+        return sum(allocation_cost(size, pin=self.pin) for size in self.mb_bytes)
 
     @property
     def ring_buffer_cost(self) -> int:
@@ -504,7 +513,7 @@ class SpillPlan:
 
     @property
     def all_resident_bytes(self) -> int:
-        return self.n_layers * self.k * self.chunk_cost
+        return self.n_layers * self.resident_layer_cost
 
     @property
     def resident_layers(self) -> int:
@@ -513,14 +522,14 @@ class SpillPlan:
     @property
     def host_bytes(self) -> int:
         rings = self.minimum_bytes if self.spill_layers else 0
-        return self.resident_layers * self.k * self.chunk_cost + rings
+        return self.resident_layers * self.resident_layer_cost + rings
 
     @property
     def spill_file_bytes(self) -> int:
         return self.spill_layers * self.k * self.slot_bytes
 
     def as_dict(self) -> Dict[str, Any]:
-        return {
+        record: Dict[str, Any] = {
             "spill_layers": self.spill_layers,
             "n_layers": self.n_layers,
             "k": self.k,
@@ -534,6 +543,9 @@ class SpillPlan:
             "budget_bytes": self.budget_bytes,
             "spill_file_bytes": self.spill_file_bytes,
         }
+        if self.mb_bytes is not None:
+            record["mb_bytes"] = list(self.mb_bytes)
+        return record
 
 
 def plan_spill(
@@ -542,6 +554,7 @@ def plan_spill(
     n_layers: int,
     k: int,
     chunk_bytes: int,
+    mb_bytes: Optional[Sequence[int]] = None,
     ring: int = TRAINER_RING,
     pin: bool,
     budget_source: str = "",
@@ -550,18 +563,25 @@ def plan_spill(
 
     Nothing spills when everything fits or when no budget is known (None). Raises
     ``SpillRefusedError`` when even every layer spilled does not fit. ``budget_source``
-    says where the budget came from, for that message.
+    says where the budget came from, for that message. ``mb_bytes`` gives each micro-batch
+    position's resident capacity; its pinned allocation is rounded independently. Slots
+    and rings still use ``chunk_bytes``, the largest capacity.
     """
+    sizes = tuple(int(size) for size in mb_bytes) if mb_bytes is not None else None
+    if sizes is not None and (
+        len(sizes) != int(k) or any(size < 0 or size > int(chunk_bytes) for size in sizes)
+    ):
+        raise ValueError("mb_bytes must contain k capacities between 0 and chunk_bytes")
     plan = SpillPlan(
         n_layers=int(n_layers), k=int(k), chunk_bytes=int(chunk_bytes), ring=int(ring),
-        pin=bool(pin), budget_bytes=budget_bytes, spill_layers=0,
+        pin=bool(pin), budget_bytes=budget_bytes, spill_layers=0, mb_bytes=sizes,
     )
     if budget_bytes is None or plan.all_resident_bytes <= budget_bytes:
         return plan
     minimum = plan.minimum_bytes
     if budget_bytes < minimum:
         rounding = (
-            f", each a {_size(plan.chunk_bytes)} request holding a {_size(plan.chunk_cost)} "
+            f", the largest a {_size(plan.chunk_bytes)} request holding a {_size(plan.chunk_cost)} "
             "pinned block"
             if plan.chunk_cost != plan.chunk_bytes
             else ""
@@ -575,10 +595,11 @@ def plan_spill(
             f"{_size(budget_bytes)}{source}. Lower gradient_accumulation_steps, "
             f"data.max_length or batch_size, or free RAM."
         )
-    resident = min(n_layers - 1, (budget_bytes - minimum) // (k * plan.chunk_cost))
+    resident = min(n_layers - 1, (budget_bytes - minimum) // plan.resident_layer_cost)
     return SpillPlan(
         n_layers=plan.n_layers, k=plan.k, chunk_bytes=plan.chunk_bytes, ring=plan.ring,
         pin=plan.pin, budget_bytes=budget_bytes, spill_layers=n_layers - resident,
+        mb_bytes=plan.mb_bytes,
     )
 
 

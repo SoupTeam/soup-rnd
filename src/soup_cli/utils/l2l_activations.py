@@ -32,7 +32,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 SECTOR_BYTES = 4096
 DEFAULT_RING = 8
@@ -302,8 +302,9 @@ class ActivationStore:
     """``n_layers x k`` boundary activations: pinned chunks, plus the lowest
     ``spill_layers`` layers through a spill backend.
 
-    ``chunk_shape`` is the capacity of one chunk. ``put`` takes any tensor with at
-    most that many elements; ``get`` returns it in the shape it was put with.
+    ``chunk_shape`` sizes the largest chunk and the spill slots. ``mb_shapes`` may
+    give each micro-batch a smaller capacity. ``put`` accepts up to that capacity;
+    ``get`` returns each layer's activation in the shape it was put with.
     """
 
     def __init__(
@@ -315,6 +316,7 @@ class ActivationStore:
         dtype: Any,
         device: Any,
         pin: bool,
+        mb_shapes: Optional[Sequence[Tuple[int, ...]]] = None,
         spill_layers: int = 0,
         spill_factory: Optional[Callable[[int], SpillBackend]] = None,
         ring: int = DEFAULT_RING,
@@ -330,6 +332,18 @@ class ActivationStore:
         self.n_layers = int(n_layers)
         self.k = int(k)
         self.shape = tuple(int(dim) for dim in chunk_shape)
+        #: Resident capacity of each micro-batch's chunks. Without ``mb_shapes`` every
+        #: micro-batch gets ``chunk_shape``; with it, each gets its own (rows of different
+        #: lengths), and ``chunk_shape`` must hold the largest (it sizes the spill chunk).
+        self.mb_shapes = (
+            [self.shape] * self.k
+            if mb_shapes is None
+            else [tuple(int(dim) for dim in shape) for shape in mb_shapes]
+        )
+        if len(self.mb_shapes) != self.k:
+            raise ValueError(f"{len(self.mb_shapes)} mb_shapes for k={self.k}")
+        if any(math.prod(shape) > math.prod(self.shape) for shape in self.mb_shapes):
+            raise ValueError(f"an mb_shape is larger than chunk_shape {self.shape}")
         self.dtype = dtype
         self.device = torch.device(device)
         self.is_cuda = self.device.type == "cuda"
@@ -370,7 +384,7 @@ class ActivationStore:
             for layer in range(self.spill_layers, self.n_layers):
                 for mb in range(self.k):
                     self._resident[(layer, mb)] = torch.empty(
-                        self.shape, dtype=dtype, pin_memory=pin
+                        math.prod(self.mb_shapes[mb]), dtype=dtype, pin_memory=pin
                     )
             if not self.spill_layers:
                 return
@@ -406,18 +420,20 @@ class ActivationStore:
         layer, mb = key
         return (layer * self.k + mb) * self.slot_bytes
 
-    def _fit(self, tensor: Any) -> Tuple[int, ...]:
-        """The shape ``tensor`` is stored with; refuses one larger than a chunk."""
+    def _fit(self, mb: int, tensor: Any) -> Tuple[int, ...]:
+        """The stored shape; refuses one larger than this micro-batch's capacity."""
         shape = tuple(int(dim) for dim in tensor.shape)
-        if shape != self.shape and math.prod(shape) > self.capacity:
+        capacity_shape = self.mb_shapes[mb]
+        if shape != capacity_shape and math.prod(shape) > math.prod(capacity_shape):
             raise ValueError(
-                f"an activation of shape {shape} does not fit the store's {self.shape} chunks"
+                f"an activation of shape {shape} does not fit micro-batch {mb}'s "
+                f"{capacity_shape} chunks"
             )
         return shape
 
     def _view(self, chunk: Any, shape: Tuple[int, ...]) -> Any:
         """The front of a resident chunk, as a tensor of ``shape``."""
-        if shape == self.shape:
+        if chunk.shape == shape:
             return chunk
         return chunk.view(-1)[: math.prod(shape)].view(shape)
 
@@ -473,7 +489,7 @@ class ActivationStore:
     def put(self, layer: int, mb: int, tensor: Any) -> None:
         self._raise_if_failed()
         key = (layer, mb)
-        shape = self._fit(tensor)
+        shape = self._fit(mb, tensor)
         if not self.is_spilled(layer):
             self._view(self._resident[key], shape).copy_(tensor, non_blocking=self.is_cuda)
             self._shapes[key] = shape
@@ -549,7 +565,7 @@ class ActivationStore:
                         if self._closing or self._error is not None:
                             return
                         self._cond.wait(0.5)
-                    nbytes = self._io_bytes(self._shapes.get(key, self.shape))
+                    nbytes = self._io_bytes(self._shapes.get(key, self.mb_shapes[key[1]]))
                 buf = self._read_ring.acquire(lambda: self._closing or self._error is not None)
                 if buf is None:
                     return
@@ -567,7 +583,7 @@ class ActivationStore:
         """The stored activation as a NEW tensor on the store's device, in its put shape."""
         self._raise_if_failed()
         key = (layer, mb)
-        shape = self._shapes.get(key, self.shape)
+        shape = self._shapes.get(key, self.mb_shapes[mb])
         if not self.is_spilled(layer):
             return self._view(self._resident[key], shape).to(
                 self.device, non_blocking=self.is_cuda, copy=True

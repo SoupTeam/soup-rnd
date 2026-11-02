@@ -457,6 +457,9 @@ def test_counters_reach_the_training_log(streamed, tmp_path):  # noqa: F811
     assert last["l2l_large_loads"] >= 0
     assert last["l2l_weight_restores"] == 0
     assert last["l2l_steps"] == 2
+    assert last["l2l_captures"] == 1
+    assert last["l2l_capture_seconds"] >= 0
+    assert last["l2l_spill_layers"] == 0
 
 
 def test_windows_with_rows_of_different_lengths_match_accumulation(streamed, tmp_path):  # noqa: F811
@@ -591,57 +594,67 @@ def test_sft_wrapper_refuses_an_unsupported_model_at_launch(tmp_path, monkeypatc
         _wrapper(tmp_path, monkeypatch)
 
 
-# --------------------------------------------------------------------------
-# the store is sized to the longest tokenized row, not to data.max_length
-# --------------------------------------------------------------------------
-def test_longest_row_reads_the_arrow_table_and_skips_what_it_cannot_read():
-    from datasets import Dataset, IterableDataset
+def test_activation_plan_sums_the_real_chunk_sizes():
+    from soup_cli.utils.l2l_spill import SpillRefusedError, plan_spill
 
-    from soup_cli.trainer.l2l_trainer import longest_row
-
-    rows = {"input_ids": [[1] * 5, [1] * 97, [1] * 12]}
-    data = Dataset.from_dict(rows)
-    assert longest_row(data) == 97
-    # an upper bound after select/shuffle: the table under the view still holds the 97
-    assert longest_row(data.select([0, 2]).shuffle(seed=1)) in (12, 97)
-    assert longest_row(Dataset.from_dict({"text": ["a", "b"]})) is None
-    streaming = IterableDataset.from_generator(lambda: iter([{"input_ids": [1, 2]}]))
-    assert longest_row(streaming) is None
-    assert longest_row([{"input_ids": [1, 2, 3]}]) is None
+    # One long row (900 B) and three short ones (10 B): 2 layers x 930 B = 1860 B.
+    # Charging every position at the largest size would refuse a window that fits.
+    kw = dict(n_layers=2, k=4, chunk_bytes=900, pin=False)
+    plan = plan_spill(2000, mb_bytes=[900, 10, 10, 10], **kw)
+    assert plan.spill_layers == 0 and plan.host_bytes == 1860
+    with pytest.raises(SpillRefusedError, match="activation"):
+        plan_spill(2000, **kw)
+    with pytest.raises(SpillRefusedError, match="activation"):
+        plan_spill(1859, mb_bytes=[900, 10, 10, 10], **kw)
 
 
-def _store_seq(wrapper):
-    """The sequence length of the activation store the wrapper's trainer builds."""
+def test_the_store_for_a_window_of_very_different_lengths_is_sized_per_micro_batch(monkeypatch):
+    import types
+
     import torch
 
-    from soup_cli.trainer.l2l_trainer import _l2l_step_for, _store_for
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils import l2l_spill
 
-    state = wrapper.trainer._soup_l2l
-    ids = torch.zeros((1, 8), dtype=torch.long)
-    stepper = _l2l_step_for(state, wrapper.model, (1, 8), ids)
+    class _Stepper:
+        layers = [None, None]
+        causal = types.SimpleNamespace(config=types.SimpleNamespace(hidden_size=4))
+
+    monkeypatch.setattr(
+        l2l_spill, "ram_budget", lambda: l2l_spill.RamBudget(None, None, None, {}, None)
+    )
+    state = L2LState(runtime=None, dtype=torch.float32)
+    window = [torch.zeros((1, n), dtype=torch.long) for n in (2, 64, 3)]
     try:
-        return _store_for(state, stepper, (1, 8), 1, "cpu").shape[1], state.max_seq
+        store = _store_for(state, _Stepper(), window, "cpu")
+        assert [store._resident[(0, mb)].numel() for mb in range(3)] == [8, 256, 12]
+        assert store.stats.resident_chunks == 2 * 3
+        assert state.spill_plan["mb_bytes"] == [32, 1024, 48]
+        assert state.spill_plan["host_bytes"] == 2 * (32 + 1024 + 48)
+        # A later short window reuses all positions; growth retains the unused tail.
+        assert _store_for(state, _Stepper(), window[:2], "cpu") is store
+        longer = [torch.zeros((1, n), dtype=torch.long) for n in (10, 64)]
+        grown = _store_for(state, _Stepper(), longer, "cpu")
+        assert grown is not store
+        assert [grown._resident[(0, mb)].numel() for mb in range(3)] == [40, 256, 12]
     finally:
         state.close()
 
 
-def test_short_rows_get_a_store_for_their_length_not_max_length(tmp_path, monkeypatch):
-    from soup_cli.trainer.l2l_trainer import longest_row
+def test_sft_wrapper_sizes_positions_from_the_window_not_max_length(tmp_path, monkeypatch):
+    import torch
 
-    # chatml adds 16 tokens around the words: the longest row is 96 tokens
+    from soup_cli.trainer.l2l_trainer import _l2l_step_for, _store_for
+
     prompts = [" ".join(["hello"] * n) for n in (3, 40, 80, 7)]
     wrapper = _wrapper(tmp_path, monkeypatch, max_length=2048, prompts=prompts)
-    longest = longest_row(wrapper.trainer.train_dataset)
-    assert longest is not None and 80 < longest <= 100
-    seq, max_seq = _store_seq(wrapper)
-    assert max_seq == longest
-    assert seq == 128  # rounded up to SHAPE_ROUND, far below 2048
-
-
-def test_without_a_readable_length_the_store_falls_back_to_max_length(tmp_path, monkeypatch):
-    from soup_cli.trainer import l2l_trainer
-
-    # an iterable dataset, or anything else longest_row cannot read, reports None
-    monkeypatch.setattr(l2l_trainer, "longest_row", lambda dataset: None)
-    wrapper = _wrapper(tmp_path, monkeypatch, max_length=256, prompts=["hello world"] * 4)
-    assert _store_seq(wrapper) == (256, 256)
+    state = wrapper.trainer._soup_l2l
+    window = [torch.zeros((1, length), dtype=torch.long) for length in (8, 32)]
+    stepper, _ = _l2l_step_for(state, wrapper.model, window)
+    hidden = int(stepper.causal.config.hidden_size)
+    try:
+        store = _store_for(state, stepper, window, "cpu")
+        assert store.mb_shapes == [(8 * hidden,), (32 * hidden,)]
+        assert state.spill_plan["chunk_bytes"] == 32 * hidden * 4
+    finally:
+        state.close()

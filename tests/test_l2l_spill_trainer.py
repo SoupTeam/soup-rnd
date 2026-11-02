@@ -4,7 +4,7 @@ Spill is forced only by the real budget path: ``layer_stream.free_ram_bytes`` is
 monkeypatched and the cgroup roots point at an empty tree. The fixture is deeper than
 ``tests/test_l2l_probe_harness.py::build_streamed``: with ring 4 the rings are 8 buffers, so
 spill pays only when ``n_layers x k x chunk > 8 x (slot + 4096)``. Eight layers of hidden 64
-and a store sized to ``max_seq`` 64 give a 16 KiB float32 chunk, where it does.
+and 64-token rows give a 16 KiB float32 chunk, where it does, without unused capacity.
 """
 
 from __future__ import annotations
@@ -21,15 +21,16 @@ from tests.test_l2l_probe_harness import SEQ, _load
 from tests.test_l2l_trainer_labels import _MaskedRows
 
 N_LAYERS = 8
-#: The store is sized to this many tokens; the rows are SEQ (8) tokens or up to 64.
-MAX_SEQ = 64
+#: Rows long enough for spill to save RAM after charging the rings.
+SPILL_SEQ = 64
 #: Free RAM that leaves a budget of 240,000 bytes (below 1.79 GB the budget is what the 512 MiB
 #: reserve leaves). A chunk is 64 x 64 x 4 = 16 KiB and the rings 8 x 20 KiB = 160 KiB, so 6
 #: of 8 layers spill at k=2 (all resident: 256 KiB) and 7 at k=4 (all resident: 512 KiB).
 SMALL = (512 << 20) + 240_000
 PLENTY = 10**12
 PLAN_KEYS = {
-    "spill_layers", "n_layers", "k", "chunk_bytes", "slot_bytes", "ring", "pin", "host_bytes",
+    "spill_layers", "n_layers", "k", "chunk_bytes", "mb_bytes", "slot_bytes", "ring", "pin",
+    "host_bytes",
     "all_resident_bytes", "budget_bytes", "available_bytes", "limiting_level",
     "limiting_numbers", "spill_dir", "spill_path", "spill_file_bytes", "explicit_dir",
 }
@@ -92,6 +93,7 @@ class Run(NamedTuple):
     grads: List[dict]
     stores: List[Any]
     held: List[int]
+    plans: List[dict]
     state: Any
     trainer: Any
 
@@ -122,14 +124,14 @@ def _allocation_refs(store):
     return [(weakref.ref(tensor), tensor.untyped_storage().nbytes()) for tensor in tensors]
 
 
-def _run(model, runtime, tmp_path, data, *, k, name, free, set_free, max_seq=MAX_SEQ,
-         spill_dir=None, resume=None, callbacks=(), **overrides) -> Run:
+def _run(model, runtime, tmp_path, data, *, k, name, free, set_free,
+         spill_dir=None, resume=None, callbacks=(), sequential=False, **overrides) -> Run:
     import torch
     from transformers import Trainer, TrainerCallback, TrainingArguments
 
     from soup_cli.trainer.l2l_trainer import attach_l2l_state, make_l2l_trainer_class
 
-    grads, stores, held = [], [], []
+    grads, stores, held, plans = [], [], [], []
     holder = {}
 
     class Recorder(TrainerCallback):
@@ -143,6 +145,7 @@ def _run(model, runtime, tmp_path, data, *, k, name, free, set_free, max_seq=MAX
             store = holder["state"].store
             stores.append(store)
             held.append(_held_bytes(store))
+            plans.append(dict(holder["state"].spill_plan))
 
     options = dict(
         output_dir=str(tmp_path / name), per_device_train_batch_size=1,
@@ -151,18 +154,25 @@ def _run(model, runtime, tmp_path, data, *, k, name, free, set_free, max_seq=MAX
         report_to=[], use_cpu=True, seed=1, data_seed=1, max_grad_norm=0.0, disable_tqdm=True,
     )
     options.update(overrides)
-    trainer = make_l2l_trainer_class(Trainer)(
+
+    class SequentialTrainer(Trainer):
+        def _get_train_sampler(self, train_dataset=None):
+            dataset = self.train_dataset if train_dataset is None else train_dataset
+            return torch.utils.data.SequentialSampler(dataset)
+
+    base_cls = SequentialTrainer if sequential else Trainer
+    trainer = make_l2l_trainer_class(base_cls)(
         model=model, args=TrainingArguments(**options), train_dataset=data,
         callbacks=[Recorder(), *callbacks],
     )
     state = attach_l2l_state(
-        trainer, runtime, dtype=torch.float32, spill_dir=spill_dir, max_seq=max_seq
+        trainer, runtime, dtype=torch.float32, spill_dir=spill_dir
     )
     holder["state"] = state
     set_free(free)
     trainer.train(resume_from_checkpoint=resume)
     logs = [row for row in trainer.state.log_history if "loss" in row]
-    return Run(logs, grads, stores, held, state, trainer)
+    return Run(logs, grads, stores, held, plans, state, trainer)
 
 
 def _pair(deep, tmp_path, set_free, data, k, **overrides):
@@ -193,12 +203,12 @@ def _assert_equal_runs(resident, spilled, windows):
     assert [row["loss"] for row in spilled_logs] == [row["loss"] for row in resident_logs]
     # the spill really happened, and the twin really did not
     assert all(row["l2l_spill_layers"] == 0 for row in resident_logs)
-    layers = spilled.state.spill_plan["spill_layers"]
-    assert 0 < layers < N_LAYERS
-    assert [row["l2l_spill_layers"] for row in spilled_logs] == [layers] * windows
-    stats = spilled.stores[-1].stats
-    assert stats.bytes_written > 0 and stats.bytes_read > 0
-    assert resident.stores[-1].stats.bytes_written == 0
+    layers = [plan["spill_layers"] for plan in spilled.plans]
+    assert len(layers) == windows and all(0 < count < N_LAYERS for count in layers)
+    assert [row["l2l_spill_layers"] for row in spilled_logs] == layers
+    assert all(store.stats.bytes_written > 0 and store.stats.bytes_read > 0
+               for store in spilled.stores)
+    assert all(store.stats.bytes_written == 0 for store in resident.stores)
 
 
 def _masked(lengths):
@@ -212,20 +222,24 @@ def _masked(lengths):
 def test_spill_gives_the_losses_and_gradients_of_the_resident_store(
     deep, tmp_path, ram, k, layers
 ):
-    resident, spilled = _pair(deep, tmp_path, ram, _masked([SEQ] * 8), k)
+    resident, spilled = _pair(deep, tmp_path, ram, _masked([SPILL_SEQ] * 8), k)
     _assert_equal_runs(resident, spilled, 8 // k)
     assert spilled.state.spill_plan["spill_layers"] == layers
 
 
 @pytest.mark.parametrize("k", [2, 4])
 def test_rows_of_different_lengths_spill_and_stay_equal(deep, tmp_path, ram, k):
-    lengths = [5, 8, 3, 6, 60, 9, 4, 33]
+    # Every window exceeds the RAM budget, but each position keeps its own capacity.
+    lengths = [61, 64, 60, 63, 62, 61, 64, 60]
     resident, spilled = _pair(deep, tmp_path, ram, _masked(lengths), k)
     _assert_equal_runs(resident, spilled, 8 // k)
+    assert any(len(set(plan["mb_bytes"])) > 1 for plan in spilled.plans)
+    assert all(held == plan["host_bytes"] <= plan["budget_bytes"]
+               for held, plan in zip(spilled.held, spilled.plans))
 
 
 def test_a_short_last_window_spills_and_stays_equal(deep, tmp_path, ram):
-    resident, spilled = _pair(deep, tmp_path, ram, _masked([SEQ] * 7), 3)
+    resident, spilled = _pair(deep, tmp_path, ram, _masked([SPILL_SEQ] * 7), 3)
     _assert_equal_runs(resident, spilled, 3)  # windows 3, 3, 1
 
 
@@ -237,7 +251,7 @@ def test_resume_with_spill_equals_resume_without(deep, tmp_path, ram, monkeypatc
     model, runtime = deep
     harness.make_non_vacuous(model)
     start = harness.snapshot_adapters(model)
-    data = _masked([SEQ] * 7)
+    data = _masked([SPILL_SEQ] * 7)
     options = dict(k=3, num_train_epochs=2, lr_scheduler_type="linear", warmup_steps=1,
                    set_free=ram)
     _run(model, runtime, tmp_path, data, name="full", free=PLENTY, save_strategy="steps",
@@ -273,14 +287,17 @@ def test_one_store_and_one_file_serve_windows_of_every_length(deep, tmp_path, ra
     monkeypatch.setattr(l2l_spill, "console", Console(file=buffer, width=80))
     model, runtime = deep
     _load("l2l_schedule").make_non_vacuous(model)
-    lengths = [3, 8, 60, 9, 4, 33, 5, 2, 17, 64]
+    # The first full window establishes both capacities; later rows and the last window
+    # fit them without an up-front dataset maximum or padding the rows.
+    lengths = [64, 64, 3, 8, 60, 9, 4, 33, 5]
     run = _run(model, runtime, tmp_path, _masked(lengths), k=2, name="spilled", free=SMALL,
-               set_free=ram, num_train_epochs=2)
+               set_free=ram, num_train_epochs=2, sequential=True)
 
     plan = run.state.spill_plan
     assert PLAN_KEYS <= set(plan)
     assert plan["spill_layers"] == 6 and plan["k"] == 2 and plan["ring"] == 4
-    assert plan["chunk_bytes"] == 1 * MAX_SEQ * 64 * 4
+    assert plan["chunk_bytes"] == SPILL_SEQ * 64 * 4
+    assert plan["mb_bytes"] == [SPILL_SEQ * 64 * 4] * 2
     assert plan["limiting_level"] == "psutil"
     assert plan["limiting_numbers"] == {"psutil_available": SMALL}
     assert plan["explicit_dir"] is False
@@ -288,6 +305,7 @@ def test_one_store_and_one_file_serve_windows_of_every_length(deep, tmp_path, ra
     # one file, of the planned size, for ten windows of different lengths
     assert created == [(plan["spill_path"], plan["spill_file_bytes"])]
     assert len(run.stores) == 10 and len({id(store) for store in run.stores}) == 1
+    assert set(run.state.calls_by_shape) == {(1, length) for length in lengths}
     # the store's real allocations are the plan's, within the budget, at every step
     assert run.held == [plan["host_bytes"]] * 10
     assert plan["host_bytes"] <= plan["budget_bytes"]
@@ -368,7 +386,7 @@ def test_an_exception_or_ctrl_c_removes_the_spill_file(deep, tmp_path, ram, monk
     monkeypatch.setattr(l2l_trainer, "attach_l2l_state", attach)
     model, runtime = deep
     with pytest.raises(type(exc)):
-        _run(model, runtime, tmp_path, _masked([SEQ] * 4), k=2, name="boom", free=SMALL,
+        _run(model, runtime, tmp_path, _masked([SPILL_SEQ] * 4), k=2, name="boom", free=SMALL,
              set_free=ram, callbacks=[callback])
     assert seen["existed"] is True
     assert seen["state"].store is None
@@ -391,11 +409,11 @@ def test_a_full_drive_mid_step_names_size_and_directory_and_removes_the_file(
     monkeypatch.setattr(l2l_activations.DirectSpillFile, "write", write)
     model, runtime = deep
     with pytest.raises(SpillDiskFullError) as caught:
-        _run(model, runtime, tmp_path, _masked([SEQ] * 4), k=2, name="full", free=SMALL,
+        _run(model, runtime, tmp_path, _masked([SPILL_SEQ] * 4), k=2, name="full", free=SMALL,
              set_free=ram)
     directory = os.path.realpath(tmp_path / "full" / "_l2l_spill")
     message = str(caught.value)
-    file_bytes = 6 * 2 * MAX_SEQ * 64 * 4
+    file_bytes = 6 * 2 * SPILL_SEQ * 64 * 4
     assert directory in message and f"{file_bytes:,} bytes" in message
     assert spill_files(directory) == []
 
@@ -423,14 +441,18 @@ def test_train_sweeps_files_of_dead_runs_first(deep, tmp_path, ram):
 # the store's capacity and the spill directory setting
 # --------------------------------------------------------------------------
 def _stepper(state, model, seq):
-    import torch
-
     from soup_cli.trainer.l2l_trainer import _l2l_step_for
 
-    return _l2l_step_for(state, model, (1, seq), torch.zeros((1, seq), dtype=torch.long))
+    return _l2l_step_for(state, model, _ids([seq]))[0]
 
 
-def test_without_max_seq_only_a_larger_window_rebuilds_and_makes_a_second_file(
+def _ids(lengths):
+    import torch
+
+    return [torch.zeros((1, length), dtype=torch.long) for length in lengths]
+
+
+def test_only_a_larger_position_rebuilds_the_store_and_makes_a_second_file(
     deep, tmp_path, ram, monkeypatch
 ):
     import torch
@@ -444,19 +466,21 @@ def test_without_max_seq_only_a_larger_window_rebuilds_and_makes_a_second_file(
         l2l_spill, "open_spill_file", lambda path, size: opened.append(path) or real_open(
             path, size)
     )
-    # budget 400,000 bytes at k=4 (what the 512 MiB reserve leaves): the 64-token store spills
-    # 5 layers, the 128-token one all 8 (its rings alone are 8 x 36 KiB)
+    # The 400,000-byte budget spills 5 layers at four 64-token positions. Growing only
+    # position 0 to 128 tokens needs larger rings, but leaves the other capacities alone.
     ram((512 << 20) + 400_000)
     model, runtime = deep
-    state = L2LState(runtime=runtime, dtype=torch.float32, output_dir=str(tmp_path / "out"),
-                     max_rows=1, max_k=4)
+    state = L2LState(runtime=runtime, dtype=torch.float32, output_dir=str(tmp_path / "out"))
     try:
-        first = _store_for(state, _stepper(state, model, 64), (1, 64), 4, "cpu")
-        assert first.shape == (1, 64, 64) and first.spill_layers == 5
-        assert _store_for(state, _stepper(state, model, 8), (1, 8), 2, "cpu") is first
-        bigger = _store_for(state, _stepper(state, model, 128), (1, 128), 4, "cpu")
-        assert bigger is not first and bigger.shape == (1, 128, 64)
-        assert bigger.spill_layers == 8
+        first = _store_for(state, _stepper(state, model, 64), _ids([64] * 4), "cpu")
+        assert first.mb_shapes == [(64 * 64,)] * 4 and first.spill_layers == 5
+        assert _store_for(state, _stepper(state, model, 8), _ids([8] * 2), "cpu") is first
+        bigger = _store_for(state, _stepper(state, model, 128), _ids([128, 64, 64, 64]), "cpu")
+        assert bigger is not first and bigger.mb_shapes == [(128 * 64,)] + [(64 * 64,)] * 3
+        assert bigger.spill_layers == 7
+        plan = state.spill_plan
+        assert plan["mb_bytes"] == [32768, 16384, 16384, 16384]
+        assert _held_bytes(bigger) == plan["host_bytes"] <= plan["budget_bytes"]
         assert len(opened) == 2
         assert not os.path.exists(opened[0]) and os.path.exists(opened[1])
     finally:
@@ -482,7 +506,7 @@ def test_growth_releases_old_allocations_and_store_before_reading_ram_budget(
         causal=SimpleNamespace(config=SimpleNamespace(hidden_size=64)), layers=range(N_LAYERS)
     )
     state = L2LState(runtime=SimpleNamespace(tier="ram"), dtype=torch.float32,
-                     output_dir=str(tmp_path / "growth"), max_rows=1, max_k=4)
+                     output_dir=str(tmp_path / "growth"))
     allocations, observations = [], []
     old_store = None
     real_budget = l2l_spill.ram_budget
@@ -499,19 +523,19 @@ def test_growth_releases_old_allocations_and_store_before_reading_ram_budget(
                         lambda: (512 << 20) + budget_bytes - live_bytes())
     monkeypatch.setattr(l2l_spill, "ram_budget", budget)
     try:
-        first = _store_for(state, stepper, (1, 64), 4, "cpu")
+        first = _store_for(state, stepper, _ids([64] * 4), "cpu")
         assert first.spill_layers == first_spill
         old_store = weakref.ref(first)
         allocations = _allocation_refs(first)
         assert live_bytes() > 0
-        assert _store_for(state, stepper, (1, 8), 2, "cpu") is first
+        assert _store_for(state, stepper, _ids([8] * 2), "cpu") is first
         del first
 
-        bigger = _store_for(state, stepper, (1, 128), 4, "cpu")
-        assert bigger.shape == (1, 128, 64) and bigger.spill_layers == bigger_spill
+        bigger = _store_for(state, stepper, _ids([128] * 4), "cpu")
+        assert bigger.mb_shapes == [(128 * 64,)] * 4 and bigger.spill_layers == bigger_spill
         assert observations == [(False, 0), (False, 0)]
         assert state.spill_plan["budget_bytes"] == budget_bytes
-        assert _store_for(state, stepper, (1, 16), 1, "cpu") is bigger
+        assert _store_for(state, stepper, _ids([16]), "cpu") is bigger
         assert len(observations) == 2
     finally:
         state.close()
@@ -534,7 +558,7 @@ def test_cuda_growth_releases_idle_pinned_cache_before_rebudget_or_warns_without
         causal=SimpleNamespace(config=SimpleNamespace(hidden_size=64)), layers=range(N_LAYERS)
     )
     state = L2LState(runtime=SimpleNamespace(tier="ram"), dtype=torch.float32,
-                     output_dir=str(tmp_path / "cuda-growth"), max_rows=1, max_k=4)
+                     output_dir=str(tmp_path / "cuda-growth"))
     real_store = l2l_activations.ActivationStore
 
     def cpu_store(**kwargs):
@@ -566,25 +590,25 @@ def test_cuda_growth_releases_idle_pinned_cache_before_rebudget_or_warns_without
                         lambda: (512 << 20) + 600_000 - idle_cache)
     monkeypatch.setattr(l2l_spill, "ram_budget", budget)
     try:
-        first = _store_for(state, stepper, (1, 64), 4, "cuda:0")
+        first = _store_for(state, stepper, _ids([64] * 4), "cuda:0")
         assert first.spill_layers == 0
         old_store = weakref.ref(first)
         allocations = _allocation_refs(first)
         # CUDA's 32 resident chunks are 16 KiB each; deletion moves them to its cache.
         idle_cache = 524_288
-        assert _store_for(state, stepper, (1, 8), 2, "cuda:0") is first
+        assert _store_for(state, stepper, _ids([8] * 2), "cuda:0") is first
         assert releases == [] and observations == [0]
         del first
 
         if public_cache_api:
-            bigger = _store_for(state, stepper, (1, 128), 4, "cuda:0")
-            assert bigger.shape == (1, 128, 64) and bigger.spill_layers == 8
+            bigger = _store_for(state, stepper, _ids([128] * 4), "cuda:0")
+            assert bigger.mb_shapes == [(128 * 64,)] * 4 and bigger.spill_layers == 8
             assert observations == [0, 0] and releases == [524_288]
-            assert _store_for(state, stepper, (1, 16), 1, "cuda:0") is bigger
+            assert _store_for(state, stepper, _ids([16]), "cuda:0") is bigger
             assert len(observations) == 2 and len(releases) == 1
         else:
             with pytest.raises(l2l_spill.SpillRefusedError, match="every layer spilled"):
-                _store_for(state, stepper, (1, 128), 4, "cuda:0")
+                _store_for(state, stepper, _ids([128] * 4), "cuda:0")
             assert old_store() is None and all(ref() is None for ref, _nbytes in allocations)
             assert observations == [0, 524_288] and releases == []
             assert "empty_host_cache" in caplog.text and "remain charged" in caplog.text
@@ -592,7 +616,7 @@ def test_cuda_growth_releases_idle_pinned_cache_before_rebudget_or_warns_without
         state.close()
 
 
-def test_known_cuda_capacity_keeps_one_plan_without_flushing_pinned_cache(
+def test_cuda_windows_that_fit_keep_one_plan_without_flushing_pinned_cache(
     tmp_path, ram, monkeypatch
 ):
     from types import SimpleNamespace
@@ -623,35 +647,17 @@ def test_known_cuda_capacity_keeps_one_plan_without_flushing_pinned_cache(
         causal=SimpleNamespace(config=SimpleNamespace(hidden_size=64)), layers=range(N_LAYERS)
     )
     state = L2LState(runtime=SimpleNamespace(tier="ram"), dtype=torch.float32,
-                     output_dir=str(tmp_path / "known"), max_rows=2, max_seq=100, max_k=4)
+                     output_dir=str(tmp_path / "known"))
     try:
-        store = _store_for(state, stepper, (1, 8), 1, "cuda:0")
-        assert store.shape == (2, 128, 64) and store.k == 4
+        window = [torch.zeros((2, 128), dtype=torch.long)] * 4
+        store = _store_for(state, stepper, window, "cuda:0")
+        assert store.mb_shapes == [(2 * 128 * 64,)] * 4 and store.k == 4
         plan = state.spill_plan
-        for shape, k in (((1, 64), 2), ((2, 128), 4), ((1, 16), 1)):
-            assert _store_for(state, stepper, shape, k, "cuda:0") is store
+        for smaller in (_ids([64] * 2), window, _ids([16])):
+            assert _store_for(state, stepper, smaller, "cuda:0") is store
             assert state.spill_plan is plan
         assert len(budgets) == 1
         assert plan["spill_layers"] == 0 and plan["pin"] is True
-    finally:
-        state.close()
-
-
-def test_the_trainer_max_length_sizes_the_store_when_max_seq_is_not_given(deep, ram):
-    import types
-
-    import torch
-
-    from soup_cli.trainer.l2l_trainer import _store_for, attach_l2l_state
-
-    model, runtime = deep
-    trainer = types.SimpleNamespace(args=types.SimpleNamespace(
-        max_length=100, per_device_train_batch_size=2, gradient_accumulation_steps=3,
-        output_dir="out"))
-    state = attach_l2l_state(trainer, runtime, dtype=torch.float32)
-    try:
-        store = _store_for(state, _stepper(state, model, 8), (1, 8), 1, "cpu")
-        assert store.shape == (2, 128, 64) and store.k == 3
     finally:
         state.close()
 
@@ -660,7 +666,7 @@ def test_an_explicit_spill_dir_is_used(deep, tmp_path, ram):
     model, runtime = deep
     _load("l2l_schedule").make_non_vacuous(model)
     target = tmp_path / "elsewhere" / "spill"
-    run = _run(model, runtime, tmp_path, _masked([SEQ] * 4), k=2, name="explicit", free=SMALL,
+    run = _run(model, runtime, tmp_path, _masked([SPILL_SEQ] * 4), k=2, name="explicit", free=SMALL,
                set_free=ram, spill_dir=str(target))
     plan = run.state.spill_plan
     assert plan["explicit_dir"] is True
@@ -685,16 +691,16 @@ def test_the_disk_tier_keeps_the_default_dir_off_the_weights_disk(
     model, runtime = deep
     monkeypatch.setattr(runtime, "tier", "disk")
     state = L2LState(
-        runtime=runtime, dtype=torch.float32, output_dir=str(tmp_path / "out"), max_rows=1,
-        max_k=2, spill_dir=str(tmp_path / "mine") if explicit else None,
+        runtime=runtime, dtype=torch.float32, output_dir=str(tmp_path / "out"),
+        spill_dir=str(tmp_path / "mine") if explicit else None,
         weight_dirs=(str(tmp_path / "shards"),),
     )
     try:
         if not explicit:
             with pytest.raises(l2l_spill.SpillRefusedError, match="training.l2l_spill_dir"):
-                _store_for(state, _stepper(state, model, 64), (1, 64), 2, "cpu")
+                _store_for(state, _stepper(state, model, 64), _ids([64] * 2), "cpu")
             return
-        store = _store_for(state, _stepper(state, model, 64), (1, 64), 2, "cpu")
+        store = _store_for(state, _stepper(state, model, 64), _ids([64] * 2), "cpu")
         assert store.spill_layers > 0
         assert any("13% slower" in line for line in lines)
     finally:

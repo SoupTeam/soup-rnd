@@ -360,7 +360,7 @@ def _layout(plan: Dict[str, Any]) -> Any:
 
     return plan_spill(None, n_layers=int(plan["n_layers"]), k=int(plan["k"]),
                       chunk_bytes=int(plan["chunk_bytes"]), ring=int(plan["ring"]),
-                      pin=bool(plan["pin"]))
+                      pin=bool(plan["pin"]), mb_bytes=plan.get("mb_bytes"))
 
 
 def predicted_spill(limit: int, working: int, plan: Dict[str, Any]) -> int:
@@ -371,8 +371,8 @@ def predicted_spill(limit: int, working: int, plan: Dict[str, Any]) -> int:
     layout = _layout(plan)
     budget = budget_of(max(0, limit - working))
     return plan_spill(budget, n_layers=layout.n_layers, k=layout.k,
-                      chunk_bytes=layout.chunk_bytes, ring=layout.ring, pin=layout.pin
-                      ).spill_layers
+                      chunk_bytes=layout.chunk_bytes, ring=layout.ring, pin=layout.pin,
+                      mb_bytes=layout.mb_bytes).spill_layers
 
 
 def available_for(budget: int) -> int:
@@ -925,7 +925,7 @@ def train_recorded(record: Dict[str, Any], model: Any, runtime: Any, rows: Any, 
     if l2l:
         hooks.state = attach_l2l_state(
             trainer, runtime, dtype=dtype or torch.float32, spill_dir=spill_dir,
-            weight_dirs=(shard_dir,) if shard_dir else (), max_seq=seq,
+            weight_dirs=(shard_dir,) if shard_dir else (),
         )
     if hold_timeout is not None:
         hooks.install_hold(model)

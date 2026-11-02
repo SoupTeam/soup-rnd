@@ -130,6 +130,21 @@ def test_the_calibrated_limit_makes_the_products_own_budget_spill_16_layers(
     assert spilled.spill_layers == 16
 
 
+def test_mixed_length_calibration_uses_each_pinned_chunk_and_reaches_target(stand):
+    from soup_cli.utils import l2l_spill
+
+    sizes = [4 * MIB, 2 * MIB, MIB, MIB]
+    plan = l2l_spill.plan_spill(
+        None, n_layers=32, k=4, chunk_bytes=max(sizes), pin=True, mb_bytes=sizes,
+    ).as_dict()
+    working = 9 * GIB
+    calibrated = stand.tight_limit(working, plan)
+    # Eight MiB per resident layer, 64 MiB of rings, plus half a layer and the reserve.
+    assert calibrated["limit_bytes"] == working + 708 * MIB
+    assert calibrated["predicted_spill_layers"] == 16
+    assert stand.predicted_spill(calibrated["limit_bytes"], working + 5 * MIB, plan) == 17
+
+
 def test_the_working_set_falls_back_to_the_readback_when_psutil_limited(stand):
     plan = {**_mistral_plan(), "limiting_level": "psutil",
             "limiting_numbers": {"psutil_available": 50 * GIB}}
