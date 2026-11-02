@@ -455,6 +455,21 @@ def test_the_divisor_matters(sched, acts, streamed):
     assert not sched.compare(ga, sched.collect_grads(model))["equal"]
 
 
+def test_a_nan_gradient_is_unequal_and_the_comparison_stays_json(sched):
+    """Corrupt NF4 records can produce NaN gradients; strict JSON must preserve the control."""
+    import torch
+
+    ref = {"a": torch.ones(3), "b": torch.ones(3), "c": torch.ones(3)}
+    cand = {"a": torch.tensor([1.0, float("nan"), 1.0]), "b": torch.tensor([1.0, 3.0, 1.0]),
+            "c": torch.ones(3)}
+    out = sched.compare(ref, cand)
+    assert out["equal"] is False
+    assert out["unequal"] == ["a", "b"] and out["nonfinite"] == ["a"]
+    assert out["max_abs"] == 2.0
+    assert [row["name"] for row in out["worst"]] == ["a", "b"]
+    json.dumps(out, allow_nan=False)
+
+
 def test_losses_are_compared_per_position(sched, acts, streamed):
     """Mutation guard: the same micro-batches in another order must not pass."""
     model, runtime = streamed

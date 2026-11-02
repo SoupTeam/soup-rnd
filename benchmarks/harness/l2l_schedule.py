@@ -93,25 +93,34 @@ def collect_grads(model: Any) -> Dict[str, Any]:
 
 
 def compare(reference: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, Any]:
+    """Compare gradients without emitting non-finite differences into strict JSON."""
+    import math
+
     import torch
 
     if set(reference) != set(candidate):
         missing = sorted(set(reference) ^ set(candidate))[:4]
         raise ValueError(f"the two gradient sets name different tensors, e.g. {missing}")
-    unequal, zero, diffs = [], [], []
+    unequal, zero, diffs, nonfinite = [], [], [], []
     for name in sorted(reference):
         left, right = reference[name], candidate[name]
         if not int(torch.count_nonzero(left)):
             zero.append(name)
         if not torch.equal(left, right):
             unequal.append(name)
-            diffs.append((float((left.float() - right.float()).abs().max()), name))
+            diff = float((left.float() - right.float()).abs().max())
+            if math.isfinite(diff):
+                diffs.append((diff, name))
+            else:
+                nonfinite.append(name)
     diffs.sort(reverse=True)
     return {
         "tensors": len(reference),
         "unequal": unequal,
         "max_abs": diffs[0][0] if diffs else 0.0,
-        "worst": [{"name": name, "max_abs": value} for value, name in diffs[:5]],
+        "worst": ([{"name": name, "max_abs": None} for name in nonfinite[:5]]
+                  + [{"name": name, "max_abs": value} for value, name in diffs])[:5],
+        "nonfinite": nonfinite,
         "all_zero": zero,
         "equal": not unequal,
     }
