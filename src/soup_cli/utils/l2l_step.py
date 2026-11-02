@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 SUPPORTED_ARCHS = ("llama", "mistral")
 
@@ -108,6 +108,28 @@ def model_parts(model: Any) -> Tuple[Any, Any]:
 def label_tokens(micro_batches: Sequence[Any]) -> int:
     """HF's ``num_items_in_batch`` when labels == input_ids: seq - 1 per row."""
     return sum(int(ids.shape[0]) * (int(ids.shape[1]) - 1) for ids in micro_batches)
+
+
+#: ``(causal, owner, hidden, mb) -> loss``. ``hidden`` is micro-batch ``mb``'s output of the
+#: last decoder layer, a leaf that requires grad. The head runs ``norm``, ``lm_head`` and the
+#: loss, and returns the scalar the step backpropagates, already scaled for the window.
+LossHead = Callable[[Any, Any, Any, int], Any]
+
+
+def sft_head(labels: Sequence[Any], n_items: int) -> LossHead:
+    """The SFT head: ``norm``, ``lm_head``, the model's ``loss_function`` over ``n_items``."""
+
+    def head(causal: Any, owner: Any, hidden: Any, mb: int) -> Any:
+        normed = owner.norm(hidden)
+        logits = causal.lm_head(normed[:, slice(0, None), :])
+        return causal.loss_function(
+            logits=logits,
+            labels=labels[mb],
+            vocab_size=int(causal.config.vocab_size),
+            num_items_in_batch=n_items,
+        )
+
+    return head
 
 
 class _CapturedError(Exception):
@@ -216,15 +238,21 @@ class L2LStep:
         n_items: Optional[int] = None,
         labels: Optional[Sequence[Any]] = None,
         calls: Optional[Sequence[LayerCall]] = None,
+        head: Optional[LossHead] = None,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
         ``calls`` is one ``LayerCall`` per micro-batch, captured at that micro-batch's own
         shape; micro-batches of different lengths run unpadded. Without it every
         micro-batch uses the call the step was built with.
+
+        ``head`` replaces the SFT head and loss (see :data:`LossHead`); it owns its labels
+        and its scale, so it excludes ``labels`` and ``n_items``.
         """
+        if head is not None and (labels is not None or n_items is not None):
+            raise ValueError("a custom head owns its labels and scale: pass no labels or n_items")
         with count_loads(self.runtime) as counters:
-            losses = self._run(micro_batches, store, n_items, labels, calls)
+            losses = self._run(micro_batches, store, n_items, labels, calls, head)
         self.counters = counters
         return losses
 
@@ -235,6 +263,7 @@ class L2LStep:
         n_items: Optional[int],
         labels: Optional[Sequence[Any]],
         calls: Optional[Sequence[LayerCall]],
+        head: Optional[LossHead],
     ) -> List[Any]:
         import torch
 
@@ -245,16 +274,17 @@ class L2LStep:
             raise ValueError("an L2L step needs at least one micro-batch")
         if k > store.k:
             raise ValueError(f"{k} micro-batches, but the activation store holds {store.k}")
-        if labels is None:
-            labels = micro_batches
-        elif len(labels) != k:
-            raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
         if calls is None:
             calls = [self.call] * k
         elif len(calls) != k:
             raise ValueError(f"{len(calls)} layer calls for {k} micro-batches")
-        total = label_tokens(micro_batches) if n_items is None else int(n_items)
-        vocab = int(self.causal.config.vocab_size)
+        if head is None:
+            if labels is None:
+                labels = micro_batches
+            elif len(labels) != k:
+                raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
+            total = label_tokens(micro_batches) if n_items is None else int(n_items)
+            head = sft_head(labels, total)
 
         replayed = None
         if l2l_rng.has_draws(self.call.draws):
@@ -277,11 +307,7 @@ class L2LStep:
             last = hidden[mb].detach().requires_grad_(True)
             hidden[mb] = None
             with torch.enable_grad():
-                normed = self.owner.norm(last)
-                logits = self.causal.lm_head(normed[:, slice(0, None), :])
-                loss = self.causal.loss_function(
-                    logits=logits, labels=labels[mb], vocab_size=vocab, num_items_in_batch=total
-                )
+                loss = head(self.causal, self.owner, last, mb)
             with self._backward_context(micro_batches[mb]):
                 loss.backward()
             losses.append(loss.detach())

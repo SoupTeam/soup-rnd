@@ -24,9 +24,9 @@ from __future__ import annotations
 import functools
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, Tuple
 
-from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters
+from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters, LossHead, sft_head
 
 #: Captured layer arguments kept per shape; the cache restarts when a run exceeds it. A new
 #: shape costs one forward to capture them.
@@ -69,6 +69,13 @@ class L2LState:
     store: Any = None
     stepper: Any = None
     calls_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
+    #: How a window is read, which head it runs and what its loss is divided by.
+    #: ``None`` means SFT (:data:`SFT_WINDOW_LOSS`).
+    loss: Optional["WindowLoss"] = None
+
+    def __post_init__(self) -> None:
+        if self.loss is None:
+            self.loss = SFT_WINDOW_LOSS
     #: Capture forwards run, the layer loads they cost and their wall time (running totals).
     captures: int = 0
     capture_loads: int = 0
@@ -135,6 +142,42 @@ def _window_tensors(
             "one length, or set the dropout to 0."
         )
     return ids_list, label_list
+
+
+@dataclass(frozen=True)
+class WindowLoss:
+    """What a task contributes to the L2L trainer: reading, head, and the window's scale.
+
+    ``divide_by="items"``: the head divides by HF's ``num_items_in_batch`` (SFT sums token
+    losses over the window). ``divide_by="micro_batches"``: the head divides by
+    ``k = len(window)``, as HF's ``training_step`` does when ``num_items_in_batch`` is
+    ``None`` (every preference trainer averages its rows and ignores the item count). The
+    last window of an epoch holds fewer than ``gradient_accumulation_steps`` micro-batches,
+    and ``k`` is that smaller count.
+    """
+
+    divide_by: Literal["items", "micro_batches"]
+    #: ``(window, device, *, neftune, has_dropout) -> (ids_list, extras)``. ``ids_list`` is
+    #: what the layers walk; ``extras`` is handed to ``make_head``.
+    read_window: Callable[..., Tuple[List[Any], Any]]
+    #: ``(extras, divisor) -> LossHead``; the head returns the loss already scaled.
+    make_head: Callable[[Any, int], LossHead]
+
+    def divisor(self, k: int, num_items: Optional[int]) -> int:
+        """The number the window's loss is divided by. The one place the scale rule lives."""
+        if self.divide_by == "micro_batches":
+            return int(k)
+        if num_items is None:
+            raise RuntimeError(
+                "training.l2l needs num_items_in_batch from the HF loop to scale "
+                "the loss over the window; this trainer did not receive one."
+            )
+        return int(num_items)
+
+
+SFT_WINDOW_LOSS = WindowLoss(
+    divide_by="items", read_window=_window_tensors, make_head=sft_head
+)
 
 
 def _has_dropout(model: Any) -> bool:
@@ -290,14 +333,21 @@ def run_window(
     state: L2LState,
     model: Any,
     ids_list: List[Any],
-    label_list: List[Any],
-    n_items: int,
+    label_list: Any,
+    n_items: Optional[int],
     device: Any,
 ) -> Tuple[List[Any], Any]:
-    """One L2L step over the window; returns the losses and the step's load counters."""
+    """One L2L step over the window; returns the losses and the step's load counters.
+
+    ``label_list`` is what the state's strategy read from the window besides the ids;
+    ``n_items`` is HF's ``num_items_in_batch``, ``None`` for the preference trainers.
+    """
+    strategy = state.loss
+    divisor = strategy.divisor(len(ids_list), n_items)
     stepper, calls = _l2l_step_for(state, model, ids_list)
     store = _store_for(state, stepper, ids_list, device)
-    losses = stepper.run(ids_list, store, n_items=n_items, labels=label_list, calls=calls)
+    head = strategy.make_head(label_list, divisor)
+    losses = stepper.run(ids_list, store, calls=calls, head=head)
     return losses, stepper.counters
 
 
@@ -335,11 +385,8 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                 state.window = None
             if not first:
                 return torch.zeros((), device=self.args.device)
-            if num_items_in_batch is None:
-                raise RuntimeError(
-                    "training.l2l needs num_items_in_batch from the HF loop to scale "
-                    "the loss over the window; this trainer did not receive one."
-                )
+            # Refuse a missing item count (SFT) before anything runs.
+            state.loss.divisor(len(window), num_items_in_batch)
             model.train()
             if state.has_dropout is None:
                 state.has_dropout = _has_dropout(model)
@@ -352,7 +399,7 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                     "neftune_alpha off or set the dropout to 0."
                 )
             device = state.runtime.device
-            ids_list, label_list = _window_tensors(
+            ids_list, label_list = state.loss.read_window(
                 window,
                 device,
                 neftune=bool(self.args.neftune_noise_alpha),
@@ -362,7 +409,12 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
                 losses, counters = run_window(
-                    state, model, ids_list, label_list, int(num_items_in_batch), device
+                    state,
+                    model,
+                    ids_list,
+                    label_list,
+                    None if num_items_in_batch is None else int(num_items_in_batch),
+                    device,
                 )
             state.steps += 1
             state.totals.add(counters)
@@ -377,8 +429,13 @@ def make_l2l_trainer_class(base_cls: type) -> type:
     return L2LTrainer
 
 
-def attach_l2l_state(trainer: Any, runtime: Any, *, dtype: Any) -> L2LState:
-    """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime."""
-    state = L2LState(runtime=runtime, dtype=dtype)
+def attach_l2l_state(
+    trainer: Any, runtime: Any, *, dtype: Any, loss: Optional[WindowLoss] = None
+) -> L2LState:
+    """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
+
+    ``loss`` is the task's :class:`WindowLoss`; the default is SFT.
+    """
+    state = L2LState(runtime=runtime, dtype=dtype, loss=loss)
     trainer._soup_l2l = state
     return state

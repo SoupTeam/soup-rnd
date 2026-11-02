@@ -49,6 +49,10 @@ _MAX_LORA_PATTERN_KEY_LEN = 512
 # which key it was, not enough to paste kilobytes into a terminal or a log.
 _MAX_LORA_PATTERN_KEY_SHOWN = 80
 
+# Tasks that training.l2l accepts. A task joins the tuple when its L2L window loss
+# (trainer/l2l_trainer.py WindowLoss) ships; the refusal below reads the tuple.
+L2L_SUPPORTED_TASKS = ("sft",)
+
 # v0.71.23 #266 — Spectrum targeted-training unfrozen-parameter caps
 _MAX_UNFROZEN_PARAMETERS = 50_000
 _MAX_UNFROZEN_PATTERN_LEN = 512
@@ -6381,9 +6385,10 @@ class SoupConfig(BaseModel):
                     "training.l2l requires training.stream_layers=true: L2L reuses "
                     "the streamed layer loads, and a resident model has none to reuse."
                 )
-            if self.task != "sft":
+            if self.task not in L2L_SUPPORTED_TASKS:
                 raise ValueError(
-                    f"training.l2l supports task='sft' only; got task={self.task!r}."
+                    f"training.l2l supports task in {list(L2L_SUPPORTED_TASKS)}; "
+                    f"got task={self.task!r}."
                 )
         if not tcfg.stream_layers:
             # Footgun: a non-default stream_* while streaming is off almost
