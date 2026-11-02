@@ -214,13 +214,31 @@ class SimPOTrainerWrapper(StreamingSetupMixin):
         )
 
         # --- Trainer ---
-        self.trainer = cpo_trainer_cls(
-            model=self.model,
-            args=cpo_config,
-            train_dataset=train_ds,
-            eval_dataset=eval_ds,
-            processing_class=self.tokenizer,
-        )
+        trainer_kwargs = {
+            "model": self.model,
+            "args": cpo_config,
+            "train_dataset": train_ds,
+            "eval_dataset": eval_ds,
+            "processing_class": self.tokenizer,
+        }
+        if tcfg.l2l:
+            from soup_cli.trainer.l2l_simpo import simpo_window_loss
+
+            # CPO pads the stacked pair with the tokenizer's pad id (eos when it has none);
+            # beta stays at TRL's default, as on the accumulation path.
+            self.trainer = self._build_l2l_trainer(
+                cpo_trainer_cls,
+                trainer_kwargs,
+                cpo_config,
+                loss=simpo_window_loss(
+                    beta=float(cpo_config.beta),
+                    gamma=float(tcfg.simpo_gamma),
+                    cpo_alpha=float(tcfg.cpo_alpha),
+                    padding_value=int(self.tokenizer.pad_token_id),
+                ),
+            )
+        else:
+            self.trainer = cpo_trainer_cls(**trainer_kwargs)
 
         # #1208 — trl 0.29 slices each answer to `max_length -
         # longer_response_length`, so a long `chosen` beside a short `rejected`

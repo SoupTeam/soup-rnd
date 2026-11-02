@@ -51,7 +51,7 @@ _MAX_LORA_PATTERN_KEY_SHOWN = 80
 
 # Tasks that training.l2l accepts. A task joins the tuple when its L2L window loss
 # (trainer/l2l_trainer.py WindowLoss) ships; the refusal below reads the tuple.
-L2L_SUPPORTED_TASKS = ("sft", "orpo")
+L2L_SUPPORTED_TASKS = ("sft", "orpo", "simpo")
 
 # v0.71.23 #266 — Spectrum targeted-training unfrozen-parameter caps
 _MAX_UNFROZEN_PARAMETERS = 50_000

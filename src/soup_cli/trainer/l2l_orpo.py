@@ -26,11 +26,7 @@ from __future__ import annotations
 
 from typing import Any, List, Tuple
 
-from soup_cli.trainer.l2l_trainer import (
-    WindowLoss,
-    refuse_mixed_shapes,
-    require_right_padded,
-)
+from soup_cli.trainer.l2l_trainer import WindowLoss, stack_pair_window
 from soup_cli.utils.l2l_step import LossHead
 
 
@@ -82,26 +78,18 @@ def orpo_window_loss(*, beta: float, padding_value: int) -> WindowLoss:
     ) -> Tuple[List[Any], List[Tuple[Any, Any, int]]]:
         import torch
 
-        trainer_cls = _orpo_trainer_class()
-        ids_list: List[Any] = []
+        ids_list, stacked_list, chosen_rows = stack_pair_window(
+            window,
+            device,
+            trainer_cls=_orpo_trainer_class(),
+            padding_value=padding_value,
+            neftune=neftune,
+            has_dropout=has_dropout,
+        )
         extras: List[Tuple[Any, Any, int]] = []
-        for inputs in window:
-            moved = {
-                key: value.to(device) if isinstance(value, torch.Tensor) else value
-                for key, value in inputs.items()
-            }
-            stacked = trainer_cls.concatenated_inputs(
-                moved, is_encoder_decoder=False, padding_value=padding_value, device=device
-            )
-            ids = stacked["concatenated_input_ids"]
-            mask = stacked["concatenated_attention_mask"]
-            require_right_padded(mask)
-            nll_labels = torch.where(mask == 1, ids, -100)
-            ids_list.append(ids)
-            extras.append(
-                (stacked["concatenated_labels"], nll_labels, int(moved["chosen_labels"].shape[0]))
-            )
-        refuse_mixed_shapes(ids_list, neftune=neftune, has_dropout=has_dropout)
+        for ids, stacked, len_chosen in zip(ids_list, stacked_list, chosen_rows):
+            nll_labels = torch.where(stacked["concatenated_attention_mask"] == 1, ids, -100)
+            extras.append((stacked["concatenated_labels"], nll_labels, len_chosen))
         return ids_list, extras
 
     def make_head(extras: List[Tuple[Any, Any, int]], divisor: int) -> LossHead:

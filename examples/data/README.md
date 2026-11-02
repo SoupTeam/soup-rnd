@@ -11,6 +11,7 @@ this volume. Treat them as a shape to copy, not a starting corpus.
 | `chat_preferences.jsonl` | dpo | 5 | `prompt` / `chosen` / `rejected`, messages as chat turns |
 | `dpo_sample.jsonl` | dpo | 8 | Same shape, longer answers — used by the DPO example |
 | `orpo_pairs_synthetic.jsonl` | dpo | 12 | Synthetic hand-written pairs of uneven length for the ORPO L2L example (`examples/configs/orpo_l2l_short.yaml`) |
+| `simpo_pairs_synthetic.jsonl` | dpo | 12 | Synthetic hand-written pairs of uneven length for the SimPO L2L example (`examples/configs/simpo_l2l_short.yaml`) |
 | `reasoning_math.jsonl` | alpaca | 5 | Step-by-step worked solutions for GRPO/reasoning |
 
 `soup data inspect <file>` prints the detected format and stats for any of them.

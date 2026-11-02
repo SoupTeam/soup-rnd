@@ -134,6 +134,43 @@ def refuse_mixed_shapes(ids_list: List[Any], *, neftune: bool, has_dropout: bool
         )
 
 
+def stack_pair_window(
+    window: List[Any],
+    device: Any,
+    *,
+    trainer_cls: Any,
+    padding_value: int,
+    neftune: bool,
+    has_dropout: bool,
+) -> Tuple[List[Any], List[Dict[str, Any]], List[int]]:
+    """Read a window of ``chosen_*`` / ``rejected_*`` micro-batches as TRL stacks them.
+
+    TRL's ``ORPOTrainer`` and ``CPOTrainer`` share one ``concatenated_inputs``: chosen rows
+    over rejected rows, both padded to the longer width, ``input_ids`` with ``padding_value``.
+    Returns, per micro-batch, the stacked ids, TRL's ``concatenated_*`` dict and the number of
+    chosen rows. Refuses left padding and the mixed-shape cases like the SFT reader.
+    """
+    import torch
+
+    ids_list: List[Any] = []
+    stacked_list: List[Dict[str, Any]] = []
+    chosen_rows: List[int] = []
+    for inputs in window:
+        moved = {
+            key: value.to(device) if isinstance(value, torch.Tensor) else value
+            for key, value in inputs.items()
+        }
+        stacked = trainer_cls.concatenated_inputs(
+            moved, is_encoder_decoder=False, padding_value=padding_value, device=device
+        )
+        require_right_padded(stacked["concatenated_attention_mask"])
+        ids_list.append(stacked["concatenated_input_ids"])
+        stacked_list.append(stacked)
+        chosen_rows.append(int(moved["chosen_labels"].shape[0]))
+    refuse_mixed_shapes(ids_list, neftune=neftune, has_dropout=has_dropout)
+    return ids_list, stacked_list, chosen_rows
+
+
 def _window_tensors(
     window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
 ) -> Tuple[List[Any], List[Any]]:
