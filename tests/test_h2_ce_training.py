@@ -102,6 +102,7 @@ def test_tampered_or_divergent_evidence_rejected(tmp_path, fault):
         review_training(tmp_path / 'left', right, POLICY, work)
 
 
+@pytest.mark.requires_symlink
 def test_symlink_rejected(tmp_path):
     work = fixture_run(tmp_path / 'left')
     (tmp_path / 'link').symlink_to(tmp_path / 'left', target_is_directory=True)
