@@ -141,7 +141,7 @@ def test_a_gradient_on_the_reference_adapter_fails_the_cell(check):
     arm["grads"][0]["base.ref.lora_A"] = torch.tensor([1.0])
     verdict = check.judge_cell(arm, arm, arm, windows=2)
     assert verdict["pass"] is False
-    assert any(".ref." in problem for problem in verdict["problems"])
+    assert any(".ref" in problem for problem in verdict["problems"])
 
 
 # --------------------------------------------------------------------------
@@ -296,3 +296,31 @@ def test_a_method_without_all_three_cells_gives_no_verdict(check):
     verdict = check.judge_method([_cell(1, _attempt()), _cell(2, _attempt())])
     assert verdict["verdict"] == "no_verdict"
     assert "k=4" in verdict["reason"]
+
+
+# --------------------------------------------------------------------------
+# judge_cell: arms that log fewer losses than steps, or train another adapter
+# --------------------------------------------------------------------------
+def test_an_arm_with_fewer_losses_than_steps_fails_even_when_the_rest_is_equal(check):
+    short = _arm()
+    short["losses"] = short["losses"][:1]
+    verdict = check.judge_cell(short, short, short, windows=2)
+    assert verdict["pass"] is False
+    assert any("losses" in problem for problem in verdict["problems"])
+
+
+def test_l2l_logging_fewer_losses_than_the_reference_fails(check):
+    short = _arm()
+    short["losses"] = short["losses"][:1]
+    verdict = check.judge_cell(_arm(), _arm(), short, windows=2)
+    assert verdict["pass"] is False
+
+
+def test_a_gradient_outside_the_policy_adapter_fails_the_cell(check):
+    import torch
+
+    arm = _arm()
+    arm["grads"][0]["base.other.lora_A"] = torch.tensor([1.0])
+    verdict = check.judge_cell(arm, arm, arm, windows=2)
+    assert verdict["pass"] is False
+    assert any("policy adapter" in problem for problem in verdict["problems"])

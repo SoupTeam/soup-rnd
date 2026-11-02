@@ -40,6 +40,8 @@ def _differences(ref: Dict[str, Any], cand: Dict[str, Any]) -> List[str]:
         for name in sorted(g_ref):
             if not torch.equal(g_ref[name], g_cand[name]):
                 out.append(f"step {step}: {name} differs")
+    if len(ref["losses"]) != len(cand["losses"]):
+        out.append(f"loss count {len(ref['losses'])} against {len(cand['losses'])}")
     for step, (a, b) in enumerate(zip(ref["losses"], cand["losses"])):
         if a != b:
             out.append(f"step {step}: loss {a!r} against {b!r}")
@@ -89,6 +91,8 @@ def _not_worth_comparing(arm: Dict[str, Any], windows: int) -> List[str]:
     out: List[str] = []
     if len(arm["grads"]) != windows:
         out.append(f"{len(arm['grads'])} optimizer steps, but the data makes {windows} windows")
+    if len(arm["losses"]) != windows:
+        out.append(f"{len(arm['losses'])} losses logged, but the data makes {windows} windows")
     if not all(math.isfinite(loss) for loss in arm["losses"]):
         out.append("a loss is not finite")
     tensors = [t for step in arm["grads"] for t in step.values()]
@@ -96,9 +100,11 @@ def _not_worth_comparing(arm: Dict[str, Any], windows: int) -> List[str]:
         out.append("a gradient is not finite")
     elif not any(bool((t != 0).any()) for t in tensors):
         out.append("every gradient is zero")
-    names = sorted({name for step in arm["grads"] for name in step if ".ref." in name})
+    names = sorted(
+        {n for step in arm["grads"] for n in step if ".default." not in n or ".ref." in n}
+    )
     if names:
-        out.append(f"gradient on the reference adapter: {names[0]} (.ref.)")
+        out.append(f"gradient outside the policy adapter (.default., never .ref.): {names[0]}")
     return out
 
 

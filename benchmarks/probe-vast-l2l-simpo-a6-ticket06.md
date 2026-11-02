@@ -20,6 +20,11 @@
 ## Команды
 
 ```bash
+vastai create instance 58363712 --image nvidia/cuda:13.0.0-devel-ubuntu24.04 --disk 60 --ssh --direct --label a6-06-pref-check --cancel-unavail
+vastai attach ssh 58864206 "$(cat ~/.ssh/id_ed25519.pub)"
+git ls-files -z | tar --null -T - -czf - | ssh ... 'mkdir -p /root/soup && tar xzf - -C /root/soup'
+ssh -f ... "cd /root/soup && CARD='RTX 3060 12GB' nohup bash benchmarks/harness/l2l_pref_check/remote.sh > /root/remote.out 2>&1 < /dev/null &"
+vastai destroy instance 58864206 -y
 # на сервере, из каталога /root/soup, дерево коммита выше:
 CARD='RTX 3060 12GB' bash benchmarks/harness/l2l_pref_check/remote.sh
 # внутри: bootstrap (a0-bootstrap.sh), затем одна команда на все четыре метода:
@@ -81,7 +86,7 @@ k равен 1, 2, 4. Плечи: `ga1`, `ga2` (накопление дважд�
 | 2 | 0 | ok | ok | ok | ok | нет |  |
 | 4 | 0 | ok | ok | ok | ok | нет |  |
 
-Проверки `foreign_reads` (не обязательная, записана) по плечам использованных попыток:
+Проверки `foreign_reads` (не обязательная, записана) по плечам использованных попыток. Пока здесь `unknown`, довод правила «веса скачаны заранее, чтения тренера не шли с нуля» этой проверкой не подтверждён: путь модели не отображается на блочное устройство.
 
 | k | ga1 | ga2 | l2l | sft |
 | --- | --- | --- | --- | --- |
@@ -93,7 +98,7 @@ k равен 1, 2, 4. Плечи: `ga1`, `ga2` (накопление дважд�
 
 ## Что не проверялось
 
-- Причина расхождения L2L и накопления на CUDA не диагностирована. Известно только: веса загружены в `bfloat16` (журнал `l2l.out`), а в тестах тикетов 02 to 05 (CPU, float32, крошечная Llama) то же равенство побитовое. Эти два факта не доказывают, что причина в точности bf16.
+- Причина расхождения L2L и накопления на CUDA не диагностирована. Тип весов при загрузке в записях не сохранён: код берёт `torch_dtype="auto"`, то есть тип чекпойнта (`resolve_frozen_base_load_dtype` в `src/soup_cli/utils/gpu.py`); градиенты LoRA записаны в float32. В тестах тикетов 02 to 05 (CPU, float32, крошечная Llama) то же равенство побитовое. Это не доказывает, что причина в точности вычислений.
 - Допуск A3-07 с полом шума от второго бэкенда SDPA не измерялся: правило этого тикета берёт пол шума из `ga2` против `ga1`, а он равен 0, поэтому ступень 2 не включалась. Прогон с таким полом требует поправки правила до измерения и не входит в этот отчёт.
 - Шаги после нулевого начинаются с адаптеров, которые уже обновлены разными градиентами, поэтому их различия не независимы от шага 0. Чистое сравнение даёт только шаг 0.
 - Скорость и память не измерялись.
@@ -106,4 +111,6 @@ k равен 1, 2, 4. Плечи: `ga1`, `ga2` (накопление дважд�
 - [records-simpo.json](results/l2l-pref-a6-vast-rtx3060/records-simpo.json), [environment.json](results/l2l-pref-a6-vast-rtx3060/environment.json)
 - журналы и записи `ArmWatch` каждой попытки: `results/l2l-pref-a6-vast-rtx3060/simpo/k*/attempt*/`
 - [packages.txt](results/l2l-pref-a6-vast-rtx3060/packages.txt), [nvidia-smi.txt](results/l2l-pref-a6-vast-rtx3060/nvidia-smi.txt), [bootstrap.log](results/l2l-pref-a6-vast-rtx3060/bootstrap.log), [a6.log](results/l2l-pref-a6-vast-rtx3060/a6.log)
-- [rental.json](results/l2l-pref-a6-vast-rtx3060/rental.json), [create.log](results/l2l-pref-a6-vast-rtx3060/create.log)
+- [rental.json](results/l2l-pref-a6-vast-rtx3060/rental.json) (написан вручную после аренды; число `16,50` нагрузки и credit 1,698 и 1,641 взяты из вывода `ssh` и `vastai show user` во время работы и не заархивированы), [create.log](results/l2l-pref-a6-vast-rtx3060/create.log), [COMMIT](results/l2l-pref-a6-vast-rtx3060/COMMIT)
+- `pt-sha256.txt`: хеши градиентов и потерь каждого плеча. Сами `.pt` весят 184 МБ и в репозитории их нет.
+- Проверка ключей градиентов (только `.default.`, ни одного `.ref.`) и длины ряда потерь добавлена в судью после прогона. Она применена к сохранённым `.pt` на машине автора: 21120 ключей, нарушений нет, вердикты и числа различий те же.
