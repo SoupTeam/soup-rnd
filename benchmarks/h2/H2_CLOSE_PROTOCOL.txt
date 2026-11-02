@@ -48,19 +48,30 @@ Recorded, never gated: per-step loss difference L-A, final adapter relative L2 a
 per tensor, optimizer-state difference. These are measurements; the old policy is not applied.
 Outcome per arm: UPDATES_PASS, UPDATES_FAIL(row) or VOID(check).
 
-3. Stage S: Unsloth, arm U (one fresh process)
-Same workload and rows U1-U3 as stage U, with these differences:
+3. Stage S: Unsloth, arm U (one fresh audited process)
+Stage U's harness is built around the Transformers/PatchController path, so arm U is audited on
+the stage P path instead: `h2_perf_abba.py audit U`, the perf workload, 20 optimizer steps,
+the same trainer path as a stage P run plus update evidence. Unsloth is imported first in the
+process, before torch and transformers. An audited run hashes the whole model and is never timed.
 S1 the pinned stack must import, load the 8B snapshot in 4-bit and train. An import, load or
    kernel-compilation error, or a refusal by Unsloth of the pinned Transformers/TRL versions,
    gives UNSLOTH_INCOMPATIBLE with the full error. No other Unsloth or library version is tried
    under this protocol.
-S2 work: Unsloth prepares data in its own runtime, so U4 is replaced by: per-step useful and
-   total token counts observed in training_step equal the frozen workset counts in order.
-S3 record: actual compute dtype of each module family, checkpointing mode, patched module and
-   kernel names (profiler trace of one step), trainable manifest and its difference from A's.
-   A different trainable manifest is a FAIL only if it misses one of the seven LoRA target
-   projections in any layer.
-Recorded, never gated: per-step loss and final adapter difference U vs A.
+S2 work: 20 optimizer steps measured; per-step useful and total token counts observed in
+   training_step equal the frozen 20-step sequence of perf_workload_receipt.json.
+S3 updates (h2_update_oracle.audit_update): adapter bytes changed; no frozen parameter, buffer
+   or NF4 quant-state byte changed; finite nonzero adapter gradients observed before optimizer
+   steps; every loss finite; bench validity (no zero or non-finite gradient norm). The trainable
+   manifest must hold LoRA A and B on all seven target projections in every layer.
+S4 record, never gated: Unsloth version; parameter and trainable dtypes; gradient-checkpointing
+   flag; forward bindings of model, attention, MLP, norms and the loss function; per-step
+   losses. No kernel profile is taken.
+Declared differences that are part of arm U and are not equalized: Unsloth builds its own
+4-bit config (double quantization on, as in A); Unsloth's get_peft_model initializes the LoRA
+weights with its own random state, not seed 42, so initial adapters differ from A; Soup asks
+for use_gradient_checkpointing="unsloth"; dtype is chosen by Unsloth. soup bench train refuses
+the Unsloth backend by name; the runner skips that scope check for arm U only, and S2/S3 stand
+in for it.
 Outcome: UPDATES_PASS, UPDATES_FAIL(row), UNSLOTH_INCOMPATIBLE or VOID(check).
 
 4. Stage P: interleaved throughput and peak VRAM
@@ -114,8 +125,8 @@ P9 Multiplier. Published only for a pair with a label from P7, as "r (95% interv
 P10 Runner. benchmarks/harness/h2_perf_abba.py: run_arm (one run, soup bench train's trainer
    path), Series (box driver, fresh child per run inside ArmWatch) and analyze (pure; the
    offline review recomputes every label from series.json). No profiler in timed runs; L's
-   kernel attribution comes from stage U's trace and the per-run patch bindings. Arm U needs
-   the stage S runner; until it exists the runner refuses arm U.
+   kernel attribution comes from stage U's trace and the per-run patch bindings. Arm U runs
+   as in stage S without the audit, Unsloth imported first.
 
 5. Validity checks on every process (stages U, S and P)
 benchmarks/harness/arm_validity.py, required checks: suspend, power, foreign_reads (model disk,

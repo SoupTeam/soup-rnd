@@ -60,11 +60,6 @@ def test_run_problems_accepts_a_valid_run_and_names_each_defect():
         assert any("tokens/s" in p for p in abba.run_problems(report(rate=rate), STEPS))
 
 
-def test_unsloth_arm_is_refused_until_stage_s():
-    with pytest.raises(NotImplementedError):
-        abba.run_arm("U", {}, device="cpu")
-
-
 # --------------------------------------------------------------------------- analysis
 
 
@@ -255,3 +250,176 @@ def test_n_above_the_cap_gives_no_verdict_even_with_enough_blocks_on_record():
     pair = abba.analyze(records(rows), ("A", "L", "L", "A"))["pairs"]["L"]
     assert abba.BLOCK_CAP < pair["blocks_needed"] <= pair["valid_blocks"]
     assert pair["label"] == "NO_VERDICT_INSUFFICIENT_REPETITIONS"
+
+
+# --------------------------------------------------------------------------- stage S pieces
+
+
+def _names(layers, drop=None):
+    out = []
+    for i in range(layers):
+        for target in abba.LORA_TARGETS:
+            block = (
+                "self_attn" if target.endswith(("q_proj", "k_proj", "v_proj", "o_proj")) else "mlp"
+            )
+            for ab in "AB":
+                name = (
+                    f"base_model.model.model.layers.{i}.{block}.{target}.lora_{ab}.default.weight"
+                )
+                if name != drop:
+                    out.append(name)
+    return out
+
+
+def test_lora_manifest_requires_all_seven_targets_in_every_layer():
+    assert abba.lora_manifest_problems(_names(32), 32) == []
+    assert len(_names(32)) == 448
+    missing = "base_model.model.model.layers.31.mlp.down_proj.lora_B.default.weight"
+    assert abba.lora_manifest_problems(_names(32, drop=missing), 32)
+    assert abba.lora_manifest_problems(_names(31), 32)
+
+
+def test_backend_must_match_the_arm(tmp_path):
+    recipe = abba.load_recipe("A", "/nonexistent", tmp_path / "out")
+    recipe["backend"] = "unsloth"
+    with pytest.raises(ValueError, match="backend"):
+        abba.run_arm("A", recipe, device="cpu")
+    recipe = abba.load_recipe("U", "/nonexistent", tmp_path / "out")
+    recipe["backend"] = "transformers"
+    with pytest.raises(ValueError, match="backend"):
+        abba.run_arm("U", recipe, device="cpu")
+
+
+def _run_child(tmp_path, code):
+    import subprocess
+
+    return subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env={**__import__("os").environ, "PYTHONPATH": f"{tmp_path}:src:benchmarks/harness"},
+    )
+
+
+def test_arm_u_imports_unsloth_before_torch_and_refuses_a_preloaded_torch(tmp_path):
+    stub = tmp_path / "unsloth"
+    stub.mkdir()
+    (stub / "__init__.py").write_text(
+        "import sys, json, os\n__version__ = 'stub'\n"
+        "open(os.environ['STUB_OUT'], 'w').write(json.dumps("
+        "[m for m in ('torch', 'transformers', 'trl', 'peft') if m in sys.modules]))\n"
+    )
+    seen = tmp_path / "seen.json"
+    __import__("os").environ["STUB_OUT"] = str(seen)
+    code = (
+        "import sys; sys.path.insert(0, 'benchmarks/harness'); import h2_perf_abba as a; "
+        f"from pathlib import Path; print(a.child('U', '/m', Path('{tmp_path}/run1')))"
+    )
+    result = _run_child(tmp_path, code)
+    assert result.stdout.strip().endswith("1")  # no GPU here, so the child fails after import
+    assert json.loads(seen.read_text()) == []
+    failure = json.loads((tmp_path / "run1" / "failure.json").read_text())
+    assert "CUDA" in failure["error"]
+    code = (
+        "import torch, sys; sys.path.insert(0, 'benchmarks/harness'); import h2_perf_abba as a; "
+        f"from pathlib import Path; print(a.child('U', '/m', Path('{tmp_path}/run2')))"
+    )
+    _run_child(tmp_path, code)
+    failure = json.loads((tmp_path / "run2" / "failure.json").read_text())
+    assert "imported before torch" in failure["error"]
+
+
+AUDIT_CHILD = r"""
+import json, shutil, sys
+from pathlib import Path
+import torch
+from soup_cli.trainer.sft import SFTTrainerWrapper
+from transformers import LlamaConfig, LlamaForCausalLM
+import h2_perf_abba
+
+root, tokenizer_dir = Path(sys.argv[1]), Path(sys.argv[2])
+torch.manual_seed(42)
+model_dir = root / 'model'
+LlamaForCausalLM(LlamaConfig(
+    vocab_size=128256, hidden_size=16, intermediate_size=32, num_hidden_layers=2,
+    num_attention_heads=2, num_key_value_heads=2, max_position_embeddings=2048,
+    bos_token_id=128000, eos_token_id=128009, pad_token_id=128004,
+    attention_dropout=0.0, tie_word_embeddings=False)).save_pretrained(model_dir)
+for name in ('tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json'):
+    shutil.copy(tokenizer_dir / name, model_dir / name)
+original = SFTTrainerWrapper._as_sft_config
+
+
+def cpu(args, max_length, packing=False):
+    args.use_cpu = True
+    return original(args, max_length, packing)
+
+
+SFTTrainerWrapper._as_sft_config = staticmethod(cpu)
+recipe = h2_perf_abba.load_recipe('A', str(model_dir), root / 'out')
+recipe['training'].pop('bnb_4bit_quant_storage')
+recipe['training'].update(quantization='none', auto_mixed_precision=False)
+report = h2_perf_abba.run_arm('A', recipe, device='cpu', audit=True)
+(root / 'report.json').write_text(json.dumps(report['h2'], default=str))
+"""
+
+
+@pytest.mark.skipif(
+    not __import__("os").environ.get("H2_TOKENIZER_DIR"),
+    reason="Set H2_TOKENIZER_DIR to the verified snapshot tokenizer files",
+)
+def test_update_audit_passes_on_a_real_cpu_run(tmp_path):
+    import os
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, "-c", AUDIT_CHILD, str(tmp_path), os.environ["H2_TOKENIZER_DIR"]],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=900,
+        env={
+            **os.environ,
+            "PYTHONPATH": "src:benchmarks/harness",
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "ACCELERATE_USE_CPU": "true",
+        },
+    )
+    assert result.returncode == 0, result.stderr[-3000:]
+    h2 = json.loads((tmp_path / "report.json").read_text())
+    audit = h2["audit"]
+    assert audit["status"] == "UPDATES_PASS", audit["problems"]
+    assert audit["oracle"]["status"] == "PASS_UPDATE_EVIDENCE"
+    assert audit["trainable_tensors"] == 2 * 7 * 2 and audit["gradient_observations"] == 20
+    assert len(audit["losses"]) == 20 and audit["runtime"]["layers"] == 2
+    assert h2["step_tokens"] == STEPS
+
+
+def test_update_audit_fails_on_any_oracle_reason(monkeypatch):
+    import h2_update_oracle
+
+    monkeypatch.setattr(h2_update_oracle, "snapshot", lambda model, names: {"after": True})
+    verdicts = iter(
+        [
+            {"status": "PASS_UPDATE_EVIDENCE", "reasons": []},
+            {"status": "FAIL", "reasons": ["Frozen parameter/buffer state changed"]},
+        ]
+    )
+    monkeypatch.setattr(h2_update_oracle, "audit_update", lambda *a: next(verdicts))
+
+    from types import SimpleNamespace
+
+    trainer = SimpleNamespace(
+        model=object(), state=SimpleNamespace(global_step=20, log_history=[{"loss": 1.0}])
+    )
+
+    audit = abba.UpdateAudit()
+    audit.names = _names(2)
+    audit.runtime = {"layers": 2}
+    assert audit.finish(trainer)["status"] == "UPDATES_PASS"
+    failed = audit.finish(trainer)
+    assert failed["status"] == "UPDATES_FAIL"
+    assert failed["problems"] == ["Frozen parameter/buffer state changed"]

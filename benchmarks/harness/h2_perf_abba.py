@@ -104,36 +104,140 @@ def load_recipe(arm: str, model_path: str, output: Path) -> dict:
     return recipe
 
 
+LORA_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
+
+
+def lora_manifest_problems(names: Sequence[str], layers: int) -> list[str]:
+    """Stage S3: every layer must carry LoRA A and B on all seven target projections."""
+    import re
+
+    found = set()
+    for name in names:
+        hit = re.search(r"layers\.(\d+)\.(?:self_attn|mlp)\.(\w+)\.lora_([AB])\.", name)
+        if hit:
+            found.add((int(hit.group(1)), hit.group(2), hit.group(3)))
+    wanted = {(i, t, ab) for i in range(layers) for t in LORA_TARGETS for ab in "AB"}
+    missing = sorted(wanted - found)
+    return [f"missing LoRA tensors, first: {missing[:3]}"] if missing else []
+
+
+def _binding(fn: Any) -> str:
+    fn = getattr(fn, "__func__", fn)
+    return f"{getattr(fn, '__module__', '?')}.{getattr(fn, '__qualname__', type(fn).__name__)}"
+
+
+def runtime_record(model: Any) -> dict:
+    """Stage S3: what the backend actually runs (dtypes, checkpointing, forward bindings)."""
+    from collections import Counter
+
+    from transformers.trainer_utils import unwrap_peft_model
+
+    base = unwrap_peft_model(model)
+    layer = base.model.layers[0]
+    return {
+        "parameter_dtypes": dict(Counter(str(p.dtype) for p in model.parameters())),
+        "trainable_dtypes": dict(
+            Counter(str(p.dtype) for p in model.parameters() if p.requires_grad)
+        ),
+        "gradient_checkpointing": bool(getattr(base, "is_gradient_checkpointing", False)),
+        "forwards": {
+            "model": _binding(base.forward),
+            "attention": _binding(layer.self_attn.forward),
+            "mlp": _binding(layer.mlp.forward),
+            "input_layernorm": _binding(layer.input_layernorm.forward),
+            "final_norm": _binding(base.model.norm.forward),
+        },
+        "loss_function": _binding(getattr(base, "loss_function", None)),
+        "layers": len(base.model.layers),
+    }
+
+
+class UpdateAudit:
+    """Stage S rows U2/U3 on one run: h2_update_oracle before/after, per-step gradients."""
+
+    def __init__(self) -> None:
+        self.names: list[str] = []
+        self.before: Optional[dict] = None
+        self.gradient_rows: list[dict] = []
+        self.runtime: Optional[dict] = None
+
+    def attach(self, trainer: Any) -> None:
+        from h2_update_oracle import gradients, snapshot
+        from transformers import TrainerCallback
+
+        model = trainer.model
+        self.names = sorted(n for n, p in model.named_parameters() if p.requires_grad)
+        self.runtime = runtime_record(model)
+        self.before = snapshot(model, self.names)
+        outer = self
+
+        class _Gradients(TrainerCallback):
+            def on_pre_optimizer_step(self, args=None, state=None, control=None, **kwargs):
+                outer.gradient_rows.append(gradients(trainer.model, outer.names))
+                return control
+
+        trainer.add_callback(_Gradients())
+
+    def finish(self, trainer: Any) -> dict:
+        from h2_update_oracle import audit_update, snapshot
+
+        after = snapshot(trainer.model, self.names)
+        losses = [row["loss"] for row in trainer.state.log_history if "loss" in row]
+        verdict = audit_update(
+            self.before, after, self.gradient_rows, trainer.state.global_step, losses
+        )
+        problems = list(verdict["reasons"])
+        problems += lora_manifest_problems(self.names, self.runtime["layers"])
+        return {
+            "status": "UPDATES_FAIL" if problems else "UPDATES_PASS",
+            "problems": problems,
+            "oracle": verdict,
+            "trainable_tensors": len(self.names),
+            "gradient_observations": len(self.gradient_rows),
+            "losses": losses,
+            "runtime": self.runtime,
+        }
+
+
 def run_arm(
     arm: str,
     recipe: dict,
     *,
     device: str,
     control_factory: Optional[Callable[[str], Any]] = None,
+    audit: bool = False,
 ) -> dict:
-    """Train one arm for STEPS steps and return the bench report plus H2 fields."""
-    if arm == "U":
-        # Unsloth trains through its own trainer path, which soup bench train refuses by name
-        # (bench_scope_error). Its runner is part of the stage S integration.
-        raise NotImplementedError("arm U runs only after the stage S integration is added")
+    """Train one arm for STEPS steps and return the bench report plus H2 fields.
+
+    ``audit`` adds the stage S update evidence (adapter/frozen/NF4 hashes before and after,
+    per-step gradients); it hashes the whole model, so audited runs are never timed runs.
+    """
     from soup_cli.bench.train_run import bench_scope_error, run_bench_train
     from soup_cli.config.schema import SoupConfig
     from soup_cli.data.loader import load_dataset
 
     control = None
-    if control_factory is not None:
+    if control_factory is not None and arm != "U":
         control = control_factory(ARMS[arm][0])
     cfg = SoupConfig.model_validate(recipe)
-    refused = bench_scope_error(cfg)
+    if (cfg.backend == "unsloth") != (arm == "U"):
+        raise ValueError("config backend does not match the arm")
+    # soup bench train refuses the Unsloth backend by name because its own path is untested
+    # there. Arm U is run through the same trainer path on purpose; stage S's update audit and
+    # the per-step token check stand in for that untested scope (H2_CLOSE_PROTOCOL.txt S2).
+    refused = None if arm == "U" else bench_scope_error(cfg)
     if refused:
         raise ValueError(refused)
     tokens, holder = StepTokens(), {}
+    auditor = UpdateAudit() if audit else None
 
     def before_train(wrapper: Any) -> None:
         holder["wrapper"] = wrapper
         if bool(wrapper.trainer.args.use_liger_kernel) != (arm == "L"):
             raise ValueError("use_liger_kernel does not match the arm")
         tokens.attach(wrapper.trainer)
+        if auditor is not None:
+            auditor.attach(wrapper.trainer)
 
     report = run_bench_train(
         cfg,
@@ -143,20 +247,31 @@ def run_arm(
         load_dataset=lambda c: load_dataset(c.data),
         before_train=before_train,
     )
+    trainer = holder["wrapper"].trainer
     report["h2"] = {
         "arm": arm,
         "step_tokens": tokens.steps,
         "binding": control.verify(holder["wrapper"].model) if control is not None else None,
+        "bench_scope_override": arm == "U",
+        "audit": auditor.finish(trainer) if auditor is not None else None,
     }
     return report
 
 
-def child(arm: str, model_path: str, out: Path) -> int:
+def child(arm: str, model_path: str, out: Path, audit: bool = False) -> int:
     """Fresh-process entry on the GPU box; writes run.json or failure.json into ``out``."""
     out.mkdir(parents=True, exist_ok=False)
     os.environ.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false")
     started = time.time()
     try:
+        unsloth_version = None
+        if arm == "U":
+            # Unsloth patches transformers/TRL at import; it must come first in the process.
+            if any(m in sys.modules for m in ("torch", "transformers", "trl", "peft")):
+                raise ValueError("arm U requires unsloth to be imported before torch/transformers")
+            import unsloth
+
+            unsloth_version = getattr(unsloth, "__version__", None)
         import torch
 
         if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
@@ -168,15 +283,26 @@ def child(arm: str, model_path: str, out: Path) -> int:
             load_recipe(arm, model_path, out / "trained_output"),
             device="cuda",
             control_factory=PatchController,
+            audit=audit,
         )
+        report["h2"]["unsloth_version"] = unsloth_version
         report["h2"]["gpu_uuid"] = str(torch.cuda.get_device_properties(0).uuid)
         report["h2"]["boot_id"] = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
         report["h2"]["elapsed_seconds"] = time.time() - started
         (out / "run.json").write_text(json.dumps(report, indent=2, default=str) + "\n")
         return 0
     except BaseException as error:  # noqa: BLE001 -- every failure is evidence
+        import traceback
+
         (out / "failure.json").write_text(
-            json.dumps({"error": f"{type(error).__name__}: {error}", "arm": arm}) + "\n"
+            json.dumps(
+                {
+                    "error": f"{type(error).__name__}: {error}",
+                    "arm": arm,
+                    "traceback": traceback.format_exc()[-6000:],
+                }
+            )
+            + "\n"
         )
         return 1
 
@@ -461,9 +587,9 @@ class Series:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) == 5 and argv[1] == "child":
-        return child(argv[2], argv[3], Path(argv[4]))
-    print("usage: h2_perf_abba.py child <A|L|U> <model_path> <out_dir>", file=sys.stderr)
+    if len(argv) == 5 and argv[1] in ("child", "audit"):
+        return child(argv[2], argv[3], Path(argv[4]), audit=argv[1] == "audit")
+    print("usage: h2_perf_abba.py child|audit <A|L|U> <model_path> <out_dir>", file=sys.stderr)
     return 2
 
 
