@@ -214,13 +214,29 @@ class ORPOTrainerWrapper(StreamingSetupMixin):
         )
 
         # --- Trainer ---
-        self.trainer = orpo_trainer_cls(
-            model=self.model,
-            args=orpo_config,
-            train_dataset=train_ds,
-            eval_dataset=eval_ds,
-            processing_class=self.tokenizer,
-        )
+        trainer_kwargs = {
+            "model": self.model,
+            "args": orpo_config,
+            "train_dataset": train_ds,
+            "eval_dataset": eval_ds,
+            "processing_class": self.tokenizer,
+        }
+        if tcfg.l2l:
+            from soup_cli.trainer.l2l_orpo import orpo_window_loss
+
+            # TRL pads the stacked pair with the tokenizer's pad id unless
+            # ``padding_value`` is set; Soup does not set it.
+            self.trainer = self._build_l2l_trainer(
+                orpo_trainer_cls,
+                trainer_kwargs,
+                orpo_config,
+                loss=orpo_window_loss(
+                    beta=float(tcfg.orpo_beta),
+                    padding_value=int(self.tokenizer.pad_token_id),
+                ),
+            )
+        else:
+            self.trainer = orpo_trainer_cls(**trainer_kwargs)
         if not config_accepts(orpo_config_cls, "max_prompt_length"):
             # TRL's experimental ORPO tokenizer still assumes the removed
             # prompt cap has already run. Restore it on the prepared token ids.

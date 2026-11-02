@@ -98,32 +98,23 @@ class L2LState:
             self.store = None
 
 
-def _window_tensors(
-    window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
-) -> Tuple[List[Any], List[Any]]:
-    """Input ids and labels of each micro-batch, each at its own shape.
+def require_right_padded(mask: Any) -> None:
+    """Refuse a window row whose attention mask has a padding token before a real token."""
+    if mask is not None and bool((mask[:, 1:] > mask[:, :-1]).any()):
+        raise ValueError(
+            "training.l2l needs right-padded rows: a padding token precedes "
+            "a real token in the attention mask."
+        )
 
-    A window whose micro-batches differ in shape is refused with NEFTune or dropout on.
+
+def refuse_mixed_shapes(ids_list: List[Any], *, neftune: bool, has_dropout: bool) -> None:
+    """Refuse a window whose micro-batches differ in shape with NEFTune or dropout on.
+
     Dropout: ``l2l_rng.replay`` builds the generator states from one draw plan shared by
     all micro-batches, and rows of different lengths draw different masks. NEFTune: the
     noise scales with ``1 / sqrt(seq * hidden)`` and the combination has not been checked
     against gradient accumulation on rows of different lengths.
     """
-    ids_list, label_list = [], []
-    for inputs in window:
-        ids = inputs["input_ids"].to(device)
-        labels = inputs.get("labels")
-        labels = ids if labels is None else labels.to(device)
-        mask = inputs.get("attention_mask")
-        if mask is not None:
-            mask = mask.to(device)
-            if bool((mask[:, 1:] > mask[:, :-1]).any()):
-                raise ValueError(
-                    "training.l2l needs right-padded rows: a padding token precedes "
-                    "a real token in the attention mask."
-                )
-        ids_list.append(ids)
-        label_list.append(labels)
     shapes = {tuple(ids.shape) for ids in ids_list}
     mixed = len(shapes) > 1
     if mixed and neftune:
@@ -141,6 +132,24 @@ def _window_tensors(
             "the replay of l2l_rng uses one draw plan for all micro-batches. Use rows of "
             "one length, or set the dropout to 0."
         )
+
+
+def _window_tensors(
+    window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
+) -> Tuple[List[Any], List[Any]]:
+    """Input ids and labels of each micro-batch, each at its own shape."""
+    ids_list, label_list = [], []
+    for inputs in window:
+        ids = inputs["input_ids"].to(device)
+        labels = inputs.get("labels")
+        labels = ids if labels is None else labels.to(device)
+        mask = inputs.get("attention_mask")
+        if mask is not None:
+            mask = mask.to(device)
+            require_right_padded(mask)
+        ids_list.append(ids)
+        label_list.append(labels)
+    refuse_mixed_shapes(ids_list, neftune=neftune, has_dropout=has_dropout)
     return ids_list, label_list
 
 
