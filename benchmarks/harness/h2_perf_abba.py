@@ -473,7 +473,9 @@ class Series:
     def _launch_child(self, arm: str, out: Path) -> int:
         proc = subprocess.run(
             [sys.executable, "-B", __file__, "child", arm, self.model_path, str(out)],
-            cwd=REPO,
+            # Not the repository: Unsloth writes a compile cache into the working directory, and
+            # the box's source checkout must stay clean.
+            cwd=self.out,
             timeout=RUN_MAX_SECONDS,
             stdout=(out.parent / f"{out.name}.log").open("wb"),
             stderr=subprocess.STDOUT,
@@ -488,6 +490,7 @@ class Series:
             "steps": STEPS,
             "warmup": WARMUP,
             "block_cap": BLOCK_CAP,
+            "order": list(self.order),
             "runs": self.run_log,
             "analysis": analyze(self.records, self.order) if self.records else None,
             "performance_verdict_scope": "pair labels in analysis.pairs only",
@@ -539,6 +542,7 @@ class Series:
             value = report["throughput"]["useful_tokens_per_second"]
             entry["useful_tokens_per_second"] = value
             entry["median_step_seconds"] = report["timing"]["median_seconds"]
+        entry["memory"] = dict(report["memory"]) if report else {}
         entry["outcome"] = outcome
         self.run_log.append(entry)
         return RunRecord(
@@ -546,6 +550,7 @@ class Series:
         )
 
     def run(self, block_seconds_estimate: float) -> dict:
+        """``block_seconds_estimate`` is raised to the longest block seen so far."""
         self.out.mkdir(parents=True, exist_ok=True)
         block, run_index = 0, 1
         while True:
@@ -572,6 +577,7 @@ class Series:
                 return self._save("NO_VERDICT_HOST_NOISE", f"{void} void blocks")
             if self.clock() + block_seconds_estimate > self.deadline_unix_s:
                 return self._save("INCOMPLETE_DEADLINE", f"{need} block(s) still due")
+            started = self.clock()
             for position, arm in enumerate(self.order):
                 record = self._one(block, position, arm, run_index)
                 run_index += 1
@@ -583,13 +589,65 @@ class Series:
                     # replacing its block would only repeat it (protocol P4).
                     return self._save("FAILED_RUN", "; ".join(entry["problems"]))
                 self._save("RUNNING")
+            block_seconds_estimate = max(block_seconds_estimate, self.clock() - started)
             block += 1
+
+
+def records_from_runs(runs: Sequence[dict]) -> list[RunRecord]:
+    """Rebuild the analysis input from series.json's run log (offline review)."""
+    return [
+        RunRecord(
+            r["arm"],
+            r["block"],
+            r["position"],
+            r["outcome"],
+            r.get("useful_tokens_per_second"),
+            dict(r.get("memory") or {}),
+        )
+        for r in runs
+    ]
+
+
+def review_series(path: Path) -> dict:
+    """Recompute every pair label from a saved series.json and compare with the box's."""
+    saved = json.loads(Path(path).read_text())
+    order = tuple(saved["order"])
+    records = records_from_runs(saved["runs"])
+    fresh = analyze(records, order) if records else None
+    return {
+        "status": saved["status"],
+        "analysis": fresh,
+        "matches_box": json.dumps(fresh, sort_keys=True, default=str)
+        == json.dumps(saved["analysis"], sort_keys=True, default=str),
+    }
 
 
 def main(argv: list[str]) -> int:
     if len(argv) == 5 and argv[1] in ("child", "audit"):
         return child(argv[2], argv[3], Path(argv[4]), audit=argv[1] == "audit")
-    print("usage: h2_perf_abba.py child|audit <A|L|U> <model_path> <out_dir>", file=sys.stderr)
+    if len(argv) == 8 and argv[1] == "series":
+        # series <out> <A,L[,U]> <model_path> <deadline_unix_s> <block_estimate_s> <label>
+        receipt = json.loads((SPEC / "perf_workload_receipt.json").read_text())
+        series = Series(
+            out=Path(argv[2]),
+            admitted=tuple(argv[3].split(",")),
+            expected_steps=receipt["steps"]["step_tokens"],
+            deadline_unix_s=float(argv[5]),
+            model_path=argv[4],
+            label=argv[7],
+        )
+        result = series.run(block_seconds_estimate=float(argv[6]))
+        print(json.dumps({"status": result["status"], "reason": result["reason"]}))
+        return 0
+    if len(argv) == 3 and argv[1] == "review":
+        print(json.dumps(review_series(Path(argv[2])), indent=2, default=str))
+        return 0
+    print(
+        "usage: h2_perf_abba.py child|audit <A|L|U> <model_path> <out_dir>\n"
+        "       h2_perf_abba.py series <out> <A,L[,U]> <model> <deadline> <block_s> <label>\n"
+        "       h2_perf_abba.py review <series.json>",
+        file=sys.stderr,
+    )
     return 2
 
 

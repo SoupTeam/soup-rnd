@@ -423,3 +423,69 @@ def test_update_audit_fails_on_any_oracle_reason(monkeypatch):
     failed = audit.finish(trainer)
     assert failed["status"] == "UPDATES_FAIL"
     assert failed["problems"] == ["Frozen parameter/buffer state changed"]
+
+
+def test_offline_review_recomputes_the_box_analysis(tmp_path):
+    FakeWatch.outcomes = ["ok", "void"]
+    series, _ = make_series(
+        tmp_path, lambda arm, i: 1100.0 + i % 3 if arm == "L" else 1000.0 + i % 3
+    )
+    series.run(block_seconds_estimate=60)
+    review = abba.review_series(tmp_path / "series" / "series.json")
+    assert review["matches_box"] is True and review["status"] == "COMPLETE"
+    assert review["analysis"]["pairs"]["L"]["label"] == "FASTER"
+    saved = json.loads((tmp_path / "series" / "series.json").read_text())
+    saved["runs"][-1]["useful_tokens_per_second"] = 9999.0
+    (tmp_path / "tampered.json").write_text(json.dumps(saved))
+    assert abba.review_series(tmp_path / "tampered.json")["matches_box"] is False
+
+
+def test_block_estimate_grows_to_the_longest_block_seen(tmp_path):
+    FakeWatch.outcomes = []
+    now = [0.0]
+
+    def launch(arm, out):
+        now[0] += 100.0  # every run takes 100 s, so a block takes 400 s
+        out.mkdir(parents=True)
+        (out / "run.json").write_text(json.dumps(report(rate=1000.0 + now[0] % 7)))
+        return 0
+
+    series = abba.Series(
+        out=tmp_path / "s",
+        admitted=("A", "L"),
+        expected_steps=STEPS,
+        deadline_unix_s=1000.0,
+        model_path="/m",
+        label="t",
+        launch=launch,
+        watch=FakeWatch,
+        gpu_processes=lambda: [],
+        clock=lambda: now[0],
+    )
+    result = series.run(block_seconds_estimate=10)
+    assert result["status"] == "INCOMPLETE_DEADLINE" and len(result["runs"]) == 8
+
+
+def test_children_run_outside_the_source_checkout(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen.update(kwargs)
+
+        class Done:
+            returncode = 0
+
+        return Done()
+
+    monkeypatch.setattr(abba.subprocess, "run", fake_run)
+    series = abba.Series(
+        out=tmp_path / "s",
+        admitted=("A", "L"),
+        expected_steps=STEPS,
+        deadline_unix_s=1e12,
+        model_path="/m",
+        label="t",
+    )
+    (tmp_path / "s").mkdir()
+    series._launch_child("A", tmp_path / "s" / "b00_0_A")
+    assert Path(seen["cwd"]) == tmp_path / "s" and Path(seen["cwd"]) != abba.REPO

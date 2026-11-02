@@ -46,7 +46,12 @@ U5 attribution: L shows liger_cross_entropy_kernel launches and no other Liger k
 Validity (void, not fail): the F1 checks of section 5 and GPU exclusivity on each process.
 Recorded, never gated: per-step loss difference L-A, final adapter relative L2 and cosine L vs A
 per tensor, optimizer-state difference. These are measurements; the old policy is not applied.
-Outcome per arm: UPDATES_PASS, UPDATES_FAIL(row) or VOID(check).
+Outcome per arm: UPDATES_PASS, UPDATES_FAIL(row), INCOMPLETE (no readable evidence or the
+shared deadline) or VOID(check).
+Runner: h2_ce_confirmation.py with contract series "updates" (exactly baseline_training then
+ce_only_training, each a fresh supervised child; a failed child stops the series, no retry).
+Review: h2_close_updates.review_updates, written to updates_review.json and repeatable offline
+with --review-only. The series status is COMPLETE_H2_UPDATES_SERIES or STOPPED_H2_UPDATES_SERIES.
 
 3. Stage S: Unsloth, arm U (one fresh audited process)
 Stage U's harness is built around the Transformers/PatchController path, so arm U is audited on
@@ -142,10 +147,12 @@ after an attempt ends in NO_VERDICT_HOST_NOISE or an F1-voided series, never aft
 failure. Machine: one RTX 4090, whole machine rented (gpu_frac 1, single GPU), verified,
 reliability >= 99%, total rate <= 0.60 USD/h with disk; 32 GB container plus 100 GB local
 volume; template "C3 H2 existing-key owner recovery 002"; protected resources untouched.
-Lease length = min(150 min, floor(cap / rate) minutes); dispatch refuses when the remaining
-lease cannot cover the stage bound plus export margin.
-Bounds: U and S 600 s per process, 2400 s per stage; P 600 s per run; P series bound from the
-lease. External watchdog on every process. No retry, resume or partial rerun of a failed
+Lease length from the rent request = min(L, floor((cap - 0.10) / rate) minutes - 1), with
+L = 150 min for U+S and 240 min for P; 0.10 USD of each cap is kept for traffic. Dispatch
+refuses when the remaining lease cannot cover the stage bound (U+S: 2400 + 600 s; P: one block)
+plus the 40 s cleanup reserve and the measured export margin.
+Bounds: U and S 600 s per process, 2400 s for stage U and 600 s for stage S; P 600 s per run;
+the P series stops starting blocks at lease - export margin - 40 s. External watchdog on every process. No retry, resume or partial rerun of a failed
 process; a void P block is replaced only under P6.
 Evidence: preserved with a manifest, exported to the USB drive, archive sha256 verified on the
 Mac before the instance and its volume are destroyed; local APFS restore and an offline review

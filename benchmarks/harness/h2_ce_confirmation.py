@@ -58,19 +58,23 @@ REF64_PHASES = ('baseline_probes', 'ce_only_probes', 'ref64_probes', 'ref64_prob
                 'ref64_perturbed_probe02', 'ref64_perturbed_probe03')
 PERTURBED_PROBE = {'ref64_perturbed_probe02': 2, 'ref64_perturbed_probe03': 3}
 # The contract may only choose one of these fixed series; it can never carry a free-form list.
-SERIES = {'ce_confirmation': PHASES, 'noise_floor': NOISE_FLOOR_PHASES, 'ref64': REF64_PHASES}
+# H2-close stage U: only the two training children of the tested training phase.
+UPDATES_PHASES = ('baseline_training', 'ce_only_training')
+SERIES = {'ce_confirmation': PHASES, 'noise_floor': NOISE_FLOOR_PHASES, 'ref64': REF64_PHASES,
+          'updates': UPDATES_PHASES}
 ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
     'h2_ce_confirmation.py', 'h2_ce_training.py', 'h2_ce_workset.py',
     'h2_operator_patch.py', 'h2_operator_capture.py',
     'h2_ce_controls.py', 'arm_validity.py', 'l2l_box.py',
     'h2_ce_ref64.py', 'h2_ce_ref64_review.py', 'h2_ce_ref64_evidence.py',
+    'h2_close_updates.py',
 })) + tuple('benchmarks/h2/' + n for n in (
     'operator_study.json', 'numerical_policy.json', 'candidate_configs/baseline.json',
     'runtime_candidate.lock', 'synthetic_fixture.jsonl', 'prepared_fixture_candidate.jsonl',
     'CE_CONFIRMATION_PROTOCOL.txt', 'ce_confirmation_plan.json', 'ce_confirmation_workset.json',
     'CE_CONTROLS_PROTOCOL.txt',
     'CE_PREPARED_BATCHES_PROTOCOL.txt', 'CE_HARDENING_ADDENDUM.txt',
-    'CE_NOISE_FLOOR_ADDENDUM.txt', 'CE_FP64_REFERENCE_ADDENDUM.txt',
+    'CE_NOISE_FLOOR_ADDENDUM.txt', 'CE_FP64_REFERENCE_ADDENDUM.txt', 'H2_CLOSE_PROTOCOL.txt',
 ))
 _USED = False
 CLEANUP_RESERVE_SECONDS = 40
@@ -710,6 +714,8 @@ def run_series(contract: dict, out: Path) -> dict:
             result['phases'][phase] = report
             if (report['status'] != 'CHILD_EXITED' or not report['group_cleanup_confirmed']
                     or report.get('child_status', {}).get('returncode') != 0):
+                if series == 'updates':
+                    result['status'] = 'STOPPED_H2_UPDATES_SERIES'
                 if series == 'ref64':
                     result['status'] = ref64_failure_status(out / phase / 'runner')
                 raise ValueError('Child failed; no subsequent phases or retries')
@@ -731,6 +737,14 @@ def run_series(contract: dict, out: Path) -> dict:
             result.update(status=review['run_status'] if review['run_status'] in
                           ('VOID', 'INCOMPLETE') else 'COMPLETE_CE_REF64_SERIES',
                           label=review['label'])
+        elif series == 'updates':
+            reviewing = True
+            import h2_close_updates
+
+            review = h2_close_updates.review_updates(out)
+            write_json(out / 'updates_review.json', review)
+            result.update(status='COMPLETE_H2_UPDATES_SERIES',
+                          arms={k: v['outcome'] for k, v in review['arms'].items()})
         elif series == 'noise_floor':
             reviewing = True
             review = review_noise_floor(out)
@@ -745,6 +759,18 @@ def run_series(contract: dict, out: Path) -> dict:
             result['status'] = 'VOID'  # Identity/evidence failure after all children ran.
         elif series == 'ref64' and result['status'] == 'BLOCKED':
             result['status'] = 'INCOMPLETE' if isinstance(error, TimeoutError) else 'VOID'
+        if series == 'updates' and not reviewing:
+            # A stopped series still gets its per-arm outcomes from whatever evidence exists.
+            try:
+                import h2_close_updates
+
+                review = h2_close_updates.review_updates(out)
+                write_json(out / 'updates_review.json', review)
+                result['arms'] = {k: v['outcome'] for k, v in review['arms'].items()}
+            except Exception as review_error:
+                result['review_error'] = type(review_error).__name__ + ': ' + str(review_error)
+            if result['status'] == 'BLOCKED':
+                result['status'] = 'STOPPED_H2_UPDATES_SERIES'
     finally:
         write_json(out / 'series.json', result)
         tree_seal(out)
@@ -769,6 +795,14 @@ def main() -> None:
             Console().print('REF64_' + h2_ce_ref64_review.review_ref64(args.out)['label']
                             + '; external controls pending; NO_VERDICT')
             return
+        if series_name(recorded) == 'updates':
+            import h2_close_updates
+
+            review = h2_close_updates.review_updates(args.out)
+            Console().print('H2_UPDATES ' + json.dumps({k: v['outcome'] for k, v in
+                                                       review['arms'].items()})
+                            + '; NO_VERDICT')
+            return
         if series_name(recorded) == 'noise_floor':
             review = review_noise_floor(args.out)
             Console().print('NOISE_FLOOR_' + review['classification']
@@ -785,7 +819,8 @@ def main() -> None:
                                                                                    args.out)
     Console().print(result['status'] + '; performance=NO_VERDICT')
     if result['status'] not in {'COMPLETE_CE_CAPTURE', 'COMPLETE_CE_NUMERICAL_SERIES',
-                              'COMPLETE_CE_NOISE_FLOOR_SERIES', 'COMPLETE_CE_REF64_SERIES'}:
+                              'COMPLETE_CE_NOISE_FLOOR_SERIES', 'COMPLETE_CE_REF64_SERIES',
+                              'COMPLETE_H2_UPDATES_SERIES'}:
         raise SystemExit(2)
 
 
