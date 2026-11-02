@@ -90,6 +90,25 @@ for arm in ('baseline', 'liger_ce'):
     out[arm] = {'columns': sorted(trainer.train_dataset.column_names),
                 'use_liger_kernel': bool(trainer.args.use_liger_kernel),
                 'max_length': recipe['data']['max_length'], 'rows': rows}
+# The actual step order: one real 20-step run of arm A through the stage P runner on CPU.
+import h2_perf_abba
+_original = SFTTrainerWrapper._as_sft_config
+
+
+def _cpu_sft_config(args, max_length, packing=False):
+    args.use_cpu = True
+    return _original(args, max_length, packing)
+
+
+SFTTrainerWrapper._as_sft_config = staticmethod(_cpu_sft_config)
+recipe = h2_perf_abba.load_recipe('A', str(model_dir), root / 'output_steps')
+recipe['training'].pop('bnb_4bit_quant_storage')
+recipe['training'].update(quantization='none', auto_mixed_precision=False)
+report = h2_perf_abba.run_arm('A', recipe, device='cpu')
+out['steps'] = {'valid': report['valid'], 'failures': report['failures'],
+                'steps_measured': report['steps_measured'],
+                'step_tokens': report['h2']['step_tokens'],
+                'counted_tokens': report['tokens']}
 (root / 'receipt.json').write_text(json.dumps(out))
 """
 
@@ -142,6 +161,11 @@ def build(tokenizer_dir: Path, scratch: Path) -> dict:
             f"row lengths {min(tokens)}..{max(tokens)} outside "
             f"[{MIN_TOKENS}, {MAX_LENGTH}) -- truncation or too short"
         )
+    steps = arms["steps"]
+    if not steps["valid"] or steps["steps_measured"] != 20 or len(steps["step_tokens"]) != 20:
+        raise ValueError(f"CPU step-order run invalid: {steps['failures']}")
+    if sum(s["total"] for s in steps["step_tokens"]) > sum(tokens):
+        raise ValueError("20 steps saw more tokens than the workload holds")
     configs = {k: {"path": str(v.relative_to(ROOT)), "sha256": _sha(v)} for k, v in CONFIGS.items()}
     return {
         "status": "PERF_WORKLOAD_TOKEN_ACCOUNTING_FROZEN_CPU",
@@ -168,6 +192,15 @@ def build(tokenizer_dir: Path, scratch: Path) -> dict:
         "use_liger_kernel": {
             "baseline": base["use_liger_kernel"],
             "liger_ce": liger["use_liger_kernel"],
+        },
+        "steps": {
+            "source": "one 20-step CPU run of arm A through h2_perf_abba.run_arm (tiny model)",
+            "steps": 20,
+            "warmup": 4,
+            "runner_sha256": _sha(Path(__file__).with_name("h2_perf_abba.py")),
+            "step_tokens": steps["step_tokens"],
+            "counted_useful": steps["counted_tokens"]["useful"],
+            "counted_total": steps["counted_tokens"]["total"],
         },
         "rows": [
             {"row": i, "tokens": t, "useful_targets": u, "ids_sha256": r["ids_sha256"]}

@@ -78,22 +78,29 @@ P3 Run. One run = one fresh process on one arm: 20 optimizer steps, the first 4 
    Deviation from METHOD.md, declared here: METHOD's run number is the median step time; rows
    here have different lengths by design, so the token-weighted rate is used. Median step time,
    total tokens/s and every step time are recorded too.
-   Peak VRAM per run: torch.cuda.max_memory_allocated and max_memory_reserved after reset at the
-   start of training; nvidia-smi used memory at the end of the counted window is recorded.
-P4 Run validity. A run is VALID only if: 20 steps measured; the bench validity checks pass
-   (trainable parameters present, parameters changed, no zero or non-finite gradient norm);
-   the useful and total token counts of each counted step equal the receipt rows for that step;
-   the F1 checks of section 5 are ok; no other compute process on the GPU before or after.
-   An invalid run voids its block (METHOD: the block is replaced, all records kept).
+   Peak VRAM per run: torch.cuda.max_memory_allocated and max_memory_reserved, reset at the
+   start of training (soup bench train).
+P4 Run validity. A run is VALID only if: the child exits 0 within 600 s; 20 steps measured;
+   the bench validity checks pass (trainable parameters present, parameters changed, no zero or
+   non-finite gradient norm); the useful and total token counts of all 20 steps equal the frozen
+   step sequence in perf_workload_receipt.json (one real 20-step CPU run of arm A through the
+   same runner, tiny stand-in model); for L, PatchController.verify passes after training; the
+   F1 checks of section 5 are not void; no other process on the GPU before or after.
+   A void F1 check or a non-exclusive GPU voids the run and its block; the block is replaced
+   (METHOD), all records kept. Any other invalid run is a code or setup failure that a
+   replacement would only repeat: the attempt stops at once with FAILED_RUN.
 P5 Block. Three arms: A L U U L A. Two arms: A X X A. Linear drift cancels for every pair inside
    a block. Each pair (A,L) and (A,U) gets one difference per block: mean of its arm's two runs
    minus mean of A's two runs.
 P6 Repeats (METHOD.md, per pair). 5 pilot blocks, counted. sigma = pooled run-to-run SD of the
    pair, delta = 10% of the mean of A, N = max(2, ceil(7.85 * (sigma/delta)^2)). Run blocks up
    to the largest N over admitted pairs, recompute N once from all blocks, top up once, stop.
+   Each pair's test uses only its own first N valid blocks, so blocks run for the other pair
+   cannot move it.
    Hard cap: 12 valid blocks per stage P attempt (budget). A pair whose N exceeds 12 gets
    NO_VERDICT_INSUFFICIENT_REPETITIONS. More than 4 void blocks in one attempt stops it:
-   NO_VERDICT_HOST_NOISE.
+   NO_VERDICT_HOST_NOISE. No new block starts when the remaining lease cannot hold one:
+   INCOMPLETE_DEADLINE, and pairs short of N get NO_VERDICT_INSUFFICIENT_REPETITIONS.
 P7 Test and labels, per pair, on the valid blocks: mean block difference d, two-sided one-sample
    t-test against 0, alpha 0.05, 95% t interval. Ratio r = 1 + d / mean(A useful tok/s), with
    the interval scaled the same way.
@@ -104,6 +111,11 @@ P8 Peak VRAM per arm: median over its valid runs of each measure; difference to 
 P9 Multiplier. Published only for a pair with a label from P7, as "r (95% interval) useful
    tokens/s on <GPU, driver, workload sha, arm config sha>", plus peak VRAM. Never extrapolated
    to other GPUs, models, lengths, quantization or other Liger operators.
+P10 Runner. benchmarks/harness/h2_perf_abba.py: run_arm (one run, soup bench train's trainer
+   path), Series (box driver, fresh child per run inside ArmWatch) and analyze (pure; the
+   offline review recomputes every label from series.json). No profiler in timed runs; L's
+   kernel attribution comes from stage U's trace and the per-run patch bindings. Arm U needs
+   the stage S runner; until it exists the runner refuses arm U.
 
 5. Validity checks on every process (stages U, S and P)
 benchmarks/harness/arm_validity.py, required checks: suspend, power, foreign_reads (model disk,

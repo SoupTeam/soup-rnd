@@ -1,0 +1,471 @@
+"""H2-close stage P: interleaved throughput and peak VRAM (H2_CLOSE_PROTOCOL.txt section 4).
+
+Three parts:
+
+* ``run_arm``: one run of one arm in the current process. It trains the frozen perf config
+  for 20 optimizer steps (4 warm-up) through ``soup bench train``'s real trainer path and
+  records per-step token counts, peak memory and, for the Liger CE-only arm, the explicit
+  patch bindings. ``child`` wraps it for a fresh process on the GPU box.
+* ``Series``: the box-side driver. Every run is a fresh child process inside an F1
+  ``ArmWatch``, with GPU exclusivity read before and after. Blocks are A X ... X A, the repeats
+  rule of METHOD.md is applied per pair, and the series stops at the cap, the void limit, the
+  first failed run or the deadline.
+* ``analyze``: pure; recomputes every pair verdict from the run records, so an offline review
+  can repeat it without the box.
+
+Kernel profiling is deliberately absent from timed runs: a profiler changes the timing.
+Kernel attribution of the Liger CE-only arm comes from stage U's trace and from the patch
+bindings verified at the end of each L run.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+import statistics
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Optional, Sequence
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+SPEC = REPO / "benchmarks" / "h2"
+sys.path.insert(0, str(HERE))
+
+import arm_validity  # noqa: E402
+
+STEPS, WARMUP = 20, 4
+RUN_MAX_SECONDS = 600
+BLOCK_CAP = 12
+VOID_BLOCK_LIMIT = 4
+REQUIRED = ("suspend", "power", "foreign_reads")
+ALPHA = 0.05
+ARMS = {  # arm letter: (PatchController arm or None for Unsloth, perf config)
+    "A": ("baseline", "perf_baseline.json"),
+    "L": ("ce_only", "perf_liger_ce.json"),
+    "U": (None, "perf_unsloth.json"),
+}
+PAIR_ARMS = ("L", "U")
+
+
+def block_order(admitted: Sequence[str]) -> tuple[str, ...]:
+    """A L U U L A with both arms admitted, A X X A with one (protocol P5)."""
+    others = tuple(arm for arm in PAIR_ARMS if arm in admitted)
+    if not others or "A" not in admitted or set(admitted) - set(ARMS):
+        raise ValueError(f"unsupported admitted arms: {admitted}")
+    return ("A", *others, *reversed(others), "A")
+
+
+# --------------------------------------------------------------------------- one run
+
+
+class StepTokens:
+    """Per-step useful/total tokens, read from the batches training_step actually receives."""
+
+    def __init__(self) -> None:
+        self.steps: list[dict] = []
+        self._useful = 0
+        self._total = 0
+
+    def attach(self, trainer: Any) -> None:
+        from transformers import TrainerCallback
+
+        from soup_cli.bench.collector import count_supervised_tokens
+
+        inner = trainer.training_step
+
+        def training_step(model, inputs, *args, **kwargs):
+            useful, total = count_supervised_tokens(inputs)
+            self._useful += useful
+            self._total += total
+            return inner(model, inputs, *args, **kwargs)
+
+        trainer.training_step = training_step
+        outer = self
+
+        class _Close(TrainerCallback):
+            def on_step_end(self, args=None, state=None, control=None, **kwargs):
+                outer.steps.append({"useful": outer._useful, "total": outer._total})
+                outer._useful = outer._total = 0
+                return control
+
+        trainer.add_callback(_Close())
+
+
+def load_recipe(arm: str, model_path: str, output: Path) -> dict:
+    recipe = json.loads((SPEC / "candidate_configs" / ARMS[arm][1]).read_text())
+    recipe["base"] = model_path
+    recipe["data"]["train"] = str(REPO / recipe["data"]["train"])
+    recipe["output"] = str(output)
+    return recipe
+
+
+def run_arm(
+    arm: str,
+    recipe: dict,
+    *,
+    device: str,
+    control_factory: Optional[Callable[[str], Any]] = None,
+) -> dict:
+    """Train one arm for STEPS steps and return the bench report plus H2 fields."""
+    if arm == "U":
+        # Unsloth trains through its own trainer path, which soup bench train refuses by name
+        # (bench_scope_error). Its runner is part of the stage S integration.
+        raise NotImplementedError("arm U runs only after the stage S integration is added")
+    from soup_cli.bench.train_run import bench_scope_error, run_bench_train
+    from soup_cli.config.schema import SoupConfig
+    from soup_cli.data.loader import load_dataset
+
+    control = None
+    if control_factory is not None:
+        control = control_factory(ARMS[arm][0])
+    cfg = SoupConfig.model_validate(recipe)
+    refused = bench_scope_error(cfg)
+    if refused:
+        raise ValueError(refused)
+    tokens, holder = StepTokens(), {}
+
+    def before_train(wrapper: Any) -> None:
+        holder["wrapper"] = wrapper
+        if bool(wrapper.trainer.args.use_liger_kernel) != (arm == "L"):
+            raise ValueError("use_liger_kernel does not match the arm")
+        tokens.attach(wrapper.trainer)
+
+    report = run_bench_train(
+        cfg,
+        steps=STEPS,
+        warmup=WARMUP,
+        device=device,
+        load_dataset=lambda c: load_dataset(c.data),
+        before_train=before_train,
+    )
+    report["h2"] = {
+        "arm": arm,
+        "step_tokens": tokens.steps,
+        "binding": control.verify(holder["wrapper"].model) if control is not None else None,
+    }
+    return report
+
+
+def child(arm: str, model_path: str, out: Path) -> int:
+    """Fresh-process entry on the GPU box; writes run.json or failure.json into ``out``."""
+    out.mkdir(parents=True, exist_ok=False)
+    os.environ.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false")
+    started = time.time()
+    try:
+        import torch
+
+        if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
+            raise ValueError("exactly one CUDA GPU required")
+        from h2_operator_patch import PatchController
+
+        report = run_arm(
+            arm,
+            load_recipe(arm, model_path, out / "trained_output"),
+            device="cuda",
+            control_factory=PatchController,
+        )
+        report["h2"]["gpu_uuid"] = str(torch.cuda.get_device_properties(0).uuid)
+        report["h2"]["boot_id"] = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+        report["h2"]["elapsed_seconds"] = time.time() - started
+        (out / "run.json").write_text(json.dumps(report, indent=2, default=str) + "\n")
+        return 0
+    except BaseException as error:  # noqa: BLE001 -- every failure is evidence
+        (out / "failure.json").write_text(
+            json.dumps({"error": f"{type(error).__name__}: {error}", "arm": arm}) + "\n"
+        )
+        return 1
+
+
+# --------------------------------------------------------------------------- run validity
+
+
+def run_problems(report: dict, expected_steps: Sequence[dict]) -> list[str]:
+    """Why a finished run is not a valid measurement (protocol P4), empty when valid."""
+    problems = []
+    if not report.get("valid"):
+        problems.append("bench validity: " + json.dumps(report.get("failures")))
+    if report.get("steps_measured") != STEPS:
+        problems.append(f"steps measured {report.get('steps_measured')} != {STEPS}")
+    observed = report.get("h2", {}).get("step_tokens")
+    if observed != list(expected_steps):
+        problems.append("per-step token counts differ from the frozen receipt")
+    rate = report.get("throughput", {}).get("useful_tokens_per_second")
+    if not isinstance(rate, (int, float)) or not math.isfinite(rate) or rate <= 0:
+        problems.append("no positive finite useful tokens/s")
+    return problems
+
+
+# --------------------------------------------------------------------------- analysis
+
+
+@dataclass
+class RunRecord:
+    arm: str
+    block: int
+    position: int
+    outcome: str  # arm_validity outcome: ok, unknown or void
+    value: Optional[float]  # useful tokens/s, None when the run produced no valid report
+    memory: dict = field(default_factory=dict)
+
+
+def _pair_blocks(records: Sequence[RunRecord], order: Sequence[str], arm: str) -> list[list]:
+    """Each block as the 4-run A X X A list arm_validity expects; a void block stays void."""
+    blocks: dict[int, list[RunRecord]] = {}
+    for record in records:
+        blocks.setdefault(record.block, []).append(record)
+    out = []
+    for index in sorted(blocks):
+        runs = sorted(blocks[index], key=lambda r: r.position)
+        if [r.arm for r in runs] != list(order):
+            continue  # incomplete block (deadline or failure): not a block
+        void = any(r.outcome == arm_validity.VOID or r.value is None for r in runs)
+        picked = [r for r in runs if r.arm in ("A", arm)]
+        out.append(
+            [
+                arm_validity.Run(
+                    r.value if r.value is not None else float("nan"),
+                    arm_validity.VOID if void else r.outcome,
+                )
+                for r in picked
+            ]
+        )
+    return out
+
+
+def blocks_to_add(records: Sequence[RunRecord], order: Sequence[str]) -> int:
+    """Largest remaining need over the admitted pairs (protocol P6)."""
+    pairs = [a for a in PAIR_ARMS if a in order]
+    return max(arm_validity.blocks_to_add(_pair_blocks(records, order, a)) for a in pairs)
+
+
+def _final_n(blocks: list) -> Optional[int]:
+    valid = arm_validity.valid_blocks(blocks)
+    if len(valid) < arm_validity.PILOT_BLOCKS:
+        return None
+    first = max(
+        arm_validity.PILOT_BLOCKS, arm_validity.blocks_needed(valid[: arm_validity.PILOT_BLOCKS])
+    )
+    if len(valid) < first:
+        return first
+    return max(first, arm_validity.blocks_needed(valid[:first]))
+
+
+def pair_verdict(records: Sequence[RunRecord], order: Sequence[str], arm: str) -> dict:
+    from scipy import stats
+
+    blocks = _pair_blocks(records, order, arm)
+    valid = arm_validity.valid_blocks(blocks)
+    n = _final_n(blocks)
+    base = {
+        "pair": f"A-{arm}",
+        "valid_blocks": len(valid),
+        "void_blocks": len(blocks) - len(valid),
+        "blocks_needed": n,
+    }
+    if n is None or n > BLOCK_CAP or len(valid) < n:
+        return {**base, "label": "NO_VERDICT_INSUFFICIENT_REPETITIONS"}
+    used = valid[:n]  # each pair's test uses its own first N valid blocks
+    a_runs = [r.value for b in used for r in (b[0], b[3])]
+    x_runs = [r.value for b in used for r in (b[1], b[2])]
+    diffs = [(b[1].value + b[2].value) / 2 - (b[0].value + b[3].value) / 2 for b in used]
+    mean_a, d = statistics.fmean(a_runs), statistics.fmean(diffs)
+    sd = statistics.stdev(diffs)
+    half = stats.t.ppf(1 - ALPHA / 2, len(diffs) - 1) * sd / math.sqrt(len(diffs))
+    p = float(stats.ttest_1samp(diffs, 0.0).pvalue) if sd > 0 else (0.0 if d else 1.0)
+    low, high = d - half, d + half
+    label = "FASTER" if low > 0 else "SLOWER" if high < 0 else "NO_DETECTABLE_DIFFERENCE"
+    return {
+        **base,
+        "blocks_used": n,
+        "label": label,
+        "mean_a_useful_tok_s": mean_a,
+        "mean_x_useful_tok_s": statistics.fmean(x_runs),
+        "mean_difference": d,
+        "difference_95": [low, high],
+        "ratio": 1 + d / mean_a,
+        "ratio_95": [1 + low / mean_a, 1 + high / mean_a],
+        "p_value": p,
+        "block_differences": diffs,
+    }
+
+
+def memory_summary(records: Sequence[RunRecord]) -> dict:
+    out = {}
+    for arm in sorted({r.arm for r in records}):
+        runs = [r for r in records if r.arm == arm and r.value is not None and r.outcome != "void"]
+        for key in ("max_memory_allocated_bytes", "max_memory_reserved_bytes"):
+            values = [r.memory.get(key) for r in runs if r.memory.get(key) is not None]
+            if values:
+                out.setdefault(arm, {})[key] = {
+                    "median": statistics.median(values),
+                    "min": min(values),
+                    "max": max(values),
+                    "runs": len(values),
+                }
+    return out
+
+
+def analyze(records: Sequence[RunRecord], order: Sequence[str]) -> dict:
+    return {
+        "order": list(order),
+        "pairs": {a: pair_verdict(records, order, a) for a in PAIR_ARMS if a in order},
+        "memory": memory_summary(records),
+        "performance_scope": "This box, this workload and these configs only (protocol P9)",
+    }
+
+
+# --------------------------------------------------------------------------- series driver
+
+
+@dataclass
+class Series:
+    """Run blocks until the repeats rule, the cap, the void limit or the deadline stops them."""
+
+    out: Path
+    admitted: Sequence[str]
+    expected_steps: Sequence[dict]
+    deadline_unix_s: float
+    model_path: str
+    label: str
+    launch: Callable[[str, Path], int] = None  # type: ignore[assignment]
+    watch: Callable[..., Any] = arm_validity.ArmWatch
+    gpu_processes: Callable[[], Optional[list]] = arm_validity.gpu_processes
+    clock: Callable[[], float] = time.time
+    records: list = field(default_factory=list)
+    run_log: list = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.order = block_order(self.admitted)
+        if self.launch is None:
+            self.launch = self._launch_child
+
+    def _launch_child(self, arm: str, out: Path) -> int:
+        proc = subprocess.run(
+            [sys.executable, "-B", __file__, "child", arm, self.model_path, str(out)],
+            cwd=REPO,
+            timeout=RUN_MAX_SECONDS,
+            stdout=(out.parent / f"{out.name}.log").open("wb"),
+            stderr=subprocess.STDOUT,
+        )
+        return proc.returncode
+
+    def _save(self, status: str, reason: str = "") -> dict:
+        result = {
+            "status": status,
+            "reason": reason,
+            "protocol": "H2_CLOSE_PROTOCOL.txt section 4",
+            "steps": STEPS,
+            "warmup": WARMUP,
+            "block_cap": BLOCK_CAP,
+            "runs": self.run_log,
+            "analysis": analyze(self.records, self.order) if self.records else None,
+            "performance_verdict_scope": "pair labels in analysis.pairs only",
+        }
+        tmp = self.out / "series.json.tmp"
+        tmp.write_text(json.dumps(result, indent=2, default=str) + "\n")
+        tmp.replace(self.out / "series.json")
+        return result
+
+    def _one(self, block: int, position: int, arm: str, run_index: int) -> RunRecord:
+        directory = self.out / f"b{block:02d}_{position}_{arm}"
+        before = self.gpu_processes()
+        with self.watch(
+            arm=arm,
+            round=2 * block + 1 + position // (len(self.order) // 2),
+            run=run_index,
+            label=self.label,
+            required=REQUIRED,
+            model_path=self.model_path,
+        ) as watch:
+            try:
+                code = self.launch(arm, directory)
+            except subprocess.TimeoutExpired:
+                code = "timeout"
+        after = self.gpu_processes()
+        entry = {
+            "block": block,
+            "position": position,
+            "arm": arm,
+            "exit": code,
+            "watch": watch.record,
+            "gpu_processes_before": before,
+            "gpu_processes_after": after,
+            "problems": [],
+        }
+        report = None
+        if code == 0 and (directory / "run.json").exists():
+            report = json.loads((directory / "run.json").read_text())
+            entry["problems"] = run_problems(report, self.expected_steps)
+        else:
+            entry["problems"] = [f"child exit {code}"]
+        outcome = watch.record["outcome"]
+        if before is None or after is None or before or after:
+            # Another process on the GPU is contention, like a foreign read: the run is void.
+            entry["exclusivity"] = "void: GPU not exclusive or unreadable before/after the run"
+            outcome = arm_validity.VOID
+        value = None
+        if report is not None and not entry["problems"]:
+            value = report["throughput"]["useful_tokens_per_second"]
+            entry["useful_tokens_per_second"] = value
+            entry["median_step_seconds"] = report["timing"]["median_seconds"]
+        entry["outcome"] = outcome
+        self.run_log.append(entry)
+        return RunRecord(
+            arm, block, position, outcome, value, dict(report["memory"]) if report else {}
+        )
+
+    def run(self, block_seconds_estimate: float) -> dict:
+        self.out.mkdir(parents=True, exist_ok=True)
+        block, run_index = 0, 1
+        while True:
+            need = (
+                blocks_to_add(self.records, self.order)
+                if self.records
+                else arm_validity.PILOT_BLOCKS
+            )
+            valid = (
+                max(
+                    len(arm_validity.valid_blocks(_pair_blocks(self.records, self.order, a)))
+                    for a in PAIR_ARMS
+                    if a in self.order
+                )
+                if self.records
+                else 0
+            )
+            void = block - valid
+            if need <= 0:
+                return self._save("COMPLETE")
+            if valid >= BLOCK_CAP:
+                return self._save("COMPLETE_AT_CAP")
+            if void > VOID_BLOCK_LIMIT:
+                return self._save("NO_VERDICT_HOST_NOISE", f"{void} void blocks")
+            if self.clock() + block_seconds_estimate > self.deadline_unix_s:
+                return self._save("INCOMPLETE_DEADLINE", f"{need} block(s) still due")
+            for position, arm in enumerate(self.order):
+                record = self._one(block, position, arm, run_index)
+                run_index += 1
+                self.records.append(record)
+                entry = self.run_log[-1]
+                f1_void = record.outcome == arm_validity.VOID
+                if entry["problems"] and not f1_void:
+                    # A failed or invalid run that F1 does not explain is a code or setup failure:
+                    # replacing its block would only repeat it (protocol P4).
+                    return self._save("FAILED_RUN", "; ".join(entry["problems"]))
+                self._save("RUNNING")
+            block += 1
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) == 5 and argv[1] == "child":
+        return child(argv[2], argv[3], Path(argv[4]))
+    print("usage: h2_perf_abba.py child <A|L|U> <model_path> <out_dir>", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
