@@ -9,8 +9,8 @@
 # The pairs in examples/data/dpo_pairs_synthetic.jsonl are SYNTHETIC: written by hand
 # to show the format and to exercise the run. They teach a model nothing useful.
 #
-# training.l2l with task dpo needs lora.dropout 0, no neftune_alpha and a fixed beta
-# (no dpo_beta_schedule). L2L supports Llama and Mistral architectures on one GPU.
+# training.l2l with task dpo needs no neftune_alpha and a fixed beta (no dpo_beta_schedule).
+# TRL zeroes LoRA dropout for DPO, so lora.dropout makes no difference here. L2L supports Llama and Mistral architectures on one GPU.
 # Check layer loads in the training log: l2l_layer_loads stays flat in k, while plain
 # streaming loads k times more.
 #

@@ -332,7 +332,7 @@ class L2LStep:
             raise ValueError(
                 "the L2L reference pass does not support dropout: the reference forward "
                 "of gradient accumulation draws dropout masks too, and the replay covers "
-                "the policy's draws only. Set lora.dropout and attention_dropout to 0."
+                "the policy's draws only. Set attention_dropout to 0."
             )
         replayed = None
         if l2l_rng.has_draws(self.call.draws):

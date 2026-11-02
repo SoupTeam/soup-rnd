@@ -165,6 +165,22 @@ def test_dpo_l2l_equals_accumulation_for_pairs_of_different_lengths(
     assert len(l2l.trainer._soup_l2l.calls_by_shape) > 1
 
 
+@pytest.mark.parametrize("k,windows", [(2, 3), (4, 2)])
+def test_dpo_l2l_equals_accumulation_with_the_config_default_lora_dropout(
+    tmp_path, monkeypatch, k, windows
+):
+    """lora.dropout 0.05 reaches the adapters, and TRL zeroes it before the first forward."""
+    lora = {**LORA, "dropout": 0.05}
+    _ga, l2l, ga_result, l2l_result, _ref = _pair(
+        tmp_path, monkeypatch, k=k, rows=UNEVEN_ROWS, lora=lora
+    )
+    _assert_equal_runs(ga_result, l2l_result, windows)
+    import torch
+
+    dropouts = [m for m in l2l.model.modules() if isinstance(m, torch.nn.Dropout)]
+    assert dropouts and all(m.p == 0 for m in dropouts)
+
+
 def test_dpo_l2l_equals_accumulation_for_a_batch_of_one_pair(tmp_path, monkeypatch):
     _ga, _l2l, ga_result, l2l_result, _ref = _pair(
         tmp_path, monkeypatch, k=2, rows=UNEVEN_ROWS[:5], batch_size=1
@@ -681,11 +697,12 @@ def test_the_schema_refuses_what_changes_the_reference_between_steps(extra, matc
         load_config_from_string(_l2l_yaml(**extra))
 
 
-def test_the_schema_refuses_lora_dropout_with_dpo_and_l2l():
+def test_the_schema_accepts_the_default_lora_dropout_with_dpo_and_l2l():
+    """TRL's DPOTrainer zeroes every nn.Dropout, so the config default is harmless."""
     from soup_cli.config.loader import load_config_from_string
 
-    with pytest.raises(ValueError, match="lora.dropout"):
-        load_config_from_string(_l2l_yaml(lora_dropout=0.05))
+    cfg = load_config_from_string(_l2l_yaml(lora_dropout=0.05))
+    assert cfg.training.lora.dropout == 0.05 and cfg.training.l2l is True
 
 
 def test_dpo_without_l2l_keeps_its_variants_and_dropout():
