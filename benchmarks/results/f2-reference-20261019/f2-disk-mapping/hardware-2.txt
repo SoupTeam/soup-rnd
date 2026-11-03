@@ -1,0 +1,75 @@
+5159 5106 0:78 / / rw,relatime - overlay overlay rw,lowerdir=/var/lib/docker/overlay2/l/5BBKPQ73GHHK5Z33WWO6AKA4QT:/var/lib/docker/overlay2/l/JBSFPSXTTVBSOK67GPKEWG7WFK:/var/lib/docker/overlay2/l/QSB422FWNAA62TS6ZNM43CWRGJ:/var/lib/docker/overlay2/l/FBAMCZZCVWK7LLA5FAT64QLAF7:/var/lib/docker/overlay2/l/LA5QG4AZYXHTT2H7B6VOA3E5IH:/var/lib/docker/overlay2/l/VVMDQ3ZIETCDNTS2NSOLMGG323:/var/lib/docker/overlay2/l/4OFUW5EO35ZFKCBFWISDE667E2:/var/lib/docker/overlay2/l/TNTUFDW7ZYH6HREZCXK265BPAY:/var/lib/docker/overlay2/l/NMU26HVN5I76HKSFH7EZHXEMMK:/var/lib/docker/overlay2/l/RLGPOUMSLPI7SYG2WLMQALX7IN:/var/lib/docker/overlay2/l/TFXKS6WWK6EXXIZQPYPV44U2KE,upperdir=/var/lib/docker/overlay2/357055161b4a70cd98e83eef323a4a468ced50b51f55347301b0112f5b0edbe9/diff,workdir=/var/lib/docker/overlay2/357055161b4a70cd98e83eef323a4a468ced50b51f55347301b0112f5b0edbe9/work,nouserxattr
+5161 5159 0:100 / /dev rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755,inode64
+5162 5159 0:101 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+5163 5159 0:102 / /sys ro,nosuid,nodev,noexec,relatime - sysfs sysfs ro
+5164 5161 0:98 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw
+5165 5161 0:103 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=666
+5166 5161 0:104 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=15728640k,inode64
+5167 5159 259:3 /containers/5535e11598fb2b1a1c7adcdb10b6c83ae3f2f5aa285120e81f067cc49d99e8f9/hostname /etc/hostname rw,relatime - xfs /dev/nvme0n1p3 rw,inode64,logbufs=8,logbsize=32k,prjquota
+5168 5159 259:3 /containers/5535e11598fb2b1a1c7adcdb10b6c83ae3f2f5aa285120e81f067cc49d99e8f9/hosts /etc/hosts rw,relatime - xfs /dev/nvme0n1p3 rw,inode64,logbufs=8,logbsize=32k,prjquota
+5169 5159 259:3 /containers/5535e11598fb2b1a1c7adcdb10b6c83ae3f2f5aa285120e81f067cc49d99e8f9/resolv.conf /etc/resolv.conf rw,relatime - xfs /dev/nvme0n1p3 rw,inode64,logbufs=8,logbsize=32k,prjquota
+5170 5159 0:27 /nvidia-persistenced/socket /run/nvidia-persistenced/socket ro,nosuid,nodev,noexec,relatime master:5 - tmpfs tmpfs rw,size=3275160k,mode=755,inode64
+5171 5163 0:30 / /sys/fs/cgroup ro,nosuid,nodev,noexec,relatime - cgroup2 cgroup rw,nsdelegate,memory_recursiveprot
+5172 5159 259:2 /usr/bin/nvidia-cuda-mps-control /usr/bin/nvidia-cuda-mps-control ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5173 5159 259:2 /usr/bin/nvidia-cuda-mps-server /usr/bin/nvidia-cuda-mps-server ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5174 5159 259:2 /usr/bin/nvidia-debugdump /usr/bin/nvidia-debugdump ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5175 5159 259:2 /usr/bin/nvidia-persistenced /usr/bin/nvidia-persistenced ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5176 5159 259:2 /usr/bin/nvidia-smi /usr/bin/nvidia-smi ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5177 5159 259:2 /usr/share/vulkan/icd.d/nvidia_icd.json /etc/vulkan/icd.d/nvidia_icd.json ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5178 5159 259:2 /usr/share/vulkan/implicit_layer.d/nvidia_layers.json /etc/vulkan/implicit_layer.d/nvidia_layers.json ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5179 5159 259:2 /usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.580.173.02 /usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5180 5159 259:2 /usr/lib/x86_64-linux-gnu/libGLESv1_CM_nvidia.so.580.173.02 /usr/lib/x86_64-linux-gnu/libGLESv1_CM_nvidia.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5181 5159 259:2 /usr/lib/x86_64-linux-gnu/libGLESv2_nvidia.so.580.173.02 /usr/lib/x86_64-linux-gnu/libGLESv2_nvidia.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5182 5159 259:2 /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.580.173.02 /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5183 5159 259:2 /usr/lib/x86_64-linux-gnu/libcuda.so.580.173.02 /usr/lib/x86_64-linux-gnu/libcuda.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5184 5159 259:2 /usr/lib/x86_64-linux-gnu/libcudadebugger.so.580.173.02 /usr/lib/x86_64-linux-gnu/libcudadebugger.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5185 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvcuvid.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvcuvid.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5186 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-allocator.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-allocator.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5187 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-cfg.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-cfg.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5188 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-egl-gbm.so.1.1.3 /usr/lib/x86_64-linux-gnu/libnvidia-egl-gbm.so.1.1.3 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5189 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-egl-wayland.so.1.1.13 /usr/lib/x86_64-linux-gnu/libnvidia-egl-wayland.so.1.1.13 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5190 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-eglcore.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-eglcore.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5191 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-encode.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-encode.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5192 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-fbc.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-fbc.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5193 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5194 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-glsi.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-glsi.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5195 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-glvkspirv.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-glvkspirv.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5196 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-gpucomp.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-gpucomp.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5197 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5198 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-ngx.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-ngx.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5199 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-nvvm.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-nvvm.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5200 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-opencl.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-opencl.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5201 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-opticalflow.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-opticalflow.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5202 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-pkcs11-openssl3.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-pkcs11-openssl3.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5203 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-pkcs11.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-pkcs11.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5204 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-present.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-present.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5205 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5206 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-rtcore.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-rtcore.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5207 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-tls.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-tls.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5208 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvidia-vksc-core.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvidia-vksc-core.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5209 5159 259:2 /usr/lib/x86_64-linux-gnu/libnvoptix.so.580.173.02 /usr/lib/x86_64-linux-gnu/libnvoptix.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5210 5159 259:2 /usr/share/nvidia/nvoptix.bin /usr/share/nvidia/nvoptix.bin ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5211 5159 259:2 /usr/lib/firmware/nvidia/580.173.02/gsp_ga10x.bin /usr/lib/firmware/nvidia/580.173.02/gsp_ga10x.bin ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5212 5159 259:2 /usr/lib/firmware/nvidia/580.173.02/gsp_tu10x.bin /usr/lib/firmware/nvidia/580.173.02/gsp_tu10x.bin ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5213 5159 259:2 /usr/lib/x86_64-linux-gnu/vdpau/libvdpau_nvidia.so.580.173.02 /usr/lib/x86_64-linux-gnu/vdpau/libvdpau_nvidia.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5214 5159 259:2 /usr/share/X11/xorg.conf.d/10-nvidia.conf /usr/share/X11/xorg.conf.d/10-nvidia.conf ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5215 5159 259:2 /usr/share/egl/egl_external_platform.d/10_nvidia_wayland.json /usr/share/egl/egl_external_platform.d/10_nvidia_wayland.json ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5216 5159 259:2 /usr/share/egl/egl_external_platform.d/15_nvidia_gbm.json /usr/share/egl/egl_external_platform.d/15_nvidia_gbm.json ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5217 5159 259:2 /usr/share/glvnd/egl_vendor.d/10_nvidia.json /usr/share/glvnd/egl_vendor.d/10_nvidia.json ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5218 5159 259:2 /usr/lib/x86_64-linux-gnu/nvidia/xorg/libglxserver_nvidia.so.580.173.02 /usr/lib/x86_64-linux-gnu/nvidia/xorg/libglxserver_nvidia.so.580.173.02 ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5219 5159 259:2 /usr/lib/x86_64-linux-gnu/nvidia/xorg/nvidia_drv.so /usr/lib/x86_64-linux-gnu/nvidia/xorg/nvidia_drv.so ro,nosuid,nodev,relatime master:1 - ext4 /dev/nvme0n1p2 rw
+5108 5162 0:101 /bus /proc/bus ro,nosuid,nodev,noexec,relatime - proc proc rw
+5109 5162 0:101 /fs /proc/fs ro,nosuid,nodev,noexec,relatime - proc proc rw
+5110 5162 0:101 /irq /proc/irq ro,nosuid,nodev,noexec,relatime - proc proc rw
+5111 5162 0:101 /sys /proc/sys ro,nosuid,nodev,noexec,relatime - proc proc rw
+5112 5162 0:101 /sysrq-trigger /proc/sysrq-trigger ro,nosuid,nodev,noexec,relatime - proc proc rw
+5113 5162 0:105 / /proc/asound ro,relatime - tmpfs tmpfs ro,inode64
+5114 5162 0:106 / /proc/acpi ro,relatime - tmpfs tmpfs ro,inode64
+5115 5162 0:100 /null /proc/interrupts rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755,inode64
+5116 5162 0:100 /null /proc/kcore rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755,inode64
+5117 5162 0:100 /null /proc/keys rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755,inode64
+5118 5162 0:100 /null /proc/latency_stats rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755,inode64
+5119 5162 0:100 /null /proc/timer_list rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755,inode64
+5120 5162 0:107 / /proc/scsi ro,relatime - tmpfs tmpfs ro,inode64
+5121 5163 0:108 / /sys/firmware ro,relatime - tmpfs tmpfs ro,inode64
+5122 5163 0:109 / /sys/devices/virtual/powercap ro,relatime - tmpfs tmpfs ro,inode64
