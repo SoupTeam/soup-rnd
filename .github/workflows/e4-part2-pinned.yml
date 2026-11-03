@@ -35,7 +35,7 @@ jobs:
       - name: Install with the rule's pins
         run: |
           start=$(date +%s)
-          pip install -e ".[dev]" -c .github/constraints/e4-part2-pins.txt
+          pip install -e ".[dev,calibration]" -c .github/constraints/e4-part2-pins.txt
           echo "install seconds: $(( $(date +%s) - start ))" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Assert the pins held
         run: python -c "import sys; sys.path.insert(0, 'benchmarks/harness'); import e4_part2_common as c; m = c.library_versions(); assert not m['mismatches'], m"
