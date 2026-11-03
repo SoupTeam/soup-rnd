@@ -1,0 +1,361 @@
++ git clone --depth=1 --branch koko/h3-fsdp-lora-20261026 https://github.com/SoupTeam/soup-rnd.git /workspace/h3-pp-soup
+Cloning into '/workspace/h3-pp-soup'...
+Updating files:  59% (2479/4198)Updating files:  60% (2519/4198)Updating files:  61% (2561/4198)Updating files:  62% (2603/4198)Updating files:  63% (2645/4198)Updating files:  64% (2687/4198)Updating files:  65% (2729/4198)Updating files:  66% (2771/4198)Updating files:  67% (2813/4198)Updating files:  68% (2855/4198)Updating files:  69% (2897/4198)Updating files:  70% (2939/4198)Updating files:  71% (2981/4198)Updating files:  72% (3023/4198)Updating files:  73% (3065/4198)Updating files:  74% (3107/4198)Updating files:  75% (3149/4198)Updating files:  76% (3191/4198)Updating files:  77% (3233/4198)Updating files:  78% (3275/4198)Updating files:  79% (3317/4198)Updating files:  80% (3359/4198)Updating files:  81% (3401/4198)Updating files:  82% (3443/4198)Updating files:  83% (3485/4198)Updating files:  84% (3527/4198)Updating files:  85% (3569/4198)Updating files:  86% (3611/4198)Updating files:  87% (3653/4198)Updating files:  88% (3695/4198)Updating files:  89% (3737/4198)Updating files:  90% (3779/4198)Updating files:  91% (3821/4198)Updating files:  92% (3863/4198)Updating files:  93% (3905/4198)Updating files:  94% (3947/4198)Updating files:  95% (3989/4198)Updating files:  96% (4031/4198)Updating files:  97% (4073/4198)Updating files:  98% (4115/4198)Updating files:  99% (4157/4198)Updating files: 100% (4198/4198)Updating files: 100% (4198/4198), done.
++ cd /workspace/h3-pp-soup
+++ git rev-parse HEAD
++ test e74469aa129b8604da77a6b9b4c8240dffc23ec0 = e74469aa129b8604da77a6b9b4c8240dffc23ec0
+++ git status --porcelain
++ test -z ''
++ lscpu
++ free -b
++ df -h
+++ df -Pk /workspace
+++ awk 'NR==2 {print $4}'
++ test 31086884 -gt 10485760
++ /usr/bin/python3 -c 'import sys,importlib.metadata as m; assert (3,10)<=sys.version_info[:2]<(3,13); assert m.version("torch").startswith("2.13.0")'
++ /usr/bin/python3 -m pip uninstall --break-system-packages -y spin
+Found existing installation: spin 0.18
+Uninstalling spin-0.18:
+  Successfully uninstalled spin-0.18
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
++ /usr/bin/python3 -m venv --system-site-packages /workspace/h3-pp-venv
+The virtual environment was not created successfully because ensurepip is not
+available.  On Debian/Ubuntu systems, you need to install the python3-venv
+package using the following command.
+
+    apt install python3.12-venv
+
+You may need to use sudo with that command.  After installing the python3-venv
+package, recreate your virtual environment.
+
+Failing command: /workspace/h3-pp-venv/bin/python3
+
++ apt-get update
+Hit:1 http://security.ubuntu.com/ubuntu noble-security InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu noble InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu noble-backports InRelease
+Reading package lists...
++ apt-get install -y python3-venv
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  libpython3.12-dev libpython3.12-minimal libpython3.12-stdlib
+  libpython3.12t64 python3-pip-whl python3-setuptools-whl python3.12
+  python3.12-dev python3.12-minimal python3.12-venv
+Suggested packages:
+  python3.12-doc binfmt-support
+The following NEW packages will be installed:
+  python3-pip-whl python3-setuptools-whl python3-venv python3.12-venv
+The following packages will be upgraded:
+  libpython3.12-dev libpython3.12-minimal libpython3.12-stdlib
+  libpython3.12t64 python3.12 python3.12-dev python3.12-minimal
+7 upgraded, 4 newly installed, 0 to remove and 34 not upgraded.
+Need to get 16.9 MB of archives.
+After this operation, 2778 kB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12-dev amd64 3.12.3-1ubuntu0.17 [498 kB]
+Get:2 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-dev amd64 3.12.3-1ubuntu0.17 [5684 kB]
+Get:3 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12t64 amd64 3.12.3-1ubuntu0.17 [2348 kB]
+Get:4 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12 amd64 3.12.3-1ubuntu0.17 [651 kB]
+Get:5 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-stdlib amd64 3.12.3-1ubuntu0.17 [2071 kB]
+Get:6 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12-minimal amd64 3.12.3-1ubuntu0.17 [2335 kB]
+Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-minimal amd64 3.12.3-1ubuntu0.17 [839 kB]
+Get:8 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-pip-whl all 24.0+dfsg-1ubuntu1.3 [1707 kB]
+Get:9 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-setuptools-whl all 68.1.2-2ubuntu1.2 [716 kB]
+Get:10 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3.12-venv amd64 3.12.3-1ubuntu0.17 [5684 B]
+Get:11 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-venv amd64 3.12.3-0ubuntu2.1 [1032 B]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 16.9 MB in 1s (33.0 MB/s)
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 17643 files and directories currently installed.)
+Preparing to unpack .../00-python3.12-dev_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking python3.12-dev (3.12.3-1ubuntu0.17) over (3.12.3-1ubuntu0.15) ...
+Preparing to unpack .../01-libpython3.12-dev_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking libpython3.12-dev:amd64 (3.12.3-1ubuntu0.17) over (3.12.3-1ubuntu0.15) ...
+Preparing to unpack .../02-libpython3.12t64_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking libpython3.12t64:amd64 (3.12.3-1ubuntu0.17) over (3.12.3-1ubuntu0.15) ...
+Preparing to unpack .../03-python3.12_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking python3.12 (3.12.3-1ubuntu0.17) over (3.12.3-1ubuntu0.15) ...
+Preparing to unpack .../04-libpython3.12-stdlib_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking libpython3.12-stdlib:amd64 (3.12.3-1ubuntu0.17) over (3.12.3-1ubuntu0.15) ...
+Preparing to unpack .../05-python3.12-minimal_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking python3.12-minimal (3.12.3-1ubuntu0.17) over (3.12.3-1ubuntu0.15) ...
+Preparing to unpack .../06-libpython3.12-minimal_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking libpython3.12-minimal:amd64 (3.12.3-1ubuntu0.17) over (3.12.3-1ubuntu0.15) ...
+Selecting previously unselected package python3-pip-whl.
+Preparing to unpack .../07-python3-pip-whl_24.0+dfsg-1ubuntu1.3_all.deb ...
+Unpacking python3-pip-whl (24.0+dfsg-1ubuntu1.3) ...
+Selecting previously unselected package python3-setuptools-whl.
+Preparing to unpack .../08-python3-setuptools-whl_68.1.2-2ubuntu1.2_all.deb ...
+Unpacking python3-setuptools-whl (68.1.2-2ubuntu1.2) ...
+Selecting previously unselected package python3.12-venv.
+Preparing to unpack .../09-python3.12-venv_3.12.3-1ubuntu0.17_amd64.deb ...
+Unpacking python3.12-venv (3.12.3-1ubuntu0.17) ...
+Selecting previously unselected package python3-venv.
+Preparing to unpack .../10-python3-venv_3.12.3-0ubuntu2.1_amd64.deb ...
+Unpacking python3-venv (3.12.3-0ubuntu2.1) ...
+Setting up python3-setuptools-whl (68.1.2-2ubuntu1.2) ...
+Setting up python3-pip-whl (24.0+dfsg-1ubuntu1.3) ...
+Setting up libpython3.12-minimal:amd64 (3.12.3-1ubuntu0.17) ...
+Setting up python3.12-minimal (3.12.3-1ubuntu0.17) ...
+Setting up libpython3.12-stdlib:amd64 (3.12.3-1ubuntu0.17) ...
+Setting up python3.12 (3.12.3-1ubuntu0.17) ...
+Setting up libpython3.12t64:amd64 (3.12.3-1ubuntu0.17) ...
+Setting up python3.12-venv (3.12.3-1ubuntu0.17) ...
+Setting up libpython3.12-dev:amd64 (3.12.3-1ubuntu0.17) ...
+Setting up python3-venv (3.12.3-0ubuntu2.1) ...
+Setting up python3.12-dev (3.12.3-1ubuntu0.17) ...
+Processing triggers for systemd (255.4-1ubuntu8.18) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
++ /usr/bin/python3 -m venv --system-site-packages /workspace/h3-pp-venv
++ source /workspace/h3-pp-venv/bin/activate
+++ deactivate nondestructive
+++ '[' -n '' ']'
+++ '[' -n '' ']'
+++ hash -r
+++ '[' -n '' ']'
+++ unset VIRTUAL_ENV
+++ unset VIRTUAL_ENV_PROMPT
+++ '[' '!' nondestructive = nondestructive ']'
+++ '[' linux-gnu = cygwin ']'
+++ '[' linux-gnu = msys ']'
+++ export VIRTUAL_ENV=/workspace/h3-pp-venv
+++ VIRTUAL_ENV=/workspace/h3-pp-venv
+++ _OLD_VIRTUAL_PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ PATH=/workspace/h3-pp-venv/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ export PATH
+++ '[' -n '' ']'
+++ '[' -z '' ']'
+++ _OLD_VIRTUAL_PS1=
+++ PS1='(h3-pp-venv) '
+++ export PS1
+++ VIRTUAL_ENV_PROMPT='(h3-pp-venv) '
+++ export VIRTUAL_ENV_PROMPT
+++ hash -r
++ python -m pip install --no-compile -c benchmarks/h3-fsdp-constraints.txt transformers==5.17.0 peft==0.20.0 accelerate==1.14.0 rich pydantic psutil pyyaml
+Collecting transformers==5.17.0
+  Downloading transformers-5.17.0-py3-none-any.whl.metadata (32 kB)
+Collecting peft==0.20.0
+  Downloading peft-0.20.0-py3-none-any.whl.metadata (14 kB)
+Collecting accelerate==1.14.0
+  Downloading accelerate-1.14.0-py3-none-any.whl.metadata (19 kB)
+Collecting rich
+  Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+Collecting pydantic
+  Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 109.4/109.4 kB 4.8 MB/s eta 0:00:00
+Requirement already satisfied: psutil in /usr/local/lib/python3.12/dist-packages (7.2.2)
+Requirement already satisfied: pyyaml in /usr/local/lib/python3.12/dist-packages (6.0.3)
+Collecting huggingface-hub<2.0,>=1.5.0 (from transformers==5.17.0)
+  Downloading huggingface_hub-1.28.0-py3-none-any.whl.metadata (16 kB)
+Requirement already satisfied: numpy>=1.17 in /usr/local/lib/python3.12/dist-packages (from transformers==5.17.0) (2.5.1)
+Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.12/dist-packages (from transformers==5.17.0) (26.2)
+Collecting regex>=2025.10.22 (from transformers==5.17.0)
+  Downloading regex-2026.9.29-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.6/40.6 kB 15.7 MB/s eta 0:00:00
+Collecting tokenizers<0.24.0,>=0.23.1 (from transformers==5.17.0)
+  Downloading tokenizers-0.23.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.8 kB)
+Collecting typer (from transformers==5.17.0)
+  Downloading typer-0.27.3-py3-none-any.whl.metadata (16 kB)
+Collecting safetensors>=0.8.0 (from transformers==5.17.0)
+  Downloading safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.2 kB)
+Collecting tqdm>=4.60 (from transformers==5.17.0)
+  Downloading tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.4/57.4 kB 15.8 MB/s eta 0:00:00
+Requirement already satisfied: torch>=1.13.0 in /usr/local/lib/python3.12/dist-packages (from peft==0.20.0) (2.13.0+cu130)
+Collecting markdown-it-py>=2.2.0 (from rich)
+  Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.12/dist-packages (from rich) (2.20.0)
+Collecting annotated-types>=0.6.0 (from pydantic)
+  Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.46.4 (from pydantic)
+  Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+Requirement already satisfied: typing-extensions>=4.14.1 in /usr/local/lib/python3.12/dist-packages (from pydantic) (4.16.0)
+Collecting typing-inspection>=0.4.2 (from pydantic)
+  Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+Collecting click<9.0.0,>=8.4.2 (from huggingface-hub<2.0,>=1.5.0->transformers==5.17.0)
+  Downloading click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+Requirement already satisfied: filelock>=3.10.0 in /usr/local/lib/python3.12/dist-packages (from huggingface-hub<2.0,>=1.5.0->transformers==5.17.0) (3.29.7)
+Requirement already satisfied: fsspec>=2023.5.0 in /usr/local/lib/python3.12/dist-packages (from huggingface-hub<2.0,>=1.5.0->transformers==5.17.0) (2026.6.0)
+Collecting hf-xet<2.0.0,>=1.5.2 (from huggingface-hub<2.0,>=1.5.0->transformers==5.17.0)
+  Downloading hf_xet-1.7.1-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)
+Collecting httpx<1,>=0.23.0 (from huggingface-hub<2.0,>=1.5.0->transformers==5.17.0)
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich)
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Requirement already satisfied: setuptools>=77.0.3 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (81.0.0)
+Requirement already satisfied: sympy>=1.13.3 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (3.6.1)
+Requirement already satisfied: jinja2 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (3.1.6)
+Requirement already satisfied: cuda-toolkit==13.0.3 in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (13.0.3.0)
+Requirement already satisfied: cuda-bindings<14,>=13.0.3 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (13.0.3)
+Requirement already satisfied: nvidia-cudnn-cu13==9.20.0.48 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (9.20.0.48)
+Requirement already satisfied: nvidia-cusparselt-cu13==0.8.1 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (0.8.1)
+Requirement already satisfied: nvidia-nccl-cu13==2.29.7 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (2.29.7)
+Requirement already satisfied: nvidia-nvshmem-cu13==3.4.5 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (3.4.5)
+Requirement already satisfied: triton==3.7.1 in /usr/local/lib/python3.12/dist-packages (from torch>=1.13.0->peft==0.20.0) (3.7.1)
+Requirement already satisfied: nvidia-cublas==13.1.1.3.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (13.1.1.3)
+Requirement already satisfied: nvidia-cuda-nvrtc==13.0.88.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (13.0.88)
+Requirement already satisfied: nvidia-cuda-runtime==13.0.96.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (13.0.96)
+Requirement already satisfied: nvidia-cufft==12.0.0.61.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (12.0.0.61)
+Requirement already satisfied: nvidia-nvjitlink<14,>=13.0.88 in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (13.2.78)
+Requirement already satisfied: nvidia-cufile==1.15.1.6.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (1.15.1.6)
+Requirement already satisfied: nvidia-cuda-cupti==13.0.85.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (13.0.85)
+Requirement already satisfied: nvidia-curand==10.4.0.35.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (10.4.0.35)
+Requirement already satisfied: nvidia-cusolver==12.0.4.66.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (12.0.4.66)
+Requirement already satisfied: nvidia-cusparse==12.6.3.3.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (12.6.3.3)
+Requirement already satisfied: nvidia-nvtx==13.0.85.* in /usr/local/lib/python3.12/dist-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=1.13.0->peft==0.20.0) (13.0.85)
+Collecting shellingham>=1.3.0 (from typer->transformers==5.17.0)
+  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+Collecting annotated-doc>=0.0.2 (from typer->transformers==5.17.0)
+  Downloading annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+Requirement already satisfied: cuda-pathfinder~=1.1 in /usr/local/lib/python3.12/dist-packages (from cuda-bindings<14,>=13.0.3->torch>=1.13.0->peft==0.20.0) (1.2.2)
+Collecting anyio (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers==5.17.0)
+  Downloading anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+Requirement already satisfied: certifi in /usr/local/lib/python3.12/dist-packages (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers==5.17.0) (2026.6.17)
+Collecting httpcore==1.* (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers==5.17.0)
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Requirement already satisfied: idna in /usr/local/lib/python3.12/dist-packages (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers==5.17.0) (3.18)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers==5.17.0)
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /usr/local/lib/python3.12/dist-packages (from sympy>=1.13.3->torch>=1.13.0->peft==0.20.0) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /usr/local/lib/python3.12/dist-packages (from jinja2->torch>=1.13.0->peft==0.20.0) (3.0.3)
+Downloading transformers-5.17.0-py3-none-any.whl (12.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.3/12.3 MB 106.8 MB/s eta 0:00:00
+Downloading peft-0.20.0-py3-none-any.whl (775 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 775.8/775.8 kB 137.4 MB/s eta 0:00:00
+Downloading accelerate-1.14.0-py3-none-any.whl (389 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 389.2/389.2 kB 100.9 MB/s eta 0:00:00
+Downloading rich-15.0.0-py3-none-any.whl (310 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 94.4 MB/s eta 0:00:00
+Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 116.4 MB/s eta 0:00:00
+Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 139.3 MB/s eta 0:00:00
+Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Downloading huggingface_hub-1.28.0-py3-none-any.whl (793 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 793.2/793.2 kB 74.6 MB/s eta 0:00:00
+Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 20.6 MB/s eta 0:00:00
+Downloading regex-2026.9.29-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.8/807.8 kB 91.2 MB/s eta 0:00:00
+Downloading safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (516 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 516.0/516.0 kB 60.9 MB/s eta 0:00:00
+Downloading tokenizers-0.23.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.4/3.4 MB 89.2 MB/s eta 0:00:00
+Downloading tqdm-4.70.1-py3-none-any.whl (80 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 80.2/80.2 kB 32.3 MB/s eta 0:00:00
+Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+Downloading typer-0.27.3-py3-none-any.whl (123 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 123.3/123.3 kB 53.2 MB/s eta 0:00:00
+Downloading annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+Downloading click-8.5.0-py3-none-any.whl (125 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 125.3/125.3 kB 56.6 MB/s eta 0:00:00
+Downloading hf_xet-1.7.1-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 23.1 MB/s eta 0:00:00
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 24.2 MB/s eta 0:00:00
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 25.7 MB/s eta 0:00:00
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+Downloading anyio-4.15.1-py3-none-any.whl (132 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 132.1/132.1 kB 48.3 MB/s eta 0:00:00
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Installing collected packages: typing-inspection, tqdm, shellingham, safetensors, regex, pydantic-core, mdurl, hf-xet, h11, click, anyio, annotated-types, annotated-doc, pydantic, markdown-it-py, httpcore, rich, httpx, typer, huggingface-hub, tokenizers, accelerate, transformers, peft
+  Attempting uninstall: click
+    Found existing installation: click 8.3.3
+    Not uninstalling click at /usr/local/lib/python3.12/dist-packages, outside environment /workspace/h3-pp-venv
+    Can't uninstall 'click'. No files were found to uninstall.
+Successfully installed accelerate-1.14.0 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.15.1 click-8.5.0 h11-0.16.0 hf-xet-1.7.1 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-1.28.0 markdown-it-py-4.2.0 mdurl-0.1.2 peft-0.20.0 pydantic-2.13.4 pydantic-core-2.46.4 regex-2026.9.29 rich-15.0.0 safetensors-0.8.0 shellingham-1.5.4 tokenizers-0.23.3 tqdm-4.70.1 transformers-5.17.0 typer-0.27.3 typing-inspection-0.4.4
++ python -m pip check
+No broken requirements found.
++ timeout 120 torchrun --standalone --nproc-per-node=2 /tmp/h3-pp-gpu-preflight.py
+W1029 06:58:19.899000 835 torch/distributed/run.py:874] 
+W1029 06:58:19.899000 835 torch/distributed/run.py:874] *****************************************
+W1029 06:58:19.899000 835 torch/distributed/run.py:874] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W1029 06:58:19.899000 835 torch/distributed/run.py:874] *****************************************
+[rank1]:[W1029 06:58:22.779233814 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[rank0]:[W1029 06:58:22.784694205 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
++ export TOKENIZERS_PARALLELISM=false
++ TOKENIZERS_PARALLELISM=false
++ timeout 2400 bash benchmarks/h3-pipeline-linux.sh /workspace/h3-pp-output
++ export OMP_NUM_THREADS=2
++ OMP_NUM_THREADS=2
++ export PYTHONPATH=/workspace/h3-pp-soup/src
++ PYTHONPATH=/workspace/h3-pp-soup/src
++ export CUBLAS_WORKSPACE_CONFIG=:4096:8
++ CUBLAS_WORKSPACE_CONFIG=:4096:8
++ git rev-parse HEAD
+++ git status --porcelain
++ test -z ''
++ python -m pip check
+No broken requirements found.
++ python -
++ python -m pip freeze
++ nvidia-smi -q
++ nvidia-smi topo -m
++ timeout 600 python benchmarks/harness/h3_pipeline_smoke.py prepare --prepared /workspace/h3-pp-output/prepared
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 6 files:  17%|█▋        | 1/6 [00:00<00:00,  5.61it/s]Fetching 6 files:  67%|██████▋   | 4/6 [00:00<00:00, 12.32it/s]Fetching 6 files: 100%|██████████| 6/6 [00:03<00:00,  1.35it/s]Fetching 6 files: 100%|██████████| 6/6 [00:03<00:00,  1.69it/s]
+Prepared pipeline experiment: /workspace/h3-pp-output/prepared
++ for repeat in 1 2
++ output=/workspace/h3-pp-output/repeat-1
++ timeout 600 torchrun --standalone --nproc-per-node=2 benchmarks/harness/h3_pipeline_smoke.py train --prepared /workspace/h3-pp-output/prepared --output /workspace/h3-pp-output/repeat-1 --device cuda --steps 4
+Traceback (most recent call last):
+  File "/workspace/h3-pp-soup/benchmarks/harness/h3_pipeline_smoke.py", line 23, in <module>
+    from rich.console import Console
+ModuleNotFoundError: No module named 'rich'
+Traceback (most recent call last):
+  File "/workspace/h3-pp-soup/benchmarks/harness/h3_pipeline_smoke.py", line 23, in <module>
+    from rich.console import Console
+ModuleNotFoundError: No module named 'rich'
+E1029 06:58:39.776000 1038 torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 0 (pid: 1045) of binary: /usr/bin/python3
+Traceback (most recent call last):
+  File "/usr/local/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 367, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/run.py", line 1028, in main
+    run(args)
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/run.py", line 1019, in run
+    elastic_launch(
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/launcher/api.py", line 194, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/distributed/launcher/api.py", line 383, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+benchmarks/harness/h3_pipeline_smoke.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-10-29_06:58:39
+  host      : 5cbe423e0b0a
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 1046) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-10-29_06:58:39
+  host      : 5cbe423e0b0a
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 1045) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
++ finish
++ code=1
++ printf '%s\n' 1
++ printf '%s\n' 1
++ cp /tmp/h3-pp-bootstrap.sh /workspace/h3-pp-support/bootstrap.sh.capture.txt
++ cp /tmp/h3-pp-gpu-preflight.py /workspace/h3-pp-support/gpu-preflight.py.capture.txt
++ cp /tmp/h3-pp-transfer-preflight.json /workspace/h3-pp-support/transfer-preflight.json
++ tar -C /workspace/h3-pp-support -czf /workspace/h3-pp-support.tar.gz .

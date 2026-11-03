@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\harness\h3_fsdp_run.py", line 491, in <module>
+    main()
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\harness\h3_fsdp_run.py", line 485, in main
+    run(args)
+  File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\harness\h3_fsdp_run.py", line 165, in run
+    config = SoupConfig.model_validate({
+  File "C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\pydantic\main.py", line 732, in model_validate
+    return cls.__pydantic_validator__.validate_python(
+pydantic_core._pydantic_core.ValidationError: 1 validation error for SoupConfig
+data.tokenized_path
+  Value error, path must stay under the current working directory (absolute paths outside cwd are rejected at config load). [type=value_error, input_value='C:\\Users\\esenb\\Docume...tion\\cpu-fixture\\data', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/value_error
