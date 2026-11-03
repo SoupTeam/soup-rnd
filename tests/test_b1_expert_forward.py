@@ -305,21 +305,206 @@ def test_load_error_is_recorded_and_lease_can_be_reused(tmp_path, monkeypatch):
         pool.close()
 
 
-@pytest.mark.parametrize("which", ["hidden", "weights"])
-def test_forward_refuses_autograd_before_reading(tmp_path, which):
+@pytest.mark.parametrize("which", ["hidden", "weights", "both"])
+def test_backward_matches_resident_after_arena_reuse(tmp_path, which):
     import torch
 
     module, _ = _experts()
     reader, pool = _store(tmp_path, module)
     hidden, index, weights = _inputs()
-    (hidden if which == "hidden" else weights).requires_grad_(True)
+    hidden.requires_grad_(which in ("hidden", "both"))
+    weights.requires_grad_(which in ("weights", "both"))
+    ref_hidden = hidden.detach().clone().requires_grad_(hidden.requires_grad)
+    ref_weights = weights.detach().clone().requires_grad_(weights.requires_grad)
     streamed = _streamed(module, reader, pool)
     try:
-        with pytest.raises(RuntimeError, match="B1.3"):
+        expected = module(ref_hidden, index, ref_weights)
+        actual = streamed(hidden, index, weights)
+        assert torch.equal(actual, expected)
+        hit_count = len(set(index.flatten().tolist()))
+        assert pool.fetches == hit_count
+        grad = torch.randn_like(actual)
+        expected.backward(grad)
+        actual.backward(grad)
+        if hidden.requires_grad:
+            assert torch.equal(hidden.grad, ref_hidden.grad)
+            assert pool.fetches == 2 * hit_count
+        else:
+            assert pool.fetches == hit_count
+        if weights.requires_grad:
+            assert torch.equal(weights.grad, ref_weights.grad)
+    finally:
+        reader.close()
+        pool.close()
+
+
+@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=pytest.mark.gpu)])
+def test_backward_restores_forward_autocast(tmp_path, device):
+    import torch
+
+    module, _ = _experts()
+    module = module.to(device)
+    reader, pool = _store(tmp_path, module, device=device)
+    hidden, index, weights = _inputs(device=device)
+    hidden.requires_grad_(True)
+    weights.requires_grad_(True)
+    ref_hidden = hidden.detach().clone().requires_grad_(True)
+    ref_weights = weights.detach().clone().requires_grad_(True)
+    try:
+        with torch.autocast(device, dtype=torch.bfloat16):
+            expected = module(ref_hidden, index, ref_weights)
+            actual = _streamed(module, reader, pool)(hidden, index, weights)
+        assert torch.equal(actual, expected)
+        grad = torch.randn_like(actual)
+        expected.backward(grad)
+        actual.backward(grad)
+        assert torch.equal(hidden.grad, ref_hidden.grad)
+        assert torch.equal(weights.grad, ref_weights.grad)
+    finally:
+        reader.close()
+        pool.close()
+
+
+def test_backward_rejects_higher_order_gradients(tmp_path):
+    import torch
+
+    module, _ = _experts()
+    reader, pool = _store(tmp_path, module)
+    hidden, index, weights = _inputs(partial=True)
+    hidden.requires_grad_(True)
+    try:
+        actual = _streamed(module, reader, pool)(hidden, index, weights)
+        with pytest.raises(RuntimeError, match="higher-order"):
+            torch.autograd.grad(actual.sum(), hidden, create_graph=True)
+    finally:
+        reader.close()
+        pool.close()
+
+
+@pytest.mark.parametrize("activation", ["dropout", "callable", "hooked_silu"])
+def test_training_rejects_unproven_activation_but_forward_accepts_it(tmp_path, activation):
+    import torch
+
+    module, _ = _experts()
+    reader, pool = _store(tmp_path, module)
+    streamed = _streamed(module, reader, pool)
+    if activation == "dropout":
+        streamed.act_fn = torch.nn.Dropout(p=0.5)
+    elif activation == "callable":
+        del streamed.act_fn
+        streamed.act_fn = lambda value: value * torch.rand_like(value)
+    else:
+        streamed.act_fn.register_forward_hook(lambda _module, _args, output: output + 1)
+    hidden, index, weights = _inputs(partial=True)
+    hidden.requires_grad_(True)
+    try:
+        with pytest.raises(ValueError, match="stateless SiLU"):
             streamed(hidden, index, weights)
-        assert reader.fetches == 0
+        assert pool.fetches == 0
         with torch.no_grad():
-            assert torch.equal(streamed(hidden, index, weights), module(hidden, index, weights))
+            assert streamed(hidden, index, weights).shape == hidden.shape
+        assert pool.fetches == 2
+    finally:
+        reader.close()
+        pool.close()
+
+
+def test_backward_rejects_activation_hook_added_after_forward(tmp_path):
+    module, _ = _experts()
+    reader, pool = _store(tmp_path, module)
+    streamed = _streamed(module, reader, pool)
+    hidden, index, weights = _inputs(partial=True)
+    hidden.requires_grad_(True)
+    try:
+        result = streamed(hidden, index, weights)
+        streamed.act_fn.register_forward_hook(lambda _module, _args, output: output + 1)
+        with pytest.raises(ValueError, match="stateless SiLU"):
+            result.sum().backward()
+        assert pool.fetches == 2
+    finally:
+        reader.close()
+        pool.close()
+
+
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=pytest.mark.gpu)])
+def test_nf4_backward_matches_stored_weight_reference(tmp_path, nested, device):
+    import torch
+
+    pytest.importorskip("bitsandbytes")
+    module, _ = _experts()
+    module = module.to(device=device, dtype=torch.float32)
+    reader, pool = _store(tmp_path, module, nf4=True, nested=nested, device=device)
+    _dequantized_reference(module, reader, pool)
+    hidden, index, weights = _inputs(device=device, partial=True)
+    hidden.requires_grad_(True)
+    weights.requires_grad_(True)
+    ref_hidden = hidden.detach().clone().requires_grad_(True)
+    ref_weights = weights.detach().clone().requires_grad_(True)
+    try:
+        expected = module(ref_hidden, index, ref_weights)
+        actual = _streamed(module, reader, pool)(hidden, index, weights)
+        assert torch.equal(actual, expected)
+        grad = torch.randn_like(actual)
+        expected.backward(grad)
+        actual.backward(grad)
+        assert torch.equal(hidden.grad, ref_hidden.grad)
+        assert torch.equal(weights.grad, ref_weights.grad)
+        assert pool.fetches == 4
+    finally:
+        reader.close()
+        pool.close()
+
+
+def test_checkpoint_recompute_preserves_gradients(tmp_path):
+    import torch
+    from torch.utils.checkpoint import checkpoint
+
+    module, _ = _experts()
+    reader, pool = _store(tmp_path, module)
+    hidden, index, weights = _inputs(partial=True)
+    hidden.requires_grad_(True)
+    weights.requires_grad_(True)
+    ref_hidden = hidden.detach().clone().requires_grad_(True)
+    ref_weights = weights.detach().clone().requires_grad_(True)
+    streamed = _streamed(module, reader, pool)
+    try:
+        expected = checkpoint(module, ref_hidden, index, ref_weights, use_reentrant=False)
+        actual = checkpoint(streamed, hidden, index, weights, use_reentrant=False)
+        grad = torch.randn_like(actual)
+        expected.backward(grad)
+        actual.backward(grad)
+        assert torch.equal(actual, expected)
+        assert torch.equal(hidden.grad, ref_hidden.grad)
+        assert torch.equal(weights.grad, ref_weights.grad)
+        assert pool.fetches >= 4
+    finally:
+        reader.close()
+        pool.close()
+
+
+def test_backward_load_failure_releases_lease(tmp_path, monkeypatch):
+    import torch
+
+    module, _ = _experts()
+    reader, pool = _store(tmp_path, module)
+    hidden, index, weights = _inputs(partial=True)
+    hidden.requires_grad_(True)
+    streamed = _streamed(module, reader, pool)
+    actual = streamed(hidden, index, weights)
+    original = reader.read_host
+
+    def broken(*args):
+        raise OSError("backward read failed")
+
+    try:
+        monkeypatch.setattr(reader, "read_host", broken)
+        with pytest.raises(OSError, match="backward read failed"):
+            actual.sum().backward()
+        assert reader._handle is None
+        monkeypatch.setattr(reader, "read_host", original)
+        with pool.lease(reader, 0) as (gate_up, _down):
+            assert torch.equal(gate_up, module.gate_up_proj[0])
     finally:
         reader.close()
         pool.close()
