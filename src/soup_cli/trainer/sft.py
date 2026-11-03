@@ -735,6 +735,8 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             trainer,
             self._stream_runtime,
             dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
+            spill_dir=self.config.training.l2l_spill_dir,
+            weight_dirs=self._stream_weight_dirs,
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
