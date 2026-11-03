@@ -623,6 +623,7 @@ def run(source: Path, out: Path, manifest: Path, part1_rows_path: Optional[Path]
     }
     for tag, _ in DQ_SETTINGS:
         checks[tag].pop("unit_metrics")
+    peak_rss = _peak_rss_bytes()
     body = {
         "what": "E4 part 2 main rule section 2: Mac-side NF4 quantization, checks U1-U3",
         "rule_version": "e4-rule-part2 v4.2",
@@ -639,7 +640,7 @@ def run(source: Path, out: Path, manifest: Path, part1_rows_path: Optional[Path]
         "source_files": source_files,
         "seconds": {t: p["seconds"] for t, p in passes.items()} | {
             "total": round(time.time() - started, 1)},
-        "peak_rss_bytes_all_children_excluded": _peak_rss_bytes(),
+        "peak_rss_bytes_all_children_excluded": peak_rss,
         "bnb_cpu_backends": backends,
         "fused_slice_equals_checkpoint_tensor": {
             t: {"mismatches": p["mapping_mismatch"], "pass": not p["mapping_mismatch"]}
@@ -648,6 +649,8 @@ def run(source: Path, out: Path, manifest: Path, part1_rows_path: Optional[Path]
         "files": files,
         "units": unit_rows,
     }
+    if peak_rss is None:
+        body["peak_rss_note"] = "resource module unavailable on this platform"
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(json.dumps(body, indent=1, sort_keys=True) + "\n")
     all_pass = all(checks[t][c]["pass"] for t, _ in DQ_SETTINGS for c in ("U1", "U2", "U3"))
