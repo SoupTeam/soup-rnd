@@ -52,7 +52,9 @@ def _train(base_cls, model, runtime, tmp_path, data, *, l2l, k, resume=None, **o
             rates.append(optimizer.param_groups[0]["lr"])
             store = holder["state"].store if l2l else None
             if store is not None:
-                stores.append((id(store), store.k, store.stats.resident_chunks))
+                stores.append(
+                    (id(store), store.k, store.stats.resident_chunks, tuple(store.mb_shapes))
+                )
 
     options = dict(
         output_dir=str(tmp_path / ("l2l" if l2l else "ga")),
@@ -151,7 +153,7 @@ def test_the_store_survives_short_windows_without_growing(streamed, tmp_path):  
     # windows 3, 3, 1, 3, 3, 1: the same full-size store serves all six steps
     assert len(l2l.stores) == 6
     assert len(set(l2l.stores)) == 1
-    _, k, resident = l2l.stores[0]
+    _, k, resident, _ = l2l.stores[0]
     assert k == 3
     assert resident == 3 * k  # three layers x k chunks, nothing accumulated
     assert l2l.state.window is None
@@ -171,7 +173,13 @@ def test_a_short_window_before_a_full_one_replaces_the_store(streamed, tmp_path,
 
     small = _store_for(state, stepper, [ids], "cpu")
     closed = []
-    monkeypatch.setattr(small, "close", lambda *a, **kw: closed.append(small))
+    real_close = small.close
+
+    def close(*args, **kwargs):
+        closed.append(small)
+        real_close(*args, **kwargs)
+
+    monkeypatch.setattr(small, "close", close)
     full = _store_for(state, stepper, [ids] * 3, "cpu")
     assert full is not small and full.k == 3
     assert closed == [small]  # the short-window store is released, not leaked
@@ -240,6 +248,6 @@ def test_rows_of_different_lengths_match_accumulation_bit_for_bit(
     _assert_same_run(ga, l2l, windows)
     # one captured call per distinct shape, and the store holds each row at its own size
     assert len(l2l.state.calls_by_shape) == len({n for n in lengths})
-    store = l2l.state.store
+    assert l2l.state.store is None  # train closes the store on every exit
     if k > 1:
-        assert len({chunk.numel() for chunk in store._resident.values()}) > 1
+        assert len(set(l2l.stores[-1][3])) > 1
