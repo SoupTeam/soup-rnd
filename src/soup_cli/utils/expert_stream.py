@@ -1,8 +1,8 @@
-"""B1.2 forward-only MoE streaming, adapted from Soup d500ae0d.
+"""Internal MoE streaming with a bounded reusable expert arena.
 
 The eager expert loop is preserved. One reusable weight arena replaces the
-original fetcher's independently allocated tensors. Backward is deliberately
-refused; public training integration remains gated in layer_stream_runtime.
+original fetcher's independently allocated tensors. Backward refetches each
+frozen expert; public training integration remains gated in layer_stream_runtime.
 """
 
 from __future__ import annotations
@@ -94,6 +94,16 @@ def plan_expert_buffer(reader: ExpertShardReader, *, dtype: str) -> ExpertBuffer
     return _buffer_layout(reader, dtype)[0]
 
 
+def expert_allocation_budget(plan: ExpertBufferPlan, *, device: str) -> int:
+    """Include an explicit CUDA allocator allowance above logical tensor storage.
+
+    Reused allocator blocks can be larger than the requested arena. The pool
+    still checks the observed allocation against this finite budget; this is a
+    reserve, not an assumption that every allocator configuration fits it.
+    """
+    return plan.weight_bytes + (32 * 2**20 if str(device).startswith("cuda") else 0)
+
+
 class ExpertBufferPool:
     """One synchronous expert lease at a time, backed by one bounded arena.
 
@@ -174,7 +184,11 @@ class ExpertBufferPool:
                 if self.device.type == "cuda" else 0
             )
             if self.cuda_allocation_delta > weight_budget_bytes:
-                raise ValueError("CUDA allocator rounded the expert slot above the weight budget")
+                raise ValueError(
+                    "CUDA allocator rounded the expert slot above the weight budget: "
+                    f"observed {self.cuda_allocation_delta}, budget {weight_budget_bytes}, "
+                    f"logical storage {self.plan.weight_bytes} bytes"
+                )
         except BaseException:
             self._buffers.clear()
             self._arena = self._staging_owner = self._staging = None
@@ -306,8 +320,6 @@ def _validate_routing(hidden: Any, index: Any, weights: Any, pool: ExpertBufferP
 
     from soup_cli.utils.layer_stream_runtime import _torch_dtype
 
-    if torch.is_grad_enabled() and (hidden.requires_grad or weights.requires_grad):
-        raise RuntimeError("B1.2 is forward-only; expert backward requires B1.3")
     if hidden.ndim != 2 or index.ndim != 2 or weights.shape != index.shape:
         raise ValueError("expected hidden [tokens, hidden] and routing indices/weights [tokens, k]")
     if index.shape[0] != hidden.shape[0] or not 1 <= index.shape[1]:
@@ -324,13 +336,74 @@ def _validate_routing(hidden: Any, index: Any, weights: Any, pool: ExpertBufferP
         raise ValueError("routing weights must be finite")
 
 
+def _validate_training_activation(act_fn: Any) -> None:
+    """Recomputation is only valid for the native stateless SiLU implementations."""
+    import torch.nn as nn
+    from torch.nn.modules import module as module_hooks
+    from transformers.activations import SiLUActivation
+
+    if type(act_fn) not in (nn.SiLU, SiLUActivation):
+        raise ValueError("expert backward requires an unmodified stateless SiLU activation")
+    if (
+        getattr(act_fn, "inplace", False)
+        or "forward" in vars(act_fn)
+        or any(True for _ in act_fn.parameters())
+        or any(True for _ in act_fn.buffers())
+        or any(True for _ in act_fn.children())
+        or act_fn._forward_hooks
+        or act_fn._forward_pre_hooks
+        or act_fn._backward_hooks
+        or act_fn._backward_pre_hooks
+        or module_hooks._global_forward_hooks
+        or module_hooks._global_forward_pre_hooks
+        or module_hooks._global_backward_hooks
+        or module_hooks._global_backward_pre_hooks
+    ):
+        raise ValueError("expert backward requires an unmodified stateless SiLU activation")
+
+
 def _build_streamed_experts_class() -> Any:
     import torch
     import torch.nn as nn
     import torch.nn.functional as functional
 
+    def expert_mlp(hidden: Any, gate_up: Any, down: Any, act_fn: Any) -> Any:
+        gate, up = functional.linear(hidden, gate_up).chunk(2, dim=-1)
+        return functional.linear(act_fn(gate) * up, down)
+
+    class FrozenExpert(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx: Any, hidden: Any, owner: Any, expert: int) -> Any:
+            ctx.owner = owner
+            ctx.act_fn = owner.act_fn
+            ctx.expert = expert
+            ctx.device_type = hidden.device.type
+            ctx.autocast = {
+                "enabled": torch.is_autocast_enabled(ctx.device_type),
+                "dtype": torch.get_autocast_dtype(ctx.device_type),
+                "cache_enabled": torch.is_autocast_cache_enabled(),
+            }
+            ctx.save_for_backward(hidden)
+            with owner.pool.lease(owner.reader, expert) as (gate_up, down):
+                return expert_mlp(hidden, gate_up, down, owner.act_fn)
+
+        @staticmethod
+        def backward(ctx: Any, grad_out: Any) -> Tuple[Any, None, None]:
+            if torch.is_grad_enabled():
+                raise RuntimeError("expert streaming does not support higher-order gradients")
+            if not ctx.needs_input_grad[0]:
+                return None, None, None
+            _validate_training_activation(ctx.act_fn)
+            (hidden,) = ctx.saved_tensors
+            with ctx.owner.pool.lease(ctx.owner.reader, ctx.expert) as (gate_up, down):
+                with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
+                    local = hidden.detach().requires_grad_(True)
+                    result = expert_mlp(local, gate_up, down, ctx.act_fn)
+                    (grad_hidden,) = torch.autograd.grad(result, local, grad_out)
+            return grad_hidden, None, None
+
     class StreamedExperts(nn.Module):
-        """Internal eager forward replacement; no backward or training contract."""
+        """Internal frozen-expert forward and first-order backward replacement."""
 
         def __init__(
             self, reader: ExpertShardReader, pool: ExpertBufferPool, act_fn: Any, layer_idx: int
@@ -356,6 +429,10 @@ def _build_streamed_experts_class() -> Any:
                 self.last_trace = []
                 self.pool.validate_reader(self.reader)
                 _validate_routing(hidden_states, top_k_index, top_k_weights, self.pool)
+                if torch.is_grad_enabled() and (
+                    hidden_states.requires_grad or top_k_weights.requires_grad
+                ):
+                    _validate_training_activation(self.act_fn)
                 if top_k_index.shape[1] > self.num_experts:
                     raise ValueError("routing top-k exceeds the expert count")
                 if top_k_index.numel() and (
@@ -377,14 +454,12 @@ def _build_streamed_experts_class() -> Any:
                     self.last_trace.append(row)
                     before = self.reader.bytes_read
                     try:
-                        with self.pool.lease(self.reader, expert) as (gate_up, down):
-                            current_state = hidden_states[token_idx]
-                            gate, up = functional.linear(current_state, gate_up).chunk(2, dim=-1)
-                            current = functional.linear(self.act_fn(gate) * up, down)
-                            current = current * top_k_weights[token_idx, top_k_pos, None]
-                            final_hidden_states.index_add_(
-                                0, token_idx, current.to(final_hidden_states.dtype)
-                            )
+                        current_state = hidden_states[token_idx]
+                        current = FrozenExpert.apply(current_state, self, expert)
+                        current = current * top_k_weights[token_idx, top_k_pos, None]
+                        final_hidden_states.index_add_(
+                            0, token_idx, current.to(final_hidden_states.dtype)
+                        )
                         row["status"] = "ok"
                     except BaseException:
                         row["status"] = "error"
@@ -423,10 +498,12 @@ def _find_experts(layer: Any) -> Optional[Tuple[Any, str, Any]]:
 def install_expert_forward(
     layers: Sequence[Any], readers: Mapping[int, ExpertShardReader], pool: ExpertBufferPool
 ) -> int:
-    """Replace only routed experts after validating ALL layers, without enabling training.
+    """Replace frozen routed experts after validating every layer.
 
     Router, shared experts and dense layers stay with their original MoE code.
     Readers and pool are caller-owned. Invalid installs do not alter the model.
+    First-order backward refetches weights within a lease and requires the
+    validated stateless SiLU activation; routed-expert adapters are refused.
     """
     if any(
         isinstance(idx, bool) or not isinstance(idx, int) or not 0 <= idx < len(layers)
