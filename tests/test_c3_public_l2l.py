@@ -150,6 +150,7 @@ def test_failed_activation_drain_prevents_weight_cleanup():
 
 def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monkeypatch):
     import torch
+    from transformers import TrainerCallback
 
     from soup_cli.config.schema import SoupConfig
     from soup_cli.utils.budgeted_activations import BudgetedActivationStore
@@ -177,11 +178,21 @@ def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monk
             for n, p in wrapper.model.named_parameters()
             if "lora_" in n and p.requires_grad
         }
+        observed_usage = []
+
+        class ObserveStore(TrainerCallback):
+            def on_step_end(self, args, state, control, **kwargs):
+                assert isinstance(wrapper.trainer._soup_l2l.store, BudgetedActivationStore)
+                assert 0 < plan.activations.used_bytes <= plan.activations.limit_bytes
+                observed_usage.append(plan.activations.used_bytes)
+
+        wrapper.trainer.add_callback(ObserveStore())
         wrapper.trainer.args.max_steps = 2
         wrapper.trainer.train()
         assert wrapper.trainer.state.global_step == 2
-        assert isinstance(state.store, BudgetedActivationStore)
-        assert 0 < plan.activations.used_bytes <= plan.activations.limit_bytes
+        assert len(observed_usage) == 2
+        assert state.store is None
+        assert plan.activations.used_bytes == 0
         assert source.accounted_peak_bytes <= plan.weights.limit_bytes
         assert any(
             not torch.equal(before[n], p)

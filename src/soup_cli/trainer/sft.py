@@ -735,6 +735,8 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             trainer,
             self._stream_runtime,
             dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
+            spill_dir=self.config.training.l2l_spill_dir,
+            weight_dirs=self._stream_weight_dirs,
             c3_plan=getattr(self, "_c3_l2l_plan", None),
         )
         console.print(

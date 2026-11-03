@@ -1,0 +1,35 @@
+overall: old 'PASS: fp8_e4m3' new 'PASS: fp8_e4m3'
+V10_first_step_forward_exact   old True  new True 
+V11_noise_floor_usable         old True  new True 
+V12_suites_records             old True  new True 
+V13_base_parity                old True  new True 
+V14_error_linked               old True  new True 
+V15_error_complete             old None  new True   (row added)
+V1_error_eligible              old True  new True 
+V2_harness_exact               old True  new True 
+V3_forward_exact               old True  new True 
+V4_codec_conforms              old True  new True 
+V5_control_discriminates       old True  new True 
+V6_training_eligible           old True  new True 
+V7_arms_complete               old True  new True 
+V8_same_inputs                 old True  new True 
+V9_configs                     old True  new True 
+fp8_e4m3: verdict old pass new pass
+  E1: status old pass       new pass       numbers identical; detail identical
+  E2: status old pass       new pass       numbers identical; detail identical
+  E3: status old pass       new pass       numbers identical; detail identical
+  Q1: status old pass       new pass       numbers identical; detail identical
+  Q2: status old pass       new pass       numbers identical; detail identical
+  Q3: status old pass       new pass       numbers identical; detail identical
+int8: verdict old fail new fail
+  E1: status old pass       new pass       numbers identical; detail identical
+  E2: status old fail       new fail       numbers identical; detail identical
+  E3: status old fail       new fail       numbers identical; detail identical
+  Q1: status old pass       new pass       numbers identical; detail identical
+  Q2: status old pass       new pass       numbers identical; detail identical
+  Q3: status old pass       new pass       numbers identical; detail identical
+noise_floor: identical
+memory: identical
+timing: identical
+per_token_arithmetic: identical
+differences other than the added V15 row: 0

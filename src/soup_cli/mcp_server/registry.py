@@ -681,6 +681,7 @@ NOT_PLAN_INPUT_FIELDS: Mapping[str, str] = {
     "training.online_dpo_judge": "a judge URL, not a local path",
     "training.preference_loss_weights": "a mapping of loss weights",
     "training.reward_hack_signals": "signal names",
+    "training.l2l_spill_dir": "scratch directory the run writes its activation spill to",
     "eval.ship.general_suite": "read by soup ship, not soup train",
     "eval.ship.judge_model": "a judge URL read by soup ship, not soup train",
     "eval.ship.baseline": "read by soup ship, not soup train",
