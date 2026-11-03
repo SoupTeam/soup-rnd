@@ -1,0 +1,16 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 4005.56it/s]
+Traceback (most recent call last):
+  File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 592, in <module>
+    main()
+  File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 588, in main
+    reload_adapter(args)
+  File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 543, in reload_adapter
+    torch.testing.assert_close(actual.float(), reference["logits"].float(), atol=atol, rtol=rtol)
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261027/venv/lib/python3.12/site-packages/torch/testing/_comparison.py", line 1631, in assert_close
+    raise error_metas[0].to_error(msg)
+AssertionError: Tensor-likes are not close!
+
+Mismatched elements: 5783274 / 9723904 (59.5%)
+Greatest absolute difference: 0.484375 at index (0, 0, 6040) (up to 0.015625 allowed)
+Greatest relative difference: 284741.625 at index (0, 22, 23649) (up to 0.0078125 allowed)

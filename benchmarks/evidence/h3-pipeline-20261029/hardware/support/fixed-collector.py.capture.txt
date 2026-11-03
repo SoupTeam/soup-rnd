@@ -1,0 +1,126 @@
+import hashlib
+import json
+import os
+import pathlib
+import shlex
+import tarfile
+import time
+import ops
+
+ROOT=ops.ROOT
+OUT=ops.OUT
+(ROOT/'archives').mkdir(exist_ok=True)
+(ROOT/'evidence').mkdir(exist_ok=True)
+deadline=json.loads(ops.STATE.read_text())['deadline_epoch']-60
+
+def digest(path):
+    h=hashlib.sha256()
+    with path.open('rb') as stream:
+        for part in iter(lambda:stream.read(1024*1024),b''): h.update(part)
+    return h.hexdigest()
+
+def markers():
+    code='''import os,json,sys
+names={"repeat-1":"/workspace/h3-pp-fixed-output/repeat-1","repeat-2":"/workspace/h3-pp-fixed-output/repeat-2","metadata":"/workspace/h3-pp-fixed-output/metadata","support":"/workspace/h3-pp-fixed-support","diagnostics":"/workspace/h3-pp-fixed-diagnostics"}
+result={"output_exists":os.path.isdir("/workspace/h3-pp-fixed-output")}
+for key,name in names.items():
+ if os.path.isfile(name+".sha256"):
+  result[key]={"path":name+".tar.gz","sha256":open(name+".sha256").read().split()[0],"bytes":os.path.getsize(name+".tar.gz")}
+if os.path.isfile("/tmp/h3-pp-fixed.exit"): result["exit"]=int(open("/tmp/h3-pp-fixed.exit").read())
+sys.stdout.write(json.dumps(result))'''
+    return json.loads(ops.command('python3 -c '+shlex.quote(code),timeout=25))
+
+def receive(name, marker):
+    assert len(marker['sha256'])==64 and 0<marker['bytes']<200*1024**2
+    target=ROOT/'archives'/(name+'.tar.gz')
+    if not target.exists():
+        value=ops.command('cat -- '+shlex.quote(marker['path']),timeout=150)
+        assert len(value)==marker['bytes'] and hashlib.sha256(value).hexdigest()==marker['sha256']
+        temporary=pathlib.Path(str(target)+'.partial')
+        temporary.write_bytes(value);os.replace(temporary,target)
+    assert target.stat().st_size==marker['bytes'] and digest(target)==marker['sha256']
+    destination=ROOT/'evidence'/name
+    destination.mkdir(exist_ok=True)
+    with tarfile.open(target) as source:
+        for member in source.getmembers():
+            resolved=os.path.realpath(destination/member.name)
+            assert os.path.commonpath([os.path.realpath(destination),resolved])==os.path.realpath(destination)
+            assert member.isfile() or member.isdir()
+        source.extractall(destination)
+    ledger={p.relative_to(destination).as_posix():{'bytes':p.stat().st_size,'sha256':digest(p)}
+            for p in destination.rglob('*') if p.is_file()}
+    ops.save(ROOT/'archives'/(name+'.verified.json'),{**marker,'archive':str(target),'files':ledger})
+    return destination
+
+def validate_repeat(folder):
+    import torch
+    from safetensors.torch import load_file
+    records=[json.loads((folder/f'rank-{i}/record.json').read_text()) for i in range(2)]
+    assert [r['layers'] for r in records]==[list(range(12)),list(range(12,24))]
+    merged={}
+    for index,r in enumerate(records):
+        assert r['rank']==index and r['device']==f'cuda:{index}'
+        assert r['observed_stage_calls']=={'forward':16,'backward':16}
+        assert r['frozen_before']==r['frozen_after'] and r['changed_adapter_tensors']>0
+        assert r['plan']['global_batch']==8 and r['plan']['accumulation']==2
+        assert len(r['records'])==4 and r['peak_vram']['allocated']>0
+        for step,item in enumerate(r['records']):
+            assert item['row_ids']==list(range(step*8,(step+1)*8))
+        d=folder/f'rank-{index}'
+        control=torch.load(d/'control.pt',weights_only=True,map_location='cpu')
+        first=torch.load(d/'first-step.pt',weights_only=True,map_location='cpu')
+        final=torch.load(d/'adapter.pt',weights_only=True,map_location='cpu')
+        assert len(final)==48 and not (merged.keys()&final.keys())
+        for actual,expected in [(first['gradients'],control['first_gradient']),
+                                (first['adapter'],control['first_adapter']),
+                                (final,control['final_adapter'])]:
+            assert actual.keys()==expected.keys()
+            for key in actual:
+                assert torch.isfinite(actual[key]).all()
+                torch.testing.assert_close(actual[key],expected[key],atol=1e-5,rtol=.02)
+        merged.update(final)
+    serialized=load_file(folder/'adapter/adapter_model.safetensors')
+    assert serialized.keys()==merged.keys() and len(merged)==96
+    for key in merged: torch.testing.assert_close(serialized[key],merged[key],atol=0,rtol=0)
+    reload=json.loads((folder/'reload.json').read_text())
+    assert reload['passed'] and reload['adapter_keys']==96
+    assert reload['pid'] not in {x['pid'] for x in records}
+    env=json.loads((folder/'environment.json').read_text())
+    assert env['source_commit']==ops.COMMIT and not env['cpu_fixture']
+    assert env['prepared']['revision']=='7ae557604adf67be50417f59c2c2f167def9a775'
+    return {'records':records,'reload':reload,'all_reference_tensor_checks_passed':True}
+
+received={}
+try:
+    while time.time()<deadline and not (ROOT/'destroy.json').exists():
+        state=markers()
+        ops.save(ROOT/'collector-status.json',{'received':list(received),'remote':state})
+        for name in ('repeat-1','repeat-2','metadata','support','diagnostics'):
+            if name in state and name not in received:
+                folder=receive(name,state[name])
+                verification=validate_repeat(folder) if name.startswith('repeat-') else {}
+                received[name]={'folder':str(folder),'sha256':state[name]['sha256'],
+                                'verification':verification}
+                ops.save(ROOT/'collection.json',received)
+                if name.startswith('repeat-'):
+                    path=OUT+'/'+name+'.received.json'
+                    ops.command('cat > '+shlex.quote(path),json.dumps({'sha256':state[name]['sha256']}).encode())
+                ops.console.print('Downloaded and SHA256 verified:',name)
+        if state.get('exit') is not None and 'support' in received:
+            if state['exit']!=0 and state.get('output_exists') and 'diagnostics' not in received:
+                time.sleep(5)
+                continue
+            log=ops.command('cat /workspace/h3-pp-fixed-output/campaign.log 2>/dev/null || true')
+            (ROOT/'evidence/campaign.log').write_bytes(log)
+            (ROOT/'evidence/bootstrap.log').write_bytes(ops.command('cat /workspace/h3-pp-fixed-support/bootstrap.log'))
+            ops.save(ROOT/'campaign-result.json',{'exit':state['exit'],'received':list(received),
+                'accepted':state['exit']==0 and all(x in received for x in ['repeat-1','repeat-2','metadata','support'])})
+            if state['exit']!=0: raise RuntimeError('GPU pipeline failed; diagnostics retained')
+            assert all(x in received for x in ['repeat-1','repeat-2','metadata','support'])
+            break
+        time.sleep(5)
+    else:
+        raise TimeoutError('scoped rental deadline reached')
+except BaseException as exc:
+    ops.save(ROOT/'collector-error.json',{'type':type(exc).__name__,'error':str(exc),'received':list(received)})
+    raise

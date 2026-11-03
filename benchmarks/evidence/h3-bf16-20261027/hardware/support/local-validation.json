@@ -1,0 +1,40 @@
+{
+  "scope": "CPU regression checks, not CUDA hardware evidence",
+  "python": "3.10",
+  "pytest_argv": [
+    "python",
+    "-m",
+    "pytest",
+    "tests/test_h3_fsdp_gate.py",
+    "tests/test_h3_fsdp_campaign.py",
+    "tests/test_h3_fsdp_tied_embeddings.py",
+    "tests/test_issue352_fsdp_peft_checkpoint.py",
+    "tests/test_issue373_fsdp_sharding_probe.py",
+    "tests/test_issue350_fsdp_qlora.py",
+    "tests/test_issue1204_fsdp_deepspeed_forwarding.py",
+    "--no-cov",
+    "-q"
+  ],
+  "pytest_exit_code": 0,
+  "passed": 88,
+  "ruff_argv": [
+    "python",
+    "-m",
+    "ruff",
+    "check",
+    "src/soup_cli/",
+    "scripts/",
+    "tests/",
+    "benchmarks/"
+  ],
+  "ruff_exit_code": 0,
+  "test_file_sha256": {
+    "tests/test_h3_fsdp_gate.py": "9d795f8d1661ecd47934e55abaee745b5cba93e5b3dadcff3de63ed49f9a6244",
+    "tests/test_h3_fsdp_campaign.py": "abf482f88ed0d5523b7134f0341ac5629bd67b7f05f365c79387795f1481e085",
+    "tests/test_h3_fsdp_tied_embeddings.py": "17cab9933cce9ee9974e2de50a28af45dc1c0c454f8fcb48df409fc9fbed693b",
+    "tests/test_issue352_fsdp_peft_checkpoint.py": "04fd489862d952e49745a37537e0844a4d703075ae2d9d46259f21032667e3e5",
+    "tests/test_issue373_fsdp_sharding_probe.py": "98284189c53e851540d696f3e93d87efd009584c525ddc6060e46bd99d6bb052",
+    "tests/test_issue350_fsdp_qlora.py": "ecda09d94092c6e72bd2c6ea3e7b93aa244d2ad7f437bf0a03df8f93fbb9f261",
+    "tests/test_issue1204_fsdp_deepspeed_forwarding.py": "c82f9dbedf7170845038e9281bfbf3bda03bc9373e33bac2211f604bb96757e4"
+  }
+}

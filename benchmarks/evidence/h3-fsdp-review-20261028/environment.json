@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-28",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "python": "3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]",
+  "packages": {
+    "torch": "2.13.0",
+    "accelerate": "1.14.0",
+    "transformers": "5.17.0",
+    "peft": "0.20.0",
+    "trl": "0.29.1",
+    "pytest": "9.1.1",
+    "ruff": "0.16.4"
+  },
+  "source_base_commit": "d5fb39d55e6c7f1398bc06d3a6adc296d8290964",
+  "source_state": "Worktree patch over source_base_commit; exact file and normalized Git blob hashes below.",
+  "source_files": {
+    "src/soup_cli/utils/fsdp.py": {
+      "worktree_sha256": "a1d27e44583a75dc09387c2c4783e5cb31eab6984aebda1896950182b08f0d0e",
+      "git_blob_sha1": "a5012c624285ddfac6cd7f2332530591ac02ee50"
+    },
+    "src/soup_cli/trainer/sft.py": {
+      "worktree_sha256": "3ff22ece23b18c3b45e25ba2d8ad70a66cf8d7793fe7e9a5989ff9bef4a8d024",
+      "git_blob_sha1": "ee0a039b50e70ddfc503f8e9bd819862ef734425"
+    },
+    "tests/test_h3_fsdp_tied_embeddings.py": {
+      "worktree_sha256": "35be58e8df5e8111fb00de74729db14b27074a1634d62a5bed32ffd449265fdb",
+      "git_blob_sha1": "d27ed3a4f8799f3f09c3173a8c71a3ae2c4e6fe9"
+    }
+  },
+  "pytest": "OMP_NUM_THREADS=2 PYTHONPATH=src python -m pytest tests/test_h3_fsdp_tied_embeddings.py tests/test_h3_fsdp_gate.py tests/test_h3_fsdp_campaign.py tests/test_issue373_fsdp_sharding_probe.py tests/test_issue352_fsdp_peft_checkpoint.py tests/test_issue350_fsdp_qlora.py tests/test_issue1204_fsdp_deepspeed_forwarding.py tests/test_performance.py tests/test_multi_gpu.py --no-cov -q --tb=short",
+  "ruff": "python -m ruff check src/soup_cli/ scripts/ tests/ benchmarks/",
+  "mutation": {
+    "change": "Replace the one cpu_ram_efficient_loading conditional in prepare_fsdp2_tied_embeddings with if False, restoring the eager path.",
+    "command": "OMP_NUM_THREADS=2 PYTHONPATH=src python -m pytest tests/test_h3_fsdp_tied_embeddings.py::test_real_two_rank_preparation_preserves_full_weights[no-True] --no-cov -q --tb=short",
+    "expected_exit": 1,
+    "observed_exit": 1,
+    "source_restored_byte_for_byte": true
+  },
+  "scope": "Two actual CPU/Gloo ranks for preparation/load/remapping; not GPU training or resume."
+}
