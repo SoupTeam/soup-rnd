@@ -352,7 +352,7 @@ def streamed(tmp_path):
     runtime.close()
 
 
-def build_streamed(tmp_path, lora_dropout=0.0, device="cpu"):
+def build_streamed(tmp_path, lora_dropout=0.0, device="cpu", n_layers=3):
     """The ``streamed`` fixture's model; the caller closes ``runtime``."""
     pytest.importorskip("peft")
     from peft import LoraConfig, TaskType
@@ -361,7 +361,7 @@ def build_streamed(tmp_path, lora_dropout=0.0, device="cpu"):
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
     from tests.test_v07204 import _tiny_llama_dir
 
-    weights, _model, _config = _tiny_llama_dir(tmp_path, n_layers=3, tie=False)
+    weights, _model, _config = _tiny_llama_dir(tmp_path, n_layers=n_layers, tie=False)
     shards = str(tmp_path / "shards")
     index = shard_checkpoint(weights, shards, dtype="float32", arch="llama")
     lora = LoraConfig(

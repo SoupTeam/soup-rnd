@@ -1,0 +1,24 @@
+L2L dtypes: {
+ "store_dtype": "torch.bfloat16",
+ "hidden_dtypes_into_store": [
+  "torch.bfloat16"
+ ],
+ "lora_param_elements_by_dtype": {
+  "torch.bfloat16": 6815744
+ },
+ "other_param_elements_by_dtype": {
+  "torch.bfloat16": 262410240,
+  "torch.float32": 6979321856
+ },
+ "store_rounds_hidden": false
+}
+step  0: grad equal=False maxdiff=1.099e-03 (max|g|=5.469e-02) worst=base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight
+step  1: grad equal=False maxdiff=5.684e-04 (max|g|=4.004e-02) worst=base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight
+step  2: grad equal=False maxdiff=1.450e-03 (max|g|=3.088e-02) worst=base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight
+step  3: grad equal=False maxdiff=8.545e-04 (max|g|=5.640e-02) worst=base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight
+step  0: param after step maxdiff=0.000e+00
+step  1: param after step maxdiff=1.893e-04
+step  2: param after step maxdiff=3.095e-04
+step  3: param after step maxdiff=5.188e-04
+gradient bytes equal per step: [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+loss relative error per step: 0.00e+00 0.00e+00 1.15e-03 5.32e-04 2.76e-04 1.47e-03 8.79e-04 1.05e-03 2.34e-04 1.13e-03 3.83e-03 3.22e-04 2.64e-03 3.11e-03 2.84e-03 2.36e-03

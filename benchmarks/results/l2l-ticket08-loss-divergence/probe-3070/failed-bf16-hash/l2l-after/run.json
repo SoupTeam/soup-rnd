@@ -1,0 +1,23 @@
+{
+ "config": "/root/soup/benchmarks/harness/l2l_ticket04/l2l.yaml",
+ "sdpa": "MATH",
+ "cublas_workspace_config": ":4096:8",
+ "failure": "TypeError: Got unsupported ScalarType BFloat16",
+ "wall_s": 15.41541576385498,
+ "losses": [],
+ "grad_sha256_by_step": [],
+ "dtypes": {
+  "store_dtype": "torch.bfloat16",
+  "hidden_dtypes_into_store": [
+   "torch.bfloat16"
+  ],
+  "lora_param_elements_by_dtype": {
+   "torch.bfloat16": 6815744
+  },
+  "other_param_elements_by_dtype": {
+   "torch.bfloat16": 262410240,
+   "torch.float32": 6979321856
+  },
+  "store_rounds_hidden": false
+ }
+}
