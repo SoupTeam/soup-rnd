@@ -1,0 +1,4834 @@
+[
+ [
+  {
+   "arm": "A",
+   "round": 1,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 183.88590502738953,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 137079570432,
+     "write_bytes_since_process_start": 36393320448,
+     "peak_vram_allocated_bytes": 1584515584,
+     "peak_rss_bytes": 5170569216,
+     "seconds_since_process_start": 144.37980218417943,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 12.176929336972535,
+      "real_tokens": 268,
+      "tokens_per_s": 22.00883265260296,
+      "peak_vram_allocated_bytes": 2189067776,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4406870016,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70490386432,
+      "os_write_bytes": 0,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.913840048015118,
+      "real_tokens": 340,
+      "tokens_per_s": 31.153104544704707,
+      "peak_vram_allocated_bytes": 2338497536,
+      "peak_vram_reserved_bytes": 2858418176,
+      "peak_rss_bytes": 4743602176,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 0,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.436417198739946,
+      "real_tokens": 266,
+      "tokens_per_s": 25.487674068081127,
+      "peak_vram_allocated_bytes": 2329380864,
+      "peak_vram_reserved_bytes": 2858418176,
+      "peak_rss_bytes": 4743643136,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.961969557683915,
+      "real_tokens": 341,
+      "tokens_per_s": 31.107548529996805,
+      "peak_vram_allocated_bytes": 3575588864,
+      "peak_vram_reserved_bytes": 3797942272,
+      "peak_rss_bytes": 5079785472,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5148413952,
+    "process_peak_vram_allocated_bytes": 3575588864,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.770742268146327,
+     "real_tokens": 947,
+     "tokens_per_s": 29.30779131167473,
+     "peak_vram_allocated_bytes": 3575588864,
+     "peak_vram_reserved_bytes": 3797942272,
+     "peak_rss_bytes": 5079785472,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 8192,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 1,
+    "run": 0,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793135806.8671653,
+     "ram_available_bytes": 100591910912,
+     "commit_charge": {
+      "used_bytes": 2237968384,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793135999.7664123,
+     "ram_available_bytes": 101306454016,
+     "commit_charge": {
+      "used_bytes": 2246475776,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2040 MHz over 96 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 96,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1725.0,
+      "max": 2040
+     },
+     "reasons_seen": {
+      "sw_power_cap": 10,
+      "gpu_idle": 8
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -4.707835614681244e-07,
+       "sleep_offset_end_s": -4.10713255405426e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 98 power samples, so on mains",
+      "evidence": {
+       "samples": 98,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 1,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 77.15499114990234,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 904196096,
+     "write_bytes_since_process_start": 122880,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3519057920,
+     "seconds_since_process_start": 41.063560268841684,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.544817483052611,
+      "real_tokens": 268,
+      "tokens_per_s": 23.213879335330734,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4681113600,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70382301184,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.830664268694818,
+      "real_tokens": 340,
+      "tokens_per_s": 31.392349680964927,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5017800704,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.334345450159162,
+      "real_tokens": 266,
+      "tokens_per_s": 25.739414390865292,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5017845760,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.863451043143868,
+      "real_tokens": 341,
+      "tokens_per_s": 31.38965680847907,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5353992192,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5419626496,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.676153587332616,
+     "real_tokens": 947,
+     "tokens_per_s": 29.56745274264403,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5353992192,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 1,
+    "run": 1,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793135999.8077836,
+     "ram_available_bytes": 101287878656,
+     "commit_charge": {
+      "used_bytes": 2246492160,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136087.2825818,
+     "ram_available_bytes": 101249945600,
+     "commit_charge": {
+      "used_bytes": 2246475776,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 44 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 44,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1935.0,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 11
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.207234501838684e-07,
+       "sleep_offset_end_s": -3.110617399215698e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 45 power samples, so on mains",
+      "evidence": {
+       "samples": 45,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 1,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.15936803817749,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3521544192,
+     "seconds_since_process_start": 36.48320927284658,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.587148788850754,
+      "real_tokens": 268,
+      "tokens_per_s": 23.129072119784265,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683620352,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.780471269972622,
+      "real_tokens": 340,
+      "tokens_per_s": 31.538509911623134,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020241920,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.373260407242924,
+      "real_tokens": 266,
+      "tokens_per_s": 25.642853794962168,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020307456,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.85674963099882,
+      "real_tokens": 341,
+      "tokens_per_s": 31.40903231537707,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356449792,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5421780992,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.670160436071455,
+     "real_tokens": 947,
+     "tokens_per_s": 29.584060010899794,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356449792,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 1,
+    "run": 2,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136087.323637,
+     "ram_available_bytes": 101233434624,
+     "commit_charge": {
+      "used_bytes": 2246492160,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136170.1646366,
+     "ram_available_bytes": 101024854016,
+     "commit_charge": {
+      "used_bytes": 2246475776,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1950.0,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 7,
+      "sw_power_cap": 13
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.9010698199272156e-07,
+       "sleep_offset_end_s": -7.618218660354614e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 1,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.24430656433105,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522293760,
+     "seconds_since_process_start": 36.52443623403087,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.645060382317752,
+      "real_tokens": 268,
+      "tokens_per_s": 23.01404983755517,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683796480,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.997392241843045,
+      "real_tokens": 340,
+      "tokens_per_s": 30.916420231549335,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020418048,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.342567597981542,
+      "real_tokens": 266,
+      "tokens_per_s": 25.71895203778147,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020459008,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.796854309737682,
+      "real_tokens": 341,
+      "tokens_per_s": 31.583273258809477,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356630016,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424496640,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.712271383187423,
+     "real_tokens": 947,
+     "tokens_per_s": 29.467762286352798,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356630016,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 1,
+    "run": 3,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136170.2056139,
+     "ram_available_bytes": 101015048192,
+     "commit_charge": {
+      "used_bytes": 2246492160,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136253.2113762,
+     "ram_available_bytes": 101114601472,
+     "commit_charge": {
+      "used_bytes": 2393452544,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1942.5,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 15
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -3.7997961044311523e-07,
+       "sleep_offset_end_s": -2.3096799850463867e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 2,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.48411417007446,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522351104,
+     "seconds_since_process_start": 36.85233124298975,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.432108148001134,
+      "real_tokens": 268,
+      "tokens_per_s": 23.44274533886901,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4684177408,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.9489272441715,
+      "real_tokens": 340,
+      "tokens_per_s": 31.05327055497551,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020807168,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.321319472044706,
+      "real_tokens": 266,
+      "tokens_per_s": 25.771898711251115,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020856320,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.828819660004228,
+      "real_tokens": 341,
+      "tokens_per_s": 31.49004330171538,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356998656,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5422010368,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.699688792073479,
+     "real_tokens": 947,
+     "tokens_per_s": 29.502415705821107,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356998656,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 2,
+    "run": 0,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136253.2535489,
+     "ram_available_bytes": 101087780864,
+     "commit_charge": {
+      "used_bytes": 2393468928,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136336.4152486,
+     "ram_available_bytes": 101014163456,
+     "commit_charge": {
+      "used_bytes": 2246475776,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap, sw_thermal_slowdown",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1957.5,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 17,
+      "sw_thermal_slowdown": 2
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -3.310851752758026e-07,
+       "sleep_offset_end_s": -2.7008354663848877e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 2,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.5046956539154,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 98304,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522297856,
+     "seconds_since_process_start": 36.29370812838897,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.771297886036336,
+      "real_tokens": 268,
+      "tokens_per_s": 22.767243051245362,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683776000,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.823815139941871,
+      "real_tokens": 340,
+      "tokens_per_s": 31.412214233531888,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020393472,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.4483947227709,
+      "real_tokens": 266,
+      "tokens_per_s": 25.458456256470484,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020471296,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 11.07911044312641,
+      "real_tokens": 341,
+      "tokens_per_s": 30.77864434608645,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356601344,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5421559808,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.783773435279727,
+     "real_tokens": 947,
+     "tokens_per_s": 29.272375626322532,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356601344,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 2,
+    "run": 1,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136336.4559338,
+     "ram_available_bytes": 101008228352,
+     "commit_charge": {
+      "used_bytes": 2246492160,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136419.561764,
+     "ram_available_bytes": 100913758208,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1965.0,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 7,
+      "sw_power_cap": 17
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.4121254682540894e-07,
+       "sleep_offset_end_s": -2.407468855381012e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 2,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.31473708152771,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522170880,
+     "seconds_since_process_start": 36.41974033974111,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.60821869596839,
+      "real_tokens": 268,
+      "tokens_per_s": 23.087090880970234,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683640832,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.778738630004227,
+      "real_tokens": 340,
+      "tokens_per_s": 31.54357960342032,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020258304,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.515336730051786,
+      "real_tokens": 266,
+      "tokens_per_s": 25.296384398209376,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020307456,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.917186975944787,
+      "real_tokens": 341,
+      "tokens_per_s": 31.235152494078214,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356478464,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424160768,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.7370874453336,
+     "real_tokens": 947,
+     "tokens_per_s": 29.399655006428883,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356478464,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 2,
+    "run": 2,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136419.6033545,
+     "ram_available_bytes": 100897746944,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136502.612823,
+     "ram_available_bytes": 100969857024,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap, sw_thermal_slowdown",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1957.5,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 7,
+      "sw_power_cap": 14,
+      "sw_thermal_slowdown": 1
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.998858690261841e-07,
+       "sleep_offset_end_s": -2.60770320892334e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 2,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.0922782421112,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3521839104,
+     "seconds_since_process_start": 36.58130892785266,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.390033167321235,
+      "real_tokens": 268,
+      "tokens_per_s": 23.529343247999478,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683837440,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.838974325917661,
+      "real_tokens": 340,
+      "tokens_per_s": 31.368281700511783,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020463104,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.323907671961933,
+      "real_tokens": 266,
+      "tokens_per_s": 25.765437705570832,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020504064,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.871336304116994,
+      "real_tokens": 341,
+      "tokens_per_s": 31.366889079759467,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356650496,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424779264,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.678072767332196,
+     "real_tokens": 947,
+     "tokens_per_s": 29.56213855672503,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356650496,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 2,
+    "run": 3,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136502.6523938,
+     "ram_available_bytes": 100969095168,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136585.416607,
+     "ram_available_bytes": 101023010816,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1935.0,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 7,
+      "sw_power_cap": 13
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.8067657947540283e-07,
+       "sleep_offset_end_s": -2.50060111284256e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 3,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.6511971950531,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3521273856,
+     "seconds_since_process_start": 37.39674429502338,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.452626965939999,
+      "real_tokens": 268,
+      "tokens_per_s": 23.400744719707486,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683366400,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.753837003838271,
+      "real_tokens": 340,
+      "tokens_per_s": 31.61662203719908,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5019975680,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.2964543630369,
+      "real_tokens": 266,
+      "tokens_per_s": 25.83413577346681,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020057600,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.800245675258338,
+      "real_tokens": 341,
+      "tokens_per_s": 31.573355852559658,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356204032,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424087040,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.61684568071117,
+     "real_tokens": 947,
+     "tokens_per_s": 29.732622679085765,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356204032,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 3,
+    "run": 0,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136585.4596791,
+     "ram_available_bytes": 101006495744,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136668.8147745,
+     "ram_available_bytes": 100995272704,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1950.0,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 12
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -3.110617399215698e-07,
+       "sleep_offset_end_s": -1.9045546650886536e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 3,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.61338973045349,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522990080,
+     "seconds_since_process_start": 36.849297147244215,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.588627763092518,
+      "real_tokens": 268,
+      "tokens_per_s": 23.126120320606628,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4684853248,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.888643302954733,
+      "real_tokens": 340,
+      "tokens_per_s": 31.225194043020757,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021470720,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.365886651910841,
+      "real_tokens": 266,
+      "tokens_per_s": 25.66109479414052,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021548544,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.834887522738427,
+      "real_tokens": 341,
+      "tokens_per_s": 31.4724079308038,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5357703168,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424779264,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.696472492534667,
+     "real_tokens": 947,
+     "tokens_per_s": 29.511286724383037,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5357703168,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 3,
+    "run": 1,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136668.8573823,
+     "ram_available_bytes": 100987465728,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136752.0613136,
+     "ram_available_bytes": 101207085056,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1965.0,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 7,
+      "sw_power_cap": 13
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.998858690261841e-07,
+       "sleep_offset_end_s": -2.2025778889656067e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 3,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 75.99458861351013,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3505094656,
+     "seconds_since_process_start": 36.27499044733122,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.463445948902518,
+      "real_tokens": 268,
+      "tokens_per_s": 23.37865954047244,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4677857280,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.832037647720426,
+      "real_tokens": 340,
+      "tokens_per_s": 31.388369488500818,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5014474752,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.334214181173593,
+      "real_tokens": 266,
+      "tokens_per_s": 25.73974134236417,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5014523904,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.877857365179807,
+      "real_tokens": 341,
+      "tokens_per_s": 31.34808524806975,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5350694912,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5416050688,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.681369731357941,
+     "real_tokens": 947,
+     "tokens_per_s": 29.55301376189095,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5350694912,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 3,
+    "run": 2,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136752.1011677,
+     "ram_available_bytes": 101206568960,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136834.7129912,
+     "ram_available_bytes": 101029425152,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2010 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1957.5,
+      "max": 2010
+     },
+     "reasons_seen": {
+      "gpu_idle": 6,
+      "sw_power_cap": 11
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.3096799850463867e-07,
+       "sleep_offset_end_s": -2.9103830456733704e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 3,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.53333163261414,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522424832,
+     "seconds_since_process_start": 37.15058398107067,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.541328869760036,
+      "real_tokens": 268,
+      "tokens_per_s": 23.220896226447465,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4684111872,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.726788771804422,
+      "real_tokens": 340,
+      "tokens_per_s": 31.696345218775704,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020712960,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.340106098912656,
+      "real_tokens": 266,
+      "tokens_per_s": 25.725074525876675,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020794880,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.805098976939917,
+      "real_tokens": 341,
+      "tokens_per_s": 31.55917412027018,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356916736,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424312320,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.623997949218998,
+     "real_tokens": 947,
+     "tokens_per_s": 29.71260613711548,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356916736,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 3,
+    "run": 3,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136834.7532125,
+     "ram_available_bytes": 101021736960,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793136917.9348917,
+     "ram_available_bytes": 101147471872,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1957.5,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 7,
+      "sw_power_cap": 14
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -3.8137659430503845e-07,
+       "sleep_offset_end_s": -2.8079375624656677e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 4,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.71800971031189,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3523506176,
+     "seconds_since_process_start": 37.11763512901962,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.601041082292795,
+      "real_tokens": 268,
+      "tokens_per_s": 23.101374962723025,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4685127680,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.859199343714863,
+      "real_tokens": 340,
+      "tokens_per_s": 31.3098589719496,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021741056,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.337572633754462,
+      "real_tokens": 266,
+      "tokens_per_s": 25.73137906005624,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021818880,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.87303908308968,
+      "real_tokens": 341,
+      "tokens_per_s": 31.361976848804037,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5357944832,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5422264320,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.689937020186335,
+     "real_tokens": 947,
+     "tokens_per_s": 29.529328944649322,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5357944832,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 4,
+    "run": 0,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793136917.9784644,
+     "ram_available_bytes": 101131223040,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137001.5123885,
+     "ram_available_bytes": 101008568320,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2010 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1957.5,
+      "max": 2010
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 12
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -3.1013041734695435e-07,
+       "sleep_offset_end_s": -2.896413207054138e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 4,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 75.81460070610046,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522248704,
+     "seconds_since_process_start": 36.2631298317574,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.481072991155088,
+      "real_tokens": 268,
+      "tokens_per_s": 23.34276597722745,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683821056,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.851465344894677,
+      "real_tokens": 340,
+      "tokens_per_s": 31.332173968556315,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020442624,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.336477800272405,
+      "real_tokens": 266,
+      "tokens_per_s": 25.734104512176277,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020528640,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.804165360052139,
+      "real_tokens": 341,
+      "tokens_per_s": 31.561901233095753,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356658688,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5421772800,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.664036168406406,
+     "real_tokens": 947,
+     "tokens_per_s": 29.601049891585156,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356658688,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 4,
+    "run": 1,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793137001.5534022,
+     "ram_available_bytes": 100999012352,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137084.0122213,
+     "ram_available_bytes": 100958953472,
+     "commit_charge": {
+      "used_bytes": 2250969088,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2010 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1927.5,
+      "max": 2010
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 12
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.0116567611694336e-07,
+       "sleep_offset_end_s": -3.012828528881073e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 4,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.1926121711731,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3506135040,
+     "seconds_since_process_start": 36.810094490181655,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.4483363609761,
+      "real_tokens": 268,
+      "tokens_per_s": 23.409514845626877,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4678483968,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.799291790928692,
+      "real_tokens": 340,
+      "tokens_per_s": 31.483546012303968,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5015109632,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.288606362883002,
+      "real_tokens": 266,
+      "tokens_per_s": 25.853841678656984,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5015162880,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.845588012132794,
+      "real_tokens": 341,
+      "tokens_per_s": 31.441356579147993,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5351297024,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5418885120,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.644495388648162,
+     "real_tokens": 947,
+     "tokens_per_s": 29.655390428682026,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5351297024,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 4,
+    "run": 2,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793137084.0533032,
+     "ram_available_bytes": 100924637184,
+     "commit_charge": {
+      "used_bytes": 2250985472,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137166.9134948,
+     "ram_available_bytes": 101084344320,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2010 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1942.5,
+      "max": 2010
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 11
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.7101486921310425e-07,
+       "sleep_offset_end_s": -2.5099143385887146e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 4,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 77.82730197906494,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 98304,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522142208,
+     "seconds_since_process_start": 38.15283236093819,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.600009062793106,
+      "real_tokens": 268,
+      "tokens_per_s": 23.103430225723432,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4683780096,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.863534802105278,
+      "real_tokens": 340,
+      "tokens_per_s": 31.29736372125492,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020413952,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.28983095381409,
+      "real_tokens": 266,
+      "tokens_per_s": 25.850764817608873,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020491776,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.906207139138132,
+      "real_tokens": 341,
+      "tokens_per_s": 31.26659852042272,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5356605440,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5422157824,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.6865242983525,
+     "real_tokens": 947,
+     "tokens_per_s": 29.538759081409825,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5356605440,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 4,
+    "run": 3,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793137166.9531028,
+     "ram_available_bytes": 101076934656,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137251.5121496,
+     "ram_available_bytes": 101045919744,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 43 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 43,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1950,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 11
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.8032809495925903e-07,
+       "sleep_offset_end_s": -3.497116267681122e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 44 power samples, so on mains",
+      "evidence": {
+       "samples": 44,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ],
+ [
+  {
+   "arm": "A",
+   "round": 5,
+   "run": 0,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.39970541000366,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3505795072,
+     "seconds_since_process_start": 36.920869471970946,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.557002633810043,
+      "real_tokens": 268,
+      "tokens_per_s": 23.18940373137627,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4678156288,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.811023045796901,
+      "real_tokens": 340,
+      "tokens_per_s": 31.449382594016843,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5014769664,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.306923490948975,
+      "real_tokens": 266,
+      "tokens_per_s": 25.807895074954995,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5014843392,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.832650850061327,
+      "real_tokens": 341,
+      "tokens_per_s": 31.478906199406353,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5350998016,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5418409984,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.650199128935734,
+     "real_tokens": 947,
+     "tokens_per_s": 29.63950841154,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5350998016,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 5,
+    "run": 0,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793137251.5575018,
+     "ram_available_bytes": 101009534976,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137334.76206,
+     "ram_available_bytes": 101245644800,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1950.0,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 11
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -3.511086106300354e-07,
+       "sleep_offset_end_s": -2.905726432800293e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 5,
+   "run": 1,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.06507802009583,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522584576,
+     "seconds_since_process_start": 36.40117608383298,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.498295721132308,
+      "real_tokens": 268,
+      "tokens_per_s": 23.307801999513053,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4684668928,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.89216837612912,
+      "real_tokens": 340,
+      "tokens_per_s": 31.215088516730205,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021364224,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.40002503991127,
+      "real_tokens": 266,
+      "tokens_per_s": 25.57686149592861,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021454336,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.920106342993677,
+      "real_tokens": 341,
+      "tokens_per_s": 31.226802128972405,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5357596672,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424467968,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.737433253011355,
+     "real_tokens": 947,
+     "tokens_per_s": 29.398708166883058,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5357596672,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 5,
+    "run": 1,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793137334.8033688,
+     "ram_available_bytes": 101219606528,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137417.5341372,
+     "ram_available_bytes": 101233684480,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1957.5,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 12
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.5099143385887146e-07,
+       "sleep_offset_end_s": -1.6996636986732483e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "B",
+   "round": 5,
+   "run": 2,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.29094982147217,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522580480,
+     "seconds_since_process_start": 36.78314566100016,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.564279246143997,
+      "real_tokens": 268,
+      "tokens_per_s": 23.174812220948585,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4684234752,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.848998263012618,
+      "real_tokens": 340,
+      "tokens_per_s": 31.33929896174457,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020839936,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.28829637169838,
+      "real_tokens": 266,
+      "tokens_per_s": 25.85462066700641,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5020917760,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.807543660979718,
+      "real_tokens": 341,
+      "tokens_per_s": 31.552035383504332,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5357068288,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5424504832,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.648279431896905,
+     "real_tokens": 947,
+     "tokens_per_s": 29.64485189232428,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5357068288,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "B",
+    "round": 5,
+    "run": 2,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793137417.5757298,
+     "ram_available_bytes": 101209169920,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137500.6122456,
+     "ram_available_bytes": 101000560640,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2010 MHz over 42 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 42,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1950.0,
+      "max": 2010
+     },
+     "reasons_seen": {
+      "gpu_idle": 8,
+      "sw_power_cap": 13
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.9103830456733704e-07,
+       "sleep_offset_end_s": -2.598389983177185e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  },
+  {
+   "arm": "A",
+   "round": 5,
+   "run": 3,
+   "outcome": "unknown",
+   "spoiled": false,
+   "unverified": true,
+   "void_reasons": {},
+   "measurement": {
+    "config": "l2l.yaml",
+    "sdpa": "MATH",
+    "deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "failure": null,
+    "wall_s": 76.81621074676514,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3090",
+     "memory_total_mib": 24576,
+     "driver": "580.173.02"
+    },
+    "load": {
+     "read_bytes_since_process_start": 441434112,
+     "write_bytes_since_process_start": 94208,
+     "peak_vram_allocated_bytes": 1584514560,
+     "peak_rss_bytes": 3522826240,
+     "seconds_since_process_start": 37.36888964707032,
+     "counters": {
+      "layer_loads": 0,
+      "nf4_restores": 0,
+      "large_loads": 0,
+      "pinned_store_bytes": 0
+     }
+    },
+    "steps": [
+     {
+      "step": 0,
+      "step_s": 11.442621293943375,
+      "real_tokens": 268,
+      "tokens_per_s": 23.421206829754425,
+      "peak_vram_allocated_bytes": 2189066752,
+      "peak_vram_reserved_bytes": 2847932416,
+      "peak_rss_bytes": 4684464128,
+      "pinned_store_bytes": 351272960,
+      "os_read_bytes": 70378905600,
+      "os_write_bytes": 4096,
+      "layer_loads": 162,
+      "nf4_restores": 560,
+      "large_loads": 3,
+      "unavailable": {}
+     },
+     {
+      "step": 1,
+      "step_s": 10.79376567993313,
+      "real_tokens": 340,
+      "tokens_per_s": 31.499664721469696,
+      "peak_vram_allocated_bytes": 2338496512,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021077504,
+      "pinned_store_bytes": 513802240,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 2,
+      "step_s": 10.339086846914142,
+      "real_tokens": 266,
+      "tokens_per_s": 25.727610565471917,
+      "peak_vram_allocated_bytes": 2329379840,
+      "peak_vram_reserved_bytes": 2856321024,
+      "peak_rss_bytes": 5021122560,
+      "pinned_store_bytes": 581959680,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 160,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     },
+     {
+      "step": 3,
+      "step_s": 10.820452265907079,
+      "real_tokens": 341,
+      "tokens_per_s": 31.51439437281358,
+      "peak_vram_allocated_bytes": 3575587840,
+      "peak_vram_reserved_bytes": 3795845120,
+      "peak_rss_bytes": 5357277184,
+      "pinned_store_bytes": 650117120,
+      "os_read_bytes": 68863721472,
+      "os_write_bytes": 4096,
+      "layer_loads": 161,
+      "nf4_restores": 0,
+      "large_loads": 2,
+      "unavailable": {}
+     }
+    ],
+    "losses": [
+     {
+      "step": 1,
+      "loss": 11.957255363464355,
+      "learning_rate": 0.0
+     },
+     {
+      "step": 2,
+      "loss": 11.797627449035645,
+      "learning_rate": 0.0002
+     },
+     {
+      "step": 3,
+      "loss": 11.930097579956055,
+      "learning_rate": 0.00013333333333333334
+     },
+     {
+      "step": 4,
+      "loss": 11.991795539855957,
+      "learning_rate": 6.666666666666667e-05
+     }
+    ],
+    "process_peak_rss_bytes": 5422567424,
+    "process_peak_vram_allocated_bytes": 3575587840,
+    "run": {
+     "steps": 3,
+     "step_s_mean": 10.651101597584784,
+     "real_tokens": 947,
+     "tokens_per_s": 29.63699705373634,
+     "peak_vram_allocated_bytes": 3575587840,
+     "peak_vram_reserved_bytes": 3795845120,
+     "peak_rss_bytes": 5357277184,
+     "pinned_store_bytes": 650117120,
+     "os_read_bytes": 206591164416,
+     "os_write_bytes": 12288,
+     "layer_loads": 482,
+     "nf4_restores": 0,
+     "large_loads": 6,
+     "layer_loads_per_step": 160.66666666666666
+    }
+   },
+   "arm_record": {
+    "arm": "A",
+    "round": 5,
+    "run": 3,
+    "label": "A5-05 synthetic 70B 24gb",
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "unknown",
+    "box_stamp_before": {
+     "unix_s": 1793137500.6542406,
+     "ram_available_bytes": 100976058368,
+     "commit_charge": {
+      "used_bytes": 2246500352,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793137584.1658356,
+     "ram_available_bytes": 101140217856,
+     "commit_charge": {
+      "used_bytes": 2246483968,
+      "limit_bytes": 52510830592
+     },
+     "power_source": "mains",
+     "gpu_processes": [],
+     "gpu_memory_used_mib": 1,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 210 to 2025 MHz over 43 samples; clock event reasons seen: gpu_idle, sw_power_cap",
+     "samples": 43,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 210,
+      "median": 1905,
+      "max": 2025
+     },
+     "reasons_seen": {
+      "gpu_idle": 6,
+      "sw_power_cap": 12
+     }
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -2.812594175338745e-07,
+       "sleep_offset_end_s": -3.2084062695503235e-07,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 43 power samples, so on mains",
+      "evidence": {
+       "samples": 43,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/root/work/synth-llama-70b maps to no block device",
+      "evidence": {
+       "model_path": "/root/work/synth-llama-70b",
+       "device": null,
+       "disk_read_bytes_start": null,
+       "disk_read_bytes_end": null,
+       "other_disk_read_bytes_start": null,
+       "other_disk_read_bytes_end": null,
+       "own_read_bytes": null,
+       "foreign_read_bytes": null,
+       "foreign_read_bytes_min": null,
+       "foreign_read_bytes_max": null,
+       "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+     }
+    }
+   }
+  }
+ ]
+]

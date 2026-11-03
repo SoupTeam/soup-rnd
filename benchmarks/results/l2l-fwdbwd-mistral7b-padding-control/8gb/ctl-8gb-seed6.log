@@ -1,0 +1,18 @@
+ram_plan n_layers              32
+ram_plan hidden                4096
+ram_plan k                     4
+ram_plan batch                 1
+ram_plan seq                   256
+ram_plan chunk_bytes           2097152
+ram_plan block_bytes           2097152
+ram_plan cache_bytes           268435456
+ram_plan need_free_for_cache   383479222.85714287
+ram_plan weights_bytes         4124704768.0
+ram_plan workspace_bytes       1000000000
+ram_plan need_total            5508183990.857142
+RUN: L2L against GA, forward and backward, mistralai/Mistral-7B-v0.1 nf4 8gb
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 1567.38it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+verdict within_tolerance: within tolerance
+wrote /root/runs/ctl-8gb-seed6/report.md
+EXIT=0
