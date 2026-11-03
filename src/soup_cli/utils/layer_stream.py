@@ -982,25 +982,33 @@ def should_enable_hf_gradient_checkpointing(
 
 
 def free_ram_bytes() -> Optional[int]:
-    """Available host RAM, or None when psutil is not installed."""
+    """Available RAM within host and container bounds, or None without psutil."""
     try:
         import psutil
     except ImportError:
         return None
     try:
-        return int(psutil.virtual_memory().available)
+        from soup_cli.utils.container_memory import cgroup_memory_bounds
+
+        host = int(psutil.virtual_memory().available)
+        _, available = cgroup_memory_bounds()
+        return host if available is None else min(host, available)
     except (AttributeError, OSError, ValueError):
         return None
 
 
 def total_ram_bytes() -> Optional[int]:
-    """Total physical host RAM, or None when psutil cannot report it."""
+    """Safe host/container RAM budget, or None when psutil cannot report it."""
     try:
         import psutil
     except ImportError:
         return None
     try:
-        return int(psutil.virtual_memory().total)
+        from soup_cli.utils.container_memory import cgroup_memory_bounds
+
+        host = int(psutil.virtual_memory().total)
+        limit, _ = cgroup_memory_bounds()
+        return host if limit is None else min(host, limit)
     except (AttributeError, OSError, ValueError):
         return None
 
