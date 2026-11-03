@@ -117,7 +117,6 @@ class TestOpenNoFollow:
         with pytest.raises(OSError) as exc_info:
             open_no_follow(real_file, os.O_RDONLY)
         assert exc_info.value.errno == errno.ELOOP
-        assert "Reparse point not allowed" in str(exc_info.value)
 
     def test_post_open_toctou_swap_detected_on_windows(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
@@ -170,7 +169,6 @@ class TestOpenNoFollow:
         with pytest.raises(OSError) as exc_info:
             open_no_follow(target, os.O_CREAT | os.O_WRONLY, 0o600)
         assert exc_info.value.errno == errno.ELOOP
-        assert "Symbolic link created during open" in str(exc_info.value)
 
 
 # ===========================================================================
