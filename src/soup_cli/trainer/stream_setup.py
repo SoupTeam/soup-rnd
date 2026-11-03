@@ -60,6 +60,13 @@ def _stream_source_line(stats: dict) -> str:
         return f"{stats['store_bytes'] / 1e9:.2f} GB {pinned} RAM store" + _page_locked_note(
             stats
         )
+    if stats.get("resident_bytes", 0):
+        return (
+            f"{stats['resident_bytes'] / 1e6:.1f} MB resident decoder tensors, "
+            f"{stats['staging_bytes'] / 1e6:.1f} MB disk staging, "
+            f"{stats['host_allocated_bytes'] / 1e6:.1f} MB owned host allocations; "
+            f"read_ahead={stats['read_ahead']}"
+        ) + _page_locked_note(stats)
     # Since #974 the staging lives in the same power-of-two arenas as the RAM
     # store, so the disk tier can say what was page-locked too.
     return (
@@ -751,6 +758,9 @@ class StreamingSetupMixin:
                 trust_remote_code=self._trust_remote_code, on_cuda=on_cuda,
             ),
         )
+        partial_config = getattr(tcfg, "stream_partial_ram", None)
+        if partial_config is not None and arch != "llama":
+            raise ValueError("training.stream_partial_ram currently supports dense Llama only")
         quant_suffixes = adapter_plan.quant_suffixes
         lora_config = adapter_plan.lora_config
 
@@ -1138,6 +1148,42 @@ class StreamingSetupMixin:
                 "a pageable CPU source.[/]"
             )
 
+        partial_budget = None
+        self._c3_l2l_plan = None
+        if partial_config is not None:
+            # Free RAM already excludes live allocations. This intentionally conservative
+            # envelope also reserves caller-declared activations/A4 plus resident extras.
+            from soup_cli.utils.layer_stream import PHYSICAL_RAM_TIER_HEADROOM
+            from soup_cli.utils.partial_ram_source import PartialRamBudget
+
+            ceiling = int(free_ram * RAM_TIER_HEADROOM)
+            if total_ram is not None:
+                ceiling = min(ceiling, int(total_ram * PHYSICAL_RAM_TIER_HEADROOM))
+            if partial_config.limit_bytes > ceiling:
+                raise ValueError("stream_partial_ram limit exceeds current safe host RAM budget")
+            partial_budget = PartialRamBudget(
+                partial_config.limit_bytes,
+                partial_config.reserved_bytes + embed_bytes
+                + (ngram_bytes if ngram_source == "ram" else 0),
+                partial_config.cache_bytes,
+            )
+            if tcfg.l2l:
+                from soup_cli.utils.c3_l2l_budget import RESERVATION_ROUND, plan_c3_l2l
+
+                self._c3_l2l_plan = plan_c3_l2l(
+                    partial_budget, n_layers=int(model_config.num_hidden_layers),
+                    batch_size=tcfg.batch_size, max_length=cfg.data.max_length,
+                    hidden_size=int(model_config.hidden_size),
+                    microbatches=tcfg.gradient_accumulation_steps, dtype=dtype,
+                    pin=on_cuda, shape_round=RESERVATION_ROUND,
+                )
+                partial_budget = self._c3_l2l_plan.weights
+            console.print(
+                "[yellow]C3 partial RAM is experimental: caller reserves other host users; "
+                "L2L, when enabled, reserves its maximum RAM activation window automatically. "
+                "The allocation envelope is not a process-RSS limit.[/]"
+            )
+
         model, runtime = build_streamed_model(
             model_id=cfg.base,
             shard_dir=shard_dir,
@@ -1168,6 +1214,7 @@ class StreamingSetupMixin:
             weights_dir=weights_dir,
             ngram_source=ngram_source,
             refill_before_backward=self._STREAM_REFILL_BEFORE_BACKWARD,
+            partial_ram_budget=partial_budget,
         )
         self.model = model
         self._stream_runtime = runtime
@@ -1230,6 +1277,11 @@ class StreamingSetupMixin:
 
     def _close_stream_runtime(self) -> None:
         """Release the streaming weight source, if this run had one."""
+        state = getattr(getattr(self, "trainer", None), "_soup_l2l", None)
+        if state is not None and state.c3_plan is not None:
+            # A failed drain retains the activation lease and the weight runtime.
+            # Do not free weights while an activation transfer may still be live.
+            state.close()
         runtime = getattr(self, "_stream_runtime", None)
         if runtime is not None:
             runtime.close()

@@ -91,6 +91,7 @@ class L2LState:
     spill_plan: Optional[Dict[str, Any]] = None
     #: Files of dead runs the last ``train`` removed from the spill directory.
     stale_removed: List[str] = field(default_factory=list)
+    c3_plan: Any = None
 
     def log_fields(self) -> Dict[str, Any]:
         return {
@@ -255,6 +256,16 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
 
     hidden = int(stepper.causal.config.hidden_size)
     store = state.store
+    n_layers = len(stepper.layers)
+    pin = str(device).startswith("cuda")
+    if state.c3_plan is not None:
+        # Before any release: a window outside the reserved plan keeps the current store.
+        state.c3_plan.validate_microbatches(
+            n_layers=n_layers,
+            shapes=[(int(ids.shape[0]), int(ids.shape[1]), hidden) for ids in ids_list],
+            dtype=str(state.dtype).removeprefix("torch."),
+            pin=pin,
+        )
     need = [int(ids.shape[0]) * int(ids.shape[1]) * hidden for ids in ids_list]
     have = [math.prod(shape) for shape in store.mb_shapes] if store is not None else []
     if store is not None and len(need) <= len(have) and all(
@@ -281,6 +292,22 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
             )
     n_layers = len(stepper.layers)
     itemsize = torch.empty((), dtype=state.dtype).element_size()
+    if state.c3_plan is not None:
+        from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+
+        # The lease charges every chunk at the largest capacity: an upper bound of the
+        # per-micro-batch allocations, inside the partition reserved before the cache.
+        state.store = BudgetedActivationStore(
+            host_budget=state.c3_plan.activations,
+            n_layers=n_layers,
+            k=len(caps),
+            chunk_shape=(max(caps),),
+            mb_shapes=[(cap,) for cap in caps],
+            dtype=state.dtype,
+            device=device,
+            pin=pin,
+        )
+        return state.store
     budget = l2l_spill.ram_budget()
     logger.info(
         "training.l2l activation budget: %s [limiting level %s: %s]",
@@ -447,6 +474,7 @@ def attach_l2l_state(
     runtime: Any,
     *,
     dtype: Any,
+    c3_plan: Any = None,
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
 ) -> L2LState:
@@ -459,6 +487,7 @@ def attach_l2l_state(
     state = L2LState(
         runtime=runtime,
         dtype=dtype,
+        c3_plan=c3_plan,
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
         output_dir=getattr(args, "output_dir", None),

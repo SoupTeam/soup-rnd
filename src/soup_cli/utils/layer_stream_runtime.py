@@ -560,6 +560,7 @@ def plan_pinned_arenas(
     *,
     arena_bytes: int = PINNED_ARENA_BYTES,
     align: int = PINNED_ARENA_ALIGN,
+    base_slack_bytes: int = 0,
 ) -> ArenaPlan:
     """Pack ``sizes`` (bytes, allocation order) into power-of-two arenas.
 
@@ -583,6 +584,10 @@ def plan_pinned_arenas(
     either way. Each arena is finally trimmed to the power of two above what
     it holds — the last one is usually part-filled, and a tiny model must not
     page-lock a whole default arena for a 5 MB store. Pure arithmetic, no torch.
+
+    ``base_slack_bytes`` reserves space in EVERY arena for aligning its actual
+    allocation address. Placements remain relative to that aligned base; the
+    caller must add the base padding. The default preserves the RAM-store plan.
     """
     if arena_bytes <= 0 or arena_bytes & (arena_bytes - 1):
         raise ValueError(f"arena_bytes must be a power of two; got {arena_bytes}")
@@ -590,6 +595,8 @@ def plan_pinned_arenas(
         raise ValueError(f"align must be a power of two; got {align}")
     if align > arena_bytes:
         raise ValueError(f"align ({align}) cannot exceed arena_bytes ({arena_bytes})")
+    if type(base_slack_bytes) is not int or base_slack_bytes < 0:
+        raise ValueError("base_slack_bytes must be a non-negative integer")
     sizes = [int(size) for size in sizes]
     if any(size < 0 for size in sizes):
         raise ValueError(f"a negative tensor size was planned: {min(sizes)}")
@@ -603,16 +610,18 @@ def plan_pinned_arenas(
     for size in sizes:
         if fills:
             start = -(-fills[-1] // align) * align
-            if start + size <= capacities[-1]:
+            if start + size + base_slack_bytes <= capacities[-1]:
                 placements.append((len(fills) - 1, start))
                 fills[-1] = start + size
                 continue
         fills.append(size)
-        # Only a tensor beyond the ceiling opens an arena wider than the rest.
-        capacities.append(max(capacity, _next_power_of_two(size)))
+        # Only a tensor plus base padding beyond the ceiling opens a wider arena.
+        capacities.append(max(capacity, _next_power_of_two(size + base_slack_bytes)))
         placements.append((len(fills) - 1, 0))
     return ArenaPlan(
-        arena_sizes=tuple(max(align, _next_power_of_two(fill)) for fill in fills),
+        arena_sizes=tuple(
+            max(align, _next_power_of_two(fill + base_slack_bytes)) for fill in fills
+        ),
         placements=tuple(placements),
         requested_bytes=sum(sizes),
     )
@@ -3025,6 +3034,13 @@ class StreamRuntime:
                 self.expert_pool.plan.weight_bytes if self.expert_pool is not None else 0
             ),
             "store_bytes": self.source.nbytes,
+            "staging_bytes": getattr(self.source, "staging_bytes", 0),
+            "resident_bytes": getattr(self.source, "resident_bytes", 0),
+            "host_allocated_bytes": getattr(self.source, "host_allocated_bytes", None),
+            "accounted_peak_bytes": getattr(self.source, "accounted_peak_bytes", None),
+            "resident_tensor_bytes_served": getattr(
+                self.source, "resident_tensor_bytes_served", 0
+            ),
             "pinned": self.pinned,
             # What is actually page-locked for the store (#901): the arenas'
             # power-of-two sizes on a pinned RamSource, 0 on a pageable one, and
@@ -3165,6 +3181,8 @@ def install_streaming(
     read_ahead: int = DEFAULT_STREAM_READ_AHEAD,
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    partial_ram_budget: Any = None,
+    shared_host_budget: Any = None,
 ) -> StreamRuntime:
     """Wrap every decoder layer and wire the buffer pool + prefetch scheduler.
 
@@ -3205,7 +3223,14 @@ def install_streaming(
         pin = False
         require_pin = False
 
+    if shared_host_budget is not None and partial_ram_budget is None:
+        raise ValueError("shared_host_budget requires an explicit partial_ram_budget")
     _refuse_expert_storage_cache(index)
+    if partial_ram_budget is not None:
+        if tier != "disk" or getattr(model.config, "model_type", None) != "llama":
+            raise ValueError("partial RAM currently requires disk streaming of dense Llama")
+        if getattr(index, "quant", "none") != "none":
+            raise ValueError("partial RAM NF4 model validation is pending; use quant='none'")
 
     # Validate the index BEFORE touching the model: an index whose `quant` and
     # `quant_specs` disagree passes the cache key (which reads `quant`) and
@@ -3319,6 +3344,9 @@ def install_streaming(
             read_ahead=read_ahead,
             layer_roots=source_roots,
             read_ahead_decision=read_ahead_decision,
+            partial_ram_budget=partial_ram_budget,
+            cacheable_layers=n_layers,
+            shared_host_budget=shared_host_budget,
         )
         pool = LayerBufferPool(
             spec,
@@ -3643,6 +3671,9 @@ def _build_source(
     read_ahead=DEFAULT_STREAM_READ_AHEAD,
     layer_roots=None,
     read_ahead_decision=None,
+    partial_ram_budget=None,
+    cacheable_layers=None,
+    shared_host_budget=None,
 ):
     """Build the weight source for the chosen tier.
 
@@ -3676,6 +3707,21 @@ def _build_source(
     The second element of the returned tuple means the same thing on both tiers:
     the host-side source memory is page-locked.
     """
+    if shared_host_budget is not None and partial_ram_budget is None:
+        raise ValueError("shared_host_budget requires an explicit partial_ram_budget")
+    if partial_ram_budget is not None:
+        from soup_cli.utils.partial_ram_source import PartialRamSource
+
+        if tier != "disk":
+            raise ValueError("partial RAM needs the disk tier")
+        # Explicit mode: do not silently retry with a different allocation plan.
+        source = PartialRamSource(
+            shard_dir, n_layers, spec, budget=partial_ram_budget, pin=pin,
+            shard_paths=shard_paths, read_ahead=read_ahead, layer_roots=layer_roots,
+            cacheable_layers=cacheable_layers,
+            host_budget=shared_host_budget,
+        )
+        return source, source.pinned
     source_kwargs = {} if shard_paths is None else {"shard_paths": shard_paths}
     if tier == "disk":
         from soup_cli.utils.async_disk_source import AsyncDiskSource
@@ -3826,12 +3872,16 @@ def build_streamed_model(
     ngram_source: str = "disk",
     refill_before_backward: bool = False,
     read_ahead_decision: Any = None,
+    partial_ram_budget: Any = None,
+    shared_host_budget: Any = None,
 ) -> Tuple[Any, StreamRuntime]:
     """Meta skeleton -> extras -> LoRA -> streaming. No resident base load.
 
     ``read_ahead_decision`` (R4) is the setup's ``ReadAheadDecision`` for ``read_ahead``,
     handed to ``install_streaming`` for its page-lock advice.
     """
+    if shared_host_budget is not None and partial_ram_budget is None:
+        raise ValueError("shared_host_budget requires an explicit partial_ram_budget")
     model = build_meta_skeleton(
         model_id,
         dtype=dtype,
@@ -3881,6 +3931,8 @@ def build_streamed_model(
             read_ahead=read_ahead,
             refill_before_backward=refill_before_backward,
             read_ahead_decision=read_ahead_decision,
+            partial_ram_budget=partial_ram_budget,
+            shared_host_budget=shared_host_budget,
         )
     except BaseException:
         for external in external_sources:
