@@ -3517,7 +3517,7 @@ class TrainingConfig(BaseModel):
             "gradient_accumulation_steps, then the optimizer takes one step on "
             "the adapters. Needs stream_layers=true; the launch also needs a "
             "Llama/Mistral model on a single GPU. Only dpo passed the readiness "
-            "check; orpo, simpo and kto run unverified. k=1 behaves like plain "
+            "check; orpo, simpo and kto are not ready. k=1 behaves like plain "
             "streaming. See ADR 0002 and docs/performance-and-quantization.md."
         ),
     )

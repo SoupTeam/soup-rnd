@@ -1022,8 +1022,9 @@ replaces the cross-entropy head. It reproduces the loss of the installed TRL tra
 method, and the Hugging Face loop divides the loss of each micro-batch by `len(window)`, the same
 as gradient accumulation does for these four trainers.
 
-The config accepts all four methods, but only DPO passed the readiness rule. The other three run
-and give no verified result, so treat them as untested.
+The config accepts all four methods, but only DPO passed the readiness rule. ORPO, SimPO and KTO
+ran in the same test and missed it by narrow margins (below), so they are marked not ready.
+The flag does not stop them. Their runs are not verified to match accumulation.
 
 | Method | Ready | Model and card | Report |
 |---|---|---|---|
@@ -1038,7 +1039,7 @@ setting, float32 by a driver workaround, 12 synthetic rows, one model, one card.
 The rule that gives the verdicts is
 [`benchmarks/l2l-preference-readiness-rule-a6.md`](../benchmarks/l2l-preference-readiness-rule-a6.md).
 It was written and committed before the GPU run. A method passes when every cell of k = 1, 2 and 4
-meets four criteria: float32 gradients bit for bit equal to accumulation, bf16 gradients and loss at
+meets four criteria: float32 gradients and recorded losses bit for bit equal to accumulation, bf16 gradients and loss at
 step 0 within 1.5 times the noise floor, finite non-trivial gradients, and the same layer loads
 per step as L2L SFT. The rule was not changed after the data. The ticket 06 reports in
 `benchmarks/` stay "not passed" under their own, stricter criterion.
@@ -1094,9 +1095,10 @@ when it builds those trainers, so no mask is drawn in either forward.
 - **Data.** 12 synthetic rows per method (`examples/data/*_synthetic.jsonl`). Model quality was
   not measured.
 - **bf16 holds at one kernel setting.** The bf16 criterion pins the `MATH` SDPA backend in both
-  paths and judges step 0 only, where the adapters are equal. With the default kernels, DPO at
-  k = 1 missed the tolerance on the step 0 loss (8.28e-3 against a limit of 7.87e-3), and
-  the probe could not separate the default kernel from the L2L path
+  paths and judges step 0 only, where the adapters are equal. Without the pin, DPO at
+  k = 1 missed the tolerance on the step 0 loss (8.28e-3 against a limit of 7.87e-3). The
+  default kernel is `EFFICIENT_ATTENTION` in both paths, and the cause of the gap is not
+  explained beyond bf16 rounding inside an operation
   ([`probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md`](../benchmarks/probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md)).
   bf16 results are not bit-equal to accumulation, even at step 0.
 - **float32 is a workaround.** The runs got float32 by replacing two functions in the check

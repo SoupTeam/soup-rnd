@@ -76,7 +76,7 @@ def test_section_names_each_refused_mode(refused):
     assert refused in _section()
 
 
-def test_section_names_the_adapter_ref_refusal_for_dpo():
+def test_section_names_the_ref_adapter_dpo_compares_against():
     assert "`ref` adapter" in _section()
 
 
