@@ -61,6 +61,9 @@ Path("/tmp/keep_torch.txt").write_text(f"torch=={torch.__version__}\n")
 print("python", sys.version.split()[0], "torch", torch.__version__)
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--ignore-requires-python",
                 "-c", "/tmp/keep_torch.txt", "-e", ".[train]"], check=True)
+# Kaggle ships torchao 0.10.0; peft refuses any torchao below 0.16 while wrapping the
+# model, and no arm quantizes, so it is removed (first W32 start, 2026-11-04).
+subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "-q", "torchao"], check=True)
 freeze = subprocess.check_output([sys.executable, "-m", "pip", "freeze"], text=True)'''
 
 MODEL = r'''from huggingface_hub import snapshot_download
