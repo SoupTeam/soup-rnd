@@ -75,7 +75,7 @@ Total **$6.007** (instance-scoped invoices, posted right after deletion; not cla
 Session 2's first child (`shapes`, CPU only) took 2 h 19 min against < 30 s on machine 1;
 the cause is not established and no gate reads it.
 
-## Publication selection and replay limits
+## Publication selection, frozen source and replay
 
 The publication transfers selected files from research snapshot `b315e8dc` onto current
 main. It includes every session JSON record in `session1-rtx4090/` and
@@ -84,39 +84,73 @@ the historical break-even verdict and exported rates in `session1-rtx4090-breake
 All 178 numerical evidence JSON files and `provenance.json` retain their published bytes;
 `SHA256SUMS` is unchanged. That manifest excludes itself and this README.
 
-Private raw logs, per-second samples, runlogs, preflights, the kernel journal, rental
-scripts, API records, and operational pilots are omitted. They remain in the local
-research archives and are not dependencies of record recalculation. `provenance.json`
-records their archive hashes, raw/published file hashes and the original path
-substitutions. Raw-versus-published provenance therefore cannot be independently checked
-without those private archives. The only CPU capture selected is
-`../g2-cpu-pilot/shapes_seq512.json`, which supports the protocol's shape-estimate table;
-the CPU sessions and operational smoke logs are not published.
+Two directories added after review carry their own `MANIFEST.json`:
 
-Measured source commits are pinned in `provenance.json`:
+- `frozen-source/`: the 7 harness files (`g2_disk`, `g2_inner_activations`, `g2_probe`,
+  `g2_rule`, `g2_session`, `l2l_schedule`, `rental_guard`) as git blobs at each measured
+  commit, stored as `*.frozen`. They are the only files of the 634 that `protocol.json`
+  hashes (`source_sha256`) which differ from public commit `fdf067fc`; the other 627 are
+  read from that commit.
+- `raw-records/`: per-run `logs/`, `preflight/`, the runlog (kernel journal, session
+  start/exit, fixture hashes, `pip freeze`, test log, spill-left-at-end) for both
+  sessions, and the ten sustained-I/O `samples.jsonl.gz` (per-second counters, gzip with
+  mtime 0). Only the box prefixes `/root/g2/soup-rnd` and `/root/g2` (to `<work>`,
+  `<box>`) and one `PARTUUID` were changed; `MANIFEST.json` lists the raw
+  and published SHA-256 of every file and marks the changed ones. Session 2 has no
+  per-second samples; it ran no sustained-I/O arm.
 
-- Session 1 and sustained I/O used `40aea9b92b6611735a05bec2862fcca0fa31f497`, rule v1.
-- Session 2 used `5027d2ada3392593d064bbebf4e442da68c4b1c7`, rule v2.
+Still omitted: rental scripts, API/invoice records, SSH details, the raw tar archives
+and the CPU sessions. `provenance.json` lists the private archive hashes; the
+`raw_sha256` fields in `raw-records/MANIFEST.json` tie each published file to the private
+bytes. `provenance.json` is unchanged (`SHA256SUMS` hashes it), so its `excluded` list
+still names the logs, runlogs, preflights, kernel journal and `samples.jsonl` that
+`raw-records/` now publishes in sanitized form.
 
-Those commits exist in the local private research history. This PR does not publish that
-ancestry or establish that the commits can be fetched from a remote. Source hashes in the
-records identify measured files, but hashes do not supply their contents. A full replay
-of the measured runtime or historical v1 output requires access to the pinned source and
-environment. The current-main harness is an adapted implementation, not the measured tree.
-Current main can select fused NF4 GEMM instead of the measured dequantize-plus-linear
-path. This publication does not establish CUDA exactness, saved-byte counts, or timing
-for that newer dispatch.
+### Replay
 
-The current rule-v2 evaluator can recalculate the selected session-2 records without CUDA:
+```bash
+python benchmarks/harness/g2_replay.py
+```
+
+Needs `git` and this repository's history, no GPU, no network. For each session it
+
+1. rebuilds the measured `src/` + `benchmarks/harness/` tree and checks all 634
+   `source_sha256` hashes of that session's `protocol.json`;
+2. runs that tree's own `g2_rule.py` on the published records and requires the result to
+   equal the published `verdict.json`: session 1 `NO VERDICT` (rule v1) and session 2
+   `DO NOT BUILD` (rule v2);
+3. for session 1, recomputes the ten sustained-I/O summaries with that tree's
+   `g2_disk.summarize` from `samples.jsonl.gz` and requires equality with each `arm.json`
+   summary;
+4. verifies both manifests.
+
+It exits 1 and names the file if a frozen file or a samples file is altered (checked by
+tampering one of each). It does not rerun kernels, I/O windows or the F1 sensors, and it
+does not recompute the break-even verdict in `session1-rtx4090-breakeven/`. The raw logs
+and journal are published for audit but are not inputs of the replay.
+
+The measured commits themselves are still not on public history; this PR does not publish
+that ancestry. The frozen files stand in for them and are checked by hash, not by fetching.
+
+### Current main is not the measured runtime
+
+The harness files elsewhere in this PR are an adapted implementation, not the measured
+tree. Current main can select fused NF4 GEMM instead of the measured dequantize-plus-linear
+path. This publication does not establish CUDA exactness, saved-byte counts, or timing for
+that newer dispatch. The current rule-v2 evaluator recalculates session 2 from the
+published records without CUDA:
 
 ```bash
 python benchmarks/harness/g2_rule.py benchmarks/results/g2-gpu-20261031/session2-rtx3090
 ```
 
-This checks recorded values; it does not rerun kernels, I/O windows or F1 sensors. The
-publication evaluator rejects a missing or different protocol rule instead of silently
-judging it under v2. Session 1's historical rule-v1 verdict remains `NO VERDICT`, and its
-break-even output remains as recorded; the current CLI does not reproduce their full v1
-output. Rule v2 was chosen after session 1's results and before session 2, so session 1
-must not be presented as a prospective v2 result.
+It rejects a missing or different protocol rule instead of silently judging it under v2, so
+it refuses session 1; use `g2_replay.py` for that. Rule v2 was chosen after session 1's
+results and before session 2, so session 1 must not be presented as a prospective v2
+result.
+
+### Scope of the disk result
+
+Both machines' disks are virtio (`vda`, vendor `0x1af4`). The G4 and sustained-I/O numbers
+describe that virtual disk at that time, not the physical dual-NVMe write rate of the card.
 

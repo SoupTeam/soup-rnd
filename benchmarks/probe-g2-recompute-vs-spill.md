@@ -379,6 +379,10 @@ python benchmarks/harness/g2_rule.py benchmarks/results/g2-gpu-20261031/session2
 ```
 
 This is record recalculation, not source, kernel, sensor, or full I/O-window replay. The
-publication evaluator rejects a missing or different protocol rule. Reproducing session
-1's full historical v1 output requires the original pinned source and environment;
-running it under v2 is not a historical replay. Its recorded `NO VERDICT` remains intact.
+publication evaluator rejects a missing or different protocol rule. To reproduce both
+sessions' recorded verdicts under the rule each was run with (session 1 v1, session 2 v2),
+run `python benchmarks/harness/g2_replay.py`: it rebuilds each measured source tree from
+public commit `fdf067fc` plus the frozen harness files in
+`benchmarks/results/g2-gpu-20261031/frozen-source/`, checks the protocol's source hashes,
+and recomputes the verdicts and the ten sustained-I/O summaries (from the sanitized
+per-second samples in `raw-records/`). It does not rerun kernels or F1 sensors.
