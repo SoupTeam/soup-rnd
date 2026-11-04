@@ -1,0 +1,546 @@
+{
+  "rule": {
+    "profile": "g2-recompute-vs-spill-v1",
+    "G1": "for k in 1,2,4 and both stores (pinned RAM, direct NVMe spill): per-micro-batch losses (forward) and nonzero LoRA grads (backward) torch.equal to GA AND to the recompute L2L step; references reproducible (GA vs GA), else the --deterministic rerun; the controls must hold: identity saved-tensor hooks without a reload must raise or give different grads, a corrupted record must change the grads and leave the losses equal; and the records hold activation bytes only (0 weight bytes)",
+    "G2": "bytes: every record holds exactly its activation items (payload == sum of the activation storages saved) and no streamed weight; the spilled bytes written and read per step equal spill_layers x k x record_capacity",
+    "G3": "ram_store_vs_recompute (weights in RAM, records in pinned RAM): per-block step-time ratio B (store) / A (recompute), two-sided 95% t interval: pass if its upper bound < 0.95, fail if its lower bound >= 0.95, else no verdict",
+    "G4": "disk_spill_vs_recompute (weights streamed from disk, records spilled to the weights' drive): the same ratio and bounds as G3",
+    "V1": "device cuda; a CPU or synthetic session never gets a verdict",
+    "V2": "required F1 checks (suspend, power, foreign_reads) ok on every arm a gate reads; a block with a void arm is replaced, an unknown one removes the gate",
+    "V3": "every spilling store and the sustained I/O arms are direct (unbuffered)",
+    "V4": "A and B of a block train on the same token rows (ids fingerprint)",
+    "V5": "finite losses on every timed step",
+    "V6": "every B arm wrote and read exactly its planned record bytes; A arms wrote none",
+    "V7": "the F1 repeats rule has no block left to add (blocks_to_add == 0)",
+    "V8": "disk-tier arms: the weight source reads with direct I/O",
+    "V10": "disk-tier arms: the OS placement records (resolved path, mount, whole physical disk) show the records' spill directory and the weight shards on one physical disk; unknown placement removes the gate (direct-I/O flags are no evidence)",
+    "V9": "the break-even inputs are sustained: g2_disk arms with status candidate, a fixture larger than RAM and >= 1800 s each; else the break-even is reported as an estimate only",
+    "V11": "the sustained rates are bound to the disk-tier profile: every valid g2_disk arm and the profile name one machine id, and the arms' spill / weight disks are the profile's; a mismatch or an unknown identity makes the break-even an estimate",
+    "V12": "label only, no gate status depends on it: a disk-tier gate and the break-even name the disk kind from the placement records (virtio vendor 0x1af4, a hypervisor's model string, a vd*/xvd* device); on a VIRTUAL disk they describe that virtual disk at that time, not a physical NVMe",
+    "breakeven": "informational: saved recompute seconds per step against write + read + weight-read contention + store overhead, serial and overlapped; the store overhead is packing and host copies with the measured spill I/O waits taken out, so the drive is charged once, from its sustained rates; the 1.5x ceiling is a FLOP ratio, never a measured speed-up",
+    "order": "A-B-B-A blocks, fresh process per arm"
+  },
+  "validity": {
+    "V1": {
+      "ok": true,
+      "devices": [
+        "cuda"
+      ],
+      "synthetic": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "status": "pass",
+      "detail": "k=1: both stores exact to GA and to recompute; controls differ (correctness_k1_det.json); k=2: both stores exact to GA and to recompute; controls differ (correctness_k2_det.json); k=4: both stores exact to GA and to recompute; controls differ (correctness_k4_det.json)",
+      "parts": {
+        "1": {
+          "status": "pass",
+          "detail": "k=1: both stores exact to GA and to recompute; controls differ (correctness_k1_det.json)",
+          "deterministic": true,
+          "source": "correctness_k1_det.json"
+        },
+        "2": {
+          "status": "pass",
+          "detail": "k=2: both stores exact to GA and to recompute; controls differ (correctness_k2_det.json)",
+          "deterministic": true,
+          "source": "correctness_k2_det.json"
+        },
+        "4": {
+          "status": "pass",
+          "detail": "k=4: both stores exact to GA and to recompute; controls differ (correctness_k4_det.json)",
+          "deterministic": true,
+          "source": "correctness_k4_det.json"
+        }
+      }
+    },
+    "G2": {
+      "status": "pass",
+      "detail": "6 stores: activation bytes only, spill bytes as planned"
+    },
+    "G3": {
+      "status": "fail",
+      "detail": "ram_store_vs_recompute: ratio CI [1.858, 1.862] >= 0.95",
+      "ratios": [
+        1.8612212077952548,
+        1.860786678632803,
+        1.8578973971219406,
+        1.8589466576449558,
+        1.8601992674439833
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 1.8598102417277875,
+        "low": 1.8581102564946907,
+        "high": 1.8615102269608843
+      },
+      "problems": [],
+      "blocks_to_add": 0
+    },
+    "G4": {
+      "status": "no verdict",
+      "detail": "disk_spill_vs_recompute: V7 repeats rule asks for 2021 more blocks; on a VIRTUAL disk: describes that disk at that time, not a physical NVMe",
+      "ratios": [
+        4.266281768218481,
+        4.276607777731961,
+        4.286989012269296,
+        6.773331261137209,
+        8.815857255302468,
+        6.678694529023722,
+        6.758194841315437,
+        6.633048596386038,
+        4.308515563993274,
+        9.005658044482336,
+        6.574770165037584,
+        6.528400664557036,
+        6.78466884456409,
+        6.281317216547708,
+        5.2725793424630805,
+        4.334189361399366,
+        6.949053121037959,
+        4.319461742153782,
+        4.302394352699599,
+        6.6491825179929895
+      ],
+      "interval": {
+        "n": 20,
+        "mean": 5.989959798915671,
+        "low": 5.290798106469296,
+        "high": 6.689121491362046
+      },
+      "problems": [],
+      "disk_scope": {
+        "virtual": true,
+        "reasons": {
+          "spill": "vendor 0x1af4 (virtio)",
+          "weights": "vendor 0x1af4 (virtio)"
+        }
+      },
+      "blocks_to_add": 2021
+    }
+  },
+  "measured_gates": {
+    "G1": {
+      "status": "pass",
+      "detail": "k=1: both stores exact to GA and to recompute; controls differ (correctness_k1_det.json); k=2: both stores exact to GA and to recompute; controls differ (correctness_k2_det.json); k=4: both stores exact to GA and to recompute; controls differ (correctness_k4_det.json)",
+      "parts": {
+        "1": {
+          "status": "pass",
+          "detail": "k=1: both stores exact to GA and to recompute; controls differ (correctness_k1_det.json)",
+          "deterministic": true,
+          "source": "correctness_k1_det.json"
+        },
+        "2": {
+          "status": "pass",
+          "detail": "k=2: both stores exact to GA and to recompute; controls differ (correctness_k2_det.json)",
+          "deterministic": true,
+          "source": "correctness_k2_det.json"
+        },
+        "4": {
+          "status": "pass",
+          "detail": "k=4: both stores exact to GA and to recompute; controls differ (correctness_k4_det.json)",
+          "deterministic": true,
+          "source": "correctness_k4_det.json"
+        }
+      }
+    },
+    "G2": {
+      "status": "pass",
+      "detail": "6 stores: activation bytes only, spill bytes as planned"
+    },
+    "G3": {
+      "status": "fail",
+      "detail": "ram_store_vs_recompute: ratio CI [1.858, 1.862] >= 0.95",
+      "ratios": [
+        1.8612212077952548,
+        1.860786678632803,
+        1.8578973971219406,
+        1.8589466576449558,
+        1.8601992674439833
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 1.8598102417277875,
+        "low": 1.8581102564946907,
+        "high": 1.8615102269608843
+      },
+      "problems": [],
+      "blocks_to_add": 0
+    },
+    "G4": {
+      "status": "no verdict",
+      "detail": "disk_spill_vs_recompute: V7 repeats rule asks for 2021 more blocks; on a VIRTUAL disk: describes that disk at that time, not a physical NVMe",
+      "ratios": [
+        4.266281768218481,
+        4.276607777731961,
+        4.286989012269296,
+        6.773331261137209,
+        8.815857255302468,
+        6.678694529023722,
+        6.758194841315437,
+        6.633048596386038,
+        4.308515563993274,
+        9.005658044482336,
+        6.574770165037584,
+        6.528400664557036,
+        6.78466884456409,
+        6.281317216547708,
+        5.2725793424630805,
+        4.334189361399366,
+        6.949053121037959,
+        4.319461742153782,
+        4.302394352699599,
+        6.6491825179929895
+      ],
+      "interval": {
+        "n": 20,
+        "mean": 5.989959798915671,
+        "low": 5.290798106469296,
+        "high": 6.689121491362046
+      },
+      "problems": [],
+      "disk_scope": {
+        "virtual": true,
+        "reasons": {
+          "spill": "vendor 0x1af4 (virtio)",
+          "weights": "vendor 0x1af4 (virtio)"
+        }
+      },
+      "blocks_to_add": 2021
+    }
+  },
+  "breakeven": {
+    "status": "measured",
+    "V9": {
+      "ok": true,
+      "reason": "sustained"
+    },
+    "V11": {
+      "ok": true,
+      "reason": "rates and profile on machine 24db0d1b7f01, spill vda, weights vda"
+    },
+    "disk_scope": {
+      "virtual": true,
+      "reasons": {
+        "spill": "vendor 0x1af4 (virtio)",
+        "weights": "vendor 0x1af4 (virtio)"
+      }
+    },
+    "cases": {
+      "ram_tier_records_in_ram": {
+        "saved_s": 0.43386913599988475,
+        "overhead_s": 1.035512084000402,
+        "spilled_bytes": 0,
+        "write_s": 0.0,
+        "read_s": 0.0,
+        "contention_s": 0.0,
+        "compute_ceiling": 1.5,
+        "compute_ceiling_note": "6N vs 4N FLOP per token; a potential ceiling, not measured",
+        "serial_cost_s": 1.035512084000402,
+        "serial_margin_s": -0.6016429480005172,
+        "breakeven_Bps": null,
+        "overlapped_cost_s": 1.035512084000402,
+        "overlapped_margin_s": -0.6016429480005172,
+        "tokens_per_step": 2048,
+        "record_bytes_per_step": 13439598592
+      },
+      "disk_tier_records_spilled": {
+        "saved_s": 0.48744679700030247,
+        "overhead_s": 1.0499551829993834,
+        "spilled_bytes": 13439598592,
+        "write_s": 6.2379053925898615,
+        "read_s": 4.3211172783361205,
+        "contention_s": 2.6280060633954427,
+        "compute_ceiling": 1.5,
+        "compute_ceiling_note": "6N vs 4N FLOP per token; a potential ceiling, not measured",
+        "serial_cost_s": 14.236983917320808,
+        "serial_margin_s": -13.749537120320506,
+        "breakeven_Bps": null,
+        "overlapped_cost_s": 13.19861868932106,
+        "overlapped_margin_s": -12.711171892320758,
+        "tokens_per_step": 2048,
+        "record_bytes_per_step": 13439598592
+      }
+    },
+    "rates": {
+      "write_Bps": 2154505037.534744,
+      "read_Bps": 3110213800.3472614,
+      "weight_ref_Bps": 5767350277.627664,
+      "weight_with_spill_Bps": 1797780671.9910073,
+      "spill_rates_from": "cycle+weights",
+      "means_from": {
+        "write_Bps": [
+          "<work>/.soup/results/g2-disk-01/p4_cycle_weights/arm.json",
+          "<work>/.soup/results/g2-disk-01/p5_cycle_weights/arm.json"
+        ],
+        "read_Bps": [
+          "<work>/.soup/results/g2-disk-01/p4_cycle_weights/arm.json",
+          "<work>/.soup/results/g2-disk-01/p5_cycle_weights/arm.json"
+        ],
+        "weight_ref_Bps": [
+          "<work>/.soup/results/g2-disk-01/p3_weights/arm.json",
+          "<work>/.soup/results/g2-disk-01/p6_weights/arm.json"
+        ],
+        "weight_with_spill_Bps": [
+          "<work>/.soup/results/g2-disk-01/p4_cycle_weights/arm.json",
+          "<work>/.soup/results/g2-disk-01/p5_cycle_weights/arm.json"
+        ]
+      },
+      "rate_kind": "busy: bytes over seconds inside the direction's I/O calls, full windows after warmup",
+      "arms": [
+        {
+          "write_Bps": 2203852826.892522,
+          "read_Bps": null,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p0_write/arm.json",
+          "mode": "write",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": null
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": null
+        },
+        {
+          "write_Bps": null,
+          "read_Bps": 5848750667.476352,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p1_read/arm.json",
+          "mode": "read",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": null
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": null
+        },
+        {
+          "write_Bps": 2274274394.4922357,
+          "read_Bps": 5762943992.749595,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p2_cycle/arm.json",
+          "mode": "cycle",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": null
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": null
+        },
+        {
+          "write_Bps": null,
+          "read_Bps": null,
+          "weight_ref_Bps": 5746394997.955095,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p3_weights/arm.json",
+          "mode": "weights",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": null,
+            "weights": 63619203072
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": null,
+          "weight_disk": "vda"
+        },
+        {
+          "write_Bps": 2146240132.6620352,
+          "read_Bps": 3018030811.066103,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": 1778617034.842473,
+          "source": "<work>/.soup/results/g2-disk-01/p4_cycle_weights/arm.json",
+          "mode": "cycle+weights",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": 63619203072
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": "vda"
+        },
+        {
+          "write_Bps": 2162769942.4074526,
+          "read_Bps": 3202396789.6284194,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": 1816944309.1395419,
+          "source": "<work>/.soup/results/g2-disk-01/p5_cycle_weights/arm.json",
+          "mode": "cycle+weights",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": 63619203072
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": "vda"
+        },
+        {
+          "write_Bps": null,
+          "read_Bps": null,
+          "weight_ref_Bps": 5788305557.300232,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p6_weights/arm.json",
+          "mode": "weights",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": null,
+            "weights": 63619203072
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": null,
+          "weight_disk": "vda"
+        },
+        {
+          "write_Bps": 2263952384.9096813,
+          "read_Bps": 5703432171.648721,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p7_cycle/arm.json",
+          "mode": "cycle",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": null
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": null
+        },
+        {
+          "write_Bps": null,
+          "read_Bps": 5971696845.323207,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p8_read/arm.json",
+          "mode": "read",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": null
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": null
+        },
+        {
+          "write_Bps": 2354555123.20637,
+          "read_Bps": null,
+          "weight_ref_Bps": null,
+          "weight_with_spill_Bps": null,
+          "source": "<work>/.soup/results/g2-disk-01/p9_write/arm.json",
+          "mode": "write",
+          "status": "candidate",
+          "direct": true,
+          "measured_s": 1800.0,
+          "fixture_bytes": {
+            "spill": 63619203072,
+            "weights": null
+          },
+          "ram_total_bytes": 50895122432,
+          "fixture_exceeds_ram": true,
+          "host": {
+            "hostname": "ubuntu",
+            "machine_id": "24db0d1b7f014744bb321dd2377b83d2",
+            "boot_id": "b36773d7-8295-46b4-930e-2ab876bf6ef8",
+            "platform": "linux"
+          },
+          "spill_disk": "vda",
+          "weight_disk": null
+        }
+      ],
+      "source": "<work>/.soup/results/g2-disk-01/manifest.json"
+    }
+  },
+  "verdict": "NO VERDICT"
+}

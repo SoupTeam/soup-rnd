@@ -33,7 +33,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters
+from soup_cli.utils.l2l_step import LoadCounters
+
+#: Architectures ``training.l2l`` admits at launch. The L2L step itself runs more
+#: (``l2l_step.SUPPORTED_ARCHS``, which adds DeepSeek-V3); enabling those publicly is a
+#: separate decision, so this tuple does not follow the step's.
+PUBLIC_ARCHS = ("llama", "mistral")
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +52,10 @@ def refuse_unsupported_l2l(
 ) -> None:
     """Refuse at launch what the schema cannot see: the model, the GPU count, fp16."""
     arch = str(getattr(model_config, "model_type", ""))
-    if arch not in SUPPORTED_ARCHS:
+    if arch not in PUBLIC_ARCHS:
         raise ValueError(
-            f"training.l2l does not support model_type {arch!r}: the L2L step "
-            f"re-implements the top-level forward of {' and '.join(SUPPORTED_ARCHS)} only."
+            f"training.l2l does not support model_type {arch!r}: it is enabled for "
+            f"{' and '.join(PUBLIC_ARCHS)} only."
         )
     if n_gpu > 1:
         raise ValueError(
@@ -94,7 +99,7 @@ class L2LState:
     c3_plan: Any = None
 
     def log_fields(self) -> Dict[str, Any]:
-        return {
+        fields = {
             "l2l_steps": self.steps,
             "l2l_captures": self.captures,
             "l2l_capture_layer_loads": self.capture_loads,
@@ -104,6 +109,12 @@ class L2LState:
             "l2l_weight_restores": self.totals.restores,
             "l2l_spill_layers": int(self.spill_plan["spill_layers"]) if self.spill_plan else 0,
         }
+        # Only a runtime that streams routed experts has them to count; a dense run's log
+        # keeps the fields it always had.
+        if getattr(self.runtime, "expert_pool", None) is not None:
+            fields["l2l_expert_fetches"] = self.totals.expert_fetches
+            fields["l2l_expert_bytes_read"] = self.totals.expert_bytes_read
+        return fields
 
     def spill_directory(self) -> str:
         """The configured spill directory, or the default one under the output directory."""

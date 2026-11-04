@@ -3058,6 +3058,12 @@ class StreamRuntime:
             "large_loads": getattr(self.large_pool, "loads", 0),
             "device": self.device,
             "total_params": self.total_params,
+            # Actual expert reads of a per-expert cache, from the pool: one fetch is one
+            # expert read into the arena, whichever of forward, recompute or backward asked
+            # for it; bytes are the stored (logical) bytes read, not the dequantised arena.
+            # Zero for a fused cache, so a consumer never branches on the layout.
+            "expert_fetches": getattr(self.expert_pool, "fetches", 0),
+            "expert_bytes_read": getattr(self.expert_pool, "logical_bytes_read", 0),
         }
 
 
@@ -3073,7 +3079,7 @@ def _prepare_expert_streaming(
     from soup_cli.utils.expert_stream import (
         ExpertBufferPool,
         expert_allocation_budget,
-        install_expert_forward,
+        install_streamed_experts,
         plan_expert_buffer,
     )
     from soup_cli.utils.layer_shard import expert_paths
@@ -3099,7 +3105,7 @@ def _prepare_expert_streaming(
             first, device=device, dtype=index.dtype,
             weight_budget_bytes=expert_allocation_budget(plan, device=device), codes=codes,
         )
-        install_expert_forward(layers, readers, pool)
+        install_streamed_experts(layers, readers, pool)
         return pool, tuple(readers.values())
     except BaseException:
         cleanup = ([pool.close] if pool is not None else [])

@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""G2 session: every block of the rule, one fresh process per child.
+
+Planning is the default (prints every command); ``--execute`` runs them into a
+NEW session directory, writes protocol.json (the rule, args, versions, source
+hashes, base commit) before the first child, and verdict.json at the end.
+
+Order: shapes -> correctness k=1,2,4 (each with its predeclared --deterministic
+rerun when GA vs GA was not reproducible) -> profile (RAM tier, records in RAM)
+-> profile (disk tier, records spilled) -> ram_store_vs_recompute blocks ->
+disk_spill_vs_recompute blocks. The sustained I/O session is ``g2_disk.py
+session`` (separate: it needs the box quiet for hours); ``--disk-session``
+points at it and its ``export_session`` output lands in ``disk/rates.json``.
+
+Standard library only in the parent; the children import torch.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import arm_validity  # noqa: E402
+import g2_rule  # noqa: E402
+import l2l_session  # noqa: E402
+
+HARNESS = Path(__file__).resolve().parent
+PROBE = str(HARNESS / "g2_probe.py")
+#: comparison -> (weight tier, where B's records go). A is always the recompute L2L.
+COMPARISONS: Dict[str, Dict[str, str]] = {
+    g2_rule.RAM_COMPARISON: {"tier": "ram", "store": "ram"},
+    g2_rule.DISK_COMPARISON: {"tier": "disk", "store": "spill"},
+}
+
+
+def args_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--weights", required=True)
+    parser.add_argument("--shards", required=True)
+    parser.add_argument("--spill-dir", required=True,
+                        help="records' spill directory: on the WEIGHTS' drive for the disk "
+                             "comparison (that is the contention G2 asks about)")
+    parser.add_argument("--out", required=True)
+    parser.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
+    parser.add_argument("--quant", choices=("none", "nf4"), default="nf4")
+    parser.add_argument("--seq", type=int, default=512)
+    parser.add_argument("--k", type=int, default=4, help="micro-batches of the timed arms")
+    parser.add_argument("--lora-r", type=int, default=8)
+    parser.add_argument("--steps", type=int, default=5)
+    parser.add_argument("--warmup", type=int, default=2)
+    parser.add_argument("--ring", type=int, default=2)
+    parser.add_argument("--comparisons", default=",".join(COMPARISONS))
+    parser.add_argument("--correctness-ks", default=",".join(map(str, g2_rule.CORRECTNESS_KS)))
+    parser.add_argument("--max-blocks", type=int, default=20)
+    parser.add_argument("--max-hours", type=float, default=8.0)
+    parser.add_argument("--disk-session", default=None,
+                        help="a finished g2_disk.py session directory to export rates from")
+    parser.add_argument("--allow-buffered", action="store_true", help="CPU pilot only")
+    parser.add_argument("--label", default="")
+    parser.add_argument("--execute", action="store_true")
+    return parser
+
+
+def _common(args: argparse.Namespace) -> List[str]:
+    base = ["--weights", args.weights, "--shards", args.shards, "--device", args.device,
+            "--quant", args.quant, "--seq", str(args.seq), "--lora-r", str(args.lora_r),
+            "--ring", str(args.ring), "--spill-dir", args.spill_dir]
+    if args.allow_buffered:
+        base.append("--allow-buffered")
+    if args.label:
+        base += ["--label", args.label]
+    return base
+
+
+def _entry(name: str, out: Path, arguments: List[str]) -> Dict[str, Any]:
+    target = out / f"{name}.json"
+    return {"name": name, "output": str(target),
+            "command": [sys.executable, PROBE, *arguments, "--out", str(target)]}
+
+
+def fixed_plan(args: argparse.Namespace, out: Path) -> List[Dict[str, Any]]:
+    plan = [_entry("shapes", out, ["--mode", "shapes", "--seq", str(args.seq),
+                                   "--lora-r", str(args.lora_r)])]
+    for k in [int(part) for part in args.correctness_ks.split(",") if part.strip()]:
+        base = [*_common(args), "--mode", "correctness", "--k", str(k), "--tier", "ram"]
+        plan.append(_entry(f"correctness_k{k}", out, base))
+        det = _entry(f"correctness_k{k}_det", out, [*base, "--deterministic"])
+        det["fallback_for"] = f"correctness_k{k}"
+        plan.append(det)
+    for tier, store in (("ram", "ram"), ("disk", "spill")):
+        plan.append(_entry(f"profile_{tier}", out, [
+            *_common(args), "--mode", "profile", "--tier", tier, "--store", store,
+            "--k", str(args.k), "--steps", str(args.steps), "--warmup", str(args.warmup)]))
+    return plan
+
+
+def arm_command(args: argparse.Namespace, out: Path, name: str, block: int, position: int,
+                arm: str) -> Dict[str, Any]:
+    spec = COMPARISONS[name]
+    target = out / "arms" / name / f"b{block:02d}_p{position}_{arm}.json"
+    arguments = [*_common(args), "--mode", "arm", "--tier", spec["tier"], "--store",
+                 spec["store"], "--k", str(args.k), "--comparison", name, "--arm", arm,
+                 "--block", str(block), "--position", str(position), "--steps",
+                 str(args.steps), "--warmup", str(args.warmup)]
+    return {"name": f"{name}/b{block:02d}_p{position}_{arm}", "output": str(target),
+            "command": [sys.executable, PROBE, *arguments, "--out", str(target)]}
+
+
+def run_child(entry: Dict[str, Any], out: Path, env: Dict[str, str], deadline: float) -> int:
+    target = Path(entry["output"])
+    if target.exists():
+        raise FileExistsError(f"refusing to overwrite {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    log_path = out / "logs" / (entry["name"].replace("/", "__") + ".log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("xb") as log:
+        child = subprocess.Popen(entry["command"], cwd=l2l_session.ROOT, env=env,
+                                 stdout=log, stderr=subprocess.STDOUT)
+        try:
+            return child.wait(timeout=max(0.01, deadline - time.monotonic()))
+        except BaseException:
+            child.kill()
+            child.wait()
+            raise
+
+
+def needs_fallback(path: Path) -> bool:
+    """The predeclared --deterministic rerun: GA vs GA not reproducible, or no record."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    rows = [row for row in payload.get("records", []) if row.get("kind") == "correctness"]
+    if not rows or rows[0].get("error"):
+        return True
+    pair = rows[0].get("ga_vs_ga") or {}
+    return not ((pair.get("backward") or {}).get("equal") and pair.get("forward_equal"))
+
+
+def block_runs(out: Path, name: str) -> List[List[arm_validity.Run]]:
+    blocks: Dict[int, Dict[int, arm_validity.Run]] = {}
+    for path in sorted((out / "arms" / name).glob("b*_p*_*.json")):
+        rows = [row for row in json.loads(path.read_text(encoding="utf-8")).get("records", [])
+                if row.get("kind") == "arm" and not row.get("error")]
+        if not rows or not rows[0].get("steps"):
+            continue
+        row = rows[0]
+        times = sorted(step["step_s"] for step in row["steps"])
+        median = times[len(times) // 2] if len(times) % 2 else (
+            times[len(times) // 2 - 1] + times[len(times) // 2]) / 2
+        blocks.setdefault(row["block"], {})[row["position"]] = arm_validity.Run(
+            float(median), str(row["outcome"]))
+    return [[runs[p] for p in range(4)] for _, runs in sorted(blocks.items()) if len(runs) == 4]
+
+
+def export_disk(args: argparse.Namespace, out: Path) -> Optional[str]:
+    if not args.disk_session:
+        return None
+    import g2_disk
+
+    rates = g2_disk.export_session(args.disk_session)
+    (out / "disk").mkdir(exist_ok=True)
+    l2l_session.write_json(out / "disk" / "rates.json", rates)
+    return str(out / "disk" / "rates.json")
+
+
+def placement_check(args: argparse.Namespace, names: Sequence[str]) -> Dict[str, Any]:
+    """Before any child: the OS placement of the shards and the records' spill directory.
+    The disk comparison asks about a spill that shares the weights' drive, so it is
+    refused unless the OS names one physical disk for both (unknown is not "same")."""
+    import g2_disk
+
+    record: Dict[str, Any] = {"refusals": []}
+    if g2_rule.DISK_COMPARISON not in names:
+        return record
+    # Nearest existing ancestor: the shard cache may not exist before the first child.
+    def probe(path: str) -> str:
+        while not os.path.exists(path) and os.path.dirname(path) != path:
+            path = os.path.dirname(path)
+        return path
+
+    record["weights"] = g2_disk.volume_info(probe(args.shards))
+    record["spill"] = g2_disk.volume_info(probe(args.spill_dir))
+    same, why = g2_rule.same_physical_disk(record)
+    record["same_physical_disk"] = same
+    if same is not True:
+        record["refusals"].append(
+            f"{g2_rule.DISK_COMPARISON}: --spill-dir {args.spill_dir} and --shards "
+            f"{args.shards} are not shown on one physical disk ({why})")
+    return record
+
+
+def timing_allowed(out: Path) -> Tuple[bool, str]:
+    """The timed arms cost the most box time and mean nothing unless G1 and G2 passed:
+    a store that is not exact, or not activation-only, has no speed to measure."""
+    g1, g2 = g2_rule.gate_g1(out), g2_rule.gate_g2(out)
+    if g1["status"] == g2_rule.PASS and g2["status"] == g2_rule.PASS:
+        return True, "G1 and G2 pass"
+    return False, f"G1 {g1['status']}: {g1['detail']}; G2 {g2['status']}: {g2['detail']}"
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    parser = args_parser()
+    args = parser.parse_args(argv)
+    for field in ("weights", "shards", "spill_dir", "out", "disk_session"):
+        if getattr(args, field):
+            setattr(args, field, os.path.abspath(getattr(args, field)))
+    if args.allow_buffered and args.device == "cuda":
+        parser.error("--allow-buffered is for the CPU pilot only")
+    names = [name.strip() for name in args.comparisons.split(",") if name.strip()]
+    unknown = sorted(set(names) - set(COMPARISONS))
+    if unknown:
+        parser.error(f"unknown comparisons: {unknown}")
+    out = Path(args.out)
+    if out.exists():
+        parser.error(f"{out} exists; every session writes a new directory")
+    placement = placement_check(args, names)
+    if placement["refusals"]:
+        parser.error("placement: " + "; ".join(placement["refusals"]))
+    fixed = fixed_plan(args, out)
+    protocol = {
+        "rule": g2_rule.RULE, "args": vars(args), "comparisons": {n: COMPARISONS[n] for n in names},
+        "fixed": fixed, "base_commit": l2l_session.git_head(),
+        "versions": l2l_session.versions(), "source_sha256": l2l_session.source_hashes(),
+        "placement": placement, "planned_unix": time.time(),
+    }
+    if not args.execute:
+        for entry in fixed:
+            print(" ".join(entry["command"]))
+        for name in names:
+            for position, arm in enumerate(arm_validity.BLOCK_ORDER):
+                print(" ".join(arm_command(args, out, name, 0, position, arm)["command"]))
+        print(f"plan only: {len(fixed)} fixed children, {len(names)} comparisons x >= "
+              f"{arm_validity.PILOT_BLOCKS} blocks x 4 arms; --execute runs them")
+        return 0
+    out.mkdir(parents=True)
+    l2l_session.write_json(out / "protocol.json", protocol)
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(
+        [str(l2l_session.ROOT / "src"), str(HARNESS)]), "HF_HUB_OFFLINE": "1"}
+    deadline = time.monotonic() + args.max_hours * 3600
+    status: Dict[str, Any] = {"state": "running", "children": []}
+    try:
+        for entry in fixed:
+            if "fallback_for" in entry and not needs_fallback(
+                    out / f"{entry['fallback_for']}.json"):
+                continue
+            code = run_child(entry, out, env, deadline)
+            status["children"].append({"name": entry["name"], "returncode": code})
+            print(f"{entry['name']:<28} exit {code}")
+            if code != 0 and "fallback_for" not in entry and not entry["name"].startswith(
+                    "correctness"):
+                raise RuntimeError(f"{entry['name']} exited {code}; see its log")
+        allowed, why = timing_allowed(out)
+        status["timing_allowed"] = {"ok": allowed, "why": why}
+        if not allowed:
+            # The predeclared stop: no box time on timed arms after a mandatory
+            # correctness or byte check failed (or could not be decided).
+            raise RuntimeError(f"timing arms not run: {why}")
+        for name in names:
+            block = 0
+            while True:
+                due = arm_validity.blocks_to_add(block_runs(out, name))
+                if due <= 0 or block >= args.max_blocks:
+                    break
+                for position, arm in enumerate(arm_validity.BLOCK_ORDER):
+                    entry = arm_command(args, out, name, block, position, arm)
+                    code = run_child(entry, out, env, deadline)
+                    status["children"].append({"name": entry["name"], "returncode": code})
+                    print(f"{entry['name']:<44} exit {code}")
+                    if code != 0:
+                        raise RuntimeError(f"{entry['name']} exited {code}; see its log")
+                block += 1
+        status["disk_rates"] = export_disk(args, out)
+        status["state"] = "finished"
+    except (Exception, KeyboardInterrupt) as exc:
+        status.update(state="stopped", reason=f"{type(exc).__name__}: {exc}")
+    l2l_session.write_json(out / "session.json", status)
+    verdict = g2_rule.evaluate(out)
+    (out / "verdict.json").write_text(json.dumps(verdict, indent=2, default=str) + "\n",
+                                      encoding="utf-8")
+    for gate, row in verdict["gates"].items():
+        print(f"{gate}: {row['status']}: {row['detail']}")
+    print(f"verdict: {verdict['verdict']}")
+    return 0 if status["state"] == "finished" else 3
+
+
+if __name__ == "__main__":
+    sys.exit(main())
