@@ -1,0 +1,97 @@
+E2 follow-up: is the top-K quality loss a property of top-K or of the weak recipe?
+Prospective protocol. Committed before the first arm runs. After the first arm starts,
+nothing here changes; corrections go into a dated ADDENDUM file next to this one.
+
+1. Question
+
+The E2 close-out (top-K LoRA on Mistral-7B) found that training LoRA only on the top
+K = 24 of 32 layers costs more than 1% task CE against all-layer LoRA, with a recipe of
+LoRA r=4 on q_proj/v_proj only, 2,000 rows, sequence 128. This check asks whether the
+gap closes when the adapter has more capacity (rank 16 on every linear module of the
+block), with everything else unchanged.
+
+Out of scope: more data, longer sequences, an instruct base, the activation cache
+(off in every arm), speed, other seeds, models other than Mistral-7B.
+
+2. Platform
+
+Kaggle notebook, accelerator "GPU T4 x2" (two NVIDIA T4, 16 GB each, sm_75), the
+platform of the seed-42 exploratory records in
+benchmarks/e2/quality/mistral7b_two_epoch_record/. Base model
+mistralai/Mistral-7B-v0.3 at revision caa1feb0e54d415e2df31207e5f4e273e33509b1, loaded
+in float16 and split over both GPUs, no quantization (as in those records).
+Code: this branch, delivered to Kaggle as a source kit (kit.py) whose KIT.json names
+the commit and the SHA256 of every file; the notebook refuses a kit whose files differ.
+
+3. Arms (configs in configs/, identical except the fields named here)
+
+  W32  weak recipe, all 32 layers   = record k32_control.yaml (base/output replaced)
+  W24  weak recipe, top 24 layers   = record k24_baseline.yaml (base/output replaced)
+  S32  strong recipe, all 32 layers
+  S24  strong recipe, top 24 layers
+  S16  strong recipe, top 16 layers (secondary, run last, only after the four above)
+
+  Weak:   lora r=4, alpha=8, target_modules [q_proj, v_proj]
+  Strong: lora r=16, alpha=32, target_modules [q_proj, k_proj, v_proj, o_proj,
+          gate_proj, up_proj, down_proj]
+  Shared: experiments/e2_quality_data.jsonl (SHA256
+          3a713df6c2d63eb4670ebb8ab19e6791e3001241c494bf6db28559b0838be1e1,
+          2,000 train / 200 validation by val_split), max_length 128, 2 epochs = 4,000 optimizer steps
+          (batch 1, accumulation 1), lr 1e-4 linear, no warm-up, dropout 0, seed 42,
+          data_seed 42, frozen_prefix_cache false, deterministic algorithms.
+
+Each arm runs benchmarks/e2/quality/run_quality.py --steps 4000 (unchanged, the runner
+of the records), then recipe_check/run_gate.py on the saved adapter: all eight bundled
+gate suites (274 prompts), greedy, 256 new tokens, scorer revision 5 (the MCQ echo /
+letter-first fix). Every raw output is kept, and the analysis re-scores the suites from
+the raw outputs; a mismatch with the notebook's own score is NO_VERDICT.
+
+4. Measures
+
+  CE(arm)       validation loss reported by run_quality.py (200 rows)
+  gap(recipe)   100 * (CE(K24) - CE(K32)) / CE(K32), per recipe (W or S)
+  suite deltas  score(K24) - score(K32), per suite, per recipe
+
+General suites for the rule: mini_mmlu, mini_common_sense, mini_instruction,
+mini_arithmetic, mini_tool_call, mini_format_json. mini_safety is reported but not in
+the rule: the base model scores 0/40 already in the all-layer control (E2 report 3).
+mini_over_refusal is in the rule as an absolute floor of 0.95 for S24.
+
+5. Validity (any failure gives NO_VERDICT, with the reason)
+
+  V1  all four required arms complete: 4,000 steps, finite CE, 200 validation rows,
+      2,000 train rows, parameters changed, deterministic algorithms on, 274 outputs
+      with no generation error, re-scored scores equal the notebook's scores.
+  V2  platform anchor: CE(W32) within 0.5% (relative) of the record, 0.876791179180.
+  V3  the weak failure reproduces: gap(W) >= 1.0.
+  V4  every arm's config equals its template with only base and output replaced, and
+      the kit hash check passed.
+
+6. Decision (strong pair S24 against S32)
+
+  GAP_CLOSED      gap(S) <= 0.5, and every general suite delta(S) >= -0.05,
+                  and over_refusal(S24) >= 0.95.
+  GAP_PERSISTS    gap(S) >= 0.75 * gap(W).
+  GAP_REDUCED     otherwise (the gap shrinks by more than a quarter but is not closed).
+
+The 0.5 threshold, not 1.0, is used because the only other measurement of the same
+pair (seed 901, a different GPU) moved CE(K32) by about 0.5% and the K24 gap by about
+0.4 points; with one seed a gap between 0.5 and 1.0 is not separable from that spread.
+
+S16 is reported with the same measures against S32 and the same thresholds as a
+secondary, descriptive line (GAP_PERSISTS measured against the recorded weak K16 gap,
++8.0491%, seed 42, same platform); it does not change the primary label.
+
+7. Stopping
+
+One attempt per arm. An arm that fails for an infrastructure reason (session limit,
+out of memory, download failure) before training starts may be started again once,
+with the reason written into the results; an arm that failed after training started
+is not repeated, and the series is NO_VERDICT. An arm that takes more than 5 hours of
+wall time is stopped. Kaggle's weekly GPU quota is the only cost; no paid GPU is used.
+
+8. What is never claimed
+
+A result for other seeds, other models, larger data, a training speed-up, or anything
+about the activation cache. With one seed there is no confidence interval; the label
+is a single-seed reading under the thresholds above.
