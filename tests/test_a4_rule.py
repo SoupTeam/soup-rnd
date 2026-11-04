@@ -249,6 +249,35 @@ def test_g1_requires_the_complete_gradient_comparison(rule, tmp_path, field):
         "no verdict")
 
 
+def test_g1_accepts_a_nan_control_gap_in_the_form_the_probe_emits(rule, tmp_path):
+    """``l2l_schedule.compare`` reports max_abs None and names the non-finite tensors when a
+    corrupted read turns the gradients NaN: that control differs, it is not incomplete."""
+    payload = _correctness(4)
+    control = payload["records"][0]["control"]["vs_pinned"]["backward"]
+    control.update(equal=False, unequal=["x"], max_abs=None, nonfinite=["x"])
+    assert rule.evaluate(_session(tmp_path, g1={4: payload}))["gates"]["G1"]["status"] == "pass"
+
+
+@pytest.mark.parametrize("nonfinite", (None, [], "x"))
+def test_g1_does_not_accept_a_null_gap_without_named_nonfinite_tensors(
+        rule, tmp_path, nonfinite):
+    payload = _correctness(4)
+    control = payload["records"][0]["control"]["vs_pinned"]["backward"]
+    control.update(equal=False, unequal=["x"], max_abs=None)
+    if nonfinite is not None:
+        control["nonfinite"] = nonfinite
+    assert rule.evaluate(_session(tmp_path, g1={4: payload}))["gates"]["G1"]["status"] == (
+        "no verdict")
+
+
+def test_g1_still_fails_a_budget_whose_gradients_went_nonfinite(rule, tmp_path):
+    payload = _correctness(4)
+    budget = payload["records"][0]["budgets"]["min"]["vs_ga"]["backward"]
+    budget.update(equal=False, unequal=["x"], max_abs=None, nonfinite=["x"])
+    out = rule.evaluate(_session(tmp_path, g1={4: payload}))["gates"]["G1"]
+    assert out["status"] == "fail" and "max_abs None" in out["detail"]
+
+
 def test_g1_without_any_spilling_budget_is_no_verdict(rule, tmp_path):
     payload = _correctness(4)
     for entry in payload["records"][0]["budgets"].values():

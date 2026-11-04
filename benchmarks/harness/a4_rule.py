@@ -129,6 +129,17 @@ def _combine(parts: Sequence[Dict[str, Any]]) -> str:
 # ---------------------------------------------------------------------------
 # G1: bit-exactness
 # ---------------------------------------------------------------------------
+def _gap_recorded(backward: Dict[str, Any]) -> bool:
+    """``max_abs`` is a number, or ``None`` with the NaN/Inf tensors named: the form
+    ``l2l_schedule.compare`` emits when a difference is not finite (a finite maximum would
+    understate it). Anything else is a missing field."""
+    if type(backward.get("max_abs")) in (int, float):
+        return True
+    nonfinite = backward.get("nonfinite")
+    return (backward.get("max_abs") is None and backward.get("equal") is False
+            and isinstance(nonfinite, list) and bool(nonfinite))
+
+
 def _comparison_complete(pair: Any) -> bool:
     """The forward flag and the full gradient comparison emitted by the probe."""
     if not isinstance(pair, dict) or type(pair.get("forward_equal")) is not bool:
@@ -138,7 +149,7 @@ def _comparison_complete(pair: Any) -> bool:
             and type(backward.get("tensors")) is int and backward["tensors"] > 0
             and all(isinstance(backward.get(key), list)
                     for key in ("unequal", "worst", "all_zero"))
-            and type(backward.get("max_abs")) in (int, float))
+            and _gap_recorded(backward))
 
 
 def _exact(pair: Any) -> bool:
