@@ -354,3 +354,19 @@ def test_kernels_compare_what_was_picked_not_how_many_signatures_were_seen(diag)
     ga = _probe(["EFFICIENT_ATTENTION"], ["EFFICIENT_ATTENTION"], ["EFFICIENT_ATTENTION"])
     l2l = _probe(["EFFICIENT_ATTENTION"])
     assert diag.judge_kernels(ga, l2l)["state"] == "same"
+
+
+def test_kernels_name_the_backends_that_match_the_default_in_every_signature_of_both_arms(diag):
+    ga = _probe(["CUDNN_ATTENTION", "EFFICIENT_ATTENTION"])
+    l2l = _probe(
+        ["CUDNN_ATTENTION", "EFFICIENT_ATTENTION", "FLASH_ATTENTION"],
+        ["EFFICIENT_ATTENTION", "FLASH_ATTENTION"],
+    )
+    verdict = diag.judge_kernels(ga, l2l)
+    assert verdict["state"] == "differ"  # the lists differ, as the rule defines it
+    assert verdict["common"] == ["EFFICIENT_ATTENTION"]  # but one backend explains both arms
+
+
+def test_kernels_have_no_common_backend_when_the_arms_matched_different_ones(diag):
+    verdict = diag.judge_kernels(_probe(["EFFICIENT_ATTENTION"]), _probe(["FLASH_ATTENTION"]))
+    assert verdict["common"] == []

@@ -13,10 +13,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 REPORT = "probe-vast-l2l-dpo-divergence-a6-ticket08.md"
 SECOND_REPORT = "probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md"
 
@@ -97,7 +99,7 @@ def what_showed(summary: Dict[str, Any]) -> List[str]:
     out = []
     f32 = pairs.get("f32_l2l_vs_ga1")
     if c1["state"] == "equal" and f32:
-        out.append(f"- Контроль 1: в float32 L2L побитово равен накоплению на всех {len(f32['steps'])} шагах (градиенты LoRA и потери); накопление в float32 повторяется побитово. Запись типов подтверждает float32 без автокаста в этих трёх плечах. Значит, при закреплённом `MATH` в общем пути L2L в этой ячейке на этой карте ошибки нет. Что разрыв условий тикета 06 (SDPA по умолчанию) вызван только точностью, это не доказано: float32 без закрепления не запускался.")
+        out.append(f"- Контроль 1: в float32 L2L побитово равен накоплению на всех {len(f32['steps'])} шагах (градиенты LoRA и потери); накопление в float32 повторяется побитово. Запись типов подтверждает float32 без автокаста в этих трёх плечах. Значит, при закреплённом `MATH` в общем пути L2L в этой ячейке на этой карте ошибки нет." + (" Без закрепления SDPA см. контроль 1u ниже." if summary.get("control1u") else " Что разрыв условий тикета 06 (SDPA по умолчанию) вызван только точностью, это не доказано: float32 без закрепления не запускался."))
     elif c1["state"] == "not_equal":
         out.append("- Контроль 1: в float32 L2L не равен накоплению; смотрите контроль 3.")
     else:
@@ -111,9 +113,18 @@ def what_showed(summary: Dict[str, Any]) -> List[str]:
         steps = sorted({int(re.match(r"step (\d+)", item).group(1)) for item in c2["problems"]})
         if c2["problems"]:
             out.append(f"- Контроль 2, все шаги: вне предела {len(c2['problems'])} записей на шагах {steps}; наибольшее превышение предела {max(ratios, default=0):.2f} раза (предел это 1,5 пола), меньше чем вдвое превышают {sum(r < 2 for r in ratios)} из {len(ratios)}. Пол здесь одно измерение второго бэкенда. Шаги после нулевого не независимы от шага 0 (адаптеры уже разошлись), поэтому по правилу исход читается как «вне», а размер превышения виден в таблице.")
+    f32u = pairs.get("f32u_l2l_vs_ga1")
+    if summary.get("control1u") and f32u:
+        c1u, kernels = summary["control1u"], summary["kernels"]
+        out.append(f"- Контроль 1u: в float32 при ядрах SDPA по умолчанию L2L {'побитово равен накоплению на всех ' + str(len(f32u['steps'])) + ' шагах' if c1u['state'] == 'equal' else 'не равен накоплению (' + c1u['state'] + ')'}. Ошибки в общем пути L2L нет и без закрепления `MATH`.")
+        import l2l_pref_diagnose
+
+        probes = [(summary["types"].get(arm) or {}).get("sdpa_probe") for arm in ("unpinned_ga", "unpinned_l2l")]
+        common = l2l_pref_diagnose.judge_kernels(*probes).get("common", [])
+        out.append(f"- Ядра по умолчанию в bf16: судья ядер вернул `{kernels['state']}`, но общий бэкенд, совпавший с умолчанием в каждой записанной сигнатуре обоих путей: {', '.join(common) or 'нет'}. Данные согласуются с одним ядром у накопления и у L2L; `MATH` от умолчания отличается (около 2e-3 на выходе внимания), так что умолчание это не `MATH`. Разрыв тикета 06 выбором ядра по этим данным не объяснён: остаётся округление bf16 в операции, где пути различаются (в float32 они равны побитово).")
     unpinned, pinned = pairs.get("unpinned_l2l_vs_ga"), pairs.get("native_l2l_vs_ga1")
     if unpinned and pinned:
-        out.append(f"- Без закрепления SDPA (условия тикета 06) потеря шага 0 расходится на {_fmt(unpinned['steps'][0]['loss'])}, с `MATH` в обоих путях на {_fmt(pinned['steps'][0]['loss'])}. Это совпадает с тем, что L2L вызывает слои без маски внимания, а накопление с маской, и умолчание SDPA может выбирать для них разные ядра. Какое ядро выбрано по умолчанию, здесь не записано, поэтому это наблюдение, а не причина.")
+        out.append(f"- Без закрепления SDPA (условия тикета 06) потеря шага 0 расходится на {_fmt(unpinned['steps'][0]['loss'])}, с `MATH` в обоих путях на {_fmt(pinned['steps'][0]['loss'])}. " + ("Какие ядра выбирает умолчание, записано в дополнении ниже." if summary.get("control1u") else "Это совпадает с тем, что L2L вызывает слои без маски внимания, а накопление с маской, и умолчание SDPA может выбирать для них разные ядра. Какое ядро выбрано по умолчанию, здесь не записано, поэтому это наблюдение, а не причина."))
     return out
 
 
@@ -152,8 +163,23 @@ def addendum_section(summary: Dict[str, Any]) -> List[str]:
                 "; ".join(f"{k}: {v}" for k, v in item["matches"].items() if v != "equal"),
             ])
     out += _table(["плечо", "форма и тип запроса", "маска", "is_causal", "равно умолчанию", "остальные бэкенды"], rows)
+    import l2l_pref_diagnose
+
+    probes = [(summary["types"].get(arm) or {}).get("sdpa_probe") for arm in ("unpinned_ga", "unpinned_l2l")]
+    common = l2l_pref_diagnose.judge_kernels(*probes).get("common", [])
     reading = KERNEL_READING.get((c1u["state"], kernels["state"])) or KERNEL_READING.get((c1u["state"], None))
-    out += ["", f"Чтение по правилу (дополнение): {reading or 'вывод не делается: контроль 1u недоступен или ядра неизвестны.'}", ""]
+    corrected = kernels["state"] == "differ" and bool(common)
+    if not corrected:
+        out += ["", f"Чтение по таблице правила (дополнение): {reading or 'вывод не делается: контроль 1u недоступен или ядра неизвестны.'}", ""]
+    if corrected:
+        out += ["", "Чтение по таблице правила (дополнение) не применено, причина ниже.", ""]
+        out += [
+            "**Поправка после данных.** Судья ядер, как его определяет правило, сравнивает списки совпавших бэкендов и вернул `differ`, потому что "
+            f"в списках L2L есть лишний `FLASH_ATTENTION`. При этом {', '.join('`' + name + '`' for name in common)} совпадает с умолчанием в каждой записанной сигнатуре "
+            "обоих путей, а результаты разных бэкендов могут совпасть случайно. Данные согласуются с одним и тем же ядром у накопления и у L2L, поэтому "
+            "строка таблицы правила «разрыв тикета 06 это выбор ядра» здесь **не заявляется**. Судья дополнен полем `common` после этого прогона (тест `test_kernels_name_the_backends...`).",
+            "",
+        ]
     return out
 
 
@@ -164,7 +190,7 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
     out = [
         f"# A6 тикет 08{', второй прогон (дополнение)' if 'control1u' in summary else ''}: откуда расхождение L2L и накопления градиентов, DPO k=1, SmolLM2-135M, {rental['card']}, {rental['date']}",
         "",
-        *(["Второй прогон по дополнению к правилу: те же плечи, что в первом отчёте (`probe-vast-l2l-dpo-divergence-a6-ticket08.md`), плюс `f32u_*` и запись ядра SDPA. Исход ниже это повторный замер первых контролей в новой сессии на другом хосте, он ничего не заменяет.", ""] if "control1u" in summary else []),
+        *(["Второй прогон по дополнению к правилу: те же плечи, что в первом отчёте (`probe-vast-l2l-dpo-divergence-a6-ticket08.md`), плюс `f32u_*` и запись ядра SDPA. Исход ниже это повторный замер первых контролей в новой сессии на том же хосте (машина 43183), он ничего не заменяет.", ""] if "control1u" in summary else []),
         f"**Вердикт: {verdict}**",
         "",
         "Правило: `benchmarks/l2l-preference-diagnosis-rule-a6-ticket08.md`, закоммичено до драйвера и до аренды; одна поправка (маска заполнения в контроле 3) внесена после смоука драйвера на CPU, тоже до аренды. "
@@ -264,17 +290,19 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
         "- ORPO, SimPO, KTO, другие k, другие модели, другие карты, NF4, реальные наборы.",
         "- Шаги после нулевого начинаются с адаптеров, обновлённых разными градиентами; чистое сравнение даёт шаг 0.",
         "- Скорость и память не измерялись.",
-        "- Float32 получен подменой функций драйвера, а не штатной настройкой продукта. Он запускался только с закреплённым `MATH`; float32 при SDPA по умолчанию (условия тикета 06) не запускался.",
+        "- Float32 получен подменой функций драйвера, а не штатной настройкой продукта.",
+        *(["- Контроль 1 запускался с закреплённым `MATH`; float32 при SDPA по умолчанию проверен плечами `f32u_*` (дополнение), в этой сессии на этой карте."] if "control1u" in summary else ["- Контроль 1 запускался только с закреплённым `MATH`; float32 при SDPA по умолчанию (условия тикета 06) не запускался."]),
+        *(["- Ядро SDPA по умолчанию определено по совпадению результатов с отдельными бэкендами; совпадение двух бэкендов бывает случайным, поэтому названы все совпавшие."] if "control1u" in summary else []),
         "- Исход 2 держится на шагах 1 to 5; на шаге 0 L2L в пределе. Пол шума это одна выборка второго бэкенда SDPA.",
         "- Начальные адаптеры (`start.pt`) не сохранены и хеш не записан; одинаковый старт виден только из равенства на шаге 0 в float32.",
-        "- Ставка рабочего инстанса оценена по предложению, счёта vast.ai нет; стоимость в таблице стенда приблизительная.",
+        "- Счёта vast.ai нет; стоимость в таблице стенда приблизительная" + ("." if rental.get("estimated", True) is False else ", ставка рабочего инстанса оценена по предложению."),
         "- Типы весов записаны изнутри первого вызова слоя 0, а не в момент загрузки хранилища.",
         "",
         "## Файлы",
         "",
         f"- [diagnosis.json]({rel}/diagnosis.json), [environment.json]({rel}/environment.json), [rental.json]({rel}/rental.json)",
         f"- журналы и записи `ArmWatch` каждой попытки: `{rel}/<плечо>/attempt*/` (без каталогов `*-work`)",
-        f"- [create.log]({rel}/create.log), [create-attempt1-failed.log]({rel}/create-attempt1-failed.log), [COMMIT]({rel}/COMMIT)",
+        f"- [create.log]({rel}/create.log), " + (f"[create-attempt1-failed.log]({rel}/create-attempt1-failed.log), " if rental.get("failed") else "") + f"[COMMIT]({rel}/COMMIT)",
         f"- [packages.txt]({rel}/packages.txt), [bootstrap.log]({rel}/bootstrap.log), [a8.log]({rel}/a8.log), [show-instances-after.txt]({rel}/show-instances-after.txt)",
         "- хеши `.pt` каждой попытки лежат в `diagnosis.json` (`attempts`); сами `.pt` в репозиторий не входят.",
         "",
@@ -282,10 +310,32 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
     return "\n".join(out)
 
 
+def repeat_section(second: Dict[str, Any], first: Dict[str, Any]) -> List[str]:
+    """Do the plain-pair numbers of the second run equal the first run's, step for step?"""
+    rows = []
+    for name in sorted(set(second["pairs"]) & set(first["pairs"])):
+        a, b = second["pairs"][name], first["pairs"][name]
+        rows.append([f"`{name}`", "нет данных" if a is None or b is None else ("да" if a["steps"] == b["steps"] else "нет")])
+    states = [
+        [name, first[name]["state"], second[name]["state"]] for name in ("control1", "control2") if name in first and name in second
+    ]
+    return [
+        "## Повтор первого прогона",
+        "",
+        "Те же плечи в новой сессии на том же хосте (машина 43183). Совпадают ли разрывы по шагам (градиент и потеря) с первым отчётом:",
+        "",
+        *_table(["пара", "совпало"], rows),
+        "",
+        *_table(["контроль", "первый прогон", "второй прогон"], states),
+        "",
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--results", required=True, help="directory with diagnosis.json")
     parser.add_argument("--second", action="store_true", help="write the report of the addendum run")
+    parser.add_argument("--first", help="results directory of the first run, for the repeat table")
     args = parser.parse_args()
     results = Path(args.results).resolve()
     summary = json.loads((results / "diagnosis.json").read_text())
@@ -293,7 +343,12 @@ def main() -> int:
     rental = json.loads((results / "rental.json").read_text())
     rel = results.relative_to(ROOT / "benchmarks").as_posix()
     target = ROOT / "benchmarks" / (SECOND_REPORT if args.second else REPORT)
-    target.write_text(render(summary, env, rental, rel))
+    text = render(summary, env, rental, rel)
+    if args.first:
+        first = json.loads((Path(args.first).resolve() / "diagnosis.json").read_text())
+        marker = "## Контроль 1: float32 на CUDA"
+        text = text.replace(marker, "\n".join(repeat_section(summary, first)) + "\n" + marker, 1)
+    target.write_text(text)
     print(target)
     return 0
 

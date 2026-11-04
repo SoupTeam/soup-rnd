@@ -92,7 +92,10 @@ def judge_kernels(
     A probe lists, per attention signature, the backends whose result is bit equal to the
     default call. ``same`` when both arms picked the same sets of backends (how many signatures
     each saw does not matter), ``differ`` when not, ``unknown``
-    when a probe is missing or a signature matched no backend.
+    when a probe is missing or a signature matched no backend. ``common`` lists the backends that
+    match the default in every signature of both arms: equal results of two backends can be
+    chance, so ``differ`` with a non-empty ``common`` does not show that the arms ran different
+    kernels (found in the second run, after the rule was written).
     """
     def lists(probe: Optional[List[Dict[str, Any]]]) -> Optional[List[Any]]:
         if not probe or any(not item["equal_to"] for item in probe):
@@ -103,7 +106,9 @@ def judge_kernels(
     if ga_kernels is None or l2l_kernels is None:
         return {"state": "unknown", "ga": ga_kernels, "l2l": l2l_kernels}
     state = "same" if ga_kernels == l2l_kernels else "differ"
-    return {"state": state, "ga": ga_kernels, "l2l": l2l_kernels}
+    every = [set(names) for names in ga_kernels + l2l_kernels]
+    common = sorted(set.intersection(*every))
+    return {"state": state, "ga": ga_kernels, "l2l": l2l_kernels, "common": common}
 
 
 def _first_step(arm: Dict[str, Any]) -> Dict[str, Any]:
