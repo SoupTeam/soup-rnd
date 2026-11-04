@@ -244,6 +244,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--name", default=None)
     parser.add_argument("--sdpa", default="MATH", choices=["MATH", "EFFICIENT_ATTENTION"])
     parser.add_argument("--no-determinism", action="store_true")
+    parser.add_argument(
+        "--resume-from", default=None, metavar="CHECKPOINT_DIR",
+        help="continue a killed run from this complete checkpoint (see l2l_resume.py)")
     parsed = parser.parse_args(argv)
     t0 = time.perf_counter()
 
@@ -337,11 +340,14 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     transformers.Trainer.__init__ = init
 
+    import l2l_resume
+
     from soup_cli.cli import app
 
-    command = ["train", "--config", parsed.config, "--yes"]
-    if parsed.name:
-        command += ["--name", parsed.name]
+    command = l2l_resume.soup_train_command(parsed.config, parsed.name, parsed.resume_from)
+    resumed_from_step = (
+        l2l_resume.checkpoint_step(Path(parsed.resume_from)) if parsed.resume_from else None
+    )
     failure: Optional[str] = None
     started = time.time()
     try:
@@ -360,6 +366,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         "deterministic": not parsed.no_determinism,
         "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
         "failure": failure,
+        # None for a run that started fresh. A resumed run restarts the layer capture and the
+        # L2L counters, so its timings and peaks do not belong in an uninterrupted comparison.
+        "resumed_from_step": resumed_from_step,
         "wall_s": wall,
         "gpu": l2l_measure.gpu_facts() if cuda else None,
         "load": meter.load,
