@@ -1274,7 +1274,8 @@ as gradient accumulation does for these four trainers.
 
 The config accepts all four methods, but only DPO passed the readiness rule. ORPO, SimPO and KTO
 ran in the same test and missed it by narrow margins (below), so they are marked not ready.
-The flag does not stop them. Their runs are not verified to match accumulation.
+The flag does not stop them, but building their trainer prints a warning that the task is not
+ready. Their runs are not verified to match accumulation.
 
 | Method | Ready | Model and card | Report |
 |---|---|---|---|
@@ -1323,14 +1324,19 @@ guard against a TRL default that moves.
 - DPO reproduces plain sigmoid DPO against the `ref` adapter. It refuses a trainer with a
   `loss_type` other than `sigmoid`, `loss_weights` other than `[1.0]`, a `ref_model`,
   `precompute_ref_log_probs` on (precomputed reference log-probabilities), `ld_alpha`, or an
-  `f_divergence_type` other than `reverse_kl`.
+  `f_divergence_type` other than `reverse_kl`, `label_smoothing` other than 0, or
+  `use_weighting` on (both change the sigmoid loss in TRL 0.29.1).
 - KTO reproduces plain KTO with the adapters switched off as the reference. It refuses a
   `loss_type` other than `kto`, `calculate_KL` off, a `ref_model`, `precompute_ref_log_probs` on,
   a `ref_adapter_name`, and `aux_loss_enabled`. It also needs `dataset_num_proc` unset or 1,
   one process, and TRL's sequential sampler, because TRL builds each row's KL completion inside
   a block of consecutive rows.
-- SimPO refuses rows whose short answer TRL truncates to zero tokens, on this path and on the
-  ordinary path.
+- ORPO refuses a trainer with `aux_loss_enabled` on.
+- SimPO refuses a `loss_type` other than `simpo`, `label_smoothing` other than 0 and
+  `aux_loss_enabled` on. It also refuses rows whose short answer TRL truncates to zero tokens, on
+  this path and on the ordinary path.
+- Every one of these checks also refuses a trainer that lacks the attribute, so a TRL that
+  renames it stops the run instead of passing unchecked.
 - All four share the launch refusals of the SFT section: `model_type` other than `llama` or
   `mistral`, more than one visible GPU, `fp16`, and padding before real tokens.
 
@@ -1354,6 +1360,12 @@ when it builds those trainers, so no mask is drawn in either forward.
 - **float32 is a workaround.** The runs got float32 by replacing two functions in the check
   driver. No supported config setting produces it, so the bit-for-bit result describes the L2L
   step, not a user setting.
+- **Cost of the reference passes.** Each reference pass keeps k hidden states on the GPU (batch x
+  seq x hidden each) for the whole walk over the layers. DPO has one pass. KTO has three passes
+  (policy KL, reference, reference KL), so KTO holds four sets of k hidden states where the
+  policy forward alone holds one. Each pass also does an adapter switch on every layer
+  (`set_adapter` or `disable_adapter`), which walks all LoRA modules each time. Neither the
+  memory nor the time of this was measured.
 - **Library versions.** The division of the window loss by `len(batch_samples)` was read in the
   code of transformers 5.16.1 (the floor in `pyproject.toml`) and 5.20.2, and it is the same.
   The code of trl 0.29.0, the floor in `pyproject.toml`, was not read. The losses of the four

@@ -70,6 +70,9 @@ def test_each_row_names_model_card_and_links_an_existing_report(method):
         "dpo_ref_regen_epochs",
         "ref_adapter_name",
         "neftune_alpha",
+        "label_smoothing",
+        "use_weighting",
+        "aux_loss_enabled",
     ],
 )
 def test_section_names_each_refused_mode(refused):
@@ -129,3 +132,14 @@ def test_changelog_fragments_are_valid_and_one_names_l2l_preference():
         and "preference" in fragment.content.lower()
     ]
     assert added, "no 'added' fragment describes L2L for preference tasks"
+
+
+def test_section_says_that_unready_tasks_print_a_warning():
+    section = _section()
+    assert "prints a warning" in section
+
+
+def test_section_states_the_cost_of_the_reference_passes():
+    section = _section()
+    for phrase in ("hidden states on the GPU", "one pass", "three passes", "adapter switch"):
+        assert phrase in section, phrase
