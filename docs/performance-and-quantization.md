@@ -1,16 +1,19 @@
 # Performance & Quantization
 
 RND developer note: [B1.1 expert-shard storage format](expert-shard-format.md)
-documents the independently readable MoE cache. It is storage-only and does not
-enable expert-streamed training.
+documents the independently readable MoE cache.
 
-[B1.2 expert forward](expert-forward.md) adds an internal sequential forward
-primitive and a prospective correctness/memory gate. The opt-in
+[B1.2/B1.3 streamed experts](expert-forward.md) provide an internal sequential
+forward primitive, first-order backward through frozen routed experts, and internal
+runtime/L2L integration for native DeepSeek-V3. The opt-in
 `training.stream_expert_layout: per_expert` supports experimental frozen-expert
 SFT with attention/shared-expert adapters. The narrow disk preflight requires
 a new cache, one disk, NF4 without double quant and readable source headers.
-Tiny-model CPU and CUDA checks cover backward and adapter reload; no real giant
-checkpoint has yet been validated. See `benchmarks/b6-giant-moe-20261028.md`.
+Routed experts stay frozen, with no expert adapters. One bounded expert arena is
+not a bound on total allocated/reserved VRAM. Tiny-model CPU and CUDA checks cover
+backward and adapter reload; no real giant checkpoint has yet been validated.
+See `benchmarks/b6-giant-moe-20261028.md`. Public MoE L2L launch, planner and
+defaults remain unchanged (B1.4).
 
 [← Back to the Soup README](../README.md)
 
@@ -957,6 +960,16 @@ checkpoints and resume stay with the Hugging Face loop. The default `false` chan
 existing configs. Report:
 [`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
 
+**Internal MoE boundary (B1.3).** The internal step and trainer attachment also
+run native DeepSeek-V3 with per-expert storage; the public launch guard below
+still admits only Llama/Mistral. Non-expert LoRA trains through frozen routed
+experts using one shared weight arena. Each hit expert is read for no-grad
+forward, grad recompute and expert backward: three reads per micro-batch, not
+one expert read per window. Expert activations must be stateless; registered
+buffers are refused for backward, while expert-local random draws use local RNG
+replay. L2L separately replays LoRA/eager-attention dropout in accumulation order.
+See [the boundary and standalone smoke](expert-forward.md#b13-backward-and-l2l).
+
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
 Refused when the config is read:
@@ -1141,7 +1154,8 @@ ran on: the sign of the speed gap changes with the host (see "Status after A5" b
 The activation store sizes the chunks of micro-batch `i` to the largest micro-batch that has
 been in position `i`, so a short row does not pay for the longest row of its window; the RAM
 check sums those sizes. The store was 191 MB for that run. The RAM check used random tokens, not
-real text. MoE and multi-GPU are out of scope.
+real text. Public MoE launch and multi-GPU are out of scope; the separate internal B1.3 MoE
+path is described above.
 
 **Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
 number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
@@ -1240,6 +1254,10 @@ compare 7B runs with a tolerance. The stand is
 | `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
 | `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
 | `l2l_spill_layers` | layers whose activations go to the spill file; 0 when everything stays in RAM |
+
+Internal B1.3 MoE runs additionally log `l2l_expert_fetches` and
+`l2l_expert_bytes_read` (logical stored bytes). These include expert backward
+reloads and are distinct from decoder-layer loads and physical disk traffic.
 
 Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
 flat as k grows. With plain accumulation it grows roughly in proportion to k.

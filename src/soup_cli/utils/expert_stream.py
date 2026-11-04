@@ -1,8 +1,11 @@
-"""Internal MoE streaming with a bounded reusable expert arena.
+"""Internal MoE streaming with a bounded reusable expert arena and per-expert backward.
 
-The eager expert loop is preserved. One reusable weight arena replaces the
-original fetcher's independently allocated tensors. Backward refetches each
-frozen expert; public training integration remains gated in layer_stream_runtime.
+The eager expert loop is preserved. One reusable weight arena replaces the original fetcher's
+independently allocated tensors. Each hit expert is one autograd node: forward and backward
+lease it through the same reader and the same bounded pool, so backward re-reads exactly the
+experts it needs. Routed expert weights stay frozen constants, adapters belong outside routed
+experts and backward admits only the validated stateless SiLU activation. This module is the
+expert primitive only; public YAML/CLI/planner enablement lives elsewhere.
 """
 
 from __future__ import annotations
@@ -108,7 +111,8 @@ class ExpertBufferPool:
     """One synchronous expert lease at a time, backed by one bounded arena.
 
     Returned weights are valid only inside ``lease``; they alias the reusable
-    arena, never the host staging. Concurrent/reentrant leases fail explicitly.
+    arena, never the host staging. Concurrent/reentrant leases fail explicitly,
+    including a backward lease requested while another lease is active.
     CUDA work is synchronized before releasing a lease or recycling staging.
     Readers belong to the caller; close them separately (including on success).
     """
@@ -372,6 +376,19 @@ def _build_streamed_experts_class() -> Any:
         return functional.linear(act_fn(gate) * up, down)
 
     class FrozenExpert(torch.autograd.Function):
+        """One hit expert as one autograd node that leases its weights again in backward.
+
+        Forward computes under a pool lease and saves only the gathered hidden slice (activation
+        memory, never an arena view). Backward leases the same expert through the same reader
+        and pool, rebuilds the body under the forward's autocast state and differentiates it
+        with respect to the hidden slice only. The routing weight is multiplied outside this
+        node, so its gradient needs the saved output rather than a second read. The activation
+        is validated as the stateless SiLU again before any expert is read, so the recompute
+        draws nothing the forward did not. Backward is first-order only: the gradients carry no
+        graph over the arena weights, which the next lease overwrites, so a higher-order
+        derivative is refused rather than taken against stale memory.
+        """
+
         @staticmethod
         def forward(ctx: Any, hidden: Any, owner: Any, expert: int) -> Any:
             ctx.owner = owner
@@ -396,14 +413,32 @@ def _build_streamed_experts_class() -> Any:
             _validate_training_activation(ctx.act_fn)
             (hidden,) = ctx.saved_tensors
             with ctx.owner.pool.lease(ctx.owner.reader, ctx.expert) as (gate_up, down):
+                local = hidden.detach().requires_grad_(True)
+                # Only the recompute replays the forward's autocast state. The VJP itself runs
+                # in the caller's backward state, as eager autograd does, so a backward inside
+                # or outside an autocast region matches the resident module either way.
                 with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
-                    local = hidden.detach().requires_grad_(True)
                     result = expert_mlp(local, gate_up, down, ctx.act_fn)
-                    (grad_hidden,) = torch.autograd.grad(result, local, grad_out)
+                (grad_hidden,) = torch.autograd.grad(result, local, grad_out)
             return grad_hidden, None, None
 
     class StreamedExperts(nn.Module):
-        """Internal frozen-expert forward and first-order backward replacement."""
+        """Eager expert loop over one-slot streamed weights, differentiable in its inputs.
+
+        Hit experts are visited in ascending order. Every visit goes through ``FrozenExpert``,
+        which leases the expert from the pool. It records a backward node only with autograd
+        enabled and a grad-bearing hidden slice; that node's backward leases the same expert
+        again through the same reader and pool. Without a graph the visit is one plain lease
+        with identical arithmetic. The routing weight multiplies the node's output with
+        ordinary autograd. A grad-bearing hidden state or routing weight additionally makes
+        ``forward`` validate the stateless-SiLU activation before any expert is read. Routed
+        weights are frozen constants and never receive a gradient.
+
+        ``last_trace`` holds one row per expert visited by the latest ``forward`` call, so it
+        is bounded by the expert count; a checkpoint recompute is a forward call and replaces
+        it. Backward leases never append rows: they are counted only by ``reader.fetches``,
+        ``reader.bytes_read``, ``pool.fetches`` and ``pool.logical_bytes_read``.
+        """
 
         def __init__(
             self, reader: ExpertShardReader, pool: ExpertBufferPool, act_fn: Any, layer_idx: int
@@ -429,9 +464,10 @@ def _build_streamed_experts_class() -> Any:
                 self.last_trace = []
                 self.pool.validate_reader(self.reader)
                 _validate_routing(hidden_states, top_k_index, top_k_weights, self.pool)
-                if torch.is_grad_enabled() and (
+                differentiable = torch.is_grad_enabled() and (
                     hidden_states.requires_grad or top_k_weights.requires_grad
-                ):
+                )
+                if differentiable:
                     _validate_training_activation(self.act_fn)
                 if top_k_index.shape[1] > self.num_experts:
                     raise ValueError("routing top-k exceeds the expert count")
@@ -457,15 +493,18 @@ def _build_streamed_experts_class() -> Any:
                         current_state = hidden_states[token_idx]
                         current = FrozenExpert.apply(current_state, self, expert)
                         current = current * top_k_weights[token_idx, top_k_pos, None]
-                        final_hidden_states.index_add_(
-                            0, token_idx, current.to(final_hidden_states.dtype)
-                        )
                         row["status"] = "ok"
                     except BaseException:
                         row["status"] = "error"
                         raise
                     finally:
                         row["logical_bytes_read"] = self.reader.bytes_read - before
+                    # Outside the load status on purpose: the lease is over, and a non-reentrant
+                    # checkpoint recompute may stop here (it raises once every saved tensor has
+                    # been recomputed), which is not an expert load failure.
+                    final_hidden_states.index_add_(
+                        0, token_idx, current.to(final_hidden_states.dtype)
+                    )
                 return final_hidden_states
             finally:
                 self._forward_lock.release()
@@ -495,15 +534,16 @@ def _find_experts(layer: Any) -> Optional[Tuple[Any, str, Any]]:
     return found[0] if found else None
 
 
-def install_expert_forward(
+def install_streamed_experts(
     layers: Sequence[Any], readers: Mapping[int, ExpertShardReader], pool: ExpertBufferPool
 ) -> int:
-    """Replace frozen routed experts after validating every layer.
+    """Replace only routed experts after validating ALL layers.
 
     Router, shared experts and dense layers stay with their original MoE code.
-    Readers and pool are caller-owned. Invalid installs do not alter the model.
-    First-order backward refetches weights within a lease and requires the
-    validated stateless SiLU activation; routed-expert adapters are refused.
+    Routed experts become differentiable-through but never trainable: their weights must be
+    frozen and carry no adapters or extra parameters. Backward re-leases each hit expert and
+    requires the validated stateless SiLU activation. Readers and pool are caller-owned.
+    Invalid installs do not alter the model.
     """
     if any(
         isinstance(idx, bool) or not isinstance(idx, int) or not 0 <= idx < len(layers)
@@ -522,6 +562,18 @@ def install_expert_forward(
             raise ValueError(f"layer {idx}: model/cache experts disagree; reshard the checkpoint")
         pool.validate_reader(reader)
         parent, attr, module = found
+        # An adapter (peft ParamWrapper) wraps ``experts`` and hides gate_up_proj/down_proj, so
+        # the parameter set is checked before the layout: a wrapper must read as an unsupported
+        # adapter, not as a shape mismatch. Nothing is read here; installation never reads.
+        parameters = dict(module.named_parameters())
+        if set(parameters) != {"gate_up_proj", "down_proj"}:
+            held = sorted(parameters)
+            shown = (", ".join(held[:3]) + (", ..." if len(held) > 3 else "")) if held else "none"
+            raise ValueError(
+                f"layer {idx}: routed experts must hold exactly the frozen gate_up_proj and "
+                f"down_proj parameters but hold {shown}; adapters or extra parameters on routed "
+                "experts are unsupported (B1.3 allows adapters outside routed experts only)"
+            )
         expected = (
             (reader.count, *reader.shapes[GATE_UP]), (reader.count, *reader.shapes[DOWN])
         )
@@ -531,13 +583,11 @@ def install_expert_forward(
         )
         if actual != expected or not callable(getattr(module, "act_fn", None)):
             raise ValueError(f"layer {idx}: experts shape/activation mismatch; reshard checkpoint")
-        parameters = dict(module.named_parameters())
-        if set(parameters) != {"gate_up_proj", "down_proj"}:
-            raise ValueError(
-                f"layer {idx}: expert adapters/extra parameters are unsupported in B1.2"
-            )
         if any(parameter.requires_grad for parameter in parameters.values()):
-            raise ValueError(f"layer {idx}: B1.2 requires frozen routed-expert weights")
+            raise ValueError(
+                f"layer {idx}: routed-expert weights must stay frozen; B1.3 backpropagates "
+                "through streamed routed experts but never trains them"
+            )
         identity = (id(parent), attr)
         if identity in seen:
             raise ValueError("aliased expert modules cannot share multiple layer replacements")
