@@ -200,7 +200,6 @@ ARMS = {
     "unpinned_ga": ("ga", "native", None),
     "unpinned_l2l": ("l2l", "native", None),
 }
-VERDICT_ARMS = tuple(ARMS)[:7]
 
 
 def apply_dtype_patch(mode: str) -> Dict[str, Any]:
@@ -307,7 +306,7 @@ def run_arm(args: argparse.Namespace) -> None:
         l2l_pref_check._pin_training_device_to_cpu()
     seen = apply_dtype_patch(args.dtype)
     rows = l2l_pref_check.read_rows(METHOD)
-    cfg = l2l_pref_check.build_config("dpo", args.base, K, args.path == "l2l", str(work / "out"))
+    cfg = l2l_pref_check.build_config(METHOD, args.base, K, args.path == "l2l", str(work / "out"))
     wrapper_class = getattr(importlib.import_module("soup_cli.trainer.dpo"), "DPOTrainerWrapper")
     os.chdir(work)
     wrapper = wrapper_class(cfg, device=args.device)
@@ -483,7 +482,7 @@ def run_campaign(args: argparse.Namespace) -> None:
         control3 = first_diverging_layer(traced["trace_ga"]["trace"], traced["trace_l2l"]["trace"])
         control3["dtype"] = outcome["trace_dtype"]
         control3["shapes"] = {
-            name: [list(run["trace"]["embed"].shape)] if run["trace"] else None
+            name: list(run["trace"]["embed"].shape) if run["trace"] else None
             for name, run in traced.items()
         }
     pairs = {
