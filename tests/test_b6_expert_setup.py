@@ -36,12 +36,17 @@ def test_expert_layout_is_opt_in_and_roundtrips():
     ({"moe_lora": True}, "cannot train routed-expert adapters"),
     ({"lora": {"r": 4, "dropout": 0, "target_parameters": ["experts.down_proj"]}},
      "target_parameters is not yet supported"),
-    ({"l2l": True}, "does not support training.l2l"),
     ({"stream_expert_layout": "unknown"}, "per_expert"),
 ])
 def test_unsupported_configurations_refused(change, message):
     with pytest.raises(ValueError, match=message):
         _config(**change)
+
+
+def test_l2l_is_accepted_with_per_expert_streaming():
+    cfg = _config(l2l=True)
+    assert cfg.training.l2l is True
+    assert cfg.training.stream_expert_layout == "per_expert"
 
 
 def test_expert_memory_preflight_reads_real_cache_headers(tmp_path):

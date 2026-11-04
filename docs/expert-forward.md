@@ -13,9 +13,9 @@ each frozen expert inside a bounded lease and accepts only the validated statele
 SiLU activation without hooks; higher-order gradients are refused. The routing weight
 multiplies the per-expert node's output with ordinary autograd, so its gradient needs no
 reload.
-The public L2L launch guard still admits only Llama/Mistral; planner, public YAML/CLI
-fields, budgets and defaults are unchanged. The only public expert-training entry point
-is the opt-in B6 recipe below; public L2L enablement for MoE belongs to B1.4.
+The public L2L launch guard admits Llama/Mistral, and DeepSeek-V3 only with
+`stream_expert_layout: per_expert`; planner, budgets and defaults are unchanged. The only
+public expert-training entry point is the opt-in B6 recipe below.
 
 CPU and CUDA tiny-model tests compare gradients with resident controls and
 exercise optimizer updates and adapter reload. The opt-in SFT configuration is

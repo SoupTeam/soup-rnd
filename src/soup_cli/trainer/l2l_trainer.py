@@ -33,12 +33,16 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
+from soup_cli.utils.expert_shard import EXPERT_LAYOUT_PER_EXPERT
 from soup_cli.utils.l2l_step import LoadCounters
 
-#: Architectures ``training.l2l`` admits at launch. The L2L step itself runs more
-#: (``l2l_step.SUPPORTED_ARCHS``, which adds DeepSeek-V3); enabling those publicly is a
-#: separate decision, so this tuple does not follow the step's.
+#: Architectures ``training.l2l`` admits at launch with any weight layout.
 PUBLIC_ARCHS = ("llama", "mistral")
+
+#: Architectures ``training.l2l`` admits only with ``training.stream_expert_layout``
+#: set to ``EXPERT_LAYOUT_PER_EXPERT``: the DeepSeek-V3 step reads each routed expert from its
+#: own cache entry, which a fused layer cache does not have.
+PER_EXPERT_ARCHS = ("deepseek_v3",)
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +52,25 @@ MAX_CACHED_SHAPES = 64
 
 
 def refuse_unsupported_l2l(
-    model_config: Any, *, n_gpu: int, fp16: bool = False
+    model_config: Any, *, n_gpu: int, fp16: bool = False, expert_layout: str = "fused"
 ) -> None:
-    """Refuse at launch what the schema cannot see: the model, the GPU count, fp16."""
+    """Refuse at launch what the schema cannot see: the model, the GPU count, fp16.
+
+    ``expert_layout`` is ``training.stream_expert_layout``; DeepSeek-V3 needs ``per_expert``.
+    """
     arch = str(getattr(model_config, "model_type", ""))
-    if arch not in PUBLIC_ARCHS:
+    if arch in PER_EXPERT_ARCHS:
+        if expert_layout != EXPERT_LAYOUT_PER_EXPERT:
+            raise ValueError(
+                f"training.l2l with model_type {arch!r} requires "
+                f"training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}; "
+                f"got {expert_layout!r}."
+            )
+    elif arch not in PUBLIC_ARCHS:
         raise ValueError(
             f"training.l2l does not support model_type {arch!r}: it is enabled for "
-            f"{' and '.join(PUBLIC_ARCHS)} only."
+            f"{' and '.join(PUBLIC_ARCHS)}, and for {' and '.join(PER_EXPERT_ARCHS)} "
+            f"with training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}."
         )
     if n_gpu > 1:
         raise ValueError(

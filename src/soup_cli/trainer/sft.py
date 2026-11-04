@@ -728,7 +728,10 @@ class SFTTrainerWrapper(StreamingSetupMixin):
 
         base = self.model.get_base_model() if hasattr(self.model, "get_base_model") else self.model
         refuse_unsupported_l2l(
-            base.config, n_gpu=int(training_args.n_gpu), fp16=bool(training_args.fp16)
+            base.config,
+            n_gpu=int(training_args.n_gpu),
+            fp16=bool(training_args.fp16),
+            expert_layout=self.config.training.stream_expert_layout,
         )
         trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
         attach_l2l_state(

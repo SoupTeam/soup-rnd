@@ -46,8 +46,8 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-#: Architectures whose top-level forward this step re-implements. What ``training.l2l`` admits
-#: at launch is narrower: see ``trainer.l2l_trainer.PUBLIC_ARCHS``.
+#: Architectures whose top-level forward this step re-implements. ``training.l2l`` admits them
+#: at launch under the rules in ``trainer.l2l_trainer.refuse_unsupported_l2l``.
 SUPPORTED_ARCHS = ("llama", "mistral", "deepseek_v3")
 
 

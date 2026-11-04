@@ -3528,8 +3528,10 @@ class TrainingConfig(BaseModel):
             "runs all k micro-batches, k = gradient_accumulation_steps, then "
             "the optimizer takes one step on the adapters. Needs "
             "stream_layers=true, task='sft' and lora.dropout=0; the launch "
-            "also needs a Llama/Mistral model with attention_dropout=0 on a "
-            "single GPU. k=1 behaves like plain streaming. See ADR 0002."
+            "also needs a Llama or Mistral model, or a DeepSeek-V3 model with "
+            "stream_expert_layout='per_expert' (which needs "
+            "stream_source='disk' and quantization='4bit'), with "
+            "attention_dropout=0 on a single GPU. k=1 behaves like plain streaming. See ADR 0002."
         ),
     )
     l2l_spill_dir: Optional[str] = Field(
@@ -6496,8 +6498,6 @@ class SoupConfig(BaseModel):
                 )
             if tcfg.moe_lora or tcfg.lora.target_parameters:
                 raise ValueError("per_expert streaming cannot train routed-expert adapters")
-            if tcfg.l2l:
-                raise ValueError("per_expert streaming does not support training.l2l")
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
         # read-ahead reader belongs to the NVMe disk tier, so a non-default

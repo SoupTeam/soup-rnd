@@ -961,8 +961,8 @@ existing configs. Report:
 [`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
 
 **Internal MoE boundary (B1.3).** The internal step and trainer attachment also
-run native DeepSeek-V3 with per-expert storage; the public launch guard below
-still admits only Llama/Mistral. Non-expert LoRA trains through frozen routed
+run native DeepSeek-V3 with per-expert storage; the public launch guard admits
+Llama/Mistral, and DeepSeek-V3 only with `stream_expert_layout: per_expert`. Non-expert LoRA trains through frozen routed
 experts using one shared weight arena. Each hit expert is read for no-grad
 forward, grad recompute and expert backward: three reads per micro-batch, not
 one expert read per window. Expert activations must be stateless; registered
