@@ -370,3 +370,113 @@ def test_kernels_name_the_backends_that_match_the_default_in_every_signature_of_
 def test_kernels_have_no_common_backend_when_the_arms_matched_different_ones(diag):
     verdict = diag.judge_kernels(_probe(["EFFICIENT_ATTENTION"]), _probe(["FLASH_ATTENTION"]))
     assert verdict["common"] == []
+
+
+# --------------------------------------------------------------------------
+# readiness rule: the cell judge and the method judge
+# --------------------------------------------------------------------------
+def _logs(loads):
+    """A training log: running totals of layer loads, as the L2L trainer logs them."""
+    total, rows = 0, []
+    for step_loads in loads:
+        total += step_loads
+        rows.append({"l2l_layer_loads": total, "l2l_large_loads": 0, "l2l_weight_restores": 0})
+    return rows
+
+
+def _ready_inputs(windows=2):
+    """Everything a clean cell records: float32 arms equal, bf16 arms close, loads like SFT."""
+    arms = {name: _arm(steps=windows) for name in (
+        "f32u_ga1", "f32u_ga2", "f32u_l2l", "native_ga1", "native_l2l")}
+    arms["native_floor"] = _nudge(_arm(steps=windows), by=1e-3, loss_by=1e-4)
+    arms["native_l2l"] = _nudge(_arm(steps=windows), by=1e-4, loss_by=1e-5)
+    types = {f"f32u_{part}": _types() for part in ("ga1", "ga2", "l2l")}
+    logs = {"native_l2l": _logs([5, 4]), "sft": _logs([5, 4])}
+    return {"data": arms, "types": types, "logs": logs, "windows": windows}
+
+
+def test_a_clean_cell_passes_every_criterion(diag):
+    verdict = diag.judge_ready_cell(**_ready_inputs())
+    assert verdict["state"] == "pass"
+    assert verdict["reasons"] == []
+
+
+def test_a_float32_gap_fails_the_cell(diag):
+    inputs = _ready_inputs()
+    inputs["data"]["f32u_l2l"] = _nudge(_arm(), by=1e-6)
+    verdict = diag.judge_ready_cell(**inputs)
+    assert verdict["state"] == "fail"
+    assert any("float32" in reason for reason in verdict["reasons"])
+
+
+def test_a_bf16_gap_outside_the_floor_on_step_zero_fails_the_cell(diag):
+    inputs = _ready_inputs()
+    inputs["data"]["native_l2l"] = _nudge(_arm(), by=5e-3, loss_by=1e-5)
+    verdict = diag.judge_ready_cell(**inputs)
+    assert verdict["state"] == "fail"
+    assert any("bf16" in reason and "step 0" in reason for reason in verdict["reasons"])
+
+
+def test_a_bf16_gap_after_step_zero_does_not_fail_the_cell(diag):
+    inputs = _ready_inputs()
+    inputs["data"]["native_l2l"] = _nudge(_arm(), step=1, by=5e-3)
+    assert diag.judge_ready_cell(**inputs)["state"] == "pass"
+
+
+def test_unconfirmed_float32_types_leave_the_cell_without_a_verdict(diag):
+    inputs = _ready_inputs()
+    inputs["types"]["f32u_l2l"] = _types(mixed_precision="bf16")
+    verdict = diag.judge_ready_cell(**inputs)
+    assert verdict["state"] == "no_verdict"
+    assert any("float32" in reason for reason in verdict["reasons"])
+
+
+@pytest.mark.parametrize("missing", ["native_floor", "native_ga1", "f32u_ga2"])
+def test_a_missing_arm_leaves_the_cell_without_a_verdict(diag, missing):
+    inputs = _ready_inputs()
+    inputs["data"][missing] = None
+    assert diag.judge_ready_cell(**inputs)["state"] == "no_verdict"
+
+
+def test_a_vacuous_float32_arm_fails_the_cell_even_when_it_equals_the_reference(diag):
+    import torch
+
+    inputs = _ready_inputs()
+    zero = {"grads": [{k: torch.zeros_like(v) for k, v in g.items()} for g in _arm()["grads"]],
+            "losses": _arm()["losses"]}
+    for name in ("f32u_ga1", "f32u_ga2", "f32u_l2l"):
+        inputs["data"][name] = zero
+    verdict = diag.judge_ready_cell(**inputs)
+    assert verdict["state"] == "fail"
+    assert any("zero" in reason for reason in verdict["reasons"])
+
+
+def test_extra_layer_loads_against_sft_fail_the_cell(diag):
+    inputs = _ready_inputs()
+    inputs["logs"]["native_l2l"] = _logs([5, 6])
+    verdict = diag.judge_ready_cell(**inputs)
+    assert verdict["state"] == "fail"
+    assert any("layer loads" in reason for reason in verdict["reasons"])
+
+
+def test_a_failure_on_a_valid_criterion_stands_when_another_has_no_data(diag):
+    inputs = _ready_inputs()
+    inputs["data"]["f32u_l2l"] = _nudge(_arm(), by=1e-6)
+    inputs["data"]["native_floor"] = None
+    assert diag.judge_ready_cell(**inputs)["state"] == "fail"
+
+
+def test_a_method_passes_only_when_all_three_cells_pass(diag):
+    verdict = diag.judge_ready_method({1: "pass", 2: "pass", 4: "pass"})
+    assert verdict["state"] == "pass"
+
+
+def test_a_failed_cell_fails_the_method_whatever_the_others_say(diag):
+    verdict = diag.judge_ready_method({1: "pass", 2: "no_verdict", 4: "fail"})
+    assert verdict["state"] == "fail"
+    assert "k=4" in verdict["reason"]
+
+
+def test_a_method_without_a_cell_or_with_an_undecided_one_has_no_verdict(diag):
+    assert diag.judge_ready_method({1: "pass", 2: "pass"})["state"] == "no_verdict"
+    assert diag.judge_ready_method({1: "pass", 2: "no_verdict", 4: "pass"})["state"] == "no_verdict"

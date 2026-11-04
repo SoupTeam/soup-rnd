@@ -16,6 +16,7 @@ import hashlib
 import importlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from contextlib import nullcontext
@@ -140,6 +141,76 @@ def judge_floor(
     }
 
 
+def judge_ready_cell(
+    *,
+    data: Dict[str, Optional[Dict[str, Any]]],
+    types: Dict[str, Any],
+    logs: Dict[str, Optional[List[Dict[str, Any]]]],
+    windows: int,
+) -> Dict[str, Any]:
+    """One cell (method, k) against the readiness rule: criteria 1 to 4.
+
+    1. float32, bit for bit (``judge_float32``, prefix ``f32u``);
+    2. bf16 on step 0, the A3-07 factor with the second SDPA backend as floor (later steps are
+       recorded by ``judge_floor`` but never judged here);
+    3. the float32 L2L arm is not vacuous;
+    4. layer loads equal to L2L SFT, large loads and restores not larger.
+
+    ``fail`` when any criterion fails on valid data, even if another has none; ``no_verdict``
+    when none fails but a criterion could not speak; ``pass`` otherwise.
+    """
+    fails: List[str] = []
+    undecided: List[str] = []
+
+    float32 = judge_float32(
+        data.get("f32u_ga1"), data.get("f32u_ga2"), data.get("f32u_l2l"), types, prefix="f32u"
+    )
+    if float32["state"] == "not_equal":
+        fails.append(f"float32 is not bit equal: {float32['problems'][0]}")
+    elif float32["state"] == "unavailable":
+        undecided.append(f"float32 unavailable: {float32['problems'][0]}")
+
+    bf16 = judge_floor(data.get("native_ga1"), data.get("native_floor"), data.get("native_l2l"))
+    if bf16["state"] == "no_data":
+        undecided.append(f"bf16 has no data: {bf16['problems'][0]}")
+    elif not bf16["step0_within"]:
+        step0 = [item for item in bf16["problems"] if item.startswith("step 0:")]
+        fails.append(f"bf16 step 0 is outside 1.5 floors: {step0[0] if step0 else 'see problems'}")
+
+    if data.get("f32u_l2l") is not None:
+        fails += [f"vacuous: {item}" for item in l2l_pref_check._not_worth_comparing(
+            data["f32u_l2l"], windows)]
+
+    method_log, sft_log = logs.get("native_l2l"), logs.get("sft")
+    if not method_log or not sft_log:
+        undecided.append("loads: a training log is missing")
+    else:
+        loads = l2l_pref_check.judge_loads(method_log, sft_log)
+        fails += [f"loads: {item}" for item in loads["problems"]]
+
+    state = "fail" if fails else ("no_verdict" if undecided else "pass")
+    return {
+        "state": state, "reasons": fails + undecided,
+        "float32": float32, "bf16": bf16,
+    }
+
+
+def judge_ready_method(cells: Dict[int, str]) -> Dict[str, Any]:
+    """The verdict of one method from the states of its cells (k -> pass, fail, no_verdict).
+
+    A fail stands whatever the other cells say; a missing or undecided cell leaves no verdict.
+    """
+    reasons = [f"no cell for k={k}" for k in l2l_pref_check.KS if k not in cells]
+    reasons += [f"k={k}: {state}" for k, state in sorted(cells.items()) if state != "pass"]
+    if any(state == "fail" for state in cells.values()):
+        state = "fail"
+    elif reasons:
+        state = "no_verdict"
+    else:
+        state = "pass"
+    return {"state": state, "reason": "; ".join(reasons)}
+
+
 #: Row of the outcome table -> what it means (rule, "Таблица исходов"). The report quotes the rule.
 CONCLUSIONS = {
     1: "rounding, no bug; the readiness criterion of the preference methods moves to the A3-07 "
@@ -236,15 +307,15 @@ ARMS = {
 }
 
 
-def apply_dtype_patch(mode: str) -> Dict[str, Any]:
+def apply_dtype_patch(mode: str, method: str = "dpo") -> Dict[str, Any]:
     """Record what the stream dtype resolver returns; in ``f32`` mode force float32 and no autocast.
 
     The two substitutions of the rule (control 1): ``resolve_stream_dtype`` and the
-    ``bf16_fp16_flags`` the DPO wrapper reads. Both are looked up at call time, so setting them
-    before ``setup()`` works.
+    ``bf16_fp16_flags`` the wrapper of ``method`` reads (its module imports the name at the top).
+    Both are looked up at call time, so setting them before ``setup()`` works.
     """
     layer_stream = importlib.import_module("soup_cli.utils.layer_stream")
-    dpo = importlib.import_module("soup_cli.trainer.dpo")
+    wrapper_module = importlib.import_module(l2l_pref_check.METHODS[method][0])
     seen: Dict[str, Any] = {}
     real = layer_stream.resolve_stream_dtype
 
@@ -255,7 +326,7 @@ def apply_dtype_patch(mode: str) -> Dict[str, Any]:
 
     layer_stream.resolve_stream_dtype = resolve
     if mode == "f32":
-        dpo.bf16_fp16_flags = lambda device, **_kw: (False, False)
+        wrapper_module.bf16_fp16_flags = lambda device, **_kw: (False, False)
     return seen
 
 
@@ -397,7 +468,7 @@ def record_first_mask(trainer: Any, probes: Dict[str, Any]) -> None:
 
     def collate(features: Any) -> Any:
         batch = real(features)
-        if "mask" not in probes:
+        if "mask" not in probes and "attention_mask" in batch:
             probes["mask"] = batch["attention_mask"].detach().cpu().clone().bool()
         return batch
 
@@ -415,18 +486,31 @@ def run_arm(args: argparse.Namespace) -> None:
     if args.device == "cpu":
         os.environ["ACCELERATE_USE_CPU"] = "true"
         l2l_pref_check._pin_training_device_to_cpu()
-    seen = apply_dtype_patch(args.dtype)
-    rows = l2l_pref_check.read_rows(METHOD)
-    cfg = l2l_pref_check.build_config(METHOD, args.base, K, args.path == "l2l", str(work / "out"))
-    wrapper_class = getattr(importlib.import_module("soup_cli.trainer.dpo"), "DPOTrainerWrapper")
+    sft = args.path == "sft"
+    seen = apply_dtype_patch(args.dtype, args.method)
+    rows = l2l_pref_check.read_rows(args.method)
+    rows = l2l_pref_check.sft_rows(rows) if sft else rows
+    cfg = l2l_pref_check.build_config(
+        "sft" if sft else args.method, args.base, args.k, args.path in ("l2l", "sft"),
+        str(work / "out"),
+    )
+    module, name, _data = l2l_pref_check.METHODS[args.method]
+    wrapper_class = getattr(
+        importlib.import_module("soup_cli.trainer.sft" if sft else module),
+        "SFTTrainerWrapper" if sft else name,
+    )
     os.chdir(work)
     wrapper = wrapper_class(cfg, device=args.device)
     wrapper.setup({"train": rows})
     try:
-        l2l_pref_check._start_adapters(wrapper.model, Path(args.start))
-        probes = install_probes(wrapper.model, trace=args.trace)
-        record_first_mask(wrapper.trainer, probes)
-        recorder = install_sdpa_recorder()
+        probes: Dict[str, Any] = {"types": {}}
+        recorder = None
+        if not sft:  # the SFT arm only counts layer loads
+            l2l_pref_check._start_adapters(wrapper.model, Path(args.start))
+            probes = install_probes(wrapper.model, trace=args.trace)
+            if args.trace:
+                record_first_mask(wrapper.trainer, probes)
+            recorder = install_sdpa_recorder()
         grads: List[Dict[str, Any]] = []
 
         class Recorder(TrainerCallback):
@@ -444,8 +528,9 @@ def run_arm(args: argparse.Namespace) -> None:
             with sdpa_context(args.sdpa):
                 wrapper.trainer.train()
         finally:
-            remove_sdpa_recorder(recorder)
-        sdpa_probe = probe_sdpa(recorder)
+            if recorder is not None:
+                remove_sdpa_recorder(recorder)
+        sdpa_probe = probe_sdpa(recorder) if recorder is not None else []
         log_rows = [row for row in wrapper.trainer.state.log_history if "loss" in row]
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
@@ -470,6 +555,8 @@ def run_arm(args: argparse.Namespace) -> None:
             "allow_tf32": bool(torch.backends.cuda.matmul.allow_tf32),
             "dtype_mode": args.dtype,
             "path": args.path,
+            "method": args.method,
+            "k": args.k,
             "sdpa_probe": sdpa_probe,
         }
         (out / f"{args.arm}.types.json").write_text(json.dumps(record, indent=1))
@@ -479,7 +566,7 @@ def run_arm(args: argparse.Namespace) -> None:
                 {
                     "embed": probes["embed"],
                     "layers": [layers[i] for i in sorted(layers)],
-                    "mask": probes["mask"],
+                    "mask": probes.get("mask"),
                 },
                 out / f"{args.arm}.trace.pt",
             )
@@ -499,26 +586,34 @@ def _sha256(path: Path) -> str:
 
 def run_one_arm(
     args: argparse.Namespace, name: str, path: str, dtype: str, sdpa: Optional[str],
-    *, trace: bool = False,
+    *, trace: bool = False, method: str = METHOD, k: int = K,
+    root: Optional[Path] = None, start: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """One arm with up to ``MAX_ATTEMPTS`` tries; ``void`` and crashes are rerun, never dropped.
 
-    Returns ``{"attempts": [...], "data": arm or None, "types": record or None, "trace": ...}``.
-    ``unknown`` on a required check stops the tries: that arm gives no data.
+    Returns ``{"attempts": [...], "data": arm or None, "types": record or None, "trace": ...,
+    "log": training log rows or None}``. ``unknown`` on a required check stops the tries: that arm
+    gives no data. ``root`` is where the arm's attempts go (default ``args.out``), ``start`` the
+    shared starting adapters.
     """
     import torch
     from arm_validity import ArmWatch
 
-    result: Dict[str, Any] = {"attempts": [], "data": None, "types": None, "trace": None}
+    result: Dict[str, Any] = {
+        "attempts": [], "data": None, "types": None, "trace": None, "log": None,
+    }
+    root = Path(args.out) if root is None else root
+    start = Path(args.out) / "start.pt" if start is None else start
     env = {**os.environ, "PYTHONPATH": str(l2l_pref_check.ROOT / "src")}
     for index in range(MAX_ATTEMPTS):
-        attempt_dir = Path(args.out) / name / f"attempt{index}"
+        attempt_dir = root / name / f"attempt{index}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
         command = [
             sys.executable, str(Path(__file__).resolve()), "arm", "--arm", name, "--path", path,
             "--dtype", dtype, "--base", args.base, "--device", args.device,
+            "--method", method, "--k", str(k),
             "--work", str(attempt_dir / f"{name}-work"), "--out", str(attempt_dir),
-            "--start", str(Path(args.out) / "start.pt"),
+            "--start", str(start),
         ] + (["--sdpa", sdpa] if sdpa else []) + (["--trace"] if trace else [])  # fmt: skip
         log = attempt_dir / f"{name}.out"
         with ArmWatch(
@@ -529,6 +624,7 @@ def run_one_arm(
                 done = subprocess.run(
                     command, stdout=handle, stderr=subprocess.STDOUT, env=env, check=False
                 )  # fmt: skip
+        shutil.rmtree(attempt_dir / f"{name}-work", ignore_errors=True)  # the shard cache, 0.3 GB
         record = watch.record
         (attempt_dir / f"{name}.watch.json").write_text(json.dumps(record, indent=1, default=str))
         entry: Dict[str, Any] = {
@@ -547,6 +643,7 @@ def run_one_arm(
             return result
         result["data"] = torch.load(attempt_dir / f"{name}.pt")
         result["types"] = json.loads((attempt_dir / f"{name}.types.json").read_text())
+        result["log"] = json.loads((attempt_dir / f"{name}.log.json").read_text())
         entry["sha256"] = _sha256(attempt_dir / f"{name}.pt")
         if trace:
             result["trace"] = torch.load(attempt_dir / f"{name}.trace.pt")
@@ -571,6 +668,66 @@ def _pair(
         loss = abs(ref["losses"][step] - other["losses"][step]) if both else None
         steps.append({"step": step, "grad": gap, "loss": loss})
     return {"steps": steps, "overall": l2l_pref_check.max_abs_diff(ref, other)}
+
+
+#: The arms of one readiness cell (rule: ``l2l-preference-readiness-rule-a6.md``).
+READY_ARMS = {
+    "f32u_ga1": ("ga", "f32", None),
+    "f32u_ga2": ("ga", "f32", None),
+    "f32u_l2l": ("l2l", "f32", None),
+    "native_ga1": ("ga", "native", "MATH"),
+    "native_l2l": ("l2l", "native", "MATH"),
+    "native_floor": ("ga", "native", "EFFICIENT_ATTENTION"),
+    "sft": ("sft", "native", None),
+}
+
+
+def run_ready(args: argparse.Namespace) -> None:
+    """Every cell (method, k) of the chosen methods, judged by the readiness rule."""
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    env = l2l_pref_check.environment(args.base)
+    (out / "environment.json").write_text(json.dumps(env, indent=1))
+    for method in args.methods:
+        start = out / method / "start.pt"
+        rows = len(l2l_pref_check.read_rows(method))
+        cells: Dict[int, str] = {}
+        records: Dict[str, Any] = {"method": method, "environment": env, "cells": {}}
+        for k in args.ks:
+            root = out / method / f"k{k}"
+            runs = {
+                name: run_one_arm(
+                    args, name, path, dtype, sdpa, method=method, k=k, root=root, start=start
+                )
+                for name, (path, dtype, sdpa) in READY_ARMS.items()
+            }
+            data = {name: run["data"] for name, run in runs.items()}
+            verdict = judge_ready_cell(
+                data=data,
+                types={name: run["types"] for name, run in runs.items()},
+                logs={name: run["log"] for name, run in runs.items()},
+                windows=l2l_pref_check.windows_for(rows, k),
+            )
+            cells[k] = verdict["state"]
+            records["cells"][str(k)] = {
+                "k": k, "verdict": verdict, "windows": l2l_pref_check.windows_for(rows, k),
+                "attempts": {name: run["attempts"] for name, run in runs.items()},
+                "types": {name: run["types"] for name, run in runs.items()},
+                "losses": {n: r["data"]["losses"] for n, r in runs.items() if r["data"]},
+                "logs": {n: r["log"] for n, r in runs.items() if n in ("native_l2l", "sft")},
+                "pairs": {
+                    label: _pair(data[ref], data[other]) for label, (ref, other) in {
+                        "f32u_l2l_vs_ga1": ("f32u_ga1", "f32u_l2l"),
+                        "f32u_ga2_vs_ga1": ("f32u_ga1", "f32u_ga2"),
+                        "native_l2l_vs_ga1": ("native_ga1", "native_l2l"),
+                        "native_floor_vs_ga1": ("native_ga1", "native_floor"),
+                    }.items()
+                },
+            }
+            records["method_verdict"] = judge_ready_method(cells)
+            (out / f"ready-{method}.json").write_text(json.dumps(records, indent=1, default=str))
+            print(f"{method} k={k}: {verdict['state']} {verdict['reasons'][:2]}", flush=True)
+        print(f"{method}: {records['method_verdict']}", flush=True)
 
 
 def run_campaign(args: argparse.Namespace) -> None:
@@ -637,7 +794,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     arm = sub.add_parser("arm", help="train one arm in this process")
     arm.add_argument("--arm", required=True)
-    arm.add_argument("--path", choices=["ga", "l2l"], required=True)
+    arm.add_argument("--path", choices=["ga", "l2l", "sft"], required=True)
+    arm.add_argument("--method", choices=sorted(l2l_pref_check.METHODS), default=METHOD)
+    arm.add_argument("--k", type=int, default=K)
     arm.add_argument("--dtype", choices=["native", "f32"], required=True)
     arm.add_argument("--sdpa", choices=["MATH", "EFFICIENT_ATTENTION"], default=None)
     arm.add_argument("--trace", action="store_true")
@@ -655,9 +814,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--model-path",
         default=os.environ.get("HF_HOME") or str(Path.home() / ".cache" / "huggingface"),
     )
+    ready = sub.add_parser("ready", help="the readiness rule: every cell of the chosen methods")
+    ready.add_argument(
+        "--methods", nargs="+", default=sorted(l2l_pref_check.METHODS),
+        choices=sorted(l2l_pref_check.METHODS),
+    )
+    ready.add_argument("--ks", nargs="+", type=int, default=list(l2l_pref_check.KS))
+    ready.add_argument("--base", default=l2l_pref_check.DEFAULT_BASE)
+    ready.add_argument("--device", default="cuda")
+    ready.add_argument("--out", required=True)
+    ready.add_argument("--label", default="synthetic data, SmolLM2-135M")
+    ready.add_argument(
+        "--model-path",
+        default=os.environ.get("HF_HOME") or str(Path.home() / ".cache" / "huggingface"),
+    )
     args = parser.parse_args(argv)
     if args.command == "arm":
         run_arm(args)
+    elif args.command == "ready":
+        run_ready(args)
     else:
         run_campaign(args)
     return 0
