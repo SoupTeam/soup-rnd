@@ -1,0 +1,31 @@
+{
+ "config": "overflow.yaml",
+ "sdpa": "MATH",
+ "deterministic": true,
+ "cublas_workspace_config": ":4096:8",
+ "failure": "ValueError: training.l2l keeps 32 layers x 965 micro-batches of activations in host RAM: 198.88 GB of pinned blocks (a 10.6 MB chunk takes a 16.8 MB pinned block), but only 192.8 GB is free and 70% of that is usable. Lower gradient_accumulation_steps, data.max_length or batch_size, or free RAM.",
+ "wall_s": 39.91123366355896,
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 3090",
+  "memory_total_mib": 24576,
+  "driver": "580.95.05"
+ },
+ "load": {
+  "read_bytes_since_process_start": 7294976,
+  "write_bytes_since_process_start": 159744,
+  "peak_vram_allocated_bytes": 548103680,
+  "peak_rss_bytes": 5932290048,
+  "seconds_since_process_start": 42.28379859199049,
+  "counters": {
+   "layer_loads": 0,
+   "nf4_restores": 0,
+   "large_loads": 0,
+   "pinned_store_bytes": 0
+  }
+ },
+ "steps": [],
+ "losses": [],
+ "process_peak_rss_bytes": 6079868928,
+ "process_peak_vram_allocated_bytes": null,
+ "run": null
+}

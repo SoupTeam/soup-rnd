@@ -1,0 +1,2193 @@
+{
+  "label": "RTX 5090, synthetic (random data, one layer)",
+  "data_kind": "synthetic",
+  "shape": {
+    "tokens": 1040,
+    "in_features": 1056,
+    "out_features": 1040
+  },
+  "valid_blocks": 5,
+  "void_blocks": 0,
+  "arms": {
+    "A": {
+      "path": "fp4",
+      "runs": 10,
+      "mean_seconds": 0.00017485120072960854,
+      "rel_error": 0.14644746482372284,
+      "cosine": 0.9892491102218628
+    },
+    "B": {
+      "path": "fp4+pad",
+      "runs": 10,
+      "mean_seconds": 0.00021964959949254988,
+      "rel_error": 0.14644746482372284,
+      "cosine": 0.9892491102218628
+    }
+  },
+  "padding_to_128": [
+    {
+      "padded": {
+        "tokens": 1152,
+        "in_features": 1152,
+        "out_features": 1152
+      },
+      "flop_overhead": 0.33852608929532013,
+      "weight_overhead": 0.20839160839160842
+    }
+  ],
+  "sigma": 5.99836640433973e-06,
+  "blocks_needed": 2,
+  "blocks": [
+    [
+      {
+        "arm": "A",
+        "value": 0.0001730560064315796,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 1,
+          "run": 1,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681563.1270044,
+            "ram_available_bytes": 113317220352,
+            "commit_charge": {
+              "used_bytes": 1997537280,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681567.383277,
+            "ram_available_bytes": 113320472576,
+            "commit_charge": {
+              "used_bytes": 2009100288,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 240 to 2520 MHz over 4 samples; clock event reasons seen: none",
+            "samples": 4,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 240,
+              "median": 2520.0,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -5.409820005297661e-07,
+                "sleep_offset_end_s": -3.7997961044311523e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 4 power samples, so on mains",
+              "evidence": {
+                "samples": 4,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00022379200160503387,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 1,
+          "run": 2,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681567.4368165,
+            "ram_available_bytes": 113322582016,
+            "commit_charge": {
+              "used_bytes": 2009116672,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681572.0391045,
+            "ram_available_bytes": 113316642816,
+            "commit_charge": {
+              "used_bytes": 2008440832,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 4 samples; clock event reasons seen: none",
+            "samples": 4,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520.0,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -3.109453245997429e-07,
+                "sleep_offset_end_s": -3.6100391298532486e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 4 power samples, so on mains",
+              "evidence": {
+                "samples": 4,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00021908800303936004,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 2,
+          "run": 3,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681572.0856514,
+            "ram_available_bytes": 113316921344,
+            "commit_charge": {
+              "used_bytes": 2008592384,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681576.2431676,
+            "ram_available_bytes": 113312227328,
+            "commit_charge": {
+              "used_bytes": 2008576000,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 4 samples; clock event reasons seen: none",
+            "samples": 4,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520.0,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.8009526431560516e-07,
+                "sleep_offset_end_s": -3.0105002224445343e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 4 power samples, so on mains",
+              "evidence": {
+                "samples": 4,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "A",
+        "value": 0.0001740799993276596,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 2,
+          "run": 4,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681576.292067,
+            "ram_available_bytes": 113313017856,
+            "commit_charge": {
+              "used_bytes": 2008592384,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681580.2946126,
+            "ram_available_bytes": 113314525184,
+            "commit_charge": {
+              "used_bytes": 2008576000,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -4.109460860490799e-07,
+                "sleep_offset_end_s": -3.110617399215698e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 4 power samples, so on mains",
+              "evidence": {
+                "samples": 4,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      }
+    ],
+    [
+      {
+        "arm": "A",
+        "value": 0.00017052799463272095,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 3,
+          "run": 5,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681580.3366706,
+            "ram_available_bytes": 113311428608,
+            "commit_charge": {
+              "used_bytes": 2008592384,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681584.1392064,
+            "ram_available_bytes": 113289011200,
+            "commit_charge": {
+              "used_bytes": 2177667072,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.0104926079511642e-07,
+                "sleep_offset_end_s": -3.00002284348011e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00022708799690008164,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 3,
+          "run": 6,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681584.1874774,
+            "ram_available_bytes": 113287774208,
+            "commit_charge": {
+              "used_bytes": 2177683456,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681588.1945004,
+            "ram_available_bytes": 113295572992,
+            "commit_charge": {
+              "used_bytes": 2033324032,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.4097971618175507e-07,
+                "sleep_offset_end_s": -3.309687599539757e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 4 power samples, so on mains",
+              "evidence": {
+                "samples": 4,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00021849599480628967,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 4,
+          "run": 7,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681588.2438192,
+            "ram_available_bytes": 113295319040,
+            "commit_charge": {
+              "used_bytes": 2033340416,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681592.0472682,
+            "ram_available_bytes": 113295659008,
+            "commit_charge": {
+              "used_bytes": 2033324032,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -1.909211277961731e-07,
+                "sleep_offset_end_s": -2.899905666708946e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "A",
+        "value": 0.00017606400698423386,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 4,
+          "run": 8,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681592.0968637,
+            "ram_available_bytes": 113296175104,
+            "commit_charge": {
+              "used_bytes": 2033340416,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681595.73109,
+            "ram_available_bytes": 113300414464,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -3.7101563066244125e-07,
+                "sleep_offset_end_s": -2.210726961493492e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      }
+    ],
+    [
+      {
+        "arm": "A",
+        "value": 0.00017009600251913072,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 5,
+          "run": 9,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681595.7736685,
+            "ram_available_bytes": 113300168704,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681599.4370883,
+            "ram_available_bytes": 113296470016,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -4.5099295675754547e-07,
+                "sleep_offset_end_s": -2.9103830456733704e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00021638400107622146,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 5,
+          "run": 10,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681599.4836028,
+            "ram_available_bytes": 113295843328,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681603.1304123,
+            "ram_available_bytes": 113298022400,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -3.6100391298532486e-07,
+                "sleep_offset_end_s": -3.209570422768593e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.0002125760018825531,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 6,
+          "run": 11,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681603.1733308,
+            "ram_available_bytes": 113298341888,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681606.8190882,
+            "ram_available_bytes": 113302974464,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.4994369596242905e-07,
+                "sleep_offset_end_s": -3.310851752758026e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "A",
+        "value": 0.00016945599764585495,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 6,
+          "run": 12,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681606.8615532,
+            "ram_available_bytes": 113301962752,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681610.520027,
+            "ram_available_bytes": 113307074560,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2610 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2610
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.9103830456733704e-07,
+                "sleep_offset_end_s": -3.209570422768593e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      }
+    ],
+    [
+      {
+        "arm": "A",
+        "value": 0.00017339199781417846,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 7,
+          "run": 13,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681610.5659575,
+            "ram_available_bytes": 113306042368,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681614.1777942,
+            "ram_available_bytes": 113309859840,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -4.00003045797348e-07,
+                "sleep_offset_end_s": -2.00001522898674e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00021558399498462677,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 7,
+          "run": 14,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681614.2272084,
+            "ram_available_bytes": 113309605888,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681617.8701844,
+            "ram_available_bytes": 113311670272,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.4097971618175507e-07,
+                "sleep_offset_end_s": -3.200257197022438e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00021800000220537186,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 8,
+          "run": 15,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681617.9159682,
+            "ram_available_bytes": 113311670272,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681621.639189,
+            "ram_available_bytes": 113311105024,
+            "commit_charge": {
+              "used_bytes": 2008739840,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.200249582529068e-07,
+                "sleep_offset_end_s": -2.899905666708946e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "A",
+        "value": 0.00017679999768733978,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 8,
+          "run": 16,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681621.6824791,
+            "ram_available_bytes": 113309556736,
+            "commit_charge": {
+              "used_bytes": 2008756224,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681625.4132466,
+            "ram_available_bytes": 113293762560,
+            "commit_charge": {
+              "used_bytes": 2058321920,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.200249582529068e-07,
+                "sleep_offset_end_s": -5.610054358839989e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      }
+    ],
+    [
+      {
+        "arm": "A",
+        "value": 0.00019387199729681016,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 9,
+          "run": 17,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681625.457879,
+            "ram_available_bytes": 113293266944,
+            "commit_charge": {
+              "used_bytes": 2058338304,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681629.2323616,
+            "ram_available_bytes": 113294528512,
+            "commit_charge": {
+              "used_bytes": 2058321920,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2527 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2527
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -3.100140020251274e-07,
+                "sleep_offset_end_s": -4.810281097888947e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00022569599747657775,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 9,
+          "run": 18,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681629.2806828,
+            "ram_available_bytes": 113295822848,
+            "commit_charge": {
+              "used_bytes": 2058338304,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681632.9436474,
+            "ram_available_bytes": 113298997248,
+            "commit_charge": {
+              "used_bytes": 2058321920,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -5.00003807246685e-07,
+                "sleep_offset_end_s": -5.109468474984169e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "B",
+        "value": 0.00021979200094938278,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "B",
+          "round": 10,
+          "run": 19,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681632.991013,
+            "ram_available_bytes": 113298755584,
+            "commit_charge": {
+              "used_bytes": 2058338304,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681636.6931858,
+            "ram_available_bytes": 113301774336,
+            "commit_charge": {
+              "used_bytes": 2033741824,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -4.799803718924522e-07,
+                "sleep_offset_end_s": -5.109468474984169e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      },
+      {
+        "arm": "A",
+        "value": 0.0001711680069565773,
+        "error": {
+          "rel_error": 0.14644746482372284,
+          "cosine": 0.9892491102218628,
+          "max_abs_diff": 0.48583984375
+        },
+        "outcome": "ok",
+        "record": {
+          "arm": "A",
+          "round": 10,
+          "run": 20,
+          "label": "RTX 5090, synthetic (random data, one layer)",
+          "gpu": {
+            "id": "0",
+            "source": "default"
+          },
+          "required": [
+            "suspend",
+            "power"
+          ],
+          "outcome": "ok",
+          "box_stamp_before": {
+            "unix_s": 1792681636.7363563,
+            "ram_available_bytes": 113301520384,
+            "commit_charge": {
+              "used_bytes": 2033758208,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "box_stamp_after": {
+            "unix_s": 1792681640.4087677,
+            "ram_available_bytes": 113302794240,
+            "commit_charge": {
+              "used_bytes": 2033741824,
+              "limit_bytes": 58011103232
+            },
+            "power_source": "mains",
+            "gpu_processes": [],
+            "gpu_memory_used_mib": 0,
+            "unknown": {}
+          },
+          "gpu_clock": {
+            "outcome": "ok",
+            "reason": "SM clock 2520 to 2520 MHz over 3 samples; clock event reasons seen: none",
+            "samples": 3,
+            "unknown_samples": 0,
+            "sm_clock_mhz": {
+              "min": 2520,
+              "median": 2520,
+              "max": 2520
+            },
+            "reasons_seen": {}
+          },
+          "checks": {
+            "suspend": {
+              "outcome": "ok",
+              "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+              "evidence": {
+                "sleep_offset_start_s": -2.9103830456733704e-07,
+                "sleep_offset_end_s": -3.200257197022438e-07,
+                "suspend_count_start": 0,
+                "suspend_count_end": 0
+              }
+            },
+            "power": {
+              "outcome": "ok",
+              "reason": "no battery in any of 3 power samples, so on mains",
+              "evidence": {
+                "samples": 3,
+                "off_mains_samples": [],
+                "battery_present": false,
+                "unknown_samples": 0,
+                "last_reading": {
+                  "battery": false,
+                  "online": {}
+                }
+              }
+            },
+            "foreign_reads": {
+              "outcome": "unknown",
+              "reason": "out/pad-1040x1056x1040/runs maps to no block device",
+              "evidence": {
+                "model_path": "out/pad-1040x1056x1040/runs",
+                "device": null,
+                "disk_read_bytes_start": null,
+                "disk_read_bytes_end": null,
+                "other_disk_read_bytes_start": null,
+                "other_disk_read_bytes_end": null,
+                "own_read_bytes": null,
+                "foreign_read_bytes": null,
+                "foreign_read_bytes_min": null,
+                "foreign_read_bytes_max": null,
+                "uninspectable_processes": null
+              },
+              "readers": [],
+              "unattributed_bytes": null
+            }
+          }
+        },
+        "weight_storage": "NVFP4Tensor"
+      }
+    ]
+  ],
+  "valid_block_count": 5
+}

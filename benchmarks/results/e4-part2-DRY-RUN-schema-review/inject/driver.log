@@ -1,0 +1,46 @@
+{"run_id": "F_A_off", "outcome": "ok", "void_reasons": []}
+F_A_on: attempt 09752702210f43acb0486985aac5f9f8 ended without a record (exit code -9); journaled as a void
+F_A_on: void (['interrupted: attempt has a start and no end (closed by the journal)']); the rule allows one rerun, starting it now
+{"run_id": "F_A_on", "outcome": "ok", "void_reasons": []}
+{"run_id": "F_A_bf16", "outcome": "ok", "void_reasons": []}
+{"run_id": "T", "outcome": "void", "void_reasons": ["dry run: injected void"]}
+T: void (['dry run: injected void']); the rule allows one rerun, starting it now
+{"run_id": "T", "outcome": "ok", "void_reasons": []}
+Traceback (most recent call last):
+  File "<repo>/benchmarks/harness/e4_part2_calibration.py", line 1998, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_calibration.py", line 1992, in main
+    return {"split": _cmd_split, "run": _cmd_run, "drive": _cmd_drive, "decide": _cmd_decide,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_calibration.py", line 1673, in _cmd_run
+    return dryrun.cmd_run(sys.modules[__name__], args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_dryrun.py", line 334, in cmd_run
+    record = cal.execute_attempt(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_calibration.py", line 1284, in execute_attempt
+    result = body()
+             ^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_dryrun.py", line 331, in body
+    return stage_body(cal, args, args.stage, args.arm, run_id,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_dryrun.py", line 289, in stage_body
+    result = cal.run_w({"A_off": arm_dir(world, "A_off"),
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_calibration.py", line 953, in run_w
+    model = load_base(directory, device, experts_implementation)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/benchmarks/harness/e4_part2_dryrun.py", line 230, in raising
+    raise torch.cuda.OutOfMemoryError("dry run: injected out of memory")
+torch.OutOfMemoryError: dry run: injected out of memory
+W: void (['crash: OutOfMemoryError: dry run: injected out of memory']); the rule allows one rerun, starting it now
+{"run_id": "W", "outcome": "ok", "void_reasons": []}
+{"run_id": "N_1", "outcome": "ok", "void_reasons": []}
+{"run_id": "N_2", "outcome": "ok", "void_reasons": []}
+{"run_id": "N_3", "outcome": "ok", "void_reasons": []}
+{"run_id": "N_4", "outcome": "ok", "void_reasons": []}
+{"run_id": "N_5", "outcome": "ok", "void_reasons": []}
+{"run_id": "P", "outcome": "ok", "void_reasons": []}
+{"decision": "FINAL_A100_40GB", "final_card": "A100 40 GB", "over": [], "dry_run": true, "final_instance": {"gpu_uuid": "GPU-DRYRUN-a100-40-dry-inject", "instance_id": "dry-inject"}}
+report written; 3 void(s); gaps: []

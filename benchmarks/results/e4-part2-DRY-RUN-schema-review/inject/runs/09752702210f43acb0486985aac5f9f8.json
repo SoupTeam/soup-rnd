@@ -1,0 +1,68 @@
+{
+ "attempt_id": "09752702210f43acb0486985aac5f9f8",
+ "attempt_number": 1,
+ "box_stamp_after": {
+  "commit_charge": {
+   "limit_bytes": 128000000000,
+   "used_bytes": 8000000000
+  },
+  "cuda_available": false,
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_clock": {
+   "reasons": [],
+   "sm_clock_mhz": 1410
+  },
+  "gpu_compute_cap": "8.0",
+  "gpu_memory_total_mib": "40960",
+  "gpu_memory_used_mib": 0,
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_processes": [],
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-inject",
+  "instance_id": "dry-inject",
+  "own_pid": 61404,
+  "power_source": "N/A (hosted instance)",
+  "ram_available_bytes": 64000000000,
+  "torch_cuda": "dry-run (cpu)",
+  "unix_s": 1792596507.131787,
+  "unknown": {}
+ },
+ "box_stamp_before": null,
+ "dry_run": {
+  "fake_card": "a100-40",
+  "inject": "F_A_on=kill,T=void,W=oom",
+  "note": "dry run: tiny random model on CPU, fake box stamp; no number is a result"
+ },
+ "failure_kind": "killed",
+ "identity": {
+  "bitsandbytes": "0.50.2",
+  "compute_capability": "8.0",
+  "dataset_revision": "dry-run-no-dataset",
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-inject",
+  "harness_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "harness_tree": "bdb00f56363b2ecc3fde4c9638d7ff4574f23b5a",
+  "instance_id": "dry-inject",
+  "memory_total_mib": "40960",
+  "peft": "0.21.2",
+  "python": "3.12.12",
+  "soup_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "torch": "2.14.1",
+  "torch_cuda": "dry-run (cpu)",
+  "transformers": "5.19.0"
+ },
+ "killed": {
+  "note": "the child process ended without closing its attempt",
+  "returncode": -9,
+  "signal": "SIGKILL"
+ },
+ "kind": "F",
+ "outcome": "void",
+ "record_source": "driver",
+ "run_id": "F_A_on",
+ "void_reasons": [
+  "interrupted: attempt has a start and no end (closed by the journal)"
+ ]
+}

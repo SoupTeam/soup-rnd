@@ -1,0 +1,40 @@
+C3 prospective setup recovery, 2026-10-26
+
+Attempt003 ended with setup.exit=141 before CUDA controls. SIGPIPE is consistent
+with an output-pipe failure, but its exact initiating cause is unresolved. Preserve
+that attempt unchanged. The following helper has not run on a rented GPU host.
+
+setup_supervisor.py takes a regular shell script and its exact SHA256, copies the
+verified bytes into a fresh exclusive evidence directory and executes that copy.
+stdout/stderr go to a regular server-side file, never an SSH pipe. A separate
+POSIX process group belongs to this invocation. Both a monotonic duration limit
+(at most1800s) and an absolute deadline are checked; timeout or interruption kills
+only that still-owned group. A retained session leader anchors group identity
+until cleanup, including after a shell exits with background children. A receipt retains PID/group, exit code, elapsed time,
+script SHA and failure. The CLI ignores SIGHUP and handles SIGTERM with cleanup.
+No package retry, optimizer resume, provider Stop or Destroy is performed.
+
+Before another rental: review the helper, freeze its source and the setup-script
+SHA in a new authority, verify remaining task budget, bound all phases and reserve
+cleanup time. Never reuse the failed evidence directory or rewrite its receipt.
+The setup script must not daemonize or escape its process group.
+
+On the new authorized host use a detached, single launch with regular dispatcher
+logging, for example (substitute audited paths, SHA and absolute deadline):
+
+setsid nohup python3 -m benchmarks.c3.setup_supervisor \
+  --script /data/setup.sh --sha256 FROZEN_SETUP_SHA256 \
+  --output /data/c3/evidence/setup_supervised_001 \
+  --max-seconds 1800 --deadline-unix-s AUTHORIZED_ABSOLUTE_DEADLINE \
+  </dev/null >/data/c3/evidence/setup_dispatch.log 2>&1 &
+
+Record the launcher PID immediately and read the supervisor receipt. Do not
+relaunch merely because SSH disconnects. GPU controls require a PASS setup receipt
+and the original source/runtime/identity/ownership checks. A setup PASS is not
+CUDA correctness or performance. Provider lifecycle still requires monitoring;
+this helper does not stop paid billing by itself.
+
+Local validation:9 POSIX tests, including closed client stdout, SIGHUP, failed
+setup exit141, exact source hash, no overwrite, deadline/timeout, SIGTERM cleanup and cleanup after a successful shell leaves
+a background writer.
+No GPU result is implied. The existing frozen GPU pilot remains unchanged.

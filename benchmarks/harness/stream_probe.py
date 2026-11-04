@@ -327,7 +327,8 @@ def make_lora(args: argparse.Namespace):
     return LoraConfig(
         r=args.lora_r,
         lora_alpha=2 * args.lora_r,
-        lora_dropout=0.0,
+        # getattr: several probes hand-build a bare Namespace without this field
+        lora_dropout=float(getattr(args, "lora_dropout", 0.0)),
         bias="none",
         target_modules=targets,
         task_type=TaskType.CAUSAL_LM,

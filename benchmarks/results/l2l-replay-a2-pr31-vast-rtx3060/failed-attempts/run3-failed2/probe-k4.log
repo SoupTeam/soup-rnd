@@ -1,0 +1,24 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+RUN: L2L vs gradient accumulation, /root/smollm2 none dropout 0.05
+gpu             NVIDIA GeForce RTX 3060
+torch           2.14.1+cu130
+vram_total_gb   12.488
+soup_cli_file   /root/soup/src/soup_cli/__init__.py
+driver          580.65.06
+pcie_gen        3
+pcie_width      16
+[yellow]Re-sharding layer cache:[/] cache index is missing or unreadable.
+Traceback (most recent call last):
+  File "/root/soup/benchmarks/harness/l2l_smollm2_check.py", line 366, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/root/soup/benchmarks/harness/l2l_smollm2_check.py", line 315, in main
+    model, runtime, config, *_ = stream_probe.build(args, device, dtype)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/benchmarks/harness/stream_probe.py", line 410, in build
+    index = shard_checkpoint(
+            ^^^^^^^^^^^^^^^^^
+  File "/root/soup/src/soup_cli/utils/layer_shard.py", line 1457, in shard_checkpoint
+    with safe_open(path, framework="pt") as handle:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+safetensors._safetensors_rust.SafetensorError: Error while deserializing header: header too large

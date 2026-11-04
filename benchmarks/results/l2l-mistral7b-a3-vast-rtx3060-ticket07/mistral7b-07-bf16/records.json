@@ -1,0 +1,290 @@
+{
+ "data_kind": "synthetic",
+ "model": "mistralai/Mistral-7B-v0.1",
+ "quant": "nf4",
+ "command": [
+  "/root/soup/.venv/bin/python",
+  "benchmarks/harness/l2l_mistral_stand.py",
+  "--out",
+  "/root/runs/mistral7b-07-bf16"
+ ],
+ "env": {
+  "packages": {
+   "torch": "2.14.1+cu130",
+   "transformers": "5.19.0",
+   "peft": "0.21.2",
+   "trl": null,
+   "accelerate": "1.15.0",
+   "bitsandbytes": "0.50.2",
+   "numpy": "2.4.6",
+   "psutil": "7.2.2"
+  },
+  "python": "3.12.3",
+  "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "gpu_facts": {
+   "gpu": "NVIDIA GeForce RTX 3060",
+   "torch": "2.14.1+cu130",
+   "vram_total_gb": 12.49,
+   "soup_cli_file": "/root/soup/src/soup_cli/__init__.py",
+   "driver": "595.104.02",
+   "pcie_gen": "3",
+   "pcie_width": "16"
+  }
+ },
+ "deterministic": {
+  "CUBLAS_WORKSPACE_CONFIG": ":4096:8",
+  "algorithms": "strict (warn_only off)",
+  "attn_implementation": "sdpa"
+ },
+ "sdpa": {
+  "pinned": "MATH",
+  "floor": "EFFICIENT_ATTENTION",
+  "probe": {
+   "MATH": {
+    "ok": true,
+    "backward_repeatable": true,
+    "error": null
+   },
+   "FLASH_ATTENTION": {
+    "ok": false,
+    "backward_repeatable": null,
+    "error": "RuntimeError: No available kernel. Aborting execution."
+   },
+   "EFFICIENT_ATTENTION": {
+    "ok": true,
+    "backward_repeatable": true,
+    "error": null
+   },
+   "CUDNN_ATTENTION": {
+    "ok": false,
+    "backward_repeatable": null,
+    "error": "RuntimeError: No available kernel. Aborting execution."
+   }
+  }
+ },
+ "dtype": "bfloat16",
+ "gemm_paths": {
+  "ga1": {
+   "153": {
+    "custom": 0,
+    "dequant": 448
+   },
+   "256": {
+    "custom": 0,
+    "dequant": 896
+   },
+   "192": {
+    "custom": 0,
+    "dequant": 896
+   },
+   "128": {
+    "custom": 640,
+    "dequant": 256
+   },
+   "64": {
+    "custom": 896,
+    "dequant": 0
+   },
+   "230": {
+    "custom": 0,
+    "dequant": 448
+   }
+  },
+  "ga2": {
+   "153": {
+    "custom": 0,
+    "dequant": 448
+   },
+   "256": {
+    "custom": 0,
+    "dequant": 896
+   },
+   "192": {
+    "custom": 0,
+    "dequant": 896
+   },
+   "128": {
+    "custom": 640,
+    "dequant": 256
+   },
+   "64": {
+    "custom": 896,
+    "dequant": 0
+   },
+   "230": {
+    "custom": 0,
+    "dequant": 448
+   }
+  },
+  "l2l": {
+   "256": {
+    "custom": 0,
+    "dequant": 4704
+   }
+  },
+  "ga_floor": {
+   "153": {
+    "custom": 0,
+    "dequant": 448
+   },
+   "256": {
+    "custom": 0,
+    "dequant": 896
+   },
+   "192": {
+    "custom": 0,
+    "dequant": 896
+   },
+   "128": {
+    "custom": 640,
+    "dequant": 256
+   },
+   "64": {
+    "custom": 896,
+    "dequant": 0
+   },
+   "230": {
+    "custom": 0,
+    "dequant": 448
+   }
+  },
+  "match": false,
+  "a_vs_a_match": true
+ },
+ "ram_plan": {
+  "n_layers": 32,
+  "hidden": 4096,
+  "k": 4,
+  "batch": 1,
+  "seq": 256,
+  "chunk_bytes": 2097152,
+  "block_bytes": 2097152,
+  "cache_bytes": 268435456,
+  "need_free_for_cache": 383479222.85714287,
+  "weights_bytes": 4124704768.0,
+  "workspace_bytes": 1000000000,
+  "need_total": 5508183990.857142
+ },
+ "verdict": {
+  "a_vs_a": {
+   "grads_equal": true,
+   "losses_equal": true,
+   "rates_equal": true,
+   "steps_equal": true,
+   "steps": [
+    3,
+    3
+   ],
+   "max_abs": 0.0,
+   "worst": [],
+   "equal": true
+  },
+  "l2l_vs_ga": {
+   "grads_equal": false,
+   "losses_equal": false,
+   "rates_equal": true,
+   "steps_equal": true,
+   "steps": [
+    3,
+    3
+   ],
+   "max_abs": 0.5390625,
+   "worst": [
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.5390625
+    },
+    {
+     "step": 2,
+     "name": "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.28125
+    },
+    {
+     "step": 0,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.21875
+    },
+    {
+     "step": 1,
+     "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.210205078125
+    },
+    {
+     "step": 1,
+     "name": "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+     "max_abs": 0.177734375
+    }
+   ],
+   "equal": false
+  },
+  "tolerance": {
+   "mode": "bf16",
+   "factor": 1.5,
+   "limit_fp32": 0.0001,
+   "grad_rel": [
+    0.01797013373217296,
+    0.016203741975856282,
+    0.053044378310769615
+   ],
+   "loss_rel": [
+    3.9027083439753714e-05,
+    6.840578341781694e-05,
+    0.0003670310294534697
+   ],
+   "floor_grad": [
+    0.014403136851487435,
+    0.015429340761885181,
+    0.0449319097310092
+   ],
+   "floor_loss": [
+    9.77937341791512e-05,
+    7.710209186593895e-05,
+    0.0006735836042215964
+   ],
+   "judged": true,
+   "failing": [],
+   "pass": true,
+   "grad_limit": [
+    0.021604705277231153,
+    0.023144011142827773,
+    0.0673978645965138
+   ],
+   "loss_limit": [
+    0.0001466906012687268,
+    0.00011565313779890842,
+    0.0010103754063323946
+   ]
+  },
+  "pass": true,
+  "note": "",
+  "status": "within_tolerance"
+ },
+ "aliasing": {
+  "pass": true,
+  "status": "neutralized",
+  "by_m": {
+   "64": {
+    "shipped_max_abs": 0.0,
+    "raw_max_abs": 107.25,
+    "status": "neutralized",
+    "pass": true,
+    "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"
+   },
+   "256": {
+    "shipped_max_abs": 0.0,
+    "raw_max_abs": 64.9375,
+    "status": "neutralized",
+    "pass": true,
+    "note": "raw matmul_4bit shows the defect; the shipped path is unaffected"
+   }
+  },
+  "dim": 4096,
+  "n_layers": 8,
+  "slots": 2
+ },
+ "k": 4,
+ "rows": 10,
+ "seq": 256
+}

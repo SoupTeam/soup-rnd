@@ -1,0 +1,39 @@
+{
+  "status": "PASS_LOCAL_ALIGNMENT_RECOVERY_PENDING_CUDA",
+  "base_commit": "79df4a847922bf2fb789f428541d261ede9233e8",
+  "published": false,
+  "review_type": "self review; no independent reviewer",
+  "regression_before": {
+    "failed": 8,
+    "passed": 1
+  },
+  "regression_after": {
+    "passed": 262,
+    "skipped": 25
+  },
+  "notes": [
+    "Misaligned real CPU tensor bases emulate pinned allocator address contract; no CUDA claim",
+    "All prior default arena-planner tests pass unchanged",
+    "Budget refusal includes padding before allocation",
+    "Same five CUDA control assertions; basetemp moved to physical /data for prospective run"
+  ],
+  "lint": "ruff check src/soup_cli/ tests/ benchmarks/c3/ PASS",
+  "format": "new regression file PASS",
+  "whitespace": "git diff --check PASS",
+  "source_sha256": {
+    "src/soup_cli/utils/async_disk_source.py": "874bc027e530c813c41b0efcf07d419edf0bdf483afe509ed1968de3a8eed75c",
+    "src/soup_cli/utils/layer_stream_runtime.py": "afcf2ae95bed307554c10482b176e6ae432bde06fb908b75d3142495733e82fd",
+    "tests/test_c3_staging_alignment.py": "43b3995a581bc603aa86c66820ae0244660caaa719f70265c3fd69a3107ad691",
+    "benchmarks/c3/gpu_tests.py": "314389ad08331cbc725ad9e2fb2265069b26a72d9070e9e4c5f116998769e0e2",
+    "benchmarks/c3/ALIGNMENT_RECOVERY_PROTOCOL.txt": "f6d345588ce41b7e90defb19fbfecc04b939fea64b9fcac19cea14c52cecd49a",
+    "benchmarks/c3/STATUS.md": "07fbc5e79d2775f4fb6476e987a6733b6fb115284b9fdc679d947fb25f0f4c50",
+    "docs/performance-and-quantization.md": "0c13455d5207911c9ee5db86834f9814b4f587a4b640da5a055969f199c0808a"
+  },
+  "test_logs": {
+    "c3_alignment_before.txt": "97744921f0a6be10d9c40aab92207f488b664212c316814e2913fb62f19a466d",
+    "c3_alignment_after.txt": "31386371ab78ecca7c2e86620c39aff79bdad505dfbf6bf014a249127b0acdbf",
+    "c3_alignment_regression.txt": "f4fda23299570e15485692b84dfb80b62007a6a2359e77339568f0ac7a913ddf"
+  },
+  "performance_verdict": "NO_VERDICT",
+  "updated_unix_s": 1793384372.440313
+}

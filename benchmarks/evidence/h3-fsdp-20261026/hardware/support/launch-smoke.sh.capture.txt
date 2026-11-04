@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace/h3-soup
+git fetch --depth=1 origin koko/h3-fsdp-lora-20261026
+git reset --hard --quiet FETCH_HEAD
+test "$(git rev-parse --short=8 HEAD)" = e3ea457f
+source benchmarks/evidence/h3-fsdp-20261026/venv/bin/activate
+export PYTHONPATH="$PWD/src:$PWD/benchmarks/harness"
+export OMP_NUM_THREADS=4
+set +e
+python -m torch.distributed.run --standalone --nnodes=1 --nproc-per-node=2 \
+ benchmarks/harness/h3_fsdp_run.py train \
+ --prepared benchmarks/evidence/h3-fsdp-20261026/prepared \
+ --output benchmarks/evidence/h3-fsdp-20261026/live/tied-fix-smoke \
+ --correctness-steps 1 --warmup-steps 1 --measured-steps 1 \
+ > /tmp/h3-fixed-train.log 2>&1
+status=$?
+if test "$status" = 0; then
+ python /tmp/h3-finish-smoke.py > /tmp/h3-fixed-reload.log 2>&1
+ status=$?
+fi
+printf '%s\n' "$status" > /tmp/h3-fixed.exit
+exit "$status"

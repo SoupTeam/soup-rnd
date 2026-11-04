@@ -1,0 +1,148 @@
+{
+ "attempt_id": "5e9e85c4b7d6424da674b2a23b17211c",
+ "attempt_number": 1,
+ "box_stamp_after": {
+  "commit_charge": {
+   "limit_bytes": 128000000000,
+   "used_bytes": 8000000000
+  },
+  "cuda_available": false,
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_clock": {
+   "reasons": [],
+   "sm_clock_mhz": 1410
+  },
+  "gpu_compute_cap": "8.0",
+  "gpu_memory_total_mib": "40960",
+  "gpu_memory_used_mib": 0,
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_processes": [],
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+  "instance_id": "dry-clean",
+  "own_pid": 61387,
+  "power_source": "N/A (hosted instance)",
+  "ram_available_bytes": 64000000000,
+  "torch_cuda": "dry-run (cpu)",
+  "unix_s": 1792596495.601311,
+  "unknown": {}
+ },
+ "box_stamp_before": {
+  "commit_charge": {
+   "limit_bytes": 128000000000,
+   "used_bytes": 8000000000
+  },
+  "cuda_available": false,
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_clock": {
+   "reasons": [],
+   "sm_clock_mhz": 1410
+  },
+  "gpu_compute_cap": "8.0",
+  "gpu_memory_total_mib": "40960",
+  "gpu_memory_used_mib": 0,
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_processes": [],
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+  "instance_id": "dry-clean",
+  "own_pid": 61387,
+  "power_source": "N/A (hosted instance)",
+  "ram_available_bytes": 64000000000,
+  "torch_cuda": "dry-run (cpu)",
+  "unix_s": 1792596495.5751328,
+  "unknown": {}
+ },
+ "dry_run": {
+  "fake_card": "a100-40",
+  "inject": null,
+  "note": "dry run: tiny random model on CPU, fake box stamp; no number is a result",
+  "skipped_checks": [
+   "provenance: the repository tree has uncommitted changes: .gitattributes, e4-part2-calibration-runbook.md, e4-rule-part2-decision-skeleton.md, e4-rule-part2-draft.md, tests/test_e4_part2_split.py"
+  ]
+ },
+ "identity": {
+  "bitsandbytes": "0.50.2",
+  "compute_capability": "8.0",
+  "dataset_revision": "dry-run-no-dataset",
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+  "harness_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "harness_tree": "bdb00f56363b2ecc3fde4c9638d7ff4574f23b5a",
+  "instance_id": "dry-clean",
+  "memory_total_mib": "40960",
+  "peft": "0.21.2",
+  "python": "3.12.12",
+  "soup_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "torch": "2.14.1",
+  "torch_cuda": "dry-run (cpu)",
+  "transformers": "5.19.0"
+ },
+ "kind": "N",
+ "outcome": "ok",
+ "peers": {
+  "method": "dry run: no GPU, nothing to identify",
+  "own_pids": [
+   61387
+  ]
+ },
+ "provenance": {
+  "dirty_paths": [
+   ".gitattributes",
+   "e4-part2-calibration-runbook.md",
+   "e4-rule-part2-decision-skeleton.md",
+   "e4-rule-part2-draft.md",
+   "tests/test_e4_part2_split.py"
+  ],
+  "harness_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "harness_dirty": true,
+  "harness_tree": "bdb00f56363b2ecc3fde4c9638d7ff4574f23b5a",
+  "soup_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7"
+ },
+ "record_source": "run",
+ "result": {
+  "attention_implementation_resolved": "sdpa",
+  "device_used": "cpu",
+  "dry_run_fake_fields": [
+   "scores"
+  ],
+  "experts_implementation_resolved": "eager",
+  "max_new_tokens": 256,
+  "n_items": {
+   "mini_arithmetic": 40,
+   "mini_common_sense": 24,
+   "mini_format_json": 40,
+   "mini_instruction": 24,
+   "mini_mmlu": 26,
+   "mini_over_refusal": 40,
+   "mini_safety": 40,
+   "mini_tool_call": 40
+  },
+  "scorer_revision": 4,
+  "scores": {
+   "mini_arithmetic": 0.0,
+   "mini_common_sense": 0.3333333333333333,
+   "mini_format_json": 0.0,
+   "mini_instruction": 0.0,
+   "mini_mmlu": 0.2692307692307692,
+   "mini_over_refusal": 1.0,
+   "mini_safety": 0.0,
+   "mini_tool_call": 0.0
+  },
+  "wrapper_sha256": "c42ad62d113edc9aac78c6bd1807d8c39bf2e5793500211f3590e5b40615318e"
+ },
+ "run_id": "N_4",
+ "stack": {
+  "mismatches": [],
+  "versions": {
+   "bitsandbytes": "0.50.2",
+   "peft": "0.21.2",
+   "python": "3.12.12",
+   "torch": "2.14.1",
+   "transformers": "5.19.0"
+  }
+ },
+ "void_reasons": []
+}

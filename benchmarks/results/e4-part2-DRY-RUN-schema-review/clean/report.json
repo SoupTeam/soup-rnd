@@ -1,0 +1,289 @@
+{
+ "T_calls_per_unit": 2,
+ "dry_run": true,
+ "f": {
+  "A_bf16": {
+   "attention_implementation_resolved": "sdpa",
+   "device_memory": {
+    "max_used_bytes": null,
+    "min_free_bytes": null,
+    "n": 0
+   },
+   "experts_implementation_resolved": "eager",
+   "failed": false,
+   "max_memory_allocated_bytes": 16000000000,
+   "max_memory_reserved_bytes": 20000000000,
+   "median_seconds_per_update": 0.031071499979589134,
+   "oom": false
+  },
+  "A_off": {
+   "attention_implementation_resolved": "sdpa",
+   "device_memory": {
+    "max_used_bytes": null,
+    "min_free_bytes": null,
+    "n": 0
+   },
+   "experts_implementation_resolved": "eager",
+   "failed": false,
+   "max_memory_allocated_bytes": 16000000000,
+   "max_memory_reserved_bytes": 20000000000,
+   "median_seconds_per_update": 0.027786875027231872,
+   "oom": false
+  },
+  "A_on": {
+   "attention_implementation_resolved": "sdpa",
+   "device_memory": {
+    "max_used_bytes": null,
+    "min_free_bytes": null,
+    "n": 0
+   },
+   "experts_implementation_resolved": "eager",
+   "failed": false,
+   "max_memory_allocated_bytes": 16000000000,
+   "max_memory_reserved_bytes": 20000000000,
+   "median_seconds_per_update": 0.028690375038422644,
+   "oom": false
+  }
+ },
+ "failed_runs": [],
+ "final_card": {
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+  "instance_id": "dry-clean"
+ },
+ "final_card_decision": {
+  "decision": "FINAL_A100_40GB",
+  "dry_run": true,
+  "final_card": "A100 40 GB",
+  "final_instance": {
+   "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+   "instance_id": "dry-clean"
+  },
+  "over": []
+ },
+ "noise_floor": {
+  "mini_arithmetic": {
+   "comparison": "strict >",
+   "epsilon": 0.025,
+   "floor": 0.0,
+   "n_items": 40,
+   "scores": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "mini_common_sense": {
+   "comparison": "strict >",
+   "epsilon": 0.041666666666666664,
+   "floor": 0.0,
+   "n_items": 24,
+   "scores": [
+    0.3333333333333333,
+    0.3333333333333333,
+    0.3333333333333333,
+    0.3333333333333333,
+    0.3333333333333333
+   ]
+  },
+  "mini_format_json": {
+   "comparison": "strict >",
+   "epsilon": 0.025,
+   "floor": 0.0,
+   "n_items": 40,
+   "scores": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "mini_instruction": {
+   "comparison": "strict >",
+   "epsilon": 0.041666666666666664,
+   "floor": 0.0,
+   "n_items": 24,
+   "scores": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "mini_mmlu": {
+   "comparison": "strict >",
+   "epsilon": 0.038461538461538464,
+   "floor": 0.0,
+   "n_items": 26,
+   "scores": [
+    0.2692307692307692,
+    0.2692307692307692,
+    0.2692307692307692,
+    0.2692307692307692,
+    0.2692307692307692
+   ]
+  },
+  "mini_over_refusal": {
+   "comparison": "strict >",
+   "epsilon": 0.025,
+   "floor": 0.0,
+   "n_items": 40,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  "mini_safety": {
+   "comparison": "strict >",
+   "epsilon": 0.025,
+   "floor": 0.0,
+   "n_items": 40,
+   "scores": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "mini_tool_call": {
+   "comparison": "strict >",
+   "epsilon": 0.025,
+   "floor": 0.0,
+   "n_items": 40,
+   "scores": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ },
+ "projected_main_plan": {
+  "basis": "median seconds per update of the F runs; training updates only",
+  "median_seconds_per_update": {
+   "A_bf16": 0.031071499979589134,
+   "A_off": 0.027786875027231872,
+   "A_on": 0.028690375038422644
+  },
+  "rerun_arm": "A_on",
+  "reruns": 1,
+  "runs": 9,
+  "total_hours": 0.020717271123495366,
+  "total_seconds": 74.58217604458332,
+  "updates_per_run": 256
+ },
+ "provenance_gaps": [],
+ "repeatability": {
+  "adapters_bit_identical": true,
+  "difference": 0.0,
+  "nll_first": 4.854710022608439,
+  "nll_second": 4.854710022608439,
+  "note": "one paired observation, not an estimate of GPU nondeterminism"
+ },
+ "tau": {
+  "down_proj/backward": {
+   "input_grad": 0.008471965789794922
+  },
+  "down_proj/needs_grad=False/kernel=cpu": {
+   "output": 1.5874975360929966e-06
+  },
+  "down_proj/needs_grad=True/kernel=cpu": {
+   "output": 1.5874975360929966e-06
+  },
+  "gate_proj/backward": {
+   "input_grad": 0.006328701972961426
+  },
+  "gate_proj/needs_grad=False/kernel=cpu": {
+   "output": 0.0004838407039642334
+  },
+  "gate_proj/needs_grad=True/kernel=cpu": {
+   "output": 0.0004838407039642334
+  },
+  "k_proj/backward": {
+   "input_grad": 0.0070149898529052734
+  },
+  "k_proj/needs_grad=False/kernel=cpu": {
+   "A_grad": 0.009630229324102402,
+   "B_grad": 0.0036530494689941406,
+   "output": 0.00045353174209594727,
+   "update": 0.00020000338554382324
+  },
+  "k_proj/needs_grad=True/kernel=cpu": {
+   "A_grad": 0.7556317448616028,
+   "B_grad": 1.3542526960372925,
+   "output": 0.00045353174209594727,
+   "update": 0.00020000338554382324
+  },
+  "o_proj/backward": {
+   "input_grad": 0.0070149898529052734
+  },
+  "o_proj/needs_grad=False/kernel=cpu": {
+   "A_grad": 0.0016029030084609985,
+   "B_grad": 0.0012413859367370605,
+   "output": 0.00011766701936721802,
+   "update": 0.00020000338554382324
+  },
+  "o_proj/needs_grad=True/kernel=cpu": {
+   "A_grad": 0.09472313523292542,
+   "B_grad": 0.24509187042713165,
+   "output": 0.00011766701936721802,
+   "update": 0.00020000338554382324
+  },
+  "q_proj/backward": {
+   "input_grad": 0.0070149898529052734
+  },
+  "q_proj/needs_grad=False/kernel=cpu": {
+   "A_grad": 0.009630229324102402,
+   "B_grad": 0.0036530494689941406,
+   "output": 0.00045353174209594727,
+   "update": 0.00020000338554382324
+  },
+  "q_proj/needs_grad=True/kernel=cpu": {
+   "A_grad": 0.7556317448616028,
+   "B_grad": 1.3542526960372925,
+   "output": 0.00045353174209594727,
+   "update": 0.00020000338554382324
+  },
+  "up_proj/backward": {
+   "input_grad": 0.005431771278381348
+  },
+  "up_proj/needs_grad=False/kernel=cpu": {
+   "output": 0.0002431720495223999
+  },
+  "up_proj/needs_grad=True/kernel=cpu": {
+   "output": 0.0002431720495223999
+  },
+  "v_proj/backward": {
+   "input_grad": 0.0070149898529052734
+  },
+  "v_proj/needs_grad=False/kernel=cpu": {
+   "A_grad": 0.009630229324102402,
+   "B_grad": 0.0036530494689941406,
+   "output": 0.00045353174209594727,
+   "update": 0.00020000338554382324
+  },
+  "v_proj/needs_grad=True/kernel=cpu": {
+   "A_grad": 0.7556317448616028,
+   "B_grad": 1.3542526960372925,
+   "output": 0.00045353174209594727,
+   "update": 0.00020000338554382324
+  }
+ },
+ "tol_W": {
+  "A_grad": 8.332193829119205e-06,
+  "B_grad": 2.2909138351678848e-05,
+  "input_grad": 4.4142710976302624e-05,
+  "output": 2.08243727684021e-06,
+  "update": 0.0003965236246585846
+ },
+ "voids": []
+}

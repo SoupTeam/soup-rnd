@@ -22,12 +22,17 @@ and walk the backward the same way in reverse.
   with ``num_items_in_batch``. ``capture_layer_call`` records the layer kwargs
   from a real forward instead of rebuilding the rotary embeddings and the mask.
 
+* With ``lora.dropout`` > 0 the step replays the random stream of plain gradient
+  accumulation: every layer call, in the forward and in the recompute, runs at the
+  generator state accumulation reaches for that (micro-batch, layer) pair, and the outer
+  stream ends where accumulation leaves it. See ``utils/l2l_rng.py``.
+
 No optimizer step. torch is imported inside functions.
 """
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
@@ -40,6 +45,8 @@ class LayerCall:
 
     args: Tuple[Any, ...]
     kwargs: Dict[str, Any]
+    #: Per layer, the dropouts one call draws (``l2l_rng.Draw``); empty without dropout.
+    draws: Tuple[Tuple[Any, ...], ...] = ()
 
 
 @dataclass
@@ -103,12 +110,24 @@ def label_tokens(micro_batches: Sequence[Any]) -> int:
     return sum(int(ids.shape[0]) * (int(ids.shape[1]) - 1) for ids in micro_batches)
 
 
-def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
+class _CapturedError(Exception):
+    """Raised from layer 0's pre-hook to end a capture forward before any layer runs."""
+
+
+def capture_layer_call(model: Any, input_ids: Any, *, draws: bool = True) -> LayerCall:
     """Run one forward without grad and record what layer 0 receives.
 
     The random state is restored afterwards, so the capture draws nothing from it.
+
+    With ``draws`` (the default) the forward runs through every layer and records which
+    dropouts each layer draws, for the replay in :meth:`L2LStep.run`; on a streamed model
+    that walk loads every layer once. With ``draws=False`` the forward stops at layer 0's
+    pre-hook, which already holds the arguments, so no layer loads or runs. Use it when the
+    model draws no dropout; the returned call has no draws.
     """
     import torch
+
+    from soup_cli.utils.l2l_rng import record_draws
 
     _causal, owner = model_parts(model)
     seen: Dict[str, Any] = {}
@@ -116,26 +135,41 @@ def capture_layer_call(model: Any, input_ids: Any) -> LayerCall:
     def hook(_module: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         if "call" not in seen:
             seen["call"] = (tuple(args[1:]), dict(kwargs))
+            if not draws:
+                raise _CapturedError
 
     handle = owner.layers[0].register_forward_pre_hook(hook, with_kwargs=True)
     # The capture forward runs in training mode, so NEFTune would draw noise from it.
     cuda = [input_ids.device] if input_ids.device.type == "cuda" else []
+    plan: List[List[Any]] = []
     try:
         with torch.no_grad(), torch.random.fork_rng(devices=cuda):
-            model(input_ids=input_ids)
+            if draws:
+                with record_draws(list(owner.layers)) as plan:
+                    model(input_ids=input_ids)
+            else:
+                try:
+                    model(input_ids=input_ids)
+                except _CapturedError:
+                    pass
     finally:
         handle.remove()
     if "call" not in seen:
         raise RuntimeError("decoder layer 0 was never called by the forward")
     args, kwargs = seen["call"]
     kwargs.pop("num_items_in_batch", None)
-    return LayerCall(args=args, kwargs=kwargs)
+    return LayerCall(args=args, kwargs=kwargs, draws=tuple(tuple(layer) for layer in plan))
 
 
 class L2LStep:
     """One layer-major step: forward, head, backward. No optimizer step."""
 
-    def __init__(self, model: Any, runtime: Any, call: LayerCall):
+    def __init__(
+        self,
+        model: Any,
+        runtime: Any,
+        call: LayerCall,
+    ):
         self.causal, self.owner = model_parts(model)
         self.layers = list(self.owner.layers)
         self.call = call
@@ -151,9 +185,28 @@ class L2LStep:
         #: Loads and restores of the last ``run``; ``None`` before the first.
         self.counters: Optional[LoadCounters] = None
 
-    def _layer(self, layer: Any, hidden: Any) -> Any:
-        out = layer(hidden, *self.call.args, **self.call.kwargs)
+    def _layer(self, module: Any, hidden: Any, state: Any, call: LayerCall) -> Any:
+        # ``state`` is where accumulation's stream stands before this (micro-batch, layer)
+        # pair, so the forward and the recompute in the backward draw the same mask in any
+        # visiting order. ``None`` without dropout.
+        from soup_cli.utils import l2l_rng
+
+        with l2l_rng.state_at(state) if state is not None else nullcontext():
+            out = module(hidden, *call.args, **call.kwargs)
         return out[0] if isinstance(out, tuple) else out
+
+    @staticmethod
+    def _backward_context(ids: Any) -> Any:
+        """Autocast off around a backward call, the state HF's accumulation runs it in.
+
+        The caller wraps the whole step in autocast, forward and recompute included, but HF
+        calls ``backward`` after the autocast block has exited. Autograd runs the gradient
+        kernels under the autocast state of the calling thread, so a backward inside the
+        block takes other dtype paths than accumulation's and the gradients differ in bf16.
+        """
+        import torch
+
+        return torch.autocast(device_type=ids.device.type, enabled=False)
 
     def run(
         self,
@@ -162,10 +215,16 @@ class L2LStep:
         *,
         n_items: Optional[int] = None,
         labels: Optional[Sequence[Any]] = None,
+        calls: Optional[Sequence[LayerCall]] = None,
     ) -> List[Any]:
-        """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``."""
+        """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
+
+        ``calls`` is one ``LayerCall`` per micro-batch, captured at that micro-batch's own
+        shape; micro-batches of different lengths run unpadded. Without it every
+        micro-batch uses the call the step was built with.
+        """
         with count_loads(self.runtime) as counters:
-            losses = self._run(micro_batches, store, n_items, labels)
+            losses = self._run(micro_batches, store, n_items, labels, calls)
         self.counters = counters
         return losses
 
@@ -175,8 +234,11 @@ class L2LStep:
         store: Any,
         n_items: Optional[int],
         labels: Optional[Sequence[Any]],
+        calls: Optional[Sequence[LayerCall]],
     ) -> List[Any]:
         import torch
+
+        from soup_cli.utils import l2l_rng
 
         k = len(micro_batches)
         if k < 1:
@@ -187,8 +249,17 @@ class L2LStep:
             labels = micro_batches
         elif len(labels) != k:
             raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
+        if calls is None:
+            calls = [self.call] * k
+        elif len(calls) != k:
+            raise ValueError(f"{len(calls)} layer calls for {k} micro-batches")
         total = label_tokens(micro_batches) if n_items is None else int(n_items)
         vocab = int(self.causal.config.vocab_size)
+
+        replayed = None
+        if l2l_rng.has_draws(self.call.draws):
+            replayed = l2l_rng.replay(self.call.draws, k)
+        states = replayed[0] if replayed else None
 
         self._prime(self.owner, ())
         with torch.no_grad():
@@ -196,7 +267,9 @@ class L2LStep:
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
-                    hidden[mb] = self._layer(layer, hidden[mb])
+                    hidden[mb] = self._layer(
+                        layer, hidden[mb], states[mb][idx] if states else None, calls[mb]
+                    )
 
         losses: List[Any] = []
         grads: List[Any] = []
@@ -209,7 +282,8 @@ class L2LStep:
                 loss = self.causal.loss_function(
                     logits=logits, labels=labels[mb], vocab_size=vocab, num_items_in_batch=total
                 )
-            loss.backward()
+            with self._backward_context(micro_batches[mb]):
+                loss.backward()
             losses.append(loss.detach())
             grads.append(last.grad)
 
@@ -222,10 +296,15 @@ class L2LStep:
                 for mb in range(k):
                     inputs = store.get(idx, mb).requires_grad_(True)
                     with torch.enable_grad():
-                        out = self._layer(layer, inputs)
-                    torch.autograd.backward(out, grad_tensors=grads[mb])
+                        out = self._layer(
+                            layer, inputs, states[mb][idx] if states else None, calls[mb]
+                        )
+                    with self._backward_context(micro_batches[mb]):
+                        torch.autograd.backward(out, grad_tensors=grads[mb])
                     grads[mb] = inputs.grad
             finally:
                 layer.use_checkpoint = saved
         store.end_step()
+        if replayed is not None:
+            l2l_rng.leave_stream_at(replayed[1])
         return losses

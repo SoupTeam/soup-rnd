@@ -1,0 +1,224 @@
+{
+ "attempt_id": "403c0ca8812b4162b18613748933127c",
+ "attempt_number": 1,
+ "box_stamp_after": {
+  "commit_charge": {
+   "limit_bytes": 128000000000,
+   "used_bytes": 8000000000
+  },
+  "cuda_available": false,
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_clock": {
+   "reasons": [],
+   "sm_clock_mhz": 1410
+  },
+  "gpu_compute_cap": "8.0",
+  "gpu_memory_total_mib": "40960",
+  "gpu_memory_used_mib": 0,
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_processes": [],
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+  "instance_id": "dry-clean",
+  "own_pid": 61348,
+  "power_source": "N/A (hosted instance)",
+  "ram_available_bytes": 64000000000,
+  "torch_cuda": "dry-run (cpu)",
+  "unix_s": 1792596481.856791,
+  "unknown": {}
+ },
+ "box_stamp_before": {
+  "commit_charge": {
+   "limit_bytes": 128000000000,
+   "used_bytes": 8000000000
+  },
+  "cuda_available": false,
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_clock": {
+   "reasons": [],
+   "sm_clock_mhz": 1410
+  },
+  "gpu_compute_cap": "8.0",
+  "gpu_memory_total_mib": "40960",
+  "gpu_memory_used_mib": 0,
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_processes": [],
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+  "instance_id": "dry-clean",
+  "own_pid": 61348,
+  "power_source": "N/A (hosted instance)",
+  "ram_available_bytes": 64000000000,
+  "torch_cuda": "dry-run (cpu)",
+  "unix_s": 1792596478.38222,
+  "unknown": {}
+ },
+ "dry_run": {
+  "fake_card": "a100-40",
+  "inject": null,
+  "note": "dry run: tiny random model on CPU, fake box stamp; no number is a result",
+  "skipped_checks": [
+   "provenance: the repository tree has uncommitted changes: .gitattributes, e4-part2-calibration-runbook.md, e4-rule-part2-decision-skeleton.md, e4-rule-part2-draft.md, tests/test_e4_part2_split.py"
+  ]
+ },
+ "identity": {
+  "bitsandbytes": "0.50.2",
+  "compute_capability": "8.0",
+  "dataset_revision": "dry-run-no-dataset",
+  "driver_cuda_version": "0.0",
+  "driver_version": "0.0 [dry-run fake]",
+  "gpu_name": "NVIDIA A100-SXM4-40GB [dry-run fake]",
+  "gpu_uuid": "GPU-DRYRUN-a100-40-dry-clean",
+  "harness_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "harness_tree": "bdb00f56363b2ecc3fde4c9638d7ff4574f23b5a",
+  "instance_id": "dry-clean",
+  "memory_total_mib": "40960",
+  "peft": "0.21.2",
+  "python": "3.12.12",
+  "soup_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "torch": "2.14.1",
+  "torch_cuda": "dry-run (cpu)",
+  "transformers": "5.19.0"
+ },
+ "kind": "F",
+ "outcome": "ok",
+ "peers": {
+  "method": "dry run: no GPU, nothing to identify",
+  "own_pids": [
+   61348
+  ]
+ },
+ "provenance": {
+  "dirty_paths": [
+   ".gitattributes",
+   "e4-part2-calibration-runbook.md",
+   "e4-rule-part2-decision-skeleton.md",
+   "e4-rule-part2-draft.md",
+   "tests/test_e4_part2_split.py"
+  ],
+  "harness_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7",
+  "harness_dirty": true,
+  "harness_tree": "bdb00f56363b2ecc3fde4c9638d7ff4574f23b5a",
+  "soup_commit": "f4e81377c8c0fa09185bf2e58e87f933d43d04e7"
+ },
+ "record_source": "run",
+ "result": {
+  "adapter_dir": "<out>/clean/adapters/F_A_bf16/1",
+  "adapter_files": {
+   "README.md": "22846ba7f45b587cc8d9af57a51c4ade6167139826d0790ee6c4f0fadab985e9",
+   "adapter_config.json": "d249150ecaf5cd41367c7ce7c985921798e36068704239596f0c021a7a7a1302",
+   "adapter_model.safetensors": "e44178d5f8f2935cb7cdec345c583e9ca71a820f6f35beb105261a820a56bf43"
+  },
+  "adapter_tensor_hashes": {
+   "base_model.model.model.layers.0.mlp.experts.base_layer.lora_A.default.weight": "e1e1e8ae264b62642fef15cfdd6f36e524f2c871f82ed636278b600419619506",
+   "base_model.model.model.layers.0.mlp.experts.base_layer.lora_B.default.weight": "302394f339ab364817c010c36bbf6d7488e6a007217b31b9e1de0ef4e3f96bd7",
+   "base_model.model.model.layers.0.mlp.experts.lora_A.default.weight": "eb608cbaa1ec480feddaa0bfac818b1dc54cddea9780263f613eee05bad07d79",
+   "base_model.model.model.layers.0.mlp.experts.lora_B.default.weight": "fb2a612aeabda5ca4ef2281792058fbf93f7bb7b3fba424a7a8c201b4da39a2a",
+   "base_model.model.model.layers.0.self_attn.k_proj.lora_A.default.weight": "15ef92ef2bb42d470ef81d50c088c97d534793dd1bd96be4bec590c21c7d7e2a",
+   "base_model.model.model.layers.0.self_attn.k_proj.lora_B.default.weight": "2c7223893540dc67c3311e3ccb32e0a069fd7768c152f6fbcc4a7b5949f4d3ab",
+   "base_model.model.model.layers.0.self_attn.o_proj.lora_A.default.weight": "4445b69e9a2fd14ef77ed775eb82eb7f9f41a17d62cb680f94708163debc9dff",
+   "base_model.model.model.layers.0.self_attn.o_proj.lora_B.default.weight": "4966e59c25509a7afbf2a2f04c83769fc1e2964faf868f4d3e02d7cd5098ac78",
+   "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight": "4331e5bfaf0ebf71322b8ed6c29e4ad04a2c4ba486ddeaaad83032e48a557bad",
+   "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight": "4d0d7c131e303c55cec54db9bfd8a47371ed77ed6c354af71c0946b6405f9b84",
+   "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight": "5c42d244fe680230fd170b2d37aa7a05eafc5a8344ded7501ee646096dc118c4",
+   "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight": "eb2dfa3ba870ac24caa2e27ed87e6d2f135ef918b4851a6f6e3863622f3f3d5b",
+   "base_model.model.model.layers.1.mlp.experts.base_layer.lora_A.default.weight": "dcd07c1d978b16b35eedeff6240888a73c2e1abe0cec3fbd3f1e92375f074365",
+   "base_model.model.model.layers.1.mlp.experts.base_layer.lora_B.default.weight": "124fe6c3648465c1b579944fd7f31d2ade305460fdae3ca919aa74607602ccbf",
+   "base_model.model.model.layers.1.mlp.experts.lora_A.default.weight": "dd2dbcaf72970e96963da1de060cd5181ae5b60af4fdcb112ef37e4c0cab6231",
+   "base_model.model.model.layers.1.mlp.experts.lora_B.default.weight": "7beb7cc23e1ad5e89952b53647e093f5146a6428f8456ee4902fb0cdf1e86988",
+   "base_model.model.model.layers.1.self_attn.k_proj.lora_A.default.weight": "ad520e5e623e3e32f6d837e8e023dda6e7d39eadbe712c7691ad9de8f2fca879",
+   "base_model.model.model.layers.1.self_attn.k_proj.lora_B.default.weight": "12f3a004d45d3360df39af5b9a9fba99904cbdafdf09b74949f6270fab1a016a",
+   "base_model.model.model.layers.1.self_attn.o_proj.lora_A.default.weight": "71806e8d250e9252b2cfd70c930e63ac0254dfd2e89ac08158941eff2e672f61",
+   "base_model.model.model.layers.1.self_attn.o_proj.lora_B.default.weight": "ba580f42e5f5211db832fdbf41e98a650823f0370d0c1680d35d06b11bd2889c",
+   "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight": "b8f882b6fbdb4738fa513f229168824d85167c26f6eac011a14f8d6f1bf6a79d",
+   "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight": "d8a901af8105267a2f8ec9faa47b07bff5ac1f19343b64006e5857b094fc4bbf",
+   "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight": "3422c660d8b74ca55b048459be64dd6670e6b9c61deda31e4646c3b2c2c8b6d5",
+   "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight": "f8fef0c86a5aa1cb073e28a2be34f6eabb09358965ebbfb9a98ae3508134d2e0"
+  },
+  "all_finite": true,
+  "arm": "A_bf16",
+  "attention_implementation_resolved": "sdpa",
+  "device_memory": {
+   "max_used_bytes": null,
+   "min_free_bytes": null,
+   "n": 0
+  },
+  "device_used": "cpu",
+  "dry_run_fake_fields": [
+   "max_memory_allocated_bytes",
+   "max_memory_reserved_bytes"
+  ],
+  "experts_implementation_resolved": "eager",
+  "failed": false,
+  "frozen_base_unchanged": true,
+  "max_memory_allocated_bytes": 16000000000,
+  "max_memory_reserved_bytes": 20000000000,
+  "median_seconds_per_update": 0.031071499979589134,
+  "oom": false,
+  "placement": {
+   "matches": true,
+   "missing": [],
+   "unexpected": []
+  },
+  "recipe_mismatch": [],
+  "seconds_per_update": [
+   0.03202091698767617,
+   0.02726595802232623,
+   0.031071499979589134
+  ],
+  "smoke_nll": {
+   "finite": true,
+   "nll": 4.854784568150838,
+   "rows": 4,
+   "targets": 24
+  },
+  "trainable": {
+   "expected": 45056,
+   "matches": true,
+   "non_fp32_factors": [],
+   "trainable": 45056
+  },
+  "updates": [
+   {
+    "finite": true,
+    "grad_norm": 0.0054040043614804745,
+    "loss": 4.8492751121521,
+    "lr": 0.0,
+    "seconds": 0.03202091698767617,
+    "targets": 12,
+    "update": 0
+   },
+   {
+    "finite": true,
+    "grad_norm": 0.004706175997853279,
+    "loss": 4.855793317159017,
+    "lr": 5e-05,
+    "seconds": 0.02726595802232623,
+    "targets": 12,
+    "update": 1
+   },
+   {
+    "finite": true,
+    "grad_norm": 0.005052643828094006,
+    "loss": 4.848664283752441,
+    "lr": 0.0001,
+    "seconds": 0.031071499979589134,
+    "targets": 12,
+    "update": 2
+   }
+  ],
+  "updates_requested": 3
+ },
+ "run_id": "F_A_bf16",
+ "stack": {
+  "mismatches": [],
+  "versions": {
+   "bitsandbytes": "0.50.2",
+   "peft": "0.21.2",
+   "python": "3.12.12",
+   "torch": "2.14.1",
+   "transformers": "5.19.0"
+  }
+ },
+ "void_reasons": []
+}

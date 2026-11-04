@@ -1,0 +1,110 @@
+RUN: L2L vs gradient accumulation, HuggingFaceTB/SmolLM2-135M none dropout 0.05
+gpu             NVIDIA GeForce RTX 3060
+torch           2.14.1+cu130
+vram_total_gb   12.488
+soup_cli_file   /root/soup/src/soup_cli/__init__.py
+driver          580.65.06
+pcie_gen        3
+pcie_width      16
+Traceback (most recent call last):
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_transports/default.py", line 98, in map_httpcore_exceptions
+    yield
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_transports/default.py", line 245, in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpcore2/_sync/connection_pool.py", line 242, in handle_request
+    raise exc from None
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpcore2/_sync/connection_pool.py", line 224, in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpcore2/_sync/connection.py", line 94, in handle_request
+    raise exc
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpcore2/_sync/connection.py", line 74, in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpcore2/_sync/connection.py", line 140, in _connect
+    stream = stream.start_tls(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpcore2/_backends/sync.py", line 154, in start_tls
+    with map_exceptions(exc_map):
+  File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpcore2/_exceptions.py", line 17, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore2.ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/_snapshot_download.py", line 279, in snapshot_download
+    repo_info = api.repo_info(repo_id=repo_id, repo_type=repo_type, revision=revision)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/hf_api.py", line 3509, in repo_info
+    return method(
+           ^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/hf_api.py", line 3188, in model_info
+    r = get_session().get(path, headers=headers, timeout=timeout, params=params)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_client.py", line 1112, in get
+    return self.request(
+           ^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_client.py", line 796, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_client.py", line 979, in send
+    response = self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_client.py", line 1007, in _send_handling_auth
+    response = self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_client.py", line 1042, in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_client.py", line 1075, in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_transports/default.py", line 244, in handle_request
+    with map_httpcore_exceptions():
+  File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/root/soup/.venv/lib/python3.12/site-packages/httpx2/_transports/default.py", line 115, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx2.ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/soup/benchmarks/harness/l2l_smollm2_check.py", line 366, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/root/soup/benchmarks/harness/l2l_smollm2_check.py", line 315, in main
+    model, runtime, config, *_ = stream_probe.build(args, device, dtype)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/benchmarks/harness/stream_probe.py", line 389, in build
+    weights_dir = resolve_model_weights(args.weights)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/src/soup_cli/utils/spectrum_scan.py", line 997, in resolve_model_weights
+    plan = plan_model_weights(model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/src/soup_cli/utils/spectrum_scan.py", line 922, in plan_model_weights
+    source = snapshot_download(
+             ^^^^^^^^^^^^^^^^^^
+  File "/root/soup/src/soup_cli/utils/hubs.py", line 476, in snapshot_download
+    return hf_snapshot_download(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/utils/_http.py", line 276, in _inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/soup/.venv/lib/python3.12/site-packages/huggingface_hub/_snapshot_download.py", line 400, in snapshot_download
+    raise LocalEntryNotFoundError(
+huggingface_hub.errors.LocalEntryNotFoundError: Got: ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+An error happened while trying to locate the files on the Hub, and we cannot find the appropriate snapshot folder for the specified revision on the local disk. Please check your internet connection and try again.

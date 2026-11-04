@@ -69,8 +69,7 @@ def summarize_trainable(model: Any) -> ParamSnapshot:
     meta = sum(
         1
         for _, param in model.named_parameters()
-        if param.requires_grad
-        and getattr(getattr(param, "device", None), "type", None) == "meta"
+        if param.requires_grad and getattr(getattr(param, "device", None), "type", None) == "meta"
     )
     digest = _digest(kept)
     return ParamSnapshot(
@@ -87,11 +86,12 @@ def _digest(named_params) -> str:
     hasher = hashlib.sha256()
     for name, param in named_params:
         hasher.update(name.encode("utf-8"))
-        # Raw bytes through a uint8 view: numpy has no bfloat16, so ``.numpy()`` raised
-        # on bf16 adapters (H2 stage P, RTX 4090). For dtypes numpy does support the
-        # bytes are the same as before, so existing fingerprints do not change.
-        detached = param.detach().cpu().contiguous().reshape(-1)
-        hasher.update(detached.view(torch.uint8).numpy().tobytes())
+        detached = param.detach()
+        # NumPy has no BF16 dtype. Reinterpret the contiguous storage as bytes,
+        # without casting values or canonicalising NaN payloads. Flatten first
+        # so scalar parameters also support the smaller-element-size view.
+        raw_bytes = detached.cpu().contiguous().reshape(-1).view(torch.uint8)
+        hasher.update(raw_bytes.numpy().tobytes())
     return hasher.hexdigest()
 
 

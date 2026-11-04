@@ -1,0 +1,86 @@
+{
+  "status": "LOCAL_CHECKS_PASS_WITH_KNOWN_BASELINE_FAILURES",
+  "base_commit": "79df4a847922bf2fb789f428541d261ede9233e8",
+  "published": false,
+  "review_type": "self review, no independent reviewer",
+  "focused": {
+    "passed": 322,
+    "skipped": 20,
+    "log_sha256": "2017873a7ab78c40de7a45460d359cd8101c66ab13ebb936c507d213099ecf21",
+    "command": {
+      "command": [
+        "/Users/nurseiitzhuzbay/Documents/Codex/2026-10-16/referenced-chatgpt-conversation-this-is-an/g3-h2-preparation/h2_cpu_transformers_517/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "--no-cov",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        "tests/test_c3_activation_spill_budget.py",
+        "tests/test_c3_comparison.py",
+        "tests/test_c3_foreign_read_control.py",
+        "tests/test_c3_host_budget.py",
+        "tests/test_c3_io_calibration.py",
+        "tests/test_c3_isolated_compare.py",
+        "tests/test_c3_l2l_shared_runtime.py",
+        "tests/test_c3_offline_bootstrap.py",
+        "tests/test_c3_partial_ram.py",
+        "tests/test_c3_representative_workload.py",
+        "tests/test_c3_setup_supervisor.py",
+        "tests/test_l2l_fit_check.py",
+        "tests/test_l2l_probe_harness.py",
+        "tests/test_l2l_rng.py",
+        "tests/test_l2l_rng_cuda.py",
+        "tests/test_l2l_session.py",
+        "tests/test_l2l_smollm2_check.py",
+        "tests/test_l2l_step.py",
+        "tests/test_l2l_trainer_mode.py"
+      ],
+      "started_unix_s": 1793363090.524791
+    }
+  },
+  "broad_regression_before_final_new_runner_tests": {
+    "working": {
+      "passed": 1668,
+      "skipped": 135,
+      "failed": 34
+    },
+    "base": {
+      "passed": 1650,
+      "skipped": 132,
+      "failed": 34
+    },
+    "same_failure_ids": true,
+    "causes": [
+      "16 pre-existing C2 frozen source hash guards",
+      "18 pre-existing deterministic MPS scatter/index_put limitations"
+    ],
+    "working_log_sha256": "ffd3b4eae7002692748332670032e279124edb195b37495908ef1a255798df99",
+    "base_log_sha256": "b78b3664c954c088eb739a018e75afaf293f8576738174f01bebb1f532eb27e5"
+  },
+  "lint": "ruff check src/soup_cli/ tests/ benchmarks/c3/ PASS",
+  "format": "4 new Python files ruff format --check PASS",
+  "whitespace": "git diff --check PASS",
+  "gpu": "NOT_RUN",
+  "performance": "NO_VERDICT",
+  "source_sha256": {
+    "benchmarks/c3/REPRESENTATIVE_PROTOCOL.txt": "9e40e2255eac8a7eadee11e287996ff2e13094000eb7bd50d14121de59a36726",
+    "benchmarks/c3/STATUS.md": "1f176b9e26f2354560981efb6fd2ef43b54053bd722736909949d46da26b7fac",
+    "benchmarks/c3/gpu_tests.py": "19ccc9b2652f18b86d8e3f735d341d699bd30450895fdd8d9558b8a930f1ce72",
+    "benchmarks/c3/isolated_arm.py": "95902e848cab08d4ae2519bbbfc9a01cced65277295bcb906c14143ed99a403f",
+    "benchmarks/c3/isolated_compare.py": "b421e8a4b412e8c5376e131eaf5469f2b81a2d84859b69370586e0419e44c659",
+    "benchmarks/c3/representative_model.json": "92eee051899c048d0a95a3266f05059b97d060d1bfd6035133f73ab3052eb5eb",
+    "benchmarks/c3/representative_tokens.json": "cf5cc1f5634dbb317147e95967811f229de75bd2a8953461576be1bf0dc7eccc",
+    "benchmarks/c3/representative_workload.py": "1ede3934a1732b6917df54e23b583e3342183855907f67bfcb933df7339bff10",
+    "docs/performance-and-quantization.md": "4c366f6a4a271acf393783fdc1e08de8b6cf2768f52bd04f121bfce6c56e2b52",
+    "src/soup_cli/utils/budgeted_activations.py": "3f8e917348dbf97513b35e144794d9f632a16cae3cf0d873f3728a1d52f9e38d",
+    "src/soup_cli/utils/layer_stream_runtime.py": "f4eca5142e6fe0822d9217248389178f5e9bed2b885ff92804a4499fae9725c2",
+    "tests/fixtures/c3_a4_allocation_contract.json": "e8e3c26edb4d78bd189f6a406957f8d8c8a85ba3155a898456f1dd2669a22954",
+    "tests/test_c3_activation_spill_budget.py": "f13b2637bf3ff7b98f4c0520c9ca73acb8c9834d864bfe7a4803f1201d147d83",
+    "tests/test_c3_l2l_shared_runtime.py": "163d47f630a1af52035eb8b03f38db3a62024fc2c08e54cea69f3595b0b40cb3",
+    "tests/test_c3_representative_workload.py": "8b72ba3def00fdc0b7fbd32c7e52d7b4ec59226e050a943627fb371571e9dd7c"
+  },
+  "last_after_test_edit": "module docstring only: optional frozen snapshot fetch description",
+  "unix_s": 1793363541.207936
+}

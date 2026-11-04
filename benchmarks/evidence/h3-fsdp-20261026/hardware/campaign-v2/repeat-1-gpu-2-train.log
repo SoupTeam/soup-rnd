@@ -1,0 +1,188 @@
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  30%|███       | 87/290 [00:00<00:00, 864.28it/s]Loading weights:  60%|██████    | 174/290 [00:00<00:00, 335.60it/s]Loading weights:  77%|███████▋  | 224/290 [00:00<00:00, 287.45it/s]Loading weights:  90%|█████████ | 261/290 [00:00<00:00, 253.88it/s]Loading weights: 100%|██████████| 290/290 [00:01<00:00, 288.92it/s]
+LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/prepared/data
+Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  36%|███▌      | 105/290 [00:00<00:00, 1047.30it/s]Loading weights:  72%|███████▏  | 210/290 [00:00<00:00, 355.91it/s] Loading weights:  92%|█████████▏| 268/290 [00:00<00:00, 306.81it/s]Loading weights: 100%|██████████| 290/290 [00:01<00:00, 202.56it/s]
+LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/prepared/data
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+  0%|          | 0/18 [00:00<?, ?it/s]/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 559, in <module>
+[rank1]:     main()
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 553, in main
+[rank1]:     run(args)
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 462, in run
+[rank1]:     wrapper.train()
+[rank1]:   File "/workspace/h3-soup/src/soup_cli/trainer/sft.py", line 2349, in train
+[rank1]:     self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1520, in train
+[rank1]:     return inner_training_loop(
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1602, in _inner_training_loop
+[rank1]:     self._run_epoch(
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1842, in _run_epoch
+[rank1]:     tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+[rank1]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 291, in observed_step
+[rank1]:     loss = original_step(model, inputs, *rest, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/trl/trainer/sft_trainer.py", line 1338, in training_step
+[rank1]:     return super().training_step(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 2014, in training_step
+[rank1]:     loss = self.compute_loss(model, inputs, num_items_in_batch=num_items_in_batch)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/trl/trainer/sft_trainer.py", line 1234, in compute_loss
+[rank1]:     (loss, outputs) = super().compute_loss(
+[rank1]:                       ^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 2088, in compute_loss
+[rank1]:     outputs = model(**inputs)
+[rank1]:               ^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1884, in _call_impl
+[rank1]:     return inner()
+[rank1]:            ^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1811, in inner
+[rank1]:     args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+[rank1]:                          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_common.py", line 30, in wrapper
+[rank1]:     return torch._dynamo.disable(
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+[rank1]:     return fn(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 311, in _pre_forward
+[rank1]:     args, kwargs = self._root_pre_forward(module, args, kwargs)
+[rank1]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 140, in _root_pre_forward
+[rank1]:     self._lazy_init()
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 210, in _lazy_init
+[rank1]:     self._validate_no_duplicate_params()
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 223, in _validate_no_duplicate_params
+[rank1]:     raise ValueError(
+[rank1]: ValueError: Parameter 'base_model.model.model.embed_tokens.weight' is shared with a parameter already managed by another FSDP group. For shared/tied parameters, use fully_shard([module_a, module_b]) to place them in the same FSDP group.
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 559, in <module>
+[rank0]:     main()
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 553, in main
+[rank0]:     run(args)
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 462, in run
+[rank0]:     wrapper.train()
+[rank0]:   File "/workspace/h3-soup/src/soup_cli/trainer/sft.py", line 2349, in train
+[rank0]:     self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1520, in train
+[rank0]:     return inner_training_loop(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1602, in _inner_training_loop
+[rank0]:     self._run_epoch(
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1842, in _run_epoch
+[rank0]:     tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 291, in observed_step
+[rank0]:     loss = original_step(model, inputs, *rest, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/trl/trainer/sft_trainer.py", line 1338, in training_step
+[rank0]:     return super().training_step(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 2014, in training_step
+[rank0]:     loss = self.compute_loss(model, inputs, num_items_in_batch=num_items_in_batch)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/trl/trainer/sft_trainer.py", line 1234, in compute_loss
+[rank0]:     (loss, outputs) = super().compute_loss(
+[rank0]:                       ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 2088, in compute_loss
+[rank0]:     outputs = model(**inputs)
+[rank0]:               ^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1884, in _call_impl
+[rank0]:     return inner()
+[rank0]:            ^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1811, in inner
+[rank0]:     args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+[rank0]:                          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_common.py", line 30, in wrapper
+[rank0]:     return torch._dynamo.disable(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 311, in _pre_forward
+[rank0]:     args, kwargs = self._root_pre_forward(module, args, kwargs)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 140, in _root_pre_forward
+[rank0]:     self._lazy_init()
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 210, in _lazy_init
+[rank0]:     self._validate_no_duplicate_params()
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 223, in _validate_no_duplicate_params
+[rank0]:     raise ValueError(
+[rank0]: ValueError: Parameter 'base_model.model.model.embed_tokens.weight' is shared with a parameter already managed by another FSDP group. For shared/tied parameters, use fully_shard([module_a, module_b]) to place them in the same FSDP group.
+  0%|          | 0/18 [00:23<?, ?it/s]
+W1026 16:41:19.091000 2199 benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 2209 closing signal SIGTERM
+E1026 16:41:19.569000 2199 benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 0 (pid: 2208) of binary: /workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/bin/python
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1032, in <module>
+    main()
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 367, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1028, in main
+    run(args)
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1019, in run
+    elastic_launch(
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 194, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 383, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-10-26_16:41:19
+  host      : 1961db20da7e
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 2209) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-10-26_16:41:19
+  host      : 1961db20da7e
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 2208) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

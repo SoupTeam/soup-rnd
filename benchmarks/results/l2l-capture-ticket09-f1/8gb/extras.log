@@ -1,0 +1,138 @@
+Collecting typer<0.21,>=0.9
+  Downloading typer-0.20.1-py3-none-any.whl.metadata (16 kB)
+Collecting plotext
+  Downloading plotext-6.1.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.9 kB)
+Collecting trl<1,>=0.29
+  Downloading trl-0.29.1-py3-none-any.whl.metadata (11 kB)
+Collecting datasets>=2.14
+  Downloading datasets-5.1.0-py3-none-any.whl.metadata (24 kB)
+Requirement already satisfied: click>=8.0.0 in ./.venv/lib/python3.12/site-packages (from typer<0.21,>=0.9) (8.5.0)
+Requirement already satisfied: typing-extensions>=3.7.4.3 in ./.venv/lib/python3.12/site-packages (from typer<0.21,>=0.9) (4.16.0)
+Requirement already satisfied: shellingham>=1.3.0 in ./.venv/lib/python3.12/site-packages (from typer<0.21,>=0.9) (1.5.4)
+Requirement already satisfied: rich>=10.11.0 in ./.venv/lib/python3.12/site-packages (from typer<0.21,>=0.9) (15.0.0)
+Requirement already satisfied: accelerate>=1.4.0 in ./.venv/lib/python3.12/site-packages (from trl<1,>=0.29) (1.15.0)
+Requirement already satisfied: packaging>20.0 in ./.venv/lib/python3.12/site-packages (from trl<1,>=0.29) (26.3)
+Requirement already satisfied: transformers>=4.56.2 in ./.venv/lib/python3.12/site-packages (from trl<1,>=0.29) (5.19.0)
+Requirement already satisfied: filelock in ./.venv/lib/python3.12/site-packages (from datasets>=2.14) (3.32.3)
+Requirement already satisfied: numpy>=1.17 in ./.venv/lib/python3.12/site-packages (from datasets>=2.14) (2.4.6)
+Collecting pyarrow>=24.0.0 (from datasets>=2.14)
+  Downloading pyarrow-26.0.0-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (3.0 kB)
+Collecting dill<0.4.2,>=0.3.0 (from datasets>=2.14)
+  Downloading dill-0.4.1-py3-none-any.whl.metadata (10 kB)
+Collecting pandas (from datasets>=2.14)
+  Downloading pandas-3.1.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (18 kB)
+Requirement already satisfied: tqdm>=4.66.3 in ./.venv/lib/python3.12/site-packages (from datasets>=2.14) (4.70.1)
+Collecting xxhash (from datasets>=2.14)
+  Downloading xxhash-4.0.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (17 kB)
+Collecting multiprocess<0.70.20 (from datasets>=2.14)
+  Downloading multiprocess-0.70.19-py312-none-any.whl.metadata (7.5 kB)
+Requirement already satisfied: fsspec<=2026.7.0,>=2023.1.0 in ./.venv/lib/python3.12/site-packages (from fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14) (2026.7.0)
+Requirement already satisfied: huggingface-hub<3.0,>=1.31.0 in ./.venv/lib/python3.12/site-packages (from datasets>=2.14) (2.3.0)
+Requirement already satisfied: pyyaml>=5.1 in ./.venv/lib/python3.12/site-packages (from datasets>=2.14) (6.0.3)
+Requirement already satisfied: psutil in ./.venv/lib/python3.12/site-packages (from accelerate>=1.4.0->trl<1,>=0.29) (7.2.2)
+Requirement already satisfied: torch>=2.0.0 in ./.venv/lib/python3.12/site-packages (from accelerate>=1.4.0->trl<1,>=0.29) (2.14.1+cu130)
+Requirement already satisfied: safetensors>=0.4.3 in ./.venv/lib/python3.12/site-packages (from accelerate>=1.4.0->trl<1,>=0.29) (0.8.0)
+Collecting aiohttp!=4.0.0a0,!=4.0.0a1 (from fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading aiohttp-3.14.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.3 kB)
+Requirement already satisfied: hf-xet<2.0.0,>=1.6.0 in ./.venv/lib/python3.12/site-packages (from huggingface-hub<3.0,>=1.31.0->datasets>=2.14) (1.7.0)
+Requirement already satisfied: httpx2<3,>=2.0.0 in ./.venv/lib/python3.12/site-packages (from huggingface-hub<3.0,>=1.31.0->datasets>=2.14) (2.16.0)
+Requirement already satisfied: markdown-it-py>=2.2.0 in ./.venv/lib/python3.12/site-packages (from rich>=10.11.0->typer<0.21,>=0.9) (4.2.0)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in ./.venv/lib/python3.12/site-packages (from rich>=10.11.0->typer<0.21,>=0.9) (2.21.0)
+Requirement already satisfied: regex>=2025.10.22 in ./.venv/lib/python3.12/site-packages (from transformers>=4.56.2->trl<1,>=0.29) (2026.9.29)
+Requirement already satisfied: tokenizers<0.24.0,>=0.23.1 in ./.venv/lib/python3.12/site-packages (from transformers>=4.56.2->trl<1,>=0.29) (0.23.3)
+Collecting python-dateutil>=2.9.0 (from pandas->datasets>=2.14)
+  Downloading python_dateutil-3.0.0-py2.py3-none-any.whl.metadata (8.2 kB)
+Collecting aiohappyeyeballs>=2.5.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading aiohappyeyeballs-2.7.1-py3-none-any.whl.metadata (5.9 kB)
+Collecting aiosignal>=1.4.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)
+Collecting attrs>=17.3.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+Collecting frozenlist>=1.1.1 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)
+Collecting multidict<8.0,>=4.5 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading multidict-7.2.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (6.1 kB)
+Collecting propcache>=0.2.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading propcache-0.5.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (25 kB)
+Collecting yarl<2.0,>=1.25.1 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.7.0,>=2023.1.0->datasets>=2.14)
+  Downloading yarl-1.25.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (111 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 111.6/111.6 kB 14.8 MB/s eta 0:00:00
+Requirement already satisfied: anyio>=4.10 in ./.venv/lib/python3.12/site-packages (from httpx2<3,>=2.0.0->huggingface-hub<3.0,>=1.31.0->datasets>=2.14) (4.15.1)
+Requirement already satisfied: httpcore2==2.16.0 in ./.venv/lib/python3.12/site-packages (from httpx2<3,>=2.0.0->huggingface-hub<3.0,>=1.31.0->datasets>=2.14) (2.16.0)
+Requirement already satisfied: idna>=3.18 in ./.venv/lib/python3.12/site-packages (from httpx2<3,>=2.0.0->huggingface-hub<3.0,>=1.31.0->datasets>=2.14) (3.20)
+Requirement already satisfied: truststore>=0.10 in ./.venv/lib/python3.12/site-packages (from httpx2<3,>=2.0.0->huggingface-hub<3.0,>=1.31.0->datasets>=2.14) (0.10.5)
+Requirement already satisfied: h11>=0.16 in ./.venv/lib/python3.12/site-packages (from httpcore2==2.16.0->httpx2<3,>=2.0.0->huggingface-hub<3.0,>=1.31.0->datasets>=2.14) (0.16.0)
+Requirement already satisfied: mdurl~=0.1 in ./.venv/lib/python3.12/site-packages (from markdown-it-py>=2.2.0->rich>=10.11.0->typer<0.21,>=0.9) (0.1.2)
+Collecting six>=1.6 (from python-dateutil>=2.9.0->pandas->datasets>=2.14)
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting tzdata (from python-dateutil>=2.9.0->pandas->datasets>=2.14)
+  Downloading tzdata-2026.5-py2.py3-none-any.whl.metadata (1.4 kB)
+Requirement already satisfied: setuptools>=77.0.3 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (78.1.0)
+Requirement already satisfied: sympy>=1.13.3 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (3.6.1)
+Requirement already satisfied: jinja2 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (3.1.6)
+Requirement already satisfied: cuda-toolkit==13.0.3 in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.0.3.0)
+Requirement already satisfied: cuda-bindings<14,>=13.0.3 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.3.1)
+Requirement already satisfied: nvidia-cudnn-cu13==9.24.0.43 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (9.24.0.43)
+Requirement already satisfied: nvidia-cusparselt-cu13==0.8.1 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (0.8.1)
+Requirement already satisfied: nvidia-nccl-cu13==2.30.7 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (2.30.7)
+Requirement already satisfied: nvidia-nvshmem-cu13==3.4.5 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (3.4.5)
+Requirement already satisfied: triton~=3.8.0 in ./.venv/lib/python3.12/site-packages (from torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (3.8.0)
+Requirement already satisfied: nvidia-cublas==13.1.1.3.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.1.1.3)
+Requirement already satisfied: nvidia-cuda-nvrtc==13.0.88.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.0.88)
+Requirement already satisfied: nvidia-cuda-runtime==13.0.96.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.0.96)
+Requirement already satisfied: nvidia-cufft==12.0.0.61.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (12.0.0.61)
+Requirement already satisfied: nvidia-nvjitlink<14,>=13.0.88 in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.3.33)
+Requirement already satisfied: nvidia-cufile==1.15.1.6.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (1.15.1.6)
+Requirement already satisfied: nvidia-cuda-cupti==13.0.85.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.0.85)
+Requirement already satisfied: nvidia-curand==10.4.0.35.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (10.4.0.35)
+Requirement already satisfied: nvidia-cusolver==12.0.4.66.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (12.0.4.66)
+Requirement already satisfied: nvidia-cusparse==12.6.3.3.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (12.6.3.3)
+Requirement already satisfied: nvidia-nvtx==13.0.85.* in ./.venv/lib/python3.12/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (13.0.85)
+Requirement already satisfied: cuda-pathfinder>=1.4.2 in ./.venv/lib/python3.12/site-packages (from cuda-bindings<14,>=13.0.3->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (1.6.0)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in ./.venv/lib/python3.12/site-packages (from sympy>=1.13.3->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in ./.venv/lib/python3.12/site-packages (from jinja2->torch>=2.0.0->accelerate>=1.4.0->trl<1,>=0.29) (3.0.3)
+Downloading typer-0.20.1-py3-none-any.whl (47 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 47.4/47.4 kB 178.8 MB/s eta 0:00:00
+Downloading plotext-6.1.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (475 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 475.8/475.8 kB 7.6 MB/s eta 0:00:00
+Downloading trl-0.29.1-py3-none-any.whl (530 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 531.0/531.0 kB 78.6 MB/s eta 0:00:00
+Downloading datasets-5.1.0-py3-none-any.whl (604 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 604.4/604.4 kB 72.4 MB/s eta 0:00:00
+Downloading dill-0.4.1-py3-none-any.whl (120 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 223.2 MB/s eta 0:00:00
+Downloading multiprocess-0.70.19-py312-none-any.whl (150 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 150.3/150.3 kB 219.7 MB/s eta 0:00:00
+Downloading pyarrow-26.0.0-cp312-cp312-manylinux_2_28_x86_64.whl (53.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 53.9/53.9 MB 54.2 MB/s eta 0:00:00
+Downloading pandas-3.1.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.0/12.0 MB 58.6 MB/s eta 0:00:00
+Downloading xxhash-4.0.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (261 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 261.8/261.8 kB 104.3 MB/s eta 0:00:00
+Downloading aiohttp-3.14.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 34.0 MB/s eta 0:00:00
+Downloading python_dateutil-3.0.0-py2.py3-none-any.whl (94 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 94.7/94.7 kB 99.8 MB/s eta 0:00:00
+Downloading aiohappyeyeballs-2.7.1-py3-none-any.whl (15 kB)
+Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)
+Downloading attrs-26.1.0-py3-none-any.whl (67 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 92.7 MB/s eta 0:00:00
+Downloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (242 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 242.4/242.4 kB 26.2 MB/s eta 0:00:00
+Downloading multidict-7.2.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (516 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 516.8/516.8 kB 24.2 MB/s eta 0:00:00
+Downloading propcache-0.5.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (250 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 250.4/250.4 kB 29.7 MB/s eta 0:00:00
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Downloading yarl-1.25.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (117 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.0/117.0 kB 92.1 MB/s eta 0:00:00
+Downloading tzdata-2026.5-py2.py3-none-any.whl (347 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 348.0/348.0 kB 30.0 MB/s eta 0:00:00
+Installing collected packages: xxhash, tzdata, six, pyarrow, propcache, plotext, multidict, frozenlist, dill, attrs, aiohappyeyeballs, yarl, python-dateutil, multiprocess, aiosignal, typer, pandas, aiohttp, datasets, trl
+  Attempting uninstall: typer
+    Found existing installation: typer 0.27.3
+    Uninstalling typer-0.27.3:
+      Successfully uninstalled typer-0.27.3
+Successfully installed aiohappyeyeballs-2.7.1 aiohttp-3.14.5 aiosignal-1.4.0 attrs-26.1.0 datasets-5.1.0 dill-0.4.1 frozenlist-1.8.0 multidict-7.2.1 multiprocess-0.70.19 pandas-3.1.0 plotext-6.1.0 propcache-0.5.4 pyarrow-26.0.0 python-dateutil-3.0.0 six-1.17.0 trl-0.29.1 typer-0.20.1 tzdata-2026.5 xxhash-4.0.2 yarl-1.25.1
+EXIT=0

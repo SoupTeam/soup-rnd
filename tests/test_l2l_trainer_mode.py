@@ -56,9 +56,10 @@ def test_l2l_without_stream_layers_is_refused():
         load_config_from_string(_yaml(l2l=True, stream_layers=False))
 
 
-def test_l2l_with_nonzero_lora_dropout_is_refused():
-    with pytest.raises(ValueError, match=r"l2l.*lora\.dropout"):
-        load_config_from_string(_yaml(l2l=True, lora_dropout=0.05))
+def test_l2l_with_nonzero_lora_dropout_is_accepted():
+    cfg = load_config_from_string(_yaml(l2l=True, lora_dropout=0.05))
+    assert cfg.training.l2l is True
+    assert cfg.training.lora.dropout == 0.05
 
 
 def test_l2l_for_a_task_other_than_sft_is_refused():
@@ -96,9 +97,8 @@ def test_guard_refuses_another_architecture():
         _guard(model_type="qwen2")
 
 
-def test_guard_refuses_attention_dropout():
-    with pytest.raises(ValueError, match="attention_dropout"):
-        _guard(attention_dropout=0.1)
+def test_guard_accepts_attention_dropout():
+    _guard(attention_dropout=0.1)
 
 
 def test_guard_refuses_several_gpus():
@@ -136,7 +136,9 @@ class _Rows:
         return self.rows[i]
 
 
-def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, **targs):
+def _train(
+    base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, batch_size=1, **targs
+):
     import torch
     from transformers import TrainerCallback, TrainingArguments
 
@@ -150,7 +152,7 @@ def _train(base_cls, model, runtime, tmp_path, *, l2l, k, rows=4, lengths=None, 
 
     args = TrainingArguments(
         output_dir=str(tmp_path / ("l2l" if l2l else "ga")),
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=k,
         learning_rate=0.5,
         optim="sgd",
@@ -237,6 +239,153 @@ def test_neftune_noise_sequence_is_the_one_accumulation_draws(streamed, tmp_path
     _same_adapters_as_accumulation(streamed, tmp_path, neftune_noise_alpha=5.0)
 
 
+@pytest.fixture()
+def dropout_model(tmp_path, monkeypatch):
+    """The ``streamed`` model with ``lora.dropout`` 0.05, closed after the test."""
+    from tests.test_l2l_probe_harness import build_streamed, hermetic_ram
+
+    model, runtime = build_streamed(tmp_path, lora_dropout=0.05)
+    hermetic_ram(monkeypatch, tmp_path)
+    yield model, runtime
+    runtime.close()
+
+
+def _set_attention_dropout(model, value, *, eager=False):
+    """``eager`` switches the attention to the eager implementation, whose dropout is replayable."""
+    for module in model.modules():
+        if hasattr(module, "attention_dropout"):
+            module.attention_dropout = value
+        config = getattr(module, "config", None)
+        if eager and hasattr(config, "_attn_implementation"):
+            config._attn_implementation = "eager"
+
+
+def _dropout_run_matches_accumulation(model_and_runtime, tmp_path, *, lengths=None, k=2):
+    """(accumulation adapters, L2L adapters, equal) from one common starting point."""
+    import torch
+
+    harness = _load("l2l_schedule")
+    model, runtime = model_and_runtime
+    harness.make_non_vacuous(model)
+    start = harness.snapshot_adapters(model)
+    from transformers import Trainer
+
+    base = Trainer
+    _train(base, model, runtime, tmp_path, l2l=False, k=k, lengths=lengths)
+    ga = _adapters(model)
+    harness.restore_adapters(model, start)
+    _train(base, model, runtime, tmp_path, l2l=True, k=k, lengths=lengths)
+    l2l = _adapters(model)
+    equal = all(torch.allclose(ga[n], l2l[n], atol=1e-6, rtol=1e-5) for n in ga)
+    return ga, l2l, equal, start
+
+
+def test_trainer_with_lora_dropout_matches_accumulation_at_k2(dropout_model, tmp_path):
+    import torch
+
+    ga, l2l, same, start = _dropout_run_matches_accumulation(dropout_model, tmp_path)
+    assert same
+    assert any(not torch.equal(l2l[n], start[n]) for n in l2l)
+
+
+def test_lora_dropout_changes_the_adapters_the_trainer_trains(streamed, dropout_model, tmp_path):  # noqa: F811
+    """Control: the equality above is not vacuous, dropout 0.05 moves the adapters."""
+    import torch
+    from transformers import Trainer
+
+    results = []
+    for model, runtime in (streamed, dropout_model):
+        harness = _load("l2l_schedule")
+        harness.make_non_vacuous(model)
+        _train(Trainer, model, runtime, tmp_path, l2l=False, k=2)
+        results.append(_adapters(model))
+    plain, dropped = results
+    assert any(not torch.allclose(plain[n], dropped[n], atol=1e-6, rtol=1e-5) for n in plain)
+
+
+def test_eager_attention_dropout_alone_matches_accumulation_at_k2(streamed, tmp_path):  # noqa: F811
+    import torch
+
+    harness = _load("l2l_schedule")
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    start = harness.snapshot_adapters(model)
+    from transformers import Trainer
+
+    base = Trainer
+
+    _set_attention_dropout(model, 0.0, eager=True)
+    _train(base, model, runtime, tmp_path, l2l=False, k=2)
+    ga_without = _adapters(model)
+
+    _set_attention_dropout(model, 0.1, eager=True)
+    harness.restore_adapters(model, start)
+    _train(base, model, runtime, tmp_path, l2l=False, k=2)
+    ga = _adapters(model)
+    harness.restore_adapters(model, start)
+    _train(base, model, runtime, tmp_path, l2l=True, k=2)
+    l2l = _adapters(model)
+
+    assert all(torch.allclose(ga[n], l2l[n], atol=1e-6, rtol=1e-5) for n in ga)
+    # control: from the same start, attention dropout alone changed the result
+    assert any(not torch.allclose(ga[n], ga_without[n], atol=1e-6, rtol=1e-5) for n in ga)
+
+
+def test_has_dropout_sees_lora_attention_and_config_dropout(dropout_model, streamed):  # noqa: F811
+    import types
+
+    from soup_cli.trainer.l2l_trainer import _has_dropout
+
+    assert _has_dropout(dropout_model[0])
+    plain = streamed[0]
+    assert not _has_dropout(plain)
+    _set_attention_dropout(plain, 0.1)
+    assert _has_dropout(plain)
+    _set_attention_dropout(plain, 0.0)
+    config_only = types.SimpleNamespace(
+        config=types.SimpleNamespace(attention_dropout=0.1), modules=lambda: []
+    )
+    assert _has_dropout(config_only)
+
+
+def test_neftune_with_dropout_is_refused(dropout_model, tmp_path):
+    from transformers import Trainer
+
+    model, runtime = dropout_model
+    _load("l2l_schedule").make_non_vacuous(model)
+    with pytest.raises(ValueError, match=r"(?i)neftune.*dropout"):
+        _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, neftune_noise_alpha=5.0)
+
+
+def test_mixed_length_windows_with_lora_dropout_are_refused(dropout_model, tmp_path):
+    from transformers import Trainer
+
+    model, runtime = dropout_model
+    _load("l2l_schedule").make_non_vacuous(model)
+    with pytest.raises(ValueError, match=r"(?i)dropout.*(length|padd)"):
+        _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, lengths=[5, 8, 3, 6])
+
+
+def test_sdpa_attention_dropout_is_refused_before_the_first_step(streamed, tmp_path):  # noqa: F811
+    from transformers import Trainer
+
+    model, runtime = streamed
+    _load("l2l_schedule").make_non_vacuous(model)
+    _set_attention_dropout(model, 0.1)
+    with pytest.raises(ValueError, match=r"(?i)scaled_dot_product_attention"):
+        _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)
+
+
+def test_mixed_length_windows_with_attention_dropout_only_are_refused(tmp_path, streamed):  # noqa: F811
+    from transformers import Trainer
+
+    model, runtime = streamed
+    _load("l2l_schedule").make_non_vacuous(model)
+    _set_attention_dropout(model, 0.1)
+    with pytest.raises(ValueError, match=r"(?i)dropout.*(length|padd)"):
+        _train(Trainer, model, runtime, tmp_path, l2l=True, k=2, lengths=[5, 8, 3, 6])
+
+
 def test_activation_store_is_refused_before_it_is_allocated(streamed, tmp_path, monkeypatch):  # noqa: F811
     from transformers import Trainer
 
@@ -253,26 +402,29 @@ def test_activation_store_is_refused_before_it_is_allocated(streamed, tmp_path, 
         _train(Trainer, model, runtime, tmp_path, l2l=True, k=2)
 
 
-def test_activation_budget_accepts_what_fits_and_skips_without_psutil():
-    from soup_cli.trainer.l2l_trainer import check_activation_budget
+def test_activation_plan_keeps_what_fits_and_spills_nothing_without_a_budget():
+    from soup_cli.utils.l2l_spill import SpillRefusedError, plan_spill
 
-    kw = dict(n_layers=2, k=3, chunk_bytes=100, pinned=False)
-    check_activation_budget(free_ram=1000, **kw)
-    check_activation_budget(free_ram=None, **{**kw, "chunk_bytes": 10**15})
-    with pytest.raises(ValueError, match="activation"):
-        check_activation_budget(free_ram=1000, **{**kw, "k": 4, "chunk_bytes": 100})
+    kw = dict(n_layers=2, k=3, chunk_bytes=100, pin=False)
+    assert plan_spill(700, **kw).spill_layers == 0
+    assert plan_spill(None, **{**kw, "chunk_bytes": 10**15}).spill_layers == 0
+    # 2 x 4 x 100 bytes do not fit 700, and neither do the staging rings of a spill
+    with pytest.raises(SpillRefusedError, match="activation"):
+        plan_spill(700, **{**kw, "k": 4})
 
 
-def test_activation_budget_charges_pinned_chunks_at_the_next_power_of_two():
-    from soup_cli.trainer.l2l_trainer import check_activation_budget
+def test_activation_plan_charges_pinned_chunks_at_the_next_power_of_two():
+    from soup_cli.utils.l2l_spill import plan_spill
 
     mib, gib = 2**20, 2**30
     # bf16, 80 layers, hidden 8192, seq 1088, k=16: a 17 MiB chunk occupies a 32 MiB
     # pinned block, so the store needs 40 GiB, not the 21.25 GiB of its logical bytes.
-    kw = dict(free_ram=32 * gib, n_layers=80, k=16, chunk_bytes=17 * mib)
-    check_activation_budget(pinned=False, **kw)
-    with pytest.raises(ValueError, match="pinned"):
-        check_activation_budget(pinned=True, **kw)
+    kw = dict(n_layers=80, k=16, chunk_bytes=17 * mib)
+    budget = int(32 * gib * 0.7)
+    assert plan_spill(budget, pin=False, **kw).spill_layers == 0
+    pinned = plan_spill(budget, pin=True, **kw)
+    assert pinned.all_resident_bytes == 40 * gib
+    assert pinned.spill_layers > 0
 
 
 def test_neftune_with_mixed_length_windows_is_refused(streamed, tmp_path):  # noqa: F811
@@ -305,6 +457,9 @@ def test_counters_reach_the_training_log(streamed, tmp_path):  # noqa: F811
     assert last["l2l_large_loads"] >= 0
     assert last["l2l_weight_restores"] == 0
     assert last["l2l_steps"] == 2
+    assert last["l2l_captures"] == 1
+    assert last["l2l_capture_seconds"] >= 0
+    assert last["l2l_spill_layers"] == 0
 
 
 def test_windows_with_rows_of_different_lengths_match_accumulation(streamed, tmp_path):  # noqa: F811
@@ -357,12 +512,14 @@ def test_without_attached_state_the_subclass_is_the_base_trainer(streamed, tmp_p
 # --------------------------------------------------------------------------
 # the production path: SFTTrainerWrapper -> TRL SFTTrainer
 # --------------------------------------------------------------------------
-def _wrapper(tmp_path, monkeypatch, **training):
+def _wrapper(tmp_path, monkeypatch, *, max_length=64, prompts=None, **training):
     from soup_cli.trainer.sft import SFTTrainerWrapper
+    from tests.test_l2l_probe_harness import hermetic_ram
     from tests.test_v07201 import _tiny_llama_dir, _write_tiny_tokenizer
 
     weights = _tiny_llama_dir(tmp_path, n_layers=2)
     _write_tiny_tokenizer(weights)
+    hermetic_ram(monkeypatch, tmp_path)
     monkeypatch.setenv("SOUP_LAYER_STREAM_CACHE_DIR", str(tmp_path / "cache"))
     # HF picks mps on an Apple GPU box while the streamed model sits on cpu
     monkeypatch.setenv("ACCELERATE_USE_CPU", "true")
@@ -387,7 +544,9 @@ def _wrapper(tmp_path, monkeypatch, **training):
                 "task": "sft",
                 "backend": "transformers",
                 "modality": "text",
-                "data": {"train": "train.jsonl", "max_length": 64, "chat_template": "chatml"},
+                "data": {
+                    "train": "train.jsonl", "max_length": max_length, "chat_template": "chatml"
+                },
                 "training": fields,
                 "output": str(tmp_path / "out"),
             }
@@ -397,11 +556,11 @@ def _wrapper(tmp_path, monkeypatch, **training):
         "train": [
             {
                 "messages": [
-                    {"role": "user", "content": "hi" * (i + 1)},
+                    {"role": "user", "content": prompts[i] if prompts else "hi" * (i + 1)},
                     {"role": "assistant", "content": "hello world"},
                 ]
             }
-            for i in range(4)
+            for i in range(len(prompts) if prompts else 4)
         ]
     }
     wrapper = SFTTrainerWrapper(cfg, device="cpu")
@@ -433,3 +592,69 @@ def test_sft_wrapper_refuses_an_unsupported_model_at_launch(tmp_path, monkeypatc
     monkeypatch.setattr(l2l_trainer, "refuse_unsupported_l2l", refuse)
     with pytest.raises(ValueError, match="qwen2"):
         _wrapper(tmp_path, monkeypatch)
+
+
+def test_activation_plan_sums_the_real_chunk_sizes():
+    from soup_cli.utils.l2l_spill import SpillRefusedError, plan_spill
+
+    # One long row (900 B) and three short ones (10 B): 2 layers x 930 B = 1860 B.
+    # Charging every position at the largest size would refuse a window that fits.
+    kw = dict(n_layers=2, k=4, chunk_bytes=900, pin=False)
+    plan = plan_spill(2000, mb_bytes=[900, 10, 10, 10], **kw)
+    assert plan.spill_layers == 0 and plan.host_bytes == 1860
+    with pytest.raises(SpillRefusedError, match="activation"):
+        plan_spill(2000, **kw)
+    with pytest.raises(SpillRefusedError, match="activation"):
+        plan_spill(1859, mb_bytes=[900, 10, 10, 10], **kw)
+
+
+def test_the_store_for_a_window_of_very_different_lengths_is_sized_per_micro_batch(monkeypatch):
+    import types
+
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils import l2l_spill
+
+    class _Stepper:
+        layers = [None, None]
+        causal = types.SimpleNamespace(config=types.SimpleNamespace(hidden_size=4))
+
+    monkeypatch.setattr(
+        l2l_spill, "ram_budget", lambda: l2l_spill.RamBudget(None, None, None, {}, None)
+    )
+    state = L2LState(runtime=None, dtype=torch.float32)
+    window = [torch.zeros((1, n), dtype=torch.long) for n in (2, 64, 3)]
+    try:
+        store = _store_for(state, _Stepper(), window, "cpu")
+        assert [store._resident[(0, mb)].numel() for mb in range(3)] == [8, 256, 12]
+        assert store.stats.resident_chunks == 2 * 3
+        assert state.spill_plan["mb_bytes"] == [32, 1024, 48]
+        assert state.spill_plan["host_bytes"] == 2 * (32 + 1024 + 48)
+        # A later short window reuses all positions; growth retains the unused tail.
+        assert _store_for(state, _Stepper(), window[:2], "cpu") is store
+        longer = [torch.zeros((1, n), dtype=torch.long) for n in (10, 64)]
+        grown = _store_for(state, _Stepper(), longer, "cpu")
+        assert grown is not store
+        assert [grown._resident[(0, mb)].numel() for mb in range(3)] == [40, 256, 12]
+    finally:
+        state.close()
+
+
+def test_sft_wrapper_sizes_positions_from_the_window_not_max_length(tmp_path, monkeypatch):
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import _l2l_step_for, _store_for
+
+    prompts = [" ".join(["hello"] * n) for n in (3, 40, 80, 7)]
+    wrapper = _wrapper(tmp_path, monkeypatch, max_length=2048, prompts=prompts)
+    state = wrapper.trainer._soup_l2l
+    window = [torch.zeros((1, length), dtype=torch.long) for length in (8, 32)]
+    stepper, _ = _l2l_step_for(state, wrapper.model, window)
+    hidden = int(stepper.causal.config.hidden_size)
+    try:
+        store = _store_for(state, stepper, window, "cpu")
+        assert store.mb_shapes == [(8 * hidden,), (32 * hidden,)]
+        assert state.spill_plan["chunk_bytes"] == 32 * hidden * 4
+    finally:
+        state.close()

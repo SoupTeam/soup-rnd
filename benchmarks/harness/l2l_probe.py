@@ -444,7 +444,8 @@ def mode_spill(args, model, runtime, config, sink, torch_dtype, meta) -> None:
     vocab = int(config.vocab_size)
     mbs = [torch.randint(0, vocab, (1, args.seq), generator=gen, device="cuda")
            for _ in range(args.spill_k)]
-    step = l2l_schedule.L2LStep(model, runtime, l2l_schedule.capture_layer_call(model, mbs[0]))
+    call = l2l_schedule.capture_layer_call(model, mbs[0])
+    step = l2l_schedule.L2LStep(model, runtime, call)
     spill_layers = spill_layers_for(int(config.num_hidden_layers), args.spill_k,
                                     args.spill_budget_k)
     meta["spill_layers"] = spill_layers
