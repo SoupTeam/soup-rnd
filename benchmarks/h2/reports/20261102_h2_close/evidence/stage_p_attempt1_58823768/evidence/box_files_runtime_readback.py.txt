@@ -1,0 +1,9 @@
+import hashlib,importlib.util,json,shutil
+from pathlib import Path
+out=Path('/data/h2/evidence/installed_source_readback');out.mkdir(exist_ok=False)
+manifest={}
+for package,relative in [('transformers','trainer.py'),('trl','trainer/sft_trainer.py'),('liger_kernel','transformers/monkey_patch.py'),('unsloth','__init__.py')]:
+ spec=importlib.util.find_spec(package);root=Path(next(iter(spec.submodule_search_locations)))
+ src=root/relative;dest=out/package/relative;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(src,dest)
+ manifest[str(dest.relative_to(out))]={'bytes':dest.stat().st_size,'sha256':hashlib.sha256(dest.read_bytes()).hexdigest()}
+(out/'manifest.json').write_text(json.dumps(manifest,indent=2))

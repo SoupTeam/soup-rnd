@@ -1,0 +1,289 @@
+{
+  "phase": "ce_only_training",
+  "status": "PASS_CE_CONTROLS",
+  "ownership": {
+    "before": [],
+    "after": [
+      3458232
+    ],
+    "context_active": true,
+    "single_device": true,
+    "method": "exclusive-local-CUDA-initialization"
+  },
+  "gpu_pid_samples": [
+    {
+      "at_s": 0.01489777909591794,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 2.050671034026891,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 4.065867758356035,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 6.079852789174765,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 8.093966386280954,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 10.108136962167919,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 12.12217172095552,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 14.136326363310218,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 16.150847466196865,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 18.16508422419429,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 20.17945362534374,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 22.1938767391257,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 24.2087364429608,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 26.373362941201776,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 28.45211219135672,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 30.46790094813332,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 32.482948537915945,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 34.50300304405391,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 36.51717899693176,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 38.53128611529246,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 40.545920422300696,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 42.560179765336215,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    },
+    {
+      "at_s": 44.48680331930518,
+      "reading": [
+        3458232
+      ],
+      "problem": null
+    }
+  ],
+  "f1": {
+    "arm": "ce_only_training",
+    "round": 0,
+    "run": 0,
+    "label": null,
+    "gpu": {
+      "id": "0",
+      "source": "default"
+    },
+    "required": [
+      "suspend",
+      "power",
+      "foreign_reads"
+    ],
+    "outcome": "ok",
+    "box_stamp_before": {
+      "unix_s": 1793619106.5714765,
+      "ram_available_bytes": 62845919232,
+      "commit_charge": {
+        "used_bytes": 3033214976,
+        "limit_bytes": 41451646976
+      },
+      "power_source": "mains",
+      "gpu_processes": [
+        {
+          "pid": 3458232,
+          "type": "C",
+          "name": "",
+          "used_mib": 388
+        }
+      ],
+      "gpu_memory_used_mib": 398,
+      "unknown": {}
+    },
+    "box_stamp_after": {
+      "unix_s": 1793619151.1346574,
+      "ram_available_bytes": 60925751296,
+      "commit_charge": {
+        "used_bytes": 4889903104,
+        "limit_bytes": 41451646976
+      },
+      "power_source": "mains",
+      "gpu_processes": [
+        {
+          "pid": 3458232,
+          "type": "C",
+          "name": "",
+          "used_mib": 10524
+        }
+      ],
+      "gpu_memory_used_mib": 10534,
+      "unknown": {}
+    },
+    "gpu_clock": {
+      "outcome": "ok",
+      "reason": "SM clock 210 to 2730 MHz over 23 samples; clock event reasons seen: gpu_idle",
+      "samples": 23,
+      "unknown_samples": 0,
+      "sm_clock_mhz": {
+        "min": 210,
+        "median": 2565,
+        "max": 2730
+      },
+      "reasons_seen": {
+        "gpu_idle": 1
+      }
+    },
+    "checks": {
+      "suspend": {
+        "outcome": "ok",
+        "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+        "evidence": {
+          "sleep_offset_start_s": -8.209608495235443e-07,
+          "sleep_offset_end_s": -6.426125764846802e-07,
+          "suspend_count_start": 0,
+          "suspend_count_end": 0
+        }
+      },
+      "power": {
+        "outcome": "ok",
+        "reason": "no battery in any of 24 power samples, so on mains",
+        "evidence": {
+          "samples": 24,
+          "off_mains_samples": [],
+          "battery_present": false,
+          "unknown_samples": 0,
+          "last_reading": {
+            "battery": false,
+            "online": {}
+          }
+        }
+      },
+      "foreign_reads": {
+        "outcome": "ok",
+        "reason": "at most 0 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+        "evidence": {
+          "model_path": "/data/h2/model_snapshot",
+          "device": "nvme0n1",
+          "disk_read_bytes_start": 6934196389888,
+          "disk_read_bytes_end": 6934198007808,
+          "other_disk_read_bytes_start": 0,
+          "other_disk_read_bytes_end": 0,
+          "own_read_bytes": 1617920,
+          "foreign_read_bytes": 0,
+          "foreign_read_bytes_min": 0,
+          "foreign_read_bytes_max": 0,
+          "uninspectable_processes": 0
+        },
+        "readers": [],
+        "unattributed_bytes": 0
+      }
+    }
+  }
+}

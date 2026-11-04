@@ -1,0 +1,33 @@
+import hashlib,json,tarfile,time,subprocess
+from pathlib import Path
+root=Path('/data/h2')
+e=root/'evidence'
+rental=json.loads((root/'rental.json').read_text())
+assert not (root/'preserved.tar.gz').exists()
+sha=lambda p:hashlib.file_digest(p.open('rb'),'sha256').hexdigest()
+model=[]
+for p in sorted((root/'model_snapshot').glob('*')):
+    assert p.is_file() and not p.is_symlink()
+    model.append({'name':p.name,'bytes':p.stat().st_size,'sha256':sha(p)})
+(e/'snapshot_final_inventory.json').write_text(json.dumps(model,indent=2)+'\n')
+for name,argv in [('gpu_final.txt',['nvidia-smi','-q']),('compute_processes_final.txt',['nvidia-smi','--query-compute-apps=pid,process_name,used_memory','--format=csv,noheader'])]:
+    r=subprocess.run(argv,capture_output=True,text=True,timeout=20)
+    (e/name).write_text(r.stdout+r.stderr)
+(e/'preservation_scope.json').write_text(json.dumps({'unix_s':time.time(),'instance_id':rental['instance_id'],'volume_id':rental['volume_id'],'included':['evidence','runs','contracts'],'excluded':{'env':'reproducible pinned environment; freeze and setup logs included','tools':'uv setup tooling recorded in setup log','repo':'unchanged pinned source is already local and published','model_snapshot':'public immutable reference model, fresh SHA and structure verified USB copy, pinned public reference; server copy verified twice; current server download inventory retained'},'performance_verdict':'NO_VERDICT'},indent=2)+'\n')
+import shutil
+for n in ['rental.json','setup.sh','setup_supervisor.py','stage_and_launch.py','stage_snapshot.sh','snapshot_auditor.py','staging_launch.py','ce_contract.template.json','dispatch.py','run_us.py','runtime_readback.py','preflight.txt','preserve_remote.py','throughput_gate.json']:
+    if (root/n).exists():shutil.copyfile(root/n,e/('box_files_'+n))
+files=[]
+for dirname in ('evidence','runs','contracts'):
+    d=root/dirname
+    if d.exists():
+        for p in sorted(d.rglob('*')):
+            assert not p.is_symlink()
+            if p.is_file(): files.append(p)
+manifest={p.relative_to(root).as_posix():{'bytes':p.stat().st_size,'sha256':sha(p)} for p in files}
+(root/'preserved_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+with tarfile.open(root/'preserved.tar.gz','w:gz') as t:
+    for p in files+[root/'preserved_manifest.json']:t.add(p,arcname=p.relative_to(root).as_posix(),recursive=False)
+r={'instance_id':rental['instance_id'],'files':len(manifest),'bytes':sum(v['bytes'] for v in manifest.values()),'archive_bytes':(root/'preserved.tar.gz').stat().st_size,'archive_sha256':sha(root/'preserved.tar.gz'),'manifest_sha256':sha(root/'preserved_manifest.json')}
+(root/'preserved_receipt.json').write_text(json.dumps(r,indent=2)+'\n')
+print(json.dumps(r))

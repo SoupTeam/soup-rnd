@@ -1,0 +1,83 @@
+"""H2-close stage U+S dispatch (box side); no retries (H2_CLOSE_PROTOCOL.txt sections 2, 3, 6).
+
+Re-checks the box, the pinned source, setup/staging receipts and the GO throughput gate, writes
+the `updates` contract and starts run_us.py detached: stage U (two fresh training children,
+shared 2400 s bound), then stage S (one audited Unsloth child, 600 s).
+"""
+import json
+import os
+import subprocess
+import time
+from pathlib import Path
+
+root = Path("/data/h2")
+ev = root / "evidence"
+repo = root / "repo"
+COMMIT = "fc2880f914d0007f72c234b5b53d39f148d90526"
+INSTANCE = 58810258
+VOLUME = 58810257
+CAP = 1.5
+GPU = "GPU-dc0c063e-8e15-fae2-9e58-239ecbc34953"
+BOOT = "88f52125-9736-4023-86cf-9c4b4647c986"
+EVIDENCE = ev / "h2close_U"
+rental = json.loads((root / "rental.json").read_text())
+assert rental["status"] == "PREFLIGHT_PASS" and rental["stage"] == "us"
+assert rental["instance_id"] == INSTANCE and rental["volume_id"] == VOLUME
+assert rental["source_commit"] == COMMIT and rental["gpu_uuid"] == GPU and rental["boot_id"] == BOOT
+assert Path("/proc/sys/kernel/random/boot_id").read_text().strip() == BOOT
+
+
+def run(*cmd):
+    return subprocess.check_output(list(cmd), text=True).strip()
+
+
+assert run("git", "-C", str(repo), "rev-parse", "HEAD") == COMMIT
+assert not run("git", "-C", str(repo), "status", "--porcelain", "--untracked-files=all")
+assert not EVIDENCE.exists() and not (ev / "us_launch.json").exists()
+for phase in ("setup", "staging"):
+    r = json.loads((ev / (phase + "_supervised_001") / "result.json").read_text())
+    assert r["status"] == "PASS" and r["group_cleanup_confirmed"]
+r = json.loads((ev / "staging/receipt.json").read_text())
+assert r["status"] == "PASS_REMOTE_SNAPSHOT_SHA" and r["total_bytes"] == 16077845652
+r = json.loads((ev / "snapshot_structural_audit.json").read_text())
+assert r["status"] == "PASS_SNAPSHOT_FILE_AND_STRUCTURE_AUDIT" and r["tensor_count"] == 291
+assert run("nvidia-smi", "--query-gpu=uuid", "--format=csv,noheader") == GPU
+assert not run("nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader")
+contract = json.loads((root / "ce_contract.template.json").read_text())
+assert contract["series"] == "updates" and contract["source_commit"] == COMMIT
+gate = json.loads((root / "throughput_gate.json").read_text())
+now = time.time()
+assert gate["status"] == "GO" and gate["instance_id"] == INSTANCE and 0 < now - gate["unix_s"] <= 1800
+margin = gate["export_margin_seconds"]
+assert isinstance(margin, (int, float)) and margin >= 600
+lease = rental["lease_deadline_unix_s"]
+bound = rental["series_bound_seconds"]  # 2400 (stage U) + 600 (stage S)
+assert now + bound + 40 + margin < lease, "U+S bound, cleanup reserve and export margin do not fit"
+rate = rental["candidate"]["quoted_total_hourly_usd"]
+assert rate * (lease - rental["created_unix_s"]) / 3600 + rental["cleanup_traffic_reserve_usd"] <= CAP
+contract.update(
+    execution_authorized=True, license_and_access_confirmed=True, source_commit=COMMIT,
+    instance_id=INSTANCE, boot_id=BOOT, gpu_uuid=GPU, hourly_rate_usd=rate, prior_spend_usd=0.0,
+    budget_cap_usd=CAP, series="updates", cleanup_traffic_reserve_usd=0.10,
+    series_started_unix_s=now, deadline_unix_s=now + 2400, evidence_root=str(EVIDENCE),
+    note="H2-close stage U: baseline_training then ce_only_training, fresh children; frozen "
+    "limits; no retries. Stage S (Unsloth audit) follows in run_us.py.",
+)
+assert contract["prior_spend_usd"] + rate * 2400 / 3600 + 0.10 <= CAP
+with (ev / "ce_contract.json").open("x") as f:
+    json.dump(contract, f, indent=2)
+env = dict(
+    os.environ, PYTHONPATH="/data/h2/repo/benchmarks/harness:/data/h2/repo/src:/data/h2/repo",
+    HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_DATASETS_OFFLINE="1",
+    CUBLAS_WORKSPACE_CONFIG=":4096:8",
+)
+with (ev / "us_launch.log").open("xb") as log:
+    child = subprocess.Popen(
+        ["/data/h2/env/bin/python", "-B", str(root / "run_us.py"), str(now + bound)],
+        cwd=root, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+(ev / "us_launch.json").write_text(json.dumps({
+    "stage": "us", "supervisor_pid": child.pid, "unix_s": now, "lease_deadline_unix_s": lease,
+    "export_margin_seconds": margin}))
+print(json.dumps({"supervisor_pid": child.pid, "status": "US_DISPATCHED"}))
