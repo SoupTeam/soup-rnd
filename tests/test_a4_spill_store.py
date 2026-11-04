@@ -363,7 +363,7 @@ def _raise_in_the_body(store):
 
 def _interrupt_inside_put(store):
     """Ctrl-C lands inside ActivationStore.put after it took a staging buffer."""
-    def typed(buf):
+    def typed(buf, shape):
         raise KeyboardInterrupt
 
     store._store._typed = typed
@@ -377,7 +377,7 @@ def _interrupt_inside_get(store):
             store.put(layer, mb, _chunk(layer * 10 + mb))
     store.begin_backward()
 
-    def typed(buf):
+    def typed(buf, shape):
         raise KeyboardInterrupt
 
     store._store._typed = typed

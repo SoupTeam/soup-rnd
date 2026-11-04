@@ -103,6 +103,15 @@ def find_g4_harness(explicit: Optional[str] = None) -> Optional[Path]:
     return None
 
 
+def open_named_spill(kind: str, path: str, size: int) -> l2l_activations.SpillBackend:
+    """A spill backend of ``size`` bytes whose name stays until ``close()`` removes it,
+    as the shipped ``open_spill_file`` leaves it."""
+    if kind not in a4_spill_store.BACKENDS:
+        raise ValueError(f"spill backend must be one of {a4_spill_store.BACKENDS}; got {kind!r}")
+    return (l2l_activations.DirectSpillFile if kind == "direct"
+            else l2l_activations.BufferedSpillFile)(path, size)
+
+
 def load_g4(harness: Path) -> Any:
     """Import ``g4_activation_codec`` from ``harness``. Its ``import l2l_activations``
     resolves to the module already imported here, so both sides must carry the same file."""
@@ -274,8 +283,11 @@ def run_spec(g4: Any, row: Row, spec: str, *, n_layers: int, ring: int, steps: i
         opened["requested_bytes"] = int(size)
         path = os.path.join(spill_dir, f"a4-spill-compose-{os.getpid()}-{next(_COUNTER)}.bin")
         opened["path"] = path
-        opened["timed"] = a4_spill_store.TimedSpill(
-            a4_spill_store.open_spill(backend, path, int(size)))
+        # Not ``a4_spill_store.open_spill``: on POSIX that unlinks the name once the handles
+        # are open, and G4's ``host_bytes()`` sizes the file by that name. The shipped
+        # ``open_spill_file`` keeps the name while the file is open as well; ``close()``
+        # removes it.
+        opened["timed"] = a4_spill_store.TimedSpill(open_named_spill(backend, path, int(size)))
         return opened["timed"]
 
     store = g4.CodecActivationStore(
@@ -329,6 +341,13 @@ def run_spec(g4: Any, row: Row, spec: str, *, n_layers: int, ring: int, steps: i
             and report["spilled_payload_bytes"] == plan.spill_file_bytes
             and report["resident_chunks"] == plan.resident_layers * row.k)
         timed = opened.get("timed")
+        # G4 sizes the spill file by NAME (``os.path.getsize(spill.path)``); the open handle
+        # (``fstat``) and the plan must say the same.
+        handle_bytes = timed.open_file_bytes() if timed is not None else 0
+        out["measured"]["g4_spill_file_bytes"] = report["spill_file_bytes"]
+        out["measured"]["open_handle_bytes"] = handle_bytes
+        checks["g4_spill_file_size_is_the_handles_and_the_plan"] = (
+            report["spill_file_bytes"] == handle_bytes == plan.spill_file_bytes)
         if plan.spill_layers:
             writer = timed.inner._writer
             out["spill"] = {"path": opened["path"], "backend": backend,

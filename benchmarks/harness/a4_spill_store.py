@@ -423,7 +423,11 @@ class BudgetedStore:
 
     def close(self) -> None:
         """Join the spill threads, remove the file, drop every buffer, return the
-        page-locked blocks to the OS. Idempotent."""
+        page-locked blocks to the OS. Idempotent.
+
+        ``ActivationStore.close`` empties its queues, rings and dicts and drops the
+        traceback of a failed writer's exception, whose frame holds the staging buffer
+        it was moving, so only the cache release is left to do here."""
         if self.closed:
             return
         self.closed = True
@@ -431,18 +435,6 @@ class BudgetedStore:
         if store is not None:
             store.close()
             self.left_behind = store.stats.spill_left_behind
-            # A writer or reader that failed (any error, not only ENOSPC) left its
-            # exception on the store; its frame holds the staging buffer it was moving.
-            _clear_chain(store._error)
-            store._resident.clear()
-            if store.spill_layers:
-                # A failed writer leaves queued (key, staging buffer, event) items behind;
-                # they hold ring buffers, which must go before the cache release.
-                for pending in (store._writes, store._reads):
-                    while not pending.empty():
-                        pending.get_nowait()
-                store._write_ring = store._read_ring = None
-                store._ready.clear()
         self.released_pinned_bytes += self._release()
 
     def __enter__(self) -> "BudgetedStore":

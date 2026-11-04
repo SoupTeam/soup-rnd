@@ -697,3 +697,26 @@ Contradictory cleanup observations cannot establish a pass.
 These are evidence-validation fixes, not changes to the decision thresholds. The
 published GPU inputs and historical verdict files remain unchanged. The regression
 tests cover truncated correctness coverage and stale cleanup summaries.
+
+### PR review: G4 integration and current main
+
+G4 (#35) and the shipped spill (#43) are merged, so the composition check and the budgeted
+store now run against the code they will ship with, and two harness changes follow. Neither
+touches a decision rule, a threshold, a record or a verdict.
+
+- **G4 accounting.** `open_spill` unlinks the spill name on POSIX once the handles are open,
+  and G4's `CodecActivationStore.host_bytes()` sizes the file by that name
+  (`os.path.getsize(spill.path)`), so every real-store composition case raised
+  `FileNotFoundError` on POSIX. The composition now opens its spill with the name kept until
+  `close()` removes it, as the shipped `open_spill_file` does, and a check
+  (`g4_spill_file_size_is_the_handles_and_the_plan`) requires G4's by-name size, the open
+  handle's `fstat` size and the plan's `spill_file_bytes` to be equal. The measured arms
+  (`a4_probe.py`, `BudgetedStore`) are unchanged and still unlink.
+- **Shipped `ActivationStore.close`.** It now empties its own queues, rings and dicts and
+  clears the failed writer's traceback, and sets the queues to `None`. `BudgetedStore.close`
+  no longer repeats that and only releases the host cache; the Ctrl-C helpers in
+  `tests/test_a4_spill_store.py` take `_typed(buf, shape)`.
+
+The GPU sessions ran the pre-#43 store and the earlier `BudgetedStore.close`; their
+`source_sha256` still names those files and is not rewritten. Their verdicts are replayed
+from the saved records only.
