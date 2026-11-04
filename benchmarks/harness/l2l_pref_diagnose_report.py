@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -89,6 +90,32 @@ def attempts_section(summary: Dict[str, Any]) -> List[str]:
     return _table(["плечо", "попытка", "исход ArmWatch", "код выхода", "причина исключения", "исключена"], rows)
 
 
+def what_showed(summary: Dict[str, Any]) -> List[str]:
+    """The findings in plain sentences; every number comes from ``diagnosis.json``."""
+    c1, c2, pairs = summary["control1"], summary["control2"], summary["pairs"]
+    out = []
+    f32 = pairs.get("f32_l2l_vs_ga1")
+    if c1["state"] == "equal" and f32:
+        out.append(f"- Контроль 1: в float32 L2L побитово равен накоплению на всех {len(f32['steps'])} шагах (градиенты LoRA и потери); накопление в float32 повторяется побитово. Запись типов подтверждает float32 без автокаста в этих трёх плечах. Значит, в общем пути L2L в этой ячейке на этой карте ошибки нет, расхождение возникает от точности.")
+    elif c1["state"] == "not_equal":
+        out.append("- Контроль 1: в float32 L2L не равен накоплению; смотрите контроль 3.")
+    else:
+        out.append("- Контроль 1 недоступен, причины в разделе контроля 1.")
+    l2l, floor = pairs.get("native_l2l_vs_ga1"), pairs.get("native_floor_vs_ga1")
+    if l2l and floor:
+        step0_l2l, step0_floor = l2l["steps"][0], floor["steps"][0]
+        out.append(f"- Контроль 2, шаг 0 (одинаковые адаптеры): разрыв L2L по градиенту {_fmt(step0_l2l['grad'])}, пол {_fmt(step0_floor['grad'])}; по потере {_fmt(step0_l2l['loss'])} и {_fmt(step0_floor['loss'])}. Шаг 0 в пределе: {'да' if c2.get('step0_within') else 'нет'}.")
+        found = [re.search(r"differs by ([0-9.e+-]+), limit ([0-9.e+-]+)", item) for item in c2["problems"]]
+        ratios = [float(m.group(1)) / float(m.group(2)) for m in found if m and float(m.group(2)) > 0]
+        steps = sorted({int(re.match(r"step (\d+)", item).group(1)) for item in c2["problems"]})
+        if c2["problems"]:
+            out.append(f"- Контроль 2, все шаги: вне предела {len(c2['problems'])} записей на шагах {steps}; наибольшее превышение предела {max(ratios, default=0):.2f} раза (предел это 1,5 пола). Шаги после нулевого не независимы от шага 0 (адаптеры уже разошлись), поэтому по правилу исход читается как «вне», а размер превышения виден в таблице.")
+    unpinned, pinned = pairs.get("unpinned_l2l_vs_ga"), pairs.get("native_l2l_vs_ga1")
+    if unpinned and pinned:
+        out.append(f"- Без закрепления SDPA (условия тикета 06) потеря шага 0 расходится на {_fmt(unpinned['steps'][0]['loss'])}, с `MATH` в обоих путях на {_fmt(pinned['steps'][0]['loss'])}. Это совпадает с тем, что L2L вызывает слои без маски внимания, а накопление с маской, и умолчание SDPA может выбирать для них разные ядра. Какое ядро выбрано по умолчанию, здесь не записано, поэтому это наблюдение, а не причина.")
+    return out
+
+
 def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any], rel: str) -> str:
     c1, c2, c3, outcome = summary["control1"], summary["control2"], summary["control3"], summary["outcome"]
     row = outcome["row"]
@@ -125,6 +152,10 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
         "```",
         "",
         "Плечи, пути, типы и бэкенды SDPA описаны в правиле. Каждое плечо идёт в своём процессе под `ArmWatch`, обязательные проверки `suspend` и `power`.",
+        "",
+        "## Что показали данные",
+        "",
+        *what_showed(summary),
         "",
         f"## Контроль 1: float32 на CUDA, {STATE_TEXT[c1['state']]}",
         "",
@@ -181,6 +212,10 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
         "",
         "Испорченные замеры (`void`) исключаются по `benchmarks/METHOD.md`, запись остаётся в каталоге результатов. Если колонка «исключена» пуста, исключать было нечего.",
         "",
+        "## Неудачные попытки",
+        "",
+        *([f"- {item}" for item in rental.get("failed", [])] or ["Неудачных попыток не было."]),
+        "",
         "## Что не проверялось",
         "",
         "- ORPO, SimPO, KTO, другие k, другие модели, другие карты, NF4, реальные наборы.",
@@ -192,6 +227,7 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
         "",
         f"- [diagnosis.json]({rel}/diagnosis.json), [environment.json]({rel}/environment.json), [rental.json]({rel}/rental.json)",
         f"- журналы и записи `ArmWatch` каждой попытки: `{rel}/<плечо>/attempt*/` (без каталогов `*-work`)",
+        f"- [create.log]({rel}/create.log), [create-attempt1-failed.log]({rel}/create-attempt1-failed.log), [COMMIT]({rel}/COMMIT)",
         f"- [packages.txt]({rel}/packages.txt), [bootstrap.log]({rel}/bootstrap.log), [a8.log]({rel}/a8.log), [show-instances-after.txt]({rel}/show-instances-after.txt)",
         "- хеши `.pt` каждой попытки лежат в `diagnosis.json` (`attempts`); сами `.pt` в репозиторий не входят.",
         "",
