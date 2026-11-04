@@ -9,6 +9,7 @@ hands ``soup train`` an explicit path.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -259,3 +260,151 @@ def test_main_restarts_a_killed_arm_from_the_complete_checkpoint(resume, tmp_pat
     saved = json.loads((tmp_path / "res" / "attempts.json").read_text())
     assert [a["resumed_from"] for a in saved["attempts"]] == [None, 4]
     assert (tmp_path / "res" / "attempt-2.log").exists()
+
+
+# --------------------------------------------------------------------------
+# review of PR 55: where the checkpoints are, what the data is, what a restart adopts
+# --------------------------------------------------------------------------
+def test_checkpoints_live_below_the_experiment_name(resume):
+    assert resume.checkpoint_directory({"output": "out", "experiment_name": "exp"}) == (
+        Path("out") / "exp"
+    )
+
+
+def test_output_defaults_to_the_schema_default(resume):
+    assert resume.checkpoint_directory({}) == Path("./output")
+    assert resume.checkpoint_directory({"experiment_name": "exp"}) == Path("./output") / "exp"
+
+
+def test_a_list_of_data_files_is_hashed_file_by_file(resume, tmp_path):
+    config, first = _files(tmp_path)
+    second = tmp_path / "e.jsonl"
+    second.write_text("more\n")
+    both = resume.run_identity(config, [str(first), str(second)])
+    assert both == resume.run_identity(config, [str(first), str(second)])
+    second.write_text("changed\n")
+    assert resume.run_identity(config, [str(first), str(second)]) != both
+
+
+def test_the_order_of_the_data_files_is_part_of_the_identity(resume, tmp_path):
+    config, first = _files(tmp_path)
+    second = tmp_path / "e.jsonl"
+    second.write_text("more\n")
+    assert resume.run_identity(config, [str(first), str(second)]) != resume.run_identity(
+        config, [str(second), str(first)]
+    )
+
+
+def test_a_dataset_name_is_identified_by_its_text(resume, tmp_path):
+    config, _ = _files(tmp_path)
+    assert resume.run_identity(config, "org/name") == resume.run_identity(config, "org/name")
+    assert resume.run_identity(config, "org/name") != resume.run_identity(config, "org/other")
+
+
+def test_identity_survives_the_json_round_trip(resume, tmp_path):
+    config, data = _files(tmp_path)
+    identity = resume.run_identity(config, [str(data), "org/name"])
+    resume.check_identity(tmp_path / "out", identity)
+    resume.check_identity(tmp_path / "out", identity)  # read back from the file: equal
+
+
+def test_checkpoints_without_an_identity_file_are_refused(resume, tmp_path):
+    config, data = _files(tmp_path)
+    out = tmp_path / "out"
+    _checkpoint(out, 4)  # written by some other run
+    with pytest.raises(ValueError, match="adopt"):
+        resume.check_identity(out, resume.run_identity(config, data))
+
+
+def test_checkpoints_can_be_adopted_on_request(resume, tmp_path):
+    config, data = _files(tmp_path)
+    out = tmp_path / "out"
+    _checkpoint(out, 4)
+    identity = resume.run_identity(config, data)
+    resume.check_identity(out, identity, adopt=True)
+    resume.check_identity(out, identity)  # now recorded: no flag needed
+
+
+def _main_with_fake_arm(resume, tmp_path, monkeypatch, config_text, *, results="res", kill=None):
+    import subprocess
+
+    config = tmp_path / "c.yaml"
+    config.write_text(config_text)
+    commands = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        if kill and len(commands) == 1:
+            kill()
+            return subprocess.CompletedProcess(command, 137)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    status = resume.main(["--config", str(config), "--results", str(tmp_path / results)])
+    return status, commands
+
+
+def test_main_finds_checkpoints_below_the_experiment_name(resume, tmp_path, monkeypatch):
+    data = tmp_path / "d.jsonl"
+    data.write_text("row\n")
+    out = tmp_path / "out"
+    status, commands = _main_with_fake_arm(
+        resume, tmp_path, monkeypatch,
+        f"output: {out}\nexperiment_name: exp\ndata:\n  train: {data}\n",
+        kill=lambda: _checkpoint(out / "exp", 4),
+    )
+    assert status == 0
+    assert commands[1][commands[1].index("--resume-from") + 1] == str(out / "exp" / "checkpoint-4")
+
+
+def test_main_takes_a_list_of_data_files_and_no_output_key(resume, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    data = tmp_path / "d.jsonl"
+    data.write_text("row\n")
+    status, commands = _main_with_fake_arm(
+        resume, tmp_path, monkeypatch, f"data:\n  train:\n    - {data}\n    - org/name\n",
+        kill=lambda: _checkpoint(tmp_path / "output", 2),
+    )
+    assert status == 0
+    assert commands[1][commands[1].index("--resume-from") + 1] == str(
+        Path("output") / "checkpoint-2"
+    )
+
+
+def test_save_steps_warning_follows_the_schema_default(resume, tmp_path, monkeypatch, capsys):
+    data = tmp_path / "d.jsonl"
+    data.write_text("row\n")
+    base = f"output: {tmp_path / 'out'}\ndata:\n  train: {data}\n"
+    _main_with_fake_arm(resume, tmp_path, monkeypatch, base)
+    assert "save_steps" not in capsys.readouterr().out  # absent key means the default, 100
+    other = f"output: {tmp_path / 'out2'}\ndata:\n  train: {data}\ntraining:\n  save_steps: 0\n"
+    _main_with_fake_arm(resume, tmp_path, monkeypatch, other, results="res2")
+    assert "save_steps" in capsys.readouterr().out
+
+
+def test_a_second_invocation_continues_the_attempt_numbers(resume, tmp_path, monkeypatch):
+    data = tmp_path / "d.jsonl"
+    data.write_text("row\n")
+    results = tmp_path / "res"
+    results.mkdir()
+    (results / "attempt-1.log").write_text("earlier invocation")
+    (results / "attempts.json").write_text(json.dumps({
+        "status": "gave_up", "attempts": [{"attempt": 1, "resumed_from": None, "returncode": 137}],
+    }))
+    status, commands = _main_with_fake_arm(
+        resume, tmp_path, monkeypatch, f"output: {tmp_path / 'out'}\ndata:\n  train: {data}\n",
+    )
+    assert status == 0
+    assert (results / "attempt-2.log").exists()
+    assert commands[0][commands[0].index("--out") + 1] == str(results / "attempt-2.json")
+    saved = json.loads((results / "attempts.json").read_text())
+    assert [a["attempt"] for a in saved["attempts"]] == [1, 2]
+    assert saved["status"] == "completed"
+
+
+def test_supervise_numbers_attempts_from_the_first_number(resume):
+    fake = _Fake([])
+    result = resume.supervise(
+        fake.attempt, fake.checkpoint, max_attempts=3, first_number=4, step_of=lambda c: c,
+    )
+    assert [a["attempt"] for a in result["attempts"]] == [4]
