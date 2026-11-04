@@ -226,3 +226,20 @@ def test_committed_notebook_is_generated_and_requires_t4_pair_and_kit_check(tmp_
     code = "".join("".join(c["source"]) for c in json.loads(committed)["cells"])
     assert '"T4" in g' in code and '"verify"' in code and "caa1feb0e54d" in code
     assert "HF_TOKEN" in code and "print(UserSecretsClient" not in code
+
+
+def test_kit_verify_tolerates_dropped_dot_files_only(tmp_path):
+    root = tmp_path / "k"
+    (root / ".github").mkdir(parents=True)
+    files = {"a.txt": b"one\n", ".gitignore": b"x\n", ".github/ci.yml": b"y\n"}
+    for name, data in files.items():
+        (root / name).write_bytes(data)
+    manifest = {"commit": "c", "files": {n: hashlib.sha256(d).hexdigest()
+                                         for n, d in files.items()}}
+    (root / "KIT.json").write_text(json.dumps(manifest))
+    (root / ".gitignore").unlink()
+    (root / ".github" / "ci.yml").unlink()
+    assert sorted(kit.verify(root)["missing_dot_files"]) == [".github/ci.yml", ".gitignore"]
+    (root / "a.txt").unlink()
+    with pytest.raises(RuntimeError, match="differ"):
+        kit.verify(root)

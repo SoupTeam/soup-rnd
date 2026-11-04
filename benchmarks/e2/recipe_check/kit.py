@@ -41,15 +41,29 @@ def build(out: Path) -> dict:
     return {"commit": commit, "files": len(files), "zip_sha256": _sha(out.read_bytes())}
 
 
+def _hidden(name: str) -> bool:
+    return any(part.startswith(".") for part in name.split("/"))
+
+
 def verify(root: Path) -> dict:
+    """Every kit file must be present and unchanged.
+
+    Kaggle unpacks an uploaded zip and may drop dot-files (.gitignore, .github/...);
+    those are not used to run an arm, so a missing dot-file is reported, not fatal.
+    A changed file, or any other missing file, is fatal.
+    """
     manifest = json.loads((root / "KIT.json").read_text(encoding="utf-8"))
-    bad = [
-        name for name, digest in manifest["files"].items()
-        if not (root / name).is_file() or _sha((root / name).read_bytes()) != digest
-    ]
+    bad, dropped = [], []
+    for name, digest in manifest["files"].items():
+        path = root / name
+        if not path.is_file():
+            (dropped if _hidden(name) else bad).append(name)
+        elif _sha(path.read_bytes()) != digest:
+            bad.append(name)
     if bad:
         raise RuntimeError(f"{len(bad)} kit file(s) differ, first: {bad[0]}")
-    return {"commit": manifest["commit"], "files": len(manifest["files"])}
+    return {"commit": manifest["commit"], "files": len(manifest["files"]),
+            "missing_dot_files": dropped}
 
 
 def main(argv=None) -> None:

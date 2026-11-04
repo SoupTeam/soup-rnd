@@ -32,15 +32,24 @@ gpus = [g for g in gpus if g.strip()]
 print(gpus)
 assert len(gpus) == 2 and all("T4" in g for g in gpus), "Set the accelerator to GPU T4 x2"
 
-kits = glob.glob("/kaggle/input/**/e2_recipe_kit.zip", recursive=True)
-assert len(kits) == 1, f"expected one e2_recipe_kit.zip in the inputs, found {kits}"
-kit_sha = hashlib.sha256(Path(kits[0]).read_bytes()).hexdigest()
-print("kit", kits[0], kit_sha)
+# Kaggle either keeps the uploaded e2_recipe_kit.zip or unpacks it into a folder.
+zips = glob.glob("/kaggle/input/**/e2_recipe_kit.zip", recursive=True)
+manifests = glob.glob("/kaggle/input/**/KIT.json", recursive=True)
 ROOT = Path("/kaggle/working/soup-rnd")
 if ROOT.exists():
     shutil.rmtree(ROOT)
-with zipfile.ZipFile(kits[0]) as z:
-    z.extractall(ROOT)
+if len(zips) == 1:
+    kit_source = zips[0]
+    kit_sha = hashlib.sha256(Path(zips[0]).read_bytes()).hexdigest()
+    with zipfile.ZipFile(zips[0]) as z:
+        z.extractall(ROOT)
+elif len(manifests) == 1:
+    kit_source = str(Path(manifests[0]).parent)
+    kit_sha = "KIT.json " + hashlib.sha256(Path(manifests[0]).read_bytes()).hexdigest()
+    shutil.copytree(kit_source, ROOT)
+else:
+    raise AssertionError(f"expected one kit in the inputs, found zips={zips} kits={manifests}")
+print("kit", kit_source, kit_sha)
 os.chdir(ROOT)
 print(subprocess.check_output([sys.executable, "benchmarks/e2/recipe_check/kit.py",
                                "verify", str(ROOT)], text=True))
