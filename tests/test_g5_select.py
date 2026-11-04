@@ -156,7 +156,13 @@ def _brute_force(model, examples) -> dict[int, dict[str, list]]:
                 if type(block).__name__ == "OlmoeSparseMoeBlock":
                     _, weights, index = result
                 else:
-                    index, weights, _ = result
+                    # Granite's router return order differs across transformers releases
+                    # ((index, weights, logits) vs (logits, weights, index)): tell the three
+                    # apart by dtype and shape instead of position.
+                    index = next(t for t in result if not t.dtype.is_floating_point)
+                    floats = [t for t in result if t.dtype.is_floating_point]
+                    weights = next(t for t in floats if t.shape == index.shape)
+                    assert len(floats) == 2 and weights.shape[-1] != n_experts
                 for expert, weight in zip(index[0].tolist(), weights[0].float().tolist()):
                     tokens[expert] += 1
                     mass[expert] += weight

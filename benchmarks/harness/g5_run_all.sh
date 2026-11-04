@@ -52,6 +52,8 @@ case "$mode" in
     exit 2
     ;;
 esac
+# Bash < 4.4 (stock macOS 3.2) treats "${empty[@]}" as unbound under `set -u`; arrays that can be
+# empty (select_extra in real mode, bytes_extra in pilot mode) expand as ${a[@]+"${a[@]}"}.
 stamp() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 need_runs() {  # need_runs DIR NAME...: every DIR/NAME/run.json exists, else a stop
   local dir=$1 missing=() name
@@ -148,7 +150,7 @@ esac
 sel=$out/selection
 if [ ! -e "$sel/selection.json" ]; then
   echo "== $(stamp) selection"
-  python "$here/g5_select.py" "${model[@]}" "${device[@]}" "${select_extra[@]}" \
+  python "$here/g5_select.py" "${model[@]}" "${device[@]}" ${select_extra[@]+"${select_extra[@]}"} \
     --data-dir "$data" --out-dir "$sel" 2>&1 | tee "$out/selection.log" || exit 1
 else
   check_cached "$sel/selection.json" || exit 1
@@ -160,7 +162,7 @@ if [ ! -e "$sel/bytes.json" ]; then
   for arm in mixed_traffic_f25 mixed_sensitivity_f25 mixed_traffic_f50 mixed_sensitivity_f50; do
     maps+=(--map "$sel/maps/$arm.json")
   done
-  python "$here/g5_bytes.py" "${model[@]}" "${maps[@]}" "${bytes_extra[@]}" \
+  python "$here/g5_bytes.py" "${model[@]}" "${maps[@]}" ${bytes_extra[@]+"${bytes_extra[@]}"} \
     --out "$sel/bytes.json" 2>&1 | tee "$out/bytes.log" || exit 1
 else
   check_cached "$sel/bytes.json" || exit 1
