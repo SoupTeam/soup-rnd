@@ -264,6 +264,36 @@ def test_a_failure_after_the_file_is_opened_removes_it(bud, spill, tmp_path, mon
     assert releases.calls == 1
 
 
+def test_a_close_that_fails_can_be_retried_and_then_returns_the_pinned_memory(bud, spill,
+                                                                              tmp_path):
+    """``ActivationStore.close`` re-queues what it could not synchronize and raises before it
+    marks itself closed, so it can be retried. ``BudgetedStore.close`` must stay retryable
+    too: marked closed first, the retry would return at once and the host cache would never
+    be released."""
+    releases = _Releases()
+    store = _store(spill, _plan(bud, 16384), tmp_path, release=releases)
+    inner_close = store._store.close
+    attempts = []
+
+    def fail_once():
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise RuntimeError("injected synchronization failure")
+        inner_close()
+
+    store._store.close = fail_once
+    with pytest.raises(RuntimeError, match="injected synchronization failure"):
+        store.close()
+    assert not store.closed and releases.calls == 0
+    store.close()
+    assert store.closed and releases.calls == 1
+    assert len(attempts) == 2
+    store.close()  # idempotent once it has succeeded
+    assert releases.calls == 1 and len(attempts) == 2
+    assert spill.leftover_spill_files(str(tmp_path / "spill")) == []
+    assert _no_spill_threads()
+
+
 def test_an_exception_mid_step_releases_everything(bud, spill, tmp_path):
     releases = _Releases()
     store = _store(spill, _plan(bud, 28672), tmp_path, release=releases)

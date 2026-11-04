@@ -423,18 +423,21 @@ class BudgetedStore:
 
     def close(self) -> None:
         """Join the spill threads, remove the file, drop every buffer, return the
-        page-locked blocks to the OS. Idempotent.
+        page-locked blocks to the OS. Idempotent once it has succeeded.
 
         ``ActivationStore.close`` empties its queues, rings and dicts and drops the
         traceback of a failed writer's exception, whose frame holds the staging buffer
-        it was moving, so only the cache release is left to do here."""
+        it was moving, so only the cache release is left to do here. It re-queues what it
+        could not synchronize and raises before it marks itself closed, so ``closed`` is
+        set only after it returns: a failed close can be retried, and the retry still
+        reaches the release."""
         if self.closed:
             return
-        self.closed = True
         store = getattr(self, "_store", None)
         if store is not None:
             store.close()
             self.left_behind = store.stats.spill_left_behind
+        self.closed = True
         self.released_pinned_bytes += self._release()
 
     def __enter__(self) -> "BudgetedStore":
