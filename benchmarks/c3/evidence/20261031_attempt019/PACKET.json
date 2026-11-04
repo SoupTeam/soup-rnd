@@ -1,0 +1,30 @@
+{
+  "attempt": "019",
+  "archive_sha256": "7540b48f03acc169e75e5c5b3bea3a9881f23ef64351af4729c2930bca05f865",
+  "archive_members": 186,
+  "included_members": 184,
+  "excluded_members": {
+    "comparison/io_calibration/owned_calibration.bin": {
+      "bytes": 134217728,
+      "sha256": "18325c444b689f960bec694645f37da90ddf3f81d0694c95bd8d0b7da4d5eab4",
+      "reason": "128 MiB random calibration payload; its SHA256 is recorded in comparison/io_calibration/receipt.json"
+    },
+    "rental.json": {
+      "bytes": 2268,
+      "sha256": "37bc8ebd9bed53161f6f872e557849ecd149ae90987a153cfe3474b33629eeb7",
+      "reason": "contains the SSH endpoint and budget fields; the remaining fields are in rental_public.json"
+    }
+  },
+  "renamed_members": {
+    "evidence_bundle.py": "evidence_bundle.py.txt",
+    "pipeline.py": "pipeline.py.txt",
+    "preserve_remote.py": "preserve_remote.py.txt",
+    "stage_and_launch.py": "stage_and_launch.py.txt"
+  },
+  "renamed_reason": "archived launch/preservation scripts are stored as .py.txt so repository lint does not run on frozen bytes",
+  "derived_files": {
+    "evidence/rental_public.json": "rental.json without endpoint/budget keys",
+    "frozen_gate/isolated_compare.py": "measured copy from the frozen source archive; its SHA256 is in evidence/source_manifest.json"
+  },
+  "replay": "python benchmarks/c3/replay_evidence.py benchmarks/c3/evidence/20261031_attempt019"
+}

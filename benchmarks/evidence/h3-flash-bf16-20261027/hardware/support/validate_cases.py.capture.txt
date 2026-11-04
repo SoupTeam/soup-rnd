@@ -1,0 +1,85 @@
+"""Offline checks of both retained GPU cases; the failed case stays excluded."""
+import json
+import sys
+from pathlib import Path
+from rich.console import Console
+
+
+def main():
+    import torch
+    from safetensors.torch import load_file
+    torch.set_num_threads(2)
+    root=Path(__file__).parent
+    repo=Path('C:/Users/esenb/.codex/worktrees/h3-fsdp-lora-20261026/soup-rnd-d2')
+    sys.path.insert(0,str(repo/'benchmarks/harness'))
+    from h3_fsdp_gate import assert_adapter_equal, assert_flash_operators, state_digest
+    live=root/'evidence/live'
+    base_configs={}
+    common_init=None
+    common_data=None
+    rows=[]
+    controls={}
+    for case,expected_arms,deterministic in [('campaign',2,False),('campaign-deterministic',4,True)]:
+        arms=[p for p in sorted((live/case).glob('repeat-*')) if p.is_dir()]
+        assert len(arms)==expected_arms
+        for arm in arms:
+            rank0=json.loads((arm/'rank-0.json').read_text())
+            controls[case]=rank0['forward_backend_controls']
+            assert rank0['flash_deterministic']==deterministic
+            common_data=common_data or rank0['data_windows']
+            assert rank0['data_windows']==common_data
+            initial=torch.load(arm/'initial-adapter.pt',weights_only=True,map_location='cpu')
+            fingerprint=state_digest(initial)
+            common_init=common_init or fingerprint
+            assert fingerprint==common_init
+            config=json.loads((arm/'config-rank-0.json').read_text());config.pop('output')
+            world=rank0['world_size']
+            if world in base_configs:
+                assert config==base_configs[world]
+            else:
+                base_configs[world]=config
+            train_pids=[]
+            for rank in range(world):
+                record=json.loads((arm/f'rank-{rank}.json').read_text())
+                assert record['bf16_flash'] and not record['bf16_conservative']
+                assert record['flash_deterministic']==deterministic
+                assert record['base_before_sha256']==record['base_after_sha256']
+                assert record['forward_backend_controls']==controls[case]
+                assert_flash_operators(record['flash_operator_counts'])
+                for suffix in ('','_backward'):
+                    assert record['flash_operator_counts']['aten::_scaled_dot_product_flash_attention'+suffix]==24*(8//world)
+                train_pids.append(json.loads((arm/f'environment-rank-{rank}.json').read_text())['pid'])
+            reference=torch.load(arm/'reload-reference.pt',weights_only=True,map_location='cpu')
+            assert len(reference['adapter'])==96 and torch.isfinite(reference['logits']).all().item()
+            pids=[]
+            errors=[]
+            for log,adapter in [('reload.json','adapter_model.safetensors'),
+                                ('reload-checkpoint.json','checkpoint-18/adapter_model.safetensors')]:
+                saved=load_file(str(arm/adapter))
+                assert_adapter_equal(reference['adapter'],saved)
+                item=json.loads((arm/log).read_text())
+                assert item['status']=='passed' and item['adapter_tensors']==96
+                assert item['bf16_flash'] and item['flash_deterministic']==deterministic
+                assert item['backend_controls']==controls[case]
+                assert_flash_operators(item['flash_operator_counts'],backward=False)
+                assert item['flash_operator_counts']['aten::_scaled_dot_product_flash_attention']==24
+                pids.append(item['pid']);errors.append(item['max_abs_logit_error'])
+            assert len(set(pids))==2 and not set(pids)&set(train_pids)
+            rows.append({'case':case,'arm':arm.name,'adapter_tensors_per_save':96,
+                         'root_and_checkpoint_match_presave_reference':True,
+                         'reload_errors':errors,'fresh_reload_processes':True})
+    changed={key for key in controls['campaign']
+             if controls['campaign'][key]!=controls['campaign-deterministic'][key]}
+    assert changed=={'deterministic','workspace'}
+    result={'status':'record_checks_passed','default_scaling_admitted':False,
+            'accepted_case':'campaign-deterministic', 'all_initial_adapter_hashes_equal':True,
+            'configs_equal_across_cases_at_each_world_size':True,'data_windows_equal':True,
+            'only_observed_backend_control_differences':sorted(changed),
+            'scope':'CPU verification of retained GPU records, not new hardware execution',
+            'saves_and_reloads':rows}
+    (root/'cross-case-revalidation.json').write_text(json.dumps(result,indent=2)+'\n')
+    Console().print('Twelve saves match retained references; all reloads used actual native Flash; both cases have identical init/config/data')
+
+
+if __name__=='__main__':
+    main()

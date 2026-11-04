@@ -1,0 +1,138 @@
+{
+  "arm": "clean",
+  "round": 0,
+  "run": 0,
+  "label": "F2 sensor calibration",
+  "gpu": {
+    "id": "GPU-17f1251c-9b07-8b54-cd93-c14344de0505",
+    "source": "CUDA_VISIBLE_DEVICES"
+  },
+  "required": [
+    "suspend",
+    "power",
+    "foreign_reads"
+  ],
+  "outcome": "unknown",
+  "box_stamp_before": {
+    "unix_s": 1792409575.220753,
+    "ram_available_bytes": 28296060928,
+    "commit_charge": {
+      "used_bytes": 6468681728,
+      "limit_bytes": 24016572416
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 1596,
+        "type": "G",
+        "name": "",
+        "used_mib": 67
+      },
+      {
+        "pid": 1833,
+        "type": "G",
+        "name": "",
+        "used_mib": 8
+      },
+      {
+        "pid": 2325634,
+        "type": "C",
+        "name": "",
+        "used_mib": 1146
+      }
+    ],
+    "gpu_memory_used_mib": 1249,
+    "unknown": {}
+  },
+  "box_stamp_after": {
+    "unix_s": 1792409578.3382838,
+    "ram_available_bytes": 28282834944,
+    "commit_charge": {
+      "used_bytes": 6478557184,
+      "limit_bytes": 24016572416
+    },
+    "power_source": "mains",
+    "gpu_processes": [
+      {
+        "pid": 1596,
+        "type": "G",
+        "name": "",
+        "used_mib": 67
+      },
+      {
+        "pid": 1833,
+        "type": "G",
+        "name": "",
+        "used_mib": 8
+      },
+      {
+        "pid": 2325634,
+        "type": "C",
+        "name": "",
+        "used_mib": 1146
+      }
+    ],
+    "gpu_memory_used_mib": 1249,
+    "unknown": {}
+  },
+  "gpu_clock": {
+    "outcome": "ok",
+    "reason": "SM clock 1785 to 1785 MHz over 3 samples; clock event reasons seen: sw_power_cap",
+    "samples": 3,
+    "unknown_samples": 0,
+    "sm_clock_mhz": {
+      "min": 1785,
+      "median": 1785,
+      "max": 1785
+    },
+    "reasons_seen": {
+      "sw_power_cap": 3
+    }
+  },
+  "checks": {
+    "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+        "sleep_offset_start_s": -8.080096449702978e-07,
+        "sleep_offset_end_s": -3.989989636465907e-07,
+        "suspend_count_start": 0,
+        "suspend_count_end": 0
+      }
+    },
+    "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 3 power samples, so on mains",
+      "evidence": {
+        "samples": 3,
+        "off_mains_samples": [],
+        "battery_present": false,
+        "unknown_samples": 0,
+        "last_reading": {
+          "battery": false,
+          "online": {}
+        }
+      }
+    },
+    "foreign_reads": {
+      "outcome": "unknown",
+      "reason": "/workspace/qwen14b maps to no block device",
+      "evidence": {
+        "model_path": "/workspace/qwen14b",
+        "device": null,
+        "disk_read_bytes_start": null,
+        "disk_read_bytes_end": null,
+        "other_disk_read_bytes_start": null,
+        "other_disk_read_bytes_end": null,
+        "own_read_bytes": null,
+        "foreign_read_bytes": null,
+        "foreign_read_bytes_min": null,
+        "foreign_read_bytes_max": null,
+        "uninspectable_processes": null
+      },
+      "readers": [],
+      "unattributed_bytes": null
+    }
+  },
+  "physical_disk_mapping": null
+}

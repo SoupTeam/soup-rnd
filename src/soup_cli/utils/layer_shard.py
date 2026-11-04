@@ -28,6 +28,7 @@ import logging
 import math
 import os
 import re
+import shutil
 import tempfile
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
@@ -1011,6 +1012,22 @@ def _atomic_save(blob: Dict[str, Any], path: str) -> None:
     from safetensors.torch import save_file
 
     parent = os.path.dirname(path) or "."
+    # Account for the new temporary file while an old destination still exists.
+    # Check each write using actual codec outputs, not an FP8/NF4 size ratio.
+    payload_bytes = sum(value.numel() * value.element_size() for value in blob.values())
+    header = {
+        key: {"dtype": "X" * 32, "shape": list(value.shape),
+              "data_offsets": [payload_bytes, payload_bytes]}
+        for key, value in blob.items()
+    }
+    required = payload_bytes + len(json.dumps(header, ensure_ascii=True).encode("utf-8"))
+    required += 8 + 256 * len(blob) + 2**20
+    available = shutil.disk_usage(parent).free
+    if available < required:
+        raise OSError(
+            f"insufficient disk space for atomic shard write: need {required} free bytes "
+            f"including reserve, have {available} at {parent}"
+        )
     fd, tmp = tempfile.mkstemp(prefix=".soup.", suffix=".tmp", dir=parent)
     os.close(fd)
     try:

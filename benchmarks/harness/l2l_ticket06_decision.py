@@ -87,7 +87,7 @@ def collect(results: Path = RESULTS) -> Dict[str, List[Dict[str, Any]]]:
     pattern = str(results / VALID_SET / "results" / "campaign" / "summary.json")
     for path in sorted(glob.glob(pattern)):
         summary = json.loads(Path(path).read_text())
-        source = str(Path(path).relative_to(results))
+        source = Path(path).relative_to(results).as_posix()
         r1.append({"source": source, "pass": bool(summary["loss"]["pass"])})
         peak = summary["metrics"]["peak_vram_allocated_bytes"]
         r3.append({"source": source, "ga": peak["a"], "l2l": peak["b"]})
@@ -103,7 +103,7 @@ def collect(results: Path = RESULTS) -> Dict[str, List[Dict[str, Any]]]:
     pattern = str(results / "l2l-mistral7b-ticket07-rerun-final" / "*" / "mixed-*" / "records.json")
     for path in sorted(glob.glob(pattern)):
         record = json.loads(Path(path).read_text())
-        r2.append({"source": str(Path(path).relative_to(results)),
+        r2.append({"source": Path(path).relative_to(results).as_posix(),
                    "pass": bool(record["overall"]["pass"])})
     return {"r1": r1, "r2": r2, "r3": r3, "arms": arms}
 

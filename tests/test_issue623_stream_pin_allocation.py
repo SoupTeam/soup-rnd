@@ -172,6 +172,7 @@ def _drive_wiring(
     stream_pin_yaml: str,
     stream_source: str = "ram",
     extra_training_yaml: str = "",
+    disk_kind: str = "nvme",
 ):
     """Real pre-flight, simulated CUDA, spied runtime boundary.
 
@@ -196,7 +197,7 @@ def _drive_wiring(
     )
     monkeypatch.setattr(ls, "free_ram_bytes", lambda: _FREE_BYTES)
     monkeypatch.setattr(
-        ls, "classify_disk_kind", lambda *_a, **_k: ls.DiskClassification("nvme")
+        ls, "classify_disk_kind", lambda *_a, **_k: ls.DiskClassification(disk_kind)
     )
     import torch
 
@@ -407,6 +408,32 @@ class TestTheReadAheadDepthIsWiredAndVisible:
             stream_source="disk",
             extra_training_yaml=extra_training_yaml,
         )
+
+    @pytest.mark.parametrize("kind", ["hdd", "ssd", "unknown"])
+    def test_forced_disk_refuses_non_nvme_before_sharding(self, tmp_path, monkeypatch, kind):
+        import soup_cli.utils.layer_shard as shards
+
+        def forbidden_shard(*args, **kwargs):
+            pytest.fail("a forced non-NVMe disk must be refused before shard writes")
+
+        monkeypatch.setattr(shards, "shard_checkpoint", forbidden_shard)
+        with pytest.raises(ValueError, match="needs NVMe or more RAM"):
+            _drive_wiring(
+                tmp_path, monkeypatch, stream_pin_yaml="", stream_source="disk", disk_kind=kind
+            )
+
+    def test_forced_disk_honours_explicit_hdd_override(self, tmp_path, monkeypatch):
+        import soup_cli.utils.layer_stream as streaming
+
+        monkeypatch.setattr(streaming, "detect_disk_kind", lambda *_a, **_k: "nvme")
+        with pytest.raises(ValueError, match="needs NVMe or more RAM"):
+            self._drive_disk(tmp_path, monkeypatch, extra_training_yaml="  stream_disk_kind: hdd\n")
+
+    def test_fitting_ram_does_not_require_nvme(self, tmp_path, monkeypatch):
+        captured, _ = _drive_wiring(
+            tmp_path, monkeypatch, stream_pin_yaml="", stream_source="ram", disk_kind="hdd"
+        )
+        assert captured["tier"] == "ram"
 
     def test_a_configured_depth_reaches_the_runtime_and_the_ready_line(
         self, tmp_path, monkeypatch

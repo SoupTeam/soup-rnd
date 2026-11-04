@@ -1,0 +1,70 @@
+"""Archive identical evidence bytes once; restore every original path with verified hardlinks."""
+import hashlib,io,json,os,re,stat,tarfile,shutil
+from pathlib import Path,PurePosixPath
+
+def sha(path):
+ with path.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+
+def safe_name(name):
+ p=PurePosixPath(name)
+ if not isinstance(name,str) or not name or p.is_absolute() or '..' in p.parts or '\\' in name or '\x00' in name or str(p)!=name:
+  raise ValueError('unsafe path')
+ return p
+
+def pack(root,archive):
+ root=Path(os.path.realpath(root));archive=Path(archive)
+ if archive.exists():raise FileExistsError(archive)
+ manifest={};unique={}
+ for p in sorted(root.rglob('*')):
+  if p.is_symlink():raise ValueError('symlink evidence refused')
+  if p.is_dir():continue
+  if not stat.S_ISREG(p.stat().st_mode):raise ValueError('nonregular evidence')
+  name=p.relative_to(root).as_posix();safe_name(name);digest=sha(p)
+  manifest[name]={'sha256':digest,'bytes':p.stat().st_size};unique.setdefault(digest,p)
+ total=sum(p.stat().st_size for p in unique.values())
+ if total>1500*1024**2:raise ValueError('unique preservation exceeds preflight storage bound')
+ data=json.dumps({'format':'c3-content-addressed-v1','files':manifest},sort_keys=True,indent=2).encode()
+ with tarfile.open(archive,'w:gz') as t:
+  info=tarfile.TarInfo('manifest.json');info.size=len(data);t.addfile(info,io.BytesIO(data))
+  for digest,p in sorted(unique.items()):t.add(p,arcname='blobs/'+digest,recursive=False)
+ return {'status':'BUNDLE_CREATED','files':len(manifest),'unique_files':len(unique),'logical_bytes':sum(v['bytes'] for v in manifest.values()),'unique_bytes':total,'archive_bytes':archive.stat().st_size,'archive_sha256':sha(archive)}
+
+def unpack(archive,receipt,out,*,use_hardlinks=True):
+ archive=Path(archive);out=Path(out)
+ if archive.stat().st_size!=receipt['archive_bytes'] or sha(archive)!=receipt['archive_sha256']:raise ValueError('archive SHA/size mismatch')
+ if out.exists():raise FileExistsError(out)
+ with tarfile.open(archive,'r:gz') as t:
+  members=t.getmembers();names=[m.name for m in members]
+  if len(set(names))!=len(names) or not all(m.isfile() for m in members):raise ValueError('nonregular/duplicate archive member')
+  mi=t.getmember('manifest.json')
+  if mi.size>10*1024**2:raise ValueError('manifest too large')
+  manifest=json.loads(t.extractfile(mi).read());assert manifest['format']=='c3-content-addressed-v1'
+  files=manifest['files'];sizes={}
+  for name,v in files.items():
+   safe_name(name)
+   if not re.fullmatch('[0-9a-f]{64}',v['sha256']) or type(v['bytes']) is not int or v['bytes']<0:raise ValueError('invalid manifest')
+   digest=v['sha256']
+   if digest in sizes and sizes[digest]!=v['bytes']:raise ValueError('contradictory blob sizes')
+   sizes[digest]=v['bytes']
+  if set(names)!={'manifest.json'}|{'blobs/'+s for s in sizes}:raise ValueError('unexpected/missing members')
+  if len(files)!=receipt['files'] or len(sizes)!=receipt['unique_files'] or sum(sizes.values())!=receipt['unique_bytes'] or sum(v['bytes'] for v in files.values())!=receipt['logical_bytes']:raise ValueError('manifest counts mismatch')
+  required=sum(sizes.values())+(0 if use_hardlinks else sum(v['bytes'] for v in files.values()))+64*1024**2
+  if shutil.disk_usage(out.parent).free<required:raise ValueError('insufficient restoration space')
+  out.mkdir();blobs=out/'objects';blobs.mkdir();e=out/'evidence';e.mkdir()
+  for digest,size in sizes.items():
+   m=t.getmember('blobs/'+digest)
+   if m.size!=size:raise ValueError('member size mismatch')
+   dest=blobs/digest
+   with t.extractfile(m) as src,dest.open('xb') as target:
+    while b:=src.read(8<<20):target.write(b)
+   if sha(dest)!=digest:raise ValueError('member SHA mismatch')
+  for name,v in files.items():
+   dest=e.joinpath(*safe_name(name).parts)
+   if os.path.commonpath([os.path.realpath(e),os.path.realpath(dest)])!=os.path.realpath(e):raise ValueError('destination escape')
+   dest.parent.mkdir(parents=True,exist_ok=True)
+   if use_hardlinks:os.link(blobs/v['sha256'],dest)
+   else:
+    with (blobs/v['sha256']).open('rb') as src,dest.open('xb') as target:shutil.copyfileobj(src,target,8<<20)
+   if dest.stat().st_size!=v['bytes'] or sha(dest)!=v['sha256']:raise ValueError('restored SHA/size mismatch')
+  (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+ return {**receipt,'status':'PASS_ARCHIVE_MEMBERS_AND_ALL_RESTORED_FILE_SHA','safe_extraction':True,'restoration':'verified hardlinks' if use_hardlinks else 'verified independent copies (ExFAT compatible)','performance_verdict':'NO_VERDICT'}
