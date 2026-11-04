@@ -37,6 +37,19 @@ def _row(message: str) -> str:
     return "U?"
 
 
+def unchanged_adapters(record: dict) -> list[str]:
+    """U2: declared trainable tensors whose bytes after the 4 updates equal their initial bytes.
+
+    ``read_training`` has already tied every ``before``/``after`` sha256 to the stored tensor bytes
+    (initial.safetensors and the last adapter file) and the names to the declared manifest, but it
+    only rejects a step in which no tensor changed. The protocol's U2 needs every tensor to change.
+    """
+    before, after = record["before"]["trainable"], record["after"]["trainable"]
+    if not before or set(before) != set(after):
+        raise ValueError("U2 adapter manifest differs between initial and final state")
+    return sorted(name for name in before if before[name]["sha256"] == after[name]["sha256"])
+
+
 def classify_child(root: Path, phase: str) -> dict:
     """Outcome of one child from its sealed evidence, before any pair comparison."""
     from h2_ce_confirmation import read_child
@@ -137,6 +150,12 @@ def review_updates(
                 if evidence["initial_identity"] != expected_initial:
                     raise ValueError("Initial adapter state differs from the pinned state")
                 record, start = read_training(runner / "training", work)  # U1, U2, U3, U4
+                unchanged = unchanged_adapters(record)
+                if unchanged:
+                    raise ValueError(
+                        f"U2: {len(unchanged)} of {len(record['before']['trainable'])} declared "
+                        f"adapter tensors unchanged after the updates: {', '.join(unchanged[:5])}"
+                    )
                 if record["compute_policy"] != "bf16-autocast-cuda":
                     raise ValueError("GPU training review requires BF16 CUDA evidence")
                 losses = [row["loss"] for row in record["batches"]]
@@ -146,6 +165,8 @@ def review_updates(
                 state = {
                     "outcome": "UPDATES_PASS",
                     "optimizer_updates": record["global_step"],
+                    "adapter_tensors_changed": f"{len(record['before']['trainable'])}"
+                    f"/{len(record['before']['trainable'])}",
                     "microbatches": record["backwards"],
                     "num_items_in_batch": [r["num_items_in_batch"] for r in record["batches"]],
                     "losses": losses,

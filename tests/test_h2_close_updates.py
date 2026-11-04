@@ -26,7 +26,48 @@ def test_updates_series_is_the_two_training_children_and_pins_the_new_files():
     assert tuple(updates.ARMS.values()) == h2_ce_confirmation.SERIES["updates"]
 
 
-def build(tmp_path, *, initial="init", tamper=None):
+def idle_tensor_run(root):
+    """Real Recorder run: one declared adapter tensor only joins the loss through a zero term."""
+    torch = pytest.importorskip("torch")
+    from h2_ce_training import Recorder
+
+    torch.manual_seed(42)
+
+    class TwoAdapters(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.active = torch.nn.Parameter(torch.randn(2, 2))
+            self.idle = torch.nn.Parameter(torch.randn(2, 2))
+            self.register_buffer("frozen", torch.ones(1))
+
+        def forward(self, x):
+            return x @ self.active.T + 0.0 * self.idle.sum()
+
+    model = TwoAdapters()
+    batch = {"input_ids": [[1, 2, 3]], "attention_mask": [[1, 1, 1]], "labels": [[-100, 2, 3]]}
+    work = [batch] * 16
+    recorder = Recorder(
+        root, model, ["active", "idle"], work, accumulation=4, compute_policy="fp32-cpu-test"
+    )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0002, weight_decay=0)
+    recorder.optimizer_created(optimizer, max_grad_norm=1.0)
+    for index in range(16):
+        loss = model(torch.tensor([[2.0, 3.0]])).square().sum() / 4
+        recorder.batch({k: torch.tensor(v) for k, v in batch.items()}, loss, 8)
+        loss.backward()
+        recorder.backward()
+        if (index + 1) % 4 == 0:
+            recorder.preclip(scaler=None)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+            recorder.poststep(optimizer)
+            optimizer.zero_grad(set_to_none=True)
+    recorder.finish(optimizer, global_step=4)
+    return work
+
+
+def build(tmp_path, *, initial="init", tamper=None, runs=None):
+    runs = runs or {}
     root = tmp_path / "series"
     contract = {"series": "updates", **IDENTITY}
     root.mkdir()
@@ -35,7 +76,7 @@ def build(tmp_path, *, initial="init", tamper=None):
     for phase in updates.ARMS.values():
         runner = root / phase / "runner"
         runner.mkdir(parents=True)
-        work = fixture_run(runner / "training")
+        work = runs.get(phase, fixture_run)(runner / "training")
         record = json.loads((runner / "training" / "training.json").read_text())
         record["compute_policy"] = "bf16-autocast-cuda"
         (runner / "training" / "training.json").write_text(json.dumps(record))
@@ -75,10 +116,30 @@ def test_two_clean_arms_pass_and_differences_are_only_measured(tmp_path, capture
     }
     assert result["arms"]["A"]["optimizer_updates"] == 4
     assert result["arms"]["A"]["microbatches"] == 16
+    assert result["arms"]["A"]["adapter_tensors_changed"] == "1/1"
     pair = result["pair_measurements"]
     assert pair["gated"] is False and pair["identical_final_adapters"] is True
     assert pair["max_abs_loss_difference"] == 0
     assert result["performance_verdict"] == "NO_VERDICT"
+
+
+def test_a_declared_tensor_that_never_changes_fails_u2(tmp_path, captured):
+    runs = {phase: idle_tensor_run for phase in updates.ARMS.values()}
+    root, work = build(tmp_path, runs=runs)
+    record = json.loads((root / "ce_only_training/runner/training/training.json").read_text())
+    assert updates.unchanged_adapters(record) == ["idle"]  # the negative control is real
+    result = review(root, work)
+    for arm in ("A", "L"):
+        assert result["arms"][arm]["outcome"] == "UPDATES_FAIL"
+        assert result["arms"][arm]["row"] == "U2"
+        assert "1 of 2 declared adapter tensors unchanged" in result["arms"][arm]["reason"]
+    assert "pair_measurements" not in result
+
+
+def test_unchanged_adapters_rejects_a_changed_manifest():
+    record = {"before": {"trainable": {"a": {"sha256": "x"}}}, "after": {"trainable": {}}}
+    with pytest.raises(ValueError, match="manifest"):
+        updates.unchanged_adapters(record)
 
 
 def test_wrong_initial_state_fails_its_arm(tmp_path, captured):
@@ -246,3 +307,112 @@ def test_updates_series_runs_two_fresh_children_then_reviews(tmp_path, monkeypat
     else:
         assert result["status"] == "VOID" and "source differs" in result["error"]
     assert json.loads((root / "series.json").read_text())["status"] == result["status"]
+
+
+# --------------------------------------------------------------------------- U2 re-audit
+
+
+def test_reaudit_passes_clean_arms_and_names_an_idle_tensor(tmp_path):
+    import h2_close_reaudit
+
+    root, work = build(tmp_path, runs={"ce_only_training": idle_tensor_run})
+    result = h2_close_reaudit.reaudit(root, work)
+    assert result["arms"]["A"]["outcome"] == "U2_REAUDIT_PASS"
+    assert result["arms"]["A"]["changed_adapter_tensors"] == 1
+    assert result["arms"]["L"]["outcome"] == "U2_REAUDIT_FAIL"
+    assert result["arms"]["L"]["unchanged"] == ["idle"]
+    assert result["measured_source_commit"] == IDENTITY["source_commit"]
+
+
+def test_reaudit_fails_tampered_bytes_and_a_wrong_archive(tmp_path, monkeypatch):
+    import h2_close_reaudit
+
+    def tamper(root):
+        path = root / "baseline_training/runner/training/adapter_04.safetensors"
+        data = bytearray(path.read_bytes())
+        data[-1] ^= 1
+        path.write_bytes(bytes(data))
+
+    root, work = build(tmp_path, tamper=tamper)
+    assert h2_close_reaudit.reaudit(root, work)["arms"]["A"]["outcome"] == "U2_REAUDIT_FAIL"
+    archive = tmp_path / "a.tar.gz"
+    archive.write_bytes(b"x")
+    out = tmp_path / "out.json"
+    monkeypatch.setattr(h2_close_reaudit, "reaudit", lambda series: {"arms": {"A": {}, "L": {}}})
+    argv = ["updates", "--series", str(root), "--archive", str(archive)]
+    h2_close_reaudit.main(argv + ["--archive-sha256", "0" * 64, "--out", str(out)])
+    data = json.loads(out.read_text())
+    assert data["archive"]["matches_expected"] is False
+    assert {v["outcome"] for v in data["arms"].values()} == {"U2_REAUDIT_FAIL"}
+
+
+# ----------------------------------------------------------- review of retained stage P runs
+
+PACKET_P = (
+    Path(__file__).parents[1]
+    / "benchmarks/h2/reports/20261102_h2_close/evidence/stage_p_58843853/evidence/h2close_P"
+)
+
+
+def test_retained_stage_p_runs_reproduce_the_published_series():
+    import h2_close_reaudit
+
+    result = h2_close_reaudit.review_runs(PACKET_P)
+    assert result["runs_checked"] == 20
+    assert result["run_mismatches"] == []
+    assert result["matches_box"] is True
+    assert result["analysis"]["pairs"]["L"]["label"] == "NO_DETECTABLE_DIFFERENCE"
+
+
+def test_review_runs_names_an_altered_run_report(tmp_path):
+    import shutil
+
+    import h2_close_reaudit
+
+    copy = tmp_path / "h2close_P"
+    shutil.copytree(PACKET_P, copy)
+    path = copy / "b02_1_L" / "run.json"
+    report = json.loads(path.read_text())
+    report["throughput"]["useful_tokens_per_second"] += 50
+    path.write_text(json.dumps(report))
+    result = h2_close_reaudit.review_runs(copy)
+    assert result["run_mismatches"] == ["b02_1_L: useful tokens/s"]
+    assert result["matches_box"] is False
+
+
+# ----------------------------------------------------------------------- evidence packet builder
+
+
+def test_packet_copies_members_and_keeps_private_and_large_ones_out(tmp_path):
+    import hashlib
+
+    import h2_close_packet
+
+    src = tmp_path / "x"
+    files = {
+        "evidence/box_files_rental.json": json.dumps({"ssh_host": "h", "ssh_port": 1, "gpu": "g"}),
+        "evidence/run/a.safetensors": "tensor",
+        "evidence/run/profile/kernel_trace.json": "{}",
+        "evidence/run/tool.py": "print(1)",
+        "evidence/run/result.json": "{}",
+    }
+    manifest = {}
+    for name, text in files.items():
+        (src / name).parent.mkdir(parents=True, exist_ok=True)
+        (src / name).write_text(text)
+        data = text.encode()
+        manifest[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    out = tmp_path / "packet"
+    packet = h2_close_packet.build(src, manifest, "f" * 64, "t", out)
+    assert set(packet["excluded_members"]) == {
+        "evidence/box_files_rental.json",
+        "evidence/run/a.safetensors",
+    }
+    public = json.loads((out / "evidence/box_files_rental_public.json").read_text())
+    assert public == {"gpu": "g"}
+    assert (out / "evidence/run/tool.py.txt").read_text() == "print(1)"
+    assert (out / "evidence/run/result.json").read_text() == "{}"
+    assert (out / "evidence/run/profile/kernel_trace.json.gz").exists()
+    manifest["evidence/run/result.json"]["sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="differs from the preserved manifest"):
+        h2_close_packet.build(src, manifest, "f" * 64, "t", tmp_path / "again")
