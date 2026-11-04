@@ -1,0 +1,98 @@
+{
+ "arm": "native_floor",
+ "round": 1,
+ "run": 1,
+ "label": "RTX 3060 12GB, synthetic data, SmolLM2-135M",
+ "gpu": {
+  "id": "0",
+  "source": "default"
+ },
+ "required": [
+  "suspend",
+  "power"
+ ],
+ "outcome": "ok",
+ "box_stamp_before": {
+  "unix_s": 1793816408.4957356,
+  "ram_available_bytes": 98466426880,
+  "commit_charge": {
+   "used_bytes": 84822458368,
+   "limit_bytes": 76043149312
+  },
+  "power_source": "mains",
+  "gpu_processes": [],
+  "gpu_memory_used_mib": 4,
+  "unknown": {}
+ },
+ "box_stamp_after": {
+  "unix_s": 1793816433.9102578,
+  "ram_available_bytes": 98336030720,
+  "commit_charge": {
+   "used_bytes": 84215906304,
+   "limit_bytes": 76043149312
+  },
+  "power_source": "mains",
+  "gpu_processes": [],
+  "gpu_memory_used_mib": 4,
+  "unknown": {}
+ },
+ "gpu_clock": {
+  "outcome": "ok",
+  "reason": "SM clock 210 to 1942 MHz over 14 samples; clock event reasons seen: gpu_idle",
+  "samples": 14,
+  "unknown_samples": 0,
+  "sm_clock_mhz": {
+   "min": 210,
+   "median": 1807.0,
+   "max": 1942
+  },
+  "reasons_seen": {
+   "gpu_idle": 6
+  }
+ },
+ "checks": {
+  "suspend": {
+   "outcome": "ok",
+   "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+   "evidence": {
+    "sleep_offset_start_s": -7.199996616691351e-07,
+    "sleep_offset_end_s": -6.00004568696022e-07,
+    "suspend_count_start": 0,
+    "suspend_count_end": 0
+   }
+  },
+  "power": {
+   "outcome": "ok",
+   "reason": "no battery in any of 14 power samples, so on mains",
+   "evidence": {
+    "samples": 14,
+    "off_mains_samples": [],
+    "battery_present": false,
+    "unknown_samples": 0,
+    "last_reading": {
+     "battery": false,
+     "online": {}
+    }
+   }
+  },
+  "foreign_reads": {
+   "outcome": "unknown",
+   "reason": "/root/hf maps to no block device",
+   "evidence": {
+    "model_path": "/root/hf",
+    "device": null,
+    "disk_read_bytes_start": null,
+    "disk_read_bytes_end": null,
+    "other_disk_read_bytes_start": null,
+    "other_disk_read_bytes_end": null,
+    "own_read_bytes": null,
+    "foreign_read_bytes": null,
+    "foreign_read_bytes_min": null,
+    "foreign_read_bytes_max": null,
+    "uninspectable_processes": null
+   },
+   "readers": [],
+   "unattributed_bytes": null
+  }
+ }
+}

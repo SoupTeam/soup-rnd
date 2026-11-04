@@ -1,0 +1,73 @@
+/usr/lib/python3.12/importlib/__init__.py:90: TRLExperimentalWarning: You are importing from 'trl.experimental'. APIs here are unstable and may change or be removed without notice. Silence this warning by setting environment variable TRL_EXPERIMENTAL_SILENCE=1.
+  return _bootstrap._gcd_import(name[level:], package, level)
+Loading tokenizer: HuggingFaceTB/SmolLM2-135M
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Adapter persistent tensors: 230,400 parameters; weights=921600, 
+gradients=921600, optimizer=0 CUDA bytes; CPU tensors=0 bytes. Excludes base 
+buffers, activations and optimizer temporaries.
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 923.01it/s]
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 0.27 GB                                                     │
+│ Soup materialized copy: 0.27 GB (no write required)                          │
+│ Layer-shard cache: 0.27 GB (write required)                                  │
+│ Projected total on disk: 0.81 GB                                             │
+│ Additional writes before training: 0.27 GB                                   │
+│ Free on target volume (layer-shard cache): 57.12 GB                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> 
+/root/results/ready/simpo/k1/f32u_ga1/attempt0/f32u_ga1-work/cache/HuggingFaceTB
+__SmolLM2-135M
+Re-sharding layer cache: cache index is missing or unreadable.
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch llama, tier ram                                  │
+│   base store   0.42 GB across 30 layers (pinned)                             │
+│   VRAM buffers 2 x 14 MB + 1 x 0 MB large-layer slot = 28 MB                 │
+│   resident     113 MB extras + adapters                                      │
+│   peak VRAM    ~0.91 GB at batch 2 x seq 256 (4 rows — chosen+rejected are   │
+│ one concatenated tensor) (logits 0.70 GB)                                    │
+│   free VRAM    12.35 GB                                                      │
+│   forecast     5047-7422 tok/s — a compute-bound bound, not a promise        │
+│                (from 5.99 TFLOPS measured on this card now using float32 @   │
+│ 1305 MHz)                                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+Layer streaming ready: 30 layers, 0.42 GB pinned RAM store (0.54 GB 
+page-locked), 2 x 14 MB decoder buffers + 1 x 0 MB large-layer slot
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+LoRA applied: 230,400 trainable / 134,515,008 total (0.17%)
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 3826.92 examples/s]
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 4338.94 examples/s]
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 982.81 examples/s]
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 0}.
+  0%|          | 0/6 [00:00<?, ?it/s] 17%|█▋        | 1/6 [00:00<00:03,  1.38it/s]                                              17%|█▋        | 1/6 [00:00<00:03,  1.38it/s] 33%|███▎      | 2/6 [00:00<00:01,  2.38it/s]                                              33%|███▎      | 2/6 [00:00<00:01,  2.38it/s] 50%|█████     | 3/6 [00:01<00:00,  3.09it/s]                                              50%|█████     | 3/6 [00:01<00:00,  3.09it/s] 67%|██████▋   | 4/6 [00:01<00:00,  3.60it/s]                                              67%|██████▋   | 4/6 [00:01<00:00,  3.60it/s] 83%|████████▎ | 5/6 [00:01<00:00,  4.00it/s]                                              83%|████████▎ | 5/6 [00:01<00:00,  4.00it/s]100%|██████████| 6/6 [00:01<00:00,  4.31it/s]                                             100%|██████████| 6/6 [00:01<00:00,  4.31it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+                                             100%|██████████| 6/6 [00:02<00:00,  4.31it/s]100%|██████████| 6/6 [00:02<00:00,  2.13it/s]
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Memory efficient kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1240.)
+  result = real(*qkv, *args, **kwargs)
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Memory Efficient attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:600.)
+  result = real(*qkv, *args, **kwargs)
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1242.)
+  result = real(*qkv, *args, **kwargs)
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash Attention does not support non-null attn_mask. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:281.)
+  result = real(*qkv, *args, **kwargs)
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1244.)
+  result = real(*qkv, *args, **kwargs)
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:922.)
+  result = real(*qkv, *args, **kwargs)
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:588.)
+  result = real(*qkv, *args, **kwargs)
+/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Expected query, key and value to all be of dtype: {Half, BFloat16}. Got Query dtype: float, Key dtype: float, and Value dtype: float instead. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:110.)
+  result = real(*qkv, *args, **kwargs)
+{'loss': '3.844', 'grad_norm': '0.9576', 'learning_rate': '0.01', 'rewards/chosen': '-0.2856', 'rewards/rejected': '-0.298', 'rewards/accuracies': '0.5', 'rewards/margins': '0.01237', 'logps/rejected': '-2.98', 'logps/chosen': '-2.856', 'logits/rejected': '7.073', 'logits/chosen': '12.02', 'nll_loss': '2.877', 'epoch': '0.1667'}
+{'loss': '3.602', 'grad_norm': '0.5305', 'learning_rate': '0.01', 'rewards/chosen': '-0.2716', 'rewards/rejected': '-0.5467', 'rewards/accuracies': '1', 'rewards/margins': '0.2751', 'logps/rejected': '-5.467', 'logps/chosen': '-2.716', 'logits/rejected': '10.35', 'logits/chosen': '7.66', 'nll_loss': '2.787', 'epoch': '0.3333'}
+{'loss': '2.751', 'grad_norm': '0.4213', 'learning_rate': '0.01', 'rewards/chosen': '-0.1807', 'rewards/rejected': '-0.3392', 'rewards/accuracies': '1', 'rewards/margins': '0.1584', 'logps/rejected': '-3.392', 'logps/chosen': '-1.807', 'logits/rejected': '11.89', 'logits/chosen': '8.104', 'nll_loss': '1.871', 'epoch': '0.5'}
+{'loss': '3.872', 'grad_norm': '0.5509', 'learning_rate': '0.01', 'rewards/chosen': '-0.3117', 'rewards/rejected': '-0.6705', 'rewards/accuracies': '1', 'rewards/margins': '0.3588', 'logps/rejected': '-6.705', 'logps/chosen': '-3.117', 'logits/rejected': '13.37', 'logits/chosen': '7.964', 'nll_loss': '3.105', 'epoch': '0.6667'}
+{'loss': '2.997', 'grad_norm': '1.385', 'learning_rate': '0.01', 'rewards/chosen': '-0.2048', 'rewards/rejected': '-0.2441', 'rewards/accuracies': '1', 'rewards/margins': '0.03933', 'logps/rejected': '-2.441', 'logps/chosen': '-2.048', 'logits/rejected': '10.64', 'logits/chosen': '12.17', 'nll_loss': '2.048', 'epoch': '0.8333'}
+{'loss': '5.042', 'grad_norm': '1.014', 'learning_rate': '0.01', 'rewards/chosen': '-0.5908', 'rewards/rejected': '-0.5829', 'rewards/accuracies': '0.5', 'rewards/margins': '-0.007964', 'logps/rejected': '-5.829', 'logps/chosen': '-5.908', 'logits/rejected': '8.875', 'logits/chosen': '8.786', 'nll_loss': '4.063', 'epoch': '1'}
+{'train_runtime': '2.815', 'train_samples_per_second': '4.263', 'train_steps_per_second': '2.131', 'train_loss': '3.685', 'epoch': '1'}

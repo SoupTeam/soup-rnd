@@ -1,0 +1,134 @@
+{
+ "layer_in": "torch.float32",
+ "base_weight": "torch.float32",
+ "lora_weight": "torch.float32",
+ "layer_out": "torch.float32",
+ "stream_dtype": "float32",
+ "train_bf16": false,
+ "train_fp16": false,
+ "mixed_precision": "no",
+ "grads": [
+  "torch.float32"
+ ],
+ "l2l_state_dtype": null,
+ "attn_impl": "sdpa",
+ "sdpa": null,
+ "matmul_precision": "highest",
+ "allow_tf32": false,
+ "dtype_mode": "f32",
+ "path": "ga",
+ "method": "orpo",
+ "k": 2,
+ "sdpa_probe": [
+  {
+   "signature": {
+    "shape": [
+     4,
+     9,
+     36,
+     64
+    ],
+    "dtype": "torch.float32",
+    "mask": true,
+    "causal": false
+   },
+   "matches": {
+    "MATH": "differs by 4.470e-07",
+    "EFFICIENT_ATTENTION": "equal",
+    "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+    "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+   },
+   "equal_to": [
+    "EFFICIENT_ATTENTION"
+   ]
+  },
+  {
+   "signature": {
+    "shape": [
+     4,
+     9,
+     35,
+     64
+    ],
+    "dtype": "torch.float32",
+    "mask": true,
+    "causal": false
+   },
+   "matches": {
+    "MATH": "differs by 3.278e-07",
+    "EFFICIENT_ATTENTION": "equal",
+    "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+    "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+   },
+   "equal_to": [
+    "EFFICIENT_ATTENTION"
+   ]
+  },
+  {
+   "signature": {
+    "shape": [
+     4,
+     9,
+     32,
+     64
+    ],
+    "dtype": "torch.float32",
+    "mask": true,
+    "causal": false
+   },
+   "matches": {
+    "MATH": "differs by 6.557e-07",
+    "EFFICIENT_ATTENTION": "equal",
+    "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+    "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+   },
+   "equal_to": [
+    "EFFICIENT_ATTENTION"
+   ]
+  },
+  {
+   "signature": {
+    "shape": [
+     4,
+     9,
+     40,
+     64
+    ],
+    "dtype": "torch.float32",
+    "mask": true,
+    "causal": false
+   },
+   "matches": {
+    "MATH": "differs by 7.153e-07",
+    "EFFICIENT_ATTENTION": "equal",
+    "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+    "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+   },
+   "equal_to": [
+    "EFFICIENT_ATTENTION"
+   ]
+  },
+  {
+   "signature": {
+    "shape": [
+     4,
+     9,
+     27,
+     64
+    ],
+    "dtype": "torch.float32",
+    "mask": true,
+    "causal": false
+   },
+   "matches": {
+    "MATH": "differs by 4.172e-07",
+    "EFFICIENT_ATTENTION": "equal",
+    "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+    "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+   },
+   "equal_to": [
+    "EFFICIENT_ATTENTION"
+   ]
+  }
+ ]
+}

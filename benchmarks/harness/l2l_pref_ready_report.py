@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -43,6 +44,46 @@ def _table(header: List[str], rows: List[List[Any]]) -> List[str]:
 
 def _cells(records: Dict[str, Any]) -> List[Dict[str, Any]]:
     return [records["cells"][key] for key in sorted(records["cells"], key=int)]
+
+
+TENSORS_PER_STEP = 120  # SmolLM2-135M: 30 layers x (q_proj, v_proj) x (lora_A, lora_B)
+
+
+def what_showed(records: Dict[str, Any]) -> List[str]:
+    """The findings in plain sentences; every number comes from ``ready-<method>.json``."""
+    out = []
+    cells = _cells(records)
+    equal = [c["k"] for c in cells if c["verdict"]["float32"]["state"] == "equal"]
+    out.append(f"- Критерий 1 (float32 побитово): выполнен в ячейках k={equal} из {[c['k'] for c in cells]}.")
+    for cell in cells:
+        f32 = cell["verdict"]["float32"]
+        if f32["state"] == "not_equal":
+            overall = cell["pairs"]["f32u_l2l_vs_ga1"]["overall"]
+            out.append(
+                f"  - k={cell['k']}: не равно по правилу (потери сравниваются тоже). Наибольшая разница градиентов {_fmt(overall['grad'])}, потерь {_fmt(overall['loss'])}. "
+                f"Судья записал: {f32['problems'][0]}. "
+                + ("Градиенты равны побитово на всех шагах, различается только записанная потеря на последнем разряде float32; вероятная причина, не проверенная, в порядке суммирования потери окна." if overall["grad"] == 0 else "Различаются и градиенты.")
+            )
+    for cell in cells:
+        bf16 = cell["verdict"]["bf16"]
+        step0 = [p for p in bf16.get("problems", []) if p.startswith("step 0:")]
+        if not step0:
+            continue
+        ratios = []
+        for item in step0:
+            found = re.search(r"differs by ([0-9.e+-]+), limit ([0-9.e+-]+)", item)
+            if found and float(found.group(2)) > 0:
+                ratios.append(float(found.group(1)) / float(found.group(2)))
+        out.append(
+            f"- Критерий 2 (bf16, шаг 0), k={cell['k']}: вне предела {len(step0)} записей из {TENSORS_PER_STEP} тензоров шага"
+            + (f"; превышение предела от {min(ratios):.2f} до {max(ratios):.2f} раза." if ratios else ".")
+        )
+    if any("step 0:" in p for c in cells for p in c["verdict"]["bf16"].get("problems", [])):
+        out.append("  Предел считается по каждому тензору отдельно из одного замера пола, и правило требует выполнения на всех тензорах шага 0. Провал по немногим тензорам при том, что наибольшая разница по всем тензорам шага 0 (таблица ниже) меньше наибольшего пола, не доказывает и не исключает ошибку: правило здесь строже, чем по общей величине, и ничего больше о причине провала эти данные не говорят.")
+    other = [c["k"] for c in cells if c["verdict"]["state"] == "fail" and not c["verdict"]["reasons"]]
+    if other:
+        out.append(f"- Ячейки k={other} не прошли, причина не записана.")
+    return out
 
 
 def results_section(records: Dict[str, Any]) -> List[str]:
@@ -142,7 +183,7 @@ def render(method: str, records: Dict[str, Any], env: Dict[str, Any], rental: Di
         *_table(["Параметр", "Значение"], [
             ["Сервер", rental["server"]], ["GPU", env["nvidia_smi"]], ["Образ", rental["image"]],
             ["Пакеты", f"torch {env['torch']}, transformers {env['transformers']}, trl {env['trl']}, peft {env['peft']}, CUDA {env['cuda']}, Python {env['python']} (полный список в `packages.txt`)"],
-            ["RAM", f"{env['ram']}; {rental['uptime']}"], ["Коммит", f"`{rental['commit']}`"],
+            ["RAM", f"{env['ram']}; {rental['uptime']}"], ["Коммит", f"`{rental['commit']}`" + (" " + rental["tree_note"] if rental.get("tree_note") else "")],
             ["Стоимость", rental["cost"]], ["Аккаунт", rental["account"]], ["Уничтожение", rental["destroy"]],
         ]),
         "",
@@ -158,6 +199,10 @@ def render(method: str, records: Dict[str, Any], env: Dict[str, Any], rental: Di
         "## Результат по ячейкам",
         "",
         *results_section(records),
+        "",
+        "## Что показали данные",
+        "",
+        *what_showed(records),
         "",
         "Что не выполнено или не определено:",
         "",
