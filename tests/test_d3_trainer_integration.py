@@ -336,6 +336,35 @@ def test_opt_in_config_refuses_unsupported_training_before_model_load():
             ExpertStreamConfig(group_width=width)
 
 
+@pytest.mark.parametrize("extra,message", [
+    ({"stream_expert_layout": "per_expert"}, "select stream_experts or stream_expert_layout"),
+    ({"stream_partial_ram": {"limit_bytes": 1024, "reserved_bytes": 0, "cache_bytes": 0}},
+     "stream_experts does not support stream_partial_ram"),
+])
+def test_config_refuses_unqualified_expert_runtime_combinations(extra, message):
+    from soup_cli.config.schema import SoupConfig
+
+    with pytest.raises(ValueError, match=message):
+        SoupConfig(base="local/olmoe", task="sft", data={"train": "local.jsonl"}, training={
+            "stream_layers": True, "stream_experts": {}, "moe_aux_loss_coeff": 0,
+            "quantization": "none", "batch_size": 1, **extra,
+        })
+
+
+def test_builder_refuses_partial_ram_with_experts_before_model_construction(monkeypatch):
+    from soup_cli.utils import layer_stream_runtime
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("constructed a model for an unsupported combined memory budget")
+
+    monkeypatch.setattr(layer_stream_runtime, "build_meta_skeleton", forbidden)
+    with pytest.raises(ValueError, match="stream_experts does not support stream_partial_ram"):
+        layer_stream_runtime.build_streamed_model(
+            model_id="unused", shard_dir="unused", index=None, lora_config=None,
+            expert_options=object(), partial_ram_budget=object(),
+        )
+
+
 def test_router_auxiliary_loss_is_not_silently_dropped():
     from types import SimpleNamespace
 

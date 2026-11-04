@@ -16,17 +16,26 @@ The layer arguments (position ids, mask) are captured once per distinct shape an
 micro-batch gets the call of its shape. The activation store sizes every micro-batch's
 chunks to that micro-batch, so a short row does not pay for the longest row of its window.
 
+Each micro-batch position keeps its largest capacity seen so far. A larger window grows
+the store after releasing its old allocations. When the store does not fit the host-RAM
+budget, the lowest layers spill to one file (``soup_cli.utils.l2l_spill``); ``train`` removes
+it on every exit it sees and sweeps files of dead runs at start.
+
 torch is imported inside functions.
 """
 
 from __future__ import annotations
 
 import functools
+import logging
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from soup_cli.utils.l2l_step import SUPPORTED_ARCHS, LoadCounters
+
+logger = logging.getLogger(__name__)
 
 #: Captured layer arguments kept per shape; the cache restarts when a run exceeds it. A new
 #: shape costs one forward to capture them.
@@ -75,6 +84,16 @@ class L2LState:
     captures: int = 0
     capture_loads: int = 0
     capture_seconds: float = 0.0
+    #: ``training.l2l_spill_dir``; None means ``<output_dir>/_l2l_spill``.
+    spill_dir: Optional[str] = None
+    #: Directories the weights stream from (layer cache and stripe folders).
+    weight_dirs: Tuple[str, ...] = ()
+    output_dir: Optional[str] = None
+    #: The plan of the current store (kept after it is closed); None before the first step.
+    spill_plan: Optional[Dict[str, Any]] = None
+    #: Files of dead runs the last ``train`` removed from the spill directory.
+    stale_removed: List[str] = field(default_factory=list)
+    c3_plan: Any = None
 
     def log_fields(self) -> Dict[str, Any]:
         return {
@@ -85,7 +104,16 @@ class L2LState:
             "l2l_layer_loads": self.totals.layer_loads,
             "l2l_large_loads": self.totals.large_loads,
             "l2l_weight_restores": self.totals.restores,
+            "l2l_spill_layers": int(self.spill_plan["spill_layers"]) if self.spill_plan else 0,
         }
+
+    def spill_directory(self) -> str:
+        """The configured spill directory, or the default one under the output directory."""
+        if self.spill_dir is not None:
+            return self.spill_dir
+        from soup_cli.utils.l2l_spill import SPILL_DIR_NAME
+
+        return os.path.join(self.output_dir or ".", SPILL_DIR_NAME)
 
     def close(self) -> None:
         if self.store is not None:
@@ -202,44 +230,14 @@ def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any
     return state.stepper, calls
 
 
-def check_activation_budget(
-    *,
-    free_ram: Optional[int],
-    n_layers: int,
-    k: int,
-    chunk_bytes: int,
-    pinned: bool,
-    mb_bytes: Optional[Sequence[int]] = None,
-) -> None:
-    """Refuse an activation store that would not fit the free host RAM, before allocating it.
+def _spill_line(plan: Dict[str, Any], budget: Any) -> str:
+    from soup_cli.utils.terminal import for_terminal
 
-    The weight store and staging are already resident when this runs, so ``free_ram``
-    is what they left over. A pinned chunk is its own allocation, and torch's host
-    allocator rounds it up to the next power of two (#901). ``mb_bytes`` is the chunk
-    size of each micro-batch when they differ (rows of different lengths); the store
-    then needs the sum of their blocks, not ``k`` times the largest. Without psutil
-    (``free_ram`` is None) nothing is checked.
-    """
-    from soup_cli.utils.layer_stream import RAM_TIER_HEADROOM
-    from soup_cli.utils.layer_stream_runtime import _next_power_of_two
-
-    sizes = [chunk_bytes] * k if mb_bytes is None else list(mb_bytes)
-    blocks = [_next_power_of_two(size) if pinned else size for size in sizes]
-    nbytes = n_layers * sum(blocks)
-    if free_ram is None or nbytes < free_ram * RAM_TIER_HEADROOM:
-        return
-    kind = "pinned " if pinned else ""
-    largest, block = max(sizes), max(blocks)
-    rounding = (
-        f" (a {largest / 1e6:.1f} MB chunk takes a {block / 1e6:.1f} MB pinned block)"
-        if block != largest
-        else ""
-    )
-    raise ValueError(
-        f"training.l2l keeps {n_layers} layers x {len(sizes)} micro-batches of activations in "
-        f"host RAM: {nbytes / 1e9:.2f} GB of {kind}blocks{rounding}, but only "
-        f"{free_ram / 1e9:.1f} GB is free and {RAM_TIER_HEADROOM:.0%} of that is usable. "
-        f"Lower gradient_accumulation_steps, data.max_length or batch_size, or free RAM."
+    return (
+        f"[yellow]L2L:[/] activations do not fit host RAM; spilling "
+        f"{plan['spill_layers']} of {plan['n_layers']} layers "
+        f"({plan['spill_file_bytes'] / 1e9:.2f} GB) to {for_terminal(plan['spill_path'])}; "
+        f"{for_terminal(budget.describe())}"
     )
 
 
@@ -247,35 +245,108 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
     """The activation store for the window, grown only when a micro-batch does not fit.
 
     Micro-batch ``i`` of every window uses chunk ``i``, so the store keeps the largest
-    size each position has needed. A window that fits is served by the store as it is.
+    size each position has needed. The plan sums those allocations for resident layers;
+    spill slots and staging buffers hold the largest chunk. Replanning and directory
+    validation happen after the old store is released and before the new allocation.
     """
     import math
 
     import torch
 
+    from soup_cli.utils import l2l_spill
     from soup_cli.utils.l2l_activations import ActivationStore
-    from soup_cli.utils.layer_stream import free_ram_bytes
 
     hidden = int(stepper.causal.config.hidden_size)
+    store = state.store
+    n_layers = len(stepper.layers)
+    pin = str(device).startswith("cuda")
+    if state.c3_plan is not None:
+        # Before any release: a window outside the reserved plan keeps the current store.
+        state.c3_plan.validate_microbatches(
+            n_layers=n_layers,
+            shapes=[(int(ids.shape[0]), int(ids.shape[1]), hidden) for ids in ids_list],
+            dtype=str(state.dtype).removeprefix("torch."),
+            pin=pin,
+        )
     need = [int(ids.shape[0]) * int(ids.shape[1]) * hidden for ids in ids_list]
-    have = [math.prod(shape) for shape in state.store.mb_shapes] if state.store else []
-    if state.store is not None and len(need) <= len(have) and all(
+    have = [math.prod(shape) for shape in store.mb_shapes] if store is not None else []
+    if store is not None and len(need) <= len(have) and all(
         n <= h for n, h in zip(need, have)
     ):
-        return state.store
+        return store
     caps = [max(n, h) for n, h in zip(need, have)] + need[len(have):] + have[len(need):]
+    pin = str(device).startswith("cuda")
+    rebuilding_cuda = store is not None and pin
     state.close()
+    # close() releases the old chunks/rings; do not retain the old store while replanning.
+    del store
+    if rebuilding_cuda:
+        empty_host_cache = getattr(getattr(torch, "accelerator", None), "empty_host_cache", None)
+        if empty_host_cache is not None:
+            empty_host_cache()
+        else:
+            # Older torch has no supported cache-release API. Do not invent reusable-byte
+            # credit: a larger window can need different pinned allocation size buckets.
+            logger.warning(
+                "training.l2l is growing its CUDA activation store, but this torch has no "
+                "torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged "
+                "to host RAM, so the new plan may need extra free RAM."
+            )
     n_layers = len(stepper.layers)
     itemsize = torch.empty((), dtype=state.dtype).element_size()
-    pin = str(device).startswith("cuda")
-    check_activation_budget(
-        free_ram=free_ram_bytes(),
+    if state.c3_plan is not None:
+        from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+
+        # The lease charges every chunk at the largest capacity: an upper bound of the
+        # per-micro-batch allocations, inside the partition reserved before the cache.
+        state.store = BudgetedActivationStore(
+            host_budget=state.c3_plan.activations,
+            n_layers=n_layers,
+            k=len(caps),
+            chunk_shape=(max(caps),),
+            mb_shapes=[(cap,) for cap in caps],
+            dtype=state.dtype,
+            device=device,
+            pin=pin,
+        )
+        return state.store
+    budget = l2l_spill.ram_budget()
+    logger.info(
+        "training.l2l activation budget: %s [limiting level %s: %s]",
+        budget.describe(), budget.limiting_level, budget.limiting_numbers,
+    )
+    plan = l2l_spill.plan_spill(
+        budget.budget_bytes,
         n_layers=n_layers,
         k=len(caps),
         chunk_bytes=max(caps) * itemsize,
-        pinned=pin,
         mb_bytes=[cap * itemsize for cap in caps],
+        ring=l2l_spill.TRAINER_RING,
+        pin=pin,
+        budget_source=budget.describe(),
     )
+    record = {
+        **plan.as_dict(),
+        "available_bytes": budget.available_bytes,
+        "limiting_level": budget.limiting_level,
+        "limiting_numbers": dict(budget.limiting_numbers),
+        "spill_dir": state.spill_directory(),
+        "spill_path": None,
+        "explicit_dir": state.spill_dir is not None,
+    }
+    factory = None
+    if plan.spill_layers:
+        directory = l2l_spill.prepare_spill_dir(
+            record["spill_dir"],
+            explicit=record["explicit_dir"],
+            spill_layers=plan.spill_layers,
+            file_bytes=plan.spill_file_bytes,
+            tier=str(getattr(state.runtime, "tier", "ram")),
+            weight_dirs=state.weight_dirs,
+        )
+        record["spill_dir"] = directory
+        record["spill_path"] = os.path.join(directory, l2l_spill.spill_file_name())
+        factory = functools.partial(l2l_spill.open_spill_file, record["spill_path"])
     state.store = ActivationStore(
         n_layers=n_layers,
         k=len(caps),
@@ -284,7 +355,13 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
         dtype=state.dtype,
         device=device,
         pin=pin,
+        spill_layers=plan.spill_layers,
+        spill_factory=factory,
+        ring=l2l_spill.TRAINER_RING,
     )
+    state.spill_plan = record
+    if plan.spill_layers:
+        l2l_spill.say(_spill_line(record, budget))
     return state.store
 
 
@@ -314,6 +391,21 @@ def make_l2l_trainer_class(base_cls: type) -> type:
     class L2LTrainer(base_cls):  # type: ignore[misc, valid-type]
         soup_l2l: bool = True
         _soup_l2l: Optional[L2LState] = None
+
+        def train(self, *args, **kwargs):  # type: ignore[override]
+            """HF's ``train`` with the spill directory swept before it and the activation
+            store (and its spill file) closed after it, on a normal end, an exception or
+            Ctrl-C alike."""
+            state = self._soup_l2l
+            if state is None:
+                return super().train(*args, **kwargs)
+            from soup_cli.utils.l2l_spill import sweep_stale
+
+            state.stale_removed = sweep_stale(state.spill_directory())
+            try:
+                return super().train(*args, **kwargs)
+            finally:
+                state.close()
 
         def get_batch_samples(self, epoch_iterator, num_batches, device):  # type: ignore[override]
             samples, num_items = super().get_batch_samples(epoch_iterator, num_batches, device)
@@ -379,8 +471,28 @@ def make_l2l_trainer_class(base_cls: type) -> type:
     return L2LTrainer
 
 
-def attach_l2l_state(trainer: Any, runtime: Any, *, dtype: Any) -> L2LState:
-    """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime."""
-    state = L2LState(runtime=runtime, dtype=dtype)
+def attach_l2l_state(
+    trainer: Any,
+    runtime: Any,
+    *,
+    dtype: Any,
+    c3_plan: Any = None,
+    spill_dir: Optional[str] = None,
+    weight_dirs: Sequence[str] = (),
+) -> L2LState:
+    """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
+
+    ``spill_dir`` is ``training.l2l_spill_dir`` (None: ``<output_dir>/_l2l_spill``), and
+    ``weight_dirs`` lists the directories the weights stream from on the disk tier.
+    """
+    args = getattr(trainer, "args", None)
+    state = L2LState(
+        runtime=runtime,
+        dtype=dtype,
+        c3_plan=c3_plan,
+        spill_dir=spill_dir,
+        weight_dirs=tuple(str(path) for path in weight_dirs),
+        output_dir=getattr(args, "output_dir", None),
+    )
     trainer._soup_l2l = state
     return state

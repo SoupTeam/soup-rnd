@@ -387,6 +387,12 @@ def grouped_experts_class() -> Any:
                 self.last_trace = []
                 self.pool.validate_reader(self.reader)
                 _validate_routing(hidden_states, top_k_index, top_k_weights, self.pool)
+                if torch.is_grad_enabled() and (
+                    hidden_states.requires_grad or top_k_weights.requires_grad
+                ):
+                    raise RuntimeError(
+                        "grouped forward-only runtime requires the D3/B1.3 autograd wrapper"
+                    )
                 if top_k_index.shape[1] > self.num_experts:
                     raise ValueError("routing top-k exceeds the expert count")
                 if top_k_index.numel() and (

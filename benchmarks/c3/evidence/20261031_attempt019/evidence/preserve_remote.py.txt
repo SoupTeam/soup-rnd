@@ -1,0 +1,16 @@
+import json,subprocess,shutil,time
+from pathlib import Path
+from evidence_bundle import pack
+p=Path('/data/c3');e=p/'evidence';a=json.loads((p/'rental.json').read_text())
+assert Path('/proc/sys/kernel/random/boot_id').read_text().strip()==a['boot_id']
+if (e/'pipeline.json').exists():assert json.loads((e/'pipeline.json').read_text())['status'] in ('BLOCKED','COMPLETED_PENDING_REVIEW')
+for name,cmd in [('gpu_final.txt',['nvidia-smi','-q']),('compute_processes_final.txt',['nvidia-smi','--query-compute-apps=pid,process_name,used_memory','--format=csv,noheader'])]:
+ r=subprocess.run(cmd,capture_output=True,text=True,timeout=20);(e/name).write_text(r.stdout+r.stderr)
+for name in ['rental.json','source_manifest.json','offline_bundle_manifest.json','setup.sh','preflight.sh','pipeline.py','stage_and_launch.py','preserve_remote.py','evidence_bundle.py']:
+ if (p/name).is_file():shutil.copyfile(p/name,e/name)
+for name in ['model/C3_DOWNLOAD_RECEIPT.json','repo/.c3_prepared/prepared.json','repo/.c3_prepared/shards/index.json']:
+ f=p/name
+ if f.is_file():
+  target=e/'input_receipts'/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,target)
+(e/'preservation_scope.json').write_text(json.dumps({'included':'all evidence plus frozen source manifest, launch and input receipts','excluded':'reproducible weights/shards/env/tools/offline cache; source archive retained locally','unix_s':time.time(),'instance_id':a['instance_id'],'volume_id':a['volume_id']},indent=2))
+r=pack(e,p/'bundle.tar.gz');r.update(instance_id=a['instance_id'],volume_id=a['volume_id']);(p/'bundle_receipt.json').write_text(json.dumps(r,indent=2)+'\n');print(json.dumps(r))

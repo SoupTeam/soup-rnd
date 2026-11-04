@@ -434,13 +434,15 @@ def test_cuda_grouped_reader_decode_forward_exact(tmp_path, width, format_name, 
         reader.close()
 
 
-def test_gradient_path_is_refused_before_read(tmp_path):
+@pytest.mark.parametrize("which", ["hidden", "weights", "both"])
+def test_gradient_path_is_refused_before_read(tmp_path, which):
     from soup_cli.utils.expert_group import grouped_experts_class
     from tests.test_b1_expert_forward import _inputs
 
     module, reader, baseline, pool = _fixture(tmp_path)
     hidden, index, weights = _inputs()
-    hidden.requires_grad_(True)
+    hidden.requires_grad_(which in ("hidden", "both"))
+    weights.requires_grad_(which in ("weights", "both"))
     try:
         with pytest.raises(RuntimeError, match="B1.3"):
             grouped_experts_class()(reader, pool, module.act_fn, 0)(hidden, index, weights)

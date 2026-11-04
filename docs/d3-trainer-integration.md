@@ -29,6 +29,17 @@ certify the new merged source as a fresh CUDA measurement.
 
 ## Execution path
 
+The 2026-11-04 merge with `main` at `76051b77` retains the separate B6
+`training.stream_expert_layout` runtime and C3 partial-RAM path. D3's
+`training.stream_experts` owns its own pool, readers and budget; it does not
+install or charge the B6 pool a second time. Selecting both expert runtimes,
+or combining D3 with `training.stream_partial_ram`, is explicitly refused.
+The older grouped forward-only wrapper retains its own pre-read gradient
+refusal even though B1/B6 now supports backward; D3 training continues to use
+the explicit grouped-autograd wrapper.
+The merged source needs its own repository CI; historical CUDA measurements
+remain pinned to their original commits.
+
 `training.stream_experts` selects independently readable expert shards in the
 regular SFT setup. The ordinary meta model, PEFT adapter installation, streamed
 decoder wrappers and SFTTrainer remain the training entry point. The expert

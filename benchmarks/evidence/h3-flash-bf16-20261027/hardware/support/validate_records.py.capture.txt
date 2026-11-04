@@ -1,0 +1,111 @@
+"""Offline validation of retained GPU records; this does not execute CUDA."""
+import hashlib
+import json
+import math
+import subprocess
+import sys
+from pathlib import Path
+
+from rich.console import Console
+
+root = Path(__file__).parent
+repo = Path('C:/Users/esenb/.codex/worktrees/h3-fsdp-lora-20261026/soup-rnd-d2')
+sys.path.insert(0, str(repo / 'benchmarks/harness'))
+from h3_fsdp_gate import assert_flash_operators, assert_forward_precision, state_digest, throughput
+
+import torch
+from datasets import load_from_disk
+
+torch.set_num_threads(2)
+campaign_name=json.loads((root/'collection-verification.json').read_text())['campaign']
+campaign = root / 'evidence/live' / campaign_name
+prepared = json.loads((root / 'evidence/prepared/prepared.json').read_text())
+data = load_from_disk(str(root / 'evidence/prepared/data')).to_list()
+assert len(data) == prepared['rows'] == 512
+assert hashlib.sha256(json.dumps(data,separators=(',',':')).encode()).hexdigest() == prepared['data_sha256']
+commit = json.loads((root / 'launch-request.json').read_text())['commit']
+rows = []
+for folder in sorted(campaign.glob('repeat-*')):
+    if not folder.is_dir():
+        continue
+    rank_rows = [json.loads(p.read_text()) for p in sorted(folder.glob('rank-*.json'))]
+    assert len(rank_rows) == rank_rows[0]['world_size']
+    gradients = torch.load(folder / 'first-gradients.pt', weights_only=True, map_location='cpu')
+    preclip = torch.load(folder / 'first-preclip-gradients.pt', weights_only=True, map_location='cpu')
+    initial = torch.load(folder / 'initial-adapter.pt', weights_only=True, map_location='cpu')
+    first = torch.load(folder / 'first-adapter.pt', weights_only=True, map_location='cpu')
+    assert len(initial) == 96 and gradients.keys() == preclip.keys() == initial.keys() == first.keys()
+    assert all(torch.isfinite(v).all().item() for states in (gradients, preclip, initial, first)
+               for v in states.values())
+    for record in rank_rows:
+        world = record['world_size']
+        assert record['status'] == 'training_passed_reload_pending'
+        assert record['steps'] == 18 and record['measured_steps'] == 10
+        assert record['correctness_steps'] == 2 and record['warmup_steps'] == 5
+        assert record['micro_batch'] == 1 and record['global_batch'] == 8
+        assert record['gradient_accumulation_steps'] == 8 // world
+        assert len(record['losses']) == 18 * (8 // world)
+        assert all(math.isfinite(v) for v in record['losses'])
+        assert record['base_before_sha256'] == record['base_after_sha256']
+        assert [c['optimizer_step'] for c in record['gradient_checks']] == [1, 2, 18]
+        for check in record['gradient_checks']:
+            assert check['finite'] and check['some_nonzero'] and check['frozen_gradients_absent']
+            assert len(set(check['reconstructed_sha256_per_rank'])) == 1
+        assert record['first_gradient_sha256'] == state_digest(gradients)
+        assert set(record['first_preclip_sha256_per_rank']) == {state_digest(preclip)}
+        assert len(record['data_windows']) == 2
+        assert all(len(set(window)) == len(window) == 8 for window in record['data_windows'])
+        assert len(record['rank_step_seconds']) == 10
+        assert all(math.isfinite(v) and v > 0 for v in record['rank_step_seconds'])
+        assert record['rank_input_tokens'] == 10 * 4096 // world
+        assert record['precision'] == 'bf16' and record['bf16_flash'] and not record['bf16_conservative']
+        assert_forward_precision(record['forward_trainable_dtypes'],
+                                 record['forward_autocast_enabled'], 96, True)
+        assert len(record['forward_output_dtypes']) == 96
+        assert set(record['forward_output_dtypes'].values()) == {'torch.bfloat16'}
+        controls = record['forward_backend_controls']
+        assert controls['flash_sdp'] and not any(controls[k] for k in ('math_sdp','efficient_sdp','cudnn_sdp'))
+        assert controls['bf16_reduced_precision_reduction'] is True
+        assert controls['deterministic'] == record['flash_deterministic']
+        assert_flash_operators(record['flash_operator_counts'])
+        assert record['flash_operator_counts']['aten::_scaled_dot_product_flash_attention'] == 24 * (8 // world)
+        assert record['flash_operator_counts']['aten::_scaled_dot_product_flash_attention_backward'] == 24 * (8 // world)
+        assert record['attention_implementation'] == 'sdpa'
+        assert set(p['dtype'] for p in record['parameter_storage'].values()) == {
+            'torch.float32', 'torch.bfloat16'}
+        local = 494573440 if world == 1 else 247286720
+        assert all(s['local'] == local for s in record['shards'])
+        if world == 2:
+            assert record['fsdp_version'] == 2
+            assert all(s['units'] == 27 for s in record['shards'])
+            assert all(s['sharded'] for s in record['parameter_storage'].values())
+            assert record['sharding_accounting']['extra_alias_parameters'] == 0
+            assert record['fsdp_policy'] == {
+                'param_dtype': 'None', 'reduce_dtype': 'torch.float32', 'output_dtype': 'None'}
+        else:
+            assert record['fsdp_version'] is None and record['shards'][0]['units'] == 0
+        assert record['updates'][0]['changed_tensors']
+        assert record['final_update']['changed_tensors']
+        for parameter in initial:
+            changed = not torch.equal(initial[parameter], first[parameter])
+            assert changed == (parameter in record['updates'][0]['changed_tensors'])
+        env = json.loads((folder / f"environment-rank-{record['rank']}.json").read_text())
+        assert env['commit'] == commit and not env['git_status']
+        for name, expected in env['harness_sha256'].items():
+            data = subprocess.check_output(['git', 'show', f'{commit}:benchmarks/harness/{name}'], cwd=repo)
+            assert hashlib.sha256(data).hexdigest() == expected
+        rows.append({'arm': folder.name, 'rank': record['rank'],
+                     'losses_checked': len(record['losses']),
+                     'first_changed_tensors': len(record['updates'][0]['changed_tensors']),
+                     'final_changed_tensors': len(record['final_update']['changed_tensors']),
+                     'local_parameter_elements': local})
+    recomputed = throughput([r['rank_step_seconds'] for r in rank_rows],
+                            [r['rank_input_tokens'] for r in rank_rows])
+    assert all(all(r[k] == value for k, value in recomputed.items()) for r in rank_rows)
+assert len(rows) == 6
+result = {'status': 'passed', 'source_harness_hashes_match_measured_commit': True,
+          'retained_prepared_dataset_hash_matches': True,
+          'scope': 'CPU validation of retained real GPU records; no new CUDA execution',
+          'ranks': rows}
+(root / 'acceptance-revalidation.json').write_text(json.dumps(result, indent=2) + '\n')
+Console().print(result)

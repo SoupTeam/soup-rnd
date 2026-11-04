@@ -1,0 +1,33 @@
+{
+  "status": "incomplete",
+  "arms": [
+    "repeat-1-gpu-1",
+    "repeat-1-gpu-2",
+    "repeat-2-gpu-2",
+    "repeat-2-gpu-1"
+  ],
+  "args": {
+    "prepared": "benchmarks/evidence/h3-fsdp-20261027/prepared",
+    "output": "benchmarks/evidence/h3-fsdp-20261027/live/campaign-amp",
+    "repeats": 2,
+    "measured_steps": 10,
+    "timeout_seconds": 600,
+    "campaign_seconds": 2400,
+    "summarize_only": false
+  },
+  "argv": [
+    "benchmarks/harness/h3_fsdp_campaign.py",
+    "--prepared",
+    "benchmarks/evidence/h3-fsdp-20261027/prepared",
+    "--output",
+    "benchmarks/evidence/h3-fsdp-20261027/live/campaign-amp",
+    "--repeats",
+    "2",
+    "--measured-steps",
+    "10",
+    "--timeout-seconds",
+    "600",
+    "--campaign-seconds",
+    "2400"
+  ]
+}

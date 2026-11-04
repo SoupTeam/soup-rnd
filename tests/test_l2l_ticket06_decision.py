@@ -104,11 +104,8 @@ def test_command_reads_only_the_valid_set_and_the_rerun_gate_records():
     assert all("rerun-sft" not in item["source"] for item in out["evidence"]["r1"])
     assert len(out["evidence"]["r1"]) == 1 and len(out["evidence"]["r2"]) == 4
     assert out["evidence"]["r1"][0]["source"].startswith("l2l-ticket04-valid-5070ti-f1/")
-    # Serialized evidence paths use the same separators on Windows and POSIX hosts.
-    assert all(
-        "\\" not in item["source"]
-        for records in out["evidence"].values() for item in records
-    )
+    for records in out["evidence"].values():
+        assert all("\\" not in item["source"] for item in records)
     # the valid set: every required check ok, two void arms (foreign reads) left out
     assert out["blocked_by"] == {}
     assert out["arm_outcomes"] == {"ok": 50, "void": 2} and out["excluded_void_arms"] == 2

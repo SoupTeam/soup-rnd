@@ -1,0 +1,590 @@
+{
+  "status": "PASS_LOCAL_PILOT_EVIDENCE_REVIEW",
+  "source_commit": "5bcd74b4792ec6b3580babf9aaf0266d30dff2c0",
+  "instance_id": 58131635,
+  "volume_id": 58131634,
+  "cuda_controls_passed": 2,
+  "physical_calibration": "PASS_COUNTER_CALIBRATION",
+  "foreign_read_control": "PASS_FOREIGN_READER_DETECTED",
+  "numerical": {
+    "status": "NUMERICAL_PASS",
+    "failures": [],
+    "performance_verdict": "NO_VERDICT"
+  },
+  "completed_arms": 20,
+  "optimizer_updates": 120,
+  "measured_updates_excluding_warmup": 80,
+  "f1_ok_arms": 20,
+  "complete_clock_arms": 20,
+  "blocks": 5,
+  "repetitions": {
+    "sigma": 0.003608620613842946,
+    "mean_a": 0.18877366814995183,
+    "blocks_needed": 2,
+    "blocks_to_add": 0
+  },
+  "summary": {
+    "A": {
+      "median_training_seconds": 0.18877366814995183,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1634835251.2,
+      "peak_cuda_allocated_bytes": 211322880
+    },
+    "B": {
+      "median_training_seconds": 0.1602344155428,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1763394764.8,
+      "peak_cuda_allocated_bytes": 211322880
+    }
+  },
+  "descriptive_training_time_reduction_pct": 15.118238092656956,
+  "descriptive_process_read_reduction_pct": 25.0,
+  "per_arm": [
+    {
+      "index": 0,
+      "arm": "A",
+      "median_training_seconds": 0.18687983183190227,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1663283200,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 3 samples; clock event reasons seen: none",
+        "samples": 3,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 1,
+      "arm": "B",
+      "median_training_seconds": 0.16027395892888308,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1757499392,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 2,
+      "arm": "B",
+      "median_training_seconds": 0.16256108507514,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1759735808,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 3,
+      "arm": "A",
+      "median_training_seconds": 0.19454012752976269,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1624465408,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 4,
+      "arm": "A",
+      "median_training_seconds": 0.19385619752574712,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1625026560,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 5,
+      "arm": "B",
+      "median_training_seconds": 0.16221778409089893,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1768382464,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 6,
+      "arm": "B",
+      "median_training_seconds": 0.15921431803144515,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1759461376,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 7,
+      "arm": "A",
+      "median_training_seconds": 0.18867779686115682,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1639792640,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 8,
+      "arm": "A",
+      "median_training_seconds": 0.18850043101701885,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1640476672,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 9,
+      "arm": "B",
+      "median_training_seconds": 0.16175321594346315,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1768288256,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 10,
+      "arm": "B",
+      "median_training_seconds": 0.15428963990416378,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1759670272,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 11,
+      "arm": "A",
+      "median_training_seconds": 0.19257052487228066,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1624956928,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 12,
+      "arm": "A",
+      "median_training_seconds": 0.1893215716117993,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1625694208,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 13,
+      "arm": "B",
+      "median_training_seconds": 0.16194683336652815,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1759928320,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 14,
+      "arm": "B",
+      "median_training_seconds": 0.15908996248617768,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1758330880,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 15,
+      "arm": "A",
+      "median_training_seconds": 0.18557955755386502,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1640452096,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 16,
+      "arm": "A",
+      "median_training_seconds": 0.18511315155774355,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1623584768,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 17,
+      "arm": "B",
+      "median_training_seconds": 0.155808916548267,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1774551040,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 18,
+      "arm": "B",
+      "median_training_seconds": 0.16518844105303288,
+      "mean_process_read_bytes": 547467264,
+      "mean_device_read_bytes": 547467264,
+      "resident_bytes": 121651200,
+      "process_lifetime_peak_rss_bytes": 1768099840,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 60829696,
+        "process_bytes": 60829696
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    },
+    {
+      "index": 19,
+      "arm": "A",
+      "median_training_seconds": 0.18269749113824219,
+      "mean_process_read_bytes": 729956352,
+      "mean_device_read_bytes": 729956352,
+      "resident_bytes": 0,
+      "process_lifetime_peak_rss_bytes": 1640620032,
+      "peak_cuda_allocated_bytes": 211322880,
+      "setup_physical_io": {
+        "device_bytes": 0,
+        "process_bytes": 0
+      },
+      "f1": "ok",
+      "clocks": {
+        "outcome": "ok",
+        "reason": "SM clock 2535 to 2535 MHz over 2 samples; clock event reasons seen: none",
+        "samples": 2,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 2535,
+          "median": 2535.0,
+          "max": 2535
+        },
+        "reasons_seen": {}
+      }
+    }
+  ],
+  "performance_verdict": "NO_VERDICT",
+  "scope": "Synthetic 122M FP32 calibration, not representative model/A4/public L2L acceptance; times exclude numerical hashing, physical read counters include it; RSS includes source/model construction and cache fill"
+}

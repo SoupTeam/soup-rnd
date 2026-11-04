@@ -1,0 +1,78 @@
+{
+  "rank": 0,
+  "world_size": 2,
+  "device": "cpu",
+  "layers": [
+    0,
+    1
+  ],
+  "pid": 16980,
+  "observed_stage_calls": {
+    "forward": 8,
+    "backward": 8
+  },
+  "stage_parameter_numel": 22528,
+  "trainable_numel": 1792,
+  "schedule": "ScheduleGPipe",
+  "plan": {
+    "stages": 2,
+    "microbatches": 2,
+    "micro_batch": 2,
+    "schedule_batch": 4,
+    "accumulation": 2,
+    "global_batch": 8
+  },
+  "records": [
+    {
+      "step": 1,
+      "row_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "gradient_error": 0.0,
+      "adapter_error": 0.0
+    },
+    {
+      "step": 2,
+      "row_ids": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "gradient_error": 0.0,
+      "adapter_error": 0.0
+    }
+  ],
+  "changed_adapter_tensors": 8,
+  "adapter_keys": [
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_B.weight"
+  ],
+  "frozen_before": "52df7b717e693f0ef8d9121fe8fc8c0f6df97a13e2f58cdb238cfc6aee60593a",
+  "frozen_after": "52df7b717e693f0ef8d9121fe8fc8c0f6df97a13e2f58cdb238cfc6aee60593a",
+  "peak_vram": null,
+  "wall_seconds_with_correctness_probes": 0.07800000000133878,
+  "rss_before_training": 480083968,
+  "rss_after_training": 480907264,
+  "host_used_ram_after_training": 15796396032,
+  "host_ram_method": "point samples, not peak or unique process totals",
+  "precision": "IEEE FP32; eager attention; no AMP/TF32",
+  "performance_measurement": false
+}
