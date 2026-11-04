@@ -401,7 +401,7 @@ def run_one_arm(
         command = [
             sys.executable, str(Path(__file__).resolve()), "arm", "--arm", name, "--path", path,
             "--dtype", dtype, "--base", args.base, "--device", args.device,
-            "--work", str(attempt_dir / "work"), "--out", str(attempt_dir),
+            "--work", str(attempt_dir / f"{name}-work"), "--out", str(attempt_dir),
             "--start", str(Path(args.out) / "start.pt"),
         ] + (["--sdpa", sdpa] if sdpa else []) + (["--trace"] if trace else [])  # fmt: skip
         log = attempt_dir / f"{name}.out"
@@ -479,6 +479,7 @@ def run_campaign(args: argparse.Namespace) -> None:
             for name, path in (("trace_ga", "ga"), ("trace_l2l", "l2l"))
         }
         runs.update(traced)
+        types.update({name: run["types"] for name, run in traced.items()})
         control3 = first_diverging_layer(traced["trace_ga"]["trace"], traced["trace_l2l"]["trace"])
         control3["dtype"] = outcome["trace_dtype"]
         control3["shapes"] = {
