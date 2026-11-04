@@ -120,6 +120,7 @@ def reproduction_control(control: dict[str, Any], reference: dict[str, Any]) -> 
     suites = {
         name: control["gate_suites"][name]["correct"] - suite["correct"]
         for name, suite in reference["gate_suites"].items()
+        if name in control["gate_suites"]
     }
     checks = {
         "control_complete": True,
@@ -139,7 +140,7 @@ def reproduction_control(control: dict[str, Any], reference: dict[str, Any]) -> 
         "same_non_expert_weights":
             control["non_expert_fingerprints"] == reference["non_expert_fingerprints"],
         "task_loss_within_tolerance": relative <= CONTROL_MAX_RELATIVE_DIFF,
-        "gate_suites_within_tolerance": set(suites) == set(control["gate_suites"])
+        "gate_suites_within_tolerance": set(reference["gate_suites"]) == set(control["gate_suites"])
         and all(abs(diff) <= CONTROL_MAX_SUITE_DIFF for diff in suites.values()),
     }
     return {

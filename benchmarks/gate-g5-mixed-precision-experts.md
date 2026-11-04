@@ -118,6 +118,8 @@ C5's thresholds, in order: no verdict if a validity row is violated; fail if the
 | No pass, at least one no verdict | repeat those arms; no G5 decision |
 | All four fail | G5 stays stopped until there is a 2-bit codec better than Q2_0 with scale search |
 
+A pass decides even when another arm is no verdict, including an arm at a larger fraction or the traffic arm at the same fraction: for example f25 passes and f50 is no verdict, so f25 is the rule although f50 might pass after its repeat. The larger-fraction arms are not repeated first; the no-verdict arms are listed in `decision.unresolved` and `g5_verdict.py` reports `g5: rule`. The repeat outcome applies only when no arm passes.
+
 C5's table still holds: this measurement does not overturn it, it tests the estimate behind its 1.10 line.
 
 ### Size

@@ -232,6 +232,22 @@ class TestReproductionControl:
         assert not result["checks"]["gate_suites_within_tolerance"]
         assert result["checks"]["task_loss_within_tolerance"]
 
+    def test_a_control_missing_a_gate_suite_fails_without_raising(self, g5):
+        reference = _run("nf4", 42)
+        control = _run("nf4", 42, gpu=NEW_BOX)
+        del control["gate_suites"]["mini_arithmetic"]
+        result = g5.reproduction_control(control, reference)
+        assert result["passed"] is False
+        assert result["checks"]["gate_suites_within_tolerance"] is False
+        assert "mini_arithmetic" not in result["gate_suite_diff"]
+
+    def test_a_control_with_an_extra_gate_suite_fails(self, g5):
+        reference = _run("nf4", 42)
+        control = _run("nf4", 42, gpu=NEW_BOX)
+        control["gate_suites"]["mini_extra"] = {"n": 4, "correct": 4}
+        result = g5.reproduction_control(control, reference)
+        assert result["checks"]["gate_suites_within_tolerance"] is False
+
     def test_a_control_with_other_expert_weights_fails(self, g5):
         control = {**_run("nf4", 42, gpu=NEW_BOX), "expert_digest": "different"}
         assert not g5.reproduction_control(control, _run("nf4", 42))["passed"]
@@ -332,6 +348,16 @@ class TestArmOutcome:
         assert result["arms"]["mixed_traffic_f50"]["outcome"] == "no_verdict"
         assert result["decision"]["arm"] == "mixed_sensitivity_f50"
         assert result["decision"]["unresolved"] == ["mixed_traffic_f50"]
+
+    def test_a_pass_decides_while_a_larger_fraction_arm_awaits_its_repeat(self, g5, selection):
+        nll = {arm: [25.5] * 4 for arm in selection["maps"]}
+        mixed = [run for run in _mixed(selection, nll) if run["arm"] not in
+                 ("mixed_traffic_f50", "mixed_sensitivity_f50")]
+        result = _verdict(g5, selection, mixed=mixed)
+        assert result["decision"] == {"g5": "rule", "arm": "mixed_traffic_f25",
+                                      "rule": "traffic", "fraction_q2_0": 0.25,
+                                      "unresolved": ["mixed_traffic_f50",
+                                                     "mixed_sensitivity_f50"]}
 
     def test_an_invalid_arm_precedes_quality_fail_and_requires_a_repeat(self, g5, selection):
         nll = {arm: [27.5] * 4 for arm in selection["maps"]}
