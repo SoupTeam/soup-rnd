@@ -1,0 +1,2719 @@
+{
+  "status": "controls_passed",
+  "kind": "F1 instrument controls, not D3 results",
+  "scope": "guest-visible whole disks; physical-host isolation is not certified",
+  "counter_source": "guest-diskstats",
+  "pid": 8445,
+  "ppid": 8444,
+  "controls": [
+    {
+      "case": "baseline",
+      "expected": "ok",
+      "observed": "ok",
+      "direct_bytes": 0,
+      "record": {
+        "arm": "baseline",
+        "round": 0,
+        "run": 0,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1793528639.812945,
+          "ram_available_bytes": 104017203200,
+          "commit_charge": {
+            "used_bytes": 1048027136,
+            "limit_bytes": 53102071808
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793528647.2637472,
+          "ram_available_bytes": 103941767168,
+          "commit_charge": {
+            "used_bytes": 1056399360,
+            "limit_bytes": 53102071808
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 1695 to 1695 MHz over 2 samples; clock event reasons seen: gpu_idle",
+          "samples": 2,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 1695,
+            "median": 1695.0,
+            "max": 1695
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -7.720000212430023e-07,
+              "sleep_offset_end_s": -4.7100002120714635e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 5 power samples, so on mains",
+            "evidence": {
+              "samples": 5,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "ok",
+            "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+            "evidence": {
+              "model_path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_000.safetensors",
+              "device": "vda",
+              "disk_read_bytes_start": 1040628224,
+              "disk_read_bytes_end": 1040628224,
+              "other_disk_read_bytes_start": 288768,
+              "other_disk_read_bytes_end": 288768,
+              "own_read_bytes": 0,
+              "foreign_read_bytes": 0,
+              "foreign_read_bytes_min": 0,
+              "foreign_read_bytes_max": 0,
+              "uninspectable_processes": 6
+            },
+            "readers": [],
+            "unattributed_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "own",
+      "expected": "ok",
+      "observed": "ok",
+      "direct_bytes": 8070889472,
+      "record": {
+        "arm": "own",
+        "round": 0,
+        "run": 1,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1793528650.94828,
+          "ram_available_bytes": 103941042176,
+          "commit_charge": {
+            "used_bytes": 1057599488,
+            "limit_bytes": 53102071808
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793528662.2872393,
+          "ram_available_bytes": 103935381504,
+          "commit_charge": {
+            "used_bytes": 1057583104,
+            "limit_bytes": 53102071808
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 1695 to 1695 MHz over 3 samples; clock event reasons seen: gpu_idle",
+          "samples": 3,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 1695,
+            "median": 1695,
+            "max": 1695
+          },
+          "reasons_seen": {
+            "gpu_idle": 3
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -4.319999789004214e-07,
+              "sleep_offset_end_s": -5.700003384845331e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 7 power samples, so on mains",
+            "evidence": {
+              "samples": 7,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "ok",
+            "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+            "evidence": {
+              "model_path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_000.safetensors",
+              "device": "vda",
+              "disk_read_bytes_start": 1040628224,
+              "disk_read_bytes_end": 9111517696,
+              "other_disk_read_bytes_start": 288768,
+              "other_disk_read_bytes_end": 288768,
+              "own_read_bytes": 8070889472,
+              "foreign_read_bytes": 0,
+              "foreign_read_bytes_min": 0,
+              "foreign_read_bytes_max": 0,
+              "uninspectable_processes": 6
+            },
+            "readers": [],
+            "unattributed_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "foreign",
+      "expected": "void",
+      "observed": "void",
+      "direct_bytes": 1073741824,
+      "record": {
+        "arm": "foreign",
+        "round": 0,
+        "run": 2,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "void",
+        "box_stamp_before": {
+          "unix_s": 1793528666.002933,
+          "ram_available_bytes": 103940079616,
+          "commit_charge": {
+            "used_bytes": 1057599488,
+            "limit_bytes": 53102071808
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793528674.176234,
+          "ram_available_bytes": 103994699776,
+          "commit_charge": {
+            "used_bytes": 1057583104,
+            "limit_bytes": 53102071808
+          },
+          "power_source": "mains",
+          "gpu_processes": [],
+          "gpu_memory_used_mib": 0,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 1695 to 1695 MHz over 2 samples; clock event reasons seen: gpu_idle",
+          "samples": 2,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 1695,
+            "median": 1695.0,
+            "max": 1695
+          },
+          "reasons_seen": {
+            "gpu_idle": 2
+          }
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -4.900002750218846e-07,
+              "sleep_offset_end_s": -4.210005499771796e-07,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 6 power samples, so on mains",
+            "evidence": {
+              "samples": 6,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "void",
+            "reason": "at least 1073741824 bytes of foreign reads on vda (limit 1000000000)",
+            "evidence": {
+              "model_path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_000.safetensors",
+              "device": "vda",
+              "disk_read_bytes_start": 9111517696,
+              "disk_read_bytes_end": 10185259520,
+              "other_disk_read_bytes_start": 288768,
+              "other_disk_read_bytes_end": 288768,
+              "own_read_bytes": 0,
+              "foreign_read_bytes": 1073741824,
+              "foreign_read_bytes_min": 1073741824,
+              "foreign_read_bytes_max": 1073741824,
+              "uninspectable_processes": 6
+            },
+            "readers": [
+              {
+                "pid": 8446,
+                "name": "python",
+                "read_bytes": 1073741824
+              }
+            ],
+            "unattributed_bytes": 0
+          }
+        }
+      }
+    }
+  ],
+  "mapping": {
+    "status": "mapping_observed_controls_still_required",
+    "kind": "instrument mapping, not D3 results",
+    "scope": "guest-visible whole disks; physical-host isolation is not certified",
+    "counter_source": "guest-diskstats",
+    "files": [
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_000.safetensors",
+        "st_dev": 64769,
+        "inode": 5160975,
+        "size": 207759856,
+        "mtime_ns": 1793528456416673435,
+        "reads": [
+          {
+            "before": {
+              "watched": 827767296,
+              "other": 288768
+            },
+            "after": {
+              "watched": 828815872,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 828815872,
+              "other": 288768
+            },
+            "after": {
+              "watched": 829864448,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_001.safetensors",
+        "st_dev": 64769,
+        "inode": 5160977,
+        "size": 207759856,
+        "mtime_ns": 1793528456997679975,
+        "reads": [
+          {
+            "before": {
+              "watched": 830913024,
+              "other": 288768
+            },
+            "after": {
+              "watched": 831961600,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 831961600,
+              "other": 288768
+            },
+            "after": {
+              "watched": 833010176,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_002.safetensors",
+        "st_dev": 64769,
+        "inode": 5160979,
+        "size": 207759856,
+        "mtime_ns": 1793528457623687022,
+        "reads": [
+          {
+            "before": {
+              "watched": 834058752,
+              "other": 288768
+            },
+            "after": {
+              "watched": 835107328,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 835107328,
+              "other": 288768
+            },
+            "after": {
+              "watched": 836155904,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_003.safetensors",
+        "st_dev": 64769,
+        "inode": 5160981,
+        "size": 207759856,
+        "mtime_ns": 1793528458208693607,
+        "reads": [
+          {
+            "before": {
+              "watched": 837204480,
+              "other": 288768
+            },
+            "after": {
+              "watched": 838253056,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 838253056,
+              "other": 288768
+            },
+            "after": {
+              "watched": 839301632,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_004.safetensors",
+        "st_dev": 64769,
+        "inode": 5160983,
+        "size": 207759856,
+        "mtime_ns": 1793528458812700406,
+        "reads": [
+          {
+            "before": {
+              "watched": 840350208,
+              "other": 288768
+            },
+            "after": {
+              "watched": 841398784,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 841398784,
+              "other": 288768
+            },
+            "after": {
+              "watched": 842447360,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_005.safetensors",
+        "st_dev": 64769,
+        "inode": 5160985,
+        "size": 207759856,
+        "mtime_ns": 1793528459387706879,
+        "reads": [
+          {
+            "before": {
+              "watched": 843495936,
+              "other": 288768
+            },
+            "after": {
+              "watched": 844544512,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 844544512,
+              "other": 288768
+            },
+            "after": {
+              "watched": 845593088,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_006.safetensors",
+        "st_dev": 64769,
+        "inode": 5160987,
+        "size": 207759856,
+        "mtime_ns": 1793528459971713453,
+        "reads": [
+          {
+            "before": {
+              "watched": 846641664,
+              "other": 288768
+            },
+            "after": {
+              "watched": 847690240,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 847690240,
+              "other": 288768
+            },
+            "after": {
+              "watched": 848738816,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_007.safetensors",
+        "st_dev": 64769,
+        "inode": 5160989,
+        "size": 207759856,
+        "mtime_ns": 1793528460512719543,
+        "reads": [
+          {
+            "before": {
+              "watched": 849787392,
+              "other": 288768
+            },
+            "after": {
+              "watched": 850835968,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 850835968,
+              "other": 288768
+            },
+            "after": {
+              "watched": 851884544,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_008.safetensors",
+        "st_dev": 64769,
+        "inode": 5160991,
+        "size": 207759856,
+        "mtime_ns": 1793528461099726152,
+        "reads": [
+          {
+            "before": {
+              "watched": 852933120,
+              "other": 288768
+            },
+            "after": {
+              "watched": 853981696,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 853981696,
+              "other": 288768
+            },
+            "after": {
+              "watched": 855030272,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_009.safetensors",
+        "st_dev": 64769,
+        "inode": 5160993,
+        "size": 207759856,
+        "mtime_ns": 1793528461635732186,
+        "reads": [
+          {
+            "before": {
+              "watched": 856078848,
+              "other": 288768
+            },
+            "after": {
+              "watched": 857127424,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 857127424,
+              "other": 288768
+            },
+            "after": {
+              "watched": 858176000,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_010.safetensors",
+        "st_dev": 64769,
+        "inode": 5160995,
+        "size": 207759856,
+        "mtime_ns": 1793528462205738603,
+        "reads": [
+          {
+            "before": {
+              "watched": 859224576,
+              "other": 288768
+            },
+            "after": {
+              "watched": 860273152,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 860273152,
+              "other": 288768
+            },
+            "after": {
+              "watched": 861321728,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_011.safetensors",
+        "st_dev": 64769,
+        "inode": 5160997,
+        "size": 207759856,
+        "mtime_ns": 1793528462932746788,
+        "reads": [
+          {
+            "before": {
+              "watched": 862370304,
+              "other": 288768
+            },
+            "after": {
+              "watched": 863418880,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 863418880,
+              "other": 288768
+            },
+            "after": {
+              "watched": 864467456,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_012.safetensors",
+        "st_dev": 64769,
+        "inode": 5160999,
+        "size": 207759856,
+        "mtime_ns": 1793528463484753002,
+        "reads": [
+          {
+            "before": {
+              "watched": 865516032,
+              "other": 288768
+            },
+            "after": {
+              "watched": 866564608,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 866564608,
+              "other": 288768
+            },
+            "after": {
+              "watched": 867613184,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_013.safetensors",
+        "st_dev": 64769,
+        "inode": 5161001,
+        "size": 207759856,
+        "mtime_ns": 1793528464042759285,
+        "reads": [
+          {
+            "before": {
+              "watched": 868661760,
+              "other": 288768
+            },
+            "after": {
+              "watched": 869710336,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 869710336,
+              "other": 288768
+            },
+            "after": {
+              "watched": 870758912,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_014.safetensors",
+        "st_dev": 64769,
+        "inode": 5161003,
+        "size": 207759856,
+        "mtime_ns": 1793528464595765511,
+        "reads": [
+          {
+            "before": {
+              "watched": 871807488,
+              "other": 288768
+            },
+            "after": {
+              "watched": 872856064,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 872856064,
+              "other": 288768
+            },
+            "after": {
+              "watched": 873904640,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/experts_015.safetensors",
+        "st_dev": 64769,
+        "inode": 5161005,
+        "size": 207759856,
+        "mtime_ns": 1793528465131771546,
+        "reads": [
+          {
+            "before": {
+              "watched": 874953216,
+              "other": 288768
+            },
+            "after": {
+              "watched": 876001792,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 876001792,
+              "other": 288768
+            },
+            "after": {
+              "watched": 877050368,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/large_embed_tokens.safetensors",
+        "st_dev": 64769,
+        "inode": 5161007,
+        "size": 206045288,
+        "mtime_ns": 1793528465361774135,
+        "reads": [
+          {
+            "before": {
+              "watched": 878098944,
+              "other": 288768
+            },
+            "after": {
+              "watched": 879147520,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 879147520,
+              "other": 288768
+            },
+            "after": {
+              "watched": 880196096,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/large_lm_head.safetensors",
+        "st_dev": 64769,
+        "inode": 5161008,
+        "size": 206045280,
+        "mtime_ns": 1793528465658777479,
+        "reads": [
+          {
+            "before": {
+              "watched": 881244672,
+              "other": 288768
+            },
+            "after": {
+              "watched": 882293248,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 882293248,
+              "other": 288768
+            },
+            "after": {
+              "watched": 883341824,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_000.safetensors",
+        "st_dev": 64769,
+        "inode": 5160976,
+        "size": 8935384,
+        "mtime_ns": 1793528456479674144,
+        "reads": [
+          {
+            "before": {
+              "watched": 884390400,
+              "other": 288768
+            },
+            "after": {
+              "watched": 885438976,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 885438976,
+              "other": 288768
+            },
+            "after": {
+              "watched": 886487552,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_001.safetensors",
+        "st_dev": 64769,
+        "inode": 5160978,
+        "size": 8935384,
+        "mtime_ns": 1793528457065680740,
+        "reads": [
+          {
+            "before": {
+              "watched": 887536128,
+              "other": 288768
+            },
+            "after": {
+              "watched": 888584704,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 888584704,
+              "other": 288768
+            },
+            "after": {
+              "watched": 889633280,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_002.safetensors",
+        "st_dev": 64769,
+        "inode": 5160980,
+        "size": 8935384,
+        "mtime_ns": 1793528457681687675,
+        "reads": [
+          {
+            "before": {
+              "watched": 890681856,
+              "other": 288768
+            },
+            "after": {
+              "watched": 891730432,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 891730432,
+              "other": 288768
+            },
+            "after": {
+              "watched": 892779008,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_003.safetensors",
+        "st_dev": 64769,
+        "inode": 5160982,
+        "size": 8935384,
+        "mtime_ns": 1793528458262694215,
+        "reads": [
+          {
+            "before": {
+              "watched": 893827584,
+              "other": 288768
+            },
+            "after": {
+              "watched": 894876160,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 894876160,
+              "other": 288768
+            },
+            "after": {
+              "watched": 895924736,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_004.safetensors",
+        "st_dev": 64769,
+        "inode": 5160984,
+        "size": 8935384,
+        "mtime_ns": 1793528458870701059,
+        "reads": [
+          {
+            "before": {
+              "watched": 896973312,
+              "other": 288768
+            },
+            "after": {
+              "watched": 898021888,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 898021888,
+              "other": 288768
+            },
+            "after": {
+              "watched": 899070464,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_005.safetensors",
+        "st_dev": 64769,
+        "inode": 5160986,
+        "size": 8935384,
+        "mtime_ns": 1793528459448707566,
+        "reads": [
+          {
+            "before": {
+              "watched": 900119040,
+              "other": 288768
+            },
+            "after": {
+              "watched": 901167616,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 901167616,
+              "other": 288768
+            },
+            "after": {
+              "watched": 902216192,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_006.safetensors",
+        "st_dev": 64769,
+        "inode": 5160988,
+        "size": 8935384,
+        "mtime_ns": 1793528460027714083,
+        "reads": [
+          {
+            "before": {
+              "watched": 903264768,
+              "other": 288768
+            },
+            "after": {
+              "watched": 904313344,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 904313344,
+              "other": 288768
+            },
+            "after": {
+              "watched": 905361920,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_007.safetensors",
+        "st_dev": 64769,
+        "inode": 5160990,
+        "size": 8935384,
+        "mtime_ns": 1793528460575720253,
+        "reads": [
+          {
+            "before": {
+              "watched": 906410496,
+              "other": 288768
+            },
+            "after": {
+              "watched": 907459072,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 907459072,
+              "other": 288768
+            },
+            "after": {
+              "watched": 908507648,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_008.safetensors",
+        "st_dev": 64769,
+        "inode": 5160992,
+        "size": 8935384,
+        "mtime_ns": 1793528461151726737,
+        "reads": [
+          {
+            "before": {
+              "watched": 909556224,
+              "other": 288768
+            },
+            "after": {
+              "watched": 910604800,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 910604800,
+              "other": 288768
+            },
+            "after": {
+              "watched": 911653376,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_009.safetensors",
+        "st_dev": 64769,
+        "inode": 5160994,
+        "size": 8935384,
+        "mtime_ns": 1793528461691732816,
+        "reads": [
+          {
+            "before": {
+              "watched": 912701952,
+              "other": 288768
+            },
+            "after": {
+              "watched": 913750528,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 913750528,
+              "other": 288768
+            },
+            "after": {
+              "watched": 914799104,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_010.safetensors",
+        "st_dev": 64769,
+        "inode": 5160996,
+        "size": 8935384,
+        "mtime_ns": 1793528462260739222,
+        "reads": [
+          {
+            "before": {
+              "watched": 915847680,
+              "other": 288768
+            },
+            "after": {
+              "watched": 916896256,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 916896256,
+              "other": 288768
+            },
+            "after": {
+              "watched": 917944832,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_011.safetensors",
+        "st_dev": 64769,
+        "inode": 5160998,
+        "size": 8935384,
+        "mtime_ns": 1793528462988747418,
+        "reads": [
+          {
+            "before": {
+              "watched": 918993408,
+              "other": 288768
+            },
+            "after": {
+              "watched": 920041984,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 920041984,
+              "other": 288768
+            },
+            "after": {
+              "watched": 921090560,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_012.safetensors",
+        "st_dev": 64769,
+        "inode": 5161000,
+        "size": 8935384,
+        "mtime_ns": 1793528463541753644,
+        "reads": [
+          {
+            "before": {
+              "watched": 922139136,
+              "other": 288768
+            },
+            "after": {
+              "watched": 923187712,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 923187712,
+              "other": 288768
+            },
+            "after": {
+              "watched": 924236288,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_013.safetensors",
+        "st_dev": 64769,
+        "inode": 5161002,
+        "size": 8935384,
+        "mtime_ns": 1793528464096759893,
+        "reads": [
+          {
+            "before": {
+              "watched": 925284864,
+              "other": 288768
+            },
+            "after": {
+              "watched": 926333440,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 926333440,
+              "other": 288768
+            },
+            "after": {
+              "watched": 927382016,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_014.safetensors",
+        "st_dev": 64769,
+        "inode": 5161004,
+        "size": 8935384,
+        "mtime_ns": 1793528464658766220,
+        "reads": [
+          {
+            "before": {
+              "watched": 928430592,
+              "other": 288768
+            },
+            "after": {
+              "watched": 929479168,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 929479168,
+              "other": 288768
+            },
+            "after": {
+              "watched": 930527744,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4-dq__checkpoint/layer_015.safetensors",
+        "st_dev": 64769,
+        "inode": 5161006,
+        "size": 8935384,
+        "mtime_ns": 1793528465187772176,
+        "reads": [
+          {
+            "before": {
+              "watched": 931576320,
+              "other": 288768
+            },
+            "after": {
+              "watched": 932624896,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 932624896,
+              "other": 288768
+            },
+            "after": {
+              "watched": 933673472,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_000.safetensors",
+        "st_dev": 64769,
+        "inode": 4644929,
+        "size": 226513936,
+        "mtime_ns": 1793528443691530226,
+        "reads": [
+          {
+            "before": {
+              "watched": 934722048,
+              "other": 288768
+            },
+            "after": {
+              "watched": 935770624,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 935770624,
+              "other": 288768
+            },
+            "after": {
+              "watched": 936819200,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_001.safetensors",
+        "st_dev": 64769,
+        "inode": 4644931,
+        "size": 226513936,
+        "mtime_ns": 1793528444246536471,
+        "reads": [
+          {
+            "before": {
+              "watched": 937867776,
+              "other": 288768
+            },
+            "after": {
+              "watched": 938916352,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 938916352,
+              "other": 288768
+            },
+            "after": {
+              "watched": 939964928,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_002.safetensors",
+        "st_dev": 64769,
+        "inode": 4644933,
+        "size": 226513936,
+        "mtime_ns": 1793528444798542682,
+        "reads": [
+          {
+            "before": {
+              "watched": 941013504,
+              "other": 288768
+            },
+            "after": {
+              "watched": 942062080,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 942062080,
+              "other": 288768
+            },
+            "after": {
+              "watched": 943110656,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_003.safetensors",
+        "st_dev": 64769,
+        "inode": 4644935,
+        "size": 226513936,
+        "mtime_ns": 1793528445352548916,
+        "reads": [
+          {
+            "before": {
+              "watched": 944159232,
+              "other": 288768
+            },
+            "after": {
+              "watched": 945207808,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 945207808,
+              "other": 288768
+            },
+            "after": {
+              "watched": 946256384,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_004.safetensors",
+        "st_dev": 64769,
+        "inode": 4644937,
+        "size": 226513936,
+        "mtime_ns": 1793528445929555409,
+        "reads": [
+          {
+            "before": {
+              "watched": 947304960,
+              "other": 288768
+            },
+            "after": {
+              "watched": 948353536,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 948353536,
+              "other": 288768
+            },
+            "after": {
+              "watched": 949402112,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_005.safetensors",
+        "st_dev": 64769,
+        "inode": 4644939,
+        "size": 226513936,
+        "mtime_ns": 1793528446491561733,
+        "reads": [
+          {
+            "before": {
+              "watched": 950450688,
+              "other": 288768
+            },
+            "after": {
+              "watched": 951499264,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 951499264,
+              "other": 288768
+            },
+            "after": {
+              "watched": 952547840,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_006.safetensors",
+        "st_dev": 64769,
+        "inode": 4644941,
+        "size": 226513936,
+        "mtime_ns": 1793528447229570038,
+        "reads": [
+          {
+            "before": {
+              "watched": 953596416,
+              "other": 288768
+            },
+            "after": {
+              "watched": 954644992,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 954644992,
+              "other": 288768
+            },
+            "after": {
+              "watched": 955693568,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_007.safetensors",
+        "st_dev": 64769,
+        "inode": 4644943,
+        "size": 226513936,
+        "mtime_ns": 1793528447798576441,
+        "reads": [
+          {
+            "before": {
+              "watched": 956742144,
+              "other": 288768
+            },
+            "after": {
+              "watched": 957790720,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 957790720,
+              "other": 288768
+            },
+            "after": {
+              "watched": 958839296,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_008.safetensors",
+        "st_dev": 64769,
+        "inode": 4644945,
+        "size": 226513936,
+        "mtime_ns": 1793528448453583812,
+        "reads": [
+          {
+            "before": {
+              "watched": 959887872,
+              "other": 288768
+            },
+            "after": {
+              "watched": 960936448,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 960936448,
+              "other": 288768
+            },
+            "after": {
+              "watched": 961985024,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_009.safetensors",
+        "st_dev": 64769,
+        "inode": 4644947,
+        "size": 226513936,
+        "mtime_ns": 1793528449042590440,
+        "reads": [
+          {
+            "before": {
+              "watched": 963033600,
+              "other": 288768
+            },
+            "after": {
+              "watched": 964082176,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 964082176,
+              "other": 288768
+            },
+            "after": {
+              "watched": 965130752,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_010.safetensors",
+        "st_dev": 64769,
+        "inode": 4644949,
+        "size": 226513936,
+        "mtime_ns": 1793528449701597857,
+        "reads": [
+          {
+            "before": {
+              "watched": 966179328,
+              "other": 288768
+            },
+            "after": {
+              "watched": 967227904,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 967227904,
+              "other": 288768
+            },
+            "after": {
+              "watched": 968276480,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_011.safetensors",
+        "st_dev": 64769,
+        "inode": 4644951,
+        "size": 226513936,
+        "mtime_ns": 1793528450398605701,
+        "reads": [
+          {
+            "before": {
+              "watched": 969325056,
+              "other": 288768
+            },
+            "after": {
+              "watched": 970373632,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 970373632,
+              "other": 288768
+            },
+            "after": {
+              "watched": 971422208,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_012.safetensors",
+        "st_dev": 64769,
+        "inode": 4644953,
+        "size": 226513936,
+        "mtime_ns": 1793528451028612791,
+        "reads": [
+          {
+            "before": {
+              "watched": 972470784,
+              "other": 288768
+            },
+            "after": {
+              "watched": 973519360,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 973519360,
+              "other": 288768
+            },
+            "after": {
+              "watched": 974567936,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_013.safetensors",
+        "st_dev": 64769,
+        "inode": 4644955,
+        "size": 226513936,
+        "mtime_ns": 1793528451577618970,
+        "reads": [
+          {
+            "before": {
+              "watched": 975616512,
+              "other": 288768
+            },
+            "after": {
+              "watched": 976665088,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 976665088,
+              "other": 288768
+            },
+            "after": {
+              "watched": 977713664,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_014.safetensors",
+        "st_dev": 64769,
+        "inode": 4644957,
+        "size": 226513936,
+        "mtime_ns": 1793528452274626815,
+        "reads": [
+          {
+            "before": {
+              "watched": 978762240,
+              "other": 288768
+            },
+            "after": {
+              "watched": 979810816,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 979810816,
+              "other": 288768
+            },
+            "after": {
+              "watched": 980859392,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/experts_015.safetensors",
+        "st_dev": 64769,
+        "inode": 4644959,
+        "size": 226513936,
+        "mtime_ns": 1793528453030635323,
+        "reads": [
+          {
+            "before": {
+              "watched": 981907968,
+              "other": 288768
+            },
+            "after": {
+              "watched": 982956544,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 982956544,
+              "other": 288768
+            },
+            "after": {
+              "watched": 984005120,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/large_embed_tokens.safetensors",
+        "st_dev": 64769,
+        "inode": 4644961,
+        "size": 206045288,
+        "mtime_ns": 1793528453350638925,
+        "reads": [
+          {
+            "before": {
+              "watched": 985053696,
+              "other": 288768
+            },
+            "after": {
+              "watched": 986102272,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 986102272,
+              "other": 288768
+            },
+            "after": {
+              "watched": 987150848,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/large_lm_head.safetensors",
+        "st_dev": 64769,
+        "inode": 4644962,
+        "size": 206045280,
+        "mtime_ns": 1793528453649642290,
+        "reads": [
+          {
+            "before": {
+              "watched": 988199424,
+              "other": 288768
+            },
+            "after": {
+              "watched": 989248000,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 989248000,
+              "other": 288768
+            },
+            "after": {
+              "watched": 990296576,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_000.safetensors",
+        "st_dev": 64769,
+        "inode": 4644930,
+        "size": 9716944,
+        "mtime_ns": 1793528443751530901,
+        "reads": [
+          {
+            "before": {
+              "watched": 991345152,
+              "other": 288768
+            },
+            "after": {
+              "watched": 992393728,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 992393728,
+              "other": 288768
+            },
+            "after": {
+              "watched": 993442304,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_001.safetensors",
+        "st_dev": 64769,
+        "inode": 4644932,
+        "size": 9716944,
+        "mtime_ns": 1793528444307537157,
+        "reads": [
+          {
+            "before": {
+              "watched": 994490880,
+              "other": 288768
+            },
+            "after": {
+              "watched": 995539456,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 995539456,
+              "other": 288768
+            },
+            "after": {
+              "watched": 996588032,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_002.safetensors",
+        "st_dev": 64769,
+        "inode": 4644934,
+        "size": 9716944,
+        "mtime_ns": 1793528444857543346,
+        "reads": [
+          {
+            "before": {
+              "watched": 997636608,
+              "other": 288768
+            },
+            "after": {
+              "watched": 998685184,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 998685184,
+              "other": 288768
+            },
+            "after": {
+              "watched": 999733760,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_003.safetensors",
+        "st_dev": 64769,
+        "inode": 4644936,
+        "size": 9716944,
+        "mtime_ns": 1793528445415549625,
+        "reads": [
+          {
+            "before": {
+              "watched": 1000782336,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1001830912,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1001830912,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1002879488,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_004.safetensors",
+        "st_dev": 64769,
+        "inode": 4644938,
+        "size": 9716944,
+        "mtime_ns": 1793528445986556050,
+        "reads": [
+          {
+            "before": {
+              "watched": 1003928064,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1004976640,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1004976640,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1006025216,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_005.safetensors",
+        "st_dev": 64769,
+        "inode": 4644940,
+        "size": 9716944,
+        "mtime_ns": 1793528446554562442,
+        "reads": [
+          {
+            "before": {
+              "watched": 1007073792,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1008122368,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1008122368,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1009170944,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_006.safetensors",
+        "st_dev": 64769,
+        "inode": 4644942,
+        "size": 9716944,
+        "mtime_ns": 1793528447291570735,
+        "reads": [
+          {
+            "before": {
+              "watched": 1010219520,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1011268096,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1011268096,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1012316672,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_007.safetensors",
+        "st_dev": 64769,
+        "inode": 4644944,
+        "size": 9716944,
+        "mtime_ns": 1793528447856577094,
+        "reads": [
+          {
+            "before": {
+              "watched": 1013365248,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1014413824,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1014413824,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1015462400,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_008.safetensors",
+        "st_dev": 64769,
+        "inode": 4644946,
+        "size": 9716944,
+        "mtime_ns": 1793528448513584487,
+        "reads": [
+          {
+            "before": {
+              "watched": 1016510976,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1017559552,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1017559552,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1018608128,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_009.safetensors",
+        "st_dev": 64769,
+        "inode": 4644948,
+        "size": 9716944,
+        "mtime_ns": 1793528449099591082,
+        "reads": [
+          {
+            "before": {
+              "watched": 1019656704,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1020705280,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1020705280,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1021753856,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_010.safetensors",
+        "st_dev": 64769,
+        "inode": 4644950,
+        "size": 9716944,
+        "mtime_ns": 1793528449763598554,
+        "reads": [
+          {
+            "before": {
+              "watched": 1022802432,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1023851008,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1023851008,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1024899584,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_011.safetensors",
+        "st_dev": 64769,
+        "inode": 4644952,
+        "size": 9716944,
+        "mtime_ns": 1793528450456606354,
+        "reads": [
+          {
+            "before": {
+              "watched": 1025948160,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1026996736,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1026996736,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1028045312,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_012.safetensors",
+        "st_dev": 64769,
+        "inode": 4644954,
+        "size": 9716944,
+        "mtime_ns": 1793528451087613455,
+        "reads": [
+          {
+            "before": {
+              "watched": 1029093888,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1030142464,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1030142464,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1031191040,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_013.safetensors",
+        "st_dev": 64769,
+        "inode": 4644956,
+        "size": 9716944,
+        "mtime_ns": 1793528451638619657,
+        "reads": [
+          {
+            "before": {
+              "watched": 1032239616,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1033288192,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1033288192,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1034336768,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_014.safetensors",
+        "st_dev": 64769,
+        "inode": 4644958,
+        "size": 9716944,
+        "mtime_ns": 1793528452333627479,
+        "reads": [
+          {
+            "before": {
+              "watched": 1035385344,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1036433920,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1036433920,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1037482496,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      },
+      {
+        "path": "/root/.soup/layer-stream/root__d3-fused-data__inputs-01__nf4__checkpoint/layer_015.safetensors",
+        "st_dev": 64769,
+        "inode": 4644960,
+        "size": 9716944,
+        "mtime_ns": 1793528453090635999,
+        "reads": [
+          {
+            "before": {
+              "watched": 1038531072,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1039579648,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          },
+          {
+            "before": {
+              "watched": 1039579648,
+              "other": 288768
+            },
+            "after": {
+              "watched": 1040628224,
+              "other": 288768
+            },
+            "direct_bytes": 1048576
+          }
+        ],
+        "metadata_warm_read_bytes": 1048576,
+        "device": "253:0",
+        "disk_name": "vda",
+        "filesystem": "ext4"
+      }
+    ]
+  }
+}

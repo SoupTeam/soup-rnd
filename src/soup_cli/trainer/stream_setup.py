@@ -700,11 +700,17 @@ class StreamingSetupMixin:
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)
+        expert_options = getattr(tcfg, "stream_experts", None)
+        requested_layout = getattr(tcfg, "stream_expert_layout", "fused")
+        if expert_options is not None and requested_layout == "per_expert":
+            raise ValueError("select stream_experts or stream_expert_layout, not both")
         expert_layout = (
-            "per_expert" if getattr(tcfg, "stream_expert_layout", "fused") == "per_expert"
+            "per_expert" if expert_options is not None or requested_layout == "per_expert"
             else ""
         )
-        if expert_layout and arch != "deepseek_v3":
+        if arch == "olmoe" and expert_options is None:
+            raise ValueError("OLMoE streaming requires explicit training.stream_experts")
+        if expert_layout and expert_options is None and arch != "deepseek_v3":
             raise ValueError("per_expert streaming supports DeepSeek-V3-family bases only")
 
         on_cuda = str(self.device).startswith("cuda")
@@ -713,6 +719,12 @@ class StreamingSetupMixin:
         # made the entire free tier unsupported without saying so, and could not
         # fail on the Ampere card every published measurement came from.
         dtype = resolve_stream_dtype(str(self.device))
+        if expert_options is not None:
+            from soup_cli.utils.expert_training import validate_expert_training
+
+            validate_expert_training(
+                model_config, expert_options, device=str(self.device), dtype=dtype,
+            )
 
         # v0.72.2 — NF4. The decoder linears ship as packed nibbles + per-block
         # absmax, so the RAM store is ~0.26x its bf16 size; embeddings, norms and
@@ -805,7 +817,7 @@ class StreamingSetupMixin:
 
         def _disk_preflight(weights_plan) -> None:
             expert_bound = None
-            if expert_layout:
+            if expert_layout and expert_options is None:
                 if quant != QUANT_NF4 or double_quant or stripe_roots:
                     raise ValueError(
                         "per_expert disk budget requires NF4 without double quant and one disk"
@@ -945,18 +957,31 @@ class StreamingSetupMixin:
         layer_bytes = self._stream_layer_budget_bytes(layer_specs)
         layer_store_bytes = sum(layer_byte_sizes)
         embed_bytes = extras_resident_bytes(shard_dir)
+        expert_reservations = {"host_bytes": 0, "device_bytes": 0}
+        if expert_options is not None:
+            from soup_cli.utils.expert_training import expert_training_reservations
+
+            expert_reservations = expert_training_reservations(
+                shard_dir, index, expert_options, dtype=dtype,
+            )
         large_store_bytes = large_layer_store_bytes(shard_dir, index)
         large_buffer_bytes = large_layer_buffer_bytes(shard_dir, index)
         large_budget_bytes = self._stream_large_budget_bytes(
             large_buffer_bytes, len(large_layer_specs(shard_dir, index))
         )
         ngram_bytes = external_tensor_bytes(getattr(index, "external_tensors", None) or {})
-        expert_weight_bytes, expert_staging_bytes = _expert_buffer_requirements(
-            shard_dir, index, device=str(self.device)
-        )
+        expert_weight_bytes = expert_staging_bytes = 0
+        if expert_options is None:
+            expert_weight_bytes, expert_staging_bytes = _expert_buffer_requirements(
+                shard_dir, index, device=str(self.device)
+            )
 
         free_ram = free_ram_bytes()
         total_ram = total_ram_bytes()
+        if free_ram is not None:
+            if expert_reservations["host_bytes"] >= free_ram * RAM_TIER_HEADROOM:
+                raise ValueError("expert host staging exceeds the available RAM budget")
+            free_ram = max(0, free_ram - expert_reservations["host_bytes"])
         if free_ram is None and expert_layout:
             raise ValueError("per_expert streaming requires available host RAM for its preflight")
         if free_ram is None:
@@ -1120,7 +1145,7 @@ class StreamingSetupMixin:
             tcfg,
             model_config=model_config,
             layer_bytes=layer_bytes,
-            embed_bytes=embed_bytes,
+            embed_bytes=embed_bytes + expert_reservations["device_bytes"],
             large_layer_bytes=large_budget_bytes,
             index=index,
             on_cuda=on_cuda,
@@ -1189,6 +1214,7 @@ class StreamingSetupMixin:
             shard_dir=shard_dir,
             index=index,
             lora_config=lora_config,
+            expert_options=expert_options,
             device=self.device,
             dtype=dtype,
             buffers=tcfg.stream_buffers,
@@ -1224,6 +1250,13 @@ class StreamingSetupMixin:
         if probe_plan is not None:
             self._run_stream_vram_probe(model, probe_plan)
         stats = runtime.stats()
+        if expert_options is not None:
+            console.print(
+                "[cyan]Expert streaming:[/] independently buffered disk reads; "
+                f"group width={stats['expert_group_width']}, "
+                f"weight arena={stats['expert_weight_bytes'] / 2**20:.2f} MiB. "
+                "stream_source controls the non-expert layer store."
+            )
         source_line = _stream_source_line(stats)
         large_runtime_buffer = stats.get("large_buffer_bytes", 0)
         decoder_buffers = stats["buffer_bytes"] - large_runtime_buffer

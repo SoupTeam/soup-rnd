@@ -12,6 +12,15 @@ a new cache, one disk, NF4 without double quant and readable source headers.
 Tiny-model CPU and CUDA checks cover backward and adapter reload; no real giant
 checkpoint has yet been validated. See `benchmarks/b6-giant-moe-20261028.md`.
 
+[D3 grouped-expert preparation](grouped-expert-design.md) records the proposed
+bounded grouping design, reused B1.2 controls and disabled draft protocol.
+It documents the restricted internal grouped candidate and its [completed layer comparison](../benchmarks/results/d3-grouped-layer-20261021/report.md):
+60 valid arms and six CUDA profiles, with higher grouped GPU memory.
+The later opt-in [public trainer integration](d3-trainer-integration.md) has a
+completed pretrained study. The separate [packed fused NF4 candidate](d3-fused-dequant-gemm.md)
+adds a bounded hybrid forward/dX path with synthetic CUDA evidence; its own
+pretrained/performance qualification and final D3 acceptance remain pending.
+
 [← Back to the Soup README](../README.md)
 
 > Quantization-aware training (FP8 and the experimental QuEST route), the Quant Menu (I + II), KV-cache, NVFP4, save formats, Cut Cross-Entropy, gradient checkpointing, kernel auto-composition, activation offloading, and multi-GPU / DeepSpeed / FSDP.

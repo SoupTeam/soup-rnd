@@ -36,7 +36,7 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-SUPPORTED_ARCHS = ("llama", "mistral")
+SUPPORTED_ARCHS = ("llama", "mistral", "olmoe")
 
 
 @dataclass(frozen=True)
@@ -99,6 +99,8 @@ def model_parts(model: Any) -> Tuple[Any, Any]:
             f"the L2L step re-implements the top-level forward of {SUPPORTED_ARCHS} only; "
             f"got {arch!r}"
         )
+    if arch == "olmoe" and getattr(causal.config, "output_router_logits", False):
+        raise ValueError("OLMoE L2L does not yet support the router auxiliary loss")
     for name in ("lm_head", "loss_function"):
         if getattr(causal, name, None) is None:
             raise ValueError(f"the causal LM has no {name!r}")
@@ -213,7 +215,7 @@ class L2LStep:
         micro_batches: Sequence[Any],
         store: Any,
         *,
-        n_items: Optional[int] = None,
+        n_items: Optional[Any] = None,
         labels: Optional[Sequence[Any]] = None,
         calls: Optional[Sequence[LayerCall]] = None,
     ) -> List[Any]:
@@ -232,7 +234,7 @@ class L2LStep:
         self,
         micro_batches: Sequence[Any],
         store: Any,
-        n_items: Optional[int],
+        n_items: Optional[Any],
         labels: Optional[Sequence[Any]],
         calls: Optional[Sequence[LayerCall]],
     ) -> List[Any]:
@@ -253,7 +255,10 @@ class L2LStep:
             calls = [self.call] * k
         elif len(calls) != k:
             raise ValueError(f"{len(calls)} layer calls for {k} micro-batches")
-        total = label_tokens(micro_batches) if n_items is None else int(n_items)
+        # Keep Trainer's original tensor denominator. CUDA scalar-tensor division
+        # and division by a Python int can round differently even when the count
+        # is identical; the native causal loss must receive the same operand.
+        total = label_tokens(micro_batches) if n_items is None else n_items
         vocab = int(self.causal.config.vocab_size)
 
         replayed = None

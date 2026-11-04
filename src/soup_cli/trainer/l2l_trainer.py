@@ -52,6 +52,8 @@ def refuse_unsupported_l2l(
             f"training.l2l does not support model_type {arch!r}: the L2L step "
             f"re-implements the top-level forward of {' and '.join(SUPPORTED_ARCHS)} only."
         )
+    if arch == "olmoe" and getattr(model_config, "output_router_logits", False):
+        raise ValueError("OLMoE L2L does not yet support the router auxiliary loss")
     if n_gpu > 1:
         raise ValueError(
             f"training.l2l is single-GPU, but {n_gpu} GPUs are visible. Re-run with "
@@ -368,7 +370,7 @@ def run_window(
     model: Any,
     ids_list: List[Any],
     label_list: List[Any],
-    n_items: int,
+    n_items: Any,
     device: Any,
 ) -> Tuple[List[Any], Any]:
     """One L2L step over the window; returns the losses and the step's load counters."""
@@ -454,7 +456,7 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
                 losses, counters = run_window(
-                    state, model, ids_list, label_list, int(num_items_in_batch), device
+                    state, model, ids_list, label_list, num_items_in_batch, device
                 )
             state.steps += 1
             state.totals.add(counters)
