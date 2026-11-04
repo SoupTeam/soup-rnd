@@ -305,3 +305,52 @@ def test_traces_with_different_masks_cannot_be_compared(diag):
     verdict = diag.first_diverging_layer(one, two)
     assert verdict["state"] == "no_data"
     assert "mask" in verdict["reason"]
+
+
+# --------------------------------------------------------------------------
+# addendum: float32 without a pinned backend, and which kernel the default picks
+# --------------------------------------------------------------------------
+def test_the_float32_judge_reads_the_arms_of_another_prefix(diag):
+    types = {f"f32u_{part}": _types() for part in ("ga1", "ga2", "l2l")}
+    equal = diag.judge_float32(_arm(), _arm(), _arm(), types, prefix="f32u")
+    assert equal["state"] == "equal"
+    differs = diag.judge_float32(_arm(), _arm(), _nudge(_arm()), types, prefix="f32u")
+    assert differs["state"] == "not_equal"
+    # a type record that exists only under the default prefix does not count
+    missing = diag.judge_float32(_arm(), _arm(), _arm(), _all_types(), prefix="f32u")
+    assert missing["state"] == "unavailable"
+    assert any("f32u_ga1" in p for p in missing["problems"])
+
+
+def _probe(*equal_to_per_signature):
+    """A recorded kernel probe: for each attention signature, the backends equal to the default."""
+    return [
+        {"signature": {"mask": bool(i), "causal": not i}, "equal_to": list(names)}
+        for i, names in enumerate(equal_to_per_signature)
+    ]
+
+
+def test_different_default_kernels_for_accumulation_and_l2l_are_reported_as_differ(diag):
+    ga = _probe(["EFFICIENT_ATTENTION"])
+    l2l = _probe(["FLASH_ATTENTION"])
+    verdict = diag.judge_kernels(ga, l2l)
+    assert verdict["state"] == "differ"
+    assert verdict["ga"] == [["EFFICIENT_ATTENTION"]]
+    assert verdict["l2l"] == [["FLASH_ATTENTION"]]
+
+
+def test_the_same_default_kernels_are_reported_as_same(diag):
+    ga = _probe(["EFFICIENT_ATTENTION"])
+    assert diag.judge_kernels(ga, _probe(["EFFICIENT_ATTENTION"]))["state"] == "same"
+
+
+def test_kernels_are_unknown_without_a_record_or_without_a_matching_backend(diag):
+    assert diag.judge_kernels(None, _probe(["MATH"]))["state"] == "unknown"
+    assert diag.judge_kernels([], _probe(["MATH"]))["state"] == "unknown"
+    assert diag.judge_kernels(_probe([]), _probe(["MATH"]))["state"] == "unknown"
+
+
+def test_kernels_compare_what_was_picked_not_how_many_signatures_were_seen(diag):
+    ga = _probe(["EFFICIENT_ATTENTION"], ["EFFICIENT_ATTENTION"], ["EFFICIENT_ATTENTION"])
+    l2l = _probe(["EFFICIENT_ATTENTION"])
+    assert diag.judge_kernels(ga, l2l)["state"] == "same"

@@ -60,24 +60,50 @@ def judge_float32(
     ga2: Optional[Dict[str, Any]],
     l2l: Optional[Dict[str, Any]],
     dtypes: Dict[str, Any],
+    prefix: str = "f32",
 ) -> Dict[str, Any]:
     """Control 1: float32 L2L against float32 accumulation, bit for bit (rule, control 1).
 
     ``unavailable`` when an arm has no valid record, a dtype record does not confirm float32
-    with autocast off, or the accumulation does not repeat itself bit for bit.
+    with autocast off, or the accumulation does not repeat itself bit for bit. ``prefix`` names the
+    arms (``f32`` pins the SDPA backend, ``f32u`` leaves it to the default; the addendum).
     """
-    arms = {"f32_ga1": ga1, "f32_ga2": ga2, "f32_l2l": l2l}
+    arms = {f"{prefix}_ga1": ga1, f"{prefix}_ga2": ga2, f"{prefix}_l2l": l2l}
     unavailable = [f"{name}: no valid arm" for name, arm in arms.items() if arm is None]
     for name in arms:
         unavailable += _type_problems(name, dtypes.get(name))
     if not unavailable:
         repeat = l2l_pref_check._differences(ga1, ga2)
         if repeat:
-            unavailable.append(f"f32_ga1 against f32_ga2 is not equal: {repeat[0]}")
+            unavailable.append(
+                f"{prefix}_ga1 against {prefix}_ga2 is not equal: {repeat[0]}"
+            )
     if unavailable:
         return {"state": "unavailable", "problems": unavailable}
     problems = l2l_pref_check._differences(ga1, l2l)
     return {"state": "not_equal" if problems else "equal", "problems": problems}
+
+
+def judge_kernels(
+    ga: Optional[List[Dict[str, Any]]], l2l: Optional[List[Dict[str, Any]]]
+) -> Dict[str, Any]:
+    """Do accumulation and L2L get the same default SDPA kernel? (addendum)
+
+    A probe lists, per attention signature, the backends whose result is bit equal to the
+    default call. ``same`` when both arms picked the same sets of backends (how many signatures
+    each saw does not matter), ``differ`` when not, ``unknown``
+    when a probe is missing or a signature matched no backend.
+    """
+    def lists(probe: Optional[List[Dict[str, Any]]]) -> Optional[List[Any]]:
+        if not probe or any(not item["equal_to"] for item in probe):
+            return None
+        return [list(names) for names in sorted({tuple(sorted(i["equal_to"])) for i in probe})]
+
+    ga_kernels, l2l_kernels = lists(ga), lists(l2l)
+    if ga_kernels is None or l2l_kernels is None:
+        return {"state": "unknown", "ga": ga_kernels, "l2l": l2l_kernels}
+    state = "same" if ga_kernels == l2l_kernels else "differ"
+    return {"state": state, "ga": ga_kernels, "l2l": l2l_kernels}
 
 
 def _first_step(arm: Dict[str, Any]) -> Dict[str, Any]:
@@ -197,6 +223,9 @@ ARMS = {
     "f32_ga1": ("ga", "f32", "MATH"),
     "f32_ga2": ("ga", "f32", "MATH"),
     "f32_l2l": ("l2l", "f32", "MATH"),
+    "f32u_ga1": ("ga", "f32", None),
+    "f32u_ga2": ("ga", "f32", None),
+    "f32u_l2l": ("l2l", "f32", None),
     "unpinned_ga": ("ga", "native", None),
     "unpinned_l2l": ("l2l", "native", None),
 }
@@ -280,6 +309,83 @@ def install_probes(model: Any, *, trace: bool) -> Dict[str, Any]:
     return seen
 
 
+SDPA_BACKENDS = ("MATH", "EFFICIENT_ATTENTION", "FLASH_ATTENTION", "CUDNN_ATTENTION")
+MAX_SIGNATURES = 6
+
+
+def _snap(value: Any) -> Any:
+    return value.detach().clone() if hasattr(value, "detach") else value
+
+
+def install_sdpa_recorder() -> Dict[str, Any]:
+    """Wrap ``scaled_dot_product_attention`` to keep the first call of each distinct signature.
+
+    A signature is the query shape and type, whether a mask is passed and ``is_causal``. Returns
+    ``{"seen": {signature: call}, "real": the original function}``; ``probe_sdpa`` reads it and
+    ``remove_sdpa_recorder`` puts the original back.
+    """
+    import torch.nn.functional as functional
+
+    real = functional.scaled_dot_product_attention
+    state: Dict[str, Any] = {"seen": {}, "real": real}
+
+    def recorder(query: Any, key: Any, value: Any, *args: Any, **kwargs: Any) -> Any:
+        mask = kwargs.get("attn_mask", args[0] if args else None)
+        signature = (
+            tuple(query.shape), str(query.dtype), mask is not None,
+            bool(kwargs.get("is_causal", False)),
+        )  # fmt: skip
+        if signature not in state["seen"] and len(state["seen"]) < MAX_SIGNATURES:
+            state["seen"][signature] = (
+                tuple(_snap(x) for x in (query, key, value)),
+                tuple(_snap(x) for x in args),
+                {name: _snap(x) for name, x in kwargs.items()},
+            )
+        return real(query, key, value, *args, **kwargs)
+
+    functional.scaled_dot_product_attention = recorder
+    state["functional"] = functional
+    return state
+
+
+def remove_sdpa_recorder(state: Dict[str, Any]) -> None:
+    state["functional"].scaled_dot_product_attention = state["real"]
+
+
+def probe_sdpa(state: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Run each recorded call with no pin and under each backend alone; list the equal ones."""
+    import torch
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    real = state["real"]
+    out: List[Dict[str, Any]] = []
+    with torch.no_grad():
+        for signature, (qkv, args, kwargs) in state["seen"].items():
+            default = real(*qkv, *args, **kwargs)
+            matches: Dict[str, str] = {}
+            for name in SDPA_BACKENDS:
+                try:
+                    with sdpa_kernel(getattr(SDPBackend, name)):
+                        result = real(*qkv, *args, **kwargs)
+                except Exception as error:  # noqa: BLE001 - the reason is the record
+                    matches[name] = "unavailable: " + str(error).strip().splitlines()[0][:120]
+                    continue
+                if torch.equal(result, default):
+                    matches[name] = "equal"
+                else:
+                    gap = float((result.double() - default.double()).abs().max())
+                    matches[name] = f"differs by {gap:.3e}"
+            out.append({
+                "signature": {
+                    "shape": list(signature[0]), "dtype": signature[1],
+                    "mask": signature[2], "causal": signature[3],
+                },
+                "matches": matches,
+                "equal_to": [name for name, kind in matches.items() if kind == "equal"],
+            })  # fmt: skip
+    return out
+
+
 def record_first_mask(trainer: Any, probes: Dict[str, Any]) -> None:
     """Keep the attention mask of the first collated batch, the one step 0 trains on."""
     real = trainer.data_collator
@@ -315,6 +421,7 @@ def run_arm(args: argparse.Namespace) -> None:
         l2l_pref_check._start_adapters(wrapper.model, Path(args.start))
         probes = install_probes(wrapper.model, trace=args.trace)
         record_first_mask(wrapper.trainer, probes)
+        recorder = install_sdpa_recorder()
         grads: List[Dict[str, Any]] = []
 
         class Recorder(TrainerCallback):
@@ -328,8 +435,12 @@ def run_arm(args: argparse.Namespace) -> None:
                 )
 
         wrapper.trainer.add_callback(Recorder())
-        with sdpa_context(args.sdpa):
-            wrapper.trainer.train()
+        try:
+            with sdpa_context(args.sdpa):
+                wrapper.trainer.train()
+        finally:
+            remove_sdpa_recorder(recorder)
+        sdpa_probe = probe_sdpa(recorder)
         log_rows = [row for row in wrapper.trainer.state.log_history if "loss" in row]
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
@@ -354,6 +465,7 @@ def run_arm(args: argparse.Namespace) -> None:
             "allow_tf32": bool(torch.backends.cuda.matmul.allow_tf32),
             "dtype_mode": args.dtype,
             "path": args.path,
+            "sdpa_probe": sdpa_probe,
         }
         (out / f"{args.arm}.types.json").write_text(json.dumps(record, indent=1))
         if args.trace:
@@ -468,6 +580,13 @@ def run_campaign(args: argparse.Namespace) -> None:
     data = {name: run["data"] for name, run in runs.items()}
     types = {name: run["types"] for name, run in runs.items()}
     control1 = judge_float32(data["f32_ga1"], data["f32_ga2"], data["f32_l2l"], types)
+    control1u = judge_float32(
+        data["f32u_ga1"], data["f32u_ga2"], data["f32u_l2l"], types, prefix="f32u"
+    )
+    kernels = judge_kernels(
+        (types["unpinned_ga"] or {}).get("sdpa_probe"),
+        (types["unpinned_l2l"] or {}).get("sdpa_probe"),
+    )
     control2 = judge_floor(data["native_ga1"], data["native_floor"], data["native_l2l"])
     outcome = judge_outcome(control1["state"], control2["state"])
     control3: Dict[str, Any] = {"state": "not_needed", "reason": "control 1 is bit equal"}
@@ -491,15 +610,19 @@ def run_campaign(args: argparse.Namespace) -> None:
         "native_ga2_vs_ga1": _pair(data["native_ga1"], data["native_ga2"]),
         "f32_l2l_vs_ga1": _pair(data["f32_ga1"], data["f32_l2l"]),
         "f32_ga2_vs_ga1": _pair(data["f32_ga1"], data["f32_ga2"]),
+        "f32u_l2l_vs_ga1": _pair(data["f32u_ga1"], data["f32u_l2l"]),
+        "f32u_ga2_vs_ga1": _pair(data["f32u_ga1"], data["f32u_ga2"]),
         "unpinned_l2l_vs_ga": _pair(data["unpinned_ga"], data["unpinned_l2l"]),
     }
     losses = {name: arm["losses"] for name, arm in data.items() if arm is not None}
     summary = {
-        "control1": control1, "control2": control2, "outcome": outcome, "control3": control3,
+        "control1": control1, "control1u": control1u, "kernels": kernels,
+        "control2": control2, "outcome": outcome, "control3": control3,
         "pairs": pairs, "losses": losses, "types": types,
         "attempts": {name: run["attempts"] for name, run in runs.items()},
     }
     (out / "diagnosis.json").write_text(json.dumps(summary, indent=1, default=str))
+    print(f"control1u={control1u['state']} kernels={kernels['state']}", flush=True)
     print(f"control1={control1['state']} control2={control2['state']} "
           f"row={outcome['row']} control3={control3['state']}", flush=True)
 

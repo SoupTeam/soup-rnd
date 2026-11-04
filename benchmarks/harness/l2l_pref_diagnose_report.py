@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional
 
 ROOT = Path(__file__).resolve().parents[2]
 REPORT = "probe-vast-l2l-dpo-divergence-a6-ticket08.md"
+SECOND_REPORT = "probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md"
 
 ROW_TEXT = {
     1: "округление, ошибки нет. Критерий готовности методов предпочтений переписывается на допуск A3-07 новым правилом до нового прогона четырёх методов; в этом тикете он не переписывается.",
@@ -116,13 +117,54 @@ def what_showed(summary: Dict[str, Any]) -> List[str]:
     return out
 
 
+KERNEL_READING = {
+    ("equal", "differ"): "разрыв тикета 06 это выбор ядра при разных масках (накопление с маской, L2L без); ошибки в общем пути нет; в float32 ядра дают равный результат, в bf16 нет.",
+    ("equal", "same"): "ядра совпадают, а разрыв bf16 без закрепления остаётся: выбор ядра как причина исключён, разрыв остаётся округлением bf16, точность отдельно от ядра не отделена.",
+    ("not_equal", None): "при ядрах по умолчанию L2L отличается от накопления уже в float32; закрепление `MATH` скрывало это. Причина в пути ядра или маски, а не в типе точности. Нужен отдельный тикет, ошибка не заявляется.",
+}
+
+
+def addendum_section(summary: Dict[str, Any]) -> List[str]:
+    """The float32-unpinned control and the default-kernel probe (rule addendum)."""
+    c1u, kernels = summary["control1u"], summary["kernels"]
+    out = [
+        f"## Дополнение: float32 без закрепления SDPA, {STATE_TEXT[c1u['state']]}; ядра по умолчанию: {kernels['state']}",
+        "",
+        "Плечи `f32u_*`: float32 (подмена, как в контроле 1), бэкенд SDPA не закреплён. Разница по шагам:",
+        "",
+        *_table(["пара", "шаг", "градиент", "потеря"], _pair_rows(summary, ["f32u_ga2_vs_ga1", "f32u_l2l_vs_ga1"])),
+        "",
+    ]
+    if c1u["problems"]:
+        out += ["Что нашёл судья:", "", *[f"- {p}" for p in c1u["problems"][:8]], ""]
+    out += [
+        "Ядро SDPA по умолчанию: вызов записан в плече, потом выполнен без закрепления и под каждым бэкендом отдельно; `equal` значит побитово равный результат.",
+        "",
+    ]
+    rows = []
+    for arm in ("unpinned_ga", "unpinned_l2l", "f32u_ga1", "f32u_l2l"):
+        record = summary["types"].get(arm) or {}
+        for item in record.get("sdpa_probe") or []:
+            sig = item["signature"]
+            rows.append([
+                f"`{arm}`", f"{sig['shape']} {sig['dtype'].removeprefix('torch.')}", "да" if sig["mask"] else "нет",
+                "да" if sig["causal"] else "нет", ", ".join(item["equal_to"]) or "нет",
+                "; ".join(f"{k}: {v}" for k, v in item["matches"].items() if v != "equal"),
+            ])
+    out += _table(["плечо", "форма и тип запроса", "маска", "is_causal", "равно умолчанию", "остальные бэкенды"], rows)
+    reading = KERNEL_READING.get((c1u["state"], kernels["state"])) or KERNEL_READING.get((c1u["state"], None))
+    out += ["", f"Чтение по правилу (дополнение): {reading or 'вывод не делается: контроль 1u недоступен или ядра неизвестны.'}", ""]
+    return out
+
+
 def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any], rel: str) -> str:
     c1, c2, c3, outcome = summary["control1"], summary["control2"], summary["control3"], summary["outcome"]
     row = outcome["row"]
     verdict = f"исход {row}: {ROW_TEXT[row]}" if row else "исход не определён: у контроля 2 нет валидных данных."
     out = [
-        f"# A6 тикет 08: откуда расхождение L2L и накопления градиентов, DPO k=1, SmolLM2-135M, {rental['card']}, {rental['date']}",
+        f"# A6 тикет 08{', второй прогон (дополнение)' if 'control1u' in summary else ''}: откуда расхождение L2L и накопления градиентов, DPO k=1, SmolLM2-135M, {rental['card']}, {rental['date']}",
         "",
+        *(["Второй прогон по дополнению к правилу: те же плечи, что в первом отчёте (`probe-vast-l2l-dpo-divergence-a6-ticket08.md`), плюс `f32u_*` и запись ядра SDPA. Исход ниже это повторный замер первых контролей в новой сессии на другом хосте, он ничего не заменяет.", ""] if "control1u" in summary else []),
         f"**Вердикт: {verdict}**",
         "",
         "Правило: `benchmarks/l2l-preference-diagnosis-rule-a6-ticket08.md`, закоммичено до драйвера и до аренды; одна поправка (маска заполнения в контроле 3) внесена после смоука драйвера на CPU, тоже до аренды. "
@@ -157,6 +199,7 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
         "",
         *what_showed(summary),
         "",
+        *(addendum_section(summary) if "control1u" in summary else []),
         f"## Контроль 1: float32 на CUDA, {STATE_TEXT[c1['state']]}",
         "",
         "Поля конфига и переменной окружения для типа нет (`.scratch/a6-l2l-preference/research-float32-on-cuda.md`). Float32 получен подменой в процессе драйвера двух функций, "
@@ -242,13 +285,14 @@ def render(summary: Dict[str, Any], env: Dict[str, Any], rental: Dict[str, Any],
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--results", required=True, help="directory with diagnosis.json")
+    parser.add_argument("--second", action="store_true", help="write the report of the addendum run")
     args = parser.parse_args()
     results = Path(args.results).resolve()
     summary = json.loads((results / "diagnosis.json").read_text())
     env = json.loads((results / "environment.json").read_text())
     rental = json.loads((results / "rental.json").read_text())
     rel = results.relative_to(ROOT / "benchmarks").as_posix()
-    target = ROOT / "benchmarks" / REPORT
+    target = ROOT / "benchmarks" / (SECOND_REPORT if args.second else REPORT)
     target.write_text(render(summary, env, rental, rel))
     print(target)
     return 0
