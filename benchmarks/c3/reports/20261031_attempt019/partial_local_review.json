@@ -1,0 +1,126 @@
+{
+  "status": "BLOCKED_FOREIGN_READS",
+  "review_type": "same-agent offline review, not independent review",
+  "completed_arms": 22,
+  "planned_arms": 80,
+  "completed_optimizer_updates": 132,
+  "completed_measured_updates": 88,
+  "cuda_controls_passed": 6,
+  "numerical_completed_arms": {
+    "status": "NUMERICAL_PASS",
+    "failures": [],
+    "performance_verdict": "NO_VERDICT"
+  },
+  "f1_violations": [
+    {
+      "index": 14,
+      "arm": "B",
+      "checks": {
+        "suspend": {
+          "outcome": "ok",
+          "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+          "evidence": {
+            "sleep_offset_start_s": -8.00006091594696e-07,
+            "sleep_offset_end_s": -9.799987310543656e-07,
+            "suspend_count_start": 0,
+            "suspend_count_end": 0
+          }
+        },
+        "power": {
+          "outcome": "ok",
+          "reason": "no battery in any of 14 power samples, so on mains",
+          "evidence": {
+            "samples": 14,
+            "off_mains_samples": [],
+            "battery_present": false,
+            "unknown_samples": 0,
+            "last_reading": {
+              "battery": false,
+              "online": {}
+            }
+          }
+        },
+        "foreign_reads": {
+          "outcome": "void",
+          "reason": "at least 1182859264 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+          "evidence": {
+            "model_path": "/data/c3/repo/.c3_prepared/shards",
+            "device": "nvme0n1",
+            "disk_read_bytes_start": 3532477621760,
+            "disk_read_bytes_end": 3653543421440,
+            "other_disk_read_bytes_start": 0,
+            "other_disk_read_bytes_end": 0,
+            "own_read_bytes": 119882940416,
+            "foreign_read_bytes": 1182859264,
+            "foreign_read_bytes_min": 1182859264,
+            "foreign_read_bytes_max": 1182859264,
+            "uninspectable_processes": 0
+          },
+          "readers": [],
+          "unattributed_bytes": 1182859264
+        }
+      },
+      "clock": "ok"
+    },
+    {
+      "index": 19,
+      "arm": "A",
+      "checks": {
+        "suspend": {
+          "outcome": "ok",
+          "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+          "evidence": {
+            "sleep_offset_start_s": -9.899958968162537e-07,
+            "sleep_offset_end_s": -1.0699877748265862e-06,
+            "suspend_count_start": 0,
+            "suspend_count_end": 0
+          }
+        },
+        "power": {
+          "outcome": "ok",
+          "reason": "no battery in any of 17 power samples, so on mains",
+          "evidence": {
+            "samples": 17,
+            "off_mains_samples": [],
+            "battery_present": false,
+            "unknown_samples": 0,
+            "last_reading": {
+              "battery": false,
+              "online": {}
+            }
+          }
+        },
+        "foreign_reads": {
+          "outcome": "void",
+          "reason": "at least 2191523840 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+          "evidence": {
+            "model_path": "/data/c3/repo/.c3_prepared/shards",
+            "device": "nvme0n1",
+            "disk_read_bytes_start": 4223003411968,
+            "disk_read_bytes_end": 4384774632960,
+            "other_disk_read_bytes_start": 0,
+            "other_disk_read_bytes_end": 0,
+            "own_read_bytes": 159579697152,
+            "foreign_read_bytes": 2191523840,
+            "foreign_read_bytes_min": 2191523840,
+            "foreign_read_bytes_max": 2191523840,
+            "uninspectable_processes": 0
+          },
+          "readers": [],
+          "unattributed_bytes": 2191523840
+        }
+      },
+      "clock": "ok"
+    }
+  ],
+  "manual_termination": "SIGTERM current owned arm only; existing supervisors retain cleanup and failure receipts",
+  "partial_arm_index": 22,
+  "partial_arm_counted": false,
+  "supervisor_cleanup_confirmed": true,
+  "final_gpu_process_list_empty": true,
+  "performance_verdict": "NO_VERDICT_INVALID_EVIDENCE",
+  "rule_changed": false,
+  "retry_or_replacement_arms": 0,
+  "scope": "Public RAM-only C3+L2L tiny-model CUDA control passed; dense 8B timed workload is non-L2L and cannot support speedup acceptance due to F1 void arms and incomplete planned series",
+  "updated_unix_s": 1793441451.016056
+}

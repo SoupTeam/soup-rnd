@@ -1,0 +1,59 @@
+{
+ "arm": "sigint",
+ "device": "cuda",
+ "expected_memory_max": 6409945088,
+ "cgroup_start": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-sigint.scope",
+  "memory_max": 6409945088,
+  "swap_max": 0,
+  "current": 17154048,
+  "peak": 17154048,
+  "inactive_file": 0,
+  "stat": {
+   "anon": 16744448,
+   "shmem": 0,
+   "file_dirty": 0,
+   "file_writeback": 0,
+   "inactive_file": 0,
+   "active_file": 0,
+   "slab_reclaimable": 1840
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 17154048,
+  "anon_shmem": 16744448,
+  "unreclaimable": 17152208
+ },
+ "pid": 4381,
+ "unix": 1793219713.0079017,
+ "calls": 5,
+ "steps_done": 1,
+ "spill_path": "<box>/spill/sigint/soup-l2l-spill-4381-410dd3f9.bin",
+ "in_step": true,
+ "phase": "hold",
+ "hold": {
+  "layer": 16,
+  "micro_batch": 0,
+  "pass": "backward",
+  "spill_layers": 17,
+  "unix": 1793219713.0076103,
+  "store_io": {
+   "bytes_written": 570425344,
+   "bytes_read": 301989888
+  }
+ },
+ "sigint": {
+  "pending": false,
+  "blocked": false,
+  "ignored": false,
+  "caught": true,
+  "state": "R (running)"
+ }
+}

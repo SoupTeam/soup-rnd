@@ -1,0 +1,52 @@
+C3 prospective measurement instrumentation, 2026-10-28
+
+This amendment preserves the historical compare.py, GPU_PROTOCOL.md and attempt007
+evidence. It repairs measurement gaps prospectively; no old result is upgraded.
+It is an engineering calibration pilot, NOT representative-model or full A4 acceptance.
+
+Prerequisites before any paid execution:
+- Publish/freeze the source and hashes; verify exact source on the owned server.
+- Reconcile the separate existing USD5 C3 budget, including prior attempts and
+  storage. H2 funds are not available to C3. No new budget is implied.
+- Record instance, boot, GPU UUID, driver/runtime, exclusive GPU ownership,
+  mount and physical NVMe identity. Runtime lock and original CUDA controls remain.
+- Run under the existing bounded setup_supervisor (outer limit1800s), with a paid
+  deadline including setup, downloads, evidence collection and Stop. No retries.
+
+New measurement flow (benchmarks.c3.isolated_compare --mode cuda-pilot):
+1. Create a fresh owned128MiB non-sparse file on the same filesystem as the arms.
+   Read twice with Linux O_DIRECT, aligned4MiB mmap buffer, no fallback. Verify full
+   SHA each pass. Require process read_bytes and whole-device diskstats delta each
+   within4MiB of128MiB. Missing/reset/contaminated counters block all training arms.
+   This tolerance is fixed before observing hardware. Preserve all raw counters.
+2. Run a separate observer child with the unchanged F1 foreign-read checker. Its
+   parent reads the calibrated file16times (2GiB), after a READY handshake, while
+   the observer does no workload reads. Parent is outside observer's own process
+   tree. Require all bytes/hashes and F1 outcome void. Unknown or ok blocks training.
+   Only this attempt's own file is read; no other users' files or raw disks.
+3. FiveABBA blocks, each arm a fresh supervised OS process, using the original
+   synthetic8-layer FP32 model, seeds, LoRA, sixsteps and twowarmup steps.
+   Require identical model file hashes/configs, initial/final adapter hashes and
+   every loss/gradient hash across arms. No replacing or rerunning a failed arm.
+4. Each process has its own peak RSS and CUDA peaks. RSS is the whole process
+   lifetime INCLUDING source/model construction and cache fill, not a training-only
+   RSS peak. It is no longer inherited from previous A/B arms. Keep this distinction.
+5. Preserve setup/cache-fill physical counter delta separately from step deltas.
+   Step physical counters include numerical-hash instrumentation; reported training
+   timer excludes hashing as in the historical pilot. Device totals include other
+   readers and are not automatically attributed to C3. F1/clocks remain unchanged.
+
+Local development command (no GPU claims):
+PYTHONPATH=src:. python -m benchmarks.c3.isolated_compare --mode cpu-smoke --output NEW_DIR
+CPU mode runs two fresh processes and verifies exact parity. It does NOT run Linux
+NVMe calibration or prove the foreign-read injection on actual hardware.
+
+Acceptance remains NO_VERDICT for performance even after numerical PASS. Review
+all physical controls, F1/clocks, effective repetitions, source identity and timing
+scope independently. Fixed synthetic calibration cannot prove useful speedup on a
+representative model. A4 reservation ownership/lifetime and public L2L integration
+also remain separate open requirements; keep unsupported combinations refused.
+
+Preserve logs, supervisor results, receipts and traces; verify archive/member SHA
+and safe extraction locally before cleanup. No commit/push/PR or rental is performed
+by this protocol. Publication and any paid execution are separate operations.

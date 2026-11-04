@@ -1,0 +1,20 @@
+import hashlib,json,os,pathlib,subprocess,tarfile,time
+p=pathlib.Path('/data/c3');a=json.loads((p/'rental.json').read_text())
+assert pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()==a['boot_id']
+assert subprocess.check_output(['nvidia-smi','--query-gpu=uuid','--format=csv,noheader'],text=True).strip()==a['gpu_uuid']
+assert time.time()<a['lease_deadline_unix_s']-5400,'too late for fresh setup'
+assert hashlib.sha256((p/'source.tar.gz').read_bytes()).hexdigest()==a['source_archive_sha256']
+for name,digest in a['launch_sha256'].items():assert hashlib.sha256((p/name).read_bytes()).hexdigest()==digest,name
+repo=p/'repo';repo.mkdir(exist_ok=False)
+with tarfile.open(p/'source.tar.gz') as t:
+ for m in t.getmembers():
+  dest=os.path.realpath(repo/m.name)
+  assert os.path.commonpath([str(repo),dest])==str(repo) and (m.isfile() or m.isdir())
+ t.extractall(repo,filter='data')
+m=json.loads((p/'source_manifest.json').read_text())
+for name,row in m['files'].items():
+ f=repo/name;assert f.stat().st_size==row['bytes'] and hashlib.sha256(f.read_bytes()).hexdigest()==row['sha256'],name
+with (p/'evidence/dispatch.log').open('xb') as log:
+ child=subprocess.Popen(['python3',str(p/'pipeline.py')],stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+(p/'evidence/launcher.json').write_text(json.dumps({'pid':child.pid,'unix_s':time.time()},indent=2))
+print('PIPELINE_DISPATCHED',child.pid)

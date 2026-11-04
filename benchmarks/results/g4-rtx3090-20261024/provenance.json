@@ -1,0 +1,64 @@
+{
+ "measured_commit": "b195da29bad0b31463f072f8bd0cd2d304e21708 (local research branch, not published; the L2L step and store then ran from the harness's own l2l_schedule.py / l2l_activations.py, hashed in each record)",
+ "analyzer_of_original_verdict": "b195da29 (verdict-b195da29.json)",
+ "analyzer_of_replay": "local commit 4dd530da, whose g4_rule.py is the one this pull request carried up to 7c822254 (verdict-v15-replay.json); same verdict and numbers",
+ "analyzer_of_v17_replay": "this pull request's g4_rule.py with V16 and V17 (2026-10-29, CPU only, no GPU session; verdict-v17-replay.json); same verdict and numbers as verdict-v15-replay.json, two validity rows added (compare-v15-vs-v17.txt)",
+ "note_on_current_code": "this pull request's runner imports soup_cli.utils.l2l_step / l2l_rng / l2l_activations from current main, which differ from the measured step; the published inputs are re-analysed only, not re-run",
+ "path_placeholders": {
+  "<work>": "the run's repository checkout",
+  "<hf-cache>": "the Hugging Face cache"
+ },
+ "files": [
+  {
+   "file": "inputs/error.json",
+   "raw_sha256": "c9be2b8e1ebf5d84402251e5f1814af371428ab20c8ba92d2d2bfa3f15a76a4f",
+   "sanitised_sha256": "0fb8704950f060ffbc4439dc2fcf0ada0365034bd5a6a32d10bbd78b742a6b1b"
+  },
+  {
+   "file": "inputs/timing.json",
+   "raw_sha256": "f8f3db447935e1f95ff7a14a6416237c7c76605bbc774a5e1f3763b5925e54b7",
+   "sanitised_sha256": "551078c95cc48a285e3db84c7c7627a6fc8a4af075505aca5b9efd87da2273b5"
+  },
+  {
+   "file": "inputs/train-bf16-seed1.json",
+   "raw_sha256": "699e3f1a35b7a949fb777e34066f3222dacd7e952400d0e0fe69bfe3218bc89a",
+   "sanitised_sha256": "367523096c9bcc0fc46eef1e24d23068c3cc41b30f79494746e85aeb9b5f835e"
+  },
+  {
+   "file": "inputs/train-int8-seed1.json",
+   "raw_sha256": "f6283c6f417c3c3c3ab93e12b13f74726d06152a39ae501214fff9eae71f2982",
+   "sanitised_sha256": "f858d1c947803c4c79bd35d9437d77a358f316542e276566cb7e1140203a8d79"
+  },
+  {
+   "file": "inputs/train-fp8_e4m3-seed1.json",
+   "raw_sha256": "4d6ddfcfca866eb16c012d73638d3c8c3cf42365241e2127661da5ccdb3b8501",
+   "sanitised_sha256": "2aa864d52d870334fb4477bc7de1e4ef7065ace696eca60b1130aff94b09e75d"
+  },
+  {
+   "file": "inputs/train-bf16-seed2.json",
+   "raw_sha256": "18c047d3c091274da6a973215bb315860810560509e8b9f1dc76107aaa8f57e3",
+   "sanitised_sha256": "4e3a5ecca8ec78f450b9c315f2a9d1e528bac79cdcc454009111c04eed2215cf"
+  },
+  {
+   "file": "inputs/suites-bf16-seed1.json",
+   "raw_sha256": "0eeb6f15f51b41f6101cf97b55608c5e86993f816d9c322409d5efb06d37e1c2",
+   "sanitised_sha256": "69b7c143f1337eb9be713b75fd480df2ec408ce895ee9fbb19200bfba303e7ab"
+  },
+  {
+   "file": "inputs/suites-int8-seed1.json",
+   "raw_sha256": "8049b00ea817ed062c4483e65b809293362c977fe52981e7d769ca4fa3a2991a",
+   "sanitised_sha256": "685db50f362cffcf3431d337e3605e7779184e1faf1e60d2600c69797177cce6"
+  },
+  {
+   "file": "inputs/suites-fp8_e4m3-seed1.json",
+   "raw_sha256": "7a98472ac04f624a72f11ea87d8a591a7c58aa7a8a922ba422d7e9bdeab1dbf8",
+   "sanitised_sha256": "ac23c0a2a0ae03417df29d78177d501b2bbc13cd715ff53cbfc5cc67e7d80d2f"
+  },
+  {
+   "file": "inputs/suites-bf16-seed2.json",
+   "raw_sha256": "6133efb9963fced6a6fa1f6cade1dcf7248c34aae41c96b6c33a392f8301e61e",
+   "sanitised_sha256": "3344de17c2a08a28931f0d0d88618e46c339a8adaa914efcd0d2a74e2faceaba"
+  }
+ ],
+ "not_included": "timing run logs and per-run JSON (runs/), step logs and box stamps (logs/*.log, *.box), adapters (4 x 53 MB; hashes are inside each train-*.json); kept with the raw run"
+}

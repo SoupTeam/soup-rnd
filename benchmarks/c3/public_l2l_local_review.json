@@ -1,0 +1,28 @@
+{
+  "status": "LOCAL_VALIDATION_PASS_CUDA_PENDING",
+  "review_type": "same-agent review, not independent reviewer",
+  "tests": "371 passed, 11 skipped, 2 MPS pinning warnings; full C3 plus selected L2L/F1 regressions",
+  "full_repository_ci": false,
+  "ruff": "PASS src/soup_cli scripts tests benchmarks",
+  "git_diff_check": "PASS",
+  "changes": {
+    "src/soup_cli/config/schema.py": "3899ccf7436108c3e9b91ddebbcb9778922825ec735b0349ee78d69a8eb18a84",
+    "src/soup_cli/trainer/l2l_trainer.py": "7ad6d5582b513db5355b054d7e56537a9f141d2a7b0d8ef51911650bbac05cd9",
+    "src/soup_cli/trainer/sft.py": "158f7b21f2f02c4e08b61a4b70ece618c47a275dd4f23d7a09a2bd91d9f88785",
+    "src/soup_cli/trainer/stream_setup.py": "151d22566a08a5b685da540f22ec6d74ac8530be7adb8cbde73368a133e3910e",
+    "src/soup_cli/utils/c3_l2l_budget.py": "19aba7602163e4b69693f49c8ecc3c26929f9f3099049e1e442c7f40ee683d7c",
+    "src/soup_cli/utils/budgeted_activations.py": "4e97d51d5a3dcdd2bcc4ca58f5a5bcc59b69ef3055b2b550cda4e8ce44c32da5",
+    "tests/test_c3_partial_ram.py": "4c3da1c2cc0bb183b19c756e9992f3f2802d5a7b2b5a8e3d96ed46679384c4c7",
+    "tests/test_c3_public_l2l.py": "0dfd7803b4cf121797a2c7b641dfb50db04ed928b313f29a04541451407ebd12",
+    "benchmarks/c3/setup_supervisor.py": "ad3f884225d73c9090a8f01dae85fd953d01f8b1bbd1e3a167a1615f807a8d89",
+    "tests/test_c3_setup_supervisor.py": "f5511dc62dd05f4ca5fe3cf51a181b60ee22f6b1700243b5ea338d980fb49b71",
+    "benchmarks/c3/confirmation_phases.py": "9e9c55e9f0bd7747aa77ebdbefda007aed2a7983ffecbfd76c40806a24f1efe3",
+    "tests/test_c3_confirmation_phases.py": "8e3cbbb237853c3668b5cc95d21be924dd8f6c4ef1847031a3827f419fa490ab",
+    "benchmarks/c3/gpu_tests.py": "bea9037e4c8fbe7208e50720e70029575168bf2cfd66e57ea958873bd960b688",
+    "docs/performance-and-quantization.md": "54dadff27aa9931ddc47c728f895af8aa1aa2ae9f4b6e2cc2fca7d5087123d45",
+    "benchmarks/c3/STATUS.md": "6ab635dcfedaa40427f4ced28b592047a102cc45cc3c653d2e32891331445fca",
+    "benchmarks/c3/CONFIRMATION_PROTOCOL.txt": "ef62f7d197ac0d72a930ce3b9ea7d6bcbc4f88c9446251ce4655ae327fe75049"
+  },
+  "cuda_claim": "NO_VERDICT for new public L2L integration",
+  "unix_s": 1793439223.7549849
+}

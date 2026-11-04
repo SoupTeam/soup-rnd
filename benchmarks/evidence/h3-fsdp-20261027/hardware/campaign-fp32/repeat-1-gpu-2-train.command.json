@@ -1,0 +1,18 @@
+[
+  "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261027/venv/bin/python",
+  "-m",
+  "torch.distributed.run",
+  "--standalone",
+  "--nnodes=1",
+  "--nproc-per-node=2",
+  "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py",
+  "train",
+  "--prepared",
+  "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261027/prepared",
+  "--output",
+  "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261027/live/campaign-fp32/repeat-1-gpu-2",
+  "--measured-steps",
+  "10",
+  "--precision",
+  "fp32"
+]
