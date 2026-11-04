@@ -1,0 +1,187 @@
+{
+  "status": "PASS_INDEPENDENT_LOCAL_NUMERICAL_AND_FILE_REVIEW",
+  "time_unix_s": 1793040606.049119,
+  "source_result_sha256": "fbed2f162a7b9d43050a0bd84660b5073341ae00ce75b76a51c7ed4be2e4192c",
+  "arms": 20,
+  "optimizer_updates": 120,
+  "measured_steps": 80,
+  "exact_losses_gradients_adapter_match": true,
+  "f1_checks": [
+    {
+      "position": 0,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 1,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 2,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 3,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 4,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 5,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 6,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 7,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 8,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 9,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 10,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 11,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 12,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 13,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 14,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 15,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 16,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 17,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 18,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    },
+    {
+      "position": 19,
+      "f1": "ok",
+      "clocks": "ok",
+      "device": "nvme1n1",
+      "foreign_upper": 0
+    }
+  ],
+  "repeats": {
+    "sigma": 0.008132560959810988,
+    "mean_a": 0.1823891609092243,
+    "blocks_needed": 2
+  },
+  "additional_blocks_requested": 0,
+  "descriptive_metrics": {
+    "A": {
+      "application_read_bytes_per_measured_step": [
+        729917472
+      ],
+      "median_training_seconds_descriptive_only": 0.18701839004643261,
+      "peak_cuda_allocated_bytes_max": 1693943808,
+      "resident_bytes": [
+        0
+      ]
+    },
+    "B": {
+      "application_read_bytes_per_measured_step": [
+        547438104
+      ],
+      "median_training_seconds_descriptive_only": 0.15824644296662882,
+      "peak_cuda_allocated_bytes_max": 1570392064,
+      "resident_bytes": [
+        121651200
+      ]
+    }
+  },
+  "performance_verdict": "NO_VERDICT",
+  "limitations": [
+    "Synthetic random model only; not pretrained quality or complete C3/A4 acceptance.",
+    "No independent physical-read calibration/injected foreign-reader control in this attempt.",
+    "RSS is process lifetime high-water mark, not isolated per-arm memory.",
+    "Timing excludes gradient hashing and cannot establish general workload speedup.",
+    "Any extra blocks require a separately frozen attempt; no replacement or retry performed."
+  ]
+}

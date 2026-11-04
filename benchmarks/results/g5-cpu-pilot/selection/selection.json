@@ -1,0 +1,321 @@
+{
+ "kind": "g5_selection",
+ "synthetic": true,
+ "started": "2026-10-22T03:16:23+0500",
+ "finished": "2026-10-22T03:16:43+0500",
+ "command": [
+  "python",
+  "benchmarks/harness/g5_select.py",
+  "--fixture",
+  "granite",
+  "--device",
+  "cpu",
+  "--calibration-rows",
+  "32",
+  "--data-dir",
+  "<pilot-data-dir>",
+  "--out-dir",
+  "benchmarks/results/g5-cpu-pilot/selection"
+ ],
+ "commit": {
+  "sha": "8ba2552e1bca58b206d30e992d99d5a228b9a92e",
+  "dirty": [
+   "?? benchmarks/gate-g5-mixed-precision-experts.md",
+   "?? benchmarks/harness/g5_bytes.py",
+   "?? benchmarks/harness/g5_run_all.sh",
+   "?? benchmarks/harness/g5_select.py",
+   "?? benchmarks/harness/g5_train.py",
+   "?? benchmarks/harness/g5_train_all.sh",
+   "?? benchmarks/harness/g5_verdict.py",
+   "?? benchmarks/results/g5-cpu-pilot.session.log",
+   "?? benchmarks/results/g5-cpu-pilot/",
+   "?? tests/test_g5_bytes.py",
+   "?? tests/test_g5_select.py",
+   "?? tests/test_g5_verdict.py"
+  ]
+ },
+ "versions": {
+  "python": "3.12.10",
+  "torch": "2.14.1",
+  "transformers": "5.19.0",
+  "peft": "0.21.2",
+  "bitsandbytes": "0.50.2",
+  "datasets": "5.1.0",
+  "tokenizers": "0.23.2",
+  "soup-cli": "0.75.0"
+ },
+ "device": "cpu",
+ "gpu": null,
+ "box_stamp": {
+  "pid": 36396,
+  "own_pids": [
+   36396
+  ],
+  "gpu_own_pids": [
+   36396
+  ],
+  "gpu_pid_attribution": null,
+  "unix": 1792621003.5127351,
+  "total_phys_gb": 16.390742016,
+  "avail_phys_gb": 3.359010816,
+  "commit_limit_gb": 35.464474624,
+  "commit_avail_gb": 5.394952192,
+  "ac": true,
+  "gpu_pids": [],
+  "gpu_mem_used_mib": 0,
+  "python_processes": 17,
+  "power_source": "sensor"
+ },
+ "harness": {
+  "sha256": "f3a434606bac45a764250c1d90c5e35f388ffa724f839fba341ae8fef88a64c0",
+  "c5_train_sha256": "ba4711ea9344e8d265155222b1d7aa551faf97ffd8265bb1f20f92c3d81f9b9e",
+  "swap_sha256": "da4f94ee48f4eb618e3301a37d8ea9234a5d5e672dbea9c407b400c4e50c420a",
+  "codec_sha256": "fbaefa2a5efdf988fbc9dbb509de339b6ea6a56de3b1c08a1b43d5305f7917ac"
+ },
+ "model": {
+  "id": "fixture:granite",
+  "revision": null,
+  "synthetic": true,
+  "note": "SYNTHETIC: a tiny random-init granitemoe with a byte-level tokenizer. Its losses and scores say nothing about a real model and never enter the verdict.",
+  "model_type": "granitemoe",
+  "output_router_logits": false
+ },
+ "calibration": {
+  "rows": 32,
+  "sha256": "662ec67c33fcddc96883ae8f78c1ada62e1fb285418281b5297865c53828ebee",
+  "train_sha256": "a915bbbf18ebd1fae1dd869bdc8e2a0efbd2ab522d3a0c733cc05b212befa0b7",
+  "split": "train.jsonl, first rows in file order; the held-out panel is never read",
+  "row_ids": [
+   117,
+   7880,
+   1638,
+   7269,
+   7242,
+   9000,
+   14262,
+   10976,
+   7930,
+   3868,
+   6125,
+   11720,
+   3305,
+   706,
+   11102,
+   997,
+   1214,
+   13500,
+   5914,
+   1989,
+   12548,
+   12233,
+   13603,
+   7818,
+   2346,
+   12651,
+   3534,
+   7140,
+   4059,
+   2466,
+   13199,
+   527
+  ],
+  "tokens": 18900
+ },
+ "routing": {
+  "top_k": 2,
+  "n_layers": 2,
+  "n_experts": 4,
+  "router": "the experts module's own inputs (top_k_index, top_k_weights)"
+ },
+ "sensitivity": {
+  "proxy": "d_q2_nf4[e] = sum over tokens t routed to e of g[t,e]^2 * ||f_e^Q2_0(x_t) - f_e^NF4(x_t)||^2, float64 sums",
+  "fake_quant": "q2_0_codec quantize, dequantize, cast to the model dtype (c5_expert_swap's per-slice swap)"
+ },
+ "phases_s": {
+  "load": 7.31848870000249,
+  "capture": 1.1246157999994466,
+  "sensitivity": 4.270610999999917
+ },
+ "forward_check": {
+  "0": 0.004577748943120241,
+  "1": 0.004510548897087574
+ },
+ "checks": {
+  "model_unchanged_by_selection": true,
+  "every_token_routed_top_k": true,
+  "forward_check_within_limit": true,
+  "maps_equal_budget_per_fraction": true
+ },
+ "layers": [
+  {
+   "layer": 0,
+   "tokens": [
+    14777,
+    5195,
+    1046,
+    16782
+   ],
+   "mass": [
+    7256.783203125,
+    2349.5859375,
+    460.611328125,
+    8832.75390625
+   ],
+   "d_q2_nf4": [
+    5.254113726933799,
+    1.6147140352930949,
+    0.27686994610960236,
+    6.3730241266007575
+   ],
+   "d_q2_bf16": [
+    5.087080177340257,
+    1.5533394664296036,
+    0.27014534152585046,
+    5.874363567727051
+   ],
+   "d_nf4_bf16": [
+    0.3556887029485983,
+    0.12013894933660929,
+    0.02307141026888209,
+    0.5059721107903526
+   ]
+  },
+  {
+   "layer": 1,
+   "tokens": [
+    10912,
+    5721,
+    15082,
+    6085
+   ],
+   "mass": [
+    5408.630859375,
+    2884.607421875,
+    7616.890625,
+    2989.38671875
+   ],
+   "d_q2_nf4": [
+    3.213249147830698,
+    2.169923421789634,
+    5.637795142404186,
+    2.225513547689124
+   ],
+   "d_q2_bf16": [
+    2.988983425627965,
+    2.0807629182083547,
+    5.352597325047506,
+    2.1997614807691495
+   ],
+   "d_nf4_bf16": [
+    0.2893092058003218,
+    0.18184526368735862,
+    0.436345366254791,
+    0.14201548358050362
+   ]
+  }
+ ],
+ "stats_sha256": "a2246596978ecdedf9b41eebaedde6a0bae74636c267a6ababfd893fba7aa538",
+ "correlation": {
+  "per_layer": [
+   {
+    "layer": 0,
+    "spearman_tokens_d": 1.0,
+    "spearman_tokens_d_per_assignment": 1.0,
+    "busiest_quartile_traffic_share": 0.44396825396825396
+   },
+   {
+    "layer": 1,
+    "spearman_tokens_d": 1.0,
+    "spearman_tokens_d_per_assignment": -0.4,
+    "busiest_quartile_traffic_share": 0.398994708994709
+   }
+  ],
+  "mean_spearman_tokens_d": 1.0,
+  "fractions": {
+   "0.25": {
+    "jaccard_traffic_vs_sensitivity": 1.0,
+    "q2_0_share": {
+     "traffic": {
+      "traffic": [
+       0.02767195767195767,
+       0.15134920634920634
+      ],
+      "d_q2_nf4": [
+       0.02048048251085917,
+       0.16381130801800137
+      ]
+     },
+     "sensitivity": {
+      "traffic": [
+       0.02767195767195767,
+       0.15134920634920634
+      ],
+      "d_q2_nf4": [
+       0.02048048251085917,
+       0.16381130801800137
+      ]
+     }
+    }
+   },
+   "0.5": {
+    "jaccard_traffic_vs_sensitivity": 1.0,
+    "q2_0_share": {
+     "traffic": {
+      "traffic": [
+       0.16510582010582012,
+       0.31232804232804234
+      ],
+      "d_q2_nf4": [
+       0.13992328598064366,
+       0.33181921170617185
+      ]
+     },
+     "sensitivity": {
+      "traffic": [
+       0.16510582010582012,
+       0.31232804232804234
+      ],
+      "d_q2_nf4": [
+       0.13992328598064366,
+       0.33181921170617185
+      ]
+     }
+    }
+   }
+  }
+ },
+ "maps": {
+  "mixed_traffic_f25": {
+   "file": "maps/mixed_traffic_f25.json",
+   "map_sha256": "0084d2f203bc9576338ea98277c6f268982230857113d6fc29fc0d563ea67676",
+   "q2_0_per_layer": [
+    1,
+    1
+   ]
+  },
+  "mixed_sensitivity_f25": {
+   "file": "maps/mixed_sensitivity_f25.json",
+   "map_sha256": "0084d2f203bc9576338ea98277c6f268982230857113d6fc29fc0d563ea67676",
+   "q2_0_per_layer": [
+    1,
+    1
+   ]
+  },
+  "mixed_traffic_f50": {
+   "file": "maps/mixed_traffic_f50.json",
+   "map_sha256": "d6a38d394e05f3a3ed1e17b317d5fd33d989c58b1674a05063372628cca1293d",
+   "q2_0_per_layer": [
+    2,
+    2
+   ]
+  },
+  "mixed_sensitivity_f50": {
+   "file": "maps/mixed_sensitivity_f50.json",
+   "map_sha256": "d6a38d394e05f3a3ed1e17b317d5fd33d989c58b1674a05063372628cca1293d",
+   "q2_0_per_layer": [
+    2,
+    2
+   ]
+  }
+ }
+}

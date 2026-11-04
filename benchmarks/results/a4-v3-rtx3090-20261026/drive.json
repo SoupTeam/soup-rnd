@@ -1,0 +1,232 @@
+{
+ "meta": {
+  "mode": "drive",
+  "device": "cuda",
+  "weights": null,
+  "shards": null,
+  "quant": "nf4",
+  "tier": "ram",
+  "buffers": 2,
+  "read_ahead": 2,
+  "seq": 512,
+  "lora_r": 8,
+  "lora_targets": "q_proj,k_proj,v_proj,o_proj",
+  "seed": 3,
+  "input_seed": 17,
+  "k": 4,
+  "budget": "1",
+  "ring": 4,
+  "spill_dir": "<box>/spill",
+  "backend": "direct",
+  "accept_network": false,
+  "host_total_bytes": null,
+  "reserve_bytes": 4000000000,
+  "steps": 5,
+  "warmup": 2,
+  "comparison": "",
+  "arm": "A",
+  "block": 0,
+  "position": 0,
+  "watch_path": null,
+  "deterministic": false,
+  "drive_bytes": 4294967296,
+  "drive_chunk_bytes": 4194304,
+  "drive_passes": 3,
+  "enospc_dir": null,
+  "out": "<work>/.soup/results/a4-v3/drive.json",
+  "label": "",
+  "lazy_shard_handles": false,
+  "control_sync_source": false,
+  "no_pin": false,
+  "box": {
+   "cgroup": {
+    "source": "/sys/fs/cgroup/system.slice/run-r3fcc893908b341b89474de7b76a3761e.scope/memory.max",
+    "limit_bytes": 25769803776,
+    "current_bytes": 359231488,
+    "peak_bytes": 375517184,
+    "swap_source": "/sys/fs/cgroup/system.slice/run-r3fcc893908b341b89474de7b76a3761e.scope/memory.swap.max",
+    "swap_max_bytes": 0,
+    "swap_total_bytes": 0,
+    "version": 2
+   },
+   "process_memory": {
+    "rss": 653127680,
+    "rss_anon": 320335872,
+    "rss_shmem": 16777216,
+    "peak_rss": 653127680,
+    "locked": 0,
+    "swap": 0
+   },
+   "unix": 1793016931.6107302
+  }
+ },
+ "records": [
+  {
+   "kind": "drive",
+   "skipped": null,
+   "volume": {
+    "path": "<box>/spill",
+    "platform": "linux",
+    "mount_point": "/",
+    "fstype": "ext4",
+    "source": "/dev/vda1",
+    "drive": {
+     "device": "vda",
+     "model": null,
+     "vendor": "0x1af4",
+     "rotational": "1",
+     "logical_block_size": "512"
+    },
+    "total_bytes": 135084687360,
+    "free_bytes": 105048399872,
+    "scope": "local",
+    "scope_reason": "ext4 on an unnamed drive",
+    "direct_io": true,
+    "direct_io_reason": "aligned 1 MiB unbuffered write and read returned the same bytes",
+    "refusals": [],
+    "ok": true
+   },
+   "chunk_bytes": 4194304,
+   "bytes": 4294967296,
+   "fill_gb_per_s": 1.9275738011951555,
+   "passes": [
+    {
+     "write_gb_per_s": 2.1988645669088247,
+     "read_gb_per_s": 2.2145331729608544
+    },
+    {
+     "write_gb_per_s": 2.1723304739550797,
+     "read_gb_per_s": 2.223435000295566
+    },
+    {
+     "write_gb_per_s": 2.1864793642472025,
+     "read_gb_per_s": 2.2031204273040847
+    }
+   ],
+   "watch": {
+    "arm": "A",
+    "round": 0,
+    "run": 0,
+    "label": null,
+    "gpu": {
+     "id": "0",
+     "source": "default"
+    },
+    "required": [
+     "suspend",
+     "power",
+     "foreign_reads"
+    ],
+    "outcome": "ok",
+    "box_stamp_before": {
+     "unix_s": 1793016919.5932617,
+     "ram_available_bytes": 50925133824,
+     "commit_charge": {
+      "used_bytes": 2122571776,
+      "limit_bytes": 26480828416
+     },
+     "power_source": "mains",
+     "gpu_processes": [
+      {
+       "pid": 3934,
+       "type": "C",
+       "name": "<work>/.venv/bin/python",
+       "used_mib": 256
+      }
+     ],
+     "gpu_memory_used_mib": 265,
+     "unknown": {}
+    },
+    "box_stamp_after": {
+     "unix_s": 1793016931.525201,
+     "ram_available_bytes": 50876993536,
+     "commit_charge": {
+      "used_bytes": 2127220736,
+      "limit_bytes": 26480828416
+     },
+     "power_source": "mains",
+     "gpu_processes": [
+      {
+       "pid": 3934,
+       "type": "C",
+       "name": "<work>/.venv/bin/python",
+       "used_mib": 256
+      }
+     ],
+     "gpu_memory_used_mib": 265,
+     "unknown": {}
+    },
+    "gpu_clock": {
+     "outcome": "ok",
+     "reason": "SM clock 1710 to 1710 MHz over 7 samples; clock event reasons seen: none",
+     "samples": 7,
+     "unknown_samples": 0,
+     "sm_clock_mhz": {
+      "min": 1710,
+      "median": 1710,
+      "max": 1710
+     },
+     "reasons_seen": {}
+    },
+    "checks": {
+     "suspend": {
+      "outcome": "ok",
+      "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+      "evidence": {
+       "sleep_offset_start_s": -1.5579998944303952e-06,
+       "sleep_offset_end_s": -1.3070002751192078e-06,
+       "suspend_count_start": 0,
+       "suspend_count_end": 0
+      }
+     },
+     "power": {
+      "outcome": "ok",
+      "reason": "no battery in any of 7 power samples, so on mains",
+      "evidence": {
+       "samples": 7,
+       "off_mains_samples": [],
+       "battery_present": false,
+       "unknown_samples": 0,
+       "last_reading": {
+        "battery": false,
+        "online": {}
+       }
+      }
+     },
+     "foreign_reads": {
+      "outcome": "ok",
+      "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+      "evidence": {
+       "model_path": "<box>/spill",
+       "device": "vda",
+       "disk_read_bytes_start": 838828420096,
+       "disk_read_bytes_end": 851713321984,
+       "other_disk_read_bytes_start": 344064,
+       "other_disk_read_bytes_end": 344064,
+       "own_read_bytes": 12884901888,
+       "foreign_read_bytes": 0,
+       "foreign_read_bytes_min": 0,
+       "foreign_read_bytes_max": 0,
+       "uninspectable_processes": 6
+      },
+      "readers": [
+       {
+        "pid": 147,
+        "name": "kworker/u26:1-events_unbound",
+        "read_bytes": 778240
+       },
+       {
+        "pid": 77,
+        "name": "kworker/u27:0-flush-253:0",
+        "read_bytes": 749568
+       }
+      ],
+      "unattributed_bytes": 0
+     }
+    }
+   },
+   "outcome": "ok",
+   "left_behind": false
+  }
+ ]
+}

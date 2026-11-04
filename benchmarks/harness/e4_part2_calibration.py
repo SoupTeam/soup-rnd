@@ -7,6 +7,8 @@
 Every run is one process and one journaled attempt; its record (result, box stamps, provenance,
 input hashes, void reasons) is written whether or not it is void. Heavy libraries are imported
 inside functions. Nothing here scores a DECISION row.
+Calibration boxes install `.[calibration]` with `.github/constraints/e4-part2-pins.txt`, which
+provides nvidia-ml-py for the pynvml sampler.
 """
 
 from __future__ import annotations
@@ -1679,6 +1681,10 @@ def _cmd_run(args) -> int:
         args.f_prefix = resolve_f_prefix(out, args.f_prefix)
     expected_instance = resolve_final_instance(out) if args.stage != "F" else None
     device = resolve_device(args.device, args.gpu_index)
+    problem = nvml_problem() if device.startswith("cuda") else None
+    if problem:
+        print(f"calibration stopped: {problem}", file=sys.stderr)
+        return 6
     if device.startswith("cuda"):
         import torch
 
@@ -1775,6 +1781,10 @@ def _cmd_drive(args) -> int:
         args.f_prefix = resolve_f_prefix(args.out, args.f_prefix)
         resolve_final_instance(args.out)
     if not is_dry(args) and resolve_device(args.device, args.gpu_index).startswith("cuda"):
+        problem = nvml_problem()
+        if problem:
+            print(f"calibration stopped: {problem}", file=sys.stderr)
+            return 6
         common.require_single_gpu(args.gpu_index)
     if args.stage == "F":
         for arm in ARMS:  # A_off, A_on, A_bf16, in that order, a fresh process each
@@ -1785,9 +1795,19 @@ def _cmd_drive(args) -> int:
     return _cmd_report(args)
 
 
+def nvml_problem() -> Optional[str]:
+    """Why ``nvml_reader`` cannot run (pynvml not importable), or None."""
+    try:
+        import pynvml  # noqa: F401
+    except ImportError as exc:
+        return f"pynvml is not importable ({exc}); install nvidia-ml-py"
+    return None
+
+
 # Exit codes of `calibrate`: 0 complete, 4 no final card (REPEAT_F_ON_A100_80GB, F_FAILS,
-# STOP_RECIPE_TO_OWNER or INCOMPLETE; decision.json says which), 6 refused or stopped
-# (CalibrationStopped: wrong card, no instance id, a second void, a failed T/W/N/P).
+# STOP_RECIPE_TO_OWNER or INCOMPLETE; decision.json says which), 6 calibration stopped or
+# refused before measurement (CalibrationStopped: wrong card, no instance id, pynvml /
+# nvidia-ml-py not importable, a second void, a failed T/W/N/P).
 def preflight(args, out: Path) -> str:
     """Read the card before any attempt and refuse unless it is in the F or F80 class.
 
@@ -1804,6 +1824,9 @@ def preflight(args, out: Path) -> str:
 
         stamp = dryrun.fake_stamp(args.fake_card, instance, args.gpu_index)
     else:
+        problem = nvml_problem() if args.device.startswith("cuda") else None
+        if problem:
+            raise common.CalibrationStopped(problem)
         common.require_single_gpu(args.gpu_index)
         stamp = common.box_stamp(args.gpu_index, instance)
     problems = {prefix: common.card_class_problems(stamp, prefix) for prefix in ("F", "F80")}

@@ -352,7 +352,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             records.append(record)
             sink.add("k", record)
             print(f"k={k}: grads_equal {record['grads_equal']} losses_equal "
-                  f"{record['losses_equal']} (max |d| {record['max_abs']:.3e}) "
+                  f"{record['losses_equal']} "
+                  f"(max |d| {l2l_schedule.gap_text(record['max_abs'])}) "
                   f"loads l2l {record['l2l']} ga {record['ga']}")
     finally:
         sink.payload["verdict"] = verdict(records)

@@ -69,8 +69,7 @@ def summarize_trainable(model: Any) -> ParamSnapshot:
     meta = sum(
         1
         for _, param in model.named_parameters()
-        if param.requires_grad
-        and getattr(getattr(param, "device", None), "type", None) == "meta"
+        if param.requires_grad and getattr(getattr(param, "device", None), "type", None) == "meta"
     )
     digest = _digest(kept)
     return ParamSnapshot(
@@ -82,11 +81,17 @@ def summarize_trainable(model: Any) -> ParamSnapshot:
 
 
 def _digest(named_params) -> str:
+    import torch
+
     hasher = hashlib.sha256()
     for name, param in named_params:
         hasher.update(name.encode("utf-8"))
         detached = param.detach()
-        hasher.update(detached.cpu().contiguous().numpy().tobytes())
+        # NumPy has no BF16 dtype. Reinterpret the contiguous storage as bytes,
+        # without casting values or canonicalising NaN payloads. Flatten first
+        # so scalar parameters also support the smaller-element-size view.
+        raw_bytes = detached.cpu().contiguous().reshape(-1).view(torch.uint8)
+        hasher.update(raw_bytes.numpy().tobytes())
     return hasher.hexdigest()
 
 

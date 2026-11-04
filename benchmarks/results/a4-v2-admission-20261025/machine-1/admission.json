@@ -1,0 +1,708 @@
+{
+  "kind": "admission",
+  "settings": {
+    "duration_s": 600.0,
+    "window_s": 10.0,
+    "fraction": 0.5,
+    "chunk_bytes": 4194304,
+    "n_layers": 32,
+    "k": 4,
+    "distinct_chunks": 16
+  },
+  "settings_are_protocol": true,
+  "volume": {
+    "path": "<box>/spill",
+    "platform": "linux",
+    "mount_point": "/",
+    "fstype": "ext4",
+    "source": "/dev/vda1",
+    "drive": {
+      "device": "vda",
+      "model": null,
+      "vendor": "0x1af4",
+      "rotational": "1",
+      "logical_block_size": "512"
+    },
+    "total_bytes": 135084687360,
+    "free_bytes": 105564397568,
+    "scope": "local",
+    "scope_reason": "ext4 on an unnamed drive",
+    "direct_io": true,
+    "direct_io_reason": "aligned 1 MiB unbuffered write and read returned the same bytes",
+    "refusals": [],
+    "ok": true
+  },
+  "placement": {
+    "path": "<box>/spill",
+    "probed": "<box>/spill",
+    "platform": "linux",
+    "mount_point": "/",
+    "fstype": "ext4",
+    "source": "/dev/vda1",
+    "drive": {
+      "device": "vda",
+      "model": null,
+      "vendor": "0x1af4",
+      "rotational": "1",
+      "logical_block_size": "512"
+    }
+  },
+  "started_unix": 1792962374.1559658,
+  "windows": [
+    {
+      "index": 0,
+      "t0": 0.0,
+      "write_bytes": 47016908672.033226,
+      "write_busy_s": 4.570469470005605,
+      "read_bytes": 46707769344.0,
+      "read_busy_s": 5.400867536993246,
+      "write_gb_per_s": 10.287107042414084,
+      "read_gb_per_s": 8.648197539390681
+    },
+    {
+      "index": 1,
+      "t0": 10.0,
+      "write_bytes": 46935500927.966774,
+      "write_busy_s": 4.542071141997326,
+      "read_bytes": 46927876960.64555,
+      "read_busy_s": 5.429812462993027,
+      "write_gb_per_s": 10.333501933509435,
+      "read_gb_per_s": 8.642633107585803
+    },
+    {
+      "index": 2,
+      "t0": 20.0,
+      "write_bytes": 47022726565.232,
+      "write_busy_s": 4.560951728996429,
+      "read_bytes": 47024532639.35445,
+      "read_busy_s": 5.408061548001683,
+      "write_gb_per_s": 10.309849645257849,
+      "read_gb_per_s": 8.695265803091745
+    },
+    {
+      "index": 3,
+      "t0": 30.0,
+      "write_bytes": 45855941210.768005,
+      "write_busy_s": 4.615492299995026,
+      "read_bytes": 45804126693.12765,
+      "read_busy_s": 5.29161338900235,
+      "write_gb_per_s": 9.93522212371959,
+      "read_gb_per_s": 8.655985108119035
+    },
+    {
+      "index": 4,
+      "t0": 40.0,
+      "write_bytes": 45634027520.0,
+      "write_busy_s": 4.664582698996014,
+      "read_bytes": 45917844022.052574,
+      "read_busy_s": 5.3070773750011995,
+      "write_gb_per_s": 9.783088963096759,
+      "read_gb_per_s": 8.652190419975213
+    },
+    {
+      "index": 5,
+      "t0": 50.0,
+      "write_bytes": 46170898432.0,
+      "write_busy_s": 4.695428313998946,
+      "read_bytes": 45893629145.60814,
+      "read_busy_s": 5.275691638009562,
+      "write_gb_per_s": 9.833160117543724,
+      "read_gb_per_s": 8.699073466493033
+    },
+    {
+      "index": 6,
+      "t0": 60.0,
+      "write_bytes": 45667245665.45736,
+      "write_busy_s": 4.658039272997144,
+      "read_bytes": 45994252043.21164,
+      "read_busy_s": 5.311588706002112,
+      "write_gb_per_s": 9.8039632104848,
+      "read_gb_per_s": 8.659226944894657
+    },
+    {
+      "index": 7,
+      "t0": 70.0,
+      "write_bytes": 46137680286.54264,
+      "write_busy_s": 4.683919277993255,
+      "read_bytes": 45901591587.71393,
+      "read_busy_s": 5.288774542997999,
+      "write_gb_per_s": 9.850229593689654,
+      "read_gb_per_s": 8.67906000048437
+    },
+    {
+      "index": 8,
+      "t0": 80.0,
+      "write_bytes": 46170898432.0,
+      "write_busy_s": 4.682230706994346,
+      "read_bytes": 45943538205.04484,
+      "read_busy_s": 5.288922719998141,
+      "write_gb_per_s": 9.860876432899733,
+      "read_gb_per_s": 8.686747876146125
+    },
+    {
+      "index": 9,
+      "t0": 90.0,
+      "write_bytes": 45994416125.86682,
+      "write_busy_s": 4.662577447998615,
+      "read_bytes": 46130694591.24124,
+      "read_busy_s": 5.3109177799933605,
+      "write_gb_per_s": 9.864590269832336,
+      "read_gb_per_s": 8.686011816078032
+    },
+    {
+      "index": 10,
+      "t0": 100.0,
+      "write_bytes": 45810509826.13318,
+      "write_busy_s": 4.682459371004256,
+      "read_bytes": 45700378021.867836,
+      "read_busy_s": 5.289225658994496,
+      "write_gb_per_s": 9.783429218801338,
+      "read_gb_per_s": 8.640277607394742
+    },
+    {
+      "index": 11,
+      "t0": 110.0,
+      "write_bytes": 45407311364.08406,
+      "write_busy_s": 4.63170262400115,
+      "read_bytes": 45567677018.132164,
+      "read_busy_s": 5.293930559988894,
+      "write_gb_per_s": 9.803589532882928,
+      "read_gb_per_s": 8.607532059927088
+    },
+    {
+      "index": 12,
+      "t0": 120.0,
+      "write_bytes": 45860743675.91594,
+      "write_busy_s": 4.669804648005652,
+      "read_bytes": 46061266645.838196,
+      "read_busy_s": 5.301987394992352,
+      "write_gb_per_s": 9.820698537250767,
+      "read_gb_per_s": 8.687547369377446
+    },
+    {
+      "index": 13,
+      "t0": 130.0,
+      "write_bytes": 46152931533.96885,
+      "write_busy_s": 4.697505318989329,
+      "read_bytes": 45743659306.161804,
+      "read_busy_s": 5.273695211004224,
+      "write_gb_per_s": 9.82498760510157,
+      "read_gb_per_s": 8.673929280310313
+    },
+    {
+      "index": 14,
+      "t0": 140.0,
+      "write_bytes": 45773119389.203514,
+      "write_busy_s": 4.6516055140012895,
+      "read_bytes": 46170898432.0,
+      "read_busy_s": 5.31988766999541,
+      "write_gb_per_s": 9.840284016223398,
+      "read_gb_per_s": 8.678923559308881
+    },
+    {
+      "index": 15,
+      "t0": 150.0,
+      "write_bytes": 46049773460.82764,
+      "write_busy_s": 4.67678959599948,
+      "read_bytes": 46006064627.465294,
+      "read_busy_s": 5.294908518998909,
+      "write_gb_per_s": 9.846449688525341,
+      "read_gb_per_s": 8.688736446038451
+    },
+    {
+      "index": 16,
+      "t0": 160.0,
+      "write_bytes": 45097156608.0,
+      "write_busy_s": 4.7104752199979885,
+      "read_bytes": 44894201856.06624,
+      "read_busy_s": 5.260967734999326,
+      "write_gb_per_s": 9.573801899337719,
+      "read_gb_per_s": 8.533449379930856
+    },
+    {
+      "index": 17,
+      "t0": 170.0,
+      "write_bytes": 28716449043.13536,
+      "write_busy_s": 4.518817119999426,
+      "read_bytes": 28821946892.468468,
+      "read_busy_s": 5.46283132300141,
+      "write_gb_per_s": 6.354859752133322,
+      "read_gb_per_s": 5.276008939011684
+    },
+    {
+      "index": 18,
+      "t0": 180.0,
+      "write_bytes": 28728738540.86464,
+      "write_busy_s": 4.744874632994765,
+      "read_bytes": 28647377953.89107,
+      "read_busy_s": 5.228230993997272,
+      "write_gb_per_s": 6.054688640473578,
+      "read_gb_per_s": 5.4793634762469745
+    },
+    {
+      "index": 19,
+      "t0": 190.0,
+      "write_bytes": 41770160561.465126,
+      "write_busy_s": 4.234447536994139,
+      "read_bytes": 41682711518.10893,
+      "read_busy_s": 5.673047246996134,
+      "write_gb_per_s": 9.864370781912214,
+      "read_gb_per_s": 7.34749944841017
+    },
+    {
+      "index": 20,
+      "t0": 200.0,
+      "write_bytes": 41981701710.53487,
+      "write_busy_s": 4.305919727999367,
+      "read_bytes": 41908977933.63571,
+      "read_busy_s": 5.666654051002979,
+      "write_gb_per_s": 9.749764129959889,
+      "read_gb_per_s": 7.3957184533292555
+    },
+    {
+      "index": 21,
+      "t0": 210.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.254930670998874,
+      "read_bytes": 42307592025.47383,
+      "read_busy_s": 5.716954254999337,
+      "write_gb_per_s": 9.84174229240011,
+      "read_gb_per_s": 7.4003726701988
+    },
+    {
+      "index": 22,
+      "t0": 220.0,
+      "write_bytes": 42101306966.52113,
+      "write_busy_s": 4.293820591000895,
+      "read_bytes": 41948094360.89046,
+      "read_busy_s": 5.6794016330007935,
+      "write_gb_per_s": 9.805092242269785,
+      "read_gb_per_s": 7.386005968858831
+    },
+    {
+      "index": 23,
+      "t0": 230.0,
+      "write_bytes": 42187426217.47887,
+      "write_busy_s": 4.287801475001402,
+      "read_bytes": 42148492568.886185,
+      "read_busy_s": 5.686238927001568,
+      "write_gb_per_s": 9.838941113164545,
+      "read_gb_per_s": 7.412367491056458
+    },
+    {
+      "index": 24,
+      "t0": 240.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.277681746006465,
+      "read_bytes": 42046062977.72935,
+      "read_busy_s": 5.696888902005867,
+      "write_gb_per_s": 9.789398469181188,
+      "read_gb_per_s": 7.380530619602742
+    },
+    {
+      "index": 25,
+      "t0": 250.0,
+      "write_bytes": 42389898713.3994,
+      "write_busy_s": 4.308929320005518,
+      "read_bytes": 41970108773.38447,
+      "read_busy_s": 5.664149234992692,
+      "write_gb_per_s": 9.837687175928222,
+      "read_gb_per_s": 7.409781598637314
+    },
+    {
+      "index": 26,
+      "t0": 260.0,
+      "write_bytes": 41545711912.4201,
+      "write_busy_s": 4.249419040994098,
+      "read_bytes": 41875931136.0,
+      "read_busy_s": 5.674888253003587,
+      "write_gb_per_s": 9.776798077955851,
+      "read_gb_per_s": 7.379164006240306
+    },
+    {
+      "index": 27,
+      "t0": 270.0,
+      "write_bytes": 42229053694.18051,
+      "write_busy_s": 4.293878443990138,
+      "read_bytes": 41974206944.902214,
+      "read_busy_s": 5.677616943994849,
+      "write_gb_per_s": 9.834711029904856,
+      "read_gb_per_s": 7.392926884455961
+    },
+    {
+      "index": 28,
+      "t0": 280.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.272010456992007,
+      "read_bytes": 42058948136.558914,
+      "read_busy_s": 5.69993811900008,
+      "write_gb_per_s": 9.802394342799792,
+      "read_gb_per_s": 7.37884293802424
+    },
+    {
+      "index": 29,
+      "t0": 290.0,
+      "write_bytes": 42038413723.79244,
+      "write_busy_s": 4.27616367700341,
+      "read_bytes": 42131509238.53887,
+      "read_busy_s": 5.695284003992583,
+      "write_gb_per_s": 9.830871056192015,
+      "read_gb_per_s": 7.397613395399296
+    },
+    {
+      "index": 30,
+      "t0": 300.0,
+      "write_bytes": 41918692513.90176,
+      "write_busy_s": 4.295228940998527,
+      "read_bytes": 41875931136.0,
+      "read_busy_s": 5.676297948000524,
+      "write_gb_per_s": 9.759361628848769,
+      "read_gb_per_s": 7.377331408537284
+    },
+    {
+      "index": 31,
+      "t0": 310.0,
+      "write_bytes": 41991385295.55089,
+      "write_busy_s": 4.29608776999396,
+      "read_bytes": 41875931136.0,
+      "read_busy_s": 5.675051793002126,
+      "write_gb_per_s": 9.774331332064458,
+      "read_gb_per_s": 7.378951358230241
+    },
+    {
+      "index": 32,
+      "t0": 320.0,
+      "write_bytes": 42092103922.75491,
+      "write_busy_s": 4.284499864995269,
+      "read_bytes": 41932235191.857605,
+      "read_busy_s": 5.6869074030022375,
+      "write_gb_per_s": 9.82427476930295,
+      "read_gb_per_s": 7.373468956030601
+    },
+    {
+      "index": 33,
+      "t0": 330.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.275596260997077,
+      "read_bytes": 41965044075.88805,
+      "read_busy_s": 5.695293528002594,
+      "write_gb_per_s": 9.794173392376027,
+      "read_gb_per_s": 7.368372476248064
+    },
+    {
+      "index": 34,
+      "t0": 340.0,
+      "write_bytes": 41553432148.30259,
+      "write_busy_s": 4.241962158999968,
+      "read_bytes": 41730514140.25435,
+      "read_busy_s": 5.663870418002034,
+      "write_gb_per_s": 9.79580453355546,
+      "read_gb_per_s": 7.36784408195819
+    },
+    {
+      "index": 35,
+      "t0": 350.0,
+      "write_bytes": 42030849926.83631,
+      "write_busy_s": 4.2972173330008445,
+      "read_bytes": 41875931136.0,
+      "read_busy_s": 5.673991640003692,
+      "write_gb_per_s": 9.780945823721048,
+      "read_gb_per_s": 7.380330073234432
+    },
+    {
+      "index": 36,
+      "t0": 360.0,
+      "write_bytes": 42043511332.8611,
+      "write_busy_s": 4.268701579994854,
+      "read_bytes": 42068338849.00134,
+      "read_busy_s": 5.702406942997982,
+      "write_gb_per_s": 9.849250537891146,
+      "read_gb_per_s": 7.377295108806168
+    },
+    {
+      "index": 37,
+      "t0": 370.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.288809016000982,
+      "read_bytes": 41953713001.66661,
+      "read_busy_s": 5.682376321993729,
+      "write_gb_per_s": 9.763999977561697,
+      "read_gb_per_s": 7.383128223888321
+    },
+    {
+      "index": 38,
+      "t0": 380.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.2629873989992575,
+      "read_bytes": 42096683199.0007,
+      "read_busy_s": 5.694646595991799,
+      "write_gb_per_s": 9.823142134042065,
+      "read_gb_per_s": 7.392325843122667
+    },
+    {
+      "index": 39,
+      "t0": 390.0,
+      "write_bytes": 42304153322.55718,
+      "write_busy_s": 4.298702062998132,
+      "read_bytes": 41921860406.331345,
+      "read_busy_s": 5.67265526100357,
+      "write_gb_per_s": 9.841145699930674,
+      "read_gb_per_s": 7.390165359513633
+    },
+    {
+      "index": 40,
+      "t0": 400.0,
+      "write_bytes": 41984579861.44282,
+      "write_busy_s": 4.2647934939997185,
+      "read_bytes": 42247859169.32004,
+      "read_busy_s": 5.707949918007898,
+      "write_gb_per_s": 9.844457866603,
+      "read_gb_per_s": 7.40158196483699
+    },
+    {
+      "index": 41,
+      "t0": 410.0,
+      "write_bytes": 42032415734.342926,
+      "write_busy_s": 4.271048610998378,
+      "read_bytes": 42040874014.67996,
+      "read_busy_s": 5.699585538999486,
+      "write_gb_per_s": 9.841240304806002,
+      "read_gb_per_s": 7.376128268803889
+    },
+    {
+      "index": 42,
+      "t0": 420.0,
+      "write_bytes": 41905348502.380905,
+      "write_busy_s": 4.265429347996246,
+      "read_bytes": 41875931136.0,
+      "read_busy_s": 5.66933709499915,
+      "write_gb_per_s": 9.824415101862282,
+      "read_gb_per_s": 7.386389349283573
+    },
+    {
+      "index": 43,
+      "t0": 430.0,
+      "write_bytes": 42226900083.27617,
+      "write_busy_s": 4.299678998999184,
+      "read_bytes": 41927438220.387215,
+      "read_busy_s": 5.672741010000777,
+      "write_gb_per_s": 9.82094246875293,
+      "read_gb_per_s": 7.391036916099483
+    },
+    {
+      "index": 44,
+      "t0": 440.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.245014536997587,
+      "read_bytes": 42253802939.6509,
+      "read_busy_s": 5.725353726998037,
+      "write_gb_per_s": 9.864732092441313,
+      "read_gb_per_s": 7.3801209417685625
+    },
+    {
+      "index": 45,
+      "t0": 450.0,
+      "write_bytes": 42195412765.58941,
+      "write_busy_s": 4.282550325999296,
+      "read_bytes": 41983423159.96188,
+      "read_busy_s": 5.677939473993092,
+      "write_gb_per_s": 9.852870265043173,
+      "read_gb_per_s": 7.3941300981210425
+    },
+    {
+      "index": 46,
+      "t0": 460.0,
+      "write_bytes": 42093320418.41059,
+      "write_busy_s": 4.292066287000239,
+      "read_bytes": 41905764204.39811,
+      "read_busy_s": 5.678586962000622,
+      "write_gb_per_s": 9.807239125337452,
+      "read_gb_per_s": 7.379611245688187
+    },
+    {
+      "index": 47,
+      "t0": 470.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.28056946100844,
+      "read_bytes": 42043944887.92671,
+      "read_busy_s": 5.68989253899565,
+      "write_gb_per_s": 9.782794442993255,
+      "read_gb_per_s": 7.389233557537114
+    },
+    {
+      "index": 48,
+      "t0": 480.0,
+      "write_bytes": 42036105102.0622,
+      "write_busy_s": 4.269961564000596,
+      "read_bytes": 42214955227.67518,
+      "read_busy_s": 5.702491386007637,
+      "write_gb_per_s": 9.844609716504777,
+      "read_gb_per_s": 7.402896798977935
+    },
+    {
+      "index": 49,
+      "t0": 490.0,
+      "write_bytes": 42011677898.08826,
+      "write_busy_s": 4.268193268998516,
+      "read_bytes": 41875931136.0,
+      "read_busy_s": 5.6860055440020005,
+      "write_gb_per_s": 9.842965219788612,
+      "read_gb_per_s": 7.364736247957705
+    },
+    {
+      "index": 50,
+      "t0": 500.0,
+      "write_bytes": 30978836504.601456,
+      "write_busy_s": 5.37224546099776,
+      "read_bytes": 31138512896.0,
+      "read_busy_s": 4.565561117994889,
+      "write_gb_per_s": 5.766459617213379,
+      "read_gb_per_s": 6.820303592754326
+    },
+    {
+      "index": 51,
+      "t0": 510.0,
+      "write_bytes": 17459646691.206745,
+      "write_busy_s": 7.043378241995924,
+      "read_bytes": 17179869184.0,
+      "read_busy_s": 2.9433450900030493,
+      "write_gb_per_s": 2.4788739282953944,
+      "read_gb_per_s": 5.836851833089746
+    },
+    {
+      "index": 52,
+      "t0": 520.0,
+      "write_bytes": 17300718252.041332,
+      "write_busy_s": 7.109902008006429,
+      "read_bytes": 17584483326.316875,
+      "read_busy_s": 2.8777061930090895,
+      "write_gb_per_s": 2.4333272431264272,
+      "read_gb_per_s": 6.110590222530522
+    },
+    {
+      "index": 53,
+      "t0": 530.0,
+      "write_bytes": 19327352832.0,
+      "write_busy_s": 6.98448452300363,
+      "read_bytes": 18986600427.619938,
+      "read_busy_s": 3.002408153999795,
+      "write_gb_per_s": 2.7671838585001836,
+      "read_gb_per_s": 6.323790588673319
+    },
+    {
+      "index": 54,
+      "t0": 540.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.278930398006651,
+      "read_bytes": 42117382921.17114,
+      "read_busy_s": 5.691525899005455,
+      "write_gb_per_s": 9.78654178518725,
+      "read_gb_per_s": 7.40001603586321
+    },
+    {
+      "index": 55,
+      "t0": 550.0,
+      "write_bytes": 41875931136.0,
+      "write_busy_s": 4.264008410001907,
+      "read_bytes": 42100413731.2759,
+      "read_busy_s": 5.709326434988952,
+      "write_gb_per_s": 9.82078999604536,
+      "read_gb_per_s": 7.373972080711368
+    },
+    {
+      "index": 56,
+      "t0": 560.0,
+      "write_bytes": 42352669553.83583,
+      "write_busy_s": 4.312753607995091,
+      "read_bytes": 41883005929.61614,
+      "read_busy_s": 5.658082124997009,
+      "write_gb_per_s": 9.820331371428543,
+      "read_gb_per_s": 7.402332628679949
+    },
+    {
+      "index": 57,
+      "t0": 570.0,
+      "write_bytes": 37104225422.16417,
+      "write_busy_s": 4.76053733898857,
+      "read_bytes": 37172476499.87376,
+      "read_busy_s": 5.140991092002196,
+      "write_gb_per_s": 7.794125490474019,
+      "read_gb_per_s": 7.230605117698554
+    },
+    {
+      "index": 58,
+      "t0": 580.0,
+      "write_bytes": 17179869184.0,
+      "write_busy_s": 7.063627071995143,
+      "read_bytes": 17151897703.544909,
+      "read_busy_s": 2.923170616994639,
+      "write_gb_per_s": 2.4321597118443985,
+      "read_gb_per_s": 5.867566403352488
+    },
+    {
+      "index": 59,
+      "t0": 590.0,
+      "write_bytes": 17707766783.519604,
+      "write_busy_s": 7.024642114998642,
+      "read_bytes": 17616328004.58133,
+      "read_busy_s": 2.962871237991976,
+      "write_gb_per_s": 2.5208069669073847,
+      "read_gb_per_s": 5.94569476347559
+    }
+  ],
+  "judgement": {
+    "fraction": 0.5,
+    "admitted": false,
+    "problems": [
+      "write: 5 window(s) below 50% of the median 9.821 GB/s"
+    ],
+    "write": {
+      "median_gb_per_s": 9.820744266648063,
+      "floor_gb_per_s": 4.9103721333240316,
+      "min_gb_per_s": 2.4321597118443985,
+      "max_gb_per_s": 10.333501933509435,
+      "low": [
+        {
+          "index": 51,
+          "gb_per_s": 2.4788739282953944
+        },
+        {
+          "index": 52,
+          "gb_per_s": 2.4333272431264272
+        },
+        {
+          "index": 53,
+          "gb_per_s": 2.7671838585001836
+        },
+        {
+          "index": 58,
+          "gb_per_s": 2.4321597118443985
+        },
+        {
+          "index": 59,
+          "gb_per_s": 2.5208069669073847
+        }
+      ],
+      "idle": []
+    },
+    "read": {
+      "median_gb_per_s": 7.3906011378065575,
+      "floor_gb_per_s": 3.6953005689032787,
+      "min_gb_per_s": 5.276008939011684,
+      "max_gb_per_s": 8.699073466493033,
+      "low": [],
+      "idle": []
+    }
+  },
+  "cycles": 4517,
+  "bytes": {
+    "write": 2425045909504,
+    "read": 2425045909504
+  },
+  "elapsed_s": 600.0893467359999,
+  "mismatches": 0,
+  "file_bytes": 536870912,
+  "admitted": false,
+  "reason": "write: 5 window(s) below 50% of the median 9.821 GB/s",
+  "per_second_log": "<box>/preflight/admission-per-second.csv"
+}

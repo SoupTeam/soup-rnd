@@ -1,0 +1,44 @@
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  22%|██▏       | 65/290 [00:00<00:00, 609.85it/s]Loading weights:  43%|████▎     | 126/290 [00:00<00:00, 352.05it/s]Loading weights:  58%|█████▊    | 167/290 [00:00<00:00, 309.65it/s]Loading weights:  69%|██████▉   | 201/290 [00:00<00:00, 295.82it/s]Loading weights:  80%|████████  | 233/290 [00:00<00:00, 278.59it/s]Loading weights:  90%|█████████ | 262/290 [00:00<00:00, 273.01it/s]Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading weights: 100%|██████████| 290/290 [00:00<00:00, 300.40it/s]
+LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+benchmarks/evidence/h3-fsdp-20261026/prepared/data
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  45%|████▌     | 131/290 [00:00<00:00, 1301.27it/s]Loading weights:  90%|█████████ | 262/290 [00:00<00:00, 387.32it/s] Loading weights: 100%|██████████| 290/290 [00:00<00:00, 423.71it/s]
+LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+benchmarks/evidence/h3-fsdp-20261026/prepared/data
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+FSDP2: tied embeddings share one sharding group
+FSDP2: tied embeddings share one sharding group
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+  0%|          | 0/4 [00:00<?, ?it/s]/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+ 25%|██▌       | 1/4 [00:51<02:33, 51.03s/it] 50%|█████     | 2/4 [00:59<00:52, 26.20s/it]/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
+ 75%|███████▌  | 3/4 [01:08<00:18, 18.10s/it]100%|██████████| 4/4 [01:16<00:00, 14.36s/it]                                             {'train_runtime': '98.68', 'train_samples_per_second': '0.324', 'train_steps_per_second': '0.041', 'train_loss': '13.48', 'entropy': '9.84', 'num_tokens': '1.638e+04', 'mean_token_accuracy': '0', 'epoch': '0.0625'}
+100%|██████████| 4/4 [01:38<00:00, 14.36s/it]100%|██████████| 4/4 [01:38<00:00, 24.66s/it]
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)

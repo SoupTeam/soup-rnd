@@ -1,0 +1,33 @@
+Loading tokenizer: 
+C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\ev
+idence\h3-flash-bf16-20261027\scratch\cpu-prepared\tiny-base
+Loading model: 
+C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\benchmarks\ev
+idence\h3-flash-bf16-20261027\scratch\cpu-prepared\tiny-base
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/15 [00:00<?, ?it/s]
+Loading weights: 100%|##########| 15/15 [00:00<00:00, 24123.68it/s]
+LoRA applied: 1,024 trainable / 15,552 total (6.58%)
+pre-tokenized cache has no metadata.json � assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+benchmarks\evidence\h3-flash-bf16-20261027\scratch\cpu-prepared\data
+
+Map:   0%|          | 0/512 [00:00<?, ? examples/s]
+Map: 100%|##########| 512/512 [00:00<00:00, 5321.60 examples/s]
+
+Truncating train dataset:   0%|          | 0/512 [00:00<?, ? examples/s]
+Truncating train dataset: 100%|##########| 512/512 [00:00<00:00, 20081.76 examples/s]
+
+  0%|          | 0/5 [00:00<?, ?it/s]C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\utils\data\dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+  super().__init__(loader)
+
+ 20%|##        | 1/5 [00:00<00:00,  7.10it/s]
+ 60%|######    | 3/5 [00:00<00:00, 12.99it/s]
+100%|##########| 5/5 [00:00<00:00, 15.70it/s]
+                                             
+
+100%|##########| 5/5 [00:00<00:00, 15.70it/s]
+100%|##########| 5/5 [00:00<00:00, 12.76it/s]
+{'train_runtime': '0.3928', 'train_samples_per_second': '101.8', 'train_steps_per_second': '12.73', 'train_loss': '4.166', 'entropy': '4.152', 'num_tokens': '2.048e+04', 'mean_token_accuracy': '0.01526', 'epoch': '0.07812'}

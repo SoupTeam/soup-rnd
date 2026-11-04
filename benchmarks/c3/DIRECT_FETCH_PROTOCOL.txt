@@ -1,0 +1,36 @@
+C3 prospective delivery recovery, 2026-10-31 Almaty
+
+Attempt015 remains BLOCKED_UPLOAD_TIMEOUT; no installer or CUDA test ran.
+The 108 wheels and CPython3.11.16 archive retain the EXACT URLs, sizes and SHA256
+in offline_artifacts.json. No version, model, tolerance or acceptance change.
+Only delivery changes: upload the small frozen source/launch package once, then
+fetch_artifacts downloads the 109 artifacts directly on the rented host. Its
+receipt records every verified artifact and stops on the first failure. There
+are no retries, resume, alternate mirrors, dependency resolution or fallback.
+Installation remains the existing hash-locked offline_setup.sh, after all files
+have passed readback. Curl uses HTTPS for initial requests and redirects, ignores
+curlrc, and shares one <=1200s deadline including full-file SHA readback.
+The existing process-group supervisor bounds fetch, setup and later phases.
+
+Local validation must cover truncated/oversized/corrupted responses, HTTP206,
+HTTP/curl failures, timeout, changed locks, path/source/duplicate/cap rejection,
+readback deadlines and refusal to reuse destinations. A small real-source probe
+checks a wheel and the pinned Python archive without installation. It is NOT a
+complete Linux-install or GPU result. The unchanged installer passed on earlier
+Linux attempts, but direct-fetch performance on a future host is unverified.
+
+Attempt016 planning only: prior conservative series spend USD3.25; total capUSD5.
+Candidate53518320 machine27926 host132677 advertised RTX4090,64GB,MSI M480 PRO,
+CUDA13.2,99.85% reliability. Physical NVMe and available/assigned RAM must pass
+fresh preflight; listing labels are not evidence. Price must be rechecked at rent.
+At total GPU+32GBcontainer+100GBvolume <=USD0.398/h, 110minutes <=USD0.729667;
+combined traffic<=25GB at <=USD4/TB adds<=0.10, unchanged cleanup reserve0.90.
+Total series <=4.979667. No increase of user cap, no reduction of cleanup reserve.
+Stop begins180s before the110min deadline; export gets at least600s. No paid retry.
+Five CUDA controls must pass before any8B staging/measurement. All20ABBA arms,
+updates, frozen numerical rules and F1/statistical gates stay unchanged. An
+expired phase deadline blocks the attempt; it never reduces arms to claim PASS.
+Correct launch paths follow PATH_RECOVERY_PROTOCOL: repository CWD,
+/data/c3/repo/.c3_cuda_test_tmp and /data/c3/repo/.c3_prepared.
+Public L2L integration and representative performance remain unaccepted until
+appropriate evidence exists. Local preparation alone closes neither requirement.

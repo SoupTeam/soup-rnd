@@ -1,0 +1,430 @@
+{
+ "verdict": "PASS: fp8_e4m3",
+ "codecs": {
+  "int8": {
+   "verdict": "fail",
+   "gates": {
+    "E1": {
+     "status": "pass",
+     "detail": "max over layers: rms row rel 0.04799 (bound 0.05), worst row rel 0.1424 (bound 0.25); layers over: []",
+     "max_rms_row_rel": 0.04798928550577689,
+     "max_worst_row_rel": 0.1424358316150753,
+     "layers_over": []
+    },
+    "E2": {
+     "status": "fail",
+     "detail": "max branch rms row rel 0.1737 (bound 0.1); layers over: [2, 3, 4, 5, 6, 7]; layer output (residual included) 0.1097",
+     "max_branch_rms_row_rel": 0.1737265967751483,
+     "max_output_rms_row_rel": 0.10971774225309724,
+     "layers_over": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ]
+    },
+    "E3": {
+     "status": "fail",
+     "detail": "worst set: global rel L2 0.4551 (bound 0.05), min tensor cosine -0.055615 (bound 0.99)",
+     "max_global_rel_l2": 0.4551029428334815,
+     "min_cosine": -0.05561473366528481
+    },
+    "Q1": {
+     "status": "pass",
+     "detail": "task loss 1.418501 vs exact 1.417643: delta +0.000858, margin 0.007088",
+     "delta": 0.0008576245836968699,
+     "margin": 0.007088216830860308,
+     "panel_bootstrap_95": {
+      "low": -0.00023226240004360656,
+      "high": 0.0019220701716894184
+     }
+    },
+    "Q2": {
+     "status": "pass",
+     "detail": "mean train-loss gap over the last 99 steps +0.000506, margin 0.008539",
+     "gap": 0.0005055459761860395,
+     "margin": 0.008539383363994684
+    },
+    "Q3": {
+     "status": "pass",
+     "detail": "mini_mmlu 24/26 vs 25 (margin 2), mini_common_sense 22/24 vs 22 (margin 2), mini_instruction 23/24 vs 22 (margin 2), mini_arithmetic 27/40 vs 27 (margin 2)",
+     "suites": {
+      "mini_mmlu": {
+       "exact": 25,
+       "noise_seed": 24,
+       "codec": 24,
+       "n": 26,
+       "drop": 1,
+       "margin": 2,
+       "gating": true
+      },
+      "mini_common_sense": {
+       "exact": 22,
+       "noise_seed": 23,
+       "codec": 22,
+       "n": 24,
+       "drop": 0,
+       "margin": 2,
+       "gating": true
+      },
+      "mini_instruction": {
+       "exact": 22,
+       "noise_seed": 23,
+       "codec": 23,
+       "n": 24,
+       "drop": -1,
+       "margin": 2,
+       "gating": true
+      },
+      "mini_arithmetic": {
+       "exact": 27,
+       "noise_seed": 27,
+       "codec": 27,
+       "n": 40,
+       "drop": 0,
+       "margin": 2,
+       "gating": true
+      }
+     },
+     "failing": []
+    }
+   }
+  },
+  "fp8_e4m3": {
+   "verdict": "pass",
+   "gates": {
+    "E1": {
+     "status": "pass",
+     "detail": "max over layers: rms row rel 0.02641 (bound 0.05), worst row rel 0.02846 (bound 0.25); layers over: []",
+     "max_rms_row_rel": 0.02641292118970005,
+     "max_worst_row_rel": 0.028457468564839036,
+     "layers_over": []
+    },
+    "E2": {
+     "status": "pass",
+     "detail": "max branch rms row rel 0.03223 (bound 0.1); layers over: []; layer output (residual included) 0.02604",
+     "max_branch_rms_row_rel": 0.03223133961999587,
+     "max_output_rms_row_rel": 0.026039085194599906,
+     "layers_over": []
+    },
+    "E3": {
+     "status": "pass",
+     "detail": "worst set: global rel L2 0.03563 (bound 0.05), min tensor cosine 0.997300 (bound 0.99)",
+     "max_global_rel_l2": 0.03562948280891485,
+     "min_cosine": 0.9973002565486352
+    },
+    "Q1": {
+     "status": "pass",
+     "detail": "task loss 1.418505 vs exact 1.417643: delta +0.000861, margin 0.007088",
+     "delta": 0.000861204170341745,
+     "margin": 0.007088216830860308,
+     "panel_bootstrap_95": {
+      "low": 7.4976480103643e-05,
+      "high": 0.00162829500398139
+     }
+    },
+    "Q2": {
+     "status": "pass",
+     "detail": "mean train-loss gap over the last 99 steps -0.000725, margin 0.008539",
+     "gap": -0.0007245394617620141,
+     "margin": 0.008539383363994684
+    },
+    "Q3": {
+     "status": "pass",
+     "detail": "mini_mmlu 25/26 vs 25 (margin 2), mini_common_sense 22/24 vs 22 (margin 2), mini_instruction 24/24 vs 22 (margin 2), mini_arithmetic 28/40 vs 27 (margin 2)",
+     "suites": {
+      "mini_mmlu": {
+       "exact": 25,
+       "noise_seed": 24,
+       "codec": 25,
+       "n": 26,
+       "drop": 0,
+       "margin": 2,
+       "gating": true
+      },
+      "mini_common_sense": {
+       "exact": 22,
+       "noise_seed": 23,
+       "codec": 22,
+       "n": 24,
+       "drop": 0,
+       "margin": 2,
+       "gating": true
+      },
+      "mini_instruction": {
+       "exact": 22,
+       "noise_seed": 23,
+       "codec": 24,
+       "n": 24,
+       "drop": -2,
+       "margin": 2,
+       "gating": true
+      },
+      "mini_arithmetic": {
+       "exact": 27,
+       "noise_seed": 27,
+       "codec": 28,
+       "n": 40,
+       "drop": -1,
+       "margin": 2,
+       "gating": true
+      }
+     },
+     "failing": []
+    }
+   }
+  }
+ },
+ "validity": {
+  "V1_error_eligible": {
+   "ok": true,
+   "detail": "error.json: cuda"
+  },
+  "V2_harness_exact": {
+   "ok": true,
+   "detail": "GA == L2L, recording == plain, identity == plain in 2 sets (grads and losses torch.equal)"
+  },
+  "V3_forward_exact": {
+   "ok": true,
+   "detail": "every codec's per-micro-batch losses torch.equal to exact L2L"
+  },
+  "V4_codec_conforms": {
+   "ok": true,
+   "detail": "every codec's element error within its definition"
+  },
+  "V5_control_discriminates": {
+   "ok": true,
+   "detail": "int4 must fail every error gate; it fails E1, E2 and E3"
+  },
+  "V15_error_complete": {
+   "ok": true,
+   "detail": "2 sets x 3 codecs, 32 layers each, 4096 rows per layer, gradient tensor counts equal to the exact control, every metric finite"
+  },
+  "V6_training_eligible": {
+   "ok": true,
+   "detail": "four cuda arms"
+  },
+  "V7_arms_complete": {
+   "ok": true,
+   "detail": "every arm ran every step, finite"
+  },
+  "V8_same_inputs": {
+   "ok": true,
+   "detail": "same data, panel, harness, commit, versions, GPU and model"
+  },
+  "V9_configs": {
+   "ok": true,
+   "detail": "every arm ran its own (codec, seed); codec arms differ only in codec, noise arm only in seed"
+  },
+  "V10_first_step_forward_exact": {
+   "ok": true,
+   "detail": "first-step per-micro-batch losses of the main-seed arms: {'bf16': [0.8514249920845032, 0.5370102524757385, 0.4189463257789612, 0.6421406865119934], 'int8': [0.8514249920845032, 0.5370102524757385, 0.4189463257789612, 0.6421406865119934], 'fp8_e4m3': [0.8514249920845032, 0.5370102524757385, 0.4189463257789612, 0.6421406865119934]}"
+  },
+  "V11_noise_floor_usable": {
+   "ok": true,
+   "detail": "seed-to-seed task-loss spread 0.0005525439157887391 must be <= 0.03 x exact task loss"
+  },
+  "V12_suites_records": {
+   "ok": true,
+   "detail": "four suites records, adapters match"
+  },
+  "V13_base_parity": {
+   "ok": true,
+   "detail": "resident base reproduces the streamed model on every arm's parity rows (worst rel 0 <= 0.0025); live adapters equal their files"
+  },
+  "V14_error_linked": {
+   "ok": true,
+   "detail": "error.json and every arm: same model, code, dependencies, data and setup"
+  },
+  "V16_panel_complete": {
+   "ok": true,
+   "detail": "4 arms x 512 panel rows as recorded, unique ids, the same rows and token counts in every arm (41990 scored tokens; 4 rows score none); every final.task_loss is its rows' token-weighted NLL"
+  },
+  "V17_suite_items": {
+   "ok": true,
+   "detail": "4 records score the same questions and answers (mini_mmlu 26, mini_common_sense 24, mini_instruction 24, mini_arithmetic 40); n and correct agree with every item table"
+  }
+ },
+ "noise_floor": {
+  "task_loss_exact": 1.4176433661720615,
+  "task_loss_noise_seed": 1.4181959100878503,
+  "task_loss_noise": 0.0005525439157887391,
+  "task_loss_margin": 0.007088216830860308,
+  "curve_noise": 0.004213546111126139,
+  "curve_tail_mean": 1.707876672798937,
+  "curve_margin": 0.008539383363994684
+ },
+ "memory": {
+  "train-bf16-seed1.json": {
+   "measured_bytes_per_token_per_layer": 8192.0,
+   "arithmetic_bytes_per_token_per_layer": 8192.0,
+   "store_host_bytes": 536870912,
+   "peak_alloc_gb": 1.4294784,
+   "peak_reserved_gb": 1.595932672,
+   "compress_s": 0.0,
+   "restore_s": 0.0,
+   "train_s": 1442.3972213989764
+  },
+  "train-int8-seed1.json": {
+   "measured_bytes_per_token_per_layer": 4100.0,
+   "arithmetic_bytes_per_token_per_layer": 4100.0,
+   "store_host_bytes": 268697600,
+   "peak_alloc_gb": 1.429478912,
+   "peak_reserved_gb": 1.595932672,
+   "compress_s": 11.395871402074526,
+   "restore_s": 17.653869924440848,
+   "train_s": 1487.799604107975
+  },
+  "train-fp8_e4m3-seed1.json": {
+   "measured_bytes_per_token_per_layer": 4100.0,
+   "arithmetic_bytes_per_token_per_layer": 4100.0,
+   "store_host_bytes": 268697600,
+   "peak_alloc_gb": 1.429478912,
+   "peak_reserved_gb": 1.595932672,
+   "compress_s": 10.186628384067072,
+   "restore_s": 15.90033638920644,
+   "train_s": 1409.108712621004
+  },
+  "train-bf16-seed2.json": {
+   "measured_bytes_per_token_per_layer": 8192.0,
+   "arithmetic_bytes_per_token_per_layer": 8192.0,
+   "store_host_bytes": 536870912,
+   "peak_alloc_gb": 1.4294784,
+   "peak_reserved_gb": 1.595932672,
+   "compress_s": 0.0,
+   "restore_s": 0.0,
+   "train_s": 1407.705118990998
+  }
+ },
+ "timing": {
+  "present": true,
+  "comparisons": {
+   "int8": {
+    "valid_blocks": 5,
+    "blocks_needed": 2,
+    "repeats_rule_met": true,
+    "mean_step_s_bf16": 3.080137056049716,
+    "mean_step_s_codec": 3.2304422300527222,
+    "step_time_ratio_codec_over_bf16": 1.0487982097120616,
+    "note": "a time ratio, not a speed-up from the memory saving"
+   },
+   "fp8_e4m3": {
+    "valid_blocks": 5,
+    "blocks_needed": 2,
+    "repeats_rule_met": true,
+    "mean_step_s_bf16": 3.1707507995975903,
+    "mean_step_s_codec": 3.244842420898203,
+    "step_time_ratio_codec_over_bf16": 1.0233672167834873,
+    "note": "a time ratio, not a speed-up from the memory saving"
+   }
+  }
+ },
+ "per_token_arithmetic": [
+  {
+   "shape": "mistral-7b-v0.3",
+   "layers": 32,
+   "hidden": 4096,
+   "codec": "bf16",
+   "bytes_per_token": 262144,
+   "tokens_per_step_factor_at_fixed_ram": 1.0,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "mistral-7b-v0.3",
+   "layers": 32,
+   "hidden": 4096,
+   "codec": "int8",
+   "bytes_per_token": 131200,
+   "tokens_per_step_factor_at_fixed_ram": 1.9980487804878049,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "mistral-7b-v0.3",
+   "layers": 32,
+   "hidden": 4096,
+   "codec": "fp8_e4m3",
+   "bytes_per_token": 131200,
+   "tokens_per_step_factor_at_fixed_ram": 1.9980487804878049,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "kimi-k2",
+   "layers": 61,
+   "hidden": 7168,
+   "codec": "bf16",
+   "bytes_per_token": 874496,
+   "tokens_per_step_factor_at_fixed_ram": 1.0,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "kimi-k2",
+   "layers": 61,
+   "hidden": 7168,
+   "codec": "int8",
+   "bytes_per_token": 437492,
+   "tokens_per_step_factor_at_fixed_ram": 1.9988845510317903,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "kimi-k2",
+   "layers": 61,
+   "hidden": 7168,
+   "codec": "fp8_e4m3",
+   "bytes_per_token": 437492,
+   "tokens_per_step_factor_at_fixed_ram": 1.9988845510317903,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "deepseek-v3",
+   "layers": 61,
+   "hidden": 7168,
+   "codec": "bf16",
+   "bytes_per_token": 874496,
+   "tokens_per_step_factor_at_fixed_ram": 1.0,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "deepseek-v3",
+   "layers": 61,
+   "hidden": 7168,
+   "codec": "int8",
+   "bytes_per_token": 437492,
+   "tokens_per_step_factor_at_fixed_ram": 1.9988845510317903,
+   "kind": "arithmetic estimate, not measured"
+  },
+  {
+   "shape": "deepseek-v3",
+   "layers": 61,
+   "hidden": 7168,
+   "codec": "fp8_e4m3",
+   "bytes_per_token": 437492,
+   "tokens_per_step_factor_at_fixed_ram": 1.9988845510317903,
+   "kind": "arithmetic estimate, not measured"
+  }
+ ],
+ "bounds": {
+  "restore_rms_row_rel": 0.05,
+  "restore_worst_row_rel": 0.25,
+  "branch_rms_row_rel": 0.1,
+  "grad_global_rel_l2": 0.05,
+  "grad_min_cosine": 0.99,
+  "element_bound": {
+   "int8": 0.007843257874015748,
+   "fp8_e4m3": 0.06640625,
+   "int4": 0.07533482142857142
+  },
+  "quality_floor_rel": 0.005,
+  "noise_cap_rel": 0.03,
+  "curve_tail": 0.25,
+  "suites": [
+   "mini_mmlu",
+   "mini_common_sense",
+   "mini_instruction",
+   "mini_arithmetic"
+  ],
+  "suite_min_margin": 2,
+  "base_parity_rel": 0.0025
+ }
+}
