@@ -272,3 +272,36 @@ def test_traces_of_other_shapes_cannot_be_compared(diag):
 
 def test_a_missing_trace_is_no_data(diag):
     assert diag.first_diverging_layer(None, _trace())["state"] == "no_data"
+
+
+def _masked(trace, mask):
+    import torch
+
+    return {**trace, "mask": torch.tensor(mask, dtype=torch.bool)}
+
+
+def test_a_gap_only_at_padded_positions_is_not_a_difference(diag):
+    # row 1 is padded after position 1: GA masks it, L2L does not, so the outputs there differ
+    mask = [[1, 1, 1, 1], [1, 1, 0, 0]]
+    other = _masked(_trace(), mask)
+    other["layers"][0] = other["layers"][0].clone()
+    other["layers"][0][1, 2:, :] += 7.0
+    verdict = diag.first_diverging_layer(_masked(_trace(), mask), other)
+    assert verdict["state"] == "equal"
+
+
+def test_a_gap_at_a_real_position_is_named_even_when_the_trace_has_padding(diag):
+    mask = [[1, 1, 1, 1], [1, 1, 0, 0]]
+    other = _masked(_trace(), mask)
+    other["layers"][2] = other["layers"][2].clone()
+    other["layers"][2][0, 3, :] += 0.5
+    verdict = diag.first_diverging_layer(_masked(_trace(), mask), other)
+    assert verdict["first"] == 2
+
+
+def test_traces_with_different_masks_cannot_be_compared(diag):
+    one = _masked(_trace(), [[1, 1, 1, 1], [1, 1, 0, 0]])
+    two = _masked(_trace(), [[1, 1, 1, 1], [1, 1, 1, 0]])
+    verdict = diag.first_diverging_layer(one, two)
+    assert verdict["state"] == "no_data"
+    assert "mask" in verdict["reason"]
