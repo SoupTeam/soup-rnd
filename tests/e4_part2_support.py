@@ -21,3 +21,12 @@ from e4_part2_dryrun import (  # noqa: E402, F401
     tiny_model,
     write_legacy_checkpoint,
 )
+
+
+def stub_pynvml(monkeypatch):
+    """`calibrate`/`run`/`drive` refuse without pynvml on a GPU device (nvml_problem). Tests
+    that drive those commands past that check on a CPU box stub the module."""
+    import sys
+    import types
+
+    monkeypatch.setitem(sys.modules, "pynvml", types.ModuleType("pynvml"))

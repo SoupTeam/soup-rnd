@@ -926,7 +926,7 @@ def test_guard_cleans_up_arbitrary_expert_exceptions_and_the_stepper_can_run_aga
         import torch
 
         inside = torch._C._current_autograd_node() is not None
-        # ExpertNode.forward itself disables grad even during the grad recompute; classify
+        # FrozenExpert.forward itself disables grad even during the grad recompute; classify
         # the caller from the guard's real visit, not the custom Function's grad mode.
         recording = guard_runs.guards[-1]._visit[2] if not inside else None
         current = "backward" if inside else "forward" if recording else "recompute"
@@ -1064,12 +1064,13 @@ def test_expert_loads_remain_visible_in_trainer_logs_and_dense_fields_stay_uncha
     assert fields["l2l_expert_bytes_read"] == sum(w.counters.expert_bytes_read for w in windows)
     assert fields["l2l_expert_fetches"] > 0 and fields["l2l_expert_bytes_read"] > 0
     state.runtime = SimpleNamespace(expert_pool=None)
-    assert state.log_fields() == {
-        "l2l_steps": 2,
-        "l2l_layer_loads": state.totals.layer_loads,
-        "l2l_large_loads": state.totals.large_loads,
-        "l2l_weight_restores": state.totals.restores,
-    }
+    dense = state.log_fields()
+    assert not [key for key in dense if "expert" in key]
+    assert dense["l2l_steps"] == 2
+    assert dense["l2l_layer_loads"] == state.totals.layer_loads
+    assert dense["l2l_large_loads"] == state.totals.large_loads
+    assert dense["l2l_weight_restores"] == state.totals.restores
+    assert {key: value for key, value in fields.items() if "expert" not in key} == dense
 
 
 def check_bf16_forward_amp(

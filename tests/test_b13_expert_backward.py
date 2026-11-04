@@ -274,8 +274,10 @@ def test_only_the_inputs_that_need_grad_get_one(tmp_path: Path, needs: tuple[str
         _assert_exact(want, got)
         assert (got.hidden_grad is None) == ("hidden" not in needs)
         assert (got.weights_grad is None) == ("weights" not in needs)
-        # either input alone makes every hit expert one node that is read again in backward
-        assert reader.fetches == pool.fetches == 2 * len(_hit(args))
+        # a hidden gradient makes every hit expert one node that is read again in backward; the
+        # routing weight multiplies outside the node, so its gradient alone needs no reload
+        reloads = len(_hit(args)) if "hidden" in needs else 0
+        assert reader.fetches == pool.fetches == len(_hit(args)) + reloads
     finally:
         _close(reader, pool)
 
@@ -596,16 +598,9 @@ def test_second_order_differentiation_is_refused_and_frees_the_pool(tmp_path: Pa
     hidden.requires_grad_(True)
     try:
         out = streamed(hidden, index, weights)
-        # a constant upstream gradient: the returned gradient carries no graph at all
-        (plain,) = torch.autograd.grad(out, hidden, _upstream(out), create_graph=True)
-        assert not plain.requires_grad
-        # an upstream gradient that requires grad: torch refuses to differentiate the node twice
-        out = streamed(hidden, index, weights)
-        upstream = _upstream(out).requires_grad_(True)
-        (graphed,) = torch.autograd.grad(out, hidden, upstream, create_graph=True)
         loaded = reader.fetches
-        with pytest.raises(RuntimeError, match="twice"):
-            graphed.sum().backward()
+        with pytest.raises(RuntimeError, match="higher-order"):
+            torch.autograd.grad(out, hidden, _upstream(out), create_graph=True)
         assert reader.fetches == loaded  # nothing was differentiated against the arena
         with pool.lease(reader, 0):  # no lease leaked from the refused second-order pass
             pass
@@ -848,8 +843,9 @@ def check_negative_control(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *,
     device: str, dtype: str, nf4: bool = False, nested: bool = False,
 ) -> None:
-    """Expert weights perturbed only on loads inside autograd's engine: the output stays equal
-    and both gradients differ; unperturbed on the same inputs everything is equal.
+    """Expert weights perturbed only on loads inside autograd's engine: the output and the
+    routing-weight gradient stay equal and the hidden gradient differs; unperturbed on the same
+    inputs everything is equal.
 
     Shared with the CUDA file.
     """
@@ -872,8 +868,10 @@ def check_negative_control(
         loads.perturb = _perturb_down
         perturbed = _run(streamed, args)
         assert sorted(loads.perturbed) == hit  # every backward load, and no forward load
+        # The routing-weight gradient comes from the saved forward output, not a reloaded
+        # expert, so only the hidden gradient carries the backward-only perturbation.
         assert _parts(want, perturbed) == {
-            "output": True, "hidden grad": False, "weights grad": False,
+            "output": True, "hidden grad": False, "weights grad": True,
         }
         # the perturbation left no trace in the cache file or the arena: exact again after it
         loads.perturb = None
@@ -1021,7 +1019,7 @@ def test_malformed_routing_with_grad_bearing_inputs_still_fails_before_a_read(
 
 
 # --------------------------------------------------------------------------
-# accepted callable activations: stochastic replay and explicit mutable-state refusal
+# RNG isolation of the SiLU recompute
 # --------------------------------------------------------------------------
 def _rng_equal(left: Any, right: Any) -> bool:
     import torch
@@ -1033,12 +1031,12 @@ def _rng_equal(left: Any, right: Any) -> bool:
 
 
 def check_activation_rng_replay(
-    tmp_path: Path, *, device: str, stochastic: bool, checkpoint: str | None = None
+    tmp_path: Path, *, device: str, checkpoint: str | None = None
 ) -> dict[str, Any]:
-    """Actual installer/reader/pool with an admitted parameterless activation.
+    """Actual installer/reader/pool with the native SiLU activation.
 
-    Churn the outer RNG after forward, then backpropagate: local replay must use each
-    expert's original masks without moving the caller's CPU or CUDA generator.
+    Churn the outer RNG after forward, then backpropagate: the recompute must neither draw
+    from nor move the caller's CPU or CUDA generator, and the gradients stay exact.
     """
     import torch
     from torch.utils.checkpoint import checkpoint as run_checkpointed
@@ -1048,8 +1046,6 @@ def check_activation_rng_replay(
 
     module, _ = _experts()
     module.to(device)
-    if stochastic:
-        module.act_fn = torch.nn.Dropout(0.5).train()
     reader, pool = _store(tmp_path, module, device=device)
     holder = _routed_holder(module)
     args = _inputs(device=device, partial=True)
@@ -1075,7 +1071,7 @@ def check_activation_rng_replay(
         out.backward(_upstream(out))
         after_backward = l2l_rng.snapshot()
         assert _rng_equal(before_backward, after_backward)
-        assert _rng_equal(start, after_forward) != stochastic
+        assert _rng_equal(start, after_forward)
         return _Run(out.detach(), hidden.grad, weights.grad), after_forward, after_backward
 
     try:
@@ -1100,28 +1096,31 @@ def check_activation_rng_replay(
         _close(reader, pool)
 
 
-@pytest.mark.parametrize("stochastic", [False, True], ids=["silu", "dropout"])
 @pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
-def test_installed_parameterless_activation_replays_rng_without_consuming_the_outer_stream(
-    tmp_path: Path, stochastic: bool, checkpoint: str | None,
+def test_installed_silu_backward_does_not_consume_the_outer_stream(
+    tmp_path: Path, checkpoint: str | None,
     record_property: Callable[[str, Any], None],
 ) -> None:
-    evidence = check_activation_rng_replay(
-        tmp_path, device="cpu", stochastic=stochastic, checkpoint=checkpoint
-    )
+    evidence = check_activation_rng_replay(tmp_path, device="cpu", checkpoint=checkpoint)
     for key, value in evidence.items():
         record_property(key, value)
 
 
-def test_activation_buffers_are_refused_before_backward_reads_but_no_grad_stays_supported(
-    tmp_path: Path,
+@pytest.mark.parametrize("activation", ["dropout", "batch_norm"])
+def test_unproven_activations_are_refused_before_any_read_but_no_grad_stays_supported(
+    tmp_path: Path, activation: str,
 ) -> None:
+    """Stochastic or stateful activations cannot be recomputed in backward, so training refuses
+    them before reading an expert; the no-grad B1.2 forward still streams them."""
     import torch
 
     from soup_cli.utils.expert_stream import install_streamed_experts
 
     module, _ = _experts()
-    module.act_fn = torch.nn.BatchNorm1d(16, affine=False).train()
+    module.act_fn = (
+        torch.nn.Dropout(0.5).train() if activation == "dropout"
+        else torch.nn.BatchNorm1d(16, affine=False).train()
+    )
     reader, pool = _store(tmp_path, module)
     holder = _routed_holder(module)
     args = _inputs(partial=True)
@@ -1130,18 +1129,15 @@ def test_activation_buffers_are_refused_before_backward_reads_but_no_grad_stays_
         streamed = holder.mlp.experts
         before = reader.fetches
         hidden, index, weights = (tensor.clone() for tensor in args)
-        with pytest.raises(ValueError, match="backward requires a stateless activation"):
+        with pytest.raises(ValueError, match="stateless SiLU"):
             streamed(hidden.requires_grad_(True), index, weights.requires_grad_(True))
         assert reader.fetches == before
-        assert module.act_fn.num_batches_tracked.item() == 0
-        with torch.no_grad():
-            want = module(*args)
-        module.act_fn.reset_running_stats()
+        if activation == "batch_norm":
+            assert module.act_fn.num_batches_tracked.item() == 0
         with torch.no_grad():
             got = streamed(*args)
-        assert torch.equal(want, got)
+        assert got.shape == args[0].shape
         assert reader.fetches - before == len(_hit(args))
-        assert module.act_fn.num_batches_tracked.item() == len(_hit(args))
         with pool.lease(reader, 0):
             pass
     finally:

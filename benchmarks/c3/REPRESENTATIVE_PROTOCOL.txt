@@ -1,0 +1,94 @@
+C3 prospective dense-model validation, 2026-10-30
+
+No historical result or threshold is changed by this protocol. H2 is owned by
+Claude and is outside this run. This file does not authorize new spending.
+
+Source and preparation
+- Freeze this source tree, every modified/new file hash and this protocol before
+  the paid attempt. Preserve the base Git commit and overlay manifest if unpublished.
+- Fixed source: unsloth/Meta-Llama-3.1-8B at
+  e9a141a2091ea561b96483212645a2a05e6f99fc. All source-file identities are in
+  representative_model.json. The USB copy passed a fresh full-file readback.
+- Use the same hash-pinned Linux Python/wheel bundle as successful attempt010.
+  No dependency upgrade or code repair during the paid run.
+- Download the public frozen files once, without credentials/retries/resume, then
+  verify full SHA256 and size before sharding. Prepare shards once, bf16, quant=none.
+  Every arm verifies all derived shard hashes before CUDA initialization.
+- Six fixed batches of 256 real-tokenizer IDs in representative_tokens.json.
+  BOS + 255 consecutive tokens from repeated controlled text. No padding; labels
+  equal input IDs; 255 effective prediction targets per update. This is a real
+  pretrained dense model on controlled text, not a representative training dataset
+  or a model-quality evaluation. Corpus and tokenization are fixed before hardware.
+
+Host and lease admission
+- One owned RTX4090, >=24GB VRAM, >=64GB assigned host RAM, >=24GiB available at
+  preflight; Linux x86_64, glibc>=2.39, CUDA driver supporting the frozen runtime.
+- 32GB container plus 100GB fresh volume mounted /data. Actual volume and shard
+  filesystem must map to one readable physical NVMe device. Require O_DIRECT;
+  no buffered fallback, loop/overlay-only device or unknown ownership.
+- Record instance/volume IDs, boot ID, GPU UUID, driver, package versions, source,
+  mount/device inventory, exclusive GPU initialization and pinned-storage status.
+- Reconcile the existing C3 USD5 series cap. Current conservative prior total is
+  USD2.50: previous reservation upper bound2.05 plus attempt010 displayed0.33
+  instance +0.09 volume +0.03 rounding margin. This is not an invoice.
+- At <=USD0.65/hour for both disks and GPU, two hours +25GB combined traffic at
+  <=USD10/TB +USD0.90 cleanup margin is <=USD2.45 additional, <=USD4.95 series.
+  Select a cheaper candidate when available. No extra allowance is implied.
+- Hard Stop at rental request+7200s; initiate Stop 180s early. All setup, staging,
+  controls, compute and preservation share this lease. No new arm after the shared
+  work deadline; reserve at least600s for export/verification/Stop. Stop on any
+  failure, no retries. Keep unique evidence until archive SHA verification and
+  applicable action-time deletion confirmation. Never touch protected resources.
+
+Controls and execution
+1. Five CUDA controls (gpu_tests.py): existing two C3 controls plus three actual
+   L2L comparisons with zero/partial/full activation spill, pinned buffers and
+   O_DIRECT. Both arms use the same layer-major schedule; only weight cache changes.
+   Require five passes and zero skips. Shared ownership/cleanup must pass.
+2. Existing physical-read calibration and foreign-reader injection run unchanged
+   on the same /data filesystem. Failure/unknown blocks measurement.
+3. isolated_compare --mode cuda-representative --prepared PREPARED_JSON with the
+   explicit absolute work deadline. Five ABBA blocks, 20 fresh processes; no arm
+   replacement. Six AdamW updates each, first two warmup. Model seed7; adapterseed3;
+   LoRA q/v r4 alpha8 dropout0, AdamW lr0.001, remaining defaults pinned by lock.
+   Deterministic algorithms, CUBLAS_WORKSPACE_CONFIG=:4096:8, TF32 off.
+4. A uses existing disk source, B partial RAM; both read_ahead1, pinned host buffers,
+   bf16 storage/compute, same source/config/token IDs and initial adapters.
+   B envelope16GiB, fixed reserve6GiB, resident allocation cap4GiB. Require strict
+   partial decoder residency. Loading transient and staging fit before allocation.
+   Envelope is an accounted-allocation bound, never an RSS claim.
+5. Require exactly equal losses, every gradient hash and final adapter hashes;
+   both arms must update adapters. Preserve any failure; no tolerance relaxation.
+6. Keep startup/hash verification/cache fill separate. Preserve training-only
+   seconds (historical definition) AND the instrumented window spanning identical
+   physical-counter boundaries, including numerical hashes/checks. Use only the
+   latter for tokens/time vs physical reads. Explicitly disclose this overhead.
+   Record per-step logical read counts, process/device bytes, source allocation
+   statistics, peak CUDA allocated/reserved, and process-lifetime RSS. RSS includes
+   setup/cache fill; it is not a training-only peak. No CPU RSS comparisons.
+
+Review / permitted conclusion
+- Numerical PASS is separate from performance. Apply unchanged F1 power/suspend/
+  foreign-I/O and complete clock/ownership gates. Apply arm_validity.repeats to
+  five ABBA blocks of per-arm median instrumented windows; if more than five are
+  needed, leave performance NO_VERDICT, do not extend the paid attempt.
+- Preserve all blocks, controls, source/prepared identities and exclusions. No
+  numerical or hardware claim follows from CPU smoke. Full hashes identify exactly
+  the version tested; no independent reviewer is claimed for local self-review.
+- Report per-configuration measurements and uncertainty, not a universal speedup.
+  Public stream_partial_ram+l2l remains refused: this validates the shared low-level
+  bridge and the supported non-L2L training path, not a public A4 spill scheduler.
+- The bridge matches A4 StoreLayout floor=0 at commit
+  d6f7f733e09599327c61e67a3cf5434bfaa78164. Fixed reservations must protect mandatory
+  source/process needs before activation planning; activations precede OPTIONAL
+  C3 residency. Allocation leases cannot substitute for measuring process RSS.
+
+Local sequence (CPU smoke only uses tiny fixtures in tests):
+  pytest tests/test_c3_representative_workload.py tests/test_c3_l2l_shared_runtime.py
+Remote preparation (under bounded supervisor; NEW destinations only):
+  python -m benchmarks.c3.representative_workload --snapshot /data/c3/model \
+    --output /data/c3/prepared --download-deadline-unix-s ABSOLUTE_SETUP_DEADLINE
+Remote comparison (same absolute outer work deadline):
+  python -m benchmarks.c3.isolated_compare --mode cuda-representative \
+    --prepared /data/c3/prepared/prepared.json --output /data/c3/evidence/comparison \
+    --deadline-unix-s ABSOLUTE_WORK_DEADLINE

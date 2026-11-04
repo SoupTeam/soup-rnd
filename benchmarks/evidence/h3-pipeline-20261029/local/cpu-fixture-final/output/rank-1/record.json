@@ -1,0 +1,80 @@
+{
+  "rank": 1,
+  "world_size": 2,
+  "device": "cpu",
+  "layers": [
+    2,
+    3
+  ],
+  "pid": 22352,
+  "observed_stage_calls": {
+    "forward": 8,
+    "backward": 8
+  },
+  "stage_parameter_numel": 22560,
+  "trainable_numel": 1792,
+  "schedule": "ScheduleGPipe",
+  "plan": {
+    "stages": 2,
+    "microbatches": 2,
+    "micro_batch": 2,
+    "schedule_batch": 4,
+    "accumulation": 2,
+    "global_batch": 8
+  },
+  "records": [
+    {
+      "step": 1,
+      "row_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "gradient_error": 0.0,
+      "adapter_error": 0.0,
+      "loss": 4.154519081115723
+    },
+    {
+      "step": 2,
+      "row_ids": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "gradient_error": 0.0,
+      "adapter_error": 0.0,
+      "loss": 4.169899582862854
+    }
+  ],
+  "changed_adapter_tensors": 8,
+  "adapter_keys": [
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_B.weight"
+  ],
+  "frozen_before": "953668205bb7104459dcf2434dd9d2dc4eaa611c08ff2b25185105934d345182",
+  "frozen_after": "953668205bb7104459dcf2434dd9d2dc4eaa611c08ff2b25185105934d345182",
+  "peak_vram": null,
+  "wall_seconds_with_correctness_probes": 0.07800000000133878,
+  "rss_before_training": 479608832,
+  "rss_after_training": 480915456,
+  "host_used_ram_after_training": 15796396032,
+  "host_ram_method": "point samples, not peak or unique process totals",
+  "precision": "IEEE FP32; eager attention; no AMP/TF32",
+  "performance_measurement": false
+}

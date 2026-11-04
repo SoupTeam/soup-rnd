@@ -1,0 +1,32 @@
+"""Diagnostic only: retain physical parameter rows before the original refusal."""
+import inspect
+import json
+import os
+from pathlib import Path
+
+import h3_fsdp_gate
+
+_original = h3_fsdp_gate.assert_shards
+
+
+def diagnostic(counts, total, fsdp_units):
+    frame = inspect.currentframe().f_back
+    trainer = frame.f_locals['trainer']
+    rows = {}
+    for name, parameter in trainer.model_wrapped.named_parameters(remove_duplicate=False):
+        local = parameter.to_local() if hasattr(parameter, 'to_local') else parameter
+        rows[name] = {
+            'global_shape': list(parameter.shape), 'global_numel': parameter.numel(),
+            'local_shape': list(local.shape), 'local_numel': local.numel(),
+            'dtype': str(parameter.dtype), 'device': str(local.device),
+            'placements': str(getattr(parameter, 'placements', None)),
+            'parameter_id': id(parameter), 'storage_ptr': local.untyped_storage().data_ptr(),
+            'storage_bytes': local.untyped_storage().nbytes(),
+        }
+    target = Path('/tmp') / f"h3-storage-rank-{os.environ.get('RANK', '0')}.json"
+    target.write_text(json.dumps({'counts': counts, 'prewrap_unique_total': total,
+                                 'fsdp_units': fsdp_units, 'parameters': rows}, indent=2))
+    return _original(counts, total, fsdp_units)
+
+
+h3_fsdp_gate.assert_shards = diagnostic

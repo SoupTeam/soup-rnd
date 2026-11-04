@@ -1,0 +1,21 @@
+Mutation: bypass deferred loading and restore eager joint sharding.
+Expected exit=1; observed exit=1
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______ test_real_two_rank_preparation_preserves_full_weights[no-True] ________
+tests\test_h3_fsdp_tied_embeddings.py:188: in test_real_two_rank_preparation_preserves_full_weights
+    while not context.join(timeout=1):
+..\..\..\..\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\multiprocessing\spawn.py:211: in join
+    raise ProcessRaisedException(msg, error_index, failed_process.pid)
+E   torch.multiprocessing.spawn.ProcessRaisedException: 
+E   
+E   -- Process 0 terminated with the following error:
+E   Traceback (most recent call last):
+E     File "C:\Users\esenb\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\multiprocessing\spawn.py", line 87, in _wrap
+E       fn(i, *args)
+E     File "C:\Users\esenb\.codex\worktrees\h3-fsdp-lora-20261026\soup-rnd-d2\tests\test_h3_fsdp_tied_embeddings.py", line 151, in _prepare_two_cpu_ranks
+E       assert not isinstance(model.embed.weight, DTensor)
+E   AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_h3_fsdp_tied_embeddings.py::test_real_two_rank_preparation_preserves_full_weights[no-True]
+1 failed in 10.06s

@@ -1,11 +1,11 @@
-"""B1.3: streamed routed MoE experts with backward (B1.2 forward), adapted from Soup d500ae0d.
+"""Internal MoE streaming with a bounded reusable expert arena and per-expert backward.
 
-The eager expert loop is preserved. One reusable weight arena replaces the
-original fetcher's independently allocated tensors. Each hit expert is one
-autograd node: forward and backward lease it through the same reader and the
-same bounded pool, so backward re-reads exactly the experts it needs. Routed
-expert weights stay frozen constants and adapters belong outside routed experts.
-This module is the expert primitive only; YAML/CLI/planner enablement is B1.4.
+The eager expert loop is preserved. One reusable weight arena replaces the original fetcher's
+independently allocated tensors. Each hit expert is one autograd node: forward and backward
+lease it through the same reader and the same bounded pool, so backward re-reads exactly the
+experts it needs. Routed expert weights stay frozen constants, adapters belong outside routed
+experts and backward admits only the validated stateless SiLU activation. This module is the
+expert primitive only; public YAML/CLI/planner enablement lives elsewhere.
 """
 
 from __future__ import annotations
@@ -97,6 +97,16 @@ def plan_expert_buffer(reader: ExpertShardReader, *, dtype: str) -> ExpertBuffer
     return _buffer_layout(reader, dtype)[0]
 
 
+def expert_allocation_budget(plan: ExpertBufferPlan, *, device: str) -> int:
+    """Include an explicit CUDA allocator allowance above logical tensor storage.
+
+    Reused allocator blocks can be larger than the requested arena. The pool
+    still checks the observed allocation against this finite budget; this is a
+    reserve, not an assumption that every allocator configuration fits it.
+    """
+    return plan.weight_bytes + (32 * 2**20 if str(device).startswith("cuda") else 0)
+
+
 class ExpertBufferPool:
     """One synchronous expert lease at a time, backed by one bounded arena.
 
@@ -178,7 +188,11 @@ class ExpertBufferPool:
                 if self.device.type == "cuda" else 0
             )
             if self.cuda_allocation_delta > weight_budget_bytes:
-                raise ValueError("CUDA allocator rounded the expert slot above the weight budget")
+                raise ValueError(
+                    "CUDA allocator rounded the expert slot above the weight budget: "
+                    f"observed {self.cuda_allocation_delta}, budget {weight_budget_bytes}, "
+                    f"logical storage {self.plan.weight_bytes} bytes"
+                )
         except BaseException:
             self._buffers.clear()
             self._arena = self._staging_owner = self._staging = None
@@ -326,83 +340,97 @@ def _validate_routing(hidden: Any, index: Any, weights: Any, pool: ExpertBufferP
         raise ValueError("routing weights must be finite")
 
 
+def _validate_training_activation(act_fn: Any) -> None:
+    """Recomputation is only valid for the native stateless SiLU implementations."""
+    import torch.nn as nn
+    from torch.nn.modules import module as module_hooks
+    from transformers.activations import SiLUActivation
+
+    if type(act_fn) not in (nn.SiLU, SiLUActivation):
+        raise ValueError("expert backward requires an unmodified stateless SiLU activation")
+    if (
+        getattr(act_fn, "inplace", False)
+        or "forward" in vars(act_fn)
+        or any(True for _ in act_fn.parameters())
+        or any(True for _ in act_fn.buffers())
+        or any(True for _ in act_fn.children())
+        or act_fn._forward_hooks
+        or act_fn._forward_pre_hooks
+        or act_fn._backward_hooks
+        or act_fn._backward_pre_hooks
+        or module_hooks._global_forward_hooks
+        or module_hooks._global_forward_pre_hooks
+        or module_hooks._global_backward_hooks
+        or module_hooks._global_backward_pre_hooks
+    ):
+        raise ValueError("expert backward requires an unmodified stateless SiLU activation")
+
+
 def _build_streamed_experts_class() -> Any:
     import torch
     import torch.nn as nn
     import torch.nn.functional as functional
 
-    def expert_mlp(hidden: Any, route: Any, gate_up: Any, down: Any, act_fn: Any) -> Any:
-        """The resident eager expert body, op for op, on already gathered slices."""
+    def expert_mlp(hidden: Any, gate_up: Any, down: Any, act_fn: Any) -> Any:
         gate, up = functional.linear(hidden, gate_up).chunk(2, dim=-1)
-        return functional.linear(act_fn(gate) * up, down) * route
+        return functional.linear(act_fn(gate) * up, down)
 
-    class ExpertNode(torch.autograd.Function):
+    class FrozenExpert(torch.autograd.Function):
         """One hit expert as one autograd node that leases its weights again in backward.
 
-        Forward computes under a pool lease. Only the gathered hidden and routing-weight
-        slices are saved (activation memory, never an arena view) and the output is a fresh
-        tensor. Backward unpacks them first, because under checkpointing that replays a
-        region which leases experts itself, then leases the same expert through the same
-        reader and pool, rebuilds the body with the forward's RNG and autocast state and lets
-        autograd differentiate the ops eager runs. RNG replay preserves the outer stream,
-        including for a stochastic stateless activation. The lease ends before gradients leave
-        the node. Backward is first-order only
-        (``once_differentiable``): the gradients carry no graph over the arena weights, which
-        the next lease overwrites, so a second derivative is refused (torch raises) rather than
-        taken against stale memory. The resident eager module does support second order.
+        Forward computes under a pool lease and saves only the gathered hidden slice (activation
+        memory, never an arena view). Backward leases the same expert through the same reader
+        and pool, rebuilds the body under the forward's autocast state and differentiates it
+        with respect to the hidden slice only. The routing weight is multiplied outside this
+        node, so its gradient needs the saved output rather than a second read. The activation
+        is validated as the stateless SiLU again before any expert is read, so the recompute
+        draws nothing the forward did not. Backward is first-order only: the gradients carry no
+        graph over the arena weights, which the next lease overwrites, so a higher-order
+        derivative is refused rather than taken against stale memory.
         """
 
         @staticmethod
-        def forward(
-            ctx: Any, hidden: Any, route: Any, reader: Any, pool: Any, act_fn: Any, expert: int
-        ) -> Any:
-            from soup_cli.utils.l2l_rng import snapshot
-
-            device_type = pool.device.type
-            ctx.reader, ctx.pool, ctx.act_fn, ctx.expert = reader, pool, act_fn, expert
-            ctx.autocast = (
-                device_type,
-                torch.is_autocast_enabled(device_type),
-                torch.get_autocast_dtype(device_type),
-                torch.is_autocast_cache_enabled(),
-            )
-            ctx.save_for_backward(hidden, route)
-            ctx.rng = snapshot()
-            with pool.lease(reader, expert) as (gate_up, down):
-                return expert_mlp(hidden, route, gate_up, down, act_fn)
+        def forward(ctx: Any, hidden: Any, owner: Any, expert: int) -> Any:
+            ctx.owner = owner
+            ctx.act_fn = owner.act_fn
+            ctx.expert = expert
+            ctx.device_type = hidden.device.type
+            ctx.autocast = {
+                "enabled": torch.is_autocast_enabled(ctx.device_type),
+                "dtype": torch.get_autocast_dtype(ctx.device_type),
+                "cache_enabled": torch.is_autocast_cache_enabled(),
+            }
+            ctx.save_for_backward(hidden)
+            with owner.pool.lease(owner.reader, expert) as (gate_up, down):
+                return expert_mlp(hidden, gate_up, down, owner.act_fn)
 
         @staticmethod
-        @torch.autograd.function.once_differentiable
-        def backward(ctx: Any, grad_output: Any) -> Tuple[Any, ...]:
-            from soup_cli.utils.l2l_rng import state_at
-
-            hidden, route = ctx.saved_tensors
-            need_hidden, need_route = ctx.needs_input_grad[:2]
-            device_type, enabled, dtype, cache = ctx.autocast
-            hidden = hidden.detach().requires_grad_(need_hidden)
-            route = route.detach().requires_grad_(need_route)
-            with ctx.pool.lease(ctx.reader, ctx.expert) as (gate_up, down):
-                with state_at(ctx.rng):
-                    with torch.enable_grad(), torch.autocast(
-                        device_type, dtype=dtype, enabled=enabled, cache_enabled=cache
-                    ):
-                        out = expert_mlp(hidden, route, gate_up, down, ctx.act_fn)
-                    wanted = [tensor for tensor in (hidden, route) if tensor.requires_grad]
-                    grads = iter(torch.autograd.grad(out, wanted, grad_output))
-            return (
-                next(grads) if need_hidden else None,
-                next(grads) if need_route else None,
-                None, None, None, None,
-            )
+        def backward(ctx: Any, grad_out: Any) -> Tuple[Any, None, None]:
+            if torch.is_grad_enabled():
+                raise RuntimeError("expert streaming does not support higher-order gradients")
+            if not ctx.needs_input_grad[0]:
+                return None, None, None
+            _validate_training_activation(ctx.act_fn)
+            (hidden,) = ctx.saved_tensors
+            with ctx.owner.pool.lease(ctx.owner.reader, ctx.expert) as (gate_up, down):
+                local = hidden.detach().requires_grad_(True)
+                # Only the recompute replays the forward's autocast state. The VJP itself runs
+                # in the caller's backward state, as eager autograd does, so a backward inside
+                # or outside an autocast region matches the resident module either way.
+                with torch.enable_grad(), torch.autocast(ctx.device_type, **ctx.autocast):
+                    result = expert_mlp(local, gate_up, down, ctx.act_fn)
+                (grad_hidden,) = torch.autograd.grad(result, local, grad_out)
+            return grad_hidden, None, None
 
     class StreamedExperts(nn.Module):
         """Eager expert loop over one-slot streamed weights, differentiable in its inputs.
 
         Hit experts are visited in ascending order. With autograd enabled and a hidden or
-        routing-weight input that requires grad, each visit is one ``ExpertNode`` whose
+        routing-weight input that requires grad, each visit is one ``FrozenExpert`` whose
         backward leases the same expert again through the same reader and pool; otherwise
-        the visit is a plain lease with identical arithmetic. Routed weights are frozen
-        constants and never receive a gradient.
+        the visit is a plain lease with identical arithmetic. The routing weight multiplies
+        the node's output with ordinary autograd. Routed weights are frozen constants and
+        never receive a gradient.
 
         ``last_trace`` holds one row per expert visited by the latest ``forward`` call, so it
         is bounded by the expert count; a checkpoint recompute is a forward call and replaces
@@ -434,23 +462,17 @@ def _build_streamed_experts_class() -> Any:
                 self.last_trace = []
                 self.pool.validate_reader(self.reader)
                 _validate_routing(hidden_states, top_k_index, top_k_weights, self.pool)
+                differentiable = torch.is_grad_enabled() and (
+                    hidden_states.requires_grad or top_k_weights.requires_grad
+                )
+                if differentiable:
+                    _validate_training_activation(self.act_fn)
                 if top_k_index.shape[1] > self.num_experts:
                     raise ValueError("routing top-k exceeds the expert count")
                 if top_k_index.numel() and (
                     top_k_index.min().item() < 0 or top_k_index.max().item() >= self.num_experts
                 ):
                     raise ValueError("routing contains an expert outside the reader")
-                differentiable = torch.is_grad_enabled() and (
-                    hidden_states.requires_grad or top_k_weights.requires_grad
-                )
-                if differentiable and isinstance(self.act_fn, nn.Module) and any(
-                    True for _ in self.act_fn.buffers()
-                ):
-                    raise ValueError(
-                        "streamed expert backward requires a stateless activation without "
-                        "registered buffers; stateful activation recomputation would update "
-                        "its state twice"
-                    )
                 final_hidden_states = torch.zeros_like(hidden_states)
                 expert_mask = functional.one_hot(top_k_index, num_classes=self.num_experts)
                 expert_mask = expert_mask.permute(2, 1, 0)
@@ -467,17 +489,8 @@ def _build_streamed_experts_class() -> Any:
                     before = self.reader.bytes_read
                     try:
                         current_state = hidden_states[token_idx]
-                        route_weight = top_k_weights[token_idx, top_k_pos, None]
-                        if differentiable:
-                            current = ExpertNode.apply(
-                                current_state, route_weight, self.reader, self.pool,
-                                self.act_fn, expert,
-                            )
-                        else:
-                            with self.pool.lease(self.reader, expert) as (gate_up, down):
-                                current = expert_mlp(
-                                    current_state, route_weight, gate_up, down, self.act_fn
-                                )
+                        current = FrozenExpert.apply(current_state, self, expert)
+                        current = current * top_k_weights[token_idx, top_k_pos, None]
                         row["status"] = "ok"
                     except BaseException:
                         row["status"] = "error"
@@ -525,8 +538,9 @@ def install_streamed_experts(
     """Replace only routed experts after validating ALL layers.
 
     Router, shared experts and dense layers stay with their original MoE code.
-    Routed experts become trainable-through but never trainable: their weights must be
-    frozen and carry no adapters or extra parameters. Readers and pool are caller-owned.
+    Routed experts become differentiable-through but never trainable: their weights must be
+    frozen and carry no adapters or extra parameters. Backward re-leases each hit expert and
+    requires the validated stateless SiLU activation. Readers and pool are caller-owned.
     Invalid installs do not alter the model.
     """
     if any(

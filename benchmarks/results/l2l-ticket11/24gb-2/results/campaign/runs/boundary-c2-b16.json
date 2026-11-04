@@ -1,0 +1,158 @@
+{
+ "config": "c2.yaml",
+ "sdpa": "MATH",
+ "deterministic": true,
+ "cublas_workspace_config": ":4096:8",
+ "failure": "OutOfMemoryError: CUDA out of memory. Tried to allocate 50.00 MiB. GPU 0 has a total capacity of 23.61 GiB of which 23.81 MiB is free. Including non-PyTorch memory, this process has 23.58 GiB memory in use. Of the allocated memory 22.93 GiB is allocated by PyTorch, and 319.01 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)",
+ "wall_s": 6.498754978179932,
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 3090",
+  "memory_total_mib": 24576,
+  "driver": "615.71.10"
+ },
+ "load": {
+  "read_bytes_since_process_start": 0,
+  "write_bytes_since_process_start": 94208,
+  "peak_vram_allocated_bytes": 4917381120,
+  "peak_rss_bytes": 15773495296,
+  "seconds_since_process_start": 5.607413552002981,
+  "counters": {
+   "layer_loads": 0,
+   "nf4_restores": 0,
+   "large_loads": 0,
+   "pinned_store_bytes": 0
+  }
+ },
+ "steps": [],
+ "losses": [],
+ "process_peak_rss_bytes": 2098794496,
+ "process_peak_vram_allocated_bytes": null,
+ "run": null,
+ "bucket": 0,
+ "profile": false,
+ "host_bandwidth": {
+  "bytes": 1073741824,
+  "pageable_copy_gb_s": 6.209467033451036,
+  "h2d_pinned_gb_s": 9.855279015757624,
+  "d2h_pinned_gb_s": 23.8331711947172
+ },
+ "sensor_samples": [
+  {
+   "t": 1.0030144730117172,
+   "gpu": {
+    "sm_mhz": 210.0,
+    "max_sm_mhz": 2100.0,
+    "temp_c": 50.0,
+    "power_w": 32.85,
+    "throttle": 1
+   },
+   "cpu": {
+    "busy": 0.04408316398311707,
+    "steal": 0.0,
+    "iowait": 0.0001563232765358762
+   },
+   "loadavg1": 6.44
+  },
+  {
+   "t": 2.0561060190666467,
+   "gpu": {
+    "sm_mhz": 210.0,
+    "max_sm_mhz": 2100.0,
+    "temp_c": 49.0,
+    "power_w": 32.96,
+    "throttle": 4
+   },
+   "cpu": {
+    "busy": 0.059865971705137744,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 6.44
+  },
+  {
+   "t": 3.101358940009959,
+   "gpu": {
+    "sm_mhz": 1695.0,
+    "max_sm_mhz": 2100.0,
+    "temp_c": 55.0,
+    "power_w": 74.44,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.07272454640875692,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 6.44
+  },
+  {
+   "t": 4.142836989019997,
+   "gpu": {
+    "sm_mhz": 1860.0,
+    "max_sm_mhz": 2100.0,
+    "temp_c": 56.0,
+    "power_w": 140.54,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.08286876600873894,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 6.49
+  },
+  {
+   "t": 5.187190236058086,
+   "gpu": {
+    "sm_mhz": 1890.0,
+    "max_sm_mhz": 2100.0,
+    "temp_c": 57.0,
+    "power_w": 145.87,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.08668870192307687,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 6.49
+  },
+  {
+   "t": 6.228610327001661,
+   "gpu": {
+    "sm_mhz": 1890.0,
+    "max_sm_mhz": 2100.0,
+    "temp_c": 57.0,
+    "power_w": 138.28,
+    "throttle": 0
+   },
+   "cpu": {
+    "busy": 0.08042168674698791,
+    "steal": 0.0,
+    "iowait": 0.0
+   },
+   "loadavg1": 6.49
+  }
+ ],
+ "sensors": {
+  "samples": 6,
+  "sensed": true,
+  "flags": [
+   "sm clock 89% of max"
+  ],
+  "sensors": {
+   "cpu_steal": 0.0,
+   "cpu_busy": 0.07110880612930258,
+   "cpu_outside": 0.035507334918941424,
+   "sm_clock_ratio_median": 0.8857142857142857,
+   "sm_mhz_min": 210.0,
+   "throttle_bits": 0,
+   "power_cap_share": 0.2
+  },
+  "disturbed": true
+ },
+ "end_peaks": {
+  "allocated": 24625800704,
+  "reserved": 24960303104
+ }
+}

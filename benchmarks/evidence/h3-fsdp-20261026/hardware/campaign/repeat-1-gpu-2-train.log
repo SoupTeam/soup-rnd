@@ -1,0 +1,122 @@
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading tokenizer: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading model: 
+/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae55
+7604adf67be50417f59c2c2f167def9a775
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  31%|███▏      | 91/290 [00:00<00:00, 898.81it/s]Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:  30%|███       | 88/290 [00:00<00:00, 819.82it/s]Loading weights:  62%|██████▏   | 181/290 [00:00<00:00, 356.95it/s]Loading weights:  59%|█████▊    | 170/290 [00:00<00:00, 336.35it/s]Loading weights:  80%|████████  | 233/290 [00:00<00:00, 302.59it/s]Loading weights:  75%|███████▌  | 218/290 [00:00<00:00, 287.22it/s]Loading weights:  94%|█████████▍| 272/290 [00:00<00:00, 283.77it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 319.55it/s]
+Loading weights:  88%|████████▊ | 254/290 [00:00<00:00, 263.85it/s]Loading weights:  98%|█████████▊| 285/290 [00:00<00:00, 252.98it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 292.54it/s]
+LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/prepared/data
+LoRA applied: 540,672 trainable / 494,573,440 total (0.11%)
+pre-tokenized cache has no metadata.json — assuming compatible; consider 
+re-running `soup data preprocess`
+v0.53.7: skipping tokenization, loading pre-tokenized Arrow shards from 
+/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/prepared/data
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+[transformers] Passing `fsdp` as a string is deprecated and will be removed in Transformers v5.20. Use `fsdp=True` and configure everything via `fsdp_config` instead.
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+  0%|          | 0/28 [00:00<?, ?it/s][rank1]: Traceback (most recent call last):
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 530, in <module>
+[rank1]:     main()
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 524, in main
+[rank1]:     run(args)
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 433, in run
+[rank1]:     wrapper.train()
+[rank1]:   File "/workspace/h3-soup/src/soup_cli/trainer/sft.py", line 2349, in train
+[rank1]:     self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1520, in train
+[rank1]:     return inner_training_loop(
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1595, in _inner_training_loop
+[rank1]:     self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
+[rank1]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer_callback.py", line 492, in on_train_begin
+[rank1]:     return self.call_event("on_train_begin", args, state, control, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer_callback.py", line 545, in call_event
+[rank1]:     result = getattr(callback, event)(
+[rank1]:              ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 300, in on_train_begin
+[rank1]:     assert_shards([r["local"] for r in shards], total,
+[rank1]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_gate.py", line 33, in assert_shards
+[rank1]:     raise ValueError(f"resident shard accounting disagrees: {counts}, total={total}")
+[rank1]: ValueError: resident shard accounting disagrees: [315354048, 315354048], total=494573440
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 530, in <module>
+[rank0]:     main()
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 524, in main
+[rank0]:     run(args)
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 433, in run
+[rank0]:     wrapper.train()
+[rank0]:   File "/workspace/h3-soup/src/soup_cli/trainer/sft.py", line 2349, in train
+[rank0]:     self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1520, in train
+[rank0]:     return inner_training_loop(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer.py", line 1595, in _inner_training_loop
+[rank0]:     self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer_callback.py", line 492, in on_train_begin
+[rank0]:     return self.call_event("on_train_begin", args, state, control, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/transformers/trainer_callback.py", line 545, in call_event
+[rank0]:     result = getattr(callback, event)(
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py", line 300, in on_train_begin
+[rank0]:     assert_shards([r["local"] for r in shards], total,
+[rank0]:   File "/workspace/h3-soup/benchmarks/harness/h3_fsdp_gate.py", line 33, in assert_shards
+[rank0]:     raise ValueError(f"resident shard accounting disagrees: {counts}, total={total}")
+[rank0]: ValueError: resident shard accounting disagrees: [315354048, 315354048], total=494573440
+  0%|          | 0/28 [00:03<?, ?it/s]
+W1026 16:05:37.973000 1671 benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 1681 closing signal SIGTERM
+E1026 16:05:38.447000 1671 benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 0 (pid: 1680) of binary: /workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/bin/python
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1032, in <module>
+    main()
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 367, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1028, in main
+    run(args)
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1019, in run
+    elastic_launch(
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 194, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/workspace/h3-soup/benchmarks/evidence/h3-fsdp-20261026/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 383, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/workspace/h3-soup/benchmarks/harness/h3_fsdp_run.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-10-26_16:05:38
+  host      : 1961db20da7e
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 1681) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-10-26_16:05:37
+  host      : 1961db20da7e
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 1680) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

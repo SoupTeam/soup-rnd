@@ -94,15 +94,12 @@ def test_cuda_perturbing_only_backward_reloads_changes_gradients_not_outputs(
     )
 
 
-@pytest.mark.parametrize("stochastic", [False, True], ids=["silu", "dropout"])
 @pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
-def test_cuda_installed_activation_replays_rng_and_preserves_the_outer_stream(
-    tmp_path: Path, stochastic: bool, checkpoint: str | None,
+def test_cuda_installed_silu_backward_preserves_the_outer_stream(
+    tmp_path: Path, checkpoint: str | None,
     record_property: Callable[[str, Any], None],
 ) -> None:
-    evidence = check_activation_rng_replay(
-        tmp_path, device=DEVICE, stochastic=stochastic, checkpoint=checkpoint
-    )
+    evidence = check_activation_rng_replay(tmp_path, device=DEVICE, checkpoint=checkpoint)
     for key, value in evidence.items():
         record_property(key, value)
 

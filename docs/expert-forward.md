@@ -8,9 +8,26 @@ are not read. Coverage can approach 100%, so reduced disk reads are not promised
 
 B1.3 adds first-order backward through frozen routed experts and internal
 DeepSeek-V3 runtime/L2L integration. Non-expert LoRA adapters can train; routed
-base weights and adapters on routed experts remain unsupported. The public L2L
-launch guard still admits only Llama/Mistral. Planner, public YAML/CLI fields,
-budgets and defaults are unchanged; public MoE enablement belongs to B1.4.
+base weights and adapters on routed experts remain unsupported. Backward refetches
+each frozen expert inside a bounded lease and accepts only the validated stateless
+SiLU activation without hooks; higher-order gradients are refused. The routing weight
+multiplies the per-expert node's output with ordinary autograd, so its gradient needs no
+reload.
+The public L2L launch guard still admits only Llama/Mistral; planner, public YAML/CLI
+fields, budgets and defaults are unchanged. The only public expert-training entry point
+is the opt-in B6 recipe below; public L2L enablement for MoE belongs to B1.4.
+
+CPU and CUDA tiny-model tests compare gradients with resident controls and
+exercise optimizer updates and adapter reload. The opt-in SFT configuration is
+`training.stream_expert_layout: per_expert`, with `stream_source: disk`. Its disk
+preflight currently requires a new single-disk NF4 cache without double quant.
+The default remains fused storage. Real giant results and limitations belong in
+[the B6 record](../benchmarks/b6-giant-moe-20261028.md).
+
+Meta construction keeps native fused expert factories on the meta device,
+avoiding a temporary giant CPU reservation before parameter registration.
+Normal model buffers keep their constructor values; a changed expert
+constructor that introduces buffers is refused instead of losing those values.
 
 ## Memory and ownership
 
@@ -19,7 +36,10 @@ of expert count. `ExpertBufferPool` allocates one byte arena with aligned views
 for dense gate/up and down matrices, packed weights, statistics, shared NF4 code
 tables and explicit nested-statistics scratch. The budget includes padding.
 An insufficient budget fails before allocating the arena or reading an expert.
-On CUDA, allocator rounding is checked before the first expert read as well.
+On CUDA, the runtime and preflight use `expert_allocation_budget`: logical
+storage plus an explicit 32 MiB allocator reserve. Observed allocator growth is
+checked against that finite budget before the first expert read. Different
+allocator configurations can still exceed the reserve and fail explicitly.
 
 CUDA NF4 decoding uses bitsandbytes `out` kernels directly into this arena.
 Missing CUDA kernels fail explicitly; there is no allocating CUDA fallback.
@@ -84,12 +104,12 @@ same expert again through the reader/pool and rebuilds the native eager local
 graph under the forward's autocast state. Gradients flow to hidden states,
 routing weights and supported non-expert adapters, not routed base weights.
 This is first-order autograd, not a higher-order differentiation interface.
-Expert activations must be stateless. Differentiable calls refuse an activation
-module with registered buffers (including running statistics): recompute would
-update that state twice. Expert-local random draws instead save/replay CPU and
-initialized CUDA RNG around the local backward graph, preserving the caller's
-outer stream. Native SiLU remains deterministic; arbitrary hidden Python state
-is not a supported recomputation contract. No-grad B1.2 calls are unchanged.
+Differentiable calls (forward with a grad-bearing input, and again before backward reads
+any expert) admit only the unmodified native stateless SiLU: any other activation, a
+parameter, buffer or child, or a forward/backward hook is refused with
+`expert backward requires an unmodified stateless SiLU activation`, so recompute can
+neither update hidden state twice nor draw random numbers the forward did not. A
+stochastic or stateful activation still works for no-grad B1.2 forward calls.
 
 The accepted one-slot read cost is three reads per hit expert/micro-batch:
 ordinary checkpointed training does forward, checkpoint recompute and expert
@@ -105,9 +125,9 @@ the no-grad fast path. Embedding recompute restores its forward RNG for NEFTune 
 without advancing the outer stream. L2L replays decoder and native-head dropout in
 micro-batch accumulation order, including head draws between micro-batches, and leaves
 CPU/CUDA RNG where ordinary accumulation leaves it. Router choices are checked between
-the forward and recompute. Masked labels, short final windows and no-dropout uneven
-windows retain the existing right-padding contract; uneven windows with dropout
-are refused because padding would change the random draws. MoE trainer logs add
+the forward and recompute. Masked labels, short final windows and uneven windows run each
+micro-batch at its own length, as in accumulation; uneven windows with dropout are refused
+because rows of different lengths draw different masks. MoE trainer logs add
 `l2l_expert_fetches` and `l2l_expert_bytes_read`. None of this widens the public
 `training.l2l` architecture guard.
 
@@ -149,8 +169,12 @@ B1.3 checks compare native eager outputs, losses and nonzero gradients on dense
 and NF4 storage, reload/lifetime behavior, autocast and L2L windows. The trainer
 contract is bitwise fp32 for equal lengths, `atol=2e-5, rtol=1e-4` for uneven
 lengths and `atol=1e-6, rtol=1e-5` for bf16 autocast; tolerances are fixed before
-results. CUDA checks must be reported as skipped when CUDA is unavailable.
-Historical B1.2 tests/gates below do not establish the B1.3 result.
+results. The B1 forward tests also cover dense and NF4 exactness, nested
+quantization on/off, varied top-k and seeds, empty/partial/all-hit routing, a
+same-process different-weight negative control, one-slot reuse, insufficient
+budget, exceptions, explicit higher-order/unsupported-activation refusal and full
+native DeepSeek/Kimi MoE blocks. CUDA checks must be reported as skipped when CUDA
+is unavailable. Historical B1.2 tests/gates below do not establish the B1.3 result.
 
 ## Historical B1.2 prospective trained-checkpoint gate
 

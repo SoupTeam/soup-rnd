@@ -735,6 +735,9 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             trainer,
             self._stream_runtime,
             dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
+            spill_dir=self.config.training.l2l_spill_dir,
+            weight_dirs=self._stream_weight_dirs,
+            c3_plan=getattr(self, "_c3_l2l_plan", None),
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
@@ -1306,6 +1309,10 @@ class SFTTrainerWrapper(StreamingSetupMixin):
         from soup_cli.utils.peft_wiring import attach_compile_prefix_callback
 
         attach_compile_prefix_callback(self.trainer, tcfg, self._output_dir, console)
+        from soup_cli.utils.fsdp import prepare_fsdp2_tied_embeddings
+
+        if prepare_fsdp2_tied_embeddings(self.trainer):
+            console.print("[green]FSDP2:[/] joint sharding configured for tied embeddings")
         if self._quest_metadata is not None:
             from soup_cli.utils.quest import QuestMetadataCallback
 

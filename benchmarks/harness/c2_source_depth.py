@@ -11,7 +11,7 @@ from typing import Any
 from soup_cli.utils import async_disk_source as shipped
 from soup_cli.utils.async_disk_source import AsyncDiskSource, _PendingRead
 
-SHIPPED_SHA256 = "17bca116e3f5935d4d916e3f3fde425a9544ca22890cda713b7892b56b1451df"
+SHIPPED_SHA256 = "874bc027e530c813c41b0efcf07d419edf0bdf483afe509ed1968de3a8eed75c"
 
 
 def depth_source(depth: int) -> type:
