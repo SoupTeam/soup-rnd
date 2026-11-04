@@ -11,13 +11,11 @@ Every actual configuration field must be implemented in
 
 ## Source snapshot and dependencies
 
-- Shared product baseline: `main` at `76051b776e7b00eb190d8b8947db0fdd6d50aeba`.
-- [B1.3 / #47](https://github.com/SoupTeam/soup-rnd/pull/47), inspected at
-  `f3b157d50fd2ec0d07493d48165d9274feaea17c`, provides internal L2L/MoE backward.
-  It is open and GitHub reports `mergeable: false` at this snapshot. Update it against
-  current `main`, resolve conflicts, and rerun its affected checks before integration.
+- Product baseline for integration: `main` at `d272e476`, including
+  [B1.3 / #47](https://github.com/SoupTeam/soup-rnd/pull/47) for internal L2L/MoE
+  backward and [A4 / #40](https://github.com/SoupTeam/soup-rnd/pull/40) for activation spill.
 - [G4 / #35](https://github.com/SoupTeam/soup-rnd/pull/35) and
-  [C3 / #48](https://github.com/SoupTeam/soup-rnd/pull/48) are merged in this baseline.
+  [C3 / #48](https://github.com/SoupTeam/soup-rnd/pull/48) are also in `main`.
   G4's compressed store remains in the benchmark harness. C3's public L2L allocation
   path is uncompressed and its partial-weight-cache feature is restricted to dense Llama.
 
@@ -28,14 +26,14 @@ Existing code to extend:
 | Config and launch | [`schema.py`](../src/soup_cli/config/schema.py), [`SFTTrainerWrapper._build_l2l_trainer`](../src/soup_cli/trainer/sft.py) | `l2l` already exists; `k` is `gradient_accumulation_steps`. The schema refuses `per_expert` with L2L, and #47 keeps the public Llama/Mistral guard. |
 | Activation store | [`ActivationStore`](../src/soup_cli/utils/l2l_activations.py), [`_store_for`](../src/soup_cli/trainer/l2l_trainer.py) | Per-micro-batch capacities, window growth, RAM and spill are implemented. The trainer selects/creates the store in `_store_for`. |
 | Compression | [`CodecActivationStore`](../benchmarks/harness/g4_activation_codec.py) | G4 has per-row FP8 and scale accounting; its wrapper does not accept the trainer's `mb_shapes`. |
-| Memory accounting | [`HostMemoryBudget`](../src/soup_cli/utils/host_memory_budget.py), [`BudgetedActivationStore`](../src/soup_cli/utils/budgeted_activations.py), [`plan_c3_l2l`](../src/soup_cli/utils/c3_l2l_budget.py) | Allocation leases and an uncompressed C3 partition exist. MoE accounting and automatic `k` selection remain to be implemented. |
+| Memory accounting | [`HostMemoryBudget`](../src/soup_cli/utils/host_memory_budget.py), [`BudgetedActivationStore`](../src/soup_cli/utils/budgeted_activations.py), [`plan_c3_l2l`](../src/soup_cli/utils/c3_l2l_budget.py) | Allocation leases and an uncompressed C3 partition exist. [#53](https://github.com/SoupTeam/soup-rnd/pull/53) adds the FP32/BF16 MoE calculation; trainer integration and FP8 accounting are pending. |
 | Available RAM | [`ram_budget`](../src/soup_cli/utils/l2l_spill.py) | Existing available-memory/cgroup detection, headroom, reserve and spill accounting are reusable. |
 
 ## Parallel tracks and file ownership
 
 | Track | Owner | Work and completion evidence |
 |---|---|---|
-| B1.3 and FP8 store | Batyr | Refresh and finish #47. Adapt G4 into product code, preserve the store contract below, and supply a shared allocation estimator. Validate round trips, variable shapes, cleanup and DeepSeek routing with compression. |
+| B1.3 and FP8 store | Batyr | B1.3 is merged. Adapt G4 into product code, preserve the store contract below, and supply a shared allocation estimator. Validate round trips, variable shapes, cleanup and DeepSeek routing with compression. |
 | B1.4 and correctness | Aldiyar | Own schema fields, recipe snapshots, public DeepSeek/per-expert launch gates and trainer wiring. Extend the tiny native DeepSeek comparisons to `k = 1/4/16/64`, including real optimizer updates and short final windows. |
 | MoE memory planner | koko | Implement a planner using `HostMemoryBudget`, the store's allocation estimator, host/device MoE costs and available-memory detection. Select effective `k` and compare the breakdown with actual allocations. |
 
@@ -44,8 +42,8 @@ the config/trainer integration edits; Batyr supplies store construction and allo
 estimation, and koko supplies the plan. Bring changes to shared files through the owning
 track's PR rather than independently replacing `_store_for` in three branches.
 
-The standalone codec and planner work can start while #47 is being refreshed. Joint
-DeepSeek integration and its final correctness checks depend on the updated #47.
+Run the uncompressed DeepSeek comparison once B1.4 is wired up. FP8 correctness and
+memory checks also need the new store. The planner can be reviewed on its own.
 
 ## Activation-store contract
 
@@ -173,10 +171,10 @@ the common contract. Each implementation uses its own branch and PR targeting `m
 
 | Work | Suggested branch | Dependency |
 |---|---|---|
-| B1.3 | Existing `b1.3-moe-backward` / #47 | Refresh against current `main`. |
-| FP8 store | `codex/p3-phase0-fp8` | Standalone work now; joint DeepSeek checks after #47. |
-| B1.4 | `codex/p3-phase0-b14` | Config/test preparation now; public enablement after #47. |
-| Memory planner | `codex/p3-phase0-moe-planner` | Pure planning work now; validate against the shared codec and integrated runtime. |
+| B1.3 | `b1.3-moe-backward` / #47 | Merged. |
+| FP8 store | `codex/p3-phase0-fp8` | Bring the G4 store and allocation estimator into product code. |
+| B1.4 | `codex/p3-phase0-b14` | Enable the public DeepSeek path and run the tiny-model comparison. |
+| Memory planner | `codex/p3-phase0-moe-planner` / [#53](https://github.com/SoupTeam/soup-rnd/pull/53) | FP32/BF16 planner in review; validate with the shared codec and trainer. |
 
 Create work branches from current `origin/main`, and reference this contract PR. While it
 is a draft the contract is readable on the foundation branch; its documentation commit
@@ -190,8 +188,8 @@ Keep #47's implementation/review in #47 and integrate its accepted result throug
 
 ## Phase 0 completion checklist
 
-- [ ] Updated #47 is accepted and merged; current per-micro-batch store, spill and C3
-  regression coverage is retained.
+- [x] B1.3 / #47 is merged.
+- [ ] Preserve per-micro-batch store, spill and C3 regression coverage in the combined path.
 - [ ] Public config starts native `deepseek_v3` SFT with L2L and per-expert streaming;
   unsupported combinations still fail clearly and existing defaults remain unchanged.
 - [ ] On tiny DeepSeek, `k = 1/4/16/64` matches ordinary accumulation for loss, trainable
@@ -211,6 +209,6 @@ Keep #47's implementation/review in #47 and integrate its accepted result throug
 Start with tests already covering the touched path: `tests/test_l2l_*.py`,
 `tests/test_g4_codec.py`, `tests/test_c3_host_budget.py`,
 `tests/test_c3_activation_spill_budget.py`, and `tests/test_c3_public_l2l.py`.
-After #47 lands, include `tests/test_b13_*.py` and the new larger-`k` cases. Follow
+Include `tests/test_b13_*.py` and the new larger-`k` cases. Follow
 [`CONTRIBUTING.md`](../CONTRIBUTING.md) for supported Python versions, lint and test commands;
 report CUDA skips rather than treating CPU success as GPU memory/performance evidence.
