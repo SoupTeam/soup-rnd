@@ -3511,7 +3511,7 @@ class TrainingConfig(BaseModel):
     l2l: bool = Field(
         default=False,
         description=(
-            "BETA — layer-to-layer (L2L) execution for sft, dpo, orpo, simpo and "
+            "BETA. Layer-to-layer (L2L) execution for sft, dpo, orpo, simpo and "
             "kto with stream_layers: each streamed decoder layer is loaded once "
             "per optimizer step and runs all k micro-batches, k = "
             "gradient_accumulation_steps, then the optimizer takes one step on "
