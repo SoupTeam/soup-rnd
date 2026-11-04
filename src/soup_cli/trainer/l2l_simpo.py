@@ -25,8 +25,29 @@ from __future__ import annotations
 
 from typing import Any, List, Tuple
 
-from soup_cli.trainer.l2l_trainer import WindowLoss, stack_pair_window
+from soup_cli.trainer.l2l_trainer import (
+    WindowLoss,
+    refuse_unsupported_trainer,
+    stack_pair_window,
+)
 from soup_cli.utils.l2l_step import LossHead
+
+
+def refuse_unsupported_simpo(trainer: Any) -> None:
+    """Refuse a built ``CPOTrainer`` whose loss is not the plain SimPO reproduced here.
+
+    The Soup config exposes none of these settings, so they hold on every run today; the check
+    keeps a TRL default that moves from silently changing what the L2L loss computes.
+    """
+    refuse_unsupported_trainer(
+        trainer,
+        (
+            ("loss_type", "simpo", "loss_type"),
+            ("label_smoothing", 0.0, "label_smoothing"),
+            ("aux_loss_enabled", False, "aux_loss_enabled"),
+        ),
+        reproduces="training.l2l with task 'simpo' reproduces TRL's plain SimPO loss",
+    )
 
 
 def _cpo_trainer_class() -> Any:

@@ -39,7 +39,12 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, List, Tuple
 
-from soup_cli.trainer.l2l_trainer import WindowLoss, refuse_mixed_shapes, require_right_padded
+from soup_cli.trainer.l2l_trainer import (
+    WindowLoss,
+    refuse_mixed_shapes,
+    refuse_unsupported_trainer,
+    require_right_padded,
+)
 from soup_cli.utils.l2l_step import LossHead, ReferencePass
 
 
@@ -82,22 +87,21 @@ def refuse_unsupported_kto(trainer: Any) -> None:
     The Soup config exposes none of these settings, so they hold on every run today; the check
     keeps a TRL default that moves from silently changing what the L2L loss computes.
     """
-    expected = (
-        ("loss_type", "kto"),
-        ("calculate_KL", True),
-        ("ref_model", None),
-        ("precompute_ref_log_probs", False),
-        ("ref_adapter_name", None),
-        ("aux_loss_enabled", False),
+    refuse_unsupported_trainer(
+        trainer,
+        (
+            ("loss_type", "kto", "loss_type"),
+            ("calculate_KL", True, "calculate_KL"),
+            ("ref_model", None, "ref_model"),
+            ("precompute_ref_log_probs", False, "precompute_ref_log_probs"),
+            ("ref_adapter_name", None, "ref_adapter_name"),
+            ("aux_loss_enabled", False, "aux_loss_enabled"),
+        ),
+        reproduces=(
+            "training.l2l with task 'kto' reproduces TRL's plain KTO loss with the adapters "
+            "switched off as the reference"
+        ),
     )
-    for name, wanted in expected:
-        value = getattr(trainer, name, wanted)
-        if value != wanted:
-            raise ValueError(
-                "training.l2l with task 'kto' reproduces TRL's plain KTO loss with the "
-                f"adapters switched off as the reference; this trainer has {name}={value!r} "
-                f"(wanted {wanted!r})."
-            )
 
 
 def _logps_of(causal: Any, owner: Any, hidden: Any, labels: Any) -> Any:

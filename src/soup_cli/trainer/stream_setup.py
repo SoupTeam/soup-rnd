@@ -1288,6 +1288,7 @@ class StreamingSetupMixin:
             attach_l2l_state,
             make_l2l_trainer_class,
             refuse_unsupported_l2l,
+            unready_task_warning,
         )
         from soup_cli.utils.layer_stream import resolve_stream_dtype
 
@@ -1295,6 +1296,9 @@ class StreamingSetupMixin:
         refuse_unsupported_l2l(
             base.config, n_gpu=int(training_args.n_gpu), fp16=bool(training_args.fp16)
         )
+        warning = unready_task_warning(getattr(getattr(self, "config", None), "task", None))
+        if warning is not None:
+            console.print(f"[yellow]Warning:[/] {warning}")
         trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
         attach_l2l_state(
             trainer,

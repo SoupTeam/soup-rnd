@@ -29,7 +29,12 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, List, Tuple
 
-from soup_cli.trainer.l2l_trainer import WindowLoss, refuse_mixed_shapes, require_right_padded
+from soup_cli.trainer.l2l_trainer import (
+    WindowLoss,
+    refuse_mixed_shapes,
+    refuse_unsupported_trainer,
+    require_right_padded,
+)
 from soup_cli.utils.l2l_step import LossHead, ReferencePass
 
 #: PEFT adapter name TRL gives the frozen copy of the policy it takes the reference from.
@@ -42,22 +47,23 @@ def refuse_unsupported_dpo(trainer: Any) -> None:
     The Soup config exposes none of these settings, so they hold on every run today; the check
     keeps a TRL default that moves from silently changing what the L2L loss computes.
     """
-    expected = (
-        ("loss_types", ["sigmoid"], "loss_type"),
-        ("loss_weights", [1.0], "loss_weights"),
-        ("ref_model", None, "ref_model"),
-        ("precompute_ref_logps", False, "precompute_ref_log_probs"),
-        ("ld_alpha", None, "ld_alpha"),
-        ("f_divergence_type", "reverse_kl", "f_divergence_type"),
+    refuse_unsupported_trainer(
+        trainer,
+        (
+            ("loss_types", ["sigmoid"], "loss_type"),
+            ("loss_weights", [1.0], "loss_weights"),
+            ("ref_model", None, "ref_model"),
+            ("precompute_ref_logps", False, "precompute_ref_log_probs"),
+            ("ld_alpha", None, "ld_alpha"),
+            ("f_divergence_type", "reverse_kl", "f_divergence_type"),
+            ("label_smoothing", 0.0, "label_smoothing"),
+            ("use_weighting", False, "use_weighting"),
+        ),
+        reproduces=(
+            "training.l2l with task 'dpo' reproduces TRL's plain sigmoid DPO with the "
+            f"'{REFERENCE_ADAPTER}' adapter as the reference"
+        ),
     )
-    for attribute, wanted, name in expected:
-        value = getattr(trainer, attribute, wanted)
-        if value != wanted:
-            raise ValueError(
-                f"training.l2l with task 'dpo' reproduces TRL's plain sigmoid DPO with the "
-                f"'{REFERENCE_ADAPTER}' adapter as the reference; this trainer has "
-                f"{name}={value!r} (wanted {wanted!r})."
-            )
 
 
 def _completion_logps(logits: Any, shift_labels: Any, shift_mask: Any) -> Any:

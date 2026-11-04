@@ -222,7 +222,7 @@ class SimPOTrainerWrapper(StreamingSetupMixin):
             "processing_class": self.tokenizer,
         }
         if tcfg.l2l:
-            from soup_cli.trainer.l2l_simpo import simpo_window_loss
+            from soup_cli.trainer.l2l_simpo import refuse_unsupported_simpo, simpo_window_loss
 
             # CPO pads the stacked pair with the tokenizer's pad id (eos when it has none);
             # beta stays at TRL's default, as on the accumulation path.
@@ -237,6 +237,7 @@ class SimPOTrainerWrapper(StreamingSetupMixin):
                     padding_value=int(self.tokenizer.pad_token_id),
                 ),
             )
+            refuse_unsupported_simpo(self.trainer)
         else:
             self.trainer = cpo_trainer_cls(**trainer_kwargs)
 

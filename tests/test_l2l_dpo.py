@@ -307,6 +307,8 @@ def test_a_trainer_that_departs_from_plain_sigmoid_dpo_is_refused(attribute, val
         precompute_ref_logps=False,
         ld_alpha=None,
         f_divergence_type="reverse_kl",
+        label_smoothing=0.0,
+        use_weighting=False,
         padding_free=False,
     )
     refuse_unsupported_dpo(trainer)

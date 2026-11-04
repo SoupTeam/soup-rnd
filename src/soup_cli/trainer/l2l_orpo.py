@@ -26,8 +26,25 @@ from __future__ import annotations
 
 from typing import Any, List, Tuple
 
-from soup_cli.trainer.l2l_trainer import WindowLoss, stack_pair_window
+from soup_cli.trainer.l2l_trainer import (
+    WindowLoss,
+    refuse_unsupported_trainer,
+    stack_pair_window,
+)
 from soup_cli.utils.l2l_step import LossHead
+
+
+def refuse_unsupported_orpo(trainer: Any) -> None:
+    """Refuse a built ``ORPOTrainer`` whose loss is not the plain ORPO reproduced here.
+
+    The Soup config exposes no MoE auxiliary loss, so the check holds on every run today; it
+    keeps a TRL default that moves from silently changing what the L2L loss computes.
+    """
+    refuse_unsupported_trainer(
+        trainer,
+        (("aux_loss_enabled", False, "aux_loss_enabled"),),
+        reproduces="training.l2l with task 'orpo' reproduces TRL's plain ORPO loss",
+    )
 
 
 def _orpo_trainer_class() -> Any:

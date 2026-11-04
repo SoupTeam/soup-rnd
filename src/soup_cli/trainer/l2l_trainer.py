@@ -59,6 +59,46 @@ PUBLIC_ARCHS = ("llama", "mistral")
 
 logger = logging.getLogger(__name__)
 
+#: Tasks that passed the A6 readiness rule (``benchmarks/l2l-preference-readiness-rule-a6.md``).
+#: The config accepts more (``config.schema.L2L_SUPPORTED_TASKS``); the others run with a warning.
+L2L_READY_TASKS = ("sft", "dpo")
+
+
+def unready_task_warning(task: Optional[str]) -> Optional[str]:
+    """The warning for a task that ``training.l2l`` accepts but that is not ready; else None."""
+    if task is None or task in L2L_READY_TASKS:
+        return None
+    return (
+        f"training.l2l with task '{task}' is not ready: it did not pass the A6 readiness "
+        "rule, so its result is not verified to match gradient accumulation. See "
+        "docs/performance-and-quantization.md ('L2L for preference tasks')."
+    )
+
+
+_ABSENT = object()
+
+
+def refuse_unsupported_trainer(
+    trainer: Any, expected: Sequence[Tuple[str, Any, str]], *, reproduces: str
+) -> None:
+    """Refuse a built TRL trainer whose loss is not the one an L2L window loss reproduces.
+
+    ``expected`` lists ``(attribute, wanted value, name shown)``. An attribute the trainer
+    does not have is refused too: a TRL that renames it would otherwise pass unchecked.
+    """
+    for attribute, wanted, name in expected:
+        value = getattr(trainer, attribute, _ABSENT)
+        if value is _ABSENT:
+            raise ValueError(
+                f"{reproduces}; this trainer has no attribute '{attribute}' ({name}), so "
+                "the check cannot tell whether its loss is still the one reproduced here "
+                "(TRL may have renamed or removed it)."
+            )
+        if value != wanted:
+            raise ValueError(
+                f"{reproduces}; this trainer has {name}={value!r} (wanted {wanted!r})."
+            )
+
 #: Captured layer arguments kept per shape; the cache restarts when a run exceeds it. A new
 #: shape costs one forward to capture them.
 MAX_CACHED_SHAPES = 64
@@ -103,10 +143,6 @@ class L2LState:
     #: How a window is read, which head it runs and what its loss is divided by.
     #: ``None`` means SFT (:data:`SFT_WINDOW_LOSS`).
     loss: Optional["WindowLoss"] = None
-
-    def __post_init__(self) -> None:
-        if self.loss is None:
-            self.loss = SFT_WINDOW_LOSS
     #: Capture forwards run, the layer loads they cost and their wall time (running totals).
     captures: int = 0
     capture_loads: int = 0
@@ -121,6 +157,10 @@ class L2LState:
     #: Files of dead runs the last ``train`` removed from the spill directory.
     stale_removed: List[str] = field(default_factory=list)
     c3_plan: Any = None
+
+    def __post_init__(self) -> None:
+        if self.loss is None:
+            self.loss = SFT_WINDOW_LOSS
 
     def log_fields(self) -> Dict[str, Any]:
         fields = {

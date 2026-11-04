@@ -222,7 +222,7 @@ class ORPOTrainerWrapper(StreamingSetupMixin):
             "processing_class": self.tokenizer,
         }
         if tcfg.l2l:
-            from soup_cli.trainer.l2l_orpo import orpo_window_loss
+            from soup_cli.trainer.l2l_orpo import orpo_window_loss, refuse_unsupported_orpo
 
             # TRL pads the stacked pair with the tokenizer's pad id unless
             # ``padding_value`` is set; Soup does not set it.
@@ -235,6 +235,7 @@ class ORPOTrainerWrapper(StreamingSetupMixin):
                     padding_value=int(self.tokenizer.pad_token_id),
                 ),
             )
+            refuse_unsupported_orpo(self.trainer)
         else:
             self.trainer = orpo_trainer_cls(**trainer_kwargs)
         if not config_accepts(orpo_config_cls, "max_prompt_length"):
