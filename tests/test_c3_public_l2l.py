@@ -153,10 +153,14 @@ def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monk
     from transformers import TrainerCallback
 
     from soup_cli.config.schema import SoupConfig
+    from soup_cli.utils import layer_stream
     from soup_cli.utils.budgeted_activations import BudgetedActivationStore
     from tests.test_v07200 import TestStreamingEndToEndSetup
 
     wrapper, dataset = TestStreamingEndToEndSetup()._wrapper(tmp_path, monkeypatch)
+    wrapper.device = "cpu"
+    monkeypatch.setattr(layer_stream, "resolve_disk_kind", lambda *a, **kw:
+                        layer_stream.DiskClassification("nvme"))
     config = wrapper.config.model_dump()
     config["training"].update(
         l2l=True,

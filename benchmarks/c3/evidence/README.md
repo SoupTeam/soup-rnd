@@ -22,6 +22,9 @@ Each packet contains:
   `renamed_members`), so repository lint never touches frozen bytes.
 - `frozen_gate/isolated_compare.py`: the measured copy of the comparison gate, whose SHA256
   is in `evidence/source_manifest.json`.
+- `frozen_gate/{io_calibration,foreign_read_control,arm_validity}.py.txt`: exact measured
+  dependency sources recovered from Git commit `79df4a84` and verified against the original
+  source manifest's SHA256 and byte count. The text suffix preserves frozen source bytes.
 
 ## Replay
 
@@ -31,16 +34,17 @@ python benchmarks/c3/replay_evidence.py benchmarks/c3/evidence/20261031_attempt0
 ```
 
 No GPU, network or private file is needed. The script checks every member against
-`archive_manifest.json` and checks that the gate code it uses (`io_calibration.py`,
-`foreign_read_control.py`, `arm_validity.py` in the repository, plus the frozen
-`isolated_compare.py`) is byte-identical to the measured source. Then it recomputes the
+`archive_manifest.json` and checks that all four gate sources in `frozen_gate/`
+are byte-identical to the measured source before executing them. The foreign-reader gate
+also imports its frozen calibration dependency. Later edits and Windows checkout line
+endings in the live repository do not redefine historical gates. Then it recomputes the
 numerical parity, F1/clock, GPU ownership, residency, direct I/O, calibration, foreign-reader and
 repetition checks. Thresholds are the frozen ones. `tests/test_c3_replay_evidence.py` runs both
-packets and a tamper case.
+packets, modified-record and modified-gate controls, and independence from live gate edits.
 
 ## Source provenance
 
-`PROVENANCE.json` compares each attempt's measured `source_manifest.json` with this branch:
+`PROVENANCE.json` retains the historical publication-time comparison with the C3 branch:
 attempt017 matches 2909 of 2940 files at head, attempt019 3362 of 3392. Every C3 file that differs is
 listed with its measured hash, its hash in the first three C3 commits (`f211051`) and at head,
 and the reason: the public L2L integration that came after attempt017, the merge with main's
@@ -48,3 +52,7 @@ per-micro-batch L2L windows, the `close()` drain fix after review, harness-only 
 tests and docs. The remaining differences come only from merging main. Attempt019 measured
 exactly the C3 production code of `f211051`. The cached-weight path, the disk reader and
 residency selection are unchanged since both measurements.
+
+Those counts describe that historical comparison, not later merged heads. Frozen-source
+replay verifies the recorded measurements and does not qualify the current runtime as a
+new CUDA execution. Original archive manifests and raw result records are unchanged.

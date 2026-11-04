@@ -1,6 +1,7 @@
 """The exact prospective phase plan must be executable without GPU or rental."""
 
 import hashlib
+import os
 import time
 
 import pytest
@@ -8,6 +9,7 @@ import pytest
 from benchmarks.c3.confirmation_phases import PHASES, supervise_phase, validate_plan
 
 
+@pytest.mark.skipif(os.name != "posix", reason="real POSIX process-group supervisor")
 def test_whole_phase_plan_runs_through_real_supervisor(tmp_path):
     # This would have caught attempt018's 5400s-versus-1800s rejection before payment.
     validate_plan(time.time() + 7200)
@@ -23,3 +25,15 @@ def test_whole_phase_plan_runs_through_real_supervisor(tmp_path):
 def test_expired_plan_is_not_admitted():
     with pytest.raises(ValueError):
         validate_plan(time.time() - 1)
+
+
+def test_non_posix_supervision_refuses_before_creating_output(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarks.c3 import setup_supervisor
+
+    monkeypatch.setattr(setup_supervisor, "os", SimpleNamespace(name="nt"))
+    output = tmp_path / "not-created"
+    with pytest.raises(ValueError, match="POSIX process groups are required"):
+        supervise_phase("fetch", tmp_path / "missing.sh", "0" * 64, output, time.time() + 10)
+    assert not output.exists()
