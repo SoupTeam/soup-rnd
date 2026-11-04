@@ -133,12 +133,22 @@ def check_manifest(directory: Path) -> List[str]:
     return problems
 
 
+def has_public_base(repo: Path) -> bool:
+    done = subprocess.run(["git", "cat-file", "-e", f"{PUBLIC_BASE}^{{commit}}"], cwd=repo,
+                          capture_output=True, check=False)
+    return done.returncode == 0
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--repo", default=str(Path(__file__).resolve().parents[2]),
                         help="repository with the public history (default: this one)")
     args = parser.parse_args(argv)
     repo = Path(args.repo)
+    if not has_public_base(repo):
+        print(f"PROBLEM: public commit {PUBLIC_BASE[:8]} is not in {repo}; the replay needs "
+              "the full history (git fetch --unshallow)")
+        return 2
     problems: List[str] = []
     with tempfile.TemporaryDirectory(prefix="g2-replay-") as tmp:
         scratch = Path(tmp)

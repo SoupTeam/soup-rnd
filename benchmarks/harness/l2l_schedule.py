@@ -92,8 +92,17 @@ def collect_grads(model: Any) -> Dict[str, Any]:
     return out
 
 
+def gap_text(value: Optional[float]) -> str:
+    """``max |d|`` for a log line; ``None`` is a NaN/Inf gap (see :func:`compare`)."""
+    return "non-finite" if value is None else f"{value:.3e}"
+
+
 def compare(reference: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, Any]:
-    """Compare gradients without emitting non-finite differences into strict JSON."""
+    """Compare gradients without emitting non-finite differences into strict JSON.
+
+    ``max_abs`` is the largest finite difference, or ``None`` when ``nonfinite`` is not
+    empty: a maximum over the finite tensors alone would understate a NaN/Inf gap (and
+    reads as 0.0 when every unequal tensor is non-finite)."""
     import math
 
     import torch
@@ -117,7 +126,7 @@ def compare(reference: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, A
     return {
         "tensors": len(reference),
         "unequal": unequal,
-        "max_abs": diffs[0][0] if diffs else 0.0,
+        "max_abs": None if nonfinite else (diffs[0][0] if diffs else 0.0),
         "worst": ([{"name": name, "max_abs": None} for name in nonfinite[:5]]
                   + [{"name": name, "max_abs": value} for value, name in diffs])[:5],
         "nonfinite": nonfinite,

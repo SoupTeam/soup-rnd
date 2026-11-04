@@ -465,9 +465,31 @@ def test_a_nan_gradient_is_unequal_and_the_comparison_stays_json(sched):
     out = sched.compare(ref, cand)
     assert out["equal"] is False
     assert out["unequal"] == ["a", "b"] and out["nonfinite"] == ["a"]
-    assert out["max_abs"] == 2.0
+    assert out["max_abs"] is None  # not 2.0: the finite maximum would hide the NaN gap
     assert [row["name"] for row in out["worst"]] == ["a", "b"]
     json.dumps(out, allow_nan=False)
+
+
+def test_when_every_unequal_tensor_is_nonfinite_the_gap_is_unknown_not_zero(sched):
+    import torch
+
+    ref = {"a": torch.ones(2), "b": torch.ones(2)}
+    cand = {"a": torch.tensor([1.0, float("nan")]), "b": torch.tensor([float("inf"), 1.0]),
+            }
+    out = sched.compare(ref, cand)
+    assert out["equal"] is False and out["unequal"] == ["a", "b"]
+    assert out["max_abs"] is None
+    assert sched.gap_text(out["max_abs"]) == "non-finite"
+    assert sched.gap_text(1.5e-3) == "1.500e-03"
+    json.dumps(out, allow_nan=False)
+
+
+def test_equal_gradients_still_report_a_zero_gap(sched):
+    import torch
+
+    same = {"a": torch.ones(2)}
+    out = sched.compare(same, {"a": torch.ones(2)})
+    assert out["equal"] is True and out["max_abs"] == 0.0
 
 
 def test_losses_are_compared_per_position(sched, acts, streamed):
@@ -655,6 +677,14 @@ def test_g2_fails_when_the_read_does_not_hide(rule, tmp_path):
     out = rule.evaluate(_write(tmp_path, timing=timing))
     assert out["gates"]["G2"]["status"] == "fail"
     assert out["verdict"].startswith("STOP")
+
+
+def test_g1_reports_a_nan_gap_instead_of_crashing_on_a_none_max_abs(rule, tmp_path):
+    bad = _corr("F1", l2l=False)
+    bad["records"][0]["l2l"].update(max_abs=None, nonfinite=["x"])
+    out = rule.evaluate(_write(tmp_path, f1=bad))
+    assert out["gates"]["G1"]["status"] == "fail"
+    assert "max |d| non-finite" in out["gates"]["G1"]["detail"]
 
 
 def test_g4_fails_when_vram_grows(rule, tmp_path):

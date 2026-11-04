@@ -124,7 +124,7 @@ def _not_exact(rec: Optional[Dict[str, Any]]) -> Optional[str]:
         return f"deterministic mode raised: {rec['deterministic_error']}"
     a_vs_a = rec.get("a_vs_a") or {}
     if not (a_vs_a.get("equal") and rec.get("a_vs_a_losses_equal")):
-        return f"GA vs GA not exact (max |d| {float(a_vs_a.get('max_abs', float('nan'))):.3e})"
+        return f"GA vs GA not exact (max |d| {_gap_text(a_vs_a.get('max_abs'))})"
     if not rec.get("l2l"):
         return "no L2L comparison in the record"
     return None
@@ -147,8 +147,13 @@ def _g1_fixture(default: Optional[Dict[str, Any]], det: Optional[Dict[str, Any]]
     if chosen["l2l"]["equal"] and chosen["l2l_losses_equal"]:
         return _gate(PASS, f"{name}: {chosen['l2l']['tensors']} tensors + losses equal ({mode})")
     return _gate(FAIL, f"{name}: {len(chosen['l2l']['unequal'])} tensors differ, max |d| "
-                       f"{chosen['l2l']['max_abs']:.3e}, losses equal "
+                       f"{_gap_text(chosen['l2l']['max_abs'])}, losses equal "
                        f"{chosen['l2l_losses_equal']} ({mode})")
+
+
+def _gap_text(value: Optional[float]) -> str:
+    """A recorded ``max_abs``; ``None`` or a missing key is a NaN/Inf or unknown gap."""
+    return "non-finite" if value is None or not math.isfinite(float(value)) else f"{value:.3e}"
 
 
 def _combine(parts: Sequence[Dict[str, str]]) -> Dict[str, str]:
