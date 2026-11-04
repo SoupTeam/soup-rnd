@@ -3511,13 +3511,14 @@ class TrainingConfig(BaseModel):
     l2l: bool = Field(
         default=False,
         description=(
-            "BETA — layer-to-layer (L2L) execution for SFT with stream_layers: "
-            "each streamed decoder layer is loaded once per optimizer step and "
-            "runs all k micro-batches, k = gradient_accumulation_steps, then "
-            "the optimizer takes one step on the adapters. Needs "
-            "stream_layers=true, task='sft' and lora.dropout=0; the launch "
-            "also needs a Llama/Mistral model with attention_dropout=0 on a "
-            "single GPU. k=1 behaves like plain streaming. See ADR 0002."
+            "BETA — layer-to-layer (L2L) execution for sft, dpo, orpo, simpo and "
+            "kto with stream_layers: each streamed decoder layer is loaded once "
+            "per optimizer step and runs all k micro-batches, k = "
+            "gradient_accumulation_steps, then the optimizer takes one step on "
+            "the adapters. Needs stream_layers=true; the launch also needs a "
+            "Llama/Mistral model on a single GPU. Only dpo passed the readiness "
+            "check; orpo, simpo and kto run unverified. k=1 behaves like plain "
+            "streaming. See ADR 0002 and docs/performance-and-quantization.md."
         ),
     )
     stream_source: Literal["auto", "ram", "disk"] = Field(
