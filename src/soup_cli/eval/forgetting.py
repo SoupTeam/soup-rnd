@@ -43,6 +43,13 @@ _CUE_RE = re.compile(
 )
 # Parenthesised choice marker: "(B)" or "B)".
 _PAREN_RE = re.compile(r"(?<![A-Za-z0-9])\(?([A-Ja-j])\)(?![A-Za-z0-9])")
+# Letter-first commitment: "A is the correct answer.", "(B) is correct", "C is right". The cue
+# regex above only reads the cue-first order ("the answer is A"), so this order scored as no
+# answer at all. Upper-case only, and the letter must be followed directly by "is (the)
+# correct/right", so prose ("A dog is ...") cannot match.
+_LETTER_FIRST_CUE_RE = re.compile(
+    r"(?<![A-Za-z0-9])\(?([A-J])\)?\s+is\s+(?:the\s+)?(?:correct|right)\b"
+)
 # LaTeX ``\boxed{C}`` — how a reasoning-tuned model states its final answer.
 # Read through ``utils.final_answer``'s shared scan instead of a local regex: the
 # box counts as an OPTION LETTER when the scan's normalised content is a single
@@ -110,6 +117,10 @@ def extract_mcq_letter(output: str) -> Optional[str]:
     ("(A) x (B) y. Answer: \\boxed{A}") chose A. Ranking the boxed FORM above
     the others would get the first of those backwards.
 
+    A letter-first statement ("A is the correct answer.") counts as a cue. An output whose only
+    markers are the option list itself, in order from (A), with no cue or box, is an echo of the
+    question: its markers are ignored, so it returns ``None`` unless a bare letter follows.
+
     Only if none of the three appears does the bare tier apply: a
     clause-terminating uppercase letter, taking the FIRST match (a model
     answering without a cue leads with the letter, e.g. "C. I think ..."). A
@@ -123,12 +134,25 @@ def extract_mcq_letter(output: str) -> Optional[str]:
         return None
     output = output[:_MAX_SCORE_OUTPUT]
     latest: Optional[Tuple[int, str]] = None
+    committed = False
     for box in iter_boxed_answers(output):
         letter = box.answer.upper()
         if len(letter) == 1 and letter in _MCQ_OPTIONS and (latest is None or box.end > latest[0]):
             latest = (box.end, letter)
-    for regex in (_CUE_RE, _PAREN_RE):
+            committed = True
+    for regex in (_CUE_RE, _LETTER_FIRST_CUE_RE):
         for match in regex.finditer(output):
+            committed = True
+            if latest is None or match.end() > latest[0]:
+                latest = (match.end(), match.group(1))
+    markers = [match.group(1).upper() for match in _PAREN_RE.finditer(output)]
+    echo = not committed and len(markers) >= 2 and markers == list(_MCQ_OPTIONS[: len(markers)])
+    # An output whose markers are only the option list "(A) x (B) y (C) z" repeats the question.
+    # Reading its last marker as the choice credited such a model whenever the key was the last
+    # option: 7/26 of mini_mmlu and 2/24 of mini_common_sense, for a model that never answered.
+    # Its markers are skipped; a bare letter after the list still counts (the bare tier below).
+    if not echo:
+        for match in _PAREN_RE.finditer(output):
             if latest is None or match.end() > latest[0]:
                 latest = (match.end(), match.group(1))
     if latest is not None:
