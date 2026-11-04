@@ -167,3 +167,13 @@ def test_probe_cross_compiles_without_warnings_when_mingw_is_installed(tmp_path)
     assert done.returncode == 0, done.stderr
     assert (tmp_path / "ds_probe.exe").stat().st_size > 0
     assert "ds_probe.exe sha256:" in (tmp_path / "BUILD.txt").read_text()
+
+
+def test_retained_rtx4060_series_replays_to_the_published_result():
+    evidence = ROOT / "benchmarks/g3/reports/20261104_directstorage/evidence"
+    result = analyze_ds.analyze([evidence])
+    published = json.loads((evidence.parent / "analysis.json").read_text())
+    assert result["capability"]["outcome"] == "DS_TO_CUDA_VERIFIED"
+    assert result["performance"]["label"] == "B_SLOWER"
+    assert result["performance"] == published["performance"]
+    assert result["descriptive"] == published["descriptive"]
