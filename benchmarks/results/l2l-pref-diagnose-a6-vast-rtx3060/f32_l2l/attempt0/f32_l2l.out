@@ -1,56 +1,0 @@
-Loading tokenizer: HuggingFaceTB/SmolLM2-135M
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Adapter persistent tensors: 230,400 parameters; weights=921600, 
-gradients=921600, optimizer=0 CUDA bytes; CPU tensors=0 bytes. Excludes base 
-buffers, activations and optimizer temporaries.
-Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 976.69it/s]
-╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
-│ HF/local source: 0.27 GB                                                     │
-│ Soup materialized copy: 0.27 GB (no write required)                          │
-│ Layer-shard cache: 0.27 GB (write required)                                  │
-│ Projected total on disk: 0.81 GB                                             │
-│ Additional writes before training: 0.27 GB                                   │
-│ Free on target volume (layer-shard cache): 55.03 GB                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Preparing layer shards -> 
-/root/results/a8/f32_l2l/attempt0/f32_l2l-work/cache/HuggingFaceTB__SmolLM2-135M
-Re-sharding layer cache: cache index is missing or unreadable.
-╭─────────────────────────── training.stream_layers ───────────────────────────╮
-│ Layer streaming BETA — arch llama, tier ram                                  │
-│   base store   0.42 GB across 30 layers (pinned)                             │
-│   VRAM buffers 2 x 14 MB + 1 x 0 MB large-layer slot = 28 MB                 │
-│   resident     113 MB extras + adapters                                      │
-│   peak VRAM    ~0.91 GB at batch 2 x seq 256 (4 rows — chosen+rejected are   │
-│ one concatenated tensor) (logits 0.70 GB)                                    │
-│   free VRAM    12.23 GB                                                      │
-│   forecast     5414-7961 tok/s — a compute-bound bound, not a promise        │
-│                (from 6.43 TFLOPS measured on this card now using float32 @   │
-│ 1410 MHz)                                                                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Layer streaming is BETA: slower than resident training, but this model may not 
-run resident on this card at all.
-expandable_segments allocator hint not enabled: CUDA was already initialised 
-before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
-context creation
-Layer streaming ready: 30 layers, 0.42 GB pinned RAM store (0.54 GB 
-page-locked), 2 x 14 MB decoder buffers + 1 x 0 MB large-layer slot
-chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
-push will persist this Jinja string into tokenizer_config.json — replacing 
-whatever the model originally shipped.
-LoRA applied: 230,400 trainable / 134,515,008 total (0.17%)
-Adding EOS to train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Adding EOS to train dataset: 100%|██████████| 12/12 [00:00<00:00, 3606.45 examples/s]
-Tokenizing train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Tokenizing train dataset: 100%|██████████| 12/12 [00:00<00:00, 1094.64 examples/s]
-[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
-L2L: each streamed layer loads once per optimizer step and runs 1 
-micro-batch(es)
-Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 2539.05 examples/s]
-[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 0}.
-  0%|          | 0/6 [00:00<?, ?it/s] 17%|█▋        | 1/6 [00:01<00:06,  1.25s/it]                                              17%|█▋        | 1/6 [00:01<00:06,  1.25s/it] 33%|███▎      | 2/6 [00:02<00:03,  1.01it/s]                                              33%|███▎      | 2/6 [00:02<00:03,  1.01it/s] 50%|█████     | 3/6 [00:02<00:02,  1.10it/s]                                              50%|█████     | 3/6 [00:02<00:02,  1.10it/s] 67%|██████▋   | 4/6 [00:03<00:01,  1.15it/s]                                              67%|██████▋   | 4/6 [00:03<00:01,  1.15it/s] 83%|████████▎ | 5/6 [00:04<00:00,  1.10it/s]                                              83%|████████▎ | 5/6 [00:04<00:00,  1.10it/s]100%|██████████| 6/6 [00:05<00:00,  1.12it/s]                                             100%|██████████| 6/6 [00:05<00:00,  1.12it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-                                             100%|██████████| 6/6 [00:05<00:00,  1.12it/s]100%|██████████| 6/6 [00:05<00:00,  1.01it/s]
-{'loss': '0.6923', 'grad_norm': '0.557', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.06967', 'l2l_layer_loads': 58, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '0.1667'}
-{'loss': '0.6826', 'grad_norm': '0.2905', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 2, 'l2l_capture_layer_loads': 2, 'l2l_capture_seconds': '0.07447', 'l2l_layer_loads': 115, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '0.3333'}
-{'loss': '0.6824', 'grad_norm': '0.4174', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 3, 'l2l_capture_layer_loads': 3, 'l2l_capture_seconds': '0.07933', 'l2l_layer_loads': 172, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '0.5'}
-{'loss': '0.6909', 'grad_norm': '0.5732', 'learning_rate': '0.01', 'l2l_steps': 4, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.08421', 'l2l_layer_loads': 229, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '0.6667'}
-{'loss': '0.6977', 'grad_norm': '0.2322', 'learning_rate': '0.01', 'l2l_steps': 5, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.08421', 'l2l_layer_loads': 286, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '0.8333'}
-{'loss': '0.6993', 'grad_norm': '0.3225', 'learning_rate': '0.01', 'l2l_steps': 6, 'l2l_captures': 5, 'l2l_capture_layer_loads': 5, 'l2l_capture_seconds': '0.08908', 'l2l_layer_loads': 343, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '1'}
-{'train_runtime': '5.954', 'train_samples_per_second': '2.016', 'train_steps_per_second': '1.008', 'train_loss': '0.6909', 'epoch': '1'}

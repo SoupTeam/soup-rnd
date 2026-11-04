@@ -1,56 +1,0 @@
-Loading tokenizer: HuggingFaceTB/SmolLM2-135M
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Adapter persistent tensors: 230,400 parameters; weights=921600, 
-gradients=921600, optimizer=0 CUDA bytes; CPU tensors=0 bytes. Excludes base 
-buffers, activations and optimizer temporaries.
-Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 1010.15it/s]
-╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
-│ HF/local source: 0.27 GB                                                     │
-│ Soup materialized copy: 0.27 GB (no write required)                          │
-│ Layer-shard cache: 0.27 GB (write required)                                  │
-│ Projected total on disk: 0.81 GB                                             │
-│ Additional writes before training: 0.27 GB                                   │
-│ Free on target volume (layer-shard cache): 56.16 GB                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Preparing layer shards -> 
-/root/results/a6/dpo/k2/attempt0/ga1-work/cache/HuggingFaceTB__SmolLM2-135M
-Re-sharding layer cache: cache index is missing or unreadable.
-╭─────────────────────────── training.stream_layers ───────────────────────────╮
-│ Layer streaming BETA — arch llama, tier ram                                  │
-│   base store   0.21 GB across 30 layers (pinned)                             │
-│   VRAM buffers 2 x 7 MB + 1 x 0 MB large-layer slot = 14 MB                  │
-│   resident     57 MB extras + adapters                                       │
-│   peak VRAM    ~0.83 GB at batch 2 x seq 256 (4 rows — chosen+rejected are   │
-│ one concatenated tensor) (logits 0.70 GB)                                    │
-│   free VRAM    12.36 GB                                                      │
-│   forecast     20301-29855 tok/s — a compute-bound bound, not a promise      │
-│                (from 24.10 TFLOPS measured on this card now using bfloat16 @ │
-│ 1777 MHz)                                                                    │
-│   ! accumulating 2x at batch 2: the base is re-read once per micro-batch.    │
-│ Per token that is free, but reaching effective batch 4 by raising            │
-│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
-│ VRAM flat, so raise batch_size while the budget above allows, then           │
-│ accumulate for the rest.                                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Layer streaming is BETA: slower than resident training, but this model may not 
-run resident on this card at all.
-expandable_segments allocator hint not enabled: CUDA was already initialised 
-before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
-context creation
-Layer streaming ready: 30 layers, 0.21 GB pinned RAM store (0.27 GB 
-page-locked), 2 x 7 MB decoder buffers + 1 x 0 MB large-layer slot
-chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
-push will persist this Jinja string into tokenizer_config.json — replacing 
-whatever the model originally shipped.
-LoRA applied: 230,400 trainable / 134,515,008 total (0.17%)
-Adding EOS to train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Adding EOS to train dataset: 100%|██████████| 12/12 [00:00<00:00, 2085.42 examples/s]
-Tokenizing train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Tokenizing train dataset: 100%|██████████| 12/12 [00:00<00:00, 924.18 examples/s]
-[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
-Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 1954.10 examples/s]
-[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 0}.
-  0%|          | 0/3 [00:00<?, ?it/s] 33%|███▎      | 1/3 [00:01<00:03,  1.87s/it]                                              33%|███▎      | 1/3 [00:01<00:03,  1.87s/it] 67%|██████▋   | 2/3 [00:03<00:01,  1.47s/it]                                              67%|██████▋   | 2/3 [00:03<00:01,  1.47s/it]100%|██████████| 3/3 [00:04<00:00,  1.31s/it]                                             100%|██████████| 3/3 [00:04<00:00,  1.31s/it]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-                                             100%|██████████| 3/3 [00:04<00:00,  1.31s/it]100%|██████████| 3/3 [00:04<00:00,  1.60s/it]
-{'loss': '0.6882', 'grad_norm': '0.3185', 'learning_rate': '0.01', 'entropy': '3.132', 'num_tokens': '142', 'logits/chosen': '8.659', 'logits/rejected': '8.168', 'mean_token_accuracy': '0.5708', 'rewards/chosen': '0.01589', 'rewards/rejected': '0.005869', 'rewards/accuracies': '1', 'rewards/margins': '0.01002', 'logps/chosen': '-25.21', 'logps/rejected': '-36.71', 'epoch': '0.3333'}
-{'loss': '0.6655', 'grad_norm': '0.3713', 'learning_rate': '0.01', 'entropy': '2.548', 'num_tokens': '286', 'logits/chosen': '7.01', 'logits/rejected': '7.092', 'mean_token_accuracy': '0.6083', 'rewards/chosen': '0.01083', 'rewards/rejected': '-0.04554', 'rewards/accuracies': '1', 'rewards/margins': '0.05636', 'logps/chosen': '-21.69', 'logps/rejected': '-36.56', 'epoch': '0.6667'}
-{'loss': '0.6961', 'grad_norm': '0.1948', 'learning_rate': '0.01', 'entropy': '2.722', 'num_tokens': '433', 'logits/chosen': '7.717', 'logits/rejected': '7.656', 'mean_token_accuracy': '0.4179', 'rewards/chosen': '-0.0006877', 'rewards/rejected': '0.00506', 'rewards/accuracies': '0.25', 'rewards/margins': '-0.005747', 'logps/chosen': '-28.52', 'logps/rejected': '-32.12', 'epoch': '1'}
-{'train_runtime': '4.808', 'train_samples_per_second': '2.496', 'train_steps_per_second': '0.624', 'train_loss': '0.6832', 'epoch': '1'}

@@ -1,78 +1,0 @@
-Loading tokenizer: HuggingFaceTB/SmolLM2-135M
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Adapter persistent tensors: 230,400 parameters; weights=921600, 
-gradients=921600, optimizer=0 CUDA bytes; CPU tensors=0 bytes. Excludes base 
-buffers, activations and optimizer temporaries.
-Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 1330.14it/s]
-╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
-│ HF/local source: 0.27 GB                                                     │
-│ Soup materialized copy: 0.27 GB (no write required)                          │
-│ Layer-shard cache: 0.27 GB (write required)                                  │
-│ Projected total on disk: 0.81 GB                                             │
-│ Additional writes before training: 0.27 GB                                   │
-│ Free on target volume (layer-shard cache): 57.22 GB                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Preparing layer shards -> 
-/root/results/ready/kto/k4/f32u_ga1/attempt0/f32u_ga1-work/cache/HuggingFaceTB__
-SmolLM2-135M
-Re-sharding layer cache: cache index is missing or unreadable.
-╭─────────────────────────── training.stream_layers ───────────────────────────╮
-│ Layer streaming BETA — arch llama, tier ram                                  │
-│   base store   0.42 GB across 30 layers (pinned)                             │
-│   VRAM buffers 2 x 14 MB + 1 x 0 MB large-layer slot = 28 MB                 │
-│   resident     113 MB extras + adapters                                      │
-│   peak VRAM    ~0.53 GB at batch 2 x seq 256 (logits 0.35 GB)                │
-│   free VRAM    12.35 GB                                                      │
-│   forecast     5027-7393 tok/s — a compute-bound bound, not a promise        │
-│                (from 5.97 TFLOPS measured on this card now using float32 @   │
-│ 1305 MHz)                                                                    │
-│   ! accumulating 4x at batch 2: the base is re-read once per micro-batch.    │
-│ Per token that is free, but reaching effective batch 8 by raising            │
-│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
-│ VRAM flat, so raise batch_size while the budget above allows, then           │
-│ accumulate for the rest.                                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Layer streaming is BETA: slower than resident training, but this model may not 
-run resident on this card at all.
-expandable_segments allocator hint not enabled: CUDA was already initialised 
-before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
-context creation
-Layer streaming ready: 30 layers, 0.42 GB pinned RAM store (0.54 GB 
-page-locked), 2 x 14 MB decoder buffers + 1 x 0 MB large-layer slot
-chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
-push will persist this Jinja string into tokenizer_config.json — replacing 
-whatever the model originally shipped.
-LoRA applied: 230,400 trainable / 134,515,008 total (0.17%)
-/root/soup/src/soup_cli/trainer/kto.py:168: FutureWarning: The `KTOConfig` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOConfig`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOConfig`) will remain, but API changes may occur.
-  kto_config = KTOConfig(
-/root/soup/src/soup_cli/trainer/kto.py:234: FutureWarning: The `KTOTrainer` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOTrainer`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOTrainer`) will remain, but API changes may occur.
-  self.trainer = KTOTrainer(**trainer_kwargs)
-Extracting prompt from train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Extracting prompt from train dataset: 100%|██████████| 12/12 [00:00<00:00, 4210.09 examples/s]
-Applying chat template to train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Applying chat template to train dataset: 100%|██████████| 12/12 [00:00<00:00, 4035.25 examples/s]
-Tokenizing train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Tokenizing train dataset: 100%|██████████| 12/12 [00:00<00:00, 1688.02 examples/s]
-Processing tokenized train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Processing tokenized train dataset: 100%|██████████| 12/12 [00:00<00:00, 1788.74 examples/s]
-Extracting KL train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Extracting KL train dataset: 100%|██████████| 12/12 [00:00<00:00, 1633.24 examples/s]
-Processing tokenized train KL dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Processing tokenized train KL dataset: 100%|██████████| 12/12 [00:00<00:00, 1798.20 examples/s]
-[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
-[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 0}.
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:01<00:01,  1.83s/it]                                              50%|█████     | 1/2 [00:01<00:01,  1.83s/it]100%|██████████| 2/2 [00:02<00:00,  1.12s/it]                                             100%|██████████| 2/2 [00:02<00:00,  1.12s/it]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-                                             100%|██████████| 2/2 [00:04<00:00,  1.12s/it]100%|██████████| 2/2 [00:04<00:00,  2.27s/it]
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Memory efficient kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1240.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Memory Efficient attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:600.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1242.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash Attention does not support non-null attn_mask. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:281.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1244.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:922.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:588.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Expected query, key and value to all be of dtype: {Half, BFloat16}. Got Query dtype: float, Key dtype: float, and Value dtype: float instead. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:110.)
-  result = real(*qkv, *args, **kwargs)
-{'loss': '0.4995', 'grad_norm': '0.09878', 'learning_rate': '0.01', 'rewards/chosen': '1.974e-05', 'logps/chosen': '-18.03', 'logits/chosen': '1.003e+07', 'rewards/rejected': '-0.004186', 'logps/rejected': '-43.95', 'logits/rejected': '6.629e+06', 'rewards/margins': '0.004205', 'kl': '0.02081', 'epoch': '0.6667'}
-{'loss': '0.5', 'grad_norm': '0.05992', 'learning_rate': '0.01', 'rewards/chosen': '0.00335', 'logps/chosen': '-25.94', 'logits/chosen': '5.864e+06', 'rewards/rejected': '0.003016', 'logps/rejected': '-20.85', 'logits/rejected': '6.934e+06', 'rewards/margins': '0.0003344', 'kl': '0.03768', 'epoch': '1'}
-{'train_runtime': '4.551', 'train_samples_per_second': '2.637', 'train_steps_per_second': '0.439', 'train_loss': '0.4997', 'epoch': '1'}

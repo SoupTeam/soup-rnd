@@ -1,78 +1,0 @@
-Loading tokenizer: HuggingFaceTB/SmolLM2-135M
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Adapter persistent tensors: 230,400 parameters; weights=921600, 
-gradients=921600, optimizer=0 CUDA bytes; CPU tensors=0 bytes. Excludes base 
-buffers, activations and optimizer temporaries.
-Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 928.00it/s]
-╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
-│ HF/local source: 0.27 GB                                                     │
-│ Soup materialized copy: 0.27 GB (no write required)                          │
-│ Layer-shard cache: 0.27 GB (write required)                                  │
-│ Projected total on disk: 0.81 GB                                             │
-│ Additional writes before training: 0.27 GB                                   │
-│ Free on target volume (layer-shard cache): 57.22 GB                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Preparing layer shards -> 
-/root/results/ready/kto/k4/f32u_l2l/attempt0/f32u_l2l-work/cache/HuggingFaceTB__
-SmolLM2-135M
-Re-sharding layer cache: cache index is missing or unreadable.
-╭─────────────────────────── training.stream_layers ───────────────────────────╮
-│ Layer streaming BETA — arch llama, tier ram                                  │
-│   base store   0.42 GB across 30 layers (pinned)                             │
-│   VRAM buffers 2 x 14 MB + 1 x 0 MB large-layer slot = 28 MB                 │
-│   resident     113 MB extras + adapters                                      │
-│   peak VRAM    ~0.53 GB at batch 2 x seq 256 (logits 0.35 GB)                │
-│   free VRAM    12.35 GB                                                      │
-│   forecast     5030-7398 tok/s — a compute-bound bound, not a promise        │
-│                (from 5.97 TFLOPS measured on this card now using float32 @   │
-│ 1305 MHz)                                                                    │
-│   ! accumulating 4x at batch 2: the base is re-read once per micro-batch.    │
-│ Per token that is free, but reaching effective batch 8 by raising            │
-│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
-│ VRAM flat, so raise batch_size while the budget above allows, then           │
-│ accumulate for the rest.                                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Layer streaming is BETA: slower than resident training, but this model may not 
-run resident on this card at all.
-expandable_segments allocator hint not enabled: CUDA was already initialised 
-before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
-context creation
-Layer streaming ready: 30 layers, 0.42 GB pinned RAM store (0.54 GB 
-page-locked), 2 x 14 MB decoder buffers + 1 x 0 MB large-layer slot
-chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
-push will persist this Jinja string into tokenizer_config.json — replacing 
-whatever the model originally shipped.
-LoRA applied: 230,400 trainable / 134,515,008 total (0.17%)
-/root/soup/src/soup_cli/trainer/kto.py:168: FutureWarning: The `KTOConfig` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOConfig`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOConfig`) will remain, but API changes may occur.
-  kto_config = KTOConfig(
-/root/soup/src/soup_cli/trainer/stream_setup.py:1153: FutureWarning: The `KTOTrainer` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOTrainer`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOTrainer`) will remain, but API changes may occur.
-  trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
-Extracting prompt from train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Extracting prompt from train dataset: 100%|██████████| 12/12 [00:00<00:00, 4011.13 examples/s]
-Applying chat template to train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Applying chat template to train dataset: 100%|██████████| 12/12 [00:00<00:00, 4011.77 examples/s]
-Tokenizing train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Tokenizing train dataset: 100%|██████████| 12/12 [00:00<00:00, 1658.10 examples/s]
-Processing tokenized train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Processing tokenized train dataset: 100%|██████████| 12/12 [00:00<00:00, 1818.01 examples/s]
-Extracting KL train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Extracting KL train dataset: 100%|██████████| 12/12 [00:00<00:00, 1378.57 examples/s]
-Processing tokenized train KL dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Processing tokenized train KL dataset: 100%|██████████| 12/12 [00:00<00:00, 1830.84 examples/s]
-[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
-L2L: each streamed layer loads once per optimizer step and runs 4 
-micro-batch(es)
-[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 0}.
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:02<00:02,  2.60s/it]                                              50%|█████     | 1/2 [00:02<00:02,  2.60s/it]100%|██████████| 2/2 [00:03<00:00,  1.88s/it]                                             100%|██████████| 2/2 [00:03<00:00,  1.88s/it]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-                                             100%|██████████| 2/2 [00:06<00:00,  1.88s/it]100%|██████████| 2/2 [00:06<00:00,  3.06s/it]
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Memory efficient kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1240.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Memory Efficient attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:600.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1242.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Expected query, key and value to all be of dtype: {Half, BFloat16}. Got Query dtype: float, Key dtype: float, and Value dtype: float instead. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:110.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:1244.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:922.)
-  result = real(*qkv, *args, **kwargs)
-/root/soup/benchmarks/harness/l2l_pref_diagnose.py:445: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:588.)
-  result = real(*qkv, *args, **kwargs)
-{'loss': '0.4995', 'grad_norm': '0.09878', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.07241', 'l2l_layer_loads': 58, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '0.6667'}
-{'loss': '0.5', 'grad_norm': '0.05992', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.07506', 'l2l_layer_loads': 115, 'l2l_large_loads': 0, 'l2l_weight_restores': 0, 'epoch': '1'}
-{'train_runtime': '6.115', 'train_samples_per_second': '1.962', 'train_steps_per_second': '0.327', 'train_loss': '0.4997', 'epoch': '1'}

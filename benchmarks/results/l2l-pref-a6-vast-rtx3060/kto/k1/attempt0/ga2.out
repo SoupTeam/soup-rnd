@@ -1,60 +1,0 @@
-Loading tokenizer: HuggingFaceTB/SmolLM2-135M
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Adapter persistent tensors: 230,400 parameters; weights=921600, 
-gradients=921600, optimizer=0 CUDA bytes; CPU tensors=0 bytes. Excludes base 
-buffers, activations and optimizer temporaries.
-Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 1084.04it/s]
-╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
-│ HF/local source: 0.27 GB                                                     │
-│ Soup materialized copy: 0.27 GB (no write required)                          │
-│ Layer-shard cache: 0.27 GB (write required)                                  │
-│ Projected total on disk: 0.81 GB                                             │
-│ Additional writes before training: 0.27 GB                                   │
-│ Free on target volume (layer-shard cache): 53.66 GB                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Preparing layer shards -> 
-/root/results/a6/kto/k1/attempt0/ga2-work/cache/HuggingFaceTB__SmolLM2-135M
-Re-sharding layer cache: cache index is missing or unreadable.
-╭─────────────────────────── training.stream_layers ───────────────────────────╮
-│ Layer streaming BETA — arch llama, tier ram                                  │
-│   base store   0.21 GB across 30 layers (pinned)                             │
-│   VRAM buffers 2 x 7 MB + 1 x 0 MB large-layer slot = 14 MB                  │
-│   resident     57 MB extras + adapters                                       │
-│   peak VRAM    ~0.46 GB at batch 2 x seq 256 (logits 0.35 GB)                │
-│   free VRAM    12.36 GB                                                      │
-│   forecast     20655-30375 tok/s — a compute-bound bound, not a promise      │
-│                (from 24.52 TFLOPS measured on this card now using bfloat16 @ │
-│ 1777 MHz)                                                                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Layer streaming is BETA: slower than resident training, but this model may not 
-run resident on this card at all.
-expandable_segments allocator hint not enabled: CUDA was already initialised 
-before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
-context creation
-Layer streaming ready: 30 layers, 0.21 GB pinned RAM store (0.27 GB 
-page-locked), 2 x 7 MB decoder buffers + 1 x 0 MB large-layer slot
-chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
-push will persist this Jinja string into tokenizer_config.json — replacing 
-whatever the model originally shipped.
-LoRA applied: 230,400 trainable / 134,515,008 total (0.17%)
-/root/soup/src/soup_cli/trainer/kto.py:168: FutureWarning: The `KTOConfig` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOConfig`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOConfig`) will remain, but API changes may occur.
-  kto_config = KTOConfig(
-/root/soup/src/soup_cli/trainer/kto.py:234: FutureWarning: The `KTOTrainer` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOTrainer`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOTrainer`) will remain, but API changes may occur.
-  self.trainer = KTOTrainer(**trainer_kwargs)
-Extracting prompt from train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Extracting prompt from train dataset: 100%|██████████| 12/12 [00:00<00:00, 2829.53 examples/s]
-Applying chat template to train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Applying chat template to train dataset: 100%|██████████| 12/12 [00:00<00:00, 2843.60 examples/s]
-Tokenizing train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Tokenizing train dataset: 100%|██████████| 12/12 [00:00<00:00, 984.27 examples/s]
-Processing tokenized train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Processing tokenized train dataset: 100%|██████████| 12/12 [00:00<00:00, 1241.90 examples/s]
-Extracting KL train dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Extracting KL train dataset: 100%|██████████| 12/12 [00:00<00:00, 1014.32 examples/s]
-Processing tokenized train KL dataset:   0%|          | 0/12 [00:00<?, ? examples/s]Processing tokenized train KL dataset: 100%|██████████| 12/12 [00:00<00:00, 1276.13 examples/s]
-[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
-[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'pad_token_id': 0}.
-  0%|          | 0/6 [00:00<?, ?it/s] 17%|█▋        | 1/6 [00:01<00:07,  1.52s/it]                                              17%|█▋        | 1/6 [00:01<00:07,  1.52s/it] 33%|███▎      | 2/6 [00:02<00:04,  1.10s/it]                                              33%|███▎      | 2/6 [00:02<00:04,  1.10s/it] 50%|█████     | 3/6 [00:03<00:02,  1.05it/s]                                              50%|█████     | 3/6 [00:03<00:02,  1.05it/s] 67%|██████▋   | 4/6 [00:03<00:01,  1.12it/s]                                              67%|██████▋   | 4/6 [00:03<00:01,  1.12it/s] 83%|████████▎ | 5/6 [00:04<00:00,  1.21it/s]                                              83%|████████▎ | 5/6 [00:04<00:00,  1.21it/s]100%|██████████| 6/6 [00:05<00:00,  1.23it/s]                                             100%|██████████| 6/6 [00:05<00:00,  1.23it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-                                             100%|██████████| 6/6 [00:05<00:00,  1.23it/s]100%|██████████| 6/6 [00:05<00:00,  1.03it/s]
-{'loss': '0.5025', 'grad_norm': '0.1726', 'learning_rate': '0.01', 'rewards/chosen': '-0.02463', 'logps/chosen': '-16.75', 'logits/chosen': '8.489e+06', 'rewards/rejected': '-0.004625', 'logps/rejected': '-40.22', 'logits/rejected': '6.036e+06', 'rewards/margins': '-0.02', 'kl': '0', 'epoch': '0.1667'}
-{'loss': '0.5019', 'grad_norm': '0.1777', 'learning_rate': '0.01', 'rewards/chosen': '0.002759', 'logps/chosen': '-19.63', 'logits/chosen': '9.51e+06', 'rewards/rejected': '0.01777', 'logps/rejected': '-51.45', 'logits/rejected': '6.29e+06', 'rewards/margins': '-0.01501', 'kl': '0.1026', 'epoch': '0.3333'}
-{'loss': '0.4977', 'grad_norm': '0.07812', 'learning_rate': '0.01', 'rewards/chosen': '-0.0214', 'logps/chosen': '-17.45', 'logits/chosen': '6.296e+06', 'rewards/rejected': '-0.03958', 'logps/rejected': '-25.13', 'logits/rejected': '7.157e+06', 'rewards/margins': '0.01818', 'kl': '0', 'epoch': '0.5'}
-{'loss': '0.5018', 'grad_norm': '0.2792', 'learning_rate': '0.01', 'rewards/chosen': '0.003585', 'logps/chosen': '-18.3', 'logits/chosen': '1.58e+07', 'rewards/rejected': '0.01763', 'logps/rejected': '-58.4', 'logits/rejected': '6.973e+06', 'rewards/margins': '-0.01404', 'kl': '0.1061', 'epoch': '0.6667'}
-{'loss': '0.4999', 'grad_norm': '0.1145', 'learning_rate': '0.01', 'rewards/chosen': '-0.0454', 'logps/chosen': '-35.43', 'logits/chosen': '5.959e+06', 'rewards/rejected': '-0.04606', 'logps/rejected': '-23.5', 'logits/rejected': '8.117e+06', 'rewards/margins': '0.0006647', 'kl': '0', 'epoch': '0.8333'}
-{'loss': '0.5021', 'grad_norm': '0.03708', 'learning_rate': '0.01', 'rewards/chosen': '-0.002828', 'logps/chosen': '-16.44', 'logits/chosen': '5.791e+06', 'rewards/rejected': '0.01366', 'logps/rejected': '-18.25', 'logits/rejected': '5.727e+06', 'rewards/margins': '-0.01649', 'kl': '0.05416', 'epoch': '1'}
-{'train_runtime': '5.816', 'train_samples_per_second': '2.063', 'train_steps_per_second': '1.032', 'train_loss': '0.501', 'epoch': '1'}
