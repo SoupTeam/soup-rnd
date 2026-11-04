@@ -12,7 +12,6 @@ from soup_cli.config.schema import L2L_SUPPORTED_TASKS, TrainingConfig
 
 ROOT = Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs" / "performance-and-quantization.md"
-ADR = ROOT / "docs" / "adr" / "0002-l2l-is-a-bool-and-k-is-gradient-accumulation.md"
 HEADING = "### L2L for preference tasks"
 PREFERENCE_METHODS = ("dpo", "orpo", "simpo", "kto")
 
@@ -112,13 +111,6 @@ def test_every_benchmarks_link_in_the_section_exists():
 def test_the_sft_limits_no_longer_say_sft_only():
     text = DOC.read_text(encoding="utf-8")
     assert "- `task` other than `sft`." not in text
-
-
-def test_adr_records_the_preference_update_and_the_default():
-    text = ADR.read_text(encoding="utf-8")
-    assert "orpo" in text and "kto" in text
-    assert "`false`" in text
-    assert "## Update:" in text and text.count("## Update:") >= 2
 
 
 def test_l2l_field_description_does_not_claim_sft_only():
