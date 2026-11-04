@@ -53,7 +53,14 @@ print("kit", kit_source, kit_sha)
 os.chdir(ROOT)
 print(subprocess.check_output([sys.executable, "benchmarks/e2/recipe_check/kit.py",
                                "verify", str(ROOT)], text=True))
-subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-e", ".[train]"], check=True)
+# Kaggle's image is Python 3.13; Soup caps requires-python below 3.13 only to stop pip
+# from pulling untested torch wheels (#358). Keep Kaggle's own torch and allow 3.13.
+import torch  # noqa: E402
+
+Path("/tmp/keep_torch.txt").write_text(f"torch=={torch.__version__}\n")
+print("python", sys.version.split()[0], "torch", torch.__version__)
+subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--ignore-requires-python",
+                "-c", "/tmp/keep_torch.txt", "-e", ".[train]"], check=True)
 freeze = subprocess.check_output([sys.executable, "-m", "pip", "freeze"], text=True)'''
 
 MODEL = r'''from huggingface_hub import snapshot_download
