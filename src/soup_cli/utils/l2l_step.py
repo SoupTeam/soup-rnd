@@ -464,11 +464,13 @@ class L2LStep:
             finally:
                 layer.use_checkpoint = saved
         if train_embedding:
-            # The reverse walk normally prefetches this at layer 0. Explicitly request the
-            # same load for a one-layer decoder too, whose walk never changes direction.
-            refill = self.runtime.prefetcher.backward_tail_prefetch
-            if refill is not None:
+            # The reverse walk prefetches this at layer 0 and records it on the prefetcher. A
+            # one-layer decoder never changes direction, so only then is it still to be asked.
+            prefetcher = self.runtime.prefetcher
+            refill = prefetcher.backward_tail_prefetch
+            if refill is not None and not prefetcher.backward_tail_prefetched:
                 refill()
+                prefetcher.backward_tail_prefetched = True
             for mb, ids in enumerate(micro_batches):
                 with torch.enable_grad(), l2l_rng.state_at(embedding_states[mb]):
                     embedded = self.owner.embed_tokens(ids)

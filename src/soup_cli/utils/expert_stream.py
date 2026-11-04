@@ -425,12 +425,14 @@ def _build_streamed_experts_class() -> Any:
     class StreamedExperts(nn.Module):
         """Eager expert loop over one-slot streamed weights, differentiable in its inputs.
 
-        Hit experts are visited in ascending order. With autograd enabled and a hidden or
-        routing-weight input that requires grad, each visit is one ``FrozenExpert`` whose
-        backward leases the same expert again through the same reader and pool; otherwise
-        the visit is a plain lease with identical arithmetic. The routing weight multiplies
-        the node's output with ordinary autograd. Routed weights are frozen constants and
-        never receive a gradient.
+        Hit experts are visited in ascending order. Every visit goes through ``FrozenExpert``,
+        which leases the expert from the pool. It records a backward node only with autograd
+        enabled and a grad-bearing hidden slice; that node's backward leases the same expert
+        again through the same reader and pool. Without a graph the visit is one plain lease
+        with identical arithmetic. The routing weight multiplies the node's output with
+        ordinary autograd. A grad-bearing hidden state or routing weight additionally makes
+        ``forward`` validate the stateless-SiLU activation before any expert is read. Routed
+        weights are frozen constants and never receive a gradient.
 
         ``last_trace`` holds one row per expert visited by the latest ``forward`` call, so it
         is bounded by the expert count; a checkpoint recompute is a forward call and replaces

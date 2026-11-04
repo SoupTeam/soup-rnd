@@ -15,6 +15,28 @@
 - Local specification and seven dependency-tracked tickets live under
   `.scratch/b1.3-moe-backward/`; portable snapshots are included in `raw-results.zip`.
 
+## Post-merge addendum (head after merging `origin/main` at `76051b77`)
+
+Everything in the sections below, including the numerical tables, describes the measured source `e691ffff`.
+Merging B6 (#45), A5 and C3 changed the expert primitive and the L2L step, so the statements
+in the table below no longer describe the code on this branch. The measured artifacts
+(`summary.json`, `raw-results.zip`, `SHA256SUMS.json`) are unchanged and still describe `e691ffff`.
+
+| Measured at `e691ffff` | Merged contract |
+| --- | --- |
+| Node `ExpertNode` saves gathered hidden **and routing weights**, differentiates the routing multiplication inside the node. | Node `FrozenExpert` saves the gathered hidden slice only. The routing weight multiplies its output with ordinary autograd, so the routing-weight gradient needs no reload. Only the hidden gradient depends on the backward reload, so the backward-corruption control now changes the hidden gradient and leaves the routing-weight gradient equal. |
+| Backward replays CPU/CUDA RNG and accepts stateless stochastic activations. | Training admits only the unmodified native stateless SiLU, validated before any expert is read and again before backward. Dropout and other callable activations are refused for training and still stream under `torch.no_grad`. |
+| Exactly three reads per expert visit with routing weights requiring grad. | Reads per hit expert are forward plus backward reload (plus a recompute read under checkpointing or L2L). A routing-weight gradient alone does not reload. |
+| Mixed-length L2L windows are right-padded. | Each micro-batch runs at its own length (A5); L2L takes one `LayerCall` per micro-batch. |
+| Dense trainer log fields only. | Main's capture and spill fields are present; MoE runs add `l2l_expert_fetches` and `l2l_expert_bytes_read`. |
+
+Kept unchanged by the merge: `RoutingGuard`, head-dropout and embedding RNG replay, the
+embedding VJP, the expert-fetch counters, runtime ownership and rollback (B6's), the backward-only
+corruption control and the unchanged public launch guard.
+
+Re-verification on the merged head is recorded in the PR discussion, not in this archive, so the
+pinned evidence below stays intact. No new numerical thresholds were introduced or loosened.
+
 ## Acceptance criteria
 
 | Criterion | Implementation | Exercised evidence |
@@ -159,6 +181,8 @@ above. Integrator owned Git/merges, minor annotation closure, final execution an
 - Existing uneven stochastic-window and NEFTune-plus-dropout refusals remain; no new masked or
   uneven support is implied. Differentiable custom expert activations with registered mutable
   buffers are refused before reads; accepted stateless stochastic activations replay their RNG.
+  **Superseded after the main merge: see "Post-merge addendum". Stochastic activations are now
+  refused for training; the measured results above were taken before that change.**
 - Synthetic correctness evidence, not trained-model quality, throughput, multi-GPU or whole-model
   capacity validation. The two-visible-CUDA-card RNG case was not executed.
 - Independent review reproduced an inherited AsyncDiskSource thread leak after a later setup
