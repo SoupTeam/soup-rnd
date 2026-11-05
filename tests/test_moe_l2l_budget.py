@@ -39,7 +39,17 @@ def test_exact_fit_keeps_requested_window(dtype, pin, expected_activations):
     assert plan.routing_record_bytes == 1920
     assert plan.routing_comparison_bytes == 240
     assert plan.host_bytes == plan.available_host_bytes == budget.limit_bytes
+    assert plan.saved_expert_input_bytes is None
     assert budget.used_bytes == 0
+
+
+def test_expert_input_dtype_is_independent_of_host_storage():
+    budget = HostMemoryBudget(3840)
+    plan = plan_moe_l2l(budget, expert_input_dtype="float32", **PLAN_ARGS)
+
+    assert plan.saved_expert_input_bytes == 840  # 10 tokens x 3 routes x 7 values x 4 B
+    assert plan.effective_k == 4
+    assert plan.host_bytes == 3840
 
 
 def test_selection_uses_remaining_budget_and_all_integer_window_sizes():
@@ -79,6 +89,7 @@ def test_rejects_budget_too_small_for_one_microbatch(available):
         {"n_moe_layers": 4},
         {"experts_per_token": 0},
         {"dtype": "float16"},
+        {"expert_input_dtype": "uint8"},
     ],
 )
 def test_rejects_unsupported_dimensions_and_dtype(invalid):
@@ -126,15 +137,37 @@ def test_plan_covers_cpu_store_and_route_tensors_under_one_budget():
 
 
 @_REQUIRES_TRAINING_FLOOR
-def test_plan_covers_native_deepseek_l2l_buffers(tmp_path, monkeypatch):
+@pytest.mark.parametrize(("budget_bytes", "expected_k"), [(5184, 1), (20_160, 4)])
+def test_plan_covers_native_deepseek_l2l_buffers(tmp_path, monkeypatch, budget_bytes, expected_k):
     import torch
 
     from benchmarks.harness import b13_moe_fixture
     from soup_cli.utils import l2l_step
     from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+    from soup_cli.utils.expert_stream import streamed_experts_class
 
     rig = b13_moe_fixture.build_fixture(tmp_path)
     peak_records = peak_comparison = peak_routes = 0
+    saved_inputs = []
+    hooks = []
+
+    def observe_expert_inputs(_module, _args, output):
+        if output.grad_fn is None:
+            return
+        pending = [output.grad_fn]
+        visited = set()
+        saved_bytes = 0
+        while pending:
+            node = pending.pop()
+            if node in visited:
+                continue
+            visited.add(node)
+            if type(node).__name__ == "FrozenExpertBackward":
+                (hidden,) = node.saved_tensors
+                saved_bytes += hidden.untyped_storage().nbytes()
+            else:
+                pending.extend(parent for parent, _ in node.next_functions if parent is not None)
+        saved_inputs.append(saved_bytes)
 
     class ObservedGuard(l2l_step.RoutingGuard):
         def _watch(self, module, args, kwargs):
@@ -153,9 +186,13 @@ def test_plan_covers_native_deepseek_l2l_buffers(tmp_path, monkeypatch):
 
     monkeypatch.setattr(l2l_step, "RoutingGuard", ObservedGuard)
     try:
+        experts = streamed_experts_class()
+        for module in rig.streamed.modules():
+            if isinstance(module, experts):
+                hooks.append(module.register_forward_hook(observe_expert_inputs))
         config = rig.config
         shape = (2, 6, config.hidden_size)
-        budget = HostMemoryBudget(20_160)  # Fits four micro-batches and one comparison route.
+        budget = HostMemoryBudget(budget_bytes)
         plan = plan_moe_l2l(
             budget,
             n_layers=config.num_hidden_layers,
@@ -165,8 +202,9 @@ def test_plan_covers_native_deepseek_l2l_buffers(tmp_path, monkeypatch):
             requested_k=64,
             dtype="float32",
             pin=False,
+            expert_input_dtype="float32",
         )
-        assert plan.effective_k == 4
+        assert plan.effective_k == expected_k
         batches, labels = b13_moe_fixture.micro_batches(
             config, plan.effective_k, first=0, device="cpu"
         )
@@ -193,8 +231,12 @@ def test_plan_covers_native_deepseek_l2l_buffers(tmp_path, monkeypatch):
             assert peak_records == plan.routing_record_bytes
             assert peak_comparison == plan.routing_comparison_bytes
             assert activation_bytes + peak_routes == plan.host_bytes == budget.limit_bytes
+            assert len(saved_inputs) == 2 * expected_k  # Two MoE layers, each recomputed.
+            assert set(saved_inputs) == {plan.saved_expert_input_bytes} == {3072}
         finally:
             store.close()
         assert budget.used_bytes == 0
     finally:
+        for hook in hooks:
+            hook.remove()
         rig.close()
