@@ -205,3 +205,15 @@ def test_hybrid_notebook_runs_the_hybrid_arms():
     assert 'ARMS = ["H24", "H16", "W32"]' in code
     assert "benchmarks/e2/hybrid/run_arm.py" in code and "e2hy_results_" in code
     assert '"uninstall", "-y", "-q", "torchao"' in code
+
+
+def test_retained_kaggle_series_replays_to_the_published_result():
+    report = HY / "reports" / "20261105"
+    evidence = report / "evidence"
+    result = analyze_hybrid.analyze(evidence / "20261105_082550")
+    published = json.loads((report / "analysis.json").read_text())
+    assert result["label"] == published["label"] == "WITHIN_MARGIN"
+    assert result["H24"] == published["H24"] and result["H16"]["label"] == "FAILS"
+    manifest = json.loads((report / "MANIFEST.json").read_text())
+    for name, digest in manifest["files"].items():
+        assert hashlib.sha256((evidence / name).read_bytes()).hexdigest() == digest, name
