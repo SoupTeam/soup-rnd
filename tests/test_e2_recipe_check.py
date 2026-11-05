@@ -243,3 +243,17 @@ def test_kit_verify_tolerates_dropped_dot_files_only(tmp_path):
     (root / "a.txt").unlink()
     with pytest.raises(RuntimeError, match="differ"):
         kit.verify(root)
+
+
+def test_retained_kaggle_series_replays_to_the_published_result():
+    report = RC / "reports" / "20261104"
+    evidence = report / "evidence"
+    result = analyze_recipe.analyze(
+        [evidence / "20261104_182324", evidence / "20261104_231206"]
+    )
+    published = json.loads((report / "analysis.json").read_text())
+    assert result["label"] == published["label"] == "GAP_PERSISTS"
+    assert result["weak"] == published["weak"] and result["strong"] == published["strong"]
+    manifest = json.loads((report / "MANIFEST.json").read_text())
+    for name, digest in manifest["files"].items():
+        assert hashlib.sha256((evidence / name).read_bytes()).hexdigest() == digest, name
