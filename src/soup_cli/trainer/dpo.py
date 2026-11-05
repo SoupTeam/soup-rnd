@@ -216,13 +216,21 @@ class DPOTrainerWrapper(StreamingSetupMixin):
         )
 
         # --- Trainer ---
-        self.trainer = DPOTrainer(
-            model=self.model,
-            args=dpo_config,
-            train_dataset=train_ds,
-            eval_dataset=eval_ds,
-            processing_class=self.tokenizer,
-        )
+        trainer_kwargs = {
+            "model": self.model,
+            "args": dpo_config,
+            "train_dataset": train_ds,
+            "eval_dataset": eval_ds,
+            "processing_class": self.tokenizer,
+        }
+        if tcfg.l2l:
+            from soup_cli.trainer.l2l_dpo import dpo_window_loss
+
+            self.trainer = self._build_l2l_trainer(
+                DPOTrainer, trainer_kwargs, dpo_config, loss=dpo_window_loss(args=dpo_config)
+            )
+        else:
+            self.trainer = DPOTrainer(**trainer_kwargs)
         if not config_accepts(DPOConfig, "max_prompt_length"):
             # TRL 0.29 removed the prompt cap and its new DPO tokenizer leaves
             # max_length enforcement to callers. Cap the prepared token ids so
@@ -247,6 +255,10 @@ class DPOTrainerWrapper(StreamingSetupMixin):
             from soup_cli.utils.layer_stream_runtime import materialize_meta_adapter_copy
 
             materialize_meta_adapter_copy(self.model)
+        if tcfg.l2l:
+            from soup_cli.trainer.l2l_dpo import refuse_unsupported_dpo
+
+            refuse_unsupported_dpo(self.trainer)
 
         # #359 - the same exposure #336 fixed in sft.py: with LoRA the
         # no-decay optimizer group is empty, DeepSpeed drops it, and the LR

@@ -10,6 +10,10 @@ this volume. Treat them as a shape to copy, not a starting corpus.
 | `alpaca_tiny.jsonl` | alpaca | 10 | `instruction` / `input` / `output` instruction pairs |
 | `chat_preferences.jsonl` | dpo | 5 | `prompt` / `chosen` / `rejected`, messages as chat turns |
 | `dpo_sample.jsonl` | dpo | 8 | Same shape, longer answers — used by the DPO example |
+| `orpo_pairs_synthetic.jsonl` | dpo | 12 | Synthetic hand-written pairs of uneven length for the ORPO L2L example (`examples/configs/orpo_l2l_short.yaml`) |
+| `dpo_pairs_synthetic.jsonl` | dpo | 12 | Synthetic hand-written pairs of uneven length for the DPO L2L example (`examples/configs/dpo_l2l_short.yaml`) |
+| `simpo_pairs_synthetic.jsonl` | dpo | 12 | Synthetic hand-written pairs of uneven length for the SimPO L2L example (`examples/configs/simpo_l2l_short.yaml`) |
+| `kto_synthetic.jsonl` | kto | 12 | Synthetic hand-written unpaired rows (`prompt` / `completion` / `label`, six of each label) for the KTO L2L example (`examples/configs/kto_l2l_short.yaml`) |
 | `reasoning_math.jsonl` | alpaca | 5 | Step-by-step worked solutions for GRPO/reasoning |
 
 `soup data inspect <file>` prints the detected format and stats for any of them.
