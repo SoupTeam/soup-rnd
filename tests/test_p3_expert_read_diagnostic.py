@@ -31,21 +31,15 @@ sector padding of each tensor span, and the number of read calls per expert (one
 tensor). On macOS the handle uses ``F_NOCACHE``, on Linux ``O_DIRECT`` where the filesystem
 allows it, so on those the requests are close to device reads; elsewhere they are not.
 
-Result (CPU, tiny fixture, measured 2026-11-05 on d272e476 plus tickets 01 and 02):
+Result. The measured table (CPU, tiny fixture, 2026-11-05) is in ``docs/expert-forward.md``,
+section "Expert reads per window". Verdict: confirmed. An expert is read again for every
+micro-batch whose router hits it. Fetches equal 3 x total_hits at every k and stay near 39
+per micro-batch, while layer loads stay at 3 and the window needs only 16 distinct experts.
+The plan's "one read per window" assumption does not hold for experts as implemented. This
+file claims no speed.
 
-    k   layer_loads  expert_fetches  logical_bytes  total_hits  unique  phys_calls  phys_bytes
-    1        3              39           239616          13        13        78        547536
-    4        3             162           995328          54        15       324       2276160
-   16        3             621          3815424         207        16      1242       8671128
-   64        3            2526         15519744         842        16      5052      35311200
-
-Verdict. Confirmed: the expert is read again for every micro-batch in which the router hits
-it. Fetches equal 3 x total_hits at every k and stay near 39 per micro-batch (39.0, 40.5, 38.8,
-39.5), while layer loads stay at 3 and the window needs only 16 distinct experts. The plan's
-"one read per window" assumption does not hold for experts in the current implementation, so
-the x50 estimate for experts needs a new implementation, for example one that groups the
-hits of a window per expert. This file claims no speed. Logical bytes are 44 percent of the
-physical bytes (sector padding), and every expert fetch is two read requests (gate_up, down).
+Limits. The physical counters cover expert reads only, not the layer-weight reads. The
+fixture has 16 experts, so the unique-expert count is capped at 16 for every k >= 16.
 """
 
 from __future__ import annotations
@@ -55,6 +49,7 @@ from typing import Any, Callable, Dict, List
 
 import pytest
 
+from soup_cli.utils.expert_shard import EXPERT_PARTS
 from tests.test_b13_l2l_moe import (  # noqa: F401  (make_rig is a fixture)
     Spec,
     ga_windows,
@@ -68,6 +63,8 @@ from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 pytestmark = _REQUIRES_TRAINING_FLOOR
 
 K_SWEEP = (1, 4, 16, 64)
+#: Fetches per micro-batch must stay flat across k: the smallest exceeds this share of the largest.
+FLAT_PER_MICRO_BATCH = 0.5
 #: Reads of one hit expert: no-grad forward, grad recompute, the expert's own backward.
 READS_PER_HIT = 3
 
@@ -128,13 +125,20 @@ def measure(rig: Any, monkeypatch: pytest.MonkeyPatch, k: int) -> Dict[str, int]
     }
 
 
+_ROWS: Dict[int, Dict[str, int]] = {}
+
+
 @pytest.fixture()
 def sweep(
     make_rig: Callable[..., Any],  # noqa: F811
     monkeypatch: pytest.MonkeyPatch,
 ) -> Callable[[int], Dict[str, int]]:
+    """``sweep(k)``: the counters of one window of k micro-batches, measured once per k."""
+
     def run(k: int) -> Dict[str, int]:
-        return measure(make_rig(k=k), monkeypatch, k)
+        if k not in _ROWS:
+            _ROWS[k] = measure(make_rig(k=k), monkeypatch, k)
+        return _ROWS[k]
 
     return run
 
@@ -153,8 +157,7 @@ def test_expert_reads_per_window_are_counted_at_every_k(
     assert row["expert_bytes_read"] > 0
     # Physical reads, kept apart: one request per stored tensor of each fetched expert, and at
     # least the logical bytes because every span is rounded out to sector bounds.
-    assert row["physical_calls"] > 0
-    assert row["physical_calls"] % row["expert_fetches"] == 0
+    assert row["physical_calls"] == len(EXPERT_PARTS) * row["expert_fetches"]
     assert row["physical_bytes"] >= row["expert_bytes_read"]
 
 
@@ -177,7 +180,7 @@ def test_expert_reads_grow_with_the_micro_batches_of_a_window(
     # Reads per micro-batch do not fall as k grows: no reuse across micro-batches.
     per_micro_batch = [rows[k]["expert_fetches"] / k for k in K_SWEEP]
     record_property("expert_fetches_per_micro_batch", per_micro_batch)
-    assert min(per_micro_batch) > 0.5 * max(per_micro_batch), per_micro_batch
+    assert min(per_micro_batch) > FLAT_PER_MICRO_BATCH * max(per_micro_batch), per_micro_batch
     # Layer loads are the part that does not follow k.
     assert len(loads) == 1, loads
 
