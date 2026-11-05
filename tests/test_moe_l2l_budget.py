@@ -4,6 +4,7 @@ import pytest
 
 from soup_cli.utils.host_memory_budget import HostMemoryBudget
 from soup_cli.utils.moe_l2l_budget import plan_moe_l2l
+from tests.test_issue502_qwen35_transformers5 import _REQUIRES_TRAINING_FLOOR
 
 PLAN_ARGS = {
     "n_layers": 3,
@@ -122,3 +123,78 @@ def test_plan_covers_cpu_store_and_route_tensors_under_one_budget():
         del records, comparison
         routing.close()
     assert budget.used_bytes == 0
+
+
+@_REQUIRES_TRAINING_FLOOR
+def test_plan_covers_native_deepseek_l2l_buffers(tmp_path, monkeypatch):
+    import torch
+
+    from benchmarks.harness import b13_moe_fixture
+    from soup_cli.utils import l2l_step
+    from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+
+    rig = b13_moe_fixture.build_fixture(tmp_path)
+    peak_records = peak_comparison = peak_routes = 0
+
+    class ObservedGuard(l2l_step.RoutingGuard):
+        def _watch(self, module, args, kwargs):
+            nonlocal peak_records, peak_comparison, peak_routes
+            if self._visit is not None and not self._visit[2]:
+                # The first comparison still has all saved routes plus the new route.
+                indices = kwargs["top_k_index"] if "top_k_index" in kwargs else args[1]
+                comparison = indices.untyped_storage().nbytes()
+                peak_comparison = max(peak_comparison, comparison)
+                peak_routes = max(peak_routes, self.record_bytes() + comparison)
+            super()._watch(module, args, kwargs)
+            peak_records = max(peak_records, self.record_bytes())
+
+        def record_bytes(self):
+            return sum(indices.untyped_storage().nbytes() for indices in self._records.values())
+
+    monkeypatch.setattr(l2l_step, "RoutingGuard", ObservedGuard)
+    try:
+        config = rig.config
+        shape = (2, 6, config.hidden_size)
+        budget = HostMemoryBudget(20_160)  # Fits four micro-batches and one comparison route.
+        plan = plan_moe_l2l(
+            budget,
+            n_layers=config.num_hidden_layers,
+            n_moe_layers=config.num_hidden_layers - config.first_k_dense_replace,
+            max_shape=shape,
+            experts_per_token=config.num_experts_per_tok,
+            requested_k=64,
+            dtype="float32",
+            pin=False,
+        )
+        assert plan.effective_k == 4
+        batches, labels = b13_moe_fixture.micro_batches(
+            config, plan.effective_k, first=0, device="cpu"
+        )
+        step = l2l_step.L2LStep(
+            rig.streamed, rig.runtime, l2l_step.capture_layer_call(rig.streamed, batches[0])
+        )
+        store = BudgetedActivationStore(
+            host_budget=budget,
+            n_layers=config.num_hidden_layers,
+            k=plan.effective_k,
+            chunk_shape=shape,
+            dtype=torch.float32,
+            device="cpu",
+            pin=False,
+        )
+        try:
+            n_items = sum(int((label[:, 1:] != -100).sum()) for label in labels)
+            losses = step.run(batches, store, labels=labels, n_items=n_items)
+            assert all(loss.isfinite() for loss in losses)
+            activation_bytes = sum(
+                tensor.untyped_storage().nbytes() for tensor in store._resident.values()
+            )
+            assert activation_bytes == plan.activation_bytes == budget.used_bytes
+            assert peak_records == plan.routing_record_bytes
+            assert peak_comparison == plan.routing_comparison_bytes
+            assert activation_bytes + peak_routes == plan.host_bytes == budget.limit_bytes
+        finally:
+            store.close()
+        assert budget.used_bytes == 0
+    finally:
+        rig.close()
