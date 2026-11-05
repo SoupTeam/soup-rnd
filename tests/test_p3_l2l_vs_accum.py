@@ -29,11 +29,14 @@ EFFICIENT_ATTENTION is CUDA only. The floor used here is therefore the repeat of
 A), which is exactly 0, so 1.5 x the floor is 0 and BF16 has to match exactly. That is stricter
 than A3, not looser. The real floor needs a GPU run.
 
-Logged loss. The loss the trainer writes to its log differs from plain accumulation by one
-float32 ulp (about 1.1e-7 relative) at k >= 16 in both dtypes, although the loss of each update
-(the sum of the micro-batch losses, read from ``training_step``) is bit for bit equal. L2L logs
-the exact sum, the Trainer's own log adds it in another order. The logged loss is therefore
-judged with the FP32 limit of A3 (1e-4), and the A3 loss check runs on the exact sum.
+Logged loss. Observed, cause not isolated: at k >= 16 the loss in the Trainer's log differs
+between GA and L2L by one float32 ulp (about 1.1e-7 relative) in both dtypes, although the loss
+of each update (the sum of the micro-batch losses, read from ``training_step``) is bit for bit
+equal. In the L2L log the value equals that sum. The A3 loss check therefore runs on the exact
+sum, and the logged loss is only held to the FP32 limit of A3 (1e-4) in both dtypes.
+
+Because the BF16 floor is 0 here, ``status == "within_tolerance"`` for BF16 is the same claim as
+the exact-equality asserts below it. The A3 tolerance itself is not exercised on CPU.
 """
 
 from __future__ import annotations
@@ -57,6 +60,10 @@ K_SWEEP = (1, 4, 16, 64)
 WINDOWS = 3  # two full updates and one update of a single row
 
 
+def _row_count(k: int) -> int:
+    return 2 * k + 1
+
+
 @pytest.fixture(scope="module")
 def stand() -> Any:
     _load("l2l_schedule")
@@ -65,14 +72,14 @@ def stand() -> Any:
 
 def _rows(k: int, *, uneven: bool) -> Any:
     """Two full windows and a final window of one row; every row masks a label span."""
-    rows = 2 * k + 1
+    rows = _row_count(k)
     lengths = ([5, 8, 3, 6, 9] * rows)[:rows] if uneven else [6] * rows
     return _MaskedRows(lengths, [[(0, 1 + index % 2)] for index in range(rows)])
 
 
-def _record(stand: Any, run: dict[str, Any]) -> Any:
-    """A run as the A3 stand reads it, with the exact summed loss of each update."""
-    logs = [
+def _record(stand: Any, run: dict[str, Any], *, logged_loss: bool = False) -> Any:
+    """A run as the A3 stand reads it: the exact summed loss of each update, or the logged one."""
+    logs = run["logs"] if logged_loss else [
         {"loss": float(loss), "learning_rate": row["learning_rate"]}
         for loss, row in zip(run["losses"], run["logs"])
     ]
@@ -111,7 +118,7 @@ def test_l2l_matches_accumulation(
 ) -> None:
     ga1, ga2, l2l, before = _runs(tmp_path, k=k, uneven=uneven, bf16=bf16)
     assert ga1["steps"] == l2l["steps"] == l2l["l2l_steps"] == WINDOWS == math.ceil(
-        (2 * k + 1) / k
+        _row_count(k) / k
     )
     assert l2l["window"] is None
     ga, ga_again, streamed = (_record(stand, run) for run in (ga1, ga2, l2l))
@@ -131,8 +138,7 @@ def test_l2l_matches_accumulation(
     assert _state_gap(ga1["final"], l2l["final"]) == 0.0
     # The loss in the trainer's log: A3's FP32 limit, see "Logged loss" above.
     logged = stand.loss_rel_by_step(
-        stand.RunRecord(ga1["logs"], ga1["rates"], ga1["grads"], ga1["steps"]),
-        stand.RunRecord(l2l["logs"], l2l["rates"], l2l["grads"], l2l["steps"]),
+        _record(stand, ga1, logged_loss=True), _record(stand, l2l, logged_loss=True),
     )
     record_property("max_logged_loss_rel", max(logged))
     assert len(logged) == WINDOWS
