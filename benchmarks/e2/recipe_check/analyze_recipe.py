@@ -75,8 +75,11 @@ def _config_matches_template(arm_dir: Path, arm: str) -> bool:
     return text == (HERE / "configs" / f"{arm}.yaml").read_text(encoding="utf-8")
 
 
-def load_arm(arm_dir: Path) -> dict:
-    """Read one arm folder; `problems` lists every V1/V4 failure found."""
+def load_arm(arm_dir: Path, template: str | None = None) -> dict:
+    """Read one arm folder; `problems` lists every V1/V4 failure found.
+
+    `template` names the config template when it is not the folder name.
+    """
     arm = arm_dir.name
     out = {"arm": arm, "problems": []}
     problems = out["problems"]
@@ -89,7 +92,7 @@ def load_arm(arm_dir: Path) -> dict:
         return out
     if not record.get("ok"):
         problems.append("arm.json is not ok")
-    if not _config_matches_template(arm_dir, arm):
+    if not _config_matches_template(arm_dir, template or arm):
         problems.append("config differs from its template beyond base/output")
     ce = quality.get("validation_loss")
     checks = {

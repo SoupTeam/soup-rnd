@@ -108,14 +108,29 @@ def cell(kind, text):
     return body
 
 
-notebook = {
-    "cells": [cell("markdown", INTRO), cell("code", PARAMS), cell("code", SETUP),
-              cell("code", MODEL), cell("code", RUN), cell("code", PACK)],
-    "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python",
-                                "name": "python3"}},
-    "nbformat": 4,
-    "nbformat_minor": 5,
-}
-out = Path(__file__).with_name("e2_recipe_check.ipynb")
-out.write_text(json.dumps(notebook, indent=1) + "\n", encoding="utf-8")
-print(out)
+def write(name, intro, params, run, pack):
+    notebook = {
+        "cells": [cell("markdown", intro), cell("code", params), cell("code", SETUP),
+                  cell("code", MODEL), cell("code", run), cell("code", pack)],
+        "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python",
+                                    "name": "python3"}},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    out = name
+    out.write_text(json.dumps(notebook, indent=1) + "\n", encoding="utf-8")
+    print(out)
+
+
+HYBRID = Path(__file__).resolve().parent.parent / "hybrid"
+write(Path(__file__).with_name("e2_recipe_check.ipynb"), INTRO, PARAMS, RUN, PACK)
+write(
+    HYBRID / "e2_hybrid.ipynb",
+    INTRO.replace("# E2 recipe check (Kaggle, GPU T4 x2)", "# E2 hybrid check (Kaggle, GPU T4 x2)")
+    .replace("benchmarks/e2/recipe_check/PROTOCOL.txt", "benchmarks/e2/hybrid/PROTOCOL.txt")
+    .replace("e2rc_results_*.zip", "e2hy_results_*.zip"),
+    '# One session, in the protocol order.\nARMS = ["H24", "H16", "W32"]',
+    RUN.replace("benchmarks/e2/recipe_check/run_arm.py", "benchmarks/e2/hybrid/run_arm.py")
+    .replace('"e2rc_results"', '"e2hy_results"'),
+    PACK.replace("e2rc_results_", "e2hy_results_"),
+)

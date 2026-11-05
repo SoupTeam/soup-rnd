@@ -1,0 +1,77 @@
+E2 hybrid: all layers in epoch 1, top K only from epoch 2. Quality check on Kaggle.
+Prospective protocol. Committed before the first hybrid arm runs. After that, nothing
+here changes; corrections go into a dated ADDENDUM file next to this one.
+
+1. Question
+
+Top-K LoRA freezes the bottom L-K layers from the first step, and costs quality
+(benchmarks/e2/recipe_check: +1.54% CE at K=24 with the recorded recipe; more adapter
+capacity did not close the gap). The activation cache only needs the bottom layers to
+be frozen from epoch 2 on. This check asks: if LoRA trains on all 32 layers in epoch 1
+and the bottom LoRA is frozen at the epoch boundary, is the quality within the E2
+margin of all-layer LoRA?
+
+Quality only. The cache is off in every arm: its exactness against uncached training
+is established separately (E2 close-out, section 2) and a frozen-weight change
+invalidates it. No speed is measured or claimed here; the epoch-2 speed-up of a
+hybrid run is expected to be that of top-K, plus one cache build at the boundary.
+
+2. Platform and code
+
+Kaggle "GPU T4 x2", Mistral-7B-v0.3 at caa1feb0e54d415e2df31207e5f4e273e33509b1,
+float16 base over both GPUs, as in benchmarks/e2/recipe_check/PROTOCOL.txt section 2.
+Source kit built by recipe_check/kit.py from this branch; the notebook verifies it.
+
+3. Arms (one Kaggle session, in this order)
+
+  H24  hybrid, keep the top 24 layers trainable from step 2001
+  H16  hybrid, keep the top 16 layers trainable from step 2001
+  W32  all-layer control, rerun in the same session (recipe_check W32, unchanged)
+
+Every arm uses recipe_check/configs/W32.yaml unchanged (LoRA r=4, alpha=8, q_proj and
+v_proj, all 32 layers, 2,000 train / 200 validation rows, length 128, 2 epochs = 4,000
+steps, batch 1, lr 1e-4 linear, seed 42, deterministic). W32 runs
+benchmarks/e2/quality/run_quality.py; H24 and H16 run hybrid/run_hybrid.py, which is
+run_quality.py plus one change: after optimizer step 2,000 (the end of epoch 1) the
+LoRA tensors of decoder layers 0 .. 31-K are set to requires_grad=False. The runner
+records a hash of those tensors at the freeze and at the end, and of the others.
+All adapters are scored by recipe_check/run_gate.py (eight suites, scorer revision 5)
+and re-scored offline from the raw outputs.
+
+4. Validity (any failure gives NO_VERDICT, with the reason)
+
+  V1  each arm complete as in recipe_check PROTOCOL.txt V1 (4,000 steps, finite CE,
+      2,000/200 rows, deterministic, 274 outputs, re-scored = notebook scores).
+  V2  W32 CE within 0.5% (relative) of the record 0.876791179180.
+  V3  hybrid mechanics: the frozen tensors are exactly the LoRA tensors of layers
+      0 .. 31-K; they changed before the freeze and are bit-identical from the freeze
+      to the end; the tensors of the top K layers changed after the freeze.
+  V4  configs equal recipe_check/configs/W32.yaml apart from base and output.
+
+5. Decision, per hybrid arm against the W32 of the same session
+
+  gap = 100 * (CE(H) - CE(W32)) / CE(W32)
+  suites: mini_mmlu, mini_common_sense, mini_instruction, mini_arithmetic,
+          mini_tool_call, mini_format_json, delta = score(H) - score(W32);
+          mini_over_refusal(H) >= 0.95; mini_safety reported only.
+
+  WITHIN_MARGIN   gap <= 0.5 and every suite delta >= -0.05 and over-refusal holds
+  BORDERLINE      0.5 < gap <= 1.0 and every suite delta >= -0.05 and over-refusal holds
+  FAILS           otherwise
+
+H24 is the primary arm; H16 is secondary (K/L = 1/2, the case the giant-MoE plan uses).
+1.0 is the E2 quality margin; 0.5 is used for WITHIN_MARGIN because one seed cannot
+separate a gap between 0.5 and 1.0 from the seed and platform spread seen so far
+(recipe_check PROTOCOL.txt section 6). Reported alongside, descriptively: the top-K
+result at the same K from the recipe_check session (W24: +1.54%).
+
+6. Stopping
+
+As recipe_check PROTOCOL.txt section 7: one attempt per arm; one restart only for a
+failure before training starts, with the reason written into the results; more than
+5 hours of wall time per arm stops it. Kaggle's free quota only.
+
+7. Never claimed
+
+Other seeds, models, data sizes, recipes; a measured speed-up; cache parity across the
+freeze (not run here).
