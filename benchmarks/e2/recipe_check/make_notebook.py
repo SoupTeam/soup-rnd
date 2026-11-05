@@ -134,3 +134,16 @@ write(
     .replace('"e2rc_results"', '"e2hy_results"'),
     PACK.replace("e2rc_results_", "e2hy_results_"),
 )
+write(
+    HYBRID.parent / "hybrid_seeds" / "e2_hybrid_seeds.ipynb",
+    INTRO.replace("# E2 recipe check (Kaggle, GPU T4 x2)", "# E2 hybrid seeds (Kaggle, GPU T4 x2)")
+    .replace("benchmarks/e2/recipe_check/PROTOCOL.txt", "benchmarks/e2/hybrid_seeds/PROTOCOL.txt")
+    .replace("e2rc_results_*.zip", "e2hs_results_*.zip"),
+    "# Session 1: seed 901   Session 2: seed 1234   Session 3: seed 42 anchor + H8\n"
+    '# ARMS = ["W32_s1234", "H24_s1234", "H16_s1234", "H8_s1234"]\n'
+    '# ARMS = ["ANCHOR_s42", "H8_s42"]\n'
+    'ARMS = ["W32_s901", "H24_s901", "H16_s901", "H8_s901"]',
+    RUN.replace("benchmarks/e2/recipe_check/run_arm.py", "benchmarks/e2/hybrid_seeds/run_arm.py")
+    .replace('"e2rc_results"', '"e2hs_results"'),
+    PACK.replace("e2rc_results_", "e2hs_results_"),
+)

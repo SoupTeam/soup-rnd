@@ -4,6 +4,9 @@ benchmarks/e2/quality/run_quality.py with one change: after optimizer step
 --freeze-at-step, the LoRA tensors of every decoder layer below the top --keep-top
 layers stop training (requires_grad=False). The report adds a "hybrid" block with
 hashes of the frozen and kept tensors, and fingerprints cover every LoRA tensor.
+
+--seed (default 42) seeds Python, NumPy and torch; without --keep-top nothing is frozen
+and the run is an all-layer run (hybrid_seeds/PROTOCOL.txt section 2).
 """
 
 import argparse
@@ -105,16 +108,17 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--steps", type=int, default=16)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--keep-top", type=int, required=True)
+    parser.add_argument("--keep-top", type=int)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--freeze-at-step", type=int, default=2000)
     args = parser.parse_args()
 
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-    random.seed(42)
-    np.random.seed(42)
-    torch.manual_seed(42)
-    torch.cuda.manual_seed_all(42)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
 
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.deterministic = True
@@ -122,6 +126,8 @@ def main():
     torch.backends.cuda.matmul.allow_tf32 = False
 
     cfg = load_config(args.config)
+    if (cfg.training.seed, cfg.training.data_seed) != (args.seed, args.seed):
+        raise RuntimeError("Config seed/data_seed differ from --seed")
 
     wrapper = SFTTrainerWrapper(cfg, device="cuda")
     wrapper.setup(load_dataset(cfg.data))
@@ -191,10 +197,12 @@ def main():
         1 for name, p in trainer.model.named_parameters() if p.requires_grad
     ):
         raise RuntimeError("Expected exactly the LoRA tensors to be trainable at start")
-    _, _, initial_bottom, initial_top = split_layers(trainer.model, args.keep_top)
-    initial_bottom, initial_top = lora_digest(initial_bottom), lora_digest(initial_top)
-    freezer = FreezeBottomAtStep(trainer.model, args.keep_top, args.freeze_at_step)
-    trainer.add_callback(freezer)
+    freezer = None
+    if args.keep_top is not None:
+        _, _, initial_bottom, initial_top = split_layers(trainer.model, args.keep_top)
+        initial_bottom, initial_top = lora_digest(initial_bottom), lora_digest(initial_top)
+        freezer = FreezeBottomAtStep(trainer.model, args.keep_top, args.freeze_at_step)
+        trainer.add_callback(freezer)
 
     print("Starting training...", flush=True)
     wrapper.train()
@@ -216,9 +224,11 @@ def main():
     loss = float(metrics["eval_loss"])
     assert np.isfinite(loss)
 
-    hybrid = freezer.finish(initial_bottom, initial_top)
-    if not hybrid["frozen"]:
-        raise RuntimeError("The freeze step was never reached")
+    hybrid = None
+    if freezer is not None:
+        hybrid = freezer.finish(initial_bottom, initial_top)
+        if not hybrid["frozen"]:
+            raise RuntimeError("The freeze step was never reached")
     # Every LoRA tensor, frozen or not: the saved adapter holds all of them.
     trainable = {
         name: parameter.detach().cpu().contiguous()
@@ -247,7 +257,7 @@ def main():
         "validation_loss": loss,
         "trainable_fingerprint": digest.hexdigest(),
         "dataset_sha256": file_sha256(cfg.data.train),
-        "seed": 42,
+        "seed": args.seed,
         "device": "cuda",
         "torch_version": torch.__version__,
         "hybrid": hybrid,

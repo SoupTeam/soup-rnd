@@ -110,8 +110,12 @@ def test_runner_is_run_quality_plus_the_freeze():
         "        if parameter.requires_grad",
         "    }",
     }
+    seeded = {  # hybrid_seeds: the runner seeds from --seed (default 42)
+        "    random.seed(42)", "    np.random.seed(42)", "    torch.manual_seed(42)",
+        "    torch.cuda.manual_seed_all(42)", '        "seed": 42,',
+    }
     for line in base:
-        if line in changed or line in trainable_block:
+        if line in changed or line in trainable_block or line in seeded:
             continue
         assert line in mine.splitlines(), line
     assert "--keep-top" in mine and "requires_grad_(False)" in mine

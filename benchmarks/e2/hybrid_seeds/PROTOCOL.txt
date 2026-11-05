@@ -1,0 +1,81 @@
+E2 hybrid across seeds and smaller K. Quality check on Kaggle.
+Prospective protocol. Committed before the first arm of this series runs. After that,
+nothing here changes; corrections go into a dated ADDENDUM file next to this one.
+
+1. Question
+
+The hybrid schedule (LoRA on all 32 layers in epoch 1, bottom LoRA frozen after step
+2,000, top K only in epoch 2) kept all-layer quality at K=24 in one seed and missed the
+MMLU-mini margin by two questions at K=16 (benchmarks/e2/hybrid/reports/20261105).
+The speed the activation cache can give grows as K shrinks. This series asks, over three
+seeds: at which of K = 24, 16, 8 does the hybrid stay within the E2 quality margin?
+
+Quality only; the cache is off; no speed is claimed (a speed check with the cache on is a
+separate, later protocol, run only for a K that passes here).
+
+2. Platform and code
+
+As benchmarks/e2/hybrid/PROTOCOL.txt section 2 (Kaggle GPU T4 x2, Mistral-7B-v0.3 at
+caa1feb0e54d415e2df31207e5f4e273e33509b1, float16 base, kit verified by the notebook).
+Library versions (torch, transformers, peft) must equal those of the 20261105 hybrid
+session (torch 2.11.0+cu130, transformers 5.20.2, peft 0.21.2), since its seed-42 arms
+are reused; otherwise NO_VERDICT.
+
+Runner: benchmarks/e2/hybrid/run_hybrid.py, extended with --seed (default 42, the
+previous behaviour) and with --keep-top optional (absent = no freeze: an all-layer run).
+The seed sets Python, NumPy and torch seeds in the runner and the config's training.seed
+and data_seed (LoRA initialisation and training order). The 200 validation rows are the
+positional tail of the data file and do not depend on the seed.
+
+3. Arms
+
+Seeds 901 and 1234, each: W32 (all layers), H24, H16, H8 (hybrid, keep top K).
+Seed 42: H8 (new); W32, H24, H16 reused from hybrid/reports/20261105.
+Seed 42 anchor: ANCHOR_s42 = W32 through the extended runner with --seed 42 and no
+--keep-top, training only (no gate). Its validation CE must equal the 20261105 W32 CE
+(0.8757693767547607) to 1e-9 relative: this shows the extended runner reproduces the
+original one bit for bit.
+
+All arms use recipe_check/configs/W32.yaml with base, output, seed and data_seed
+replaced. Gate suites as before (eight suites, scorer revision 5, re-scored offline).
+
+Sessions (any order, one attempt each): ["W32_s901", "H24_s901", "H16_s901", "H8_s901"],
+["W32_s1234", "H24_s1234", "H16_s1234", "H8_s1234"], ["ANCHOR_s42", "H8_s42"].
+
+4. Validity (any failure gives NO_VERDICT for the series, with the reason)
+
+  V1  every arm complete as in recipe_check PROTOCOL.txt V1.
+  V2  ANCHOR_s42 CE equals the 20261105 W32 CE to 1e-9 relative.
+  V3  hybrid mechanics in every H arm as in hybrid PROTOCOL.txt V3, with the frozen
+      layers 0 .. 31-K.
+  V4  every config equals the W32 template apart from base, output, seed and data_seed,
+      and seed/data_seed equal the arm's seed.
+  V5  library versions as in section 2.
+
+5. Decision, per K in {24, 16, 8}, over the three seeds
+
+  gap_s = 100 * (CE(H_K, s) - CE(W32, s)) / CE(W32, s)          (same seed)
+  delta_s(suite) = score(H_K, s) - score(W32, s), for mini_mmlu, mini_common_sense,
+                   mini_instruction, mini_arithmetic, mini_tool_call, mini_format_json
+  mean over seeds: mean_gap, mean_delta(suite)
+
+  WITHIN_MARGIN  mean_gap <= 0.5, every gap_s <= 1.0, every mean_delta >= -0.05,
+                 and mini_over_refusal(H_K, s) >= 0.95 in every seed
+  BORDERLINE     not WITHIN_MARGIN, mean_gap <= 1.0, every mean_delta >= -0.05,
+                 and over-refusal holds in every seed
+  FAILS          otherwise
+
+Averaging the suite deltas over three seeds is the change from the one-seed rule: one
+seed's suites have 24-40 items, where one question is 0.025-0.04. The smallest K labelled
+WITHIN_MARGIN is the K this series recommends for the speed check; none if no K passes.
+
+6. Stopping
+
+As recipe_check PROTOCOL.txt section 7: one attempt per arm, one restart only for a
+failure before training starts (reason written into the results), 5 hours per arm.
+Kaggle's free quota only.
+
+7. Never claimed
+
+A measured speed-up; cache parity across the freeze; models, data, recipes or epoch
+counts other than these.
