@@ -157,6 +157,30 @@ These are tiny synthetic correctness checks, not convergence, throughput or
 whole-model memory-fit measurements. B1.2 gate results below remain historical
 forward evidence; they are not B1.3 backward or CUDA verification.
 
+## Expert reads per window (P3 B1.4 diagnostic)
+
+`tests/test_p3_expert_read_diagnostic.py` counts the reads of one L2L window on the tiny
+DeepSeek-V3 fixture (one dense and two MoE layers, eight experts per MoE layer) at
+k = 1/4/16/64 micro-batches:
+
+| k | layer loads | expert fetches | logical expert bytes | expert hits | unique experts | physical requests | physical bytes |
+|---|---|---|---|---|---|---|---|
+| 1 | 3 | 39 | 239616 | 13 | 13 | 78 | 547536 |
+| 4 | 3 | 162 | 995328 | 54 | 15 | 324 | 2276160 |
+| 16 | 3 | 621 | 3815424 | 207 | 16 | 1242 | 8671128 |
+| 64 | 3 | 2526 | 15519744 | 842 | 16 | 5052 | 35311200 |
+
+Layer loads do not depend on k. Expert fetches are 3 per hit expert per micro-batch
+(forward, recompute, the expert's own backward), so they grow with k, about 39 per
+micro-batch at every k. At k = 64 the window needs 16 distinct experts and reads 2526 times.
+The assumption "one read per window" does not hold for experts in the current
+implementation, and a x50 gain from a larger k does not apply to expert reads without a new
+implementation (for example one that groups the hits of a window per expert). Physical
+requests are the calls to `read_range_into` made by expert readers, counted by wrapping
+it; they are sector-aligned requests to the OS, not device reads (page cache is not
+observed). Logical bytes are 44 percent of the physical bytes because each tensor span
+is rounded to sector bounds. No speed claim is made.
+
 ## Local checks
 
 ```text
