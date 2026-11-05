@@ -1,0 +1,43 @@
+# ORPO on L2L: a short run on synthetic preference pairs
+#
+# Each streamed decoder layer loads once per optimizer step and runs all
+# gradient_accumulation_steps micro-batches (training.l2l). ORPO has no reference
+# model, so only the policy's [chosen; rejected] pair walks the layers. The LoRA
+# gradients equal gradient accumulation at the same k.
+#
+# The pairs in examples/data/orpo_pairs_synthetic.jsonl are SYNTHETIC: written by hand
+# to show the format and to exercise the run. They teach a model nothing useful.
+#
+# L2L supports Llama and Mistral architectures on one GPU. Check layer loads in the
+# training log: l2l_layer_loads stays flat in k, while plain streaming loads k times more.
+#
+# Usage:
+#   soup train --config examples/configs/orpo_l2l_short.yaml
+
+base: HuggingFaceTB/SmolLM2-135M-Instruct
+task: orpo
+
+data:
+  train: examples/data/orpo_pairs_synthetic.jsonl
+  format: dpo
+  max_length: 256
+
+training:
+  epochs: 1
+  lr: 1e-5
+  orpo_beta: 0.1
+  quantization: none
+  batch_size: 2
+  gradient_accumulation_steps: 4   # k: micro-batches per optimizer step
+  stream_layers: true
+  l2l: true
+  warmup_ratio: 0.1
+  logging_steps: 1
+  save_steps: 100
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0
+    target_modules: auto
+
+output: ./output_orpo_l2l_short/

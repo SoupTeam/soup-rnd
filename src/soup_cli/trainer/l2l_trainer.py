@@ -31,9 +31,26 @@ import logging
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
-from soup_cli.utils.l2l_step import LoadCounters
+from soup_cli.utils.l2l_step import (
+    LoadCounters,
+    LossHead,
+    ReferencePass,
+    as_passes,
+    sft_head,
+)
 
 #: Architectures ``training.l2l`` admits at launch. The L2L step itself runs more
 #: (``l2l_step.SUPPORTED_ARCHS``, which adds DeepSeek-V3); enabling those publicly is a
@@ -41,6 +58,46 @@ from soup_cli.utils.l2l_step import LoadCounters
 PUBLIC_ARCHS = ("llama", "mistral")
 
 logger = logging.getLogger(__name__)
+
+#: Tasks that passed the A6 readiness rule (``benchmarks/l2l-preference-readiness-rule-a6.md``).
+#: The config accepts more (``config.schema.L2L_SUPPORTED_TASKS``); the others run with a warning.
+L2L_READY_TASKS = ("sft", "dpo")
+
+
+def unready_task_warning(task: Optional[str]) -> Optional[str]:
+    """The warning for a task that ``training.l2l`` accepts but that is not ready; else None."""
+    if task is None or task in L2L_READY_TASKS:
+        return None
+    return (
+        f"training.l2l with task '{task}' is not ready: it did not pass the A6 readiness "
+        "rule, so its result is not verified to match gradient accumulation. See "
+        "docs/performance-and-quantization.md ('L2L for preference tasks')."
+    )
+
+
+_ABSENT = object()
+
+
+def refuse_unsupported_trainer(
+    trainer: Any, expected: Sequence[Tuple[str, Any, str]], *, reproduces: str
+) -> None:
+    """Refuse a built TRL trainer whose loss is not the one an L2L window loss reproduces.
+
+    ``expected`` lists ``(attribute, wanted value, name shown)``. An attribute the trainer
+    does not have is refused too: a TRL that renames it would otherwise pass unchecked.
+    """
+    for attribute, wanted, name in expected:
+        value = getattr(trainer, attribute, _ABSENT)
+        if value is _ABSENT:
+            raise ValueError(
+                f"{reproduces}; this trainer has no attribute '{attribute}' ({name}), so "
+                "the check cannot tell whether its loss is still the one reproduced here "
+                "(TRL may have renamed or removed it)."
+            )
+        if value != wanted:
+            raise ValueError(
+                f"{reproduces}; this trainer has {name}={value!r} (wanted {wanted!r})."
+            )
 
 #: Captured layer arguments kept per shape; the cache restarts when a run exceeds it. A new
 #: shape costs one forward to capture them.
@@ -83,6 +140,9 @@ class L2LState:
     store: Any = None
     stepper: Any = None
     calls_by_shape: Dict[Tuple[int, int], Any] = field(default_factory=dict)
+    #: How a window is read, which head it runs and what its loss is divided by.
+    #: ``None`` means SFT (:data:`SFT_WINDOW_LOSS`).
+    loss: Optional["WindowLoss"] = None
     #: Capture forwards run, the layer loads they cost and their wall time (running totals).
     captures: int = 0
     capture_loads: int = 0
@@ -97,6 +157,10 @@ class L2LState:
     #: Files of dead runs the last ``train`` removed from the spill directory.
     stale_removed: List[str] = field(default_factory=list)
     c3_plan: Any = None
+
+    def __post_init__(self) -> None:
+        if self.loss is None:
+            self.loss = SFT_WINDOW_LOSS
 
     def log_fields(self) -> Dict[str, Any]:
         fields = {
@@ -130,32 +194,23 @@ class L2LState:
             self.store = None
 
 
-def _window_tensors(
-    window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
-) -> Tuple[List[Any], List[Any]]:
-    """Input ids and labels of each micro-batch, each at its own shape.
+def require_right_padded(mask: Any) -> None:
+    """Refuse a window row whose attention mask has a padding token before a real token."""
+    if mask is not None and bool((mask[:, 1:] > mask[:, :-1]).any()):
+        raise ValueError(
+            "training.l2l needs right-padded rows: a padding token precedes "
+            "a real token in the attention mask."
+        )
 
-    A window whose micro-batches differ in shape is refused with NEFTune or dropout on.
+
+def refuse_mixed_shapes(ids_list: List[Any], *, neftune: bool, has_dropout: bool) -> None:
+    """Refuse a window whose micro-batches differ in shape with NEFTune or dropout on.
+
     Dropout: ``l2l_rng.replay`` builds the generator states from one draw plan shared by
     all micro-batches, and rows of different lengths draw different masks. NEFTune: the
     noise scales with ``1 / sqrt(seq * hidden)`` and the combination has not been checked
     against gradient accumulation on rows of different lengths.
     """
-    ids_list, label_list = [], []
-    for inputs in window:
-        ids = inputs["input_ids"].to(device)
-        labels = inputs.get("labels")
-        labels = ids if labels is None else labels.to(device)
-        mask = inputs.get("attention_mask")
-        if mask is not None:
-            mask = mask.to(device)
-            if bool((mask[:, 1:] > mask[:, :-1]).any()):
-                raise ValueError(
-                    "training.l2l needs right-padded rows: a padding token precedes "
-                    "a real token in the attention mask."
-                )
-        ids_list.append(ids)
-        label_list.append(labels)
     shapes = {tuple(ids.shape) for ids in ids_list}
     mixed = len(shapes) > 1
     if mixed and neftune:
@@ -173,7 +228,105 @@ def _window_tensors(
             "the replay of l2l_rng uses one draw plan for all micro-batches. Use rows of "
             "one length, or set the dropout to 0."
         )
+
+
+def stack_pair_window(
+    window: List[Any],
+    device: Any,
+    *,
+    trainer_cls: Any,
+    padding_value: int,
+    neftune: bool,
+    has_dropout: bool,
+) -> Tuple[List[Any], List[Dict[str, Any]], List[int]]:
+    """Read a window of ``chosen_*`` / ``rejected_*`` micro-batches as TRL stacks them.
+
+    TRL's ``ORPOTrainer`` and ``CPOTrainer`` share one ``concatenated_inputs``: chosen rows
+    over rejected rows, both padded to the longer width, ``input_ids`` with ``padding_value``.
+    Returns, per micro-batch, the stacked ids, TRL's ``concatenated_*`` dict and the number of
+    chosen rows. Refuses left padding and the mixed-shape cases like the SFT reader.
+    """
+    import torch
+
+    ids_list: List[Any] = []
+    stacked_list: List[Dict[str, Any]] = []
+    chosen_rows: List[int] = []
+    for inputs in window:
+        moved = {
+            key: value.to(device) if isinstance(value, torch.Tensor) else value
+            for key, value in inputs.items()
+        }
+        stacked = trainer_cls.concatenated_inputs(
+            moved, is_encoder_decoder=False, padding_value=padding_value, device=device
+        )
+        require_right_padded(stacked["concatenated_attention_mask"])
+        ids_list.append(stacked["concatenated_input_ids"])
+        stacked_list.append(stacked)
+        chosen_rows.append(int(moved["chosen_labels"].shape[0]))
+    refuse_mixed_shapes(ids_list, neftune=neftune, has_dropout=has_dropout)
+    return ids_list, stacked_list, chosen_rows
+
+
+def _window_tensors(
+    window: List[Any], device: Any, *, neftune: bool = False, has_dropout: bool = False
+) -> Tuple[List[Any], List[Any]]:
+    """Input ids and labels of each micro-batch, each at its own shape."""
+    ids_list, label_list = [], []
+    for inputs in window:
+        ids = inputs["input_ids"].to(device)
+        labels = inputs.get("labels")
+        labels = ids if labels is None else labels.to(device)
+        mask = inputs.get("attention_mask")
+        if mask is not None:
+            mask = mask.to(device)
+            require_right_padded(mask)
+        ids_list.append(ids)
+        label_list.append(labels)
+    refuse_mixed_shapes(ids_list, neftune=neftune, has_dropout=has_dropout)
     return ids_list, label_list
+
+
+@dataclass(frozen=True)
+class WindowLoss:
+    """What a task contributes to the L2L trainer: reading, head, and the window's scale.
+
+    ``divide_by="items"``: the head divides by HF's ``num_items_in_batch`` (SFT sums token
+    losses over the window). ``divide_by="micro_batches"``: the head divides by
+    ``k = len(window)``, as HF's ``training_step`` does when ``num_items_in_batch`` is
+    ``None`` (every preference trainer averages its rows and ignores the item count). The
+    last window of an epoch holds fewer than ``gradient_accumulation_steps`` micro-batches,
+    and ``k`` is that smaller count.
+    """
+
+    divide_by: Literal["items", "micro_batches"]
+    #: ``(window, device, *, neftune, has_dropout) -> (ids_list, extras)``. ``ids_list`` is
+    #: what the layers walk; ``extras`` is handed to ``make_head``.
+    read_window: Callable[..., Tuple[List[Any], Any]]
+    #: ``(extras, divisor) -> LossHead``; the head returns the loss already scaled.
+    make_head: Callable[[Any, int], LossHead]
+    #: ``extras -> ReferencePass`` or a sequence of them, for a loss that needs gradient-free
+    #: passes: a reference model (DPO, KTO) or an estimate from the policy itself (KTO's KL);
+    #: ``None`` for a loss that does not. The policy head reads the passes' ``outputs`` after
+    #: the step filled them, so both come from the same ``extras``.
+    make_reference: Optional[
+        Callable[[Any], Union[ReferencePass, Sequence[ReferencePass]]]
+    ] = None
+
+    def divisor(self, k: int, num_items: Optional[int]) -> int:
+        """The number the window's loss is divided by. The one place the scale rule lives."""
+        if self.divide_by == "micro_batches":
+            return int(k)
+        if num_items is None:
+            raise RuntimeError(
+                "training.l2l needs num_items_in_batch from the HF loop to scale "
+                "the loss over the window; this trainer did not receive one."
+            )
+        return int(num_items)
+
+
+SFT_WINDOW_LOSS = WindowLoss(
+    divide_by="items", read_window=_window_tensors, make_head=sft_head
+)
 
 
 def _has_dropout(model: Any) -> bool:
@@ -216,9 +369,9 @@ def _timed_capture(state: L2LState) -> Iterator[None]:
     state.capture_loads += counters.layer_loads
 
 
-def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any, List[Any]]:
-    """The window's L2L step and one captured ``LayerCall`` per micro-batch."""
-    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call
+def _calls_for(state: L2LState, model: Any, ids_list: Sequence[Any]) -> List[Any]:
+    """One captured ``LayerCall`` per micro-batch, from the shapes the run has seen."""
+    from soup_cli.utils.l2l_step import capture_layer_call
 
     if state.has_dropout is None:
         state.has_dropout = _has_dropout(model)
@@ -234,6 +387,14 @@ def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any
                 call = capture_layer_call(model, ids, draws=state.has_dropout)
             state.calls_by_shape[shape] = call
         calls.append(call)
+    return calls
+
+
+def _l2l_step_for(state: L2LState, model: Any, ids_list: List[Any]) -> Tuple[Any, List[Any]]:
+    """The window's L2L step and one captured ``LayerCall`` per micro-batch."""
+    from soup_cli.utils.l2l_step import L2LStep
+
+    calls = _calls_for(state, model, ids_list)
     if state.stepper is None:
         state.stepper = L2LStep(model, state.runtime, calls[0])
     return state.stepper, calls
@@ -378,14 +539,26 @@ def run_window(
     state: L2LState,
     model: Any,
     ids_list: List[Any],
-    label_list: List[Any],
-    n_items: int,
+    label_list: Any,
+    n_items: Optional[int],
     device: Any,
 ) -> Tuple[List[Any], Any]:
-    """One L2L step over the window; returns the losses and the step's load counters."""
+    """One L2L step over the window; returns the losses and the step's load counters.
+
+    ``label_list`` is what the state's strategy read from the window besides the ids;
+    ``n_items`` is HF's ``num_items_in_batch``, ``None`` for the preference trainers.
+    """
+    strategy = state.loss
+    divisor = strategy.divisor(len(ids_list), n_items)
     stepper, calls = _l2l_step_for(state, model, ids_list)
     store = _store_for(state, stepper, ids_list, device)
-    losses = stepper.run(ids_list, store, n_items=n_items, labels=label_list, calls=calls)
+    head = strategy.make_head(label_list, divisor)
+    reference = None if strategy.make_reference is None else strategy.make_reference(label_list)
+    for extra in as_passes(reference):
+        # A pass over ids of its own (KTO's KL completions) takes calls of its own shapes.
+        if extra.micro_batches is not None and extra.calls is None:
+            extra.calls = _calls_for(state, model, extra.micro_batches)
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
     return losses, stepper.counters
 
 
@@ -438,11 +611,8 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                 state.window = None
             if not first:
                 return torch.zeros((), device=self.args.device)
-            if num_items_in_batch is None:
-                raise RuntimeError(
-                    "training.l2l needs num_items_in_batch from the HF loop to scale "
-                    "the loss over the window; this trainer did not receive one."
-                )
+            # Refuse a missing item count (SFT) before anything runs.
+            state.loss.divisor(len(window), num_items_in_batch)
             model.train()
             if state.has_dropout is None:
                 state.has_dropout = _has_dropout(model)
@@ -455,7 +625,7 @@ def make_l2l_trainer_class(base_cls: type) -> type:
                     "neftune_alpha off or set the dropout to 0."
                 )
             device = state.runtime.device
-            ids_list, label_list = _window_tensors(
+            ids_list, label_list = state.loss.read_window(
                 window,
                 device,
                 neftune=bool(self.args.neftune_noise_alpha),
@@ -465,7 +635,12 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
                 losses, counters = run_window(
-                    state, model, ids_list, label_list, int(num_items_in_batch), device
+                    state,
+                    model,
+                    ids_list,
+                    label_list,
+                    None if num_items_in_batch is None else int(num_items_in_batch),
+                    device,
                 )
             state.steps += 1
             state.totals.add(counters)
@@ -485,19 +660,22 @@ def attach_l2l_state(
     runtime: Any,
     *,
     dtype: Any,
+    loss: Optional[WindowLoss] = None,
     c3_plan: Any = None,
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
-    ``spill_dir`` is ``training.l2l_spill_dir`` (None: ``<output_dir>/_l2l_spill``), and
-    ``weight_dirs`` lists the directories the weights stream from on the disk tier.
+    ``loss`` is the task's :class:`WindowLoss`; the default is SFT. ``spill_dir`` is
+    ``training.l2l_spill_dir`` (None: ``<output_dir>/_l2l_spill``), and ``weight_dirs`` lists
+    the directories the weights stream from on the disk tier.
     """
     args = getattr(trainer, "args", None)
     state = L2LState(
         runtime=runtime,
         dtype=dtype,
+        loss=loss,
         c3_plan=c3_plan,
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
