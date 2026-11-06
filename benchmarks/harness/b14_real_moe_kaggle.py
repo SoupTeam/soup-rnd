@@ -181,6 +181,8 @@ def main() -> None:
     try:
         log(f"pip install {PIP}")
         log(sh([sys.executable, "-m", "pip", "install", "-q", *PIP])[-500:])
+        # The image ships torchao 0.10; peft 0.21 refuses it when it wraps a LoRA layer.
+        log(sh([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"])[-200:])
         root = attach_source()
         EVIDENCE["source_root"] = str(root)
         EVIDENCE["source_sha"] = (root / "SOURCE_SHA").read_text().strip() if (
