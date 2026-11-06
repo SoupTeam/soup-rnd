@@ -118,3 +118,70 @@ def test_guard_keeps_gpu_and_fp16_refusals_for_deepseek_v3():
         _guard("deepseek_v3", expert_layout="per_expert", n_gpu=2)
     with pytest.raises(ValueError, match="fp16"):
         _guard("deepseek_v3", expert_layout="per_expert", fp16=True)
+
+
+# --------------------------------------------------------------------------
+# ticket 04: l2l_activation_codec and l2l_auto_k
+# --------------------------------------------------------------------------
+def test_new_l2l_fields_default_to_off():
+    from soup_cli.config.schema import TrainingConfig
+
+    tcfg = TrainingConfig()
+    assert tcfg.l2l_activation_codec == "none"
+    assert tcfg.l2l_auto_k is False
+
+
+def test_new_l2l_fields_validate_with_l2l_streaming_sft():
+    cfg = _config(l2l_activation_codec="fp8_e4m3", l2l_auto_k=True)
+    assert cfg.training.l2l_activation_codec == "fp8_e4m3"
+    assert cfg.training.l2l_auto_k is True
+    again = type(cfg).model_validate(cfg.model_dump())
+    assert (again.training.l2l_activation_codec, again.training.l2l_auto_k) == ("fp8_e4m3", True)
+
+
+def test_unknown_codec_is_refused():
+    with pytest.raises(ValueError, match="l2l_activation_codec"):
+        _config(l2l_activation_codec="int4")
+
+
+@pytest.mark.parametrize("field, value", [
+    ("l2l_activation_codec", "fp8_e4m3"),
+    ("l2l_auto_k", True),
+])
+def test_new_l2l_fields_are_refused_without_l2l(field, value):
+    with pytest.raises(ValueError, match=rf"training\.{field}.*l2l=true"):
+        _config(l2l=False, **{field: value})
+
+
+@pytest.mark.parametrize("field, value", [
+    ("l2l_activation_codec", "fp8_e4m3"),
+    ("l2l_auto_k", True),
+])
+def test_new_l2l_fields_are_refused_without_stream_layers(field, value):
+    with pytest.raises(ValueError, match="stream_layers"):
+        _config(stream_layers=False, **{field: value})
+
+
+@pytest.mark.parametrize("field, value", [
+    ("l2l_activation_codec", "fp8_e4m3"),
+    ("l2l_auto_k", True),
+])
+def test_new_l2l_fields_are_refused_off_sft(field, value):
+    from soup_cli.config.schema import SoupConfig
+
+    with pytest.raises(ValueError, match="sft"):
+        SoupConfig.model_validate({
+            "base": "example/model", "task": "dpo",
+            "data": {"train": "train.jsonl", "format": "dpo"},
+            "training": {
+                "stream_layers": True, "stream_source": "disk",
+                "stream_expert_layout": "per_expert", "l2l": True,
+                "quantization": "none", "batch_size": 1,
+                "lora": {"r": 4, "dropout": 0}, field: value,
+            },
+        })
+
+
+def test_default_values_of_new_fields_are_accepted_without_l2l():
+    cfg = _config(l2l=False, l2l_activation_codec="none", l2l_auto_k=False)
+    assert cfg.training.l2l is False

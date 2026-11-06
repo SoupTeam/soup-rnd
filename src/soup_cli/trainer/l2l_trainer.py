@@ -112,6 +112,8 @@ class L2LState:
     #: Files of dead runs the last ``train`` removed from the spill directory.
     stale_removed: List[str] = field(default_factory=list)
     c3_plan: Any = None
+    #: The recipe's effective k (``soup_cli.utils.l2l_recipe``); None when the caller gave none.
+    effective_k: Optional[int] = None
 
     def log_fields(self) -> Dict[str, Any]:
         fields = {
@@ -124,6 +126,8 @@ class L2LState:
             "l2l_weight_restores": self.totals.restores,
             "l2l_spill_layers": int(self.spill_plan["spill_layers"]) if self.spill_plan else 0,
         }
+        if self.effective_k is not None:
+            fields["l2l_effective_k"] = self.effective_k
         # Only a runtime that streams routed experts has them to count; a dense run's log
         # keeps the fields it always had.
         if getattr(self.runtime, "expert_pool", None) is not None:
@@ -503,6 +507,7 @@ def attach_l2l_state(
     c3_plan: Any = None,
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
+    effective_k: Optional[int] = None,
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
@@ -514,6 +519,7 @@ def attach_l2l_state(
         runtime=runtime,
         dtype=dtype,
         c3_plan=c3_plan,
+        effective_k=effective_k,
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
         output_dir=getattr(args, "output_dir", None),

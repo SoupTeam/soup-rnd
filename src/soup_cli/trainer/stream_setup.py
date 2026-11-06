@@ -552,6 +552,14 @@ class StreamingSetupMixin:
     #: pre-flight charges a second large slot for it (#1049).
     _STREAM_REFILL_BEFORE_BACKWARD = False
 
+    #: The resolved L2L recipe (``soup_cli.utils.l2l_recipe``); None without ``training.l2l``.
+    _l2l_recipe = None
+
+    def _effective_k(self, tcfg) -> int:
+        """The k the run uses: the L2L recipe's effective k, else the accumulation steps."""
+        recipe = self._l2l_recipe
+        return recipe.effective_k if recipe is not None else tcfg.gradient_accumulation_steps
+
     #: Set by :meth:`_setup_streaming_transformers`; absent on a resident run.
     _stream_runtime = None
     #: The directories the streamed layers are read from (cache plus stripe folders), so
@@ -1174,7 +1182,7 @@ class StreamingSetupMixin:
                     partial_budget, n_layers=int(model_config.num_hidden_layers),
                     batch_size=tcfg.batch_size, max_length=cfg.data.max_length,
                     hidden_size=int(model_config.hidden_size),
-                    microbatches=tcfg.gradient_accumulation_steps, dtype=dtype,
+                    microbatches=self._effective_k(tcfg), dtype=dtype,
                     pin=on_cuda, shape_round=RESERVATION_ROUND,
                 )
                 partial_budget = self._c3_l2l_plan.weights
@@ -1509,7 +1517,7 @@ class StreamingSetupMixin:
                 f"               (from {ceiling.tflops:.2f} TFLOPS measured on "
                 f"this card now using {ceiling.dtype}{clock})"
             )
-        advice = accumulation_advice(batch_size=batch, accum=tcfg.gradient_accumulation_steps)
+        advice = accumulation_advice(batch_size=batch, accum=self._effective_k(tcfg))
         if advice is not None:
             lines.append(f"  [yellow]![/] {advice}")
         plan = None

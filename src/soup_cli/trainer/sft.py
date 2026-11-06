@@ -741,10 +741,11 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             spill_dir=self.config.training.l2l_spill_dir,
             weight_dirs=self._stream_weight_dirs,
             c3_plan=getattr(self, "_c3_l2l_plan", None),
+            effective_k=self._l2l_recipe.effective_k,
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
-            f"{int(training_args.gradient_accumulation_steps)} micro-batch(es)"
+            f"{self._l2l_recipe.effective_k} micro-batch(es)"
         )
         return trainer
 
@@ -778,6 +779,14 @@ class SFTTrainerWrapper(StreamingSetupMixin):
         # TrainingArguments is not enough on its own, because `get_peft_model`
         # draws `lora_A` before there is a Trainer to run `set_seed(args.seed)`.
         apply_training_seed(tcfg)
+
+        # Before any model load: an option the launch cannot honour yet fails here, and the
+        # effective k is fixed once for the HF arguments, the C3 reservation and the log.
+        self._l2l_recipe = None
+        if tcfg.l2l:
+            from soup_cli.utils.l2l_recipe import resolve_l2l_recipe
+
+            self._l2l_recipe = resolve_l2l_recipe(tcfg)
 
         use_unsloth = cfg.backend == "unsloth"
         use_vision = cfg.modality == "vision"
@@ -986,7 +995,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             "output_dir": str(output_dir),
             "num_train_epochs": tcfg.epochs,
             "per_device_train_batch_size": batch_size,
-            "gradient_accumulation_steps": tcfg.gradient_accumulation_steps,
+            "gradient_accumulation_steps": self._effective_k(tcfg),
             "learning_rate": tcfg.lr,
             "warmup_steps": warmup_steps,
             "weight_decay": tcfg.weight_decay,
@@ -2310,6 +2319,14 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             # rejected resume must not overwrite the root artifact's previous
             # route declaration during setup.
             write_metadata(self._output_dir, self._quest_metadata)
+        if self._l2l_recipe is not None:
+            from soup_cli.utils.l2l_recipe import validate_resume, write_recipe
+
+            # Same order as the QuEST metadata: a rejected resume must not overwrite the
+            # recipe the checkpoint was trained with.
+            if resume_from_checkpoint is not None:
+                validate_resume(self._output_dir, self._l2l_recipe)
+            write_recipe(self._output_dir, self._l2l_recipe)
         offload_save_dir: Optional[str] = None
         if tcfg.activation_offloading == "disk":
             candidate = str(Path(self._output_dir) / "_activation_offload")

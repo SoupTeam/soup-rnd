@@ -1053,6 +1053,20 @@ training:
   l2l_spill_dir: /mnt/nvme1/soup-spill   # optional; default <output>/_l2l_spill
 ```
 
+### L2L recipe: effective k and activation codec
+
+`training.l2l_activation_codec` (`none` or `fp8_e4m3`, default `none`) and `training.l2l_auto_k`
+(default `false`) are valid only with `l2l: true`, `stream_layers: true` and `task: sft`; the
+config is refused otherwise. The schema accepts `fp8_e4m3` and `l2l_auto_k: true`, but the
+launch refuses both with a clear error until the FP8 store and the memory planner exist. The
+defaults change nothing.
+
+The effective k is the one number the run uses for the HF training arguments, the loss scale,
+the activation store capacity, the C3 reservation and the log (`l2l_effective_k`). Today it
+equals `gradient_accumulation_steps`. The run writes it and the codec to
+`<output>/l2l_recipe.json` before training. Resuming a checkpoint with another effective k or
+codec is refused; a run with no saved recipe resumes as before.
+
 In the earlier A4 v3 configuration (RTX 3090 on PCIe 3.0, Mistral-7B NF4, seq 512, k 2-4,
 ring 4, one virtual disk), slowdown averaged +2.5% and +1.7%, with 95% upper bounds +6.1%
 and +5.5%. With spill on the weights' drive that experiment saw a 13% slower step. Record:

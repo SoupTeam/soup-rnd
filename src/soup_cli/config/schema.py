@@ -3549,6 +3549,26 @@ class TrainingConfig(BaseModel):
         ),
     )
 
+    l2l_activation_codec: Literal["none", "fp8_e4m3"] = Field(
+        default="none",
+        description=(
+            "BETA — how training.l2l stores the activations between layers. 'none' keeps them "
+            "in the compute dtype. 'fp8_e4m3' is accepted by the schema, but the launch "
+            "refuses it until the FP8 store exists. The value is recorded in the run's "
+            "l2l_recipe.json, and a resume with another codec is refused. Only valid with "
+            "training.l2l=true."
+        ),
+    )
+    l2l_auto_k: bool = Field(
+        default=False,
+        description=(
+            "BETA — let the memory planner pick the largest k that fits host RAM, up to "
+            "gradient_accumulation_steps. Accepted by the schema, but the launch refuses it "
+            "until the planner is wired in. Off: k = gradient_accumulation_steps. Only valid "
+            "with training.l2l=true."
+        ),
+    )
+
     @field_validator("l2l_spill_dir")
     @classmethod
     def _validate_l2l_spill_dir(cls, value: Optional[str]) -> Optional[str]:
@@ -6443,6 +6463,15 @@ class SoupConfig(BaseModel):
                 "holds L2L's activation spill and nothing else reads it. Set l2l=true or "
                 "drop l2l_spill_dir."
             )
+        for name, is_set in (
+            ("l2l_activation_codec", tcfg.l2l_activation_codec != "none"),
+            ("l2l_auto_k", tcfg.l2l_auto_k),
+        ):
+            if is_set and not tcfg.l2l:
+                raise ValueError(
+                    f"training.{name} is set but training.l2l is false: it changes how L2L "
+                    f"runs and nothing else reads it. Set l2l=true or drop {name}."
+                )
         if tcfg.stream_partial_ram is not None:
             if (not tcfg.stream_layers or tcfg.stream_source != "disk"
                     or self.task != "sft" or self.backend != "transformers"
