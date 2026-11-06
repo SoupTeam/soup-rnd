@@ -361,6 +361,7 @@ class AsyncDiskSource:
         read_ranges: int = DEFAULT_STREAM_READ_RANGES,
         layer_roots: Optional[Sequence[int]] = None,
         ram_cache_bytes: int = 0,
+        max_host_bytes: Optional[int] = None,
     ):
         from soup_cli.utils.layer_stream_runtime import RamSource
 
@@ -557,6 +558,23 @@ class AsyncDiskSource:
                 region_sizes.append(span)
                 first_member.append(members_of_group[0])
             self._group_slots.append(flat)
+        # C3: refuse before any tensor allocation or reader thread is started.
+        from soup_cli.utils.layer_stream_runtime import plan_pinned_arenas
+
+        self.host_allocated_bytes = (
+            plan_pinned_arenas(
+                region_sizes, align=SECTOR_BYTES, base_slack_bytes=SECTOR_BYTES - 1
+            ).pinned_bytes
+            if self.pinned else sum(size + SECTOR_BYTES for size in region_sizes)
+        )
+        if max_host_bytes is not None:
+            if type(max_host_bytes) is not int or max_host_bytes < 0:
+                raise ValueError("host RAM budget must be non-negative integer bytes")
+            if self.host_allocated_bytes > max_host_bytes:
+                raise ValueError(
+                    f"disk staging needs {self.host_allocated_bytes} bytes, "
+                    f"exceeding remaining host RAM budget {max_host_bytes}"
+                )
         self._arenas, self._regions = self._allocate_staging(region_sizes)
         self._slots: List[Dict[str, Any]] = [
             self._views(self._plans[first_member[slot]], self._regions[slot])
@@ -575,7 +593,7 @@ class AsyncDiskSource:
         for idx, root in enumerate(self._root_of):
             first_of_root.setdefault(root, idx)
         aligned = all(region.data_ptr() % SECTOR_BYTES == 0 for region in self._regions)
-        if not aligned:  # pragma: no cover — cudaHostAlloc hands out page-aligned blocks
+        if not aligned:  # pragma: no cover — both allocation paths align explicitly
             logger.warning(
                 "layer streaming's staging is not sector-aligned on this box; the "
                 "disk tier reads through the page cache instead of direct I/O"
@@ -823,7 +841,10 @@ class AsyncDiskSource:
         arenas: List[Any] = []
         regions: List[Any] = []
         if self.pinned:
-            plan = plan_pinned_arenas(region_sizes, align=SECTOR_BYTES)
+            plan = plan_pinned_arenas(
+                region_sizes, align=SECTOR_BYTES, base_slack_bytes=SECTOR_BYTES - 1
+            )
+            base_padding: List[int] = []
             for size in plan.arena_sizes:
                 arena = torch.empty(size, dtype=torch.uint8, device="cpu", pin_memory=True)
                 if arena.device.type != "cpu":
@@ -841,8 +862,13 @@ class AsyncDiskSource:
                         "returned pageable memory; retry with pin=False."
                     )
                 arenas.append(arena)
+                # Cached pinned allocations need not start on a sector boundary.
+                # Budget the worst-case padding before allocation, then align the
+                # actual address rather than only each view's relative offset.
+                base_padding.append((-arena.data_ptr()) % SECTOR_BYTES)
             for (arena_index, offset), size in zip(plan.placements, region_sizes):
-                regions.append(arenas[arena_index][offset : offset + size])
+                start = base_padding[arena_index] + offset
+                regions.append(arenas[arena_index][start : start + size])
             self.pinned_bytes = plan.pinned_bytes
         else:
             # The CPU allocator neither rounds nor aligns: a sector of slack

@@ -1,0 +1,69 @@
+C3 prospective attempt019 confirmation, 2026-10-31 — NOT RUN
+
+Purpose: close the repetitions gap left by attempt017 without changing its result.
+This is a separate experiment. The historical 5-block pilot remains NUMERICAL_PASS
+and performance NO_VERDICT_INSUFFICIENT_REPETITIONS. Its observed variance informs
+the new sample count; it is not pooled with the new host's data.
+
+Freeze before rental
+- Keep REPRESENTATIVE_PROTOCOL.txt model/revision, tokens, seeds, LoRA, optimizer,
+  BF16, six updates/two warmup, 16GiB envelope/6GiB reserve/4GiB cache, and exact
+  numerical policy unchanged. Do not alter arm_validity.py or thresholds.
+- Freeze 20 ABBA blocks, 80 fresh processes, 480 updates/320 measured updates.
+  Use --abba-blocks 20 only in cuda-representative mode. Existing pilot/default
+  execution remains five blocks. CPU smoke stays two arms.
+- Freeze source archive and per-file hashes, setup, all launch scripts, and this
+  protocol before payment. No runtime repair, retry, replacement arm, continuation,
+  selective exclusion or adaptive extension within this paid attempt.
+- Run six CUDA controls (including the new public L2L Trainer control), physical NVMe calibration and foreign-reader rejection
+  before measurement. A failed/unknown gate blocks acceptance; retain all evidence.
+
+Timing and admission
+- Same single RTX4090, >=64GB host RAM, physical NVMe/XFS/O_DIRECT, 32GB container
+  and 100GB volume, frozen image/template/dependencies as attempt017.
+- Attempt017 measurement took 1135.59s for 20 arms. Linear planning estimate for
+  80 arms is 4542.36s (~75.7min), not a guarantee. Preparation took ~5.2min after
+  preflight; allow startup, staging and variability plus export and cleanup.
+- Proposed hard lease 120min from rental request; begin provider Stop 3min early.
+  Shared work deadline is lease deadline minus at least 600s export/cleanup reserve.
+  Measurement's own maximum is 5400s and 40s child-cleanup reserve, further bounded
+  by the shared work deadline. No new arm after it. Never extend deadlines.
+- User-approved cumulative C3 cap is USD6.00. After failed attempt018 the
+  conservative spending upper is USD3.78, leaving USD2.22. At USD0.502/h upper,
+  two hours plus USD0.10 combined-traffic budget and USD0.90 cleanup reserve is
+  USD2.004 additional (cumulative USD5.784). Recheck the actual offer before rent.
+  No further cap increase is implied. Displayed costs are not invoices.
+- Before rental execute the complete confirmation_phases plan through the real
+  supervisor using local no-op scripts. Setup retains <=1800s; measurement alone
+  accepts <=5400s. Both obey the earlier shared deadline and kill their owned group.
+  Attempt018 rejected 5400s before measurement; never rewrite or resume that attempt.
+- Recheck actual prices, volume/USB availability, disk space and local readiness
+  immediately before rental. No rate, availability or billing guarantee is implied.
+
+Decision and reporting
+- Recompute exact parity, real adapter changes, six control passes, all F1 checks,
+  complete clock observations, exclusive GPU identity, actual direct I/O and bounds.
+- Apply unchanged arm_validity.blocks_to_add to THIS series in chronological
+  order, including its own first five pilot blocks. If it asks for more than the
+  completed 20, report NO_VERDICT_INSUFFICIENT_REPETITIONS; no automatic top-up.
+- Incomplete order, missing evidence, or failed controls cannot receive a pass.
+- Report paired per-block observations and uncertainty, instrumented window and
+  training-only time separately, physical vs logical bytes, setup/cache fill,
+  CUDA allocated/reserved, and lifetime RSS. No universal speedup or RSS-limit claim.
+- A sufficient count is only one acceptance gate, not automatic proof of speedup.
+- The 8B measurement remains non-L2L. A separate tiny-model CUDA control uses the
+  actual public HF L2L Trainer, comparing disk-only versus resident weights across
+  optimizer updates and varying window lengths. It checks exact final adapters,
+  recorded losses, residency, accounting and release. This does not establish an
+  8B L2L speedup or compressed/spilled public activations. Local integration tests
+  also exercise public SFT setup and failed-drain lifetime behavior.
+- Public L2L reserves the maximum uncompressed RAM activation window before optional
+  C3 caching, with pinned rounding and fixed batch size. Unsupported growth refuses.
+  Caller reservations still cover other users; no process-RSS bound is claimed.
+
+Cleanup
+- Save unique evidence, archive SHA, file SHA and verified external readback.
+  Stop within the lease even if preservation is pending; retain successful data
+  until checksum confirmation and required concrete-resource deletion approval.
+- Never touch H2 or protected 58096232, 58096231, 58145733.
+- Read target-only billing and record cleanup independently of scientific outcome.

@@ -1,0 +1,1014 @@
+#!/usr/bin/env python3
+"""G2: keep each decoder layer's INNER saved activations instead of recomputing them.
+
+The shipped L2L step (``l2l_schedule.L2LStep``) parks one boundary activation per
+(layer, micro-batch) and, in the backward, re-runs the layer's forward under grad
+to rebuild everything autograd saved inside it. G2 asks whether storing those
+inner saved tensors (attention and MLP intermediates) in host RAM or on NVMe
+beats recomputing them. ``G2Step`` runs the layer's forward ONCE, under grad,
+packs every tensor autograd saves into a per-(layer, micro-batch) record, and in
+the backward replays the kept graph with no layer call at all.
+
+Why this is not ``saved_tensors_hooks(lambda t: t.cpu(), ...)``: the streamed
+runtime keeps ``stream_buffers`` weight slots and refills a slot with another
+layer while earlier layers' graphs are still alive. Measured on the CPU fixture
+(scratch exp2, 3 layers, 2 slots):
+
+* no hooks: autograd's version check raises ("modified by an inplace operation");
+* identity hooks: the check is bypassed and 8 of 24 LoRA gradients come out
+  silently WRONG (max |d| 0.12);
+* copying every saved tensor: exact, but it copies the frozen streamed weights
+  too (887,808 weight bytes vs 494,592 activation bytes on that fixture), which
+  is not an activation cache.
+
+So every saved tensor is classified by the storage it lives in:
+
+``weight``      a view of a streamed weight slot. Stored as a descriptor (slot,
+                key, geometry, owning layer). The backward reloads the layer
+                into its slot exactly as the recompute path does
+                (``pool.wait`` + ``prefetcher.advance``) and the descriptor is
+                resolved against the slot only if the slot's owner is the
+                layer that saved it; anything else raises.
+``derived``     a tensor ``bitsandbytes.functional.dequantize_4bit`` produced
+                from a streamed weight inside the layer (the NF4 dequant +
+                linear arm). Recomputed from the reloaded slot on unpack, so the
+                dense weight is never stored. Its dequantisation is paid in the
+                backward instead of the recompute, so it is NOT saved compute.
+``param``       a trainable LoRA tensor: kept by reference, its version
+                checked on unpack.
+``const``       a tensor the layer call shares across layers (rotary cos/sin,
+                masks, positions): kept by reference, version checked.
+``activation``  everything else: the whole storage's bytes are copied into the
+                record once per (storage, version), and restored as the same
+                strided view. Only these bytes are G2's cost.
+
+The records go through ``l2l_activations.ActivationStore`` as uint8 chunks, so
+the RAM copy, the unbuffered NVMe spill, its rings, threads and byte counters
+are the reviewed A0 machinery, not a second implementation.
+
+Benchmark harness code, not shipped. torch is imported inside functions.
+"""
+
+from __future__ import annotations
+
+import math
+import sys
+import threading
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import l2l_schedule  # noqa: E402
+
+#: Byte alignment of every item inside a record; >= every element size, so a
+#: restored item can always be viewed at its own dtype.
+ITEM_ALIGN = 64
+#: Records are padded to the sector so a spilled record is a legal unbuffered write.
+SECTOR_BYTES = 4096
+
+WEIGHT = "weight"
+DERIVED = "derived"
+PARAM = "param"
+CONST = "const"
+ACTIVATION = "activation"
+CLASSES = (WEIGHT, DERIVED, PARAM, CONST, ACTIVATION)
+
+
+def align_up(value: int, alignment: int) -> int:
+    return -(-int(value) // int(alignment)) * int(alignment)
+
+
+def _sid(tensor: Any) -> int:
+    """Identity of the StorageImpl behind ``tensor`` (shared by every view of it)."""
+    return int(tensor.untyped_storage()._cdata)
+
+
+# --------------------------------------------------------------------------
+# dequantised-weight provenance
+# --------------------------------------------------------------------------
+_ACTIVE = threading.local()
+_TRACKING: Dict[str, Any] = {}
+
+
+def install_derived_tracking() -> bool:
+    """Make ``dequantize_4bit`` report its outputs to the active packer.
+
+    ``install_dequant_forward`` binds ``dequantize_4bit`` when each streamed
+    layer is constructed, so this must run BEFORE ``build_streamed_model``.
+    Outside a G2 forward the wrapper is a pass-through: the same function with
+    the same arguments. Returns False when bitsandbytes is absent.
+    """
+    if "original" in _TRACKING:
+        return True
+    try:
+        import bitsandbytes.functional as bnb_functional
+    except ImportError:
+        return False
+    original = bnb_functional.dequantize_4bit
+
+    def tracked(packed: Any, quant_state: Any = None, *args: Any, **kwargs: Any) -> Any:
+        out = original(packed, quant_state, *args, **kwargs)
+        packer = getattr(_ACTIVE, "packer", None)
+        if packer is not None:
+            packer.register_derived(
+                out, packed, lambda: original(packed, quant_state, *args, **kwargs)
+            )
+        return out
+
+    bnb_functional.dequantize_4bit = tracked
+    _TRACKING["original"] = original
+    return True
+
+
+def derived_tracking_installed() -> bool:
+    return "original" in _TRACKING
+
+
+# --------------------------------------------------------------------------
+# saved-tensor descriptors
+# --------------------------------------------------------------------------
+@dataclass(frozen=True)
+class Geometry:
+    dtype: Any
+    size: Tuple[int, ...]
+    stride: Tuple[int, ...]
+    offset: int
+
+    @classmethod
+    def of(cls, tensor: Any) -> "Geometry":
+        return cls(tensor.dtype, tuple(tensor.size()), tuple(tensor.stride()),
+                   int(tensor.storage_offset()))
+
+    def view_of(self, storage: Any, device: Any, extra_elements: int = 0) -> Any:
+        import torch
+
+        return torch.empty((0,), dtype=self.dtype, device=device).set_(
+            storage, self.offset + int(extra_elements), self.size, self.stride
+        )
+
+    def view_bytes(self) -> int:
+        import torch
+
+        return math.prod(self.size) * torch.empty((), dtype=self.dtype).element_size()
+
+
+@dataclass(frozen=True)
+class WeightRef:
+    record: Tuple[int, int]
+    slot: int
+    key: str
+    owner: int
+    geometry: Geometry
+    check: Any = None
+
+
+@dataclass(frozen=True)
+class DerivedRef:
+    record: Tuple[int, int]
+    slot: Optional[int]
+    owner: Optional[int]
+    recipe: Callable[[], Any]
+    geometry: Geometry
+    check: Any = None
+
+
+@dataclass(frozen=True)
+class HeldRef:
+    record: Tuple[int, int]
+    kind: str
+    tensor: Any
+    version: int
+
+
+@dataclass(frozen=True)
+class ActivationRef:
+    record: Tuple[int, int]
+    item: int
+    geometry: Geometry
+
+
+@dataclass
+class _Item:
+    tensor: Any
+    version: int
+    nbytes: int
+    boundary: bool
+    offset: int = 0
+
+
+@dataclass
+class RecordStats:
+    """What one (layer, micro-batch) forward saved, by class."""
+
+    items: int = 0
+    payload_bytes: int = 0
+    padded_bytes: int = 0
+    boundary_bytes: int = 0
+    #: Sum of the saved views' own bytes; payload - view_bytes is storage overhang.
+    view_bytes: int = 0
+    #: Independent of the classification: record bytes whose address range overlaps
+    #: a streamed weight buffer. Must be 0.
+    weight_bytes_stored: int = 0
+    #: Stored items shaped like a streamed weight (either orientation), e.g. a dense
+    #: dequantised copy the derived tracking missed. Must be 0.
+    weight_like_items: int = 0
+    largest_items: List[Tuple[Tuple[int, ...], str, int]] = field(default_factory=list)
+    saved: Dict[str, int] = field(default_factory=lambda: {c: 0 for c in CLASSES})
+    #: Bytes the non-activation classes WOULD have cost as copies (view bytes).
+    not_stored_bytes: Dict[str, int] = field(default_factory=lambda: {c: 0 for c in CLASSES})
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "items": self.items, "payload_bytes": self.payload_bytes,
+            "padded_bytes": self.padded_bytes, "boundary_bytes": self.boundary_bytes,
+            "inner_bytes": self.payload_bytes - self.boundary_bytes,
+            "view_bytes": self.view_bytes, "weight_bytes_stored": self.weight_bytes_stored,
+            "weight_like_items": self.weight_like_items,
+            "largest_items": [list(row) for row in self.largest_items],
+            "saved": dict(self.saved), "not_stored_bytes": dict(self.not_stored_bytes),
+        }
+
+
+class Packer:
+    """``saved_tensors_hooks`` pack/unpack for one G2 step.
+
+    ``weights`` maps a weight storage to ``(slot, key)`` in ``pool``. ``params``
+    and ``consts`` map a storage to the tensor held by reference. ``verify``
+    keeps a clone of every weight/derived tensor at pack time and compares the
+    unpacked one bit for bit (CPU tests only: it copies the weights).
+    ``count_only`` classifies and counts without keeping any bytes; nothing can
+    be unpacked from it.
+    """
+
+    def __init__(self, *, weights: Dict[int, Tuple[int, str]], pool: Any = None,
+                 params: Optional[Dict[int, Any]] = None,
+                 consts: Optional[Dict[int, Any]] = None,
+                 weight_ranges: Sequence[Tuple[int, int]] = (),
+                 weight_shapes: Sequence[Tuple[int, ...]] = (),
+                 verify: bool = False, count_only: bool = False):
+        self.weights = dict(weights)
+        self.pool = pool
+        self.params = dict(params or {})
+        self.consts = dict(consts or {})
+        self.weight_ranges = [(int(lo), int(hi)) for lo, hi in weight_ranges]
+        self.weight_shapes = {tuple(shape) for shape in weight_shapes}
+        self.weight_shapes |= {tuple(reversed(shape)) for shape in self.weight_shapes}
+        self.verify = bool(verify)
+        self.count_only = bool(count_only)
+        self._key: Optional[Tuple[int, int]] = None
+        self._boundary: Optional[int] = None
+        self._items: List[_Item] = []
+        self._index: Dict[Tuple[int, int], int] = {}
+        self._derived: Dict[int, Tuple[Any, Optional[int], Optional[int], Callable[[], Any]]] = {}
+        self._stats = RecordStats()
+        self._replay_key: Optional[Tuple[int, int]] = None
+        self._replay_record: Any = None
+        self._replay_items: Dict[int, int] = {}
+        self._restored: Dict[int, Any] = {}
+        self.layouts: Dict[Tuple[int, int], List[int]] = {}
+        self.unpacked = {c: 0 for c in CLASSES}
+
+    # -- the forward ---------------------------------------------------------
+    def begin(self, key: Tuple[int, int], boundary: Any) -> None:
+        if self._key is not None:
+            raise RuntimeError(f"record {self._key} was never sealed")
+        self._key = key
+        self._boundary = _sid(boundary) if boundary is not None else None
+        self._items, self._index, self._derived = [], {}, {}
+        self._stats = RecordStats()
+        _ACTIVE.packer = self
+
+    def end_capture(self) -> None:
+        _ACTIVE.packer = None
+
+    def register_derived(self, out: Any, source: Any, recipe: Callable[[], Any]) -> None:
+        slot = owner = None
+        site = self.weights.get(_sid(source))
+        if site is not None:
+            slot = site[0]
+            owner = self.pool.owner[slot] if self.pool is not None else None
+        # The output is held until the record is sealed, so its storage id cannot
+        # be reused by another tensor inside this layer's forward.
+        self._derived[_sid(out)] = (out, slot, owner, recipe)
+
+    def _weight_ref(self, tensor: Any, site: Tuple[int, str]) -> WeightRef:
+        slot, key = site
+        owner = self.pool.owner[slot] if self.pool is not None else -1
+        check = tensor.detach().clone() if self.verify else None
+        return WeightRef(self._key, slot, key, owner, Geometry.of(tensor), check)
+
+    def pack(self, tensor: Any) -> Any:
+        if self._key is None:
+            raise RuntimeError("a tensor was saved outside a G2 record")
+        geometry = Geometry.of(tensor)
+        sid = _sid(tensor)
+        stats = self._stats
+        site = self.weights.get(sid)
+        if site is not None:
+            stats.saved[WEIGHT] += 1
+            stats.not_stored_bytes[WEIGHT] += geometry.view_bytes()
+            return None if self.count_only else self._weight_ref(tensor, site)
+        derived = self._derived.get(sid)
+        if derived is not None:
+            _out, slot, owner, recipe = derived
+            stats.saved[DERIVED] += 1
+            stats.not_stored_bytes[DERIVED] += geometry.view_bytes()
+            if self.count_only:
+                return None
+            check = tensor.detach().clone() if self.verify else None
+            return DerivedRef(self._key, slot, owner, recipe, geometry, check)
+        for kind, table in ((PARAM, self.params), (CONST, self.consts)):
+            if sid in table:
+                stats.saved[kind] += 1
+                stats.not_stored_bytes[kind] += geometry.view_bytes()
+                return None if self.count_only else HeldRef(
+                    self._key, kind, tensor, int(tensor._version))
+        stats.saved[ACTIVATION] += 1
+        stats.view_bytes += geometry.view_bytes()
+        index_key = (sid, int(tensor._version))
+        item = self._index.get(index_key)
+        if item is None:
+            item = len(self._items)
+            self._index[index_key] = item
+            nbytes = int(tensor.untyped_storage().nbytes())
+            self._items.append(_Item(tensor, int(tensor._version), nbytes,
+                                     boundary=sid == self._boundary))
+            squeezed = tuple(dim for dim in geometry.size if dim != 1)
+            if squeezed in self.weight_shapes:
+                stats.weight_like_items += 1
+        return None if self.count_only else ActivationRef(self._key, item, geometry)
+
+    def _overlap(self, item: _Item) -> int:
+        start = int(item.tensor.untyped_storage().data_ptr())
+        end = start + item.nbytes
+        return sum(max(0, min(end, hi) - max(start, lo)) for lo, hi in self.weight_ranges)
+
+    def seal(self) -> Tuple[RecordStats, List[_Item]]:
+        """Lay the record out; the caller copies the items, then calls ``release``."""
+        if self._key is None:
+            raise RuntimeError("seal without begin")
+        self.end_capture()
+        cursor = 0
+        for item in self._items:
+            if item.tensor._version != item.version:
+                raise RuntimeError(
+                    f"record {self._key}: a saved activation was modified in place after "
+                    "it was saved; its stored copy would not be what autograd saved"
+                )
+            item.offset = align_up(cursor, ITEM_ALIGN)
+            cursor = item.offset + item.nbytes
+            self._stats.payload_bytes += item.nbytes
+            self._stats.weight_bytes_stored += self._overlap(item)
+            if item.boundary:
+                self._stats.boundary_bytes += item.nbytes
+        self._stats.items = len(self._items)
+        self._stats.padded_bytes = cursor
+        self._stats.largest_items = sorted(
+            ((tuple(item.tensor.size()), str(item.tensor.dtype), item.nbytes)
+             for item in self._items), key=lambda row: -row[2])[:5]
+        self.layouts[self._key] = [item.offset for item in self._items] + [cursor]
+        return self._stats, self._items
+
+    def release(self) -> None:
+        self._key = None
+        self._boundary = None
+        self._items, self._index, self._derived = [], {}, {}
+
+    # -- the backward --------------------------------------------------------
+    def begin_replay(self, key: Tuple[int, int], record: Any) -> None:
+        layout = self.layouts.get(key)
+        if layout is None:
+            raise RuntimeError(f"no record layout for {key}")
+        self._replay_key = key
+        self._replay_record = record
+        self._replay_items = dict(enumerate(layout[:-1]))
+        self._restored = {}
+
+    def end_replay(self) -> None:
+        self._replay_key = None
+        self._replay_record = None
+        self._replay_items = {}
+        self._restored = {}
+
+    def _owned(self, slot: Optional[int], owner: Optional[int], what: str) -> None:
+        if slot is None or self.pool is None:
+            return
+        held = self.pool.owner[slot]
+        if held != owner:
+            raise RuntimeError(
+                f"G2 backward found a recycled weight slot: slot {slot} holds layer "
+                f"{held}, but the {what} was saved from layer {owner}. The schedule must "
+                "reload the layer before replaying its graph."
+            )
+
+    @staticmethod
+    def _checked(value: Any, check: Any, what: str) -> Any:
+        import torch
+
+        if check is not None and not torch.equal(value, check):
+            raise RuntimeError(f"G2 verify: the reconstructed {what} differs from the saved one")
+        return value
+
+    def unpack(self, ref: Any) -> Any:
+        if ref is None:
+            raise RuntimeError("a count-only packer cannot unpack")
+        if isinstance(ref, HeldRef):
+            if int(ref.tensor._version) != ref.version:
+                raise RuntimeError(
+                    f"a {ref.kind} tensor saved in record {ref.record} was modified before "
+                    "its backward"
+                )
+            self.unpacked[ref.kind] += 1
+            return ref.tensor
+        if ref.record != self._replay_key:
+            raise RuntimeError(
+                f"record {ref.record} was unpacked while replaying {self._replay_key}"
+            )
+        if isinstance(ref, WeightRef):
+            self._owned(ref.slot, ref.owner, f"weight {ref.key!r}")
+            buf = self.pool.buffers[ref.slot][ref.key]
+            value = ref.geometry.view_of(buf.untyped_storage(), buf.device)
+            self.unpacked[WEIGHT] += 1
+            return self._checked(value, ref.check, f"weight {ref.key!r}")
+        if isinstance(ref, DerivedRef):
+            self._owned(ref.slot, ref.owner, "dequantised weight")
+            value = ref.recipe()
+            # Always re-apply the saved geometry: a square weight saved transposed has
+            # the recomputed base's size, and only its stride tells them apart.
+            value = ref.geometry.view_of(value.untyped_storage(), value.device)
+            self.unpacked[DERIVED] += 1
+            return self._checked(value, ref.check, "dequantised weight")
+        if isinstance(ref, ActivationRef):
+            self.unpacked[ACTIVATION] += 1
+            return self._restore(ref)
+        raise TypeError(f"unknown saved-tensor descriptor {type(ref).__name__}")
+
+    def _restore(self, ref: ActivationRef) -> Any:
+        import torch
+
+        record = self._replay_record
+        offset = self._replay_items[ref.item]
+        element = torch.empty((), dtype=ref.geometry.dtype).element_size()
+        byte_offset = int(record.storage_offset()) + offset
+        if byte_offset % element:
+            raise RuntimeError(f"record item {ref.item} is not aligned to {element} bytes")
+        return ref.geometry.view_of(record.untyped_storage(), record.device,
+                                    extra_elements=byte_offset // element)
+
+    def hooks(self) -> Any:
+        import torch
+
+        return torch.autograd.graph.saved_tensors_hooks(self.pack, self.unpack)
+
+
+# --------------------------------------------------------------------------
+# the input-gradient catcher (scratch exp3)
+# --------------------------------------------------------------------------
+class GradSlot:
+    grad: Any = None
+
+
+_CATCH: Dict[str, Any] = {}
+
+
+def catch(anchor: Any, tensor: Any, slot: GradSlot) -> Any:
+    """A view of ``tensor`` whose gradient lands in ``slot``.
+
+    Keeping ``x.requires_grad_()`` and reading ``x.grad`` would keep ``x``
+    alive through its AccumulateGrad node: a device-resident boundary tensor per
+    (layer, micro-batch) for the whole step. This Function holds nothing; the
+    boundary bytes survive only inside the record, where they are counted.
+    """
+    if "fn" not in _CATCH:
+        import torch
+
+        class Catch(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx: Any, anchor_: Any, x: Any, target: GradSlot) -> Any:
+                ctx.target = target
+                return x.view_as(x)
+
+            @staticmethod
+            def backward(ctx: Any, grad: Any) -> Any:
+                ctx.target.grad = grad
+                return None, None, None
+
+        _CATCH["fn"] = Catch
+    return _CATCH["fn"].apply(anchor, tensor, slot)
+
+
+def _tensors_in(value: Any) -> Iterator[Any]:
+    import torch
+
+    if isinstance(value, torch.Tensor):
+        yield value
+    elif isinstance(value, (tuple, list)):
+        for entry in value:
+            yield from _tensors_in(entry)
+    elif isinstance(value, dict):
+        for entry in value.values():
+            yield from _tensors_in(entry)
+
+
+def streamed_weight_sites(pool: Any) -> Dict[int, Tuple[int, str]]:
+    sites: Dict[int, Tuple[int, str]] = {}
+    for slot, buffers in enumerate(pool.buffers):
+        for key, buf in buffers.items():
+            sites[_sid(buf)] = (slot, key)
+    return sites
+
+
+def streamed_weight_ranges(pool: Any, large_pool: Any = None) -> List[Tuple[int, int]]:
+    """Address ranges of every streamed weight buffer (layer slots and the large slot)."""
+    ranges = []
+    for buffers in pool.buffers:
+        for buf in buffers.values():
+            storage = buf.untyped_storage()
+            ranges.append((storage.data_ptr(), storage.data_ptr() + storage.nbytes()))
+    if large_pool is not None and getattr(large_pool, "buffer", None) is not None:
+        storage = large_pool.buffer.untyped_storage()
+        ranges.append((storage.data_ptr(), storage.data_ptr() + storage.nbytes()))
+    return ranges
+
+
+def dense_weight_shapes(model: Any) -> List[Tuple[int, ...]]:
+    """(out, in) of every frozen linear (LoRA factors excluded: they require grad).
+
+    Used only to flag stored items shaped exactly like a dense weight, which is
+    what a dequantised copy the derived tracking missed looks like. It is a
+    heuristic: an activation of shape (seq, d) collides when seq equals a weight
+    dimension, so the hard check is the address overlap, and this one is
+    reported, not gated.
+    """
+    import torch
+
+    shapes = set()
+    for module in model.modules():
+        weight = getattr(module, "weight", None)
+        if isinstance(module, torch.nn.Linear) and weight is not None and not weight.requires_grad:
+            shapes.add((int(module.out_features), int(module.in_features)))
+    return sorted(shapes)
+
+
+# --------------------------------------------------------------------------
+# the store-instead-of-recompute step
+# --------------------------------------------------------------------------
+StoreFactory = Callable[[int, int, int], Any]
+
+
+class G2Step:
+    """One layer-major step that keeps each layer's saved tensors instead of
+    recomputing them. Same embeddings, layer kwargs, head and loss as
+    ``l2l_schedule.L2LStep``; same weight loads (one forward walk, one backward
+    walk, ``pool.wait`` + ``prefetcher.advance`` before each replay).
+
+    ``store_factory(n_layers, k, record_bytes)`` builds the record store
+    (an ``ActivationStore`` of uint8 chunks) the first time a record is sealed,
+    because the record size is only known then. ``capacity_bytes`` presizes it.
+    ``naive_identity`` is the exp2 hazard control: identity hooks, no reload.
+    ``profile`` synchronises the device around each phase so ``timing`` holds
+    real per-phase seconds; it perturbs the step, so timed arms leave it off.
+    """
+
+    def __init__(self, model: Any, runtime: Any, call: l2l_schedule.LayerCall, *,
+                 store_factory: StoreFactory, capacity_bytes: Optional[int] = None,
+                 verify: bool = False, naive_identity: bool = False, profile: bool = False):
+        self.causal, self.owner = l2l_schedule.model_parts(model)
+        self.layers = list(self.owner.layers)
+        self.call = call
+        self.runtime = runtime
+        self.pool = runtime.pool
+        self.prefetcher = runtime.prefetcher
+        hook = getattr(runtime, "hook", None)
+        prime = self.owner._forward_pre_hooks.get(getattr(hook, "id", None))
+        if prime is None:
+            raise RuntimeError("the streaming prime hook is not installed on the decoder container")
+        self._prime = prime
+        self.store_factory = store_factory
+        self.capacity = None if capacity_bytes is None else align_up(capacity_bytes, SECTOR_BYTES)
+        self.store: Any = None
+        self.naive_identity = bool(naive_identity)
+        self.profile = bool(profile)
+        params = {_sid(p): p for p in l2l_schedule.lora_parameters(model).values()}
+        consts = {_sid(t): t for t in _tensors_in((call.args, call.kwargs))}
+        # NF4 lookup codes are shared by every layer and never refilled: constants.
+        for layer in self.layers:
+            consts.update({_sid(t): t for t in _tensors_in(dict(getattr(layer, "codes", {})))})
+        self.packer = Packer(
+            weights=streamed_weight_sites(self.pool), pool=self.pool, params=params,
+            consts=consts,
+            weight_ranges=streamed_weight_ranges(self.pool, getattr(runtime, "large_pool", None)),
+            weight_shapes=dense_weight_shapes(model), verify=verify)
+        self.record_stats: Dict[Tuple[int, int], Dict[str, Any]] = {}
+        self._record_buf: Any = None
+        self.corrupt: Optional[Tuple[int, int]] = None
+        self.timing: Dict[str, float] = {}
+
+    def _tick(self, device: Any) -> float:
+        import time
+
+        if self.profile and getattr(device, "type", str(device)) == "cuda":
+            import torch
+
+            torch.cuda.synchronize()
+        return time.perf_counter()
+
+    def _add(self, name: str, started: float, device: Any) -> float:
+        now = self._tick(device)
+        self.timing[name] = self.timing.get(name, 0.0) + now - started
+        return now
+
+    def _layer(self, layer: Any, hidden: Any) -> Any:
+        out = layer(hidden, *self.call.args, **self.call.kwargs)
+        return out[0] if isinstance(out, tuple) else out
+
+    # -- records -------------------------------------------------------------
+    def _ensure_store(self, k: int, needed: int, device: Any) -> None:
+        import torch
+
+        if self.capacity is None:
+            self.capacity = align_up(max(needed, 1), SECTOR_BYTES)
+        if needed > self.capacity:
+            raise RuntimeError(
+                f"a record needs {needed} bytes but the store holds {self.capacity}: the "
+                "layers do not save the same tensors (raise capacity_bytes)"
+            )
+        if self.store is None or self.store.k < k:
+            if self.store is not None:
+                self.store.close()
+            self.store = self.store_factory(len(self.layers), k, self.capacity)
+            if self.store.chunk_bytes != self.capacity:
+                raise RuntimeError(
+                    f"the record store's chunk is {self.store.chunk_bytes} bytes, "
+                    f"not {self.capacity}"
+                )
+        if self._record_buf is None or self._record_buf.device != torch.device(device):
+            self._record_buf = torch.zeros(self.capacity, dtype=torch.uint8, device=device)
+
+    def _assemble(self, items: Sequence[_Item]) -> Any:
+        import torch
+
+        buf = self._record_buf
+        for item in items:
+            if not item.nbytes:
+                continue
+            raw = torch.empty((0,), dtype=torch.uint8, device=item.tensor.device).set_(
+                item.tensor.untyped_storage(), 0, (item.nbytes,), (1,))
+            buf[item.offset:item.offset + item.nbytes].copy_(raw, non_blocking=True)
+        return buf
+
+    def close(self) -> None:
+        if self.store is not None:
+            self.store.close()
+            self.store = None
+
+    # -- the step ------------------------------------------------------------
+    def run(self, micro_batches: Sequence[Any], *, n_items: Optional[int] = None) -> List[Any]:
+        import torch
+        from torch.autograd.graph import get_gradient_edge
+
+        k = len(micro_batches)
+        if k < 1:
+            raise ValueError("a G2 step needs at least one micro-batch")
+        total = l2l_schedule.label_tokens(micro_batches) if n_items is None else int(n_items)
+        vocab = int(self.causal.config.vocab_size)
+        packer = self.packer
+
+        self.timing = {}
+        self._prime(self.owner, ())
+        with torch.no_grad():
+            hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
+        device = hidden[0].device
+        anchor = torch.zeros((), device=device, requires_grad=True)
+        graphs: Dict[Tuple[int, int], Tuple[Any, GradSlot]] = {}
+        try:
+            for idx, layer in enumerate(self.layers):
+                saved = layer.use_checkpoint
+                layer.use_checkpoint = False
+                try:
+                    for mb in range(k):
+                        slot = GradSlot()
+                        started = self._tick(device)
+                        with torch.enable_grad():
+                            x = catch(anchor, hidden[mb], slot)
+                            if self.naive_identity:
+                                with torch.autograd.graph.saved_tensors_hooks(
+                                        lambda t: t, lambda t: t):
+                                    out = self._layer(layer, x)
+                            else:
+                                packer.begin((idx, mb), hidden[mb])
+                                try:
+                                    with packer.hooks():
+                                        out = self._layer(layer, x)
+                                finally:
+                                    packer.end_capture()
+                        graphs[(idx, mb)] = (get_gradient_edge(out), slot)
+                        hidden[mb] = out.detach()
+                        del out, x
+                        started = self._add("forward_layers_s", started, device)
+                        if self.naive_identity:
+                            continue
+                        stats, items = packer.seal()
+                        self._ensure_store(k, stats.padded_bytes, device)
+                        self.store.put(idx, mb, self._assemble(items))
+                        packer.release()
+                        self.record_stats[(idx, mb)] = stats.as_dict()
+                        self._add("store_put_s", started, device)
+                finally:
+                    layer.use_checkpoint = saved
+
+            losses: List[Any] = []
+            grads: List[Any] = []
+            for mb, ids in enumerate(micro_batches):
+                last = hidden[mb].detach().requires_grad_(True)
+                hidden[mb] = None
+                with torch.enable_grad():
+                    normed = self.owner.norm(last)
+                    logits = self.causal.lm_head(normed[:, slice(0, None), :])
+                    loss = self.causal.loss_function(
+                        logits=logits, labels=ids, vocab_size=vocab, num_items_in_batch=total
+                    )
+                loss.backward()
+                losses.append(loss.detach())
+                grads.append(last.grad)
+
+            if not self.naive_identity:
+                self.store.begin_backward()
+            for idx in range(len(self.layers) - 1, -1, -1):
+                layer = self.layers[idx]
+                for mb in range(k):
+                    edge, slot = graphs.pop((idx, mb))
+                    if self.naive_identity:
+                        torch.autograd.backward([edge], grad_tensors=[grads[mb]])
+                        grads[mb] = slot.grad
+                        continue
+                    started = self._tick(device)
+                    record = self.store.get(idx, mb)
+                    if self.corrupt == (idx, mb):
+                        record[: min(4096, record.numel())].bitwise_not_()
+                    started = self._add("store_get_s", started, device)
+                    # The recompute path's `_body` does exactly this before its forward.
+                    self.pool.wait(layer.idx)
+                    self.prefetcher.advance(layer.idx)
+                    packer.begin_replay((idx, mb), record)
+                    try:
+                        torch.autograd.backward([edge], grad_tensors=[grads[mb]])
+                    finally:
+                        packer.end_replay()
+                    self._add("backward_layers_s", started, device)
+                    if slot.grad is None:
+                        raise RuntimeError(f"layer {idx} micro-batch {mb} produced no input grad")
+                    grads[mb] = slot.grad
+            if not self.naive_identity:
+                self.store.end_step()
+        finally:
+            packer.end_capture()
+            graphs.clear()
+        return losses
+
+    # -- reporting -----------------------------------------------------------
+    def summary(self, tokens_per_micro_batch: int) -> Dict[str, Any]:
+        rows = list(self.record_stats.values())
+        if not rows:
+            return {}
+        payload = [row["payload_bytes"] for row in rows]
+        inner = [row["inner_bytes"] for row in rows]
+        return {
+            "records": len(rows),
+            "record_capacity_bytes": self.capacity,
+            "payload_bytes_per_record_max": max(payload),
+            "payload_bytes_per_record_min": min(payload),
+            "inner_bytes_per_record_max": max(inner),
+            "bytes_per_token_per_layer": max(payload) / tokens_per_micro_batch,
+            "inner_bytes_per_token_per_layer": max(inner) / tokens_per_micro_batch,
+            "boundary_bytes_per_record": rows[0]["boundary_bytes"],
+            "saved_counts": rows[0]["saved"],
+            "not_stored_bytes": rows[0]["not_stored_bytes"],
+            "unpacked": dict(self.packer.unpacked),
+        }
+
+
+# --------------------------------------------------------------------------
+# record stores
+# --------------------------------------------------------------------------
+def ram_store_factory(device: Any, *, pin: bool) -> StoreFactory:
+    import l2l_activations
+
+    def build(n_layers: int, k: int, record_bytes: int) -> Any:
+        import torch
+
+        return l2l_activations.ActivationStore(
+            n_layers=n_layers, k=k, chunk_shape=(record_bytes,), dtype=torch.uint8,
+            device=device, pin=pin)
+
+    return build
+
+
+def spill_store_factory(device: Any, *, pin: bool, spill_layers: Optional[int],
+                        path: str, direct: bool, ring: int = 2) -> StoreFactory:
+    """Records of the lowest ``spill_layers`` layers (all when None) through a spill file."""
+    import l2l_activations
+
+    def build(n_layers: int, k: int, record_bytes: int) -> Any:
+        import torch
+
+        backend = l2l_activations.DirectSpillFile if direct else l2l_activations.BufferedSpillFile
+        layers = n_layers if spill_layers is None else int(spill_layers)
+        return l2l_activations.ActivationStore(
+            n_layers=n_layers, k=k, chunk_shape=(record_bytes,), dtype=torch.uint8,
+            device=device, pin=pin, spill_layers=layers,
+            spill_factory=lambda size: backend(path, size), ring=ring)
+
+    return build
+
+
+# --------------------------------------------------------------------------
+# counting on an unstreamed model: the 7B/70B shape estimates
+# --------------------------------------------------------------------------
+def count_layer_saved_bytes(model: Any, input_ids: Any, *, layer_index: int = 0
+                            ) -> Dict[str, Any]:
+    """Classify and count what decoder layer ``layer_index`` saves for one forward.
+
+    The layer's input is replaced by a view that requires grad, exactly as
+    ``G2Step`` feeds it: with a plain frozen input autograd would save neither
+    the frozen weights nor the boundary. Frozen parameters are ``weight``,
+    trainable ones ``param``, the layer's call tensors ``const``. Nothing is
+    copied.
+    """
+    import torch
+
+    _causal, owner = l2l_schedule.model_parts(model)
+    layer = owner.layers[layer_index]
+    weights = {_sid(p): (0, name) for name, p in layer.named_parameters() if not p.requires_grad}
+    params = {_sid(p): p for _name, p in layer.named_parameters() if p.requires_grad}
+    seen: Dict[str, Any] = {}
+
+    def pre(_module: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> Any:
+        hidden = args[0] if args else kwargs["hidden_states"]
+        anchor = torch.zeros((), device=hidden.device, requires_grad=True)
+        seen["slot"] = GradSlot()
+        fed = catch(anchor, hidden.detach(), seen["slot"])
+        consts = {_sid(t): t for t in _tensors_in((args[1:], kwargs)) if t is not hidden}
+        packer = Packer(weights=weights, params=params, consts=consts, count_only=True)
+        packer.begin((layer_index, 0), hidden)
+        seen["packer"] = packer
+        seen["ctx"] = packer.hooks()
+        seen["ctx"].__enter__()
+        if args:
+            return (fed, *args[1:]), kwargs
+        return args, {**kwargs, "hidden_states": fed}
+
+    def post(_module: Any, _args: Any, _kwargs: Any, _out: Any) -> None:
+        seen["ctx"].__exit__(None, None, None)
+        stats, _items = seen["packer"].seal()
+        seen["stats"] = stats.as_dict()
+        seen["packer"].release()
+
+    handles = [layer.register_forward_pre_hook(pre, with_kwargs=True),
+               layer.register_forward_hook(post, with_kwargs=True)]
+    try:
+        with torch.enable_grad():
+            model(input_ids=input_ids)
+    finally:
+        for handle in handles:
+            handle.remove()
+        if "ctx" in seen and "stats" not in seen:
+            seen["ctx"].__exit__(None, None, None)
+    if "stats" not in seen:
+        raise RuntimeError(f"decoder layer {layer_index} was never called")
+    return seen["stats"]
+
+
+#: Decoder shapes for the byte estimates (public configs; no weights are read).
+SHAPES: Dict[str, Dict[str, Any]] = {
+    "mistral-7b": {"arch": "mistral", "hidden_size": 4096, "intermediate_size": 14336,
+                   "num_attention_heads": 32, "num_key_value_heads": 8},
+    "llama-70b": {"arch": "llama", "hidden_size": 8192, "intermediate_size": 28672,
+                  "num_attention_heads": 64, "num_key_value_heads": 8},
+}
+
+
+def shape_estimate(shape: str, *, seq: int, lora_r: int, targets: Sequence[str],
+                   dtype: str = "bfloat16", attn: str = "sdpa") -> Dict[str, Any]:
+    """Saved bytes per token for ONE decoder layer of a full-size shape, on CPU.
+
+    The frozen weights are zero-stride expanded scalars, so a 70B layer costs no
+    weight memory; the kernels are the CPU ones (``attn`` picks HF's attention
+    implementation). The CUDA kernels save different attention tensors, so this
+    is an estimate; ``g2_probe.py correctness`` measures the real records on
+    the GPU box. The vocabulary is cut to 256: it does not enter a decoder layer.
+    """
+    import torch
+    from accelerate import init_empty_weights
+    from peft import LoraConfig, TaskType, get_peft_model
+    from transformers import LlamaConfig, LlamaForCausalLM, MistralConfig, MistralForCausalLM
+
+    spec = dict(SHAPES[shape])
+    arch = spec.pop("arch")
+    config_cls, model_cls = ((MistralConfig, MistralForCausalLM) if arch == "mistral"
+                             else (LlamaConfig, LlamaForCausalLM))
+    config = config_cls(vocab_size=256, num_hidden_layers=1, max_position_embeddings=max(
+        4096, seq), **spec)
+    config._attn_implementation = attn
+    torch_dtype = getattr(torch, dtype)
+    with init_empty_weights(include_buffers=False):
+        model = model_cls(config)
+    for module in model.modules():
+        for name, param in list(module.named_parameters(recurse=False)):
+            fake = torch.zeros((), dtype=torch_dtype).expand(param.shape)
+            module._parameters[name] = torch.nn.Parameter(fake, requires_grad=False)
+    for name, buf in list(model.named_buffers()):
+        if buf.is_floating_point() and buf.dtype != torch.float32:
+            raise RuntimeError(f"unexpected low-precision buffer {name}")
+    lora = LoraConfig(r=lora_r, lora_alpha=2 * lora_r, lora_dropout=0.0, bias="none",
+                      target_modules=list(targets), task_type=TaskType.CAUSAL_LM)
+    peft_model = get_peft_model(model, lora)
+    for name, param in peft_model.named_parameters():
+        if param.requires_grad:
+            with torch.no_grad():
+                param.data = torch.zeros(param.shape, dtype=param.dtype)
+    ids = torch.zeros((1, seq), dtype=torch.long)
+    stats = count_layer_saved_bytes(peft_model, ids)
+    return {
+        "shape": shape, "seq": seq, "dtype": dtype, "attn_implementation": attn,
+        "lora_r": lora_r, "targets": list(targets), "kernels": "cpu (estimate for cuda)",
+        "torch": torch.__version__, **{key: value for key, value in spec.items()},
+        "bytes_per_token": stats["payload_bytes"] / seq,
+        "inner_bytes_per_token": stats["inner_bytes"] / seq,
+        "boundary_bytes_per_token": stats["boundary_bytes"] / seq,
+        "record": stats,
+    }
+
+
+# --------------------------------------------------------------------------
+# the recompute reference, with its phases timed
+# --------------------------------------------------------------------------
+class ProfiledL2LStep(l2l_schedule.L2LStep):
+    """``l2l_schedule.L2LStep`` with the backward split into the recompute forward
+    and the backward proper. Same calls in the same order; only clocks are added.
+    ``profile`` synchronises the device at each boundary (profile runs only)."""
+
+    def __init__(self, *args: Any, profile: bool = True, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.profile = bool(profile)
+        self.timing: Dict[str, float] = {}
+
+    _tick = G2Step._tick
+    _add = G2Step._add
+
+    def run(self, micro_batches: Sequence[Any], store: Any, *,
+            n_items: Optional[int] = None) -> List[Any]:
+        import torch
+
+        k = len(micro_batches)
+        if k < 1 or k > store.k:
+            raise ValueError(f"{k} micro-batches for a store of {store.k}")
+        total = l2l_schedule.label_tokens(micro_batches) if n_items is None else int(n_items)
+        vocab = int(self.causal.config.vocab_size)
+        self.timing = {}
+        self._prime(self.owner, ())
+        with torch.no_grad():
+            hidden = [self.owner.embed_tokens(ids) for ids in micro_batches]
+            device = hidden[0].device
+            for idx, layer in enumerate(self.layers):
+                for mb in range(k):
+                    started = self._tick(device)
+                    store.put(idx, mb, hidden[mb])
+                    started = self._add("store_put_s", started, device)
+                    hidden[mb] = self._layer(layer, hidden[mb], None, self.call)
+                    self._add("forward_layers_s", started, device)
+        losses: List[Any] = []
+        grads: List[Any] = []
+        for mb, ids in enumerate(micro_batches):
+            last = hidden[mb].detach().requires_grad_(True)
+            hidden[mb] = None
+            with torch.enable_grad():
+                normed = self.owner.norm(last)
+                logits = self.causal.lm_head(normed[:, slice(0, None), :])
+                loss = self.causal.loss_function(
+                    logits=logits, labels=ids, vocab_size=vocab, num_items_in_batch=total)
+            loss.backward()
+            losses.append(loss.detach())
+            grads.append(last.grad)
+        store.begin_backward()
+        for idx in range(len(self.layers) - 1, -1, -1):
+            layer = self.layers[idx]
+            saved = layer.use_checkpoint
+            layer.use_checkpoint = False
+            try:
+                for mb in range(k):
+                    started = self._tick(device)
+                    inputs = store.get(idx, mb).requires_grad_(True)
+                    started = self._add("store_get_s", started, device)
+                    with torch.enable_grad():
+                        out = self._layer(layer, inputs, None, self.call)
+                    started = self._add("recompute_s", started, device)
+                    torch.autograd.backward(out, grad_tensors=grads[mb])
+                    grads[mb] = inputs.grad
+                    self._add("backward_layers_s", started, device)
+            finally:
+                layer.use_checkpoint = saved
+        store.end_step()
+        return losses

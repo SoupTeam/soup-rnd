@@ -1,0 +1,784 @@
+{
+  "rule_version": "v2",
+  "rule": {
+    "profile": "a4-ram-budget-spill-v2",
+    "G1": "for k in 2,3,4: every planned budget (0.5, 0.25, min) gives per-micro-batch losses (forward) and nonzero LoRA grads (backward) torch.equal to the all-pinned L2L AND to GA; references reproducible (GA vs GA, pinned vs pinned), else the --deterministic rerun; the corrupted-spill-read control's grads must DIFFER, else no verdict",
+    "G2": "every arm: the store holds exactly the plan's bytes (power-of-two pinned blocks, rings at chunk+4096) and <= its budget (cap.ok). excess = (CUDA host allocator peak during the timed steps - its baseline before the store) - the store's held bytes. Reference per block: both A arms (positions 0 and 3) present, not void, spilling no layer, with counters, and their excesses EQUAL; else that block's B arms get no verdict. A B arm fails if its excess > the reference. A missing counter is no verdict. With a declared host total, the process peak RSS <= that total",
+    "G3": "cleanup: Ctrl-C mid-backward, exception mid-forward and ENOSPC mid-step each raise their named error, leave no spill file, no spill thread, and return the host allocator to its baseline; ENOSPC names SPILL_ENOSPC with the arithmetic; and no arm leaves a spill file",
+    "G4": "ram_k2_half and ram_k4_half: mean per-block step-time overhead of B (spill) over A (all pinned), two-sided 95% t interval: pass if its upper bound < 10%, fail if its lower bound >= 10%, else no verdict",
+    "G5": "disk_k4_same_drive: weight read GB/s while busy, B (spill on the weights' drive) over A (no spill), per-block ratio, 95% t interval: pass (no interference past 10%) if lower bound >= 0.9, fail if upper bound < 0.9, else no verdict",
+    "V1": "required F1 checks (suspend, power, foreign_reads) ok on every arm a gate reads; a block with a void arm is replaced (METHOD.md), an unknown one removes the gate",
+    "V2": "spill volume scope local or virtual, never tmpfs/overlay/network; unbuffered round trip ok; every spilling arm's store is direct",
+    "V3": "device cuda; a CPU pilot never gets a verdict",
+    "V4": "A and B of a block train on the same token rows (ids fingerprint)",
+    "V5": "finite losses on every timed step",
+    "V6": "the plan happened: budget '1' spills nothing; any other budget spills > 0 layers and writes and reads exactly spill_file_bytes per step",
+    "V7": "blocks: the F1 repeats rule has no block left to add (blocks_to_add == 0)",
+    "V8": "disk-tier arms: the weight source reads with direct I/O",
+    "V9": "disk_k4_same_drive: every spilling arm's OS placement records (resolved path, mount, whole physical disk) show the spill file and the weight shards on one physical disk; unknown placement removes G5",
+    "order": "A-B-B-A blocks, fresh process per arm, comparisons in the order listed",
+    "hidden": "informational: overhead upper bound <= 5% is 'hidden'; the hidden share of spill I/O is 1 - (put+get wait)/(write+read busy)"
+  },
+  "verdict": "SPILL READY FOR A3: automatic fallback past the RAM budget; on the disk tier spill to a drive the weights are not read from",
+  "gates": {
+    "G1": {
+      "status": "pass",
+      "detail": "k=2: forward and backward exact at spill layers {'0.5': 24, '0.25': 32, 'min': 32}; control differs; k=3: forward and backward exact at spill layers {'0.5': 22, '0.25': 30, 'min': 32}; control differs; k=4: forward and backward exact at spill layers {'0.5': 20, '0.25': 28, 'min': 32}; control differs",
+      "parts": [
+        {
+          "status": "pass",
+          "detail": "k=2: forward and backward exact at spill layers {'0.5': 24, '0.25': 32, 'min': 32}; control differs",
+          "deterministic": true
+        },
+        {
+          "status": "pass",
+          "detail": "k=3: forward and backward exact at spill layers {'0.5': 22, '0.25': 30, 'min': 32}; control differs",
+          "deterministic": true
+        },
+        {
+          "status": "pass",
+          "detail": "k=4: forward and backward exact at spill layers {'0.5': 20, '0.25': 28, 'min': 32}; control differs",
+          "deterministic": true
+        }
+      ]
+    },
+    "G2": {
+      "status": "pass",
+      "detail": "140 arms: held == plan <= budget; every B arm's excess outside its store <= its block's A excess (A excesses seen: [4] B)",
+      "references": {
+        "disk_k4_same_drive/b00": {
+          "bytes": 4,
+          "why": null
+        },
+        "disk_k4_same_drive/b01": {
+          "bytes": 4,
+          "why": null
+        },
+        "disk_k4_same_drive/b02": {
+          "bytes": 4,
+          "why": null
+        },
+        "disk_k4_same_drive/b03": {
+          "bytes": 4,
+          "why": null
+        },
+        "disk_k4_same_drive/b04": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_half/b00": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_half/b01": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_half/b02": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_half/b03": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_half/b04": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_min/b00": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_min/b01": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_min/b02": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_min/b03": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k2_min/b04": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k3_min/b00": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k3_min/b01": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k3_min/b02": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k3_min/b03": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k3_min/b04": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_half/b00": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_half/b01": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_half/b02": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_half/b03": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_half/b04": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_min/b00": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_min/b01": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_min/b02": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_min/b03": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_min/b04": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_quarter/b00": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_quarter/b01": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_quarter/b02": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_quarter/b03": {
+          "bytes": 4,
+          "why": null
+        },
+        "ram_k4_quarter/b04": {
+          "bytes": 4,
+          "why": null
+        }
+      },
+      "excess_bytes": {
+        "disk_k4_same_drive/b00_p0_A.json": 4,
+        "disk_k4_same_drive/b00_p1_B.json": 4,
+        "disk_k4_same_drive/b00_p2_B.json": 4,
+        "disk_k4_same_drive/b00_p3_A.json": 4,
+        "disk_k4_same_drive/b01_p0_A.json": 4,
+        "disk_k4_same_drive/b01_p1_B.json": 4,
+        "disk_k4_same_drive/b01_p2_B.json": 4,
+        "disk_k4_same_drive/b01_p3_A.json": 4,
+        "disk_k4_same_drive/b02_p0_A.json": 4,
+        "disk_k4_same_drive/b02_p1_B.json": 4,
+        "disk_k4_same_drive/b02_p2_B.json": 4,
+        "disk_k4_same_drive/b02_p3_A.json": 4,
+        "disk_k4_same_drive/b03_p0_A.json": 4,
+        "disk_k4_same_drive/b03_p1_B.json": 4,
+        "disk_k4_same_drive/b03_p2_B.json": 4,
+        "disk_k4_same_drive/b03_p3_A.json": 4,
+        "disk_k4_same_drive/b04_p0_A.json": 4,
+        "disk_k4_same_drive/b04_p1_B.json": 4,
+        "disk_k4_same_drive/b04_p2_B.json": 4,
+        "disk_k4_same_drive/b04_p3_A.json": 4,
+        "ram_k2_half/b00_p0_A.json": 4,
+        "ram_k2_half/b00_p1_B.json": 4,
+        "ram_k2_half/b00_p2_B.json": 4,
+        "ram_k2_half/b00_p3_A.json": 4,
+        "ram_k2_half/b01_p0_A.json": 4,
+        "ram_k2_half/b01_p1_B.json": 4,
+        "ram_k2_half/b01_p2_B.json": 4,
+        "ram_k2_half/b01_p3_A.json": 4,
+        "ram_k2_half/b02_p0_A.json": 4,
+        "ram_k2_half/b02_p1_B.json": 4,
+        "ram_k2_half/b02_p2_B.json": 4,
+        "ram_k2_half/b02_p3_A.json": 4,
+        "ram_k2_half/b03_p0_A.json": 4,
+        "ram_k2_half/b03_p1_B.json": 4,
+        "ram_k2_half/b03_p2_B.json": 4,
+        "ram_k2_half/b03_p3_A.json": 4,
+        "ram_k2_half/b04_p0_A.json": 4,
+        "ram_k2_half/b04_p1_B.json": 4,
+        "ram_k2_half/b04_p2_B.json": 4,
+        "ram_k2_half/b04_p3_A.json": 4,
+        "ram_k2_min/b00_p0_A.json": 4,
+        "ram_k2_min/b00_p1_B.json": 4,
+        "ram_k2_min/b00_p2_B.json": 4,
+        "ram_k2_min/b00_p3_A.json": 4,
+        "ram_k2_min/b01_p0_A.json": 4,
+        "ram_k2_min/b01_p1_B.json": 4,
+        "ram_k2_min/b01_p2_B.json": 4,
+        "ram_k2_min/b01_p3_A.json": 4,
+        "ram_k2_min/b02_p0_A.json": 4,
+        "ram_k2_min/b02_p1_B.json": 4,
+        "ram_k2_min/b02_p2_B.json": 4,
+        "ram_k2_min/b02_p3_A.json": 4,
+        "ram_k2_min/b03_p0_A.json": 4,
+        "ram_k2_min/b03_p1_B.json": 4,
+        "ram_k2_min/b03_p2_B.json": 4,
+        "ram_k2_min/b03_p3_A.json": 4,
+        "ram_k2_min/b04_p0_A.json": 4,
+        "ram_k2_min/b04_p1_B.json": 4,
+        "ram_k2_min/b04_p2_B.json": 4,
+        "ram_k2_min/b04_p3_A.json": 4,
+        "ram_k3_min/b00_p0_A.json": 4,
+        "ram_k3_min/b00_p1_B.json": 4,
+        "ram_k3_min/b00_p2_B.json": 4,
+        "ram_k3_min/b00_p3_A.json": 4,
+        "ram_k3_min/b01_p0_A.json": 4,
+        "ram_k3_min/b01_p1_B.json": 4,
+        "ram_k3_min/b01_p2_B.json": 4,
+        "ram_k3_min/b01_p3_A.json": 4,
+        "ram_k3_min/b02_p0_A.json": 4,
+        "ram_k3_min/b02_p1_B.json": 4,
+        "ram_k3_min/b02_p2_B.json": 4,
+        "ram_k3_min/b02_p3_A.json": 4,
+        "ram_k3_min/b03_p0_A.json": 4,
+        "ram_k3_min/b03_p1_B.json": 4,
+        "ram_k3_min/b03_p2_B.json": 4,
+        "ram_k3_min/b03_p3_A.json": 4,
+        "ram_k3_min/b04_p0_A.json": 4,
+        "ram_k3_min/b04_p1_B.json": 4,
+        "ram_k3_min/b04_p2_B.json": 4,
+        "ram_k3_min/b04_p3_A.json": 4,
+        "ram_k4_half/b00_p0_A.json": 4,
+        "ram_k4_half/b00_p1_B.json": 4,
+        "ram_k4_half/b00_p2_B.json": 4,
+        "ram_k4_half/b00_p3_A.json": 4,
+        "ram_k4_half/b01_p0_A.json": 4,
+        "ram_k4_half/b01_p1_B.json": 4,
+        "ram_k4_half/b01_p2_B.json": 4,
+        "ram_k4_half/b01_p3_A.json": 4,
+        "ram_k4_half/b02_p0_A.json": 4,
+        "ram_k4_half/b02_p1_B.json": 4,
+        "ram_k4_half/b02_p2_B.json": 4,
+        "ram_k4_half/b02_p3_A.json": 4,
+        "ram_k4_half/b03_p0_A.json": 4,
+        "ram_k4_half/b03_p1_B.json": 4,
+        "ram_k4_half/b03_p2_B.json": 4,
+        "ram_k4_half/b03_p3_A.json": 4,
+        "ram_k4_half/b04_p0_A.json": 4,
+        "ram_k4_half/b04_p1_B.json": 4,
+        "ram_k4_half/b04_p2_B.json": 4,
+        "ram_k4_half/b04_p3_A.json": 4,
+        "ram_k4_min/b00_p0_A.json": 4,
+        "ram_k4_min/b00_p1_B.json": 4,
+        "ram_k4_min/b00_p2_B.json": 4,
+        "ram_k4_min/b00_p3_A.json": 4,
+        "ram_k4_min/b01_p0_A.json": 4,
+        "ram_k4_min/b01_p1_B.json": 4,
+        "ram_k4_min/b01_p2_B.json": 4,
+        "ram_k4_min/b01_p3_A.json": 4,
+        "ram_k4_min/b02_p0_A.json": 4,
+        "ram_k4_min/b02_p1_B.json": 4,
+        "ram_k4_min/b02_p2_B.json": 4,
+        "ram_k4_min/b02_p3_A.json": 4,
+        "ram_k4_min/b03_p0_A.json": 4,
+        "ram_k4_min/b03_p1_B.json": 4,
+        "ram_k4_min/b03_p2_B.json": 4,
+        "ram_k4_min/b03_p3_A.json": 4,
+        "ram_k4_min/b04_p0_A.json": 4,
+        "ram_k4_min/b04_p1_B.json": 4,
+        "ram_k4_min/b04_p2_B.json": 4,
+        "ram_k4_min/b04_p3_A.json": 4,
+        "ram_k4_quarter/b00_p0_A.json": 4,
+        "ram_k4_quarter/b00_p1_B.json": 4,
+        "ram_k4_quarter/b00_p2_B.json": 4,
+        "ram_k4_quarter/b00_p3_A.json": 4,
+        "ram_k4_quarter/b01_p0_A.json": 4,
+        "ram_k4_quarter/b01_p1_B.json": 4,
+        "ram_k4_quarter/b01_p2_B.json": 4,
+        "ram_k4_quarter/b01_p3_A.json": 4,
+        "ram_k4_quarter/b02_p0_A.json": 4,
+        "ram_k4_quarter/b02_p1_B.json": 4,
+        "ram_k4_quarter/b02_p2_B.json": 4,
+        "ram_k4_quarter/b02_p3_A.json": 4,
+        "ram_k4_quarter/b03_p0_A.json": 4,
+        "ram_k4_quarter/b03_p1_B.json": 4,
+        "ram_k4_quarter/b03_p2_B.json": 4,
+        "ram_k4_quarter/b03_p3_A.json": 4,
+        "ram_k4_quarter/b04_p0_A.json": 4,
+        "ram_k4_quarter/b04_p1_B.json": 4,
+        "ram_k4_quarter/b04_p2_B.json": 4,
+        "ram_k4_quarter/b04_p3_A.json": 4
+      }
+    },
+    "G3": {
+      "status": "pass",
+      "detail": "['ctrl_c_mid_backward', 'enospc_injected_mid_step', 'enospc_real', 'exception_mid_forward']: named, no file, no thread, pinned memory returned"
+    },
+    "G4": {
+      "status": "pass",
+      "detail": "ram_k2_half: overhead +2.51% [-1.04%, +6.07%] < 10%; ram_k4_half: overhead +1.69% [-2.13%, +5.50%] < 10%",
+      "parts": [
+        {
+          "status": "pass",
+          "detail": "ram_k2_half: overhead +2.51% [-1.04%, +6.07%] < 10%",
+          "blocks": 5,
+          "valid_blocks": 5,
+          "void_blocks": 0,
+          "problems": [],
+          "effects": [
+            0.006466954954725244,
+            0.027038615999190246,
+            0.008364427467007458,
+            0.07424808099398766,
+            0.009604144080027724
+          ],
+          "interval": {
+            "n": 5,
+            "mean": 0.025144444698987668,
+            "low": -0.01044184806540998,
+            "high": 0.060730737463385316
+          },
+          "hidden_share_median": 0.9955855623232803,
+          "spill_write_gb_per_s_median": 2.1287768461341208,
+          "spill_read_gb_per_s_median": 2.067902204415865,
+          "spill_layers": 24
+        },
+        {
+          "status": "pass",
+          "detail": "ram_k4_half: overhead +1.69% [-2.13%, +5.50%] < 10%",
+          "blocks": 5,
+          "valid_blocks": 5,
+          "void_blocks": 0,
+          "problems": [],
+          "effects": [
+            0.04942561660794489,
+            0.04983644736501324,
+            0.0013164614521076862,
+            0.0002813218267408682,
+            -0.016540871126656677
+          ],
+          "interval": {
+            "n": 5,
+            "mean": 0.016863795225030002,
+            "low": -0.021300085710143274,
+            "high": 0.05502767616020328
+          },
+          "hidden_share_median": 0.9954732065232872,
+          "spill_write_gb_per_s_median": 2.156763630605257,
+          "spill_read_gb_per_s_median": 2.099755537547127,
+          "spill_layers": 20
+        }
+      ]
+    },
+    "G5": {
+      "status": "fail",
+      "detail": "weight reads at 0.830x [0.822, 0.837] of the no-spill rate with spill writes on the same drive: the spill slows the weight reads",
+      "blocks": 5,
+      "valid_blocks": 5,
+      "void_blocks": 0,
+      "problems": [],
+      "effects": [
+        0.8319775472787775,
+        0.8389229025241304,
+        0.8257030422487631,
+        0.8233724834354036,
+        0.8286708346833546
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 0.8297293620340858,
+        "low": 0.8221952663177682,
+        "high": 0.8372634577504033
+      },
+      "hidden_share_median": 0.9939541142421966,
+      "spill_write_gb_per_s_median": 1.7742965549240235,
+      "spill_read_gb_per_s_median": 1.057262743783855,
+      "spill_layers": 32,
+      "step_overhead": {
+        "n": 5,
+        "mean": 0.13317052086809592,
+        "low": 0.10267440745876855,
+        "high": 0.16366663427742328
+      }
+    }
+  },
+  "informative": {
+    "ram_k2_min": {
+      "blocks": 5,
+      "valid_blocks": 5,
+      "void_blocks": 0,
+      "problems": [],
+      "effects": [
+        0.029038538460555492,
+        0.016088847247307633,
+        -0.004079127786398246,
+        0.09623254924566235,
+        0.055070811058873174
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 0.03847032364520008,
+        "low": -0.009661048625878792,
+        "high": 0.08660169591627895
+      },
+      "hidden_share_median": 0.9871947939092851,
+      "spill_write_gb_per_s_median": 2.0639938035293435,
+      "spill_read_gb_per_s_median": 2.0667882047784727,
+      "spill_layers": 32
+    },
+    "ram_k3_min": {
+      "blocks": 5,
+      "valid_blocks": 5,
+      "void_blocks": 0,
+      "problems": [],
+      "effects": [
+        0.015537356020458777,
+        0.05414731686234476,
+        0.03856554562292169,
+        0.03475224559369023,
+        0.04594843952996168
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 0.03779018072587543,
+        "low": 0.019808947017791803,
+        "high": 0.055771414433959055
+      },
+      "hidden_share_median": 0.9898673995742153,
+      "spill_write_gb_per_s_median": 2.080097902875905,
+      "spill_read_gb_per_s_median": 2.102403638106666,
+      "spill_layers": 32
+    },
+    "ram_k4_min": {
+      "blocks": 5,
+      "valid_blocks": 5,
+      "void_blocks": 0,
+      "problems": [],
+      "effects": [
+        0.11058380614649994,
+        0.04712441270919354,
+        0.03594543623345649,
+        0.07093802328196401,
+        0.04424530179470379
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 0.06176739603316356,
+        "low": 0.024238192917342673,
+        "high": 0.09929659914898445
+      },
+      "hidden_share_median": 0.9913279357298647,
+      "spill_write_gb_per_s_median": 2.078393624775571,
+      "spill_read_gb_per_s_median": 2.0963053510858334,
+      "spill_layers": 32
+    },
+    "ram_k4_quarter": {
+      "blocks": 5,
+      "valid_blocks": 5,
+      "void_blocks": 0,
+      "problems": [],
+      "effects": [
+        0.04883246030348844,
+        0.04171040514552165,
+        0.03564546286164582,
+        0.07146629083456162,
+        -0.004735396198510095
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 0.038583844589341484,
+        "low": 0.004127570071198697,
+        "high": 0.07304011910748427
+      },
+      "hidden_share_median": 0.9956080578933055,
+      "spill_write_gb_per_s_median": 2.1449027956292412,
+      "spill_read_gb_per_s_median": 2.088988212192345,
+      "spill_layers": 28
+    }
+  },
+  "drive": {
+    "kind": "drive",
+    "skipped": null,
+    "volume": {
+      "path": "<box>/spill",
+      "platform": "linux",
+      "mount_point": "/",
+      "fstype": "ext4",
+      "source": "/dev/vda1",
+      "drive": {
+        "device": "vda",
+        "model": null,
+        "vendor": "0x1af4",
+        "rotational": "1",
+        "logical_block_size": "512"
+      },
+      "total_bytes": 135084687360,
+      "free_bytes": 105048399872,
+      "scope": "local",
+      "scope_reason": "ext4 on an unnamed drive",
+      "direct_io": true,
+      "direct_io_reason": "aligned 1 MiB unbuffered write and read returned the same bytes",
+      "refusals": [],
+      "ok": true
+    },
+    "chunk_bytes": 4194304,
+    "bytes": 4294967296,
+    "fill_gb_per_s": 1.9275738011951555,
+    "passes": [
+      {
+        "write_gb_per_s": 2.1988645669088247,
+        "read_gb_per_s": 2.2145331729608544
+      },
+      {
+        "write_gb_per_s": 2.1723304739550797,
+        "read_gb_per_s": 2.223435000295566
+      },
+      {
+        "write_gb_per_s": 2.1864793642472025,
+        "read_gb_per_s": 2.2031204273040847
+      }
+    ],
+    "watch": {
+      "arm": "A",
+      "round": 0,
+      "run": 0,
+      "label": null,
+      "gpu": {
+        "id": "0",
+        "source": "default"
+      },
+      "required": [
+        "suspend",
+        "power",
+        "foreign_reads"
+      ],
+      "outcome": "ok",
+      "box_stamp_before": {
+        "unix_s": 1793016919.5932617,
+        "ram_available_bytes": 50925133824,
+        "commit_charge": {
+          "used_bytes": 2122571776,
+          "limit_bytes": 26480828416
+        },
+        "power_source": "mains",
+        "gpu_processes": [
+          {
+            "pid": 3934,
+            "type": "C",
+            "name": "<work>/.venv/bin/python",
+            "used_mib": 256
+          }
+        ],
+        "gpu_memory_used_mib": 265,
+        "unknown": {}
+      },
+      "box_stamp_after": {
+        "unix_s": 1793016931.525201,
+        "ram_available_bytes": 50876993536,
+        "commit_charge": {
+          "used_bytes": 2127220736,
+          "limit_bytes": 26480828416
+        },
+        "power_source": "mains",
+        "gpu_processes": [
+          {
+            "pid": 3934,
+            "type": "C",
+            "name": "<work>/.venv/bin/python",
+            "used_mib": 256
+          }
+        ],
+        "gpu_memory_used_mib": 265,
+        "unknown": {}
+      },
+      "gpu_clock": {
+        "outcome": "ok",
+        "reason": "SM clock 1710 to 1710 MHz over 7 samples; clock event reasons seen: none",
+        "samples": 7,
+        "unknown_samples": 0,
+        "sm_clock_mhz": {
+          "min": 1710,
+          "median": 1710,
+          "max": 1710
+        },
+        "reasons_seen": {}
+      },
+      "checks": {
+        "suspend": {
+          "outcome": "ok",
+          "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+          "evidence": {
+            "sleep_offset_start_s": -1.5579998944303952e-06,
+            "sleep_offset_end_s": -1.3070002751192078e-06,
+            "suspend_count_start": 0,
+            "suspend_count_end": 0
+          }
+        },
+        "power": {
+          "outcome": "ok",
+          "reason": "no battery in any of 7 power samples, so on mains",
+          "evidence": {
+            "samples": 7,
+            "off_mains_samples": [],
+            "battery_present": false,
+            "unknown_samples": 0,
+            "last_reading": {
+              "battery": false,
+              "online": {}
+            }
+          }
+        },
+        "foreign_reads": {
+          "outcome": "ok",
+          "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+          "evidence": {
+            "model_path": "<box>/spill",
+            "device": "vda",
+            "disk_read_bytes_start": 838828420096,
+            "disk_read_bytes_end": 851713321984,
+            "other_disk_read_bytes_start": 344064,
+            "other_disk_read_bytes_end": 344064,
+            "own_read_bytes": 12884901888,
+            "foreign_read_bytes": 0,
+            "foreign_read_bytes_min": 0,
+            "foreign_read_bytes_max": 0,
+            "uninspectable_processes": 6
+          },
+          "readers": [
+            {
+              "pid": 147,
+              "name": "kworker/u26:1-events_unbound",
+              "read_bytes": 778240
+            },
+            {
+              "pid": 77,
+              "name": "kworker/u27:0-flush-253:0",
+              "read_bytes": 749568
+            }
+          ],
+          "unattributed_bytes": 0
+        }
+      }
+    },
+    "outcome": "ok",
+    "left_behind": false
+  },
+  "preflight_ok": true,
+  "tokens_per_step": [
+    {
+      "budget": "1",
+      "k_measured": 4,
+      "activation_budget_bytes": 536870912,
+      "seq": 512,
+      "without_spill": {
+        "k": 4,
+        "tokens": 2048,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 4096,
+        "tokens": 2097152,
+        "bound": "k_limit",
+        "spill_file_bytes": 549755813888
+      }
+    },
+    {
+      "budget": "min",
+      "k_measured": 4,
+      "activation_budget_bytes": 67108864,
+      "seq": 512,
+      "without_spill": {
+        "k": 0,
+        "tokens": 0,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 745,
+        "tokens": 381440,
+        "bound": "spill volume free space",
+        "spill_file_bytes": 99992207360
+      }
+    },
+    {
+      "budget": "1",
+      "k_measured": 2,
+      "activation_budget_bytes": 268435456,
+      "seq": 512,
+      "without_spill": {
+        "k": 2,
+        "tokens": 1024,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 4096,
+        "tokens": 2097152,
+        "bound": "k_limit",
+        "spill_file_bytes": 549755813888
+      }
+    },
+    {
+      "budget": "0.5",
+      "k_measured": 2,
+      "activation_budget_bytes": 134217728,
+      "seq": 512,
+      "without_spill": {
+        "k": 1,
+        "tokens": 512,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 751,
+        "tokens": 384512,
+        "bound": "spill volume free space",
+        "spill_file_bytes": 100797513728
+      }
+    },
+    {
+      "budget": "1",
+      "k_measured": 3,
+      "activation_budget_bytes": 402653184,
+      "seq": 512,
+      "without_spill": {
+        "k": 3,
+        "tokens": 1536,
+        "bound": "all-pinned host bytes"
+      },
+      "with_spill": {
+        "k": 4096,
+        "tokens": 2097152,
+        "bound": "k_limit",
+        "spill_file_bytes": 549755813888
+      }
+    }
+  ],
+  "summary": {
+    "verdict": "SPILL READY FOR A3: automatic fallback past the RAM budget; on the disk tier spill to a drive the weights are not read from",
+    "rule_version": "v2",
+    "G1": "pass",
+    "G2": "pass",
+    "G3": "pass",
+    "G4": "pass",
+    "G5": "fail",
+    "cpu_pilot": false
+  }
+}

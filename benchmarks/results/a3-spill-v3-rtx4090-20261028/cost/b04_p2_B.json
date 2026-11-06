@@ -1,0 +1,1062 @@
+{
+ "arm": "cost/b04_p2_B",
+ "kind": "cost",
+ "l2l": true,
+ "sdpa": "MATH",
+ "argv": [
+  "<work>/.venv/bin/python",
+  "<work>/benchmarks/harness/a3_spill_stand.py",
+  "child",
+  "--arm",
+  "B",
+  "--weights",
+  "<work>/.soup/models/mistral-7b",
+  "--shards",
+  "<work>/.soup/f1-nf4",
+  "--spill-dir",
+  "<box>/spill/cost",
+  "--memory-max",
+  "6409945088",
+  "--k",
+  "4",
+  "--seq",
+  "512",
+  "--rows",
+  "10",
+  "--out",
+  "<work>/.soup/results/a3-spill-03/cost/b04_p2_B.json",
+  "--block",
+  "4",
+  "--position",
+  "2",
+  "--marker",
+  "<work>/.soup/results/a3-spill-03/markers/cost__b04_p2_B.json"
+ ],
+ "device": "cuda",
+ "expected_memory_max": 6409945088,
+ "pid": 6434,
+ "k": 4,
+ "seq": 512,
+ "spill_dir": "<box>/spill/cost",
+ "started_unix": 1793220321.761635,
+ "cgroup_start": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+  "memory_max": 6409945088,
+  "swap_max": 0,
+  "current": 16945152,
+  "peak": 16945152,
+  "inactive_file": 0,
+  "stat": {
+   "anon": 16748544,
+   "shmem": 0,
+   "file_dirty": 0,
+   "file_writeback": 0,
+   "inactive_file": 0,
+   "active_file": 0,
+   "slab_reclaimable": 1840
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 16945152,
+  "anon_shmem": 16748544,
+  "unreclaimable": 16943312
+ },
+ "exit": "normal",
+ "sigint_handling": {
+  "inherited": {
+   "handler": "SIG_IGN",
+   "proc": {
+    "pending": false,
+    "blocked": false,
+    "ignored": true,
+    "caught": false,
+    "state": "R (running)"
+   }
+  },
+  "installed": {
+   "handler": "default_int_handler",
+   "proc": {
+    "pending": false,
+    "blocked": false,
+    "ignored": false,
+    "caught": true,
+    "state": "R (running)"
+   }
+  }
+ },
+ "role": "B",
+ "block": 4,
+ "position": 2,
+ "deterministic": {
+  "CUBLAS_WORKSPACE_CONFIG": ":4096:8",
+  "algorithms": true,
+  "warn_only": false,
+  "sdpa": "MATH"
+ },
+ "env": {
+  "packages": {
+   "torch": "2.14.1+cu130",
+   "transformers": "5.19.0",
+   "peft": "0.21.2",
+   "trl": null,
+   "accelerate": "1.15.0",
+   "bitsandbytes": "0.50.2",
+   "numpy": "2.4.6",
+   "psutil": "7.2.2"
+  },
+  "python": "3.12.16",
+  "platform": "Linux-6.8.0-59-generic-x86_64-with-glibc2.35",
+  "gpu_facts": {
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "torch": "2.14.1+cu130",
+   "vram_total_gb": 25.251,
+   "soup_cli_file": "<work>/src/soup_cli/__init__.py",
+   "driver": "580.95.05",
+   "pcie_gen": "4",
+   "pcie_width": "16"
+  }
+ },
+ "dtype": "bfloat16",
+ "build_seconds": 12.5430164280001,
+ "shard_dir": "<work>/.soup/f1-nf4",
+ "cgroup_after_build": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+  "memory_max": 6409945088,
+  "swap_max": 0,
+  "current": 4886740992,
+  "peak": 4887404544,
+  "inactive_file": 4096,
+  "stat": {
+   "anon": 553656320,
+   "shmem": 4305453056,
+   "file_dirty": 0,
+   "file_writeback": 0,
+   "inactive_file": 4096,
+   "active_file": 0,
+   "slab_reclaimable": 9902352
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 4886736896,
+  "anon_shmem": 4859109376,
+  "unreclaimable": 4876834544
+ },
+ "rows": {
+  "count": 28,
+  "lengths": [
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512,
+   512
+  ],
+  "row_sha256": [
+   "0d3892f90193f200e56c434b8d256516ba21f813888f1cd3656251b44dfe1c1f",
+   "31dd2a38ab0ff3d0be2df8369f52de707d1b11808969fd93911f91d8e1c6b93f",
+   "cb8064255265297227eca392f7d039bbc5b9e6c8333ebf394fa342690d7d0a07",
+   "40caf656602e44e66175751b637ba63a3621df19474817ce983d5b0020707bfc",
+   "b8cc5109f462e41b54d9041308d4bbe33ae1232b7d822a075d140d7452314e03",
+   "95941273d1406f8e8bb7e9c15bc2d28def590a1e95bbe62afebfd07441b0476a",
+   "f89b425af6fd4bbec1deeeea4f28640bef432052245b76f5e1577327653c24a4",
+   "169d839703b6725a11dfcbf012db5a330ee25dcd7ce1f98fe1005b36d6a422ee",
+   "8ce8b458257e89632b05eabcf46b212b970e281b60b3d73e316a544d359b9f2c",
+   "28ceb9d10ae681c549e9b72abb06a7519520a0c4481e38316f235ed0676f47b4",
+   "82c87de49adfd19c35b6691720d7d78e15ed635c13f0bf321ce763c58eb6cc01",
+   "74239a92d0935db32db7948ce5a00171e9cee0132ff237b427fc3fcee17ce309",
+   "969678dc4f07c16ba521f9c39fd65d89ffc0393da51c58a19bc091bf104b71a4",
+   "77154410501c8be3926afc3a7fa71ea8e7bd6cb42dfdfdd5f9dfdc8866667861",
+   "41dc3ddabe66c6f5a6d647417ab656c7fddf20277fbcadb75a0097269bda9467",
+   "2f2027098457b4a37559c5c0b93d25772bfeaafbb7cd47304d608624e8d73525",
+   "db956fcb347db8eb94d69dbab3c5d12cffb0f010e0552aa8da8a1aba0628f960",
+   "76b832f9bc684b6809575e583d98868b3eba113321d5a4f74eed2aa01a269426",
+   "77d48925b1627908f3188d3779db3046b7eb7effd0ef7e3e772d696a590a97dc",
+   "70d466988a7b6e1fc99e98850c7af009bbb013922e652bc0be159777ef1b5eaf",
+   "8d4ad545a9a006dea45e58cef2fa0661111a5dceaa0374ec7d1aa3ff137f7f4f",
+   "02f65fc826e11141d5b928d336c390a89aae8863450841ce550af6476001beb3",
+   "5cd14f7f66460b743fb93990f99762d04cba61c7a4122b49201feae0eecc5f7c",
+   "19a5707d915340779df2d0f2deae986cfdfbe9e3058b81d040ae2e0004ff060a",
+   "576ce3703e85e7a3e2fb81da26e659a21b1431d4a1063134736e3ebf04bda350",
+   "03caedc14c40c249e7778628d7830519591982d54be53746cfab0f3c4587f5b9",
+   "dfc9af30c81d2b80eb6618fddc1799caf64eb85b1e99cf0e90fc55f3a2396766",
+   "7abf42f82ed0d9961253de496b2b931f0b370a8fa9d41da3e1f0e20ac6d1d5d4"
+  ]
+ },
+ "expected_steps": 7,
+ "logs": [
+  {
+   "loss": 12.604560852050781,
+   "grad_norm": 98.29460144042969,
+   "learning_rate": 0.0,
+   "l2l_steps": 1,
+   "l2l_layer_loads": 62,
+   "l2l_large_loads": 3,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.14285714285714285,
+   "step": 1
+  },
+  {
+   "loss": 12.684951782226562,
+   "grad_norm": 96.53682708740234,
+   "learning_rate": 0.001,
+   "l2l_steps": 2,
+   "l2l_layer_loads": 123,
+   "l2l_large_loads": 5,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.2857142857142857,
+   "step": 2
+  },
+  {
+   "loss": 12.078590393066406,
+   "grad_norm": 167.27438354492188,
+   "learning_rate": 0.0008333333333333334,
+   "l2l_steps": 3,
+   "l2l_layer_loads": 184,
+   "l2l_large_loads": 7,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.42857142857142855,
+   "step": 3
+  },
+  {
+   "loss": 11.26378059387207,
+   "grad_norm": 22.798625946044922,
+   "learning_rate": 0.0006666666666666666,
+   "l2l_steps": 4,
+   "l2l_layer_loads": 245,
+   "l2l_large_loads": 9,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.5714285714285714,
+   "step": 4
+  },
+  {
+   "loss": 10.9472074508667,
+   "grad_norm": 22.78888702392578,
+   "learning_rate": 0.0005,
+   "l2l_steps": 5,
+   "l2l_layer_loads": 306,
+   "l2l_large_loads": 11,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.7142857142857143,
+   "step": 5
+  },
+  {
+   "loss": 11.25296401977539,
+   "grad_norm": 22.45569610595703,
+   "learning_rate": 0.0003333333333333333,
+   "l2l_steps": 6,
+   "l2l_layer_loads": 367,
+   "l2l_large_loads": 13,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.8571428571428571,
+   "step": 6
+  },
+  {
+   "loss": 10.771900177001953,
+   "grad_norm": 11.633770942687988,
+   "learning_rate": 0.00016666666666666666,
+   "l2l_steps": 7,
+   "l2l_layer_loads": 428,
+   "l2l_large_loads": 15,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 1.0,
+   "step": 7
+  }
+ ],
+ "rates": [
+  0.001,
+  0.0008333333333333334,
+  0.0006666666666666666,
+  0.0005,
+  0.0003333333333333333,
+  0.00016666666666666666,
+  0.0
+ ],
+ "grads": [],
+ "step_s": [
+  2.8377191670001594,
+  1.6751272480000807,
+  2.110446717999821,
+  1.6520298609998463,
+  1.638580483000169,
+  1.6496925050000755,
+  1.7810954139999922
+ ],
+ "store_io": {
+  "bytes_written": 1526726656,
+  "bytes_read": 1526726656
+ },
+ "store_io_by_step": [
+  {
+   "bytes_written": 218103808,
+   "bytes_read": 218103808
+  },
+  {
+   "bytes_written": 436207616,
+   "bytes_read": 436207616
+  },
+  {
+   "bytes_written": 654311424,
+   "bytes_read": 654311424
+  },
+  {
+   "bytes_written": 872415232,
+   "bytes_read": 872415232
+  },
+  {
+   "bytes_written": 1090519040,
+   "bytes_read": 1090519040
+  },
+  {
+   "bytes_written": 1308622848,
+   "bytes_read": 1308622848
+  },
+  {
+   "bytes_written": 1526726656,
+   "bytes_read": 1526726656
+  }
+ ],
+ "host_allocator": {
+  "baseline_bytes": 4294967296,
+  "at_last_step_bytes": 4680867853,
+  "peak_bytes": 4680867853
+ },
+ "spill_plan": {
+  "spill_layers": 13,
+  "n_layers": 32,
+  "k": 4,
+  "chunk_bytes": 4194304,
+  "slot_bytes": 4194304,
+  "ring": 4,
+  "pin": true,
+  "host_bytes": 385875968,
+  "all_resident_bytes": 536870912,
+  "minimum_bytes": 67108864,
+  "budget_bytes": 397778944,
+  "spill_file_bytes": 218103808,
+  "available_bytes": 934649856,
+  "limiting_level": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+  "limiting_numbers": {
+   "limit": 6409945088,
+   "limit_file": "memory.max",
+   "used": 5475303424,
+   "inactive_file": 8192,
+   "remainder": 934649856
+  },
+  "spill_dir": "<box>/spill/cost",
+  "spill_path": "<box>/spill/cost/soup-l2l-spill-6434-86a12ab9.bin",
+  "explicit_dir": true
+ },
+ "stale_removed": [],
+ "spill_files_before": [],
+ "spill_files_after_train": [],
+ "steps": 7,
+ "log_history": [
+  {
+   "loss": 12.604560852050781,
+   "grad_norm": 98.29460144042969,
+   "learning_rate": 0.0,
+   "l2l_steps": 1,
+   "l2l_layer_loads": 62,
+   "l2l_large_loads": 3,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.14285714285714285,
+   "step": 1
+  },
+  {
+   "loss": 12.684951782226562,
+   "grad_norm": 96.53682708740234,
+   "learning_rate": 0.001,
+   "l2l_steps": 2,
+   "l2l_layer_loads": 123,
+   "l2l_large_loads": 5,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.2857142857142857,
+   "step": 2
+  },
+  {
+   "loss": 12.078590393066406,
+   "grad_norm": 167.27438354492188,
+   "learning_rate": 0.0008333333333333334,
+   "l2l_steps": 3,
+   "l2l_layer_loads": 184,
+   "l2l_large_loads": 7,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.42857142857142855,
+   "step": 3
+  },
+  {
+   "loss": 11.26378059387207,
+   "grad_norm": 22.798625946044922,
+   "learning_rate": 0.0006666666666666666,
+   "l2l_steps": 4,
+   "l2l_layer_loads": 245,
+   "l2l_large_loads": 9,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.5714285714285714,
+   "step": 4
+  },
+  {
+   "loss": 10.9472074508667,
+   "grad_norm": 22.78888702392578,
+   "learning_rate": 0.0005,
+   "l2l_steps": 5,
+   "l2l_layer_loads": 306,
+   "l2l_large_loads": 11,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.7142857142857143,
+   "step": 5
+  },
+  {
+   "loss": 11.25296401977539,
+   "grad_norm": 22.45569610595703,
+   "learning_rate": 0.0003333333333333333,
+   "l2l_steps": 6,
+   "l2l_layer_loads": 367,
+   "l2l_large_loads": 13,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 0.8571428571428571,
+   "step": 6
+  },
+  {
+   "loss": 10.771900177001953,
+   "grad_norm": 11.633770942687988,
+   "learning_rate": 0.00016666666666666666,
+   "l2l_steps": 7,
+   "l2l_layer_loads": 428,
+   "l2l_large_loads": 15,
+   "l2l_weight_restores": 0,
+   "l2l_spill_layers": 13,
+   "epoch": 1.0,
+   "step": 7
+  },
+  {
+   "train_runtime": 13.4446,
+   "train_samples_per_second": 2.083,
+   "train_steps_per_second": 0.521,
+   "total_flos": 4814820826152960.0,
+   "train_loss": 11.65770789555141,
+   "epoch": 1.0,
+   "step": 7
+  }
+ ],
+ "cgroup_at_first_step": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+  "memory_max": 6409945088,
+  "swap_max": 0,
+  "current": 4976181248,
+  "peak": 4976181248,
+  "inactive_file": 4096,
+  "stat": {
+   "anon": 634277888,
+   "shmem": 4313845760,
+   "file_dirty": 0,
+   "file_writeback": 0,
+   "inactive_file": 4096,
+   "active_file": 0,
+   "slab_reclaimable": 9957504
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 4976177152,
+  "anon_shmem": 4948123648,
+  "unreclaimable": 4966219648
+ },
+ "hold": null,
+ "watch": {
+  "arm": "B",
+  "round": 4,
+  "run": 2,
+  "label": null,
+  "gpu": {
+   "id": "0",
+   "source": "default"
+  },
+  "required": [
+   "suspend",
+   "power",
+   "foreign_reads"
+  ],
+  "outcome": "ok",
+  "box_stamp_before": {
+   "unix_s": 1793220338.7136228,
+   "ram_available_bytes": 46121353216,
+   "commit_charge": {
+    "used_bytes": 7296045056,
+    "limit_bytes": 26495647744
+   },
+   "power_source": "mains",
+   "gpu_processes": [
+    {
+     "pid": 6434,
+     "type": "C",
+     "name": "<work>/.venv/bin/python",
+     "used_mib": 966
+    }
+   ],
+   "gpu_memory_used_mib": 983,
+   "unknown": {}
+  },
+  "box_stamp_after": {
+   "unix_s": 1793220352.5661488,
+   "ram_available_bytes": 44897193984,
+   "commit_charge": {
+    "used_bytes": 8661282816,
+    "limit_bytes": 26495647744
+   },
+   "power_source": "mains",
+   "gpu_processes": [
+    {
+     "pid": 6434,
+     "type": "C",
+     "name": "<work>/.venv/bin/python",
+     "used_mib": 1890
+    }
+   ],
+   "gpu_memory_used_mib": 1907,
+   "unknown": {}
+  },
+  "gpu_clock": {
+   "outcome": "ok",
+   "reason": "SM clock 2520 to 2715 MHz over 8 samples; clock event reasons seen: none",
+   "samples": 8,
+   "unknown_samples": 0,
+   "sm_clock_mhz": {
+    "min": 2520,
+    "median": 2715.0,
+    "max": 2715
+   },
+   "reasons_seen": {}
+  },
+  "checks": {
+   "suspend": {
+    "outcome": "ok",
+    "reason": "boot-time offset grew 0.000 s (limit 1.0 s); suspend count stayed at 0",
+    "evidence": {
+     "sleep_offset_start_s": -8.669999260746408e-07,
+     "sleep_offset_end_s": -8.179999895219225e-07,
+     "suspend_count_start": 0,
+     "suspend_count_end": 0
+    }
+   },
+   "power": {
+    "outcome": "ok",
+    "reason": "no battery in any of 8 power samples, so on mains",
+    "evidence": {
+     "samples": 8,
+     "off_mains_samples": [],
+     "battery_present": false,
+     "unknown_samples": 0,
+     "last_reading": {
+      "battery": false,
+      "online": {}
+     }
+    }
+   },
+   "foreign_reads": {
+    "outcome": "ok",
+    "reason": "at most 0 bytes of foreign reads on vda (limit 1000000000)",
+    "evidence": {
+     "model_path": "<box>/spill/cost",
+     "device": "vda",
+     "disk_read_bytes_start": 66882165248,
+     "disk_read_bytes_end": 68409940480,
+     "other_disk_read_bytes_start": 344064,
+     "other_disk_read_bytes_end": 344064,
+     "own_read_bytes": 1527775232,
+     "foreign_read_bytes": 0,
+     "foreign_read_bytes_min": 0,
+     "foreign_read_bytes_max": 0,
+     "uninspectable_processes": 6
+    },
+    "readers": [
+     {
+      "pid": 130,
+      "name": "kworker/u48:0-writeback",
+      "read_bytes": 897024
+     }
+    ],
+    "unattributed_bytes": 0
+   }
+  }
+ },
+ "outcome": "ok",
+ "value": 1.6520298609998463,
+ "timed_step_s": [
+  2.110446717999821,
+  1.6520298609998463,
+  1.638580483000169,
+  1.6496925050000755,
+  1.7810954139999922
+ ],
+ "memory": {
+  "interval_s": null,
+  "labeled": [
+   {
+    "t": 2063.044278152,
+    "phase": "build",
+    "unreclaimable": 4876834544,
+    "anon_shmem": 4859109376,
+    "current": 4886740992,
+    "pinned": 4294967296,
+    "label": "build_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 4886740992,
+     "peak": 4887404544,
+     "inactive_file": 4096,
+     "stat": {
+      "anon": 553656320,
+      "shmem": 4305453056,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 4096,
+      "active_file": 0,
+      "slab_reclaimable": 9902352
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 4886736896,
+     "anon_shmem": 4859109376,
+     "unreclaimable": 4876834544
+    },
+    "process": {
+     "rss": 5257809920,
+     "hwm": 5525561344
+    }
+   },
+   {
+    "t": 2063.665937924,
+    "phase": "train",
+    "unreclaimable": 4966219648,
+    "anon_shmem": 4948123648,
+    "current": 4976181248,
+    "pinned": 4294991872,
+    "label": "first_step",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 4976181248,
+     "peak": 4976181248,
+     "inactive_file": 4096,
+     "stat": {
+      "anon": 634277888,
+      "shmem": 4313845760,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 4096,
+      "active_file": 0,
+      "slab_reclaimable": 9957504
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 4976177152,
+     "anon_shmem": 4948123648,
+     "unreclaimable": 4966219648
+    },
+    "process": {
+     "rss": 5352927232,
+     "hwm": 5525561344
+    }
+   },
+   {
+    "t": 2066.504890928,
+    "phase": "train",
+    "unreclaimable": 6026276616,
+    "anon_shmem": 6005497856,
+    "current": 6037184512,
+    "pinned": 4680867849,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 6037184512,
+     "peak": 6037184512,
+     "inactive_file": 8192,
+     "stat": {
+      "anon": 1305776128,
+      "shmem": 4699721728,
+      "file_dirty": 8192,
+      "file_writeback": 0,
+      "inactive_file": 8192,
+      "active_file": 0,
+      "slab_reclaimable": 10907896
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6037176320,
+     "anon_shmem": 6005497856,
+     "unreclaimable": 6026276616
+    },
+    "process": {
+     "rss": 6497951744,
+     "hwm": 6497951744
+    }
+   },
+   {
+    "t": 2068.183782257,
+    "phase": "train",
+    "unreclaimable": 6026491448,
+    "anon_shmem": 6006116352,
+    "current": 6037397504,
+    "pinned": 4680867853,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 6037397504,
+     "peak": 6053011456,
+     "inactive_file": 8192,
+     "stat": {
+      "anon": 1306394624,
+      "shmem": 4699721728,
+      "file_dirty": 8192,
+      "file_writeback": 0,
+      "inactive_file": 8192,
+      "active_file": 0,
+      "slab_reclaimable": 10906056
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6037389312,
+     "anon_shmem": 6006116352,
+     "unreclaimable": 6026491448
+    },
+    "process": {
+     "rss": 6498787328,
+     "hwm": 6498787328
+    }
+   },
+   {
+    "t": 2070.296335509,
+    "phase": "train",
+    "unreclaimable": 6026586592,
+    "anon_shmem": 6006153216,
+    "current": 6037504000,
+    "pinned": 4680867853,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 6037504000,
+     "peak": 6053367808,
+     "inactive_file": 8192,
+     "stat": {
+      "anon": 1306431488,
+      "shmem": 4699721728,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 8192,
+      "active_file": 0,
+      "slab_reclaimable": 10909216
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6037495808,
+     "anon_shmem": 6006153216,
+     "unreclaimable": 6026586592
+    },
+    "process": {
+     "rss": 6498787328,
+     "hwm": 6498787328
+    }
+   },
+   {
+    "t": 2071.951722748,
+    "phase": "train",
+    "unreclaimable": 6026228584,
+    "anon_shmem": 6006181888,
+    "current": 6037143552,
+    "pinned": 4680867853,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 6037143552,
+     "peak": 6053367808,
+     "inactive_file": 8192,
+     "stat": {
+      "anon": 1306460160,
+      "shmem": 4699721728,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 8192,
+      "active_file": 0,
+      "slab_reclaimable": 10906776
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6037135360,
+     "anon_shmem": 6006181888,
+     "unreclaimable": 6026228584
+    },
+    "process": {
+     "rss": 6498787328,
+     "hwm": 6498787328
+    }
+   },
+   {
+    "t": 2073.592413521,
+    "phase": "train",
+    "unreclaimable": 6026319096,
+    "anon_shmem": 6006239232,
+    "current": 6037237760,
+    "pinned": 4680867853,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 6037237760,
+     "peak": 6053367808,
+     "inactive_file": 8192,
+     "stat": {
+      "anon": 1306517504,
+      "shmem": 4699721728,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 8192,
+      "active_file": 0,
+      "slab_reclaimable": 10910472
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6037229568,
+     "anon_shmem": 6006239232,
+     "unreclaimable": 6026319096
+    },
+    "process": {
+     "rss": 6498926592,
+     "hwm": 6498926592
+    }
+   },
+   {
+    "t": 2075.244227793,
+    "phase": "train",
+    "unreclaimable": 6026581240,
+    "anon_shmem": 6006239232,
+    "current": 6037499904,
+    "pinned": 4680867853,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 6037499904,
+     "peak": 6053367808,
+     "inactive_file": 8192,
+     "stat": {
+      "anon": 1306517504,
+      "shmem": 4699721728,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 8192,
+      "active_file": 0,
+      "slab_reclaimable": 10910472
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6037491712,
+     "anon_shmem": 6006239232,
+     "unreclaimable": 6026581240
+    },
+    "process": {
+     "rss": 6498926592,
+     "hwm": 6498926592
+    }
+   },
+   {
+    "t": 2077.027624787,
+    "phase": "train",
+    "unreclaimable": 6026684224,
+    "anon_shmem": 6006263808,
+    "current": 6037598208,
+    "pinned": 4680867853,
+    "label": "step_end",
+    "cgroup": {
+     "version": 2,
+     "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+     "memory_max": 6409945088,
+     "swap_max": 0,
+     "current": 6037598208,
+     "peak": 6053367808,
+     "inactive_file": 8192,
+     "stat": {
+      "anon": 1306542080,
+      "shmem": 4699721728,
+      "file_dirty": 0,
+      "file_writeback": 0,
+      "inactive_file": 8192,
+      "active_file": 0,
+      "slab_reclaimable": 10905792
+     },
+     "events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+     },
+     "working_set": 6037590016,
+     "anon_shmem": 6006263808,
+     "unreclaimable": 6026684224
+    },
+    "process": {
+     "rss": 6498926592,
+     "hwm": 6498926592
+    }
+   }
+  ],
+  "series": [],
+  "failed_readings": 0
+ },
+ "cgroup_end": {
+  "version": 2,
+  "path": "/sys/fs/cgroup/system.slice/a3-79ae8727-cost-b04-p2-B.scope",
+  "memory_max": 6409945088,
+  "swap_max": 0,
+  "current": 6037938176,
+  "peak": 6053412864,
+  "inactive_file": 8192,
+  "stat": {
+   "anon": 1306570752,
+   "shmem": 4699721728,
+   "file_dirty": 0,
+   "file_writeback": 0,
+   "inactive_file": 8192,
+   "active_file": 0,
+   "slab_reclaimable": 10954424
+  },
+  "events": {
+   "low": 0,
+   "high": 0,
+   "max": 0,
+   "oom": 0,
+   "oom_kill": 0,
+   "oom_group_kill": 0
+  },
+  "working_set": 6037929984,
+  "anon_shmem": 6006292480,
+  "unreclaimable": 6026975560
+ },
+ "ended_unix": 1793220352.6218562
+}

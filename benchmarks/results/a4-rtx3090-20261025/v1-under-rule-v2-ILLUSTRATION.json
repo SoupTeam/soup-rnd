@@ -1,0 +1,54 @@
+{
+  "label": "ILLUSTRATION, NOT A VERDICT: the 2026-10-25 (v1) session's raw records re-judged by rule v2 after the fact. The v1 session's verdict stays the one its own rule gave.",
+  "v1_verdict_by_rule_v1": {
+    "verdict": "SPILL NOT SAFE: A3 must not ship the spill path as built",
+    "G1": "pass",
+    "G2": "fail",
+    "G3": "pass",
+    "G4": "no verdict",
+    "G5": "no verdict",
+    "cpu_pilot": false
+  },
+  "rule_v2_applied_to_v1_data": {
+    "verdict": "SPILL SAFE, COST NO VERDICT",
+    "rule_version": "v2",
+    "G1": "pass",
+    "G2": "pass",
+    "G3": "pass",
+    "G4": "no verdict",
+    "G5": "no verdict",
+    "cpu_pilot": false
+  },
+  "g2_v2": {
+    "status": "pass",
+    "detail": "280 arms: held == plan <= budget; every B arm's excess outside its store <= its block's A excess (A excesses seen: [4] B)",
+    "references_by_value": [
+      "4"
+    ],
+    "blocks": 70,
+    "blocks_without_reference": [],
+    "excess_values": [
+      4
+    ]
+  },
+  "g4_v2": [
+    {
+      "status": "no verdict",
+      "detail": "ram_k2_half: V7: the repeats rule wants 321 more block(s)"
+    },
+    {
+      "status": "pass",
+      "detail": "ram_k4_half: overhead -0.61% [-5.56%, +4.33%] < 10% (hidden)"
+    }
+  ],
+  "g5_v2": {
+    "status": "no verdict",
+    "detail": "V7: the repeats rule wants 6 more block(s)"
+  },
+  "note": "v1 ran with --max-blocks 12; under v2 the session would have kept adding blocks up to 24, so G4/G5 here are what 12 blocks give, not what a v2 session would give.",
+  "source": {
+    "records": "this directory (the v1 session's published JSON)",
+    "verdict_v1_sha256_raw": "f84239c9450b467a9f4149fd0750fd19112202252e2d042a257273d99f689e86",
+    "rule": "a4_rule.py v2 at efdd1a76"
+  }
+}

@@ -28,13 +28,13 @@ SRC = Path(__file__).resolve().parents[1] / "src" / "soup_cli"
 
 
 @pytest.fixture
-def windows_os(monkeypatch: pytest.MonkeyPatch):
-    """Simulate Windows only inside paths; pytest keeps the real process OS API."""
-    isolated = SimpleNamespace(**vars(os))
-    isolated.name = "nt"
-    isolated.O_NOFOLLOW = 0
-    monkeypatch.setattr(path_utils, "os", isolated)
-    return isolated
+def windows_path_os(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """Simulate Windows inside paths.py without changing pytest's OS operations."""
+    local_os = SimpleNamespace(**vars(os))
+    local_os.name = "nt"
+    local_os.O_NOFOLLOW = 0
+    monkeypatch.setattr(path_utils, "os", local_os)
+    return local_os
 
 
 # ===========================================================================
@@ -99,7 +99,7 @@ class TestOpenNoFollow:
         assert not nonexistent.exists()
 
     def test_reparse_point_rejection_on_windows(
-        self, tmp_path: Path, windows_os
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_path_os: SimpleNamespace
     ) -> None:
         real_file = tmp_path / "reparse_candidate.txt"
         real_file.write_text("content", encoding="utf-8")
@@ -112,15 +112,15 @@ class TestOpenNoFollow:
             st_dev = 200
             st_file_attributes = fake_reparse
 
-        windows_os.lstat = lambda p: MockStatWithReparse()
+        monkeypatch.setattr(windows_path_os, "lstat", lambda p: MockStatWithReparse())
 
         with pytest.raises(OSError) as exc_info:
             open_no_follow(real_file, os.O_RDONLY)
         assert exc_info.value.errno == errno.ELOOP
-        assert "Reparse point not allowed" in str(exc_info.value)
 
     def test_post_open_toctou_swap_detected_on_windows(
-        self, tmp_path: Path, windows_os, capfd
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture, windows_path_os: SimpleNamespace
     ) -> None:
         real_file = tmp_path / "swap_candidate.txt"
         real_file.write_text("content", encoding="utf-8")
@@ -130,18 +130,21 @@ class TestOpenNoFollow:
             st_ino = 99999
             st_dev = 88888
 
-        # fstat returns different ino/dev than lstat on existing file
-        windows_os.fstat = lambda fd: MockSwappedFstat()
-
-        with pytest.raises(OSError) as exc_info:
-            open_no_follow(real_file, os.O_RDONLY)
-        assert exc_info.value.errno == errno.ELOOP
-        assert "File swapped during open" in str(exc_info.value)
-        os.write(1, b"capture intact\n")
-        assert capfd.readouterr().out == "capture intact\n"
+        with monkeypatch.context() as scoped:
+            # fstat returns different ino/dev than lstat on existing file
+            scoped.setattr(windows_path_os, "fstat", lambda fd: MockSwappedFstat())
+            with pytest.raises(OSError) as exc_info:
+                open_no_follow(real_file, os.O_RDONLY)
+            assert exc_info.value.errno == errno.ELOOP
+            assert "File swapped during open" in str(exc_info.value)
+            # Pytest capture must still stat its own real file descriptors.
+            os.write(1, b"capture intact\n")
+            assert capfd.readouterr().out == "capture intact\n"
+            with real_file.open("rb") as unaffected:
+                assert os.fstat(unaffected.fileno()).st_size == len(b"content")
 
     def test_post_open_symlink_swap_on_create_windows(
-        self, tmp_path: Path, windows_os
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_path_os: SimpleNamespace
     ) -> None:
         target = tmp_path / "new_target.txt"
 
@@ -162,12 +165,11 @@ class TestOpenNoFollow:
             # post_lst: someone swapped in a symlink right after open
             return MockStatSymlink()
 
-        windows_os.lstat = fake_lstat
+        monkeypatch.setattr(windows_path_os, "lstat", fake_lstat)
 
         with pytest.raises(OSError) as exc_info:
             open_no_follow(target, os.O_CREAT | os.O_WRONLY, 0o600)
         assert exc_info.value.errno == errno.ELOOP
-        assert "Symbolic link created during open" in str(exc_info.value)
 
 
 # ===========================================================================

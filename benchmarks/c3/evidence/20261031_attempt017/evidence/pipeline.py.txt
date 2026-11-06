@@ -1,0 +1,40 @@
+import hashlib,json,os,signal,subprocess,sys,time,xml.etree.ElementTree as ET
+from pathlib import Path
+p=Path('/data/c3');e=p/'evidence';a=json.loads((p/'rental.json').read_text())
+sys.path.insert(0,str(p/'repo'))
+from benchmarks.c3.setup_supervisor import supervise
+signal.signal(signal.SIGHUP,signal.SIG_IGN)
+state={'status':'STARTING','phases':{},'performance_verdict':'NO_VERDICT','unix_s':time.time()}
+def save():
+ q=e/'pipeline.tmp';q.write_text(json.dumps(state,indent=2)+'\n');q.replace(e/'pipeline.json')
+def identity():
+ assert Path('/proc/sys/kernel/random/boot_id').read_text().strip()==a['boot_id']
+ assert subprocess.check_output(['nvidia-smi','--query-gpu=uuid','--format=csv,noheader'],text=True).strip()==a['gpu_uuid']
+def phase(name,script,max_seconds,minimum_remaining):
+ identity();assert time.time()+minimum_remaining<a['lease_deadline_unix_s']-600,'insufficient phase time; no retry'
+ state.update(status='RUNNING',phase=name);save()
+ s=p/(name+'.sh');s.write_text(script)
+ d=min(time.time()+max_seconds,a['lease_deadline_unix_s']-600)
+ result=supervise(s,hashlib.sha256(s.read_bytes()).hexdigest(),e/(name+'_supervised'),max_seconds,d)
+ state['phases'][name]=result;save()
+ assert result['status']=='PASS' and result['group_cleanup_confirmed'],name+' failed; no retry'
+head='#!/bin/bash\nset -euo pipefail\ncd /data/c3/repo\nexport PYTHONPATH=src:. CUBLAS_WORKSPACE_CONFIG=:4096:8 TOKENIZERS_PARALLELISM=false HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1\n'
+try:
+ identity();save()
+ assert hashlib.sha256((p/'setup.sh').read_bytes()).hexdigest()==a['setup_sha256']
+ deadline=min(time.time()+1200,a['lease_deadline_unix_s']-4200)
+ phase('fetch',head+'exec python3 -m benchmarks.c3.fetch_artifacts --manifest benchmarks/c3/offline_artifacts.json --directory /data/c3/offline --receipt /data/c3/evidence/artifact_fetch.json --deadline-unix-s '+str(deadline)+'\n',1200,4200)
+ phase('setup', (p/'setup.sh').read_text(),1200,3600)
+ phase('controls',head+'exec /data/c3/env/bin/python -m benchmarks.c3.gpu_tests\n',600,3000)
+ xml=ET.parse(e/'cuda_tests.xml');cases=xml.findall('.//testcase')
+ assert len(cases)==5 and all(c.find('skipped') is None and c.find('failure') is None and c.find('error') is None for c in cases),'require five CUDA passes'
+ deadline=min(time.time()+1800,a['lease_deadline_unix_s']-2400)
+ assert deadline>time.time()+300,'insufficient model preparation window'
+ phase('prepare',head+'exec /data/c3/env/bin/python -m benchmarks.c3.representative_workload --snapshot /data/c3/model --output /data/c3/repo/.c3_prepared --download-deadline-unix-s '+str(deadline)+'\n',1800,2400)
+ deadline=min(time.time()+1800,a['lease_deadline_unix_s']-600)
+ phase('measurement',head+'exec /data/c3/env/bin/python -m benchmarks.c3.isolated_compare --mode cuda-representative --prepared /data/c3/repo/.c3_prepared/prepared.json --output /data/c3/evidence/comparison --deadline-unix-s '+str(deadline)+'\n',1800,600)
+ state['status']='COMPLETED_PENDING_REVIEW'
+except BaseException as exc:
+ state.update(status='BLOCKED',error=repr(exc))
+finally:
+ state['finished_unix_s']=time.time();save()

@@ -209,13 +209,29 @@ class KTOTrainerWrapper(StreamingSetupMixin):
         )
 
         # --- Trainer ---
-        self.trainer = KTOTrainer(
-            model=self.model,
-            args=kto_config,
-            train_dataset=train_ds,
-            eval_dataset=eval_ds,
-            processing_class=self.tokenizer,
-        )
+        trainer_kwargs = {
+            "model": self.model,
+            "args": kto_config,
+            "train_dataset": train_ds,
+            "eval_dataset": eval_ds,
+            "processing_class": self.tokenizer,
+        }
+        if tcfg.l2l:
+            from soup_cli.trainer.l2l_kto import (
+                kto_window_loss,
+                refuse_unaligned_kl_blocks,
+                refuse_unsupported_kto,
+            )
+
+            # Before TRL maps the data: ``dataset_num_proc`` would fork workers.
+            refuse_unaligned_kl_blocks(kto_config)
+            self.trainer = self._build_l2l_trainer(
+                KTOTrainer, trainer_kwargs, kto_config, loss=kto_window_loss(args=kto_config)
+            )
+            refuse_unaligned_kl_blocks(kto_config, self.trainer._get_train_sampler())
+            refuse_unsupported_kto(self.trainer)
+        else:
+            self.trainer = KTOTrainer(**trainer_kwargs)
 
         # #359 - the same exposure #336 fixed in sft.py: with LoRA the
         # no-decay optimizer group is empty, DeepSpeed drops it, and the LR

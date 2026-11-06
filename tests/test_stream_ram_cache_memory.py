@@ -1,7 +1,10 @@
 """Memory budgets use actual allocations and the current cgroup hierarchy."""
 
+from types import SimpleNamespace
+
 import pytest
 
+from soup_cli.utils import stream_ram_cache
 from soup_cli.utils.stream_ram_cache import available_memory, cache_budget, plan_hotset
 
 GIB = 2**30
@@ -125,6 +128,11 @@ def test_pinned_budget_charges_arena_rounding_instead_of_payload_only():
     assert plan["allocated_bytes"] == 2 * GIB
 
 
+def test_pinned_hotset_charges_sector_alignment_before_rounding():
+    plan = plan_hotset([4096] * 4, [0] * 4, 1, 8192, pinned=True)
+    assert plan == {"indices": [1], "allocated_bytes": 8192}
+
+
 def test_unknown_host_memory_refuses_cache(tmp_path):
     missing = tmp_path / "missing"
     assert (
@@ -133,3 +141,15 @@ def test_unknown_host_memory_refuses_cache(tmp_path):
         ]
         == 0
     )
+
+
+@pytest.mark.parametrize(("platform", "expected"), [("darwin", 10 * GIB), ("linux", 0)])
+def test_missing_proc_cgroup_respects_platform(tmp_path, monkeypatch, platform, expected):
+    monkeypatch.setattr(stream_ram_cache, "sys", SimpleNamespace(platform=platform))
+    report = available_memory(
+        host_available=10 * GIB,
+        cgroup_file=tmp_path / "no-cgroup",
+        mountinfo_file=tmp_path / "no-mountinfo",
+    )
+    assert report["available_bytes"] == expected
+    assert ("error" in report) == (platform == "linux")

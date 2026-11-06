@@ -1,0 +1,161 @@
+{
+  "rank": 0,
+  "world_size": 2,
+  "device": "cuda:0",
+  "layers": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "pid": 1248,
+  "observed_stage_calls": {
+    "forward": 16,
+    "backward": 16
+  },
+  "stage_parameter_numel": 315353600,
+  "trainable_numel": 270336,
+  "schedule": "ScheduleGPipe",
+  "plan": {
+    "stages": 2,
+    "microbatches": 2,
+    "micro_batch": 2,
+    "schedule_batch": 4,
+    "accumulation": 2,
+    "global_batch": 8
+  },
+  "records": [
+    {
+      "step": 1,
+      "row_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "gradient_error": 0.0,
+      "adapter_error": 0.0
+    },
+    {
+      "step": 2,
+      "row_ids": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "gradient_error": 0.0,
+      "adapter_error": 0.0
+    },
+    {
+      "step": 3,
+      "row_ids": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "gradient_error": 0.0,
+      "adapter_error": 3.725290298461914e-09
+    },
+    {
+      "step": 4,
+      "row_ids": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "gradient_error": 6.966292858123779e-07,
+      "adapter_error": 1.0577277862466872e-06
+    }
+  ],
+  "changed_adapter_tensors": 48,
+  "adapter_keys": [
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.0.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.0.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.1.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.1.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.10.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.10.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.10.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.10.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.11.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.11.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.11.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.11.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.2.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.2.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.3.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.3.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.4.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.4.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.4.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.4.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.5.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.5.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.5.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.5.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.6.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.6.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.6.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.6.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.7.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.7.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.7.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.7.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.8.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.8.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.8.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.8.self_attn.v_proj.lora_B.weight",
+    "base_model.model.model.layers.9.self_attn.q_proj.lora_A.weight",
+    "base_model.model.model.layers.9.self_attn.q_proj.lora_B.weight",
+    "base_model.model.model.layers.9.self_attn.v_proj.lora_A.weight",
+    "base_model.model.model.layers.9.self_attn.v_proj.lora_B.weight"
+  ],
+  "frozen_before": "2d24476ec1c77fa2b247fc2a31cf0496b6d429b8e724100ac873453a1ce12ef3",
+  "frozen_after": "2d24476ec1c77fa2b247fc2a31cf0496b6d429b8e724100ac873453a1ce12ef3",
+  "peak_vram": {
+    "allocated": 1901858816,
+    "reserved": 1977614336
+  },
+  "wall_seconds_with_correctness_probes": 4.389160455903038,
+  "rss_before_training": 3322687488,
+  "rss_after_training": 3377606656,
+  "host_used_ram_after_training": 49086369792,
+  "host_ram_method": "point samples, not peak or unique process totals",
+  "precision": "IEEE FP32; eager attention; no AMP/TF32",
+  "performance_measurement": false
+}

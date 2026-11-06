@@ -60,6 +60,13 @@ def _stream_source_line(stats: dict) -> str:
         return f"{stats['store_bytes'] / 1e9:.2f} GB {pinned} RAM store" + _page_locked_note(
             stats
         )
+    if stats.get("resident_bytes", 0):
+        return (
+            f"{stats['resident_bytes'] / 1e6:.1f} MB resident decoder tensors, "
+            f"{stats['staging_bytes'] / 1e6:.1f} MB disk staging, "
+            f"{stats['host_allocated_bytes'] / 1e6:.1f} MB owned host allocations; "
+            f"read_ahead={stats['read_ahead']}"
+        ) + _page_locked_note(stats)
     # Since #974 the staging lives in the same power-of-two arenas as the RAM
     # store, so the disk tier can say what was page-locked too.
     cache = ""
@@ -265,6 +272,45 @@ def _validate_stream_staging_ram_fit(
         f"because they are one layer each. "
         f"{lower}free RAM, or use a smaller base."
     )
+
+
+def _expert_buffer_requirements(shard_dir, index, *, device="cpu"):
+    """Read headers only and budget the reusable expert arena and host staging."""
+    from soup_cli.utils.expert_shard import ExpertShardReader
+    from soup_cli.utils.expert_stream import expert_allocation_budget, plan_expert_buffer
+    from soup_cli.utils.layer_shard import expert_paths
+
+    if getattr(index, "expert_layout", "") != "per_expert":
+        return 0, 0
+    paths = expert_paths(shard_dir, index)
+    if not paths:
+        raise ValueError("per_expert cache has no expert files")
+    weight_bytes = staging_bytes = 0
+    for path in paths.values():
+        reader = ExpertShardReader(
+            path, count=index.expert_count, shapes=index.expert_shapes,
+            quant_specs=index.expert_quant_specs, dtype=index.dtype,
+        )
+        try:
+            plan = plan_expert_buffer(reader, dtype=index.dtype)
+            weight_bytes = max(weight_bytes, expert_allocation_budget(plan, device=device))
+            staging_bytes = max(staging_bytes, plan.host_staging_bytes)
+        finally:
+            reader.close()
+    return weight_bytes, staging_bytes
+
+
+def _require_known_expert_disk_bound(expert_layout, source_files=()):
+    """Do not use a coarse weight-size estimate to authorize giant cache writes."""
+    if expert_layout:
+        if source_files:
+            from soup_cli.utils.expert_cache_budget import new_expert_cache_budget
+
+            return new_expert_cache_budget(source_files)
+        raise ValueError(
+            "per_expert streaming requires a validated disk-space upper bound from source "
+            "headers before copying or sharding; the existing estimate is not an upper bound"
+        )
 
 
 def _warn_if_ngram_source_unused(*, arch: str, requested: str, ngram_bytes: int, notify) -> None:
@@ -514,6 +560,9 @@ class StreamingSetupMixin:
 
     #: Set by :meth:`_setup_streaming_transformers`; absent on a resident run.
     _stream_runtime = None
+    #: The directories the streamed layers are read from (cache plus stripe folders), so
+    #: the L2L activation spill can stay off the weights' disk on the disk tier.
+    _stream_weight_dirs: tuple = ()
 
     @staticmethod
     def _stream_shape_config(model_config):
@@ -593,6 +642,12 @@ class StreamingSetupMixin:
         # this configuration cannot work, and finding out minutes into disk I/O
         # is worse than finding out now.
         refuse_if_data_parallel(self.device)
+        if (getattr(tcfg, "stream_expert_layout", "fused") == "per_expert"
+                and tcfg.quantization != "4bit"):
+            raise ValueError(
+                "training.stream_expert_layout='per_expert' requires quantization='4bit' "
+                "for its disk budget"
+            )
 
         from soup_cli.utils.layer_shard import (
             QUANT_NF4,
@@ -653,6 +708,12 @@ class StreamingSetupMixin:
         # Allowlist, not a heuristic — a half-supported architecture streams
         # weights into the wrong module and mis-trains silently.
         arch = stream_arch_of(model_config)
+        expert_layout = (
+            "per_expert" if getattr(tcfg, "stream_expert_layout", "fused") == "per_expert"
+            else ""
+        )
+        if expert_layout and arch != "deepseek_v3":
+            raise ValueError("per_expert streaming supports DeepSeek-V3-family bases only")
 
         on_cuda = str(self.device).startswith("cuda")
         # #385 — ASK THE CARD. bf16 needs Ampere, and a T4 (Colab free), a P100
@@ -686,6 +747,8 @@ class StreamingSetupMixin:
             double_quant=double_quant, trust_remote_code=self._trust_remote_code,
             on_cuda=on_cuda, console=console,
         )
+        if expert_layout and any(".experts." in tensor.name for tensor in adapter_plan.tensors):
+            raise ValueError("per_expert streaming cannot train routed-expert adapters")
         available_adapter_bytes = None
         if on_cuda:
             import torch
@@ -703,10 +766,29 @@ class StreamingSetupMixin:
                 trust_remote_code=self._trust_remote_code, on_cuda=on_cuda,
             ),
         )
+        partial_config = getattr(tcfg, "stream_partial_ram", None)
+        if partial_config is not None and arch != "llama":
+            raise ValueError("training.stream_partial_ram currently supports dense Llama only")
         quant_suffixes = adapter_plan.quant_suffixes
         lora_config = adapter_plan.lora_config
 
         shard_dir = resolve_shard_dir(cfg.base)
+        # The planner can choose RAM and therefore skip its lazy disk probe.
+        # Forcing disk afterwards must not bypass the NVMe requirement or an
+        # explicit hdd/ssd override. Refuse before any shard writes.
+        if tcfg.stream_source == "disk":
+            forced_disk = resolve_disk_kind(
+                _existing_disk_anchor(shard_dir), tcfg.stream_disk_kind, notify=console.print
+            )
+            if forced_disk.kind != "nvme":
+                raise ValueError(
+                    "layer streaming needs NVMe or more RAM: "
+                    "training.stream_source='disk' was forced but the cache disk "
+                    f"is {forced_disk.kind!r} (not NVMe). Use stream_source='ram' "
+                    "when the base fits, or place the cache on NVMe. "
+                    "Set stream_disk_kind='nvme' only for a verified NVMe volume "
+                    "whose automatic detection is wrong."
+                )
         # R4: extra NVMe roots, validated once here (the ~9 s disk probe runs per volume only
         # when the variable is set). A bad entry refuses the run by name.
         stripe_roots = resolve_stripe_roots(
@@ -730,6 +812,19 @@ class StreamingSetupMixin:
         layout = adapter_plan.layout
 
         def _disk_preflight(weights_plan) -> None:
+            expert_bound = None
+            if expert_layout:
+                if quant != QUANT_NF4 or double_quant or stripe_roots:
+                    raise ValueError(
+                        "per_expert disk budget requires NF4 without double quant and one disk"
+                    )
+                if os.path.isdir(shard_dir) and os.listdir(shard_dir):
+                    raise ValueError("per_expert disk budget requires a new cache directory")
+                source_paths = [
+                    os.path.join(weights_plan.source_dir, entry[0])
+                    for entry in weights_plan.source_files
+                ]
+                expert_bound = _require_known_expert_disk_bound(expert_layout, source_paths)
             shard_estimate = estimate_stream_store_bytes(
                 weights_plan.source_bytes,
                 dtype=dtype,
@@ -744,6 +839,8 @@ class StreamingSetupMixin:
             )
             if oq_shard_estimate is not None:
                 shard_estimate = oq_shard_estimate
+            if expert_bound is not None:
+                shard_estimate = expert_bound
             cached = None
             if not weights_plan.needs_materialization:
                 source_components = checkpoint_source_components(
@@ -764,6 +861,7 @@ class StreamingSetupMixin:
                     "qwen4_ple" if arch == "qwen4_exp" else "",
                     stripe_roots=stripe_roots,
                     layout=layout,
+                    expert_layout=expert_layout,
                 )
             write_total = 0 if cached is not None else shard_estimate
             shares = _stripe_write_shares(write_total, 1 + len(stripe_roots))
@@ -833,6 +931,7 @@ class StreamingSetupMixin:
             quant_device=str(self.device),
             stripe_roots=stripe_roots,
             notify=console.print,
+            expert_layout=expert_layout,
         )
         # R4: decided once, from the roots the index actually carries (a reused cache keeps its
         # own), so the plan's staging figure, the host pre-flight and the reader all agree. Read
@@ -860,9 +959,14 @@ class StreamingSetupMixin:
             large_buffer_bytes, len(large_layer_specs(shard_dir, index))
         )
         ngram_bytes = external_tensor_bytes(getattr(index, "external_tensors", None) or {})
+        expert_weight_bytes, expert_staging_bytes = _expert_buffer_requirements(
+            shard_dir, index, device=str(self.device)
+        )
 
         free_ram = free_ram_bytes()
         total_ram = total_ram_bytes()
+        if free_ram is None and expert_layout:
+            raise ValueError("per_expert streaming requires available host RAM for its preflight")
         if tcfg.stream_ram_cache_mb:
             from soup_cli.utils.stream_ram_cache import available_memory
 
@@ -962,8 +1066,8 @@ class StreamingSetupMixin:
         # v0.72.3 — the disk overflow tier is live, so a base that does not fit
         # in RAM is no longer fatal. `stream_source` decides: 'ram' insists,
         # 'disk' forces, 'auto' (the default) takes RAM when it fits and falls
-        # back to disk when it does not. build_stream_plan already refused a
-        # non-NVMe disk, so reaching here with tier='disk' means NVMe.
+        # back to disk when it does not. The forced path was checked before
+        # sharding; build_stream_plan validates automatic disk overflow.
         tier = TIER_DISK if tcfg.stream_source == "disk" else plan.tier
         if tier != plan.tier:
             # The panel is rendered from `plan`, so a forced tier has to be
@@ -1014,7 +1118,7 @@ class StreamingSetupMixin:
         # operator has to scroll past a summary to find reads as an afterthought.
         if plan.tier == TIER_DISK:
             _validate_stream_staging_ram_fit(
-                staging_bytes=plan.staging_bytes,
+                staging_bytes=plan.staging_bytes + expert_staging_bytes,
                 read_ahead=read_ahead,
                 free_ram=free_ram,
                 resident_ram=embed_bytes,
@@ -1035,6 +1139,7 @@ class StreamingSetupMixin:
             index=index,
             on_cuda=on_cuda,
             adapter_budget=adapter_plan.budget,
+            expert_weight_bytes=expert_weight_bytes,
         )
         console.print(render_stream_panel(plan, forecast_lines))
         console.print(
@@ -1059,6 +1164,42 @@ class StreamingSetupMixin:
 
         cache_bytes = tcfg.stream_ram_cache_mb * 2**20 if tier == TIER_DISK else 0
         defer_ram_cache = bool(cache_bytes and getattr(tcfg, "stream_resident_layers", 0) != 0)
+        partial_budget = None
+        self._c3_l2l_plan = None
+        if partial_config is not None:
+            # Free RAM already excludes live allocations. This intentionally conservative
+            # envelope also reserves caller-declared activations/A4 plus resident extras.
+            from soup_cli.utils.layer_stream import PHYSICAL_RAM_TIER_HEADROOM
+            from soup_cli.utils.partial_ram_source import PartialRamBudget
+
+            ceiling = int(free_ram * RAM_TIER_HEADROOM)
+            if total_ram is not None:
+                ceiling = min(ceiling, int(total_ram * PHYSICAL_RAM_TIER_HEADROOM))
+            if partial_config.limit_bytes > ceiling:
+                raise ValueError("stream_partial_ram limit exceeds current safe host RAM budget")
+            partial_budget = PartialRamBudget(
+                partial_config.limit_bytes,
+                partial_config.reserved_bytes + embed_bytes
+                + (ngram_bytes if ngram_source == "ram" else 0),
+                partial_config.cache_bytes,
+            )
+            if tcfg.l2l:
+                from soup_cli.utils.c3_l2l_budget import RESERVATION_ROUND, plan_c3_l2l
+
+                self._c3_l2l_plan = plan_c3_l2l(
+                    partial_budget, n_layers=int(model_config.num_hidden_layers),
+                    batch_size=tcfg.batch_size, max_length=cfg.data.max_length,
+                    hidden_size=int(model_config.hidden_size),
+                    microbatches=tcfg.gradient_accumulation_steps, dtype=dtype,
+                    pin=on_cuda, shape_round=RESERVATION_ROUND,
+                )
+                partial_budget = self._c3_l2l_plan.weights
+            console.print(
+                "[yellow]C3 partial RAM is experimental: caller reserves other host users; "
+                "L2L, when enabled, reserves its maximum RAM activation window automatically. "
+                "The allocation envelope is not a process-RSS limit.[/]"
+            )
+
         model, runtime = build_streamed_model(
             model_id=cfg.base,
             shard_dir=shard_dir,
@@ -1089,6 +1230,7 @@ class StreamingSetupMixin:
             weights_dir=weights_dir,
             ngram_source=ngram_source,
             refill_before_backward=self._STREAM_REFILL_BEFORE_BACKWARD,
+            partial_ram_budget=partial_budget,
             **({"ram_cache_bytes": cache_bytes} if cache_bytes and not defer_ram_cache else {}),
         )
         if tcfg.stream_ram_cache_mb and tier != TIER_DISK:
@@ -1097,6 +1239,9 @@ class StreamingSetupMixin:
             )
         self.model = model
         self._stream_runtime = runtime
+        self._stream_weight_dirs = tuple(
+            stripe_dirs(shard_dir, tuple(getattr(index, "stripe_roots", None) or ()))
+        )
         if getattr(tcfg, "fast_lora", False):
             from soup_cli.utils.fast_lora_training import apply_fast_lora_training
 
@@ -1196,8 +1341,53 @@ class StreamingSetupMixin:
 
         assert_streamed_adapter_saved(self.trainer.model, output_dir)
 
+    def _build_l2l_trainer(
+        self, base_cls: Any, trainer_kwargs: dict, training_args: Any, loss: Any = None
+    ) -> Any:
+        """Build the trainer that runs each accumulation window as one L2L step.
+
+        ``loss`` is the task's ``WindowLoss``; ``None`` is SFT.
+        """
+        import torch
+
+        from soup_cli.trainer.l2l_trainer import (
+            attach_l2l_state,
+            make_l2l_trainer_class,
+            refuse_unsupported_l2l,
+            unready_task_warning,
+        )
+        from soup_cli.utils.layer_stream import resolve_stream_dtype
+
+        base = self.model.get_base_model() if hasattr(self.model, "get_base_model") else self.model
+        refuse_unsupported_l2l(
+            base.config, n_gpu=int(training_args.n_gpu), fp16=bool(training_args.fp16)
+        )
+        warning = unready_task_warning(getattr(getattr(self, "config", None), "task", None))
+        if warning is not None:
+            console.print(f"[yellow]Warning:[/] {warning}")
+        trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
+        attach_l2l_state(
+            trainer,
+            self._stream_runtime,
+            dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
+            loss=loss,
+            spill_dir=self.config.training.l2l_spill_dir,
+            weight_dirs=self._stream_weight_dirs,
+            c3_plan=getattr(self, "_c3_l2l_plan", None),
+        )
+        console.print(
+            "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
+            f"{int(training_args.gradient_accumulation_steps)} micro-batch(es)"
+        )
+        return trainer
+
     def _close_stream_runtime(self) -> None:
         """Release the streaming weight source, if this run had one."""
+        state = getattr(getattr(self, "trainer", None), "_soup_l2l", None)
+        if state is not None and state.c3_plan is not None:
+            # A failed drain retains the activation lease and the weight runtime.
+            # Do not free weights while an activation transfer may still be live.
+            state.close()
         runtime = getattr(self, "_stream_runtime", None)
         if runtime is not None:
             runtime.close()
@@ -1240,6 +1430,7 @@ class StreamingSetupMixin:
         on_cuda,
         large_layer_bytes=0,
         adapter_budget=None,
+        expert_weight_bytes=0,
     ):
         """Predict peak VRAM + bracket throughput, and REFUSE a run that cannot fit.
 
@@ -1278,6 +1469,11 @@ class StreamingSetupMixin:
         # dominant one (measured 146x the buffer pool at batch 8).
         rows = batch * self._STREAM_ROWS_PER_EXAMPLE
         if not (vocab and hidden and inter):
+            if expert_weight_bytes:
+                raise ValueError(
+                    "per_expert streaming requires vocab_size, hidden_size and "
+                    "intermediate_size for its VRAM preflight"
+                )
             # Never silently: skipping the budget also skips the refusal that
             # stops a run from OOMing (or, on Windows, spilling to host memory
             # and running an order of magnitude slower with no error at all).
@@ -1310,7 +1506,7 @@ class StreamingSetupMixin:
                     "[yellow]The full VRAM forecast uses the legacy 16 B/parameter "
                     "fallback for an unverified optimizer; it is not a verified fit.[/]"
                 )
-        predicted = estimate_stream_peak_vram(
+        predicted = expert_weight_bytes + estimate_stream_peak_vram(
             layer_bytes=layer_bytes,
             buffers=tcfg.stream_buffers,
             extras_bytes=embed_bytes,
@@ -1335,6 +1531,8 @@ class StreamingSetupMixin:
             f"  peak VRAM    ~{predicted / 1e9:.2f} GB at batch {batch} x seq "
             f"{seq_len}{paired} (logits {logits / 1e9:.2f} GB)"
         ]
+        if expert_weight_bytes:
+            lines.append(f"  expert arena {expert_weight_bytes / 1e9:.3f} GB included above")
         if calibrated > LOGITS_BYTES_PER_ELEMENT:
             lines.append(
                 f"  logits       calibrated {calibrated:.3f} B/element on this stack, "

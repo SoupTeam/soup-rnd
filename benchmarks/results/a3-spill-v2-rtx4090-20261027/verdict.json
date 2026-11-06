@@ -1,0 +1,392 @@
+{
+  "rule_version": "v2",
+  "rule": {
+    "profile": "a3-spill-gpu-check-v2",
+    "1": "l2l_spill (tight limit; spill_layers > 0) equals l2l_nospill_1 (generous limit; nothing spilled) bit for bit: SHA-256 of the raw bytes, dtype and shape of every LoRA gradient at every optimizer step, the logged losses, the number of optimizer steps and the lr at every step. l2l_nospill_1 and l2l_nospill_2 must be equal the same way, else NO VERDICT (not FAIL). Unequal spill: FAIL",
+    "1b": "reported, the A3 stand's own criterion: l2l_mistral_stand.decide on (ga_1, ga_2, l2l_spill) with ga_floor (GA on EFFICIENT_ATTENTION) in bf16, from the unpublished gradient tensors (compare.json). It does not change the spill verdict",
+    "2": "l2l_spill, l2l_nospill_1, l2l_nospill_2: child exit 0, no oom_kill increment in its scope's memory.events, scope memory.peak <= its MemoryMax; excess = CUDA host allocator allocated_bytes.current at the last optimizer step - at train begin - the plan's host_bytes; excess(l2l_spill) <= excess(l2l_nospill_1). A kill or an oom_kill is a FAIL wherever it happens; the detail says 'before first training_step (build)' (no first-step marker, or oom_kill already raised there) or 'after first training_step' (the product's own headroom did not cover training). v2: every other child at the tight limit (calibration checks, sigint, kill9, kill9_next, cost B) fails criterion 2 when the kernel log the parent read after its exit shows the memory cgroup OOM-killing its pid after its first-step marker; a return code of -9 alone is not that evidence, and the SIGKILL the parent sends kill9 is not an OOM. An OOM kill before the marker is the stand's limit (build): no verdict. A child killed with no kernel log to tell: no verdict",
+    "3": "normal: after train() and after the process exit of l2l_spill no spill file is left (spill_files); sigint: one SIGINT while optimizer step 2 runs, the child exits (any code) and no spill file is left; kill9: SIGKILL while step 2 runs leaves the spill file, the next child in the same directory removes it at start (stale_removed holds it, it is gone) and trains its optimizer steps. All three must hold",
+    "4": "A-B-B-A blocks of fresh processes, k 4, seq 512, rows all 512 tokens, 2 warm-up and 5 timed optimizer steps; A = L2L at the generous limit (no spill), B = L2L at the tight limit (spill); value = median timed step; per-block overhead (mean B - mean A) / mean A; two-sided 95% t interval. Upper < 10%: PASS (below 10% confirmed on a faster machine); lower >= 10%: FAIL (the fallback stays automatic; the console message and the docs state the measured overhead); else NO VERDICT. Blocks: arm_validity.blocks_to_add, at most 12",
+    "V1": "device cuda in every child; a CPU session never gets a verdict",
+    "V2": "correctness arms: CUBLAS_WORKSPACE_CONFIG=:4096:8 before CUDA, strict deterministic algorithms (warn_only off), SDPA pinned (MATH; ga_floor EFFICIENT_ATTENTION)",
+    "V3": "every child reads back from /proc/self/cgroup that its scope's memory.max is the limit the parent planned for it and memory.swap.max is 0 (cgroup v2); a mismatch removes every criterion that reads that child",
+    "V4": "spill arms spilled (spill_layers > 0, store bytes written > 0 and read > 0); no-spill arms spilled nothing",
+    "V5": "compared arms trained on the same rows (SHA-256 per row of ids and labels)",
+    "V6": "cost arms: F1 ArmWatch with suspend, power and foreign_reads required; a block with a void arm is replaced (METHOD.md), an unknown outcome removes criterion 4",
+    "V7": "cost: the repeats rule has no block left to add",
+    "V8": "trained arms: normal exit, finite losses and gradients, a nonzero LoRA gradient at every step, the expected number of optimizer steps",
+    "stop": "if criterion 1 FAILS the parent runs no cost block: no new rentals, find the cause. The cost blocks run only when criterion 1 PASSES. v2: a kernel OOM kill of a child at the tight limit after its first training_step stops the session (stopped_oom_in_training)",
+    "calibration": "a child at the generous limit reads its scope's memory.current - inactive_file before the first step (the product plans the store then) and sets limit = working set + the least available memory whose product budget (l2l_spill.budget_of: min(0.7 x available, available - RAM_RESERVE_BYTES)) holds the target host_bytes plus half a layer, the target being 16 of 32 layers spilled; one check child at that limit reads the product's own plan, and if spill_layers is outside [12, 20] the limit is recomputed once from the check's own plan-time numbers. Before any child runs at a tight limit: U = memory.current - (active_file + inactive_file - file_dirty - file_writeback) - slab_reclaimable (what reclaim cannot free, swap 0) of the calibration child, sampled every 50 ms and at build end, the first training_step entry and each step end; U0 at that entry; build transient = max(U before the entry) - U0; training transient = max(U after it - the store's pinned growth, at most the plan's host_bytes) - U0. Build margin = limit - U0 - build transient: below 0 (or unknown) the session stops (stopped_calibration_oom_risk). Training margin = limit - U0 - training transient - target host_bytes: description only. Either margin below 256 MiB: a warning, recorded, deciding nothing. The limit is never raised",
+    "order": "calibration, calibration_check, l2l_nospill_1, l2l_nospill_2, l2l_spill, ga_1, ga_2, ga_floor, compare, sigint, kill9, kill9_next, then the cost blocks"
+  },
+  "verdict": "NO VERDICT: criterion 3 has no verdict; L2L is outside the A3 stand's GA tolerance (criterion 1b, not a spill finding)",
+  "criteria": {
+    "1": {
+      "status": "PASS",
+      "detail": "l2l_spill (16 of 32 layers spilled) is bit-equal to l2l_nospill_1 over 3 optimizer steps; the no-spill reference repeats",
+      "nospill_repeat": {
+        "grads_equal": true,
+        "losses_equal": true,
+        "rates_equal": true,
+        "steps_equal": true,
+        "steps": [
+          3,
+          3
+        ],
+        "first_difference": null,
+        "equal": true
+      },
+      "spill_vs_nospill": {
+        "grads_equal": true,
+        "losses_equal": true,
+        "rates_equal": true,
+        "steps_equal": true,
+        "steps": [
+          3,
+          3
+        ],
+        "first_difference": null,
+        "equal": true
+      },
+      "tensors": {
+        "nospill_repeat": {
+          "grads_equal": true,
+          "losses_equal": true,
+          "rates_equal": true,
+          "steps_equal": true,
+          "steps": [
+            3,
+            3
+          ],
+          "max_abs": 0.0,
+          "worst": [],
+          "equal": true
+        },
+        "spill_vs_nospill": {
+          "grads_equal": true,
+          "losses_equal": true,
+          "rates_equal": true,
+          "steps_equal": true,
+          "steps": [
+            3,
+            3
+          ],
+          "max_abs": 0.0,
+          "worst": [],
+          "equal": true
+        }
+      }
+    },
+    "1b": {
+      "status": "FAIL",
+      "detail": "A3 stand decide(): l2l_out_of_tolerance L2L is outside the bf16 tolerance at 4 check(s); first: [{'what': 'gradient', 'step': 0, 'error': 0.018090733100463656, 'limit': 0.016452461646560432}, {'what': 'gradient', 'step': 1, 'error': 0.02133434290248132, 'limit': 0.020615278589764058}, {'what': 'gradient', 'step': 2, 'error': 0.17721940196011468, 'limit': 0.07667679771063814}]",
+      "tolerance": {
+        "status": "l2l_out_of_tolerance",
+        "pass": false,
+        "note": "L2L is outside the bf16 tolerance at 4 check(s); first: [{'what': 'gradient', 'step': 0, 'error': 0.018090733100463656, 'limit': 0.016452461646560432}, {'what': 'gradient', 'step': 1, 'error': 0.02133434290248132, 'limit': 0.020615278589764058}, {'what': 'gradient', 'step': 2, 'error': 0.17721940196011468, 'limit': 0.07667679771063814}]",
+        "a_vs_a": {
+          "grads_equal": true,
+          "losses_equal": true,
+          "rates_equal": true,
+          "steps_equal": true,
+          "steps": [
+            3,
+            3
+          ],
+          "max_abs": 0.0,
+          "worst": [],
+          "equal": true
+        },
+        "l2l_vs_ga": {
+          "grads_equal": false,
+          "losses_equal": false,
+          "rates_equal": true,
+          "steps_equal": true,
+          "steps": [
+            3,
+            3
+          ],
+          "max_abs": 1.172119140625,
+          "worst": [
+            {
+              "step": 2,
+              "name": "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+              "max_abs": 1.172119140625
+            },
+            {
+              "step": 2,
+              "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "max_abs": 1.1142578125
+            },
+            {
+              "step": 2,
+              "name": "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+              "max_abs": 0.6939697265625
+            },
+            {
+              "step": 2,
+              "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+              "max_abs": 0.4315185546875
+            },
+            {
+              "step": 1,
+              "name": "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "max_abs": 0.373046875
+            }
+          ],
+          "equal": false
+        },
+        "tolerance": {
+          "mode": "bf16",
+          "factor": 1.5,
+          "limit_fp32": 0.0001,
+          "grad_rel": [
+            0.018090733100463656,
+            0.02133434290248132,
+            0.17721940196011468
+          ],
+          "loss_rel": [
+            0.00022173059391030002,
+            0.00012733957614984845,
+            7.58052954566948e-05
+          ],
+          "floor_grad": [
+            0.01096830776437362,
+            0.013743519059842705,
+            0.05111786514042543
+          ],
+          "floor_loss": [
+            6.836197935572253e-06,
+            0.0001075311976376498,
+            0.0009918888333861336
+          ],
+          "judged": true,
+          "failing": [
+            {
+              "what": "gradient",
+              "step": 0,
+              "error": 0.018090733100463656,
+              "limit": 0.016452461646560432
+            },
+            {
+              "what": "gradient",
+              "step": 1,
+              "error": 0.02133434290248132,
+              "limit": 0.020615278589764058
+            },
+            {
+              "what": "gradient",
+              "step": 2,
+              "error": 0.17721940196011468,
+              "limit": 0.07667679771063814
+            },
+            {
+              "what": "loss",
+              "step": 0,
+              "error": 0.00022173059391030002,
+              "limit": 1.0254296903358378e-05
+            }
+          ],
+          "pass": false,
+          "floor_problem": null,
+          "grad_limit": [
+            0.016452461646560432,
+            0.020615278589764058,
+            0.07667679771063814
+          ],
+          "loss_limit": [
+            1.0254296903358378e-05,
+            0.0001612967964564747,
+            0.0014878332500792004
+          ]
+        }
+      }
+    },
+    "2": {
+      "status": "PASS",
+      "detail": "l2l_spill: exit 0, oom_kill 0, memory.peak 6,102,315,008 B <= 6,354,370,560 B; l2l_nospill_1: exit 0, oom_kill 0, memory.peak 6,300,880,896 B <= 25,769,803,776 B; l2l_nospill_2: exit 0, oom_kill 0, memory.peak 6,400,360,448 B <= 25,769,803,776 B; excess: l2l_spill 36,877 B <= l2l_nospill_1 36,877 B (l2l_nospill_2 36877)",
+      "parts": [
+        {
+          "status": "PASS",
+          "detail": "l2l_spill: exit 0, oom_kill 0, memory.peak 6,102,315,008 B <= 6,354,370,560 B",
+          "peak_bytes": 6102315008,
+          "limit_bytes": 6354370560
+        },
+        {
+          "status": "PASS",
+          "detail": "l2l_nospill_1: exit 0, oom_kill 0, memory.peak 6,300,880,896 B <= 25,769,803,776 B",
+          "peak_bytes": 6300880896,
+          "limit_bytes": 25769803776
+        },
+        {
+          "status": "PASS",
+          "detail": "l2l_nospill_2: exit 0, oom_kill 0, memory.peak 6,400,360,448 B <= 25,769,803,776 B",
+          "peak_bytes": 6400360448,
+          "limit_bytes": 25769803776
+        },
+        {
+          "status": "PASS",
+          "detail": "excess: l2l_spill 36,877 B <= l2l_nospill_1 36,877 B (l2l_nospill_2 36877)"
+        }
+      ],
+      "excess_bytes": {
+        "l2l_spill": 36877,
+        "l2l_nospill_1": 36877,
+        "l2l_nospill_2": 36877
+      }
+    },
+    "3": {
+      "status": "NO VERDICT",
+      "detail": "normal: no spill file after train() nor after the process exit; sigint: the scenario was not reached (spill file before the signal ['<box>/spill/sigint/soup-l2l-spill-4339-002e8684.bin'], child exit 'normal', inside a step None); kill9: <box>/spill/kill9/soup-l2l-spill-4386-e1561838.bin left by SIGKILL, removed at the next start, which trained 3 optimizer steps",
+      "parts": [
+        {
+          "status": "PASS",
+          "detail": "normal: no spill file after train() nor after the process exit"
+        },
+        {
+          "status": "NO VERDICT",
+          "detail": "sigint: the scenario was not reached (spill file before the signal ['<box>/spill/sigint/soup-l2l-spill-4339-002e8684.bin'], child exit 'normal', inside a step None)"
+        },
+        {
+          "status": "PASS",
+          "detail": "kill9: <box>/spill/kill9/soup-l2l-spill-4386-e1561838.bin left by SIGKILL, removed at the next start, which trained 3 optimizer steps"
+        }
+      ]
+    },
+    "4": {
+      "status": "PASS",
+      "detail": "overhead +0.03% [-0.02%, +0.09%] over 5 blocks < 10%: below 10% confirmed on a faster machine",
+      "blocks": 5,
+      "valid_blocks": 5,
+      "void_blocks": 0,
+      "effects": [
+        0.0007353703427406589,
+        -0.00043142998152755817,
+        0.0005144690019931098,
+        0.0003244324226720336,
+        0.0003900075352669077
+      ],
+      "interval": {
+        "n": 5,
+        "mean": 0.0003065698642290304,
+        "low": -0.0002413005105172274,
+        "high": 0.0008544402389752882
+      },
+      "spill_layers": [
+        16,
+        18,
+        21,
+        22
+      ]
+    }
+  },
+  "session_state": "finished",
+  "limits": {
+    "generous": 25769803776,
+    "tight": 6354370560,
+    "calibration": {
+      "working_set_bytes": 5566652416,
+      "per_layer_bytes": 16777216,
+      "minimum_bytes": 67108864,
+      "target_spill_layers": 16,
+      "target_host_bytes": 335544320,
+      "target_budget_bytes": 343932928,
+      "limit_bytes": 6447693824,
+      "predicted_spill_layers": 16,
+      "source": "the product's plan-time numbers of /sys/fs/cgroup/system.slice/a3-c0f24a8c-calibration.scope"
+    },
+    "checks": [
+      {
+        "limit_bytes": 6447693824,
+        "action": "again",
+        "spill_layers": 10,
+        "in_band": false,
+        "recomputed": {
+          "working_set_bytes": 5472776192,
+          "per_layer_bytes": 16777216,
+          "minimum_bytes": 67108864,
+          "target_spill_layers": 16,
+          "target_host_bytes": 335544320,
+          "target_budget_bytes": 343932928,
+          "limit_bytes": 6354370560,
+          "predicted_spill_layers": 16,
+          "source": "the product's plan-time numbers of /sys/fs/cgroup/system.slice/a3-c0f24a8c-calibration-check-1.scope"
+        }
+      },
+      {
+        "limit_bytes": 6354370560,
+        "action": "done",
+        "spill_layers": 16,
+        "in_band": true
+      }
+    ],
+    "oom_margin": [
+      {
+        "limit_bytes": 6447693824,
+        "target_host_bytes": 335544320,
+        "warn_below_bytes": 268435456,
+        "transient": {
+          "unreclaimable_at_first_step": 5322509088,
+          "build_transient_bytes": 0,
+          "train_transient_bytes": 416848344,
+          "transient_bytes": 416848344,
+          "plan_host_bytes": 536870912,
+          "store_taken_out": "torch pinned host allocator growth since the first step, up to the plan's host_bytes",
+          "anon_shmem_at_first_step": 5303873536,
+          "anon_shmem_transient_bytes": 414695424,
+          "vm_hwm_bytes": 6748225536,
+          "memory_peak_bytes": 6287486976,
+          "readings": 147
+        },
+        "build_margin_bytes": 1125184736,
+        "train_margin_bytes": 372792072,
+        "stop": false,
+        "warnings": [],
+        "margin_over_working_bytes": 128648744
+      },
+      {
+        "limit_bytes": 6354370560,
+        "target_host_bytes": 335544320,
+        "warn_below_bytes": 268435456,
+        "transient": {
+          "unreclaimable_at_first_step": 5322509088,
+          "build_transient_bytes": 0,
+          "train_transient_bytes": 416848344,
+          "transient_bytes": 416848344,
+          "plan_host_bytes": 536870912,
+          "store_taken_out": "torch pinned host allocator growth since the first step, up to the plan's host_bytes",
+          "anon_shmem_at_first_step": 5303873536,
+          "anon_shmem_transient_bytes": 414695424,
+          "vm_hwm_bytes": 6748225536,
+          "memory_peak_bytes": 6287486976,
+          "readings": 147
+        },
+        "build_margin_bytes": 1031861472,
+        "train_margin_bytes": 279468808,
+        "stop": false,
+        "warnings": [],
+        "margin_over_working_bytes": 129201704
+      }
+    ]
+  },
+  "spill_layers": 16,
+  "spill_layers_in_target": true,
+  "oom_margin": {
+    "limit_bytes": 6354370560,
+    "build_margin_bytes": 1031861472,
+    "train_margin_bytes": 279468808,
+    "warn_below_bytes": 268435456,
+    "warnings": [],
+    "stop": false
+  },
+  "summary": {
+    "verdict": "NO VERDICT: criterion 3 has no verdict; L2L is outside the A3 stand's GA tolerance (criterion 1b, not a spill finding)",
+    "rule_version": "v2",
+    "cpu_session": false,
+    "criterion_1": "PASS",
+    "criterion_1b": "FAIL",
+    "criterion_2": "PASS",
+    "criterion_3": "NO VERDICT",
+    "criterion_4": "PASS"
+  }
+}

@@ -1,0 +1,30 @@
+{
+    'event': 'environment',
+    'unix': 1793179701.1319313,
+    'rss_bytes': 705843200,
+    'host_ram_bytes': 134948118528,
+    'disk_free_bytes_now': 807117021184,
+    'gpu': 'NVIDIA GeForce RTX 5060',
+    'vram_bytes': 8122859520,
+    'dtype': 'bfloat16',
+    'torch': '2.8.0+cu128',
+    'cuda': '12.8',
+    'cache_budget_bytes': 519579082752,
+    'disk_free_bytes': 807117021184,
+    'source_revision': 'e815299b0bcbac849fa540c768ef21845365c9eb',
+    'peak_rss_bytes': 715456512
+}
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Current thread 0x0000759933637080 (most recent call first):
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 181 in __init__
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/integrations/moe.py", line 560 in __init__
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 220 in __init__
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 505 in __init__
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 584 in __init__
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py", line 658 in __init__
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 1539 in _from_config
+  File "/root/b6/venv/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 248 in from_config
+  File "/root/b6/repo/src/soup_cli/utils/layer_stream_runtime.py", line 2411 in build_meta_skeleton
+  File "/root/b6/repo/benchmarks/harness/b6_real_moe.py", line 75 in run
+  File "/root/b6/repo/benchmarks/harness/b6_real_moe.py", line 205 in <module>
+Terminated

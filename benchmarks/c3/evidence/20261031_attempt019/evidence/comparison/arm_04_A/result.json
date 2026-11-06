@@ -1,0 +1,543 @@
+{
+  "mode": "cuda-representative",
+  "source_model": "llama31-8b",
+  "workload_sha256": "7c10ab916a521ba9fb12860bdcd6cbc408e8dc16345b4e4dae45f80819a0990e",
+  "effective_tokens_per_step": 255,
+  "config": {
+    "transformers_version": "5.17.0",
+    "architectures": [
+      "LlamaForCausalLM"
+    ],
+    "output_hidden_states": false,
+    "return_dict": true,
+    "dtype": "bfloat16",
+    "chunk_size_feed_forward": 0,
+    "is_encoder_decoder": false,
+    "id2label": {
+      "0": "LABEL_0",
+      "1": "LABEL_1"
+    },
+    "label2id": {
+      "LABEL_0": 0,
+      "LABEL_1": 1
+    },
+    "problem_type": null,
+    "vocab_size": 128256,
+    "hidden_size": 4096,
+    "intermediate_size": 14336,
+    "num_hidden_layers": 32,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "hidden_act": "silu",
+    "max_position_embeddings": 131072,
+    "initializer_range": 0.02,
+    "rms_norm_eps": 1e-05,
+    "use_cache": true,
+    "pad_token_id": 128004,
+    "bos_token_id": 128000,
+    "eos_token_id": 128001,
+    "pretraining_tp": 1,
+    "tie_word_embeddings": false,
+    "rope_parameters": {
+      "factor": 8.0,
+      "high_freq_factor": 4.0,
+      "low_freq_factor": 1.0,
+      "original_max_position_embeddings": 8192,
+      "rope_type": "llama3",
+      "rope_theta": 500000.0
+    },
+    "attention_bias": false,
+    "attention_dropout": 0.0,
+    "mlp_bias": false,
+    "head_dim": 128,
+    "_name_or_path": "meta-llama/meta-Llama-3.1-8B",
+    "model_type": "llama",
+    "unsloth_fixed": true,
+    "output_attentions": false
+  },
+  "weight_sha256": {
+    "repo": "unsloth/Meta-Llama-3.1-8B",
+    "revision": "e9a141a2091ea561b96483212645a2a05e6f99fc",
+    "files": {
+      "config.json": {
+        "bytes": 947,
+        "sha256": "0ea2186ccf686654fea498aae830b9de201334432b24b07f031d80b76dd928f0"
+      },
+      "generation_config.json": {
+        "bytes": 235,
+        "sha256": "46097458fa97e44251c131fb384df37a37ec0a9334d7a001100782fc9f1fc0bd"
+      },
+      "model.safetensors.index.json": {
+        "bytes": 23950,
+        "sha256": "146776fce3f6db1103aa6f249e65ee5544c5923ce6f971b092eee79aa6e5d37b"
+      },
+      "special_tokens_map.json": {
+        "bytes": 459,
+        "sha256": "32f404d626cf7b1b6eea36c241ae7cbd6ec29c777a8701ea48c0fe9ebb94c9b1"
+      },
+      "tokenizer.json": {
+        "bytes": 17209920,
+        "sha256": "6b9e4e7fb171f92fd137b777cc2714bf87d11576700a1dcd7a399e7bbe39537b"
+      },
+      "tokenizer_config.json": {
+        "bytes": 50642,
+        "sha256": "590b9837d3c2a8790e2aaf920f4c69f9181c3ca8fe52e6579ad3a3f654e59a9b"
+      },
+      "README.md": {
+        "bytes": 3123,
+        "sha256": "974704ccfbaf56d35fb13c231f43594a635f949be402bdd237deb7220cd90301"
+      },
+      "model-00001-of-00004.safetensors": {
+        "bytes": 4976698672,
+        "sha256": "f8b9704ab09cdeb097aa4a0a24bca96f906eec36bad63ab495bc21475058601b"
+      },
+      "model-00002-of-00004.safetensors": {
+        "bytes": 4999802720,
+        "sha256": "c28b25e7541751056ee126627e007f8d4288319733285e9f7b17b9ff6eb313f0"
+      },
+      "model-00003-of-00004.safetensors": {
+        "bytes": 4915916176,
+        "sha256": "d8e9504dd4e4a146d484c52a97584ec14dac92237c46b064934af67a85e7d383"
+      },
+      "model-00004-of-00004.safetensors": {
+        "bytes": 1168138808,
+        "sha256": "e4486f35c040f683f7d790354f66c169c109eb9fa0954a4a35d7c458a108405d"
+      }
+    }
+  },
+  "steps_per_arm": 6,
+  "warmup_steps": 2,
+  "order": [
+    "A"
+  ],
+  "torch": "2.14.1+cu130",
+  "records": [
+    {
+      "position": 0,
+      "arm": "A",
+      "updates": [
+        {
+          "step": 0,
+          "warmup": true,
+          "loss": 2.147447109222412,
+          "gradient_sha256": "51337a1d1fa3d0568a0e0e9890f4d8b846a805c38455af4b39bf2e84f01001c0",
+          "training_seconds": 6.345019471002161,
+          "range_read_calls": 252,
+          "range_read_bytes": 28711064192,
+          "physical_io": {
+            "device_bytes": 28711268352,
+            "process_bytes": 28711268352
+          },
+          "instrumented_window_seconds": 6.354508139993413,
+          "effective_tokens": 255,
+          "instrumented_tokens_per_second": 40.12899100641711
+        },
+        {
+          "step": 1,
+          "warmup": true,
+          "loss": 2.229351043701172,
+          "gradient_sha256": "3ca88fe0855f7bb73e1dc8fcb5abdb99e6ee35810043282bae8f9c32df72bf42",
+          "training_seconds": 4.768168732000049,
+          "range_read_calls": 240,
+          "range_read_bytes": 26173492800,
+          "physical_io": {
+            "device_bytes": 26173685760,
+            "process_bytes": 26173685760
+          },
+          "instrumented_window_seconds": 4.78393886500271,
+          "effective_tokens": 255,
+          "instrumented_tokens_per_second": 53.303356751791505
+        },
+        {
+          "step": 2,
+          "warmup": false,
+          "loss": 2.0406570434570312,
+          "gradient_sha256": "cbe0008ef3f0cc0377e10d3a7a77fdf649b4fd448f50aac85aa38b043a81afcd",
+          "training_seconds": 4.769138953008223,
+          "range_read_calls": 240,
+          "range_read_bytes": 26173492800,
+          "physical_io": {
+            "device_bytes": 26173685760,
+            "process_bytes": 26173685760
+          },
+          "instrumented_window_seconds": 4.787931162994937,
+          "effective_tokens": 255,
+          "instrumented_tokens_per_second": 53.25891106598385
+        },
+        {
+          "step": 3,
+          "warmup": false,
+          "loss": 1.7979458570480347,
+          "gradient_sha256": "5174047381ecb9768989d6deb7eb4b922680105f0372d0b73ba6b27194484b91",
+          "training_seconds": 4.763390533989877,
+          "range_read_calls": 240,
+          "range_read_bytes": 26173492800,
+          "physical_io": {
+            "device_bytes": 26173685760,
+            "process_bytes": 26173685760
+          },
+          "instrumented_window_seconds": 4.779251275002025,
+          "effective_tokens": 255,
+          "instrumented_tokens_per_second": 53.35563780330674
+        },
+        {
+          "step": 4,
+          "warmup": false,
+          "loss": 1.5272663831710815,
+          "gradient_sha256": "b539f3941b7164c7c895890bc1d48577fc95d197033f5302f9ae0d57abc94c01",
+          "training_seconds": 4.757505276997108,
+          "range_read_calls": 240,
+          "range_read_bytes": 26173492800,
+          "physical_io": {
+            "device_bytes": 26173685760,
+            "process_bytes": 26173685760
+          },
+          "instrumented_window_seconds": 4.771486117999302,
+          "effective_tokens": 255,
+          "instrumented_tokens_per_second": 53.442469221082476
+        },
+        {
+          "step": 5,
+          "warmup": false,
+          "loss": 1.429033637046814,
+          "gradient_sha256": "d1be85109c0f2dec94c1ffc4bdaee71c31df29437e341c720329c7780b18dbaa",
+          "training_seconds": 4.748168116013403,
+          "range_read_calls": 240,
+          "range_read_bytes": 26173492800,
+          "physical_io": {
+            "device_bytes": 26173685760,
+            "process_bytes": 26173685760
+          },
+          "instrumented_window_seconds": 4.764349074001075,
+          "effective_tokens": 255,
+          "instrumented_tokens_per_second": 53.52252659057418
+        }
+      ],
+      "direct_io": true,
+      "resident_indices": [],
+      "setup_seconds": 9.435444930000813,
+      "initial_stats": {
+        "n_layers": 32,
+        "buffers": 2,
+        "buffer_bytes": 1923121152,
+        "large_buffer_bytes": 1050673152,
+        "store_bytes": 2537570304,
+        "staging_bytes": 2537582592,
+        "resident_bytes": 0,
+        "host_allocated_bytes": 3221225472,
+        "accounted_peak_bytes": null,
+        "resident_tensor_bytes_served": 0,
+        "pinned": true,
+        "pinned_bytes": 3221225472,
+        "tier": "disk",
+        "read_ahead": 1,
+        "disk_bytes": 16060514304,
+        "layer_loads": 0,
+        "layer_restores": 0,
+        "large_loads": 0,
+        "device": "cuda:0",
+        "total_params": 8030261248
+      },
+      "setup_physical_io": {
+        "device_bytes": 56709120,
+        "process_bytes": 436228096
+      },
+      "initial_adapter_sha256": "f90ead1a4f389a2ab04d677ed3bda4d195a9225a4259a32c6ce660635d170838",
+      "f1": {
+        "arm": "A",
+        "round": 0,
+        "run": 0,
+        "label": null,
+        "gpu": {
+          "id": "0",
+          "source": "default"
+        },
+        "required": [
+          "suspend",
+          "power",
+          "foreign_reads"
+        ],
+        "outcome": "ok",
+        "box_stamp_before": {
+          "unix_s": 1793440072.6121323,
+          "ram_available_bytes": 106240065536,
+          "commit_charge": {
+            "used_bytes": 204892348416,
+            "limit_bytes": 143645265920
+          },
+          "power_source": "mains",
+          "gpu_processes": [
+            {
+              "pid": 1096952,
+              "type": "C",
+              "name": "",
+              "used_mib": 2318
+            }
+          ],
+          "gpu_memory_used_mib": 2334,
+          "unknown": {}
+        },
+        "box_stamp_after": {
+          "unix_s": 1793440102.9887002,
+          "ram_available_bytes": 106113363968,
+          "commit_charge": {
+            "used_bytes": 205824585728,
+            "limit_bytes": 143645265920
+          },
+          "power_source": "mains",
+          "gpu_processes": [
+            {
+              "pid": 1096952,
+              "type": "C",
+              "name": "",
+              "used_mib": 3118
+            }
+          ],
+          "gpu_memory_used_mib": 3134,
+          "unknown": {}
+        },
+        "gpu_clock": {
+          "outcome": "ok",
+          "reason": "SM clock 2520 to 2730 MHz over 16 samples; clock event reasons seen: none",
+          "samples": 16,
+          "unknown_samples": 0,
+          "sm_clock_mhz": {
+            "min": 2520,
+            "median": 2520.0,
+            "max": 2730
+          },
+          "reasons_seen": {}
+        },
+        "checks": {
+          "suspend": {
+            "outcome": "ok",
+            "reason": "boot-time offset grew -0.000 s (limit 1.0 s); suspend count stayed at 0",
+            "evidence": {
+              "sleep_offset_start_s": -9.199866326525807e-07,
+              "sleep_offset_end_s": -1.5100085875019431e-06,
+              "suspend_count_start": 0,
+              "suspend_count_end": 0
+            }
+          },
+          "power": {
+            "outcome": "ok",
+            "reason": "no battery in any of 17 power samples, so on mains",
+            "evidence": {
+              "samples": 17,
+              "off_mains_samples": [],
+              "battery_present": false,
+              "unknown_samples": 0,
+              "last_reading": {
+                "battery": false,
+                "online": {}
+              }
+            }
+          },
+          "foreign_reads": {
+            "outcome": "ok",
+            "reason": "at most 0 bytes of foreign reads on nvme0n1 (limit 1000000000)",
+            "evidence": {
+              "model_path": "/data/c3/repo/.c3_prepared/shards",
+              "device": "nvme0n1",
+              "disk_read_bytes_start": 2128594007552,
+              "disk_read_bytes_end": 2288173704704,
+              "other_disk_read_bytes_start": 0,
+              "other_disk_read_bytes_end": 0,
+              "own_read_bytes": 159579697152,
+              "foreign_read_bytes": 0,
+              "foreign_read_bytes_min": 0,
+              "foreign_read_bytes_max": 0,
+              "uninspectable_processes": 0
+            },
+            "readers": [],
+            "unattributed_bytes": 0
+          }
+        }
+      },
+      "final_adapter_sha256": "366c834b9201fb6657a62e59d720ed8259921b010f4077378a5d330c2a3e8918",
+      "changed_adapter": true,
+      "final_stats": {
+        "n_layers": 32,
+        "buffers": 2,
+        "buffer_bytes": 1923121152,
+        "large_buffer_bytes": 1050673152,
+        "store_bytes": 2537570304,
+        "staging_bytes": 2537582592,
+        "resident_bytes": 0,
+        "host_allocated_bytes": 3221225472,
+        "accounted_peak_bytes": null,
+        "resident_tensor_bytes_served": 0,
+        "pinned": true,
+        "pinned_bytes": 3221225472,
+        "tier": "disk",
+        "read_ahead": 1,
+        "disk_bytes": 16060514304,
+        "layer_loads": 367,
+        "layer_restores": 0,
+        "large_loads": 13,
+        "device": "cuda:0",
+        "total_params": 8030261248
+      },
+      "peak_cuda_allocated_bytes": 2485304320,
+      "peak_cuda_reserved_bytes": 2703228928,
+      "process_lifetime_maxrss_kib": 4865112,
+      "range_reads_total": {
+        "calls": 1456,
+        "bytes": 160014753072,
+        "by_file": {
+          "66307:2247109426": {
+            "calls": 28,
+            "bytes": 3053574160
+          },
+          "66307:2264289360": {
+            "calls": 4,
+            "bytes": 1050673264
+          },
+          "66307:2247109427": {
+            "calls": 28,
+            "bytes": 3053574160
+          },
+          "66307:2264289361": {
+            "calls": 4,
+            "bytes": 1050673248
+          },
+          "66307:2247109428": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109429": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109430": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109431": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109432": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109433": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109434": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109435": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109436": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109437": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109438": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2247109439": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2246884221": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2246884223": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2239714838": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289344": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289345": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289346": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289347": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289348": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289349": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289350": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289351": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289352": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289353": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289354": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289355": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289357": {
+            "calls": 48,
+            "bytes": 5234698560
+          },
+          "66307:2264289358": {
+            "calls": 24,
+            "bytes": 2617349280
+          },
+          "66307:2264289359": {
+            "calls": 24,
+            "bytes": 2617349280
+          }
+        }
+      },
+      "status": "COMPLETED"
+    }
+  ],
+  "gpu_ownership": {
+    "before": [],
+    "after": [
+      1096952
+    ],
+    "context_active": true,
+    "single_device": true,
+    "method": "exclusive-local-CUDA-initialization"
+  },
+  "performance_verdict": "NO_VERDICT",
+  "status": "ARM_COMPLETE",
+  "pid": 1576,
+  "scope": "single fresh process including source generation and cache fill",
+  "adapter_changed": true
+}

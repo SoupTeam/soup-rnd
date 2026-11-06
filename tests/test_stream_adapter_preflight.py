@@ -21,6 +21,7 @@ def _settings(**overrides):
             use_rslora=False, rank_pattern=None, alpha_pattern=None, init_strategy="random",
         ),
         quantization="none", double_quant_on=True, stream_vram_override=None,
+        stream_source="auto",
     )
     values.update(overrides)
     return SimpleNamespace(**values)

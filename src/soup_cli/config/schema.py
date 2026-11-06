@@ -49,6 +49,10 @@ _MAX_LORA_PATTERN_KEY_LEN = 512
 # which key it was, not enough to paste kilobytes into a terminal or a log.
 _MAX_LORA_PATTERN_KEY_SHOWN = 80
 
+# Tasks that training.l2l accepts. A task joins the tuple when its L2L window loss
+# (trainer/l2l_trainer.py WindowLoss) ships; the refusal below reads the tuple.
+L2L_SUPPORTED_TASKS = ("sft", "orpo", "simpo", "dpo", "kto")
+
 # v0.71.23 #266 — Spectrum targeted-training unfrozen-parameter caps
 _MAX_UNFROZEN_PARAMETERS = 50_000
 _MAX_UNFROZEN_PATTERN_LEN = 512
@@ -1111,6 +1115,22 @@ class EvalGateConfig(BaseModel):
             raise ValueError(
                 "eval_gate.suite is required when eval_gate.enabled=true"
             )
+        return self
+
+
+class StreamPartialRamConfig(BaseModel):
+    """Experimental C3 host envelope; other consumers must have explicit reservations."""
+
+    model_config = {"extra": "forbid"}
+    limit_bytes: int = Field(gt=0, strict=True)
+    reserved_bytes: int = Field(ge=0, strict=True)
+    cache_bytes: int = Field(ge=0, strict=True)
+
+    @model_validator(mode="after")
+    def _check_budget(self) -> "StreamPartialRamConfig":
+        from soup_cli.utils.partial_ram_source import PartialRamBudget
+
+        PartialRamBudget(self.limit_bytes, self.reserved_bytes, self.cache_bytes)
         return self
 
 
@@ -3515,15 +3535,44 @@ class TrainingConfig(BaseModel):
     l2l: bool = Field(
         default=False,
         description=(
-            "BETA — layer-to-layer (L2L) execution for SFT with stream_layers: "
-            "each streamed decoder layer is loaded once per optimizer step and "
-            "runs all k micro-batches, k = gradient_accumulation_steps, then "
-            "the optimizer takes one step on the adapters. Needs "
-            "stream_layers=true, task='sft' and lora.dropout=0; the launch "
-            "also needs a Llama/Mistral model with attention_dropout=0 on a "
-            "single GPU. k=1 behaves like plain streaming. See ADR 0002."
+            "BETA. Layer-to-layer (L2L) execution for sft, dpo, orpo, simpo and "
+            "kto with stream_layers: each streamed decoder layer is loaded once "
+            "per optimizer step and runs all k micro-batches, k = "
+            "gradient_accumulation_steps, then the optimizer takes one step on "
+            "the adapters. Needs stream_layers=true; the launch also needs a "
+            "Llama/Mistral model on a single GPU. Only dpo passed the readiness "
+            "check; orpo, simpo and kto are not ready. k=1 behaves like plain "
+            "streaming. See ADR 0002 and docs/performance-and-quantization.md."
         ),
     )
+    l2l_spill_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "BETA — where training.l2l spills activations that do not fit the host-RAM "
+            "budget (cgroup-aware: the smallest of free RAM and every cgroup level's "
+            "remainder, times 0.7). Default: a '_l2l_spill' folder in the run's output "
+            "directory. Meant for another local drive, so it is not held to the working "
+            "directory. Refused at launch: RAM-backed, overlay and network filesystems, a "
+            "drive without the file size plus max(1 GiB, 10%) free, and one where unbuffered "
+            "I/O fails. When the weights stream from disk, the default directory is refused "
+            "on the weights' disk; a directory set here is allowed there with a warning. "
+            "Only valid with training.l2l=true."
+        ),
+    )
+
+    @field_validator("l2l_spill_dir")
+    @classmethod
+    def _validate_l2l_spill_dir(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if not value.strip():
+            raise ValueError("training.l2l_spill_dir must be a non-empty path")
+        if "\x00" in value:
+            raise ValueError("training.l2l_spill_dir must not contain null bytes")
+        if len(value) > 4096:
+            raise ValueError("training.l2l_spill_dir must be <= 4096 chars")
+        return value
+
     stream_source: Literal["auto", "ram", "disk"] = Field(
         default="auto",
         description=(
@@ -3531,6 +3580,15 @@ class TrainingConfig(BaseModel):
             "v0.72.0) pins the base in CPU RAM; 'disk' is the v0.72.3 overflow "
             "tier; 'auto' picks RAM only when the store fits free-RAM headroom "
             "and the store plus resident extras fits the physical RAM ceiling."
+        ),
+    )
+    stream_expert_layout: Literal["fused", "per_expert"] = Field(
+        default="fused",
+        description=(
+            "Experimental: stream frozen routed experts individually from disk. "
+            "Requires streaming SFT and a DeepSeek-V3-family base; routed expert "
+            "adapters are not supported. Requires a new NF4 cache on one disk without "
+            "double quant. The default retains fused layer storage."
         ),
     )
     stream_ngram_source: Literal["auto", "ram", "disk"] = Field(
@@ -3586,6 +3644,15 @@ class TrainingConfig(BaseModel):
         if isinstance(v, bool):
             raise ValueError("training.stream_buffers must be an int, not bool")
         return v
+
+    stream_partial_ram: Optional[StreamPartialRamConfig] = Field(
+        default=None,
+        description=(
+            "Experimental dense Llama, unquantized SFT disk cache. Explicit limit_bytes, "
+            "reserved_bytes for activations/other consumers, and cache_bytes allocation cap. "
+            "L2L reserves its configured maximum RAM activation window additionally."
+        ),
+    )
 
     # #971 — depth of the async disk-tier reader's background lookahead. NOT
     # the same quantity as stream_buffers (VRAM buffers): this is HOST-side
@@ -6440,6 +6507,39 @@ class SoupConfig(BaseModel):
             )
         return self
 
+    @staticmethod
+    def _refuse_dpo_l2l_unsupported(tcfg: Any) -> None:
+        """training.l2l with task='dpo' reproduces TRL's sigmoid DPO against a frozen ``ref``
+        adapter at a fixed beta. Refuse what changes that between steps or draws random numbers
+        in the reference forward, which the layer-major walk cannot replay. A regenerated
+        reference (dpo_ref_regen_epochs) is refused for every DPO run by the variants check.
+        lora.dropout is not refused: TRL's DPOTrainer zeroes every nn.Dropout when it is built
+        (``disable_dropout=True``), so no LoRA dropout mask is drawn in either forward."""
+        if tcfg.dpo_beta_schedule is not None or tcfg.dpo_beta_end is not None:
+            raise ValueError(
+                "training.l2l with task='dpo' keeps beta fixed: remove "
+                "training.dpo_beta_schedule and training.dpo_beta_end."
+            )
+        if tcfg.neftune_alpha is not None:
+            raise ValueError(
+                "training.l2l with task='dpo' does not support training.neftune_alpha: the "
+                "reference forward draws NEFTune noise between the policy forwards, an "
+                "order the layer-major walk does not reproduce."
+            )
+
+    @staticmethod
+    def _refuse_kto_l2l_unsupported(tcfg: Any) -> None:
+        """training.l2l with task='kto' reproduces TRL's plain KTO against the policy with its
+        adapters off. Refuse what draws random numbers in the extra forwards, which the
+        layer-major walk cannot replay. lora.dropout is not refused: TRL's KTOTrainer zeroes
+        every nn.Dropout when it is built (``disable_dropout=True``)."""
+        if tcfg.neftune_alpha is not None:
+            raise ValueError(
+                "training.l2l with task='kto' does not support training.neftune_alpha: the "
+                "KL and reference forwards draw NEFTune noise between the policy forwards, "
+                "an order the layer-major walk does not reproduce."
+            )
+
     @model_validator(mode="after")
     def _validate_stream_layers_compat(self) -> "SoupConfig":
         """v0.72.0 BETA — layer-streaming compatibility gates.
@@ -6450,6 +6550,22 @@ class SoupConfig(BaseModel):
         for rather than just saying no.
         """
         tcfg = self.training
+        if tcfg.l2l_spill_dir is not None and not tcfg.l2l:
+            raise ValueError(
+                "training.l2l_spill_dir is set but training.l2l is false: the directory "
+                "holds L2L's activation spill and nothing else reads it. Set l2l=true or "
+                "drop l2l_spill_dir."
+            )
+        if tcfg.stream_partial_ram is not None:
+            if (not tcfg.stream_layers or tcfg.stream_source != "disk"
+                    or self.task != "sft" or self.backend != "transformers"
+                    or tcfg.quantization != "none"):
+                raise ValueError(
+                    "training.stream_partial_ram requires unquantized transformers SFT, "
+                    "stream_layers=true and stream_source='disk'; other modes are pending"
+                )
+            if tcfg.l2l and type(tcfg.batch_size) is not int:
+                raise ValueError("stream_partial_ram with l2l requires a fixed batch_size")
         if tcfg.l2l:
             # ADR 0002: reject what would make L2L differ from gradient
             # accumulation rather than switch the mode off silently.
@@ -6458,10 +6574,15 @@ class SoupConfig(BaseModel):
                     "training.l2l requires training.stream_layers=true: L2L reuses "
                     "the streamed layer loads, and a resident model has none to reuse."
                 )
-            if self.task != "sft":
+            if self.task not in L2L_SUPPORTED_TASKS:
                 raise ValueError(
-                    f"training.l2l supports task='sft' only; got task={self.task!r}."
+                    f"training.l2l supports task in {list(L2L_SUPPORTED_TASKS)}; "
+                    f"got task={self.task!r}."
                 )
+            if self.task == "dpo":
+                self._refuse_dpo_l2l_unsupported(tcfg)
+            if self.task == "kto":
+                self._refuse_kto_l2l_unsupported(tcfg)
         if not tcfg.stream_layers:
             # Footgun: a non-default stream_* while streaming is off almost
             # certainly means the user forgot stream_layers=true.
@@ -6474,6 +6595,7 @@ class SoupConfig(BaseModel):
                 or tcfg.stream_read_ahead != DEFAULT_STREAM_READ_AHEAD
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
+                or tcfg.stream_expert_layout != "fused"
                 or tcfg.stream_disk_kind is not None
                 or tcfg.stream_pin is not None
             ):
@@ -6481,12 +6603,18 @@ class SoupConfig(BaseModel):
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
-                    "/ training.stream_disk_kind / training.stream_pin / "
-                    "training.stream_resident_layers / training.stream_ram_cache_mb set but "
+                    "/ training.stream_expert_layout / training.stream_disk_kind "
+                    "/ training.stream_pin / training.stream_resident_layers "
+                    "/ training.stream_ram_cache_mb set but "
                     "stream_layers is false; set stream_layers=true to stream the "
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_ram_cache_mb and tcfg.stream_partial_ram is not None:
+            raise ValueError(
+                "Choose one host weight cache: training.stream_ram_cache_mb "
+                "or training.stream_partial_ram"
+            )
         if tcfg.stream_ram_cache_mb and tcfg.stream_source == "ram":
             raise ValueError(
                 "training.stream_ram_cache_mb requires stream_source='disk' or 'auto'; "
@@ -6506,6 +6634,17 @@ class SoupConfig(BaseModel):
                     "training.stream_resident_layers requires an AdamW optimizer "
                     "whose future moment allocation can be budgeted"
                 )
+        if tcfg.stream_expert_layout == "per_expert":
+            if self.task != "sft":
+                raise ValueError("training.stream_expert_layout='per_expert' requires task='sft'")
+            if tcfg.stream_source != "disk":
+                raise ValueError(
+                    "training.stream_expert_layout='per_expert' requires stream_source='disk'"
+                )
+            if tcfg.moe_lora or tcfg.lora.target_parameters:
+                raise ValueError("per_expert streaming cannot train routed-expert adapters")
+            if tcfg.l2l:
+                raise ValueError("per_expert streaming does not support training.l2l")
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
         # read-ahead reader belongs to the NVMe disk tier, so a non-default

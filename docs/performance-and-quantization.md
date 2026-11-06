@@ -1,12 +1,19 @@
 # Performance & Quantization
 
 RND developer note: [B1.1 expert-shard storage format](expert-shard-format.md)
-documents the independently readable MoE cache. It is storage-only and does not
-enable expert-streamed training.
+documents the independently readable MoE cache.
 
-[B1.2 expert forward](expert-forward.md) adds an internal sequential forward
-primitive and a prospective correctness/memory gate. Backward and public
-expert-streamed training remain gated.
+[B1.2/B1.3 streamed experts](expert-forward.md) provide an internal sequential
+forward primitive, first-order backward through frozen routed experts, and internal
+runtime/L2L integration for native DeepSeek-V3. The opt-in
+`training.stream_expert_layout: per_expert` supports experimental frozen-expert
+SFT with attention/shared-expert adapters. The narrow disk preflight requires
+a new cache, one disk, NF4 without double quant and readable source headers.
+Routed experts stay frozen, with no expert adapters. One bounded expert arena is
+not a bound on total allocated/reserved VRAM. Tiny-model CPU and CUDA checks cover
+backward and adapter reload; no real giant checkpoint has yet been validated.
+See `benchmarks/b6-giant-moe-20261028.md`. Public MoE L2L launch, planner and
+defaults remain unchanged (B1.4).
 
 [← Back to the Soup README](../README.md)
 
@@ -479,6 +486,22 @@ soup train --config soup.yaml
 
 **How it works.** LoRA adapters + their gradients + optimizer state stay resident in VRAM (they are small). The frozen base lives in CPU RAM, page-locked when the machine allows it, and is streamed: each decoder layer is copied into one of two pre-allocated VRAM buffers on a dedicated CUDA stream while the previous layer is still computing, so the load overlaps the compute. Vocabulary-sized `embed_tokens` and an untied `lm_head` use one additional shared slot: the embedding is loaded for the model input, then the same allocation is reused for the output head, whose copy is issued right after the embedding lookup (`StreamPrefetcher.head_prefetch_layer`, default `0`) rather than at the last decoder layer, and the embedding is reloaded into it at the tail of that step's backward pass so the copy overlaps the remaining compute instead of blocking the next step's first lookup. Each decoder layer is read **twice** per step — once in the forward pass and once when the backward pass recomputes it — because `dL/dx = Wᵀ · dL/dy` needs the weights to reach the layers below. That is physics, not an implementation detail, and it is why streaming costs time.
 
+**Container RAM.** The RAM/disk preflight uses the smaller of host memory and
+visible cgroup hard limits on standard Linux cgroup v1/v2 mounts,
+including visible ancestor constraints. Reclaim protection (`memory.low`,
+`memory.min`, or v1 `memory.soft_limit_in_bytes`) does not reduce the default
+capacity. A provider integration may explicitly opt into its reservation-budget
+policy with `cgroup_memory_bounds(use_protection_budget=True)`; that budget is
+still bounded by hard limits and is not itself a kernel hard limit.
+Available container memory includes clean file-LRU cache, including recently
+active checkpoint pages, bounded by the host's own available-memory estimate.
+Shared, dirty/writeback and anonymous pages are not added back as free cache;
+a known limit with unreadable usage supplies no free headroom. This lets
+`stream_source: auto` choose NVMe when the real container allocation cannot
+safely hold the store. It does not change container limits or the planner's
+safety fractions. Systems without a finite visible cgroup limit retain the
+host measurement under the default policy.
+
 **Persistent decoder weights (opt-in).** `training.stream_resident_layers: auto`
 measures forward/backward at the configured batch size and maximum context, then keeps a
 centred block of frozen decoder weights in private GPU slots. They are copied once during
@@ -713,6 +736,17 @@ The 3B NF4-vs-bf16 rows differ by 1.85×, but attribute that to **pinning, not a
 The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised `embed_tokens` + `lm_head` both stayed resident and occupied 2.10 GB. Current code writes them as separate large-layer shards and reuses one device slot sized to the larger matrix, so an equally shaped untied pair should reclaim one matrix while a tied model keeps the same one-matrix requirement. Under `dpo` and `kto` that saving is spent again: the output head's forward keeps a private copy of the matrix for its backward every step (about 1.05 GB for Llama-3.1-8B in bf16, charged by the pre-flight, #1049). CPU CI pins bit-exact logits for both controls. The updated CUDA peak remains to be measured on the reference RTX 3050; the historical 3.32 GB figure is not relabelled as a new measurement.
 
 **Honest scope:**
+- **Container RAM accounting.** On Linux, streaming bounds host RAM by the visible
+  cgroup hard limits (including ancestors) and reclaim-aware available memory.
+  `memory.low`, `memory.min` and v1 soft limits protect memory from reclaim; they
+  do not reduce the default capacity or force an otherwise fitting store to disk.
+  A provider integration that explicitly budgets against such protection can call
+  `cgroup_memory_bounds(use_protection_budget=True)` and pass those bounds to its
+  planner, also bounded by host RAM. Ordinary CLI probes use the hard-limit policy.
+  The frozen [F2 allocation-budget cohort](../benchmarks/results/f2-capacity-20261020/README.md)
+  retains its registered reservation policy and measured source `fed4c760`; its
+  fallback/refusal results describe that budget, rather than physical exhaustion
+  at a hard 32 GB cap. Replay that source for those measurements.
 - **RAM tier + disk overflow (v0.72.3).** `stream_source: auto` picks RAM when the store fits both dynamic free-RAM headroom and a physical-host ceiling, falls back to NVMe disk when not; SATA/HDD rejected. Correctness verified. **The read is off the compute thread**: a background reader parses each shard's header itself (no memory map) and stages `training.stream_read_ahead` layers in host RAM (page-locked where the box allows — see `stream_pin` below), so the GPU is fed while the next layer is still arriving. **Measured cold and warm against a same-day control of the source it replaces** (RTX 5070 Laptop, 2026-09-14, [record](../benchmarks/gate-971-async-nvme-source.md)).
   - **Cold — a store larger than RAM, which is what this tier is for — is 2.1–3.1x faster.** On a 36 GB 70B-shaped NF4 store at batch 1 x seq 512 a step went from 92–100 s to **30–48 s**, each pair position-matched (5.1–5.6 -> **10.6–16.9 tok/s**; 0.70–0.76 -> **1.46–2.32 GB/s** at the source), against 124.5 s / 4.1 tok/s / 0.57 GB/s for the old synchronous path measured 2026-09-12 ([earlier record](../benchmarks/probe-rtx5070-what-bounds-streaming.md)). The range is position in the run, not depth — see below. Peak VRAM is unchanged at 4.38 GB.
   - **Since #974 the reader bypasses the page cache.** Each layer's data section is read as sector-aligned byte ranges through direct I/O (`FILE_FLAG_NO_BUFFERING` on Windows, `O_DIRECT` on Linux, `F_NOCACHE` on macOS; a buffered `open` where a filesystem refuses, e.g. tmpfs — the pre-flight log says which), four ranges in parallel, into **one staging region per slot** packed into the same power-of-two pinned arenas as the RAM store. The reason is a measurement, not a preference: on that same 36 GB store, cold, every *buffered* read primitive — per-tensor `readinto` (the path this replaces), one `readinto` per byte range, any thread count — topped out at **1.2–2.9 GB/s** on the dev box's NVMe, while unbuffered reads of the same fresh layers reached **3.5–5.65 GB/s**, best at 2–4 ranges ([record](../benchmarks/gate-974-disk-tier-direct-io.md)). The earlier 1.46–2.32 GB/s at the source was that buffered ceiling. Two consequences worth knowing: the staging no longer pays the per-tensor power-of-two rounding (#901's mechanism, 1.7–1.9x measured — the 70B store's four slots page-lock as one 2 GiB arena for 1.96 GB, and the ready line prints the figure on this tier too), and a disk-tier run no longer warms the page cache for anything that runs after it. Through the same cold protocol as the bullet above (36 GB 70B-shaped NF4 store, batch 1 x seq 512), the step is now **16.2–17.3 s at both run positions** — 6.4x the synchronous path measured in the same slot (110.5 s), 2.0–2.8x the reader this replaces (34.8–45.6 s) — with the read at 62–64% of the step at 6.0–7.0 GB/s; the new reader's two positions differ by 1.07x where the old one's differed by 1.31x, because a reader that bypasses the cache gives the same number wherever it runs ([record](../benchmarks/gate-974-disk-tier-direct-io.md) §8).
@@ -738,6 +772,78 @@ The 3.32 GB 8B row above predates large-layer streaming: its untied, unquantised
 - **A streamed 8B run now completes on a Turing card — free-tier Colab, Tesla T4 (sm_75) — and that is all it shows.** `NousResearch/Meta-Llama-3.1-8B-Instruct`, NF4, `stream_buffers: 2`, batch 1, `max_length: 256`, LoRA r=8, fp16: 7 steps, adapter written with 128 of 128 tensors non-zero in both runs (the second ran in-process, per the notebook, so it has no exit code to quote). The first run measured peak **2.91 GB** against a predicted ~3.02 GB (the pre-flight over-predicts by 3.8%, the safe direction it was fitted for), with the pre-flight reading **free VRAM 15.10 GB** — the device, not the per-process cap. The T4 has 15.6 GB, so the process was capped to **4.00 GB** with `torch.cuda.set_per_process_memory_fraction`, and the cap was shown to bite — a 4.29 GiB allocation was refused. The committed [notebook](../notebooks/proof-4gb.ipynb) now sets `training.stream_vram_override` to that same 4.00 GB, which replaces the yardstick the fit decision is taken against — the pre-flight then reports **free VRAM 4.00 GB** instead of the driver's whole-card figure, and it is a harder gate than the first run faced. Against it: predicted ~1.97 GB, **measured peak 1.83 GB** (a +7.7% over-prediction, still the safe direction). The drop from 2.91 GB is self-consistent, not a contradiction: the embeddings and `lm_head` moved out of the resident allocation into a streamed large-layer slot between the two runs. **No throughput is quoted from either run**: a card under an artificial cap is not a benchmark, and the notebook deliberately quotes none either. **What neither establishes**: backward/gradient exactness at 8B on Turing (a non-zero adapter shows gradients flowed, not that they were correct). The notebook's streamed-vs-resident comparison is now recorded rather than unrun — bit-exact, max `|streamed - resident|` = 0.0, `torch.equal` = True — but on `SmolLM2-135M`, fp16, unquantized, not the 8B NF4 configuration this bullet is about. Record: [`benchmarks/run-t4-colab-free-tier.md`](../benchmarks/run-t4-colab-free-tier.md).
 - **The bf16 3B throughput above is a LOWER BOUND.** The reference box could not page-lock the 5.55 GB base (its measured page-locked ceiling was 7.65 GB — which #901 later traced to per-tensor pinning being rounded up to powers of two, so that store was really asking for ~10 GB; it would pin today), so that run fell back to a pageable store. Pageable memory makes the host-to-device copy synchronous, which costs overlap — visible as the GPU-utilisation drop from 96.8% (1.5B, pinned) to 79.3% (3B, pageable). Soup does this fallback automatically **and prints the cost** rather than absorbing it silently. NF4 lifts this at 3B: the store drops under the ceiling and pins.
 - Numbers are Windows/WDDM and therefore systematically pessimistic versus Linux. `expandable_segments:True` is silently ignored on Windows; Soup detects that and does not claim it is active.
+
+### Experimental partial RAM residency (C3)
+
+`training.stream_partial_ram` keeps a fixed subset of decoder layers in CPU RAM
+and sends only the remaining layers to the existing asynchronous disk reader.
+It is off by default. The first supported path is **dense Llama, unquantized
+Transformers SFT, explicit disk tier**. CPU correctness tests and a
+bounded synthetic CUDA pilot pass. A subsequent frozen Llama 3.1 8B BF16 comparison
+completed 20 isolated CUDA runs with identical losses, gradients and final adapters.
+Physical process reads decreased by 25% on that controlled-text configuration.
+Performance remains **NO_VERDICT**: the unchanged repeats rule requires 20 blocks,
+but five were run. The low-level shared A4 bridge passes three CUDA spill controls;
+the public RAM-only L2L trainer integration passes local tests and its tiny-model
+CUDA control passed in attempt019. This is not full C3 acceptance.
+
+```yaml
+training:
+  stream_layers: true
+  stream_source: disk
+  quantization: none
+  batch_size: 1
+  l2l: false
+  stream_partial_ram:
+    limit_bytes: 8589934592     # example 8 GiB host allocation envelope
+    reserved_bytes: 4294967296  # example 4 GiB for other host users/safety
+    cache_bytes: 2147483648     # at most 2 GiB of resident allocations
+```
+
+With `l2l: true`, use a fixed integer `batch_size`. Before optional weight caching,
+the trainer additionally reserves the maximum configured RAM activation window
+(`max_length` rounded up to 64 tokens, accumulation count, hidden size, layer count
+and actual pinned allocation rounding). Do not include this automatically reserved
+window again in `reserved_bytes`; that field covers other users and safety.
+The actual store has its own bounded partition. Micro-batches of one window may differ
+in length; each is checked against the plan before the store grows, and a store that
+must grow releases its old lease first. A larger or incompatible window is refused.
+This public path uses uncompressed RAM activations, not activation spilling or dynamic
+weight eviction. Failed activation drains retain their leases and prevent weight cleanup.
+
+These values illustrate the configuration, not a measured safe recipe. Choose
+reservations for the actual workload. The trainer also charges resident extras
+and RAM-backed auxiliary weights, and caps the envelope using the existing
+free/physical-RAM headroom rules. The source checks the envelope **before buffer
+allocation**: caller/trainer reservations + resident allocations + disk staging
+allocations + the largest selected shard's loading map must fit. Pinned arena
+rounding and both pinned/pageable staging alignment overhead count against the envelope.
+Disk staging aligns the actual buffer address: pinned allocations are not assumed
+to start on a sector boundary. Per-arena alignment slack is reserved before allocation.
+An oversized plan is refused; it does not silently reduce reservations, change
+pinning or restart with another plan.
+
+Selection is stable first-fit in decoder order, retaining complete layers only.
+Embedding/head shards remain on the existing path. Cached layers are removed
+from the disk reader's path list, including speculative lookahead; get/release
+indices are remapped together. Cache loading reads each selected shard once.
+The cache is immutable throughout training and is released on runtime close;
+outstanding recorded transfer events are synchronized before cached storage is
+released. Constructor failures close any already-started disk reader.
+
+The envelope bounds accounted allocations, **not process RSS**. Python overhead,
+allocator retention, the OS page cache and unrelated processes are not controlled.
+There is no dynamic pressure-driven eviction. An experimental low-level bridge
+shares allocation leases with resident/spilled A4 activation buffers. Its zero/partial/full
+spill CUDA controls passed in attempt017. The public RAM-only L2L trainer uses the
+separate maximum-window reservation described above; its tiny-model CUDA control
+passed in attempt019. This does not validate public activation spilling or an 8B
+L2L performance claim. `resident_tensor_bytes_served` counts logical tensor requests served
+from RAM; it is neither physical SSD bytes saved nor a measured speedup. Runtime
+statistics distinguish resident tensor bytes, staging bytes, owned host
+allocations and the reserved peak including the loading transient.
+
+Local validation and open acceptance criteria: [C3 status](../benchmarks/c3/STATUS.md).
 
 ### FP8 source checkpoints (research track B3)
 
@@ -863,7 +969,7 @@ prints this advice when it sees you accumulating.
 - `lora.use_dora` / `lora.use_vera` / `lora.init_strategy` other than `random` → these initialise from the real base weight, which is on the meta device under streaming
 - `moe_expert_quant` → expert quantization runs only in the resident model-construction path and would otherwise be silently ignored
 - `unfrozen_parameters`, `lisa_enabled`, `packing`, `multipack`, `use_fsdp2_compile`, `train_router_only`, `expand_layers` → each independently rewrites or re-freezes the same layers
-- `stream_source` / `stream_ngram_source` / `stream_buffers` / `stream_read_ahead` / `stream_vram_override` / `stream_vram_probe` / `stream_disk_kind` / `stream_pin` set while `stream_layers: false` → a footgun, refused
+- `stream_source` / `stream_ngram_source` / `stream_buffers` / `stream_read_ahead` / `stream_vram_override` / `stream_vram_probe` / `stream_expert_layout` / `stream_disk_kind` / `stream_pin` set to a non-default value while `stream_layers: false` → a footgun, refused
 - a non-default `stream_read_ahead` beside `stream_source: ram` → refused. The read-ahead reader belongs to the NVMe disk tier and `ram` never falls back to it, so the setting would validate, be documented, and reach nothing. The default is accepted, because a default is not a decision
 - a disk-tier run whose host staging (`stream_read_ahead` layers, plus one slot each for the embedding and an untied `lm_head`) plus the resident extras will not fit the free-RAM headroom → refused by name, naming the depth to lower. Refused rather than clamped: a depth you set is a decision, and silently lowering it would hand back a slower run than the one you configured
 - more than 8 distinct layer shapes in one shard index → refused. Staging is allocated per shape and a shape with one member takes a full slot at any depth, so an index whose every layer differed would hold most of the model in staging at once — page-locked when the box allows it and `stream_pin` is not false, a loud pageable fallback otherwise, and a refusal only under `stream_pin: true` on a CUDA target — which is what the disk tier exists to avoid. A real model has one to three
@@ -971,22 +1077,160 @@ checkpoints and resume stay with the Hugging Face loop. The default `false` chan
 existing configs. Report:
 [`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
 
+**Internal MoE boundary (B1.3).** The internal step and trainer attachment also
+run native DeepSeek-V3 with per-expert storage; the public launch guard below
+still admits only Llama/Mistral. Non-expert LoRA trains through frozen routed
+experts using one shared weight arena. Each hit expert is read for no-grad
+forward, grad recompute and expert backward: three reads per micro-batch, not
+one expert read per window. Expert activations must be stateless; registered
+buffers are refused for backward, while expert-local random draws use local RNG
+replay. L2L separately replays LoRA/eager-attention dropout in accumulation order.
+See [the boundary and standalone smoke](expert-forward.md#b13-backward-and-l2l).
+
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
-- `task` other than `sft`.
+- `task` other than `sft`, `dpo`, `orpo`, `simpo` and `kto`. The four preference tasks have their
+  own limits in the next section.
 
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
 - More than one visible GPU. Use `CUDA_VISIBLE_DEVICES=0`.
 - `fp16`. The L2L step runs backward itself, so the fp16 grad scaler would never scale the loss. Use bf16 or fp32.
 - Rows with padding before real tokens. L2L needs right-padded rows.
-- `neftune_alpha` with a window whose micro-batches differ in shape. L2L pads them to one shape, which changes the NEFTune noise (it scales with `1 / sqrt(seq * hidden)`), so the result would differ from gradient accumulation. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
-- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Padding changes the shape of the layer input, so the replayed draws would differ from accumulation. Use rows of one length or set the dropout to 0.
+- `neftune_alpha` with a window whose micro-batches differ in shape. L2L runs each micro-batch at its own length, but NEFTune noise (it scales with `1 / sqrt(seq * hidden)`) has not been checked against gradient accumulation for rows of different lengths, so the combination stays refused. Windows of one shape are fine, and mixed-length windows are fine without NEFTune.
+- `lora.dropout` or `attention_dropout` above 0 with a window whose micro-batches differ in shape. Rows of different lengths draw different masks, and the replay builds the generator states from one draw plan shared by all micro-batches. Use rows of one length or set the dropout to 0.
 - `neftune_alpha` together with `lora.dropout` or `attention_dropout` above 0.
 - `attention_dropout` above 0 with the `sdpa` attention implementation.
-- Activations that do not fit host RAM. L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch in RAM (80 layers, hidden 8192, seq 4096, k=16 in bf16 is 80 GiB). On CUDA each chunk is a separate pinned allocation that torch rounds up to a power of two, so a 17 MiB chunk costs 32 MiB. The run stops before allocating when the store, counted that way, exceeds 70% of the free RAM left after the weight store. Lower `gradient_accumulation_steps`, `data.max_length` or `batch_size`.
+- Activations that do not fit host RAM even with every layer spilled to disk (see below).
+
+**Activations and the spill file.** L2L keeps one chunk of `batch x seq x hidden` per layer
+and micro-batch between the forward and the backward walk (80 layers, hidden 8192, seq 4096,
+k=16 in bf16 is 80 GiB). Each micro-batch position has its own capacity, sized to the
+largest activation seen at that position. Smaller windows reuse the store; a growing window
+closes the previous store and spill file before replanning. Before allocating, the run
+compares the actual resident chunks and spill staging buffers with the host-RAM budget:
+
+- **Budget.** Take the smaller of psutil's available memory and the smallest remainder over
+  the process's cgroup chain, from its own group up to the root of its namespace. The budget
+  is the smaller of 0.7 of that and that less a 512 MiB reserve (`RAM_RESERVE_BYTES`) kept
+  for what the rest of the training step allocates. Above 1.79 GB available the 0.7 decides;
+  below it the reserve does, and below 512 MiB the budget is 0. A
+  level's remainder is `limit - (used - inactive file cache)`: on cgroup v2 the limit is
+  `memory.max`, or `memory.high` when that is lower, used is `memory.current` and the cache is
+  `inactive_file` from that level's `memory.stat`; on v1 they are `memory.limit_in_bytes`,
+  `memory.usage_in_bytes` and `total_inactive_file`. Page-locked memory is charged as shmem
+  and counts. Levels without a limit are skipped; a parent can limit a child whose own limit
+  is `max`. Mountinfo maps controller co-mounts and subtree roots to the process's visible
+  cgroup ancestry. If an inherited mount predates a cgroup namespace and its membership
+  cannot be mapped, only its proven accessible ancestor is counted; a warning notes that a
+  tighter nested limit may be unknown. Unrelated or shadowed mounts are not charged. A level
+  whose limit cannot be read, or whose `memory.stat` cannot be read (then `limit - used` is
+  used), is logged. Without psutil and without a cgroup limit no budget is known and everything
+  stays in RAM.
+- **Cost.** On CUDA each micro-batch chunk is a separate pinned allocation that torch rounds
+  up to a power of two, so a 17 MiB chunk costs 32 MiB. Resident memory sums these individual
+  allocations. Spilling needs two staging rings of 4 buffers sized to the largest chunk
+  (rounded up to 4096 bytes), plus 4096 bytes each.
+- **Fits.** Nothing changes: no file, no checks of the spill directory.
+- **Does not fit.** The fewest layers spill, the lowest first, so that the rest plus the rings
+  fit. One console line before the first step names the number of layers, the file size, the
+  spill file's path, the budget and the level that limited it (`psutil`, or the cgroup
+  directory with its limit, use and inactive file cache). Each logged step carries
+  `l2l_spill_layers` (0 when nothing spills).
+- **Cannot fit.** When even every layer spilled does not fit, the run stops before allocating
+  with the numbers, the reserve included: lower `gradient_accumulation_steps`,
+  `data.max_length` or `batch_size`, or free RAM. For Mistral-7B at k 4, seq 512 that is below
+  576 MiB available (the reserve plus 64 MiB of staging rings).
+
+The 512 MiB reserve is chosen, not measured. It comes from one GPU measurement, Mistral-7B NF4,
+LoRA r 8, k 4, seq 512: after the budget was read, the first training step allocated about
+183 MB outside the activation store. With the 0.7 share alone, the budget left 130 MB for that
+growth and the run was OOM-killed (`benchmarks/a3-spill-gpu-check.md` §9). With the reserve, a
+second session on another box of the same kind saw 184 to 298 MB of such growth over whole runs
+(28 runs) and no OOM kill (§10). Other models, ranks, sequence lengths and batch sizes may
+allocate more.
+
+The file lives in `training.l2l_spill_dir`, by default `<output>/_l2l_spill`. Use a local drive
+with room; the path is not held to the working directory. The run stops with the directory,
+the reason and the fix when the directory is on tmpfs, ramfs, devtmpfs, overlay, aufs,
+squashfs or a network filesystem (Linux mountinfo; Windows drive type; native filesystem
+locality and diskutil backing information on macOS). macOS also refuses RAM/image-backed or
+unverifiable backing. The run refuses when the drive has less free space than the file plus
+the larger of 1 GiB and 10% of the file, or when a 1 MiB unbuffered write and read there do not
+return the same bytes.
+When the weights stream from disk, the spill must not share their physical
+disk (read from `/sys/dev/block` on Linux; unknown on Windows and macOS): with the default
+directory, the same or an unknown disk stops the run; with `training.l2l_spill_dir` set, the
+run continues with a warning.
+
+```yaml
+training:
+  l2l: true
+  l2l_spill_dir: /mnt/nvme1/soup-spill   # optional; default <output>/_l2l_spill
+```
+
+In the earlier A4 v3 configuration (RTX 3090 on PCIe 3.0, Mistral-7B NF4, seq 512, k 2-4,
+ring 4, one virtual disk), slowdown averaged +2.5% and +1.7%, with 95% upper bounds +6.1%
+and +5.5%. With spill on the weights' drive that experiment saw a 13% slower step. Record:
+`benchmarks/probe-a4-l2l-ram-budget-spill.md` (on the A4 branch). These are scoped measurements,
+not a speed guarantee on other machines or configurations.
+
+The trainer's spill path has been checked end to end on CPU. GPU session 3 (RTX 4090 VM,
+Mistral-7B NF4, LoRA r 8, k 4, seq 512, the chosen reserve, 13 of 32 layers spilled) gave
+gradients, losses and learning rates bit-equal to no spill over 3 optimizer steps; the
+no-spill reference repeated. The spill arm peaked at 6,154,133,504 B within its
+6,409,945,088 B cgroup limit, with no OOM kill. Normal-end cleanup, Ctrl-C during a backward
+recompute in step 2 (KeyboardInterrupt, exit 130, file gone), and kill -9 followed by stale
+removal at the next start and 3 normal training steps all passed. Cost was +2.39% per step
+(95% interval -1.80% to +6.57%, 5 blocks, cost children spilling 12-18 layers): **below 10%
+confirmed on this faster machine**, not a promise for other GPUs, drives or step lengths.
+**The original L2L-versus-GA criterion 1b remains FAIL**, with the same four tolerance
+failures as session 2; this is not a spill finding, because spill equals no spill bit for
+bit. The later [targeted causal diagnostic](../benchmarks/results/a3-1b-diagnostic-rtx4090-20261029/README.md)
+establishes two causes for this pinned fixture: padding policy changes the forward loss
+endpoint; with padding matched, disabling ambient CUDA autocast only at backward entry
+preserves measured forwards and makes all 256 gradients bit-equal over three steps,
+without changing L2L's schedule or accumulation order. The aligned diagnostic comparator
+passes with a newly matched padded floor, but one aggregate logged loss is not bit-equal;
+backward-scope alignment alone does not match native GA. The exact internal kernel/cast
+and earliest backward divergence remain unresolved. This is not a verified product fix,
+general parity claim, or permission to relabel the historical failure. The retained private
+tensors enabled byte-identical CPU replay of the original measured comparison, and its
+rule verdict also replayed byte for byte. Historical records:
+[`benchmarks/a3-spill-gpu-check.md` §11](../benchmarks/a3-spill-gpu-check.md#11-session-3-rtx-4090-vm-2026-10-28-protocol-v3-spill-confirmed-1b-fail),
+[`session 3 evidence`](../benchmarks/results/a3-spill-v3-rtx4090-20261028/README.md).
+Sessions 1 and 2 keep their historical NO VERDICT results (§9 and §10); the 512 MiB reserve
+remains chosen, not measured.
+
+Cleanup is best-effort. The file is removed at normal end, on an exception, on Ctrl-C and
+when the disk fills. After kill -9, an OOM kill, a power loss or an OS crash the file stays.
+The next run with the same directory removes it at start if the process that created it is
+no longer alive. Otherwise remove it by hand; its path is in the console line. Files are named
+`soup-l2l-spill-<pid>-<8 hex>.bin`; the start-up sweep selects only those names (and its own
+`soup-l2l-probe-*` files) directly in that directory and never follows links. POSIX cleanup
+atomically claims a candidate into a private `.soup-l2l-sweep-*` directory and verifies its
+identity before deletion. If a replacement wins the race, it is restored without overwriting
+another file when possible; otherwise it is preserved at a logged recovery path, never deleted
+as stale. Such recovery directories are not automatically swept. Windows deletes through a
+verified no-follow file handle while holding directory replacement guards.
+
+**Changes after the GPU measurement.** Session 3 measured commit `ec795ef1`, not the later
+audit corrections. Those corrections make stale cleanup unlink inspected names rather than
+resolved link targets, discover non-default cgroup mounts, classify macOS volume backing,
+bound raw I/O requests to sector-aligned platform limits, and use blocking host transfers on
+non-CUDA devices. Store construction and close now retain buffers until started workers and
+pending transfers complete. A larger unknown-length window releases the previous store before
+rebudgeting; on CUDA, public `torch.accelerator.empty_host_cache()` is used when available.
+Older torch without that API may conservatively refuse growth while idle pinned cache remains
+charged; a warning explains this rather than assuming those bytes are reusable.
+
+These later changes have CPU regression and real CPU spill/interrupt/restart checks, not a new
+GPU measurement, native MPS run, native macOS volume test or 2 GiB Windows transfer run.
+Cleanup remains best-effort, including interruption inside CPython's native thread-launch
+window before it publishes a worker identity. The frozen GPU verdict is not reinterpreted as
+coverage of every later error path.
 
 **Dropout.** `lora.dropout` above 0 is allowed, and so is `attention_dropout` above 0 with eager
 attention. Gradient accumulation draws every mask from one CPU (and CUDA) generator, micro-batch
@@ -1011,12 +1255,25 @@ Refused because the stream cannot be replayed: `attention_dropout` above 0 with 
 attention implementation (its mask is drawn inside a fused kernel; load the model with
 `attn_implementation='eager'`), `neftune_alpha` together with dropout (accumulation draws the
 NEFTune noise from the same stream between the layers), and a window of rows with different
-lengths together with dropout (padding changes the shapes of the draws).
+lengths together with dropout (rows of different lengths draw different masks).
 
 With `k: 1` L2L loads the same layers as plain streaming and saves nothing. Window rows of
-different lengths are padded to a common shape (a multiple of 64 tokens), and the first batch of
-each new shape costs one extra forward pass. Speed and memory were not measured, and the check
-used random tokens, not real text. MoE and multi-GPU are out of scope.
+different lengths are not padded. Each micro-batch runs at its own length, as in gradient
+accumulation. The first micro-batch of each new shape captures the layer arguments (position
+embeddings, mask) by running the forward up to layer 0 and stopping there, so no layer is loaded
+or run: on Mistral-7B NF4 with 64 alpaca rows at `batch_size: 1`, k = 4, a step loaded layers
+64.3 times (61 plus one per capture) instead of 165.5, and capture time fell from about 20% of
+the step to under 1% (RTX 3070 and RTX 3090, 4 A-B-B-A blocks each, see
+`benchmarks/probe-vast-l2l-capture-a5-ticket09.md`). With dropout on, the capture still runs the
+whole forward to record the dropout masks, and costs one load of every layer per new shape. That
+15% (3070) and 16% (3090) lead of gradient accumulation over L2L belongs to the one host each card
+ran on: the sign of the speed gap changes with the host (see "Status after A5" below).
+
+The activation store sizes the chunks of micro-batch `i` to the largest micro-batch that has
+been in position `i`, so a short row does not pay for the longest row of its window; the RAM
+check sums those sizes. The store was 191 MB for that run. The RAM check used random tokens, not
+real text. Public MoE launch and multi-GPU are out of scope; the separate internal B1.3 MoE
+path is described above.
 
 **Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
 number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
@@ -1035,8 +1292,11 @@ quality was not measured. Report and raw logs:
 [`benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md`](../benchmarks/probe-vast-rtx3060-l2l-mistral7b-ticket05.md).
 
 - Two accumulation runs equal each other bit for bit, so the stand itself is deterministic.
-- L2L and accumulation are **not** bit-identical in bf16. The relative L2 error of the LoRA
-  gradients is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
+- L2L and accumulation are **not** bit-identical in bf16 on this stand. (Superseded: the stand ran
+  `backward` inside `autocast`, the real trainer does not, and the gap came from that. With the
+  trainer fixed, LoRA gradients match accumulation bit for bit over 16 steps and parameters
+  over the first 4 updates (0 to 3) on an RTX 3070, see the A5 status below.) The relative L2 error of the LoRA
+  gradients here is 1.8%, 1.6% and 5.3% on steps 0 to 2, about 1.7% in every layer. Switching only
   the SDPA backend inside accumulation gives 1.4%, 1.5% and 4.5%, the same order.
 - In fp32 the two agree to 2.1e-6, 3.1e-6 and 8.3e-6 (rounding noise, not bit-equal). The bf16
   gap is bf16 rounding, not a different computation in the L2L step.
@@ -1047,6 +1307,36 @@ quality was not measured. Report and raw logs:
 - A tolerance in place of the bit criterion is set in ticket 07 and was not applied to these
   numbers yet.
 
+**Status after A5 (Mistral-7B v0.1 NF4, 2026-10-29): ready with limits, for one card and one host (RTX 5070 Ti 16 GB).** The rule that gives the
+verdict is [`benchmarks/l2l-readiness-rule-a5.md`](../benchmarks/l2l-readiness-rule-a5.md), the
+evidence and the command that reproduces it are in
+[`benchmarks/probe-vast-l2l-a5-readiness-report.md`](../benchmarks/probe-vast-l2l-a5-readiness-report.md).
+The required `foreign_reads` validity check was `unknown` on the 3090, 3070 Ti and 3070 runs (the cache sits on a
+container overlay), so those runs give no verdict. On a vast local volume the check answers, and the 5070 Ti set has 50 arms `ok` and 2 `void` (excluded).
+
+- **Correct.** All 30 L2L runs of the SFT campaigns (RTX 3090, 3070 Ti and 3070, 16 steps each)
+  and the 22 runs on the RTX 5070 Ti stay inside the A3-07 loss tolerance at every step, and windows of rows of different lengths
+  match gradient accumulation. The cause of the earlier loss gap (`backward` inside `autocast`)
+  is fixed. Report: `benchmarks/probe-vast-l2l-loss-divergence-a5-ticket08.md`.
+- **Memory.** Peak VRAM allocated is 1.13 GB with L2L and 1.15 GB with streamed accumulation
+  (0.89 and 0.92 GB on the 5070 Ti). Plain QLoRA with no streaming needs 7.10 GB, which fits an 8 GB card with 1.1 GB to spare. It
+  is faster than both (280 to 324 tokens/s against 70 to 184 for streamed accumulation, three
+  hosts; 367 on the 5070 Ti), and a batch of 8 on a 24 GB card gives 546 to 654 tokens/s at 21.1 GB
+  (batch 4 on the 16 GB 5070 Ti: 893 tokens/s at 13.1 GB). Its loss does not pass the A3-07 tolerance against accumulation,
+  so these are speed and memory figures, not equivalent training. Turn streaming
+  on when the model does not fit resident, not for speed
+  (`benchmarks/probe-vast-l2l-best-batch-a5-ticket11.md`).
+- **Speed against streamed accumulation depends on the host.** Over ten hosts the difference
+  (L2L minus accumulation) runs from -36 to +168 tokens/s, 0.79 to 2.6 times. L2L was slower on
+  hosts with fast host-to-GPU copies (about 20 GB/s and above) and faster on slow ones, but one
+  host does not fit that pattern, so treat it as a correlation. Measure on your own host before
+  expecting L2L to be faster. On the one host where the validity check answers (RTX 5070 Ti), the repeats rule is met (11 valid blocks) and the difference is +3.6 tokens/s [-11.6; +18.7], so L2L is neither faster nor slower there within the measurement.
+- **Not measured.** Weight reads from disk (page cache was warm), spilling activations to a
+  separate disk (the A4 spill is not wired into the trainer, the run stops on RAM first), models
+  other than Mistral-7B, and a real 70B or 1T. A run with random weights of 70B shape used
+  3.33 GiB of VRAM at the peak on a 24 GB card, which says nothing about the speed or quality of
+  a real 70B.
+
 **RAM for Mistral-7B NF4.** The NF4 weight store takes about 4.1 GB. The activation cache is
 
 ```text
@@ -1054,10 +1344,11 @@ cache = 32 layers x k x batch x seq x 4096 x 2 bytes
 ```
 
 with `seq` rounded up to a multiple of 64 and, on CUDA, each chunk rounded up to a power of
-two. The run needs free RAM of at least `cache / 0.7` after the weight store. For k = 4 the
-cache is 1 GiB at batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq
-2048, so the last one needs about 11.5 GiB free on top of the weights. These figures come
-from the formula, not from a measurement on a loaded host.
+two. The whole cache stays in RAM when it is at most 0.7 of the RAM left after the weight
+store; below that the lowest layers spill to disk (see above). For k = 4 the cache is 1 GiB at
+batch 1 x seq 1024, 4 GiB at batch 2 x seq 2048 and 8 GiB at batch 4 x seq 2048, so the last
+one stays in RAM with about 11.5 GiB free on top of the weights. These figures come from the
+formula, not from a measurement on a loaded host.
 
 **Bit-for-bit equality.** Equal bits against accumulation need all of:
 
@@ -1072,7 +1363,7 @@ On SmolLM2-135M this gave equal bits. On Mistral-7B NF4 in bf16 it did not (see 
 compare 7B runs with a tolerance. The stand is
 [`benchmarks/harness/l2l_mistral_stand.py`](../benchmarks/harness/l2l_mistral_stand.py).
 
-**Counters.** Each logged training step carries four cumulative fields:
+**Counters.** Each logged training step carries five fields; the first four are cumulative:
 
 | Log field | Meaning |
 |---|---|
@@ -1080,9 +1371,125 @@ compare 7B runs with a tolerance. The stand is
 | `l2l_layer_loads` | decoder layers loaded into a streaming slot |
 | `l2l_large_loads` | loads of the large-layer slot (embedding, untied `lm_head`); 0 on tied checkpoints |
 | `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
+| `l2l_spill_layers` | layers whose activations go to the spill file; 0 when everything stays in RAM |
+
+Internal B1.3 MoE runs additionally log `l2l_expert_fetches` and
+`l2l_expert_bytes_read` (logical stored bytes). These include expert backward
+reloads and are distinct from decoder-layer loads and physical disk traffic.
 
 Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
 flat as k grows. With plain accumulation it grows roughly in proportion to k.
+
+### L2L for preference tasks (`dpo`, `orpo`, `simpo`, `kto`, BETA)
+
+`training.l2l: true` accepts `task: dpo`, `orpo`, `simpo` and `kto` next to `sft`. The default
+stays `false` ([ADR 0002](adr/0002-l2l-is-a-bool-and-k-is-gradient-accumulation.md)). Each
+layer is loaded once per optimizer step and runs all k micro-batches, as for SFT. A window loss
+replaces the cross-entropy head. It reproduces the loss of the installed TRL trainer for that
+method, and the Hugging Face loop divides the loss of each micro-batch by `len(window)`, the same
+as gradient accumulation does for these four trainers.
+
+The config accepts all four methods, but only DPO passed the readiness rule. ORPO, SimPO and KTO
+ran in the same test and missed it by narrow margins (below), so they are marked not ready.
+The flag does not stop them, but building their trainer prints a warning that the task is not
+ready. Their runs are not verified to match accumulation.
+
+| Method | Ready | Model and card | Report |
+|---|---|---|---|
+| `dpo` | ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-dpo-a6-ready.md`](../benchmarks/probe-vast-l2l-dpo-a6-ready.md) |
+| `orpo` | not ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-orpo-a6-ready.md`](../benchmarks/probe-vast-l2l-orpo-a6-ready.md) |
+| `simpo` | not ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-simpo-a6-ready.md`](../benchmarks/probe-vast-l2l-simpo-a6-ready.md) |
+| `kto` | not ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-kto-a6-ready.md`](../benchmarks/probe-vast-l2l-kto-a6-ready.md) |
+
+"Ready" for DPO holds only under the limits listed at the end of this section: bf16 at one kernel
+setting, float32 by a driver workaround, 12 synthetic rows, one model, one card.
+
+The rule that gives the verdicts is
+[`benchmarks/l2l-preference-readiness-rule-a6.md`](../benchmarks/l2l-preference-readiness-rule-a6.md).
+It was written and committed before the GPU run. A method passes when every cell of k = 1, 2 and 4
+meets four criteria: float32 gradients and recorded losses bit for bit equal to accumulation, bf16 gradients and loss at
+step 0 within 1.5 times the noise floor, finite non-trivial gradients, and the same layer loads
+per step as L2L SFT. The rule was not changed after the data. The ticket 06 reports in
+`benchmarks/` stay "not passed" under their own, stricter criterion.
+
+What each report found, on the same 12-row synthetic set, k = 1, 2 and 4, 84 arm runs, all valid:
+
+- **DPO** passed 3 of 3 cells. DPO at k = 1 was measured earlier
+  ([`probe-vast-l2l-dpo-divergence-a6-ticket08.md`](../benchmarks/probe-vast-l2l-dpo-divergence-a6-ticket08.md)),
+  and the criterion was proposed after that, so this pass is not independent evidence.
+- **ORPO** did not pass at any k. In bf16 at step 0, 1 to 3 of 120 LoRA tensors fell outside 1.5
+  floors, by 1.08 to 1.78 times. The largest difference over all tensors was below the largest
+  floor.
+- **SimPO** did not pass at k = 2. In bf16 at step 0, 3 tensors fell outside, by up to 1.22 times. k = 1 and k = 4
+  passed.
+- **KTO** did not pass at k = 4. The float32 gradients were bit-equal at every step, and the
+  recorded loss of step 0 differed by 3e-8, the last float32 digit. k = 1 and k = 2 passed.
+- In all four reports the float32 gradients were bit-equal in all 12 cells except that one KTO
+  loss, and the layer loads per step equalled those of L2L SFT in all 12 (the reference and KL
+  passes reuse the loaded layer).
+
+**Refused when the config is read**, besides the SFT refusals above:
+
+- `task: dpo` with `dpo_beta_schedule` or `dpo_beta_end`. The L2L loss keeps beta fixed.
+- `dpo_ref_regen_epochs` on any DPO run. It is refused with or without L2L.
+- `task: dpo` or `task: kto` with `neftune_alpha`. The reference forwards draw NEFTune noise
+  between the policy forwards, an order the layer-major walk does not reproduce.
+
+**Refused when the trainer is built.** Soup exposes none of these settings today, so the checks
+guard against a TRL default that moves.
+
+- DPO reproduces plain sigmoid DPO against the `ref` adapter. It refuses a trainer with a
+  `loss_type` other than `sigmoid`, `loss_weights` other than `[1.0]`, a `ref_model`,
+  `precompute_ref_log_probs` on (precomputed reference log-probabilities), `ld_alpha`, or an
+  `f_divergence_type` other than `reverse_kl`, `label_smoothing` other than 0, or
+  `use_weighting` on (both change the sigmoid loss in TRL 0.29.1).
+- KTO reproduces plain KTO with the adapters switched off as the reference. It refuses a
+  `loss_type` other than `kto`, `calculate_KL` off, a `ref_model`, `precompute_ref_log_probs` on,
+  a `ref_adapter_name`, and `aux_loss_enabled`. It also needs `dataset_num_proc` unset or 1,
+  one process, and TRL's sequential sampler, because TRL builds each row's KL completion inside
+  a block of consecutive rows.
+- ORPO refuses a trainer with `aux_loss_enabled` on.
+- SimPO refuses a `loss_type` other than `simpo`, `label_smoothing` other than 0 and
+  `aux_loss_enabled` on. It also refuses rows whose short answer TRL truncates to zero tokens, on
+  this path and on the ordinary path.
+- Every one of these checks also refuses a trainer that lacks the attribute, so a TRL that
+  renames it stops the run instead of passing unchecked.
+- All four share the launch refusals of the SFT section: `model_type` other than `llama` or
+  `mistral`, more than one visible GPU, `fp16`, and padding before real tokens.
+
+`lora.dropout` above 0 is not refused for DPO and KTO, because TRL zeroes every `nn.Dropout`
+when it builds those trainers, so no mask is drawn in either forward.
+
+**Limits.**
+
+- **Model and card.** SmolLM2-135M on one RTX 3060 12 GB (Vast.ai host in Poland, torch
+  2.14.1+cu130, transformers 5.19.0, trl 0.29.1, peft 0.21.2). The result does not carry to other
+  models or cards.
+- **Data.** 12 synthetic rows per method (`examples/data/*_synthetic.jsonl`). Model quality was
+  not measured.
+- **bf16 holds at one kernel setting.** The bf16 criterion pins the `MATH` SDPA backend in both
+  paths and judges step 0 only, where the adapters are equal. Without the pin, DPO at
+  k = 1 missed the tolerance on the step 0 loss (8.28e-3 against a limit of 7.87e-3). The
+  default kernel is `EFFICIENT_ATTENTION` in both paths, and the cause of the gap is not
+  explained beyond bf16 rounding inside an operation
+  ([`probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md`](../benchmarks/probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md)).
+  bf16 results are not bit-equal to accumulation, even at step 0.
+- **float32 is a workaround.** The runs got float32 by replacing two functions in the check
+  driver. No supported config setting produces it, so the bit-for-bit result describes the L2L
+  step, not a user setting.
+- **Cost of the reference passes.** Each reference pass keeps k hidden states on the GPU (batch x
+  seq x hidden each) for the whole walk over the layers. DPO has one pass. KTO has three passes
+  (policy KL, reference, reference KL), so KTO holds four sets of k hidden states where the
+  policy forward alone holds one. Each pass also does an adapter switch on every layer
+  (`set_adapter` or `disable_adapter`), which walks all LoRA modules each time. Neither the
+  memory nor the time of this was measured.
+- **Library versions.** The division of the window loss by `len(batch_samples)` was read in the
+  code of transformers 5.16.1 (the floor in `pyproject.toml`) and 5.20.2, and it is the same.
+  The code of trl 0.29.0, the floor in `pyproject.toml`, was not read. The losses of the four
+  methods were checked on trl 0.29.1 only.
+- **Not measured.** Speed, weight reads from disk, memory beyond the layer-load counters, NF4 and
+  quantized runs, real datasets, models larger than SmolLM2-135M, more than one card, and the
+  trl 0.29.0 trainers.
 
 ### Preference losses over streaming (v0.72.4)
 
@@ -1327,6 +1734,40 @@ A candidate is refused when the step raises an out-of-memory error **or** when i
 
 ## Multi-GPU / DeepSpeed / FSDP
 
+The R&D [H3 first-stage report](../benchmarks/h3-fsdp-followup-20261027.md) records
+matched one/two-GPU FP32 FSDP2 + LoRA training, separate-process adapter reload
+and per-rank memory. Four accepted RTX 3090 arms measured negative scaling for
+Qwen2.5-0.5B/global batch 8: speedup 0.4922, efficiency 0.2461. All eight reloads
+had zero output error. The separate
+[conservative BF16 follow-up](../benchmarks/h3-bf16-result-20261027.md) passed
+the unchanged strict first-step gate and eight reloads on two RTX 4090s:
+6932.17 → 7584.77 input tokens/s, speedup 1.0941, efficiency 0.5471.
+It uses deterministic math SDPA and FP32 intermediate reductions. The later
+[native Flash BF16 validation](../benchmarks/h3-flash-bf16-result-20261027.md)
+passed with deterministic algorithms and ordinary BF16 GEMM reduction enabled:
+all first-step differences and eight reload errors were zero. Its matched
+throughput was 8178.13 → 8102.46 input tokens/s (speedup 0.9907). Actual Flash
+forward/backward operators were recorded on every rank. Nondeterministic Flash
+defaults failed the unchanged strict gate and remain excluded from scaling.
+Resume, 4/8 GPUs and larger-model scaling are unmeasured.
+The harness records the
+actual FSDP plugin version: older preset option names do not establish which
+implementation a particular Transformers/Accelerate environment selected.
+
+For transformers SFT with FSDP2, frozen tied input embeddings and the output head
+are placed jointly in one sharding group before the rest of the model is wrapped.
+This prevents Torch 2.13's first-forward rejection when Accelerate 1.14 places
+the two uses of a shared parameter in separate groups. Untied embeddings,
+trainable embedding/head modules and FSDP1 are left to their existing paths.
+With `cpu_ram_efficient_loading=True`, joint placement is deferred until after
+Accelerate captures the full state and moves/re-ties the model on meta, before
+child wrapping. This preserves rank 0's full tensors for broadcast and avoids
+distributing an already-local shard as a full weight. The compatibility binding
+is local to this accelerator; an unsupported preparation API fails explicitly.
+The [review follow-up](../benchmarks/h3-fsdp-review-20261028.md) covers this
+loading contract with real two-rank CPU/Gloo tests, including BF16 master-weight
+upcasting and optimizer parameter remapping. This mode has no new GPU result.
+
 Train on multiple GPUs with DeepSpeed or PyTorch FSDP2:
 
 ```bash
@@ -1473,6 +1914,16 @@ training:
 
 Config validation ships in v0.27.0; live execution ships in v0.27.1. See
 `recipes/deepseek-v3-pipeline` for a full scaffold.
+
+The separate [H3 two-stage pipeline experiment](../benchmarks/h3-pipeline-protocol-20261029.md)
+uses an explicit native `torch.distributed.pipelining` harness for Qwen2 + LoRA.
+It checks microbatch/gradient accumulation against ordinary training and merges
+stage adapters for separate-process reload. This research recipe does not change
+the CLI route above. The [GPU result](../benchmarks/h3-pipeline-result-20261029.md)
+records two passing four-step runs on two RTX 3090s, strict ordinary-control
+gradient/update checks and two zero-error adapter reloads. CPU fixtures and the
+[H3 acceptance map](../benchmarks/h3-acceptance-20261029.md) remain separately
+labelled; no pipeline throughput or general CLI support is claimed.
 
 
 ## Performance + Long-Context

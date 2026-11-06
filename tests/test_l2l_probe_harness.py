@@ -339,20 +339,33 @@ def sched():
     return _load("l2l_schedule")
 
 
+def hermetic_ram(monkeypatch, tmp_path, free=10**12):
+    """The L2L trainer's RAM budget sees ``free`` bytes of free RAM and no cgroup limit, so a
+    test does not depend on the host's free memory (the budget keeps a 512 MiB reserve)."""
+    from soup_cli.utils import l2l_spill
+
+    empty = tmp_path / "no-cgroup"
+    empty.mkdir(exist_ok=True)
+    for name in ("PROC_ROOT", "CGROUP_V2_ROOT", "CGROUP_V1_ROOT"):
+        monkeypatch.setattr(l2l_spill, name, str(empty))
+    monkeypatch.setattr("soup_cli.utils.layer_stream.free_ram_bytes", lambda: free)
+
+
 @pytest.fixture()
-def streamed(tmp_path):
+def streamed(tmp_path, monkeypatch):
     """A tiny untied Llama through shard_checkpoint + build_streamed_model on CPU.
 
     Untied, so the embed/head share the streamed large slot exactly as the 70B
     fixture's do; three layers, so the zig-zag turnaround and the backward
-    prefetch both run.
+    prefetch both run. The activations always fit the L2L budget (``hermetic_ram``).
     """
     model, runtime = build_streamed(tmp_path)
+    hermetic_ram(monkeypatch, tmp_path)
     yield model, runtime
     runtime.close()
 
 
-def build_streamed(tmp_path, lora_dropout=0.0, device="cpu"):
+def build_streamed(tmp_path, lora_dropout=0.0, device="cpu", n_layers=3):
     """The ``streamed`` fixture's model; the caller closes ``runtime``."""
     pytest.importorskip("peft")
     from peft import LoraConfig, TaskType
@@ -361,7 +374,7 @@ def build_streamed(tmp_path, lora_dropout=0.0, device="cpu"):
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
     from tests.test_v07204 import _tiny_llama_dir
 
-    weights, _model, _config = _tiny_llama_dir(tmp_path, n_layers=3, tie=False)
+    weights, _model, _config = _tiny_llama_dir(tmp_path, n_layers=n_layers, tie=False)
     shards = str(tmp_path / "shards")
     index = shard_checkpoint(weights, shards, dtype="float32", arch="llama")
     lora = LoraConfig(
@@ -440,6 +453,43 @@ def test_the_divisor_matters(sched, acts, streamed):
     sched.zero_grads(model)
     step.run(mbs, _cpu_store(acts, 2), n_items=SEQ - 1)
     assert not sched.compare(ga, sched.collect_grads(model))["equal"]
+
+
+def test_a_nan_gradient_is_unequal_and_the_comparison_stays_json(sched):
+    """Corrupt NF4 records can produce NaN gradients; strict JSON must preserve the control."""
+    import torch
+
+    ref = {"a": torch.ones(3), "b": torch.ones(3), "c": torch.ones(3)}
+    cand = {"a": torch.tensor([1.0, float("nan"), 1.0]), "b": torch.tensor([1.0, 3.0, 1.0]),
+            "c": torch.ones(3)}
+    out = sched.compare(ref, cand)
+    assert out["equal"] is False
+    assert out["unequal"] == ["a", "b"] and out["nonfinite"] == ["a"]
+    assert out["max_abs"] is None  # not 2.0: the finite maximum would hide the NaN gap
+    assert [row["name"] for row in out["worst"]] == ["a", "b"]
+    json.dumps(out, allow_nan=False)
+
+
+def test_when_every_unequal_tensor_is_nonfinite_the_gap_is_unknown_not_zero(sched):
+    import torch
+
+    ref = {"a": torch.ones(2), "b": torch.ones(2)}
+    cand = {"a": torch.tensor([1.0, float("nan")]), "b": torch.tensor([float("inf"), 1.0]),
+            }
+    out = sched.compare(ref, cand)
+    assert out["equal"] is False and out["unequal"] == ["a", "b"]
+    assert out["max_abs"] is None
+    assert sched.gap_text(out["max_abs"]) == "non-finite"
+    assert sched.gap_text(1.5e-3) == "1.500e-03"
+    json.dumps(out, allow_nan=False)
+
+
+def test_equal_gradients_still_report_a_zero_gap(sched):
+    import torch
+
+    same = {"a": torch.ones(2)}
+    out = sched.compare(same, {"a": torch.ones(2)})
+    assert out["equal"] is True and out["max_abs"] == 0.0
 
 
 def test_losses_are_compared_per_position(sched, acts, streamed):
@@ -627,6 +677,14 @@ def test_g2_fails_when_the_read_does_not_hide(rule, tmp_path):
     out = rule.evaluate(_write(tmp_path, timing=timing))
     assert out["gates"]["G2"]["status"] == "fail"
     assert out["verdict"].startswith("STOP")
+
+
+def test_g1_reports_a_nan_gap_instead_of_crashing_on_a_none_max_abs(rule, tmp_path):
+    bad = _corr("F1", l2l=False)
+    bad["records"][0]["l2l"].update(max_abs=None, nonfinite=["x"])
+    out = rule.evaluate(_write(tmp_path, f1=bad))
+    assert out["gates"]["G1"]["status"] == "fail"
+    assert "max |d| non-finite" in out["gates"]["G1"]["detail"]
 
 
 def test_g4_fails_when_vram_grows(rule, tmp_path):

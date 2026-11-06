@@ -1,0 +1,35 @@
+{
+  "status": "PASS_LOCAL_DIRECT_FETCH_PREPARATION",
+  "independent_review": false,
+  "tests": "74 passed, 3 CUDA skipped; no new GPU evidence",
+  "lint": "PASS src/soup_cli tests benchmarks/c3",
+  "format": "PASS new files",
+  "diff_check": "PASS in repository",
+  "live_probe": {
+    "status": "PASS_ALL_ARTIFACTS_SHA_READBACK",
+    "manifest_sha256": "182b2f9ef10ef71ef19521e4b57b9033c8bdb2b39f332a64d2f231c21e2c9e19",
+    "deadline_unix_s": 1793389526.348472,
+    "expected_bytes": 30794731,
+    "verified_bytes": 30794731,
+    "files": [
+      {
+        "path": "wheels/cuda_toolkit-13.0.3.0-py2.py3-none-any.whl",
+        "bytes": 2512,
+        "sha256": "d693caaa261214ddd7dbb60d68e71cbed884e68c2be7509778f3051da0b91c3f"
+      },
+      {
+        "path": "cpython-3.11.16+20260929-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+        "bytes": 30792219,
+        "sha256": "f05084f3fbd7a0c7ed762ea6fd2455976a463952bb5c3253fc6cdc777f84728d"
+      }
+    ],
+    "performance_verdict": "NO_VERDICT",
+    "current_file": "cpython-3.11.16+20260929-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+    "finished_unix_s": 1793389352.4700139
+  },
+  "file_sha256": {
+    "benchmarks/c3/fetch_artifacts.py": "6f8950c34b1cde6b7ca5c5aac6ba0569ea3563adb73b5345eead077bc7b5a6be",
+    "tests/test_c3_fetch_artifacts.py": "e20c6985e92aad6d8f93b804d1354717d2bf856c673eb82efcbdc5a6078325e8",
+    "benchmarks/c3/DIRECT_FETCH_PROTOCOL.txt": "a4d7fa51ae75b5c87194619911f70d068327d4494d015cd5adfae0f94577bbcc"
+  }
+}

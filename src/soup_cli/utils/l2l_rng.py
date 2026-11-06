@@ -1,16 +1,16 @@
 """Replay of the random stream gradient accumulation draws, for the L2L step.
 
-``lora.dropout`` > 0 draws a mask from the global generator on every layer call. Plain
-accumulation runs micro-batch after micro-batch, layer after layer, so each (micro-batch,
-layer) pair starts where the previous one left the generator. The L2L step visits the
-pairs layer by layer and calls each layer a second time in the backward to recompute it.
-One shared stream cannot give both orders the same masks, and saving the state per pair
-does not help while the forward order differs.
+``lora.dropout`` > 0 draws a mask from the global generator on decoder and head calls.
+Plain accumulation runs each micro-batch through every decoder layer and then its head,
+so each call starts where the preceding one left the generator. The L2L step instead
+visits decoder calls layer by layer and recomputes them in backward. One shared stream
+cannot give both orders the same masks, and saving states in layer-major order cannot
+recover the accumulation schedule.
 
 So the step learns the state of every pair before it runs anything:
 
-1. ``record_draws`` notes, per layer, which dropouts one layer call draws (shape, strides,
-   dtype, device, probability) while the capture forward runs.
+1. ``record_draws`` notes, per decoder layer and head, which dropouts a call draws (shape,
+   strides, dtype, device, probability) while the capture forward runs.
 2. ``replay`` starts from the generator state at the step and runs those dropouts on
    zeros of the same metadata in accumulation order. A dropout consumes the generator as a
    function of that metadata only, so the state before each pair equals the one
@@ -122,7 +122,9 @@ def record_draws(layers: Sequence[Any]) -> Iterator[List[List[Draw]]]:
     plan: List[List[Draw]] = [[] for _ in layers]
     current: Dict[str, Optional[int]] = {"layer": None}
 
-    def dropout(input, p=0.5, training=True, inplace=False):  # noqa: A002
+    def dropout(
+        input: Any, p: float = 0.5, training: bool = True, inplace: bool = False,
+    ) -> Any:  # noqa: A002
         if training and p > 0 and current["layer"] is not None:
             plan[current["layer"]].append(
                 Draw(
@@ -135,7 +137,7 @@ def record_draws(layers: Sequence[Any]) -> Iterator[List[List[Draw]]]:
             )
         return real_dropout(input, p, training, inplace)
 
-    def sdpa(*args, **kwargs):
+    def sdpa(*args: Any, **kwargs: Any) -> Any:
         dropout_p = kwargs.get("dropout_p", args[4] if len(args) > 4 else 0.0)
         if dropout_p and current["layer"] is not None:
             raise ValueError(

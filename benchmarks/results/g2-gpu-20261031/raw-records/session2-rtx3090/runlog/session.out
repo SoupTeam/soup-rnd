@@ -1,0 +1,54 @@
+shapes                       exit 0
+correctness_k1               exit 0
+correctness_k1_det           exit 0
+correctness_k2               exit 0
+correctness_k2_det           exit 0
+correctness_k4               exit 0
+correctness_k4_det           exit 0
+profile_ram                  exit 0
+profile_disk                 exit 0
+ram_store_vs_recompute/b00_p0_A              exit 0
+ram_store_vs_recompute/b00_p1_B              exit 0
+ram_store_vs_recompute/b00_p2_B              exit 0
+ram_store_vs_recompute/b00_p3_A              exit 0
+ram_store_vs_recompute/b01_p0_A              exit 0
+ram_store_vs_recompute/b01_p1_B              exit 0
+ram_store_vs_recompute/b01_p2_B              exit 0
+ram_store_vs_recompute/b01_p3_A              exit 0
+ram_store_vs_recompute/b02_p0_A              exit 0
+ram_store_vs_recompute/b02_p1_B              exit 0
+ram_store_vs_recompute/b02_p2_B              exit 0
+ram_store_vs_recompute/b02_p3_A              exit 0
+ram_store_vs_recompute/b03_p0_A              exit 0
+ram_store_vs_recompute/b03_p1_B              exit 0
+ram_store_vs_recompute/b03_p2_B              exit 0
+ram_store_vs_recompute/b03_p3_A              exit 0
+ram_store_vs_recompute/b04_p0_A              exit 0
+ram_store_vs_recompute/b04_p1_B              exit 0
+ram_store_vs_recompute/b04_p2_B              exit 0
+ram_store_vs_recompute/b04_p3_A              exit 0
+disk_spill_vs_recompute/b00_p0_A             exit 0
+disk_spill_vs_recompute/b00_p1_B             exit 0
+disk_spill_vs_recompute/b00_p2_B             exit 0
+disk_spill_vs_recompute/b00_p3_A             exit 0
+disk_spill_vs_recompute/b01_p0_A             exit 0
+disk_spill_vs_recompute/b01_p1_B             exit 0
+disk_spill_vs_recompute/b01_p2_B             exit 0
+disk_spill_vs_recompute/b01_p3_A             exit 0
+disk_spill_vs_recompute/b02_p0_A             exit 0
+disk_spill_vs_recompute/b02_p1_B             exit 0
+disk_spill_vs_recompute/b02_p2_B             exit 0
+disk_spill_vs_recompute/b02_p3_A             exit 0
+disk_spill_vs_recompute/b03_p0_A             exit 0
+disk_spill_vs_recompute/b03_p1_B             exit 0
+disk_spill_vs_recompute/b03_p2_B             exit 0
+disk_spill_vs_recompute/b03_p3_A             exit 0
+disk_spill_vs_recompute/b04_p0_A             exit 0
+disk_spill_vs_recompute/b04_p1_B             exit 0
+disk_spill_vs_recompute/b04_p2_B             exit 0
+disk_spill_vs_recompute/b04_p3_A             exit 0
+G1: pass: k=1: both stores exact to GA and to recompute; controls differ (correctness_k1_det.json); k=2: both stores exact to GA and to recompute; controls differ (correctness_k2_det.json); k=4: both stores exact to GA and to recompute; controls differ (correctness_k4_det.json)
+G2: pass: 6 stores: activation bytes only, spill bytes as planned
+G3: fail: ram_store_vs_recompute: ratio CI [1.243, 1.245] >= 0.95
+G4: fail: disk_spill_vs_recompute: ratio CI [1.637, 1.772] >= 0.95; on a VIRTUAL disk: describes that disk at that time, not a physical NVMe
+verdict: DO NOT BUILD: recompute is as fast or faster on both tiers

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+H3_COMMIT="$1"
+H3_REPO=/workspace/h3-soup
+H3_ROOT=""
+finish() {
+  H3_STATUS=$?
+  printf '%s\n' "$H3_STATUS" > /tmp/h3-bootstrap.exit
+  if test -n "$H3_ROOT" && test -d "$H3_ROOT/live"; then
+    printf '%s\n' "$H3_STATUS" > "$H3_ROOT/live/exit-code.txt"
+    python3 /tmp/h3-metadata.py "$H3_ROOT" "$H3_STATUS"
+  fi
+}
+trap finish EXIT
+mkdir -p /workspace
+git clone --depth=1 --branch koko/h3-fsdp-lora-20261026 \
+  https://github.com/SoupTeam/soup-rnd.git "$H3_REPO"
+cd "$H3_REPO"
+test "$(git rev-parse HEAD)" = "$H3_COMMIT"
+test -z "$(git status --porcelain)"
+H3_ROOT="$H3_REPO/benchmarks/evidence/h3-bf16-replay-20261027"
+mkdir -p "$H3_ROOT/live"
+exec > >(tee "$H3_ROOT/live/bootstrap.log") 2>&1
+cp "$0" "$H3_ROOT/live/bootstrap.sh.capture.txt"
+cp /tmp/h3-metadata.py "$H3_ROOT/live/metadata.py.capture.txt"
+git rev-parse HEAD > "$H3_ROOT/live/commit.txt"
+nvidia-smi -q > "$H3_ROOT/live/nvidia-smi-before.txt"
+nvidia-smi topo -m > "$H3_ROOT/live/topology-before.txt"
+lscpu > "$H3_ROOT/live/cpu.txt"
+free -b > "$H3_ROOT/live/host-memory.txt"
+df -h > "$H3_ROOT/live/disk-before.txt"
+python3 -c 'import sys,importlib.metadata as m; assert (3,10)<=sys.version_info[:2]<(3,13); assert m.version("torch").startswith("2.13.0")'
+if ! python3 -m venv --system-site-packages "$H3_ROOT/venv"; then
+  apt-get update
+  apt-get install -y python3-venv
+  python3 -m venv --system-site-packages "$H3_ROOT/venv"
+fi
+source "$H3_ROOT/venv/bin/activate"
+python -m pip install --no-compile -e '.[train]' psutil -c benchmarks/h3-fsdp-constraints.txt
+python3 -m pip uninstall --break-system-packages -y spin
+python -m pip check
+python -m pip freeze > "$H3_ROOT/live/bootstrap-pip-freeze.txt"
+export PYTHONPATH="$H3_REPO/src"
+export OMP_NUM_THREADS=4
+export TOKENIZERS_PARALLELISM=false
+python benchmarks/harness/h3_fsdp_run.py prepare --prepared "$H3_ROOT/prepared" \
+  --revision 7ae557604adf67be50417f59c2c2f167def9a775
+test "$(df -Pk "$H3_ROOT" | awk 'NR==2 {print $4}')" -gt 15728640
+for H3_TRY in $(seq 1 120); do
+  test ! -f /tmp/h3-transfer-preflight.ok || break
+  sleep 2
+done
+test -f /tmp/h3-transfer-preflight.ok
+cp /tmp/h3-transfer-preflight.json "$H3_ROOT/live/transfer-preflight.json"
+python benchmarks/harness/h3_fsdp_campaign.py \
+  --prepared "$H3_ROOT/prepared" --output "$H3_ROOT/live/campaign" \
+  --precision bf16 --bf16-conservative --archive-arms --archive-receipt-timeout 180 \
+  --repeats 2 --measured-steps 10 --timeout-seconds 600 --campaign-seconds 1800

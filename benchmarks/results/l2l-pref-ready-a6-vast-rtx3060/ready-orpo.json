@@ -1,0 +1,3736 @@
+{
+ "method": "orpo",
+ "environment": {
+  "base": "HuggingFaceTB/SmolLM2-135M",
+  "python": "3.12.3",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "torch": "2.14.1+cu130",
+  "transformers": "5.19.0",
+  "trl": "0.29.1",
+  "peft": "0.21.2",
+  "cuda": "13.0",
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "gpu_total_memory": 12488343552,
+  "nvidia_smi": "NVIDIA GeForce RTX 3060, 580.173.02, 12288 MiB",
+  "ram": "MemTotal:       131744572 kB",
+  "commit": ""
+ },
+ "cells": {
+  "1": {
+   "k": 1,
+   "verdict": {
+    "state": "fail",
+    "reasons": [
+     "bf16 step 0 is outside 1.5 floors: step 0: base_model.model.model.layers.23.self_attn.v_proj.lora_B.default.weight differs by 1.850e-04, limit 1.602e-04"
+    ],
+    "float32": {
+     "state": "equal",
+     "problems": []
+    },
+    "bf16": {
+     "state": "outside",
+     "step0_within": false,
+     "problems": [
+      "step 0: base_model.model.model.layers.23.self_attn.v_proj.lora_B.default.weight differs by 1.850e-04, limit 1.602e-04",
+      "step 0: base_model.model.model.layers.27.self_attn.v_proj.lora_A.default.weight differs by 5.493e-04, limit 3.716e-04",
+      "step 0: base_model.model.model.layers.5.self_attn.q_proj.lora_A.default.weight differs by 1.831e-04, limit 1.030e-04",
+      "step 1: base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight differs by 4.181e-04, limit 3.433e-04",
+      "step 1: base_model.model.model.layers.13.self_attn.q_proj.lora_A.default.weight differs by 5.569e-04, limit 5.493e-04",
+      "step 1: base_model.model.model.layers.14.self_attn.q_proj.lora_B.default.weight differs by 4.883e-04, limit 4.120e-04",
+      "step 1: base_model.model.model.layers.15.self_attn.q_proj.lora_A.default.weight differs by 2.747e-04, limit 2.289e-04",
+      "step 1: base_model.model.model.layers.15.self_attn.q_proj.lora_B.default.weight differs by 3.052e-04, limit 2.975e-04",
+      "step 1: base_model.model.model.layers.17.self_attn.q_proj.lora_B.default.weight differs by 3.624e-04, limit 2.975e-04",
+      "step 1: base_model.model.model.layers.19.self_attn.q_proj.lora_A.default.weight differs by 4.883e-04, limit 3.884e-04",
+      "step 1: base_model.model.model.layers.21.self_attn.v_proj.lora_A.default.weight differs by 6.104e-04, limit 5.035e-04",
+      "step 1: base_model.model.model.layers.22.self_attn.v_proj.lora_A.default.weight differs by 9.155e-04, limit 6.409e-04",
+      "step 1: base_model.model.model.layers.23.self_attn.q_proj.lora_A.default.weight differs by 4.272e-04, limit 3.204e-04",
+      "step 1: base_model.model.model.layers.25.self_attn.q_proj.lora_A.default.weight differs by 3.815e-04, limit 1.259e-04",
+      "step 1: base_model.model.model.layers.25.self_attn.q_proj.lora_B.default.weight differs by 6.104e-04, limit 4.578e-04",
+      "step 1: base_model.model.model.layers.26.self_attn.q_proj.lora_A.default.weight differs by 3.617e-04, limit 2.947e-04",
+      "step 1: base_model.model.model.layers.5.self_attn.q_proj.lora_B.default.weight differs by 3.052e-04, limit 2.518e-04",
+      "step 1: base_model.model.model.layers.8.self_attn.q_proj.lora_A.default.weight differs by 3.471e-04, limit 2.804e-04",
+      "step 2: base_model.model.model.layers.11.self_attn.v_proj.lora_A.default.weight differs by 1.709e-03, limit 1.328e-03",
+      "step 2: base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight differs by 2.441e-04, limit 2.060e-04",
+      "step 2: base_model.model.model.layers.21.self_attn.q_proj.lora_B.default.weight differs by 4.883e-04, limit 4.578e-04",
+      "step 2: base_model.model.model.layers.3.self_attn.v_proj.lora_A.default.weight differs by 2.441e-03, limit 2.197e-03",
+      "step 2: base_model.model.model.layers.7.self_attn.v_proj.lora_A.default.weight differs by 4.395e-03, limit 3.845e-03",
+      "step 2: base_model.model.model.layers.9.self_attn.v_proj.lora_A.default.weight differs by 1.709e-03, limit 1.465e-03",
+      "step 3: base_model.model.model.layers.13.self_attn.v_proj.lora_A.default.weight differs by 2.319e-03, limit 1.831e-03",
+      "step 3: base_model.model.model.layers.14.self_attn.v_proj.lora_A.default.weight differs by 1.648e-03, limit 1.099e-03",
+      "step 3: base_model.model.model.layers.16.self_attn.q_proj.lora_A.default.weight differs by 6.714e-04, limit 5.493e-04",
+      "step 3: base_model.model.model.layers.17.self_attn.q_proj.lora_A.default.weight differs by 7.935e-04, limit 6.409e-04",
+      "step 3: base_model.model.model.layers.17.self_attn.v_proj.lora_A.default.weight differs by 1.282e-03, limit 6.409e-04",
+      "step 3: base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight differs by 8.545e-04, limit 7.324e-04",
+      "step 3: base_model.model.model.layers.20.self_attn.q_proj.lora_B.default.weight differs by 3.815e-04, limit 2.289e-04",
+      "step 3: base_model.model.model.layers.22.self_attn.q_proj.lora_A.default.weight differs by 6.104e-04, limit 5.493e-04",
+      "step 3: base_model.model.model.layers.23.self_attn.q_proj.lora_B.default.weight differs by 3.166e-04, limit 2.861e-04",
+      "step 3: base_model.model.model.layers.24.self_attn.v_proj.lora_A.default.weight differs by 4.883e-04, limit 3.662e-04",
+      "step 3: base_model.model.model.layers.25.self_attn.v_proj.lora_A.default.weight differs by 5.188e-04, limit 4.578e-04",
+      "step 3: base_model.model.model.layers.25.self_attn.v_proj.lora_B.default.weight differs by 2.136e-04, limit 2.060e-04",
+      "step 3: base_model.model.model.layers.27.self_attn.q_proj.lora_A.default.weight differs by 5.493e-04, limit 5.264e-04",
+      "step 3: base_model.model.model.layers.27.self_attn.v_proj.lora_A.default.weight differs by 1.312e-03, limit 1.099e-03",
+      "step 3: base_model.model.model.layers.27.self_attn.v_proj.lora_B.default.weight differs by 3.967e-04, limit 3.204e-04",
+      "step 3: base_model.model.model.layers.28.self_attn.q_proj.lora_A.default.weight differs by 1.752e-04, limit 1.602e-04",
+      "step 3: base_model.model.model.layers.28.self_attn.v_proj.lora_A.default.weight differs by 1.038e-03, limit 9.155e-04",
+      "step 3: base_model.model.model.layers.29.self_attn.v_proj.lora_A.default.weight differs by 7.172e-04, limit 6.409e-04",
+      "step 3: base_model.model.model.layers.29.self_attn.v_proj.lora_B.default.weight differs by 5.455e-04, limit 3.204e-04",
+      "step 3: base_model.model.model.layers.6.self_attn.q_proj.lora_B.default.weight differs by 3.266e-04, limit 2.747e-04",
+      "step 3: base_model.model.model.layers.7.self_attn.q_proj.lora_B.default.weight differs by 7.629e-04, limit 3.204e-04",
+      "step 4: base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight differs by 2.136e-04, limit 1.144e-04",
+      "step 4: base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight differs by 2.380e-03, limit 1.282e-03",
+      "step 4: base_model.model.model.layers.13.self_attn.v_proj.lora_A.default.weight differs by 1.862e-03, limit 1.831e-03",
+      "step 4: base_model.model.model.layers.17.self_attn.q_proj.lora_A.default.weight differs by 8.850e-04, limit 6.409e-04",
+      "step 4: base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight differs by 7.782e-03, limit 6.226e-03",
+      "step 4: base_model.model.model.layers.20.self_attn.q_proj.lora_B.default.weight differs by 4.272e-04, limit 3.777e-04",
+      "step 4: base_model.model.model.layers.21.self_attn.q_proj.lora_B.default.weight differs by 1.907e-04, limit 1.774e-04",
+      "step 4: base_model.model.model.layers.26.self_attn.q_proj.lora_B.default.weight differs by 4.685e-04, limit 4.578e-04",
+      "step 4: base_model.model.model.layers.9.self_attn.q_proj.lora_B.default.weight differs by 7.324e-04, limit 7.095e-04",
+      "step 5: base_model.model.model.layers.11.self_attn.v_proj.lora_A.default.weight differs by 2.852e-03, limit 1.936e-03",
+      "step 5: base_model.model.model.layers.11.self_attn.v_proj.lora_B.default.weight differs by 2.826e-03, limit 2.584e-03",
+      "step 5: base_model.model.model.layers.12.self_attn.v_proj.lora_A.default.weight differs by 2.816e-03, limit 2.157e-03",
+      "step 5: base_model.model.model.layers.14.self_attn.v_proj.lora_A.default.weight differs by 2.254e-03, limit 1.713e-03",
+      "step 5: base_model.model.model.layers.18.self_attn.q_proj.lora_B.default.weight differs by 5.313e-04, limit 4.196e-04",
+      "step 5: base_model.model.model.layers.23.self_attn.v_proj.lora_A.default.weight differs by 1.457e-03, limit 1.440e-03",
+      "step 5: base_model.model.model.layers.29.self_attn.q_proj.lora_A.default.weight differs by 8.666e-04, limit 7.389e-04",
+      "step 5: base_model.model.model.layers.3.self_attn.v_proj.lora_B.default.weight differs by 2.996e-03, limit 2.713e-03",
+      "step 5: base_model.model.model.layers.5.self_attn.q_proj.lora_A.default.weight differs by 9.329e-04, limit 7.597e-04",
+      "step 5: base_model.model.model.layers.8.self_attn.v_proj.lora_A.default.weight differs by 1.305e-02, limit 1.157e-02",
+      "step 2: loss differs by 7.381e-03, limit 4.399e-04",
+      "step 3: loss differs by 4.189e-03, limit 4.119e-03"
+     ],
+     "max_floor": 0.01976361870765686,
+     "max_gap": 0.024615861475467682
+    }
+   },
+   "windows": 6,
+   "attempts": {
+    "f32u_ga1": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k1/f32u_ga1/attempt0",
+      "sha256": "a6adc0d3482efa331ad41208238461b693a2a026e8ee3d6adafc858e20cbb558"
+     }
+    ],
+    "f32u_ga2": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k1/f32u_ga2/attempt0",
+      "sha256": "2f86fc078b3c7c7df5ba4eb249e17c6f2efc81cf1f4ec88ecde29ab1ff7566e3"
+     }
+    ],
+    "f32u_l2l": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k1/f32u_l2l/attempt0",
+      "sha256": "64410143fe7e7dbd7b3fc5519d053a297f291d5504d4669cfdd2a1c4a9a91766"
+     }
+    ],
+    "native_ga1": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k1/native_ga1/attempt0",
+      "sha256": "486cabcc799ba6c7899c53a242386a399dc19f69e2cb8981a8c519507fa8ded3"
+     }
+    ],
+    "native_l2l": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k1/native_l2l/attempt0",
+      "sha256": "65131743df390503c78bdec92eee35e2e2e173c4f5b9f16eb24b6e0438fff1d7"
+     }
+    ],
+    "native_floor": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k1/native_floor/attempt0",
+      "sha256": "c5d8af56d1513848a245466d4afac4a4292e11e4aa1d1baeb1e7d61e63dc4111"
+     }
+    ],
+    "sft": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k1/sft/attempt0",
+      "sha256": "1732077607290f38271274d66bcaf752e5abb56fdb954334cda5afa96642dab8"
+     }
+    ]
+   },
+   "types": {
+    "f32u_ga1": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "ga",
+     "method": "orpo",
+     "k": 1,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.129e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 5.960e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 6.258e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.874e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "f32u_ga2": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "ga",
+     "method": "orpo",
+     "k": 1,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.129e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 5.960e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 6.258e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.874e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "f32u_l2l": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.float32",
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "l2l",
+     "method": "orpo",
+     "k": 1,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 3.129e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 5.960e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 6.258e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 3.874e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_ga1": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": "MATH",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "ga",
+     "method": "orpo",
+     "k": 1,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_l2l": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.bfloat16",
+     "attn_impl": "sdpa",
+     "sdpa": "MATH",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "l2l",
+     "method": "orpo",
+     "k": 1,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "differs by 3.052e-05",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "differs by 3.052e-05"
+       },
+       "equal_to": [
+        "FLASH_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "differs by 7.629e-06"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_floor": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": "EFFICIENT_ATTENTION",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "ga",
+     "method": "orpo",
+     "k": 1,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "sft": {
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.bfloat16",
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "sft",
+     "method": "orpo",
+     "k": 1,
+     "sdpa_probe": []
+    }
+   },
+   "losses": {
+    "f32u_ga1": [
+     3.4998836517333984,
+     2.1122939586639404,
+     2.614823818206787,
+     4.640437126159668,
+     3.8042852878570557,
+     4.558506965637207
+    ],
+    "f32u_ga2": [
+     3.4998836517333984,
+     2.1122939586639404,
+     2.614823818206787,
+     4.640437126159668,
+     3.8042852878570557,
+     4.558506965637207
+    ],
+    "f32u_l2l": [
+     3.4998836517333984,
+     2.1122939586639404,
+     2.614823818206787,
+     4.640437126159668,
+     3.8042852878570557,
+     4.558506965637207
+    ],
+    "native_ga1": [
+     3.496019124984741,
+     2.120389223098755,
+     2.61578369140625,
+     4.651031017303467,
+     3.819243907928467,
+     4.547073841094971
+    ],
+    "native_l2l": [
+     3.496814250946045,
+     2.10925555229187,
+     2.6084022521972656,
+     4.655219554901123,
+     3.8115367889404297,
+     4.563879013061523
+    ],
+    "native_floor": [
+     3.504624843597412,
+     2.1126866340637207,
+     2.615490436553955,
+     4.648284912109375,
+     3.7952866554260254,
+     4.558833122253418
+    ],
+    "sft": [
+     4.806609153747559,
+     4.519189357757568,
+     4.5129289627075195,
+     6.316644191741943,
+     4.5968122482299805,
+     6.184317111968994
+    ]
+   },
+   "logs": {
+    "native_l2l": [
+     {
+      "loss": 3.496814250946045,
+      "grad_norm": 0.5313090682029724,
+      "learning_rate": 0.01,
+      "l2l_steps": 1,
+      "l2l_captures": 1,
+      "l2l_capture_layer_loads": 1,
+      "l2l_capture_seconds": 0.030658534000394866,
+      "l2l_layer_loads": 58,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.16666666666666666,
+      "step": 1
+     },
+     {
+      "loss": 2.10925555229187,
+      "grad_norm": 0.45713937282562256,
+      "learning_rate": 0.01,
+      "l2l_steps": 2,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.031864624994341284,
+      "l2l_layer_loads": 115,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.3333333333333333,
+      "step": 2
+     },
+     {
+      "loss": 2.6084022521972656,
+      "grad_norm": 0.5294620394706726,
+      "learning_rate": 0.01,
+      "l2l_steps": 3,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.031864624994341284,
+      "l2l_layer_loads": 172,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.5,
+      "step": 3
+     },
+     {
+      "loss": 4.655219554901123,
+      "grad_norm": 0.6410093307495117,
+      "learning_rate": 0.01,
+      "l2l_steps": 4,
+      "l2l_captures": 3,
+      "l2l_capture_layer_loads": 3,
+      "l2l_capture_seconds": 0.03341775998705998,
+      "l2l_layer_loads": 229,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.6666666666666666,
+      "step": 4
+     },
+     {
+      "loss": 3.8115367889404297,
+      "grad_norm": 0.545159637928009,
+      "learning_rate": 0.01,
+      "l2l_steps": 5,
+      "l2l_captures": 4,
+      "l2l_capture_layer_loads": 4,
+      "l2l_capture_seconds": 0.035003397992113605,
+      "l2l_layer_loads": 286,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.8333333333333334,
+      "step": 5
+     },
+     {
+      "loss": 4.563879013061523,
+      "grad_norm": 1.454362392425537,
+      "learning_rate": 0.01,
+      "l2l_steps": 6,
+      "l2l_captures": 5,
+      "l2l_capture_layer_loads": 5,
+      "l2l_capture_seconds": 0.03666219100705348,
+      "l2l_layer_loads": 343,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 1.0,
+      "step": 6
+     }
+    ],
+    "sft": [
+     {
+      "loss": 4.806609153747559,
+      "grad_norm": 0.6243655681610107,
+      "learning_rate": 0.01,
+      "l2l_steps": 1,
+      "l2l_captures": 1,
+      "l2l_capture_layer_loads": 1,
+      "l2l_capture_seconds": 0.03493151400471106,
+      "l2l_layer_loads": 58,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.16666666666666666,
+      "step": 1
+     },
+     {
+      "loss": 4.519189357757568,
+      "grad_norm": 0.9826000332832336,
+      "learning_rate": 0.01,
+      "l2l_steps": 2,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.03614523701253347,
+      "l2l_layer_loads": 115,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.3333333333333333,
+      "step": 2
+     },
+     {
+      "loss": 4.5129289627075195,
+      "grad_norm": 0.7910062074661255,
+      "learning_rate": 0.01,
+      "l2l_steps": 3,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.03614523701253347,
+      "l2l_layer_loads": 172,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.5,
+      "step": 3
+     },
+     {
+      "loss": 6.316644191741943,
+      "grad_norm": 0.8740779757499695,
+      "learning_rate": 0.01,
+      "l2l_steps": 4,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.03614523701253347,
+      "l2l_layer_loads": 229,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.6666666666666666,
+      "step": 4
+     },
+     {
+      "loss": 4.5968122482299805,
+      "grad_norm": 0.7347459197044373,
+      "learning_rate": 0.01,
+      "l2l_steps": 5,
+      "l2l_captures": 3,
+      "l2l_capture_layer_loads": 3,
+      "l2l_capture_seconds": 0.03772253499482758,
+      "l2l_layer_loads": 286,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.8333333333333334,
+      "step": 5
+     },
+     {
+      "loss": 6.184317111968994,
+      "grad_norm": 0.8317935466766357,
+      "learning_rate": 0.01,
+      "l2l_steps": 6,
+      "l2l_captures": 4,
+      "l2l_capture_layer_loads": 4,
+      "l2l_capture_seconds": 0.039267139974981546,
+      "l2l_layer_loads": 343,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 1.0,
+      "step": 6
+     }
+    ]
+   },
+   "pairs": {
+    "f32u_l2l_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 1,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 2,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 3,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 4,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 5,
+       "grad": 0.0,
+       "loss": 0.0
+      }
+     ],
+     "overall": {
+      "grad": 0.0,
+      "loss": 0.0
+     }
+    },
+    "f32u_ga2_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 1,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 2,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 3,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 4,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 5,
+       "grad": 0.0,
+       "loss": 0.0
+      }
+     ],
+     "overall": {
+      "grad": 0.0,
+      "loss": 0.0
+     }
+    },
+    "native_l2l_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.001312255859375,
+       "loss": 0.0007951259613037109
+      },
+      {
+       "step": 1,
+       "grad": 0.006439208984375,
+       "loss": 0.011133670806884766
+      },
+      {
+       "step": 2,
+       "grad": 0.01080322265625,
+       "loss": 0.007381439208984375
+      },
+      {
+       "step": 3,
+       "grad": 0.00909423828125,
+       "loss": 0.00418853759765625
+      },
+      {
+       "step": 4,
+       "grad": 0.007781982421875,
+       "loss": 0.007707118988037109
+      },
+      {
+       "step": 5,
+       "grad": 0.024615861475467682,
+       "loss": 0.016805171966552734
+      }
+     ],
+     "overall": {
+      "grad": 0.024615861475467682,
+      "loss": 0.016805171966552734
+     }
+    },
+    "native_floor_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.00439453125,
+       "loss": 0.008605718612670898
+      },
+      {
+       "step": 1,
+       "grad": 0.006103515625,
+       "loss": 0.00770258903503418
+      },
+      {
+       "step": 2,
+       "grad": 0.00994873046875,
+       "loss": 0.0002932548522949219
+      },
+      {
+       "step": 3,
+       "grad": 0.0108642578125,
+       "loss": 0.002746105194091797
+      },
+      {
+       "step": 4,
+       "grad": 0.0100250244140625,
+       "loss": 0.023957252502441406
+      },
+      {
+       "step": 5,
+       "grad": 0.01976361870765686,
+       "loss": 0.011759281158447266
+      }
+     ],
+     "overall": {
+      "grad": 0.01976361870765686,
+      "loss": 0.023957252502441406
+     }
+    }
+   }
+  },
+  "2": {
+   "k": 2,
+   "verdict": {
+    "state": "fail",
+    "reasons": [
+     "bf16 step 0 is outside 1.5 floors: step 0: base_model.model.model.layers.29.self_attn.v_proj.lora_B.default.weight differs by 1.106e-04, limit 8.869e-05"
+    ],
+    "float32": {
+     "state": "equal",
+     "problems": []
+    },
+    "bf16": {
+     "state": "outside",
+     "step0_within": false,
+     "problems": [
+      "step 0: base_model.model.model.layers.29.self_attn.v_proj.lora_B.default.weight differs by 1.106e-04, limit 8.869e-05",
+      "step 1: base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight differs by 4.982e-03, limit 2.632e-03",
+      "step 1: base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight differs by 1.457e-03, limit 8.240e-04",
+      "step 1: base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight differs by 1.030e-03, limit 9.613e-04",
+      "step 1: base_model.model.model.layers.10.self_attn.q_proj.lora_A.default.weight differs by 3.967e-04, limit 3.891e-04",
+      "step 1: base_model.model.model.layers.10.self_attn.q_proj.lora_B.default.weight differs by 2.823e-04, limit 2.450e-04",
+      "step 1: base_model.model.model.layers.11.self_attn.v_proj.lora_A.default.weight differs by 2.426e-03, limit 2.380e-03",
+      "step 1: base_model.model.model.layers.11.self_attn.v_proj.lora_B.default.weight differs by 2.051e-03, limit 8.268e-04",
+      "step 1: base_model.model.model.layers.12.self_attn.v_proj.lora_B.default.weight differs by 4.997e-04, limit 3.490e-04",
+      "step 1: base_model.model.model.layers.13.self_attn.q_proj.lora_A.default.weight differs by 9.766e-04, limit 8.698e-04",
+      "step 1: base_model.model.model.layers.15.self_attn.v_proj.lora_A.default.weight differs by 1.404e-03, limit 1.385e-03",
+      "step 1: base_model.model.model.layers.16.self_attn.v_proj.lora_A.default.weight differs by 1.388e-03, limit 1.282e-03",
+      "step 1: base_model.model.model.layers.17.self_attn.q_proj.lora_B.default.weight differs by 3.357e-04, limit 3.204e-04",
+      "step 1: base_model.model.model.layers.18.self_attn.q_proj.lora_A.default.weight differs by 5.207e-04, limit 2.890e-04",
+      "step 1: base_model.model.model.layers.18.self_attn.v_proj.lora_A.default.weight differs by 9.766e-04, limit 8.698e-04",
+      "step 1: base_model.model.model.layers.19.self_attn.v_proj.lora_A.default.weight differs by 1.507e-03, limit 6.409e-04",
+      "step 1: base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight differs by 3.281e-04, limit 2.525e-04",
+      "step 1: base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight differs by 2.609e-03, limit 2.426e-03",
+      "step 1: base_model.model.model.layers.21.self_attn.v_proj.lora_A.default.weight differs by 8.545e-04, limit 6.502e-04",
+      "step 1: base_model.model.model.layers.23.self_attn.q_proj.lora_B.default.weight differs by 4.158e-04, limit 3.322e-04",
+      "step 1: base_model.model.model.layers.24.self_attn.q_proj.lora_A.default.weight differs by 3.719e-04, limit 3.204e-04",
+      "step 1: base_model.model.model.layers.28.self_attn.q_proj.lora_A.default.weight differs by 3.250e-04, limit 1.542e-04",
+      "step 1: base_model.model.model.layers.28.self_attn.q_proj.lora_B.default.weight differs by 1.907e-04, limit 1.144e-04",
+      "step 1: base_model.model.model.layers.29.self_attn.q_proj.lora_A.default.weight differs by 1.434e-03, limit 3.204e-04",
+      "step 1: base_model.model.model.layers.29.self_attn.q_proj.lora_B.default.weight differs by 2.019e-04, limit 1.957e-04",
+      "step 1: base_model.model.model.layers.3.self_attn.q_proj.lora_A.default.weight differs by 6.104e-04, limit 4.692e-04",
+      "step 1: base_model.model.model.layers.3.self_attn.q_proj.lora_B.default.weight differs by 3.481e-04, limit 3.276e-04",
+      "step 1: base_model.model.model.layers.3.self_attn.v_proj.lora_A.default.weight differs by 6.897e-03, limit 3.176e-03",
+      "step 1: base_model.model.model.layers.3.self_attn.v_proj.lora_B.default.weight differs by 1.419e-03, limit 8.240e-04",
+      "step 1: base_model.model.model.layers.4.self_attn.q_proj.lora_A.default.weight differs by 5.341e-04, limit 3.891e-04",
+      "step 1: base_model.model.model.layers.4.self_attn.v_proj.lora_A.default.weight differs by 4.639e-03, limit 3.983e-03",
+      "step 1: base_model.model.model.layers.5.self_attn.q_proj.lora_A.default.weight differs by 3.510e-04, limit 3.204e-04",
+      "step 1: base_model.model.model.layers.5.self_attn.v_proj.lora_A.default.weight differs by 5.737e-03, limit 4.028e-03",
+      "step 1: base_model.model.model.layers.5.self_attn.v_proj.lora_B.default.weight differs by 1.907e-03, limit 1.099e-03",
+      "step 1: base_model.model.model.layers.6.self_attn.v_proj.lora_A.default.weight differs by 2.777e-03, limit 2.472e-03",
+      "step 1: base_model.model.model.layers.6.self_attn.v_proj.lora_B.default.weight differs by 1.606e-03, limit 1.419e-03",
+      "step 1: base_model.model.model.layers.7.self_attn.q_proj.lora_A.default.weight differs by 4.215e-04, limit 3.748e-04",
+      "step 1: base_model.model.model.layers.7.self_attn.q_proj.lora_B.default.weight differs by 3.471e-04, limit 2.875e-04",
+      "step 1: base_model.model.model.layers.7.self_attn.v_proj.lora_A.default.weight differs by 6.958e-03, limit 6.317e-03",
+      "step 1: base_model.model.model.layers.7.self_attn.v_proj.lora_B.default.weight differs by 1.001e-03, limit 5.736e-04",
+      "step 1: base_model.model.model.layers.8.self_attn.v_proj.lora_A.default.weight differs by 8.606e-03, limit 7.153e-03",
+      "step 1: base_model.model.model.layers.8.self_attn.v_proj.lora_B.default.weight differs by 2.136e-03, limit 1.671e-03",
+      "step 1: base_model.model.model.layers.9.self_attn.q_proj.lora_B.default.weight differs by 4.883e-04, limit 4.349e-04",
+      "step 2: base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight differs by 3.891e-04, limit 2.460e-04",
+      "step 2: base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight differs by 5.829e-03, limit 2.197e-03",
+      "step 2: base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight differs by 1.468e-02, limit 1.447e-02",
+      "step 2: base_model.model.model.layers.11.self_attn.q_proj.lora_B.default.weight differs by 1.123e-03, limit 7.553e-04",
+      "step 2: base_model.model.model.layers.11.self_attn.v_proj.lora_B.default.weight differs by 1.823e-03, limit 9.556e-04",
+      "step 2: base_model.model.model.layers.12.self_attn.q_proj.lora_A.default.weight differs by 2.853e-03, limit 2.094e-03",
+      "step 2: base_model.model.model.layers.13.self_attn.q_proj.lora_B.default.weight differs by 9.308e-04, limit 8.268e-04",
+      "step 2: base_model.model.model.layers.18.self_attn.q_proj.lora_B.default.weight differs by 2.861e-04, limit 2.403e-04",
+      "step 2: base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight differs by 1.610e-03, limit 1.350e-03",
+      "step 2: base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight differs by 9.399e-03, limit 6.248e-03",
+      "step 2: base_model.model.model.layers.21.self_attn.q_proj.lora_A.default.weight differs by 8.850e-04, limit 8.240e-04",
+      "step 2: base_model.model.model.layers.21.self_attn.v_proj.lora_A.default.weight differs by 1.251e-03, limit 6.448e-04",
+      "step 2: base_model.model.model.layers.22.self_attn.v_proj.lora_A.default.weight differs by 9.975e-04, limit 9.842e-04",
+      "step 2: base_model.model.model.layers.23.self_attn.v_proj.lora_A.default.weight differs by 1.099e-03, limit 1.053e-03",
+      "step 2: base_model.model.model.layers.24.self_attn.q_proj.lora_A.default.weight differs by 4.349e-04, limit 1.688e-04",
+      "step 2: base_model.model.model.layers.24.self_attn.q_proj.lora_B.default.weight differs by 2.799e-04, limit 2.575e-04",
+      "step 2: base_model.model.model.layers.25.self_attn.v_proj.lora_A.default.weight differs by 4.349e-04, limit 3.490e-04",
+      "step 2: base_model.model.model.layers.26.self_attn.q_proj.lora_A.default.weight differs by 3.662e-04, limit 3.204e-04",
+      "step 2: base_model.model.model.layers.26.self_attn.q_proj.lora_B.default.weight differs by 3.510e-04, limit 3.204e-04",
+      "step 2: base_model.model.model.layers.26.self_attn.v_proj.lora_A.default.weight differs by 6.275e-04, limit 3.605e-04",
+      "step 2: base_model.model.model.layers.27.self_attn.q_proj.lora_A.default.weight differs by 8.621e-04, limit 5.951e-04",
+      "step 2: base_model.model.model.layers.27.self_attn.q_proj.lora_B.default.weight differs by 7.782e-04, limit 3.290e-04",
+      "step 2: base_model.model.model.layers.27.self_attn.v_proj.lora_A.default.weight differs by 5.798e-04, limit 5.493e-04",
+      "step 2: base_model.model.model.layers.28.self_attn.v_proj.lora_A.default.weight differs by 4.063e-04, limit 9.155e-05",
+      "step 2: base_model.model.model.layers.29.self_attn.q_proj.lora_A.default.weight differs by 6.104e-04, limit 2.747e-04",
+      "step 2: base_model.model.model.layers.29.self_attn.q_proj.lora_B.default.weight differs by 2.518e-04, limit 1.917e-04",
+      "step 2: base_model.model.model.layers.3.self_attn.q_proj.lora_A.default.weight differs by 9.422e-04, limit 4.005e-04",
+      "step 2: base_model.model.model.layers.3.self_attn.q_proj.lora_B.default.weight differs by 1.709e-03, limit 7.153e-04",
+      "step 2: base_model.model.model.layers.8.self_attn.v_proj.lora_B.default.weight differs by 1.933e-03, limit 1.511e-03",
+      "step 2: base_model.model.model.layers.9.self_attn.v_proj.lora_A.default.weight differs by 8.179e-03, limit 2.563e-03",
+      "step 2: base_model.model.model.layers.9.self_attn.v_proj.lora_B.default.weight differs by 1.450e-03, limit 1.350e-03",
+      "step 2: loss differs by 2.818e-03, limit 5.178e-04"
+     ],
+     "max_floor": 0.0096435546875,
+     "max_gap": 0.014680862426757812
+    }
+   },
+   "windows": 3,
+   "attempts": {
+    "f32u_ga1": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k2/f32u_ga1/attempt0",
+      "sha256": "842ab93b24f5c0547d5fcc7b1ba53e8f548f4bf5f98b2441135042c96f1c59e3"
+     }
+    ],
+    "f32u_ga2": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k2/f32u_ga2/attempt0",
+      "sha256": "f64488e8e1b15d88abffd716b1b82f14352f9ff9d82f732791a1e4eed36406af"
+     }
+    ],
+    "f32u_l2l": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k2/f32u_l2l/attempt0",
+      "sha256": "cdbab6c6eec9f68d938052cb04dad56ccb916e4178132824100326ae4b927c1b"
+     }
+    ],
+    "native_ga1": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k2/native_ga1/attempt0",
+      "sha256": "0bf164f439e9d370a456a214be25696029c905de5bbe80158188e92a7dcd3ef0"
+     }
+    ],
+    "native_l2l": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k2/native_l2l/attempt0",
+      "sha256": "4c0debfabfe513ef0423d27ebbf847c76f9689d0f87ba799dd64629147cd67c9"
+     }
+    ],
+    "native_floor": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k2/native_floor/attempt0",
+      "sha256": "5f868c4f76bd6705655505903bc0d7d6abff3e5c5fde0d7f3253674d5252dbb5"
+     }
+    ],
+    "sft": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k2/sft/attempt0",
+      "sha256": "299fa2ae7ad0fbe2ae1a68065b6dd4877f837d0592a7342d66a7728f85db2e87"
+     }
+    ]
+   },
+   "types": {
+    "f32u_ga1": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "ga",
+     "method": "orpo",
+     "k": 2,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.278e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 6.557e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 7.153e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.172e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "f32u_ga2": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "ga",
+     "method": "orpo",
+     "k": 2,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.278e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 6.557e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 7.153e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.172e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "f32u_l2l": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.float32",
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "l2l",
+     "method": "orpo",
+     "k": 2,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 3.278e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 6.557e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 7.153e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 4.172e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_ga1": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": "MATH",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "ga",
+     "method": "orpo",
+     "k": 2,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_l2l": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.bfloat16",
+     "attn_impl": "sdpa",
+     "sdpa": "MATH",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "l2l",
+     "method": "orpo",
+     "k": 2,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_floor": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": "EFFICIENT_ATTENTION",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "ga",
+     "method": "orpo",
+     "k": 2,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "sft": {
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.bfloat16",
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "sft",
+     "method": "orpo",
+     "k": 2,
+     "sdpa_probe": []
+    }
+   },
+   "losses": {
+    "f32u_ga1": [
+     2.80637526512146,
+     3.6282198429107666,
+     4.1832685470581055
+    ],
+    "f32u_ga2": [
+     2.80637526512146,
+     3.6282198429107666,
+     4.1832685470581055
+    ],
+    "f32u_l2l": [
+     2.80637526512146,
+     3.6282198429107666,
+     4.1832685470581055
+    ],
+    "native_ga1": [
+     2.805917739868164,
+     3.6316161155700684,
+     4.182458877563477
+    ],
+    "native_l2l": [
+     2.8061037063598633,
+     3.625430107116699,
+     4.179640769958496
+    ],
+    "native_floor": [
+     2.8140969276428223,
+     3.6268482208251953,
+     4.182804107666016
+    ],
+    "sft": [
+     4.693648338317871,
+     5.191170692443848,
+     5.2168779373168945
+    ]
+   },
+   "logs": {
+    "native_l2l": [
+     {
+      "loss": 2.8061037063598633,
+      "grad_norm": 0.38791877031326294,
+      "learning_rate": 0.01,
+      "l2l_steps": 1,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.03272737201768905,
+      "l2l_layer_loads": 58,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.3333333333333333,
+      "step": 1
+     },
+     {
+      "loss": 3.625430107116699,
+      "grad_norm": 0.4293401837348938,
+      "learning_rate": 0.01,
+      "l2l_steps": 2,
+      "l2l_captures": 3,
+      "l2l_capture_layer_loads": 3,
+      "l2l_capture_seconds": 0.033971648022998124,
+      "l2l_layer_loads": 115,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.6666666666666666,
+      "step": 2
+     },
+     {
+      "loss": 4.179640769958496,
+      "grad_norm": 0.8371623158454895,
+      "learning_rate": 0.01,
+      "l2l_steps": 3,
+      "l2l_captures": 5,
+      "l2l_capture_layer_loads": 5,
+      "l2l_capture_seconds": 0.03690236900001764,
+      "l2l_layer_loads": 172,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 1.0,
+      "step": 3
+     }
+    ],
+    "sft": [
+     {
+      "loss": 4.693648338317871,
+      "grad_norm": 0.6745493412017822,
+      "learning_rate": 0.01,
+      "l2l_steps": 1,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.03455130400834605,
+      "l2l_layer_loads": 58,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.3333333333333333,
+      "step": 1
+     },
+     {
+      "loss": 5.191170692443848,
+      "grad_norm": 0.6809014678001404,
+      "learning_rate": 0.01,
+      "l2l_steps": 2,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.03455130400834605,
+      "l2l_layer_loads": 115,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.6666666666666666,
+      "step": 2
+     },
+     {
+      "loss": 5.2168779373168945,
+      "grad_norm": 0.666297435760498,
+      "learning_rate": 0.01,
+      "l2l_steps": 3,
+      "l2l_captures": 4,
+      "l2l_capture_layer_loads": 4,
+      "l2l_capture_seconds": 0.03744564301450737,
+      "l2l_layer_loads": 172,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 1.0,
+      "step": 3
+     }
+    ]
+   },
+   "pairs": {
+    "f32u_l2l_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 1,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 2,
+       "grad": 0.0,
+       "loss": 0.0
+      }
+     ],
+     "overall": {
+      "grad": 0.0,
+      "loss": 0.0
+     }
+    },
+    "f32u_ga2_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 1,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 2,
+       "grad": 0.0,
+       "loss": 0.0
+      }
+     ],
+     "overall": {
+      "grad": 0.0,
+      "loss": 0.0
+     }
+    },
+    "native_l2l_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.00109100341796875,
+       "loss": 0.00018596649169921875
+      },
+      {
+       "step": 1,
+       "grad": 0.00860595703125,
+       "loss": 0.006186008453369141
+      },
+      {
+       "step": 2,
+       "grad": 0.014680862426757812,
+       "loss": 0.0028181076049804688
+      }
+     ],
+     "overall": {
+      "grad": 0.014680862426757812,
+      "loss": 0.006186008453369141
+     }
+    },
+    "native_floor_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.002685546875,
+       "loss": 0.008179187774658203
+      },
+      {
+       "step": 1,
+       "grad": 0.006622314453125,
+       "loss": 0.004767894744873047
+      },
+      {
+       "step": 2,
+       "grad": 0.0096435546875,
+       "loss": 0.0003452301025390625
+      }
+     ],
+     "overall": {
+      "grad": 0.0096435546875,
+      "loss": 0.008179187774658203
+     }
+    }
+   }
+  },
+  "4": {
+   "k": 4,
+   "verdict": {
+    "state": "fail",
+    "reasons": [
+     "bf16 step 0 is outside 1.5 floors: step 0: base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight differs by 5.188e-04, limit 4.807e-04"
+    ],
+    "float32": {
+     "state": "equal",
+     "problems": []
+    },
+    "bf16": {
+     "state": "outside",
+     "step0_within": false,
+     "problems": [
+      "step 0: base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight differs by 5.188e-04, limit 4.807e-04",
+      "step 1: base_model.model.model.layers.11.self_attn.q_proj.lora_B.default.weight differs by 5.112e-04, limit 4.206e-04",
+      "step 1: base_model.model.model.layers.19.self_attn.v_proj.lora_A.default.weight differs by 1.175e-03, limit 1.144e-03",
+      "step 1: base_model.model.model.layers.22.self_attn.q_proj.lora_A.default.weight differs by 6.104e-04, limit 5.336e-04",
+      "step 1: base_model.model.model.layers.23.self_attn.q_proj.lora_B.default.weight differs by 4.144e-04, limit 2.632e-04",
+      "step 1: base_model.model.model.layers.29.self_attn.q_proj.lora_A.default.weight differs by 2.136e-04, limit 1.473e-04"
+     ],
+     "max_floor": 0.014392852783203125,
+     "max_gap": 0.00738525390625
+    }
+   },
+   "windows": 2,
+   "attempts": {
+    "f32u_ga1": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k4/f32u_ga1/attempt0",
+      "sha256": "cd0430fce8f363ac755aeef159287ae4e18b5970a871e9956b527b0c9e38dfae"
+     }
+    ],
+    "f32u_ga2": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k4/f32u_ga2/attempt0",
+      "sha256": "4a460d5184713ba7516d28665f3408705f6f9368e53daf4c5b25743bebc0e7be"
+     }
+    ],
+    "f32u_l2l": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k4/f32u_l2l/attempt0",
+      "sha256": "8680e9f7773d3224adb14ccad462959fc195ad153b41b5375200559451cb2089"
+     }
+    ],
+    "native_ga1": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k4/native_ga1/attempt0",
+      "sha256": "1d5f0373514d2a9d128fd4701214923329e01b24069e4eb2ca45ada81bee58f9"
+     }
+    ],
+    "native_l2l": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k4/native_l2l/attempt0",
+      "sha256": "7c46a8e631e9f9205aedebf327afc90e396fda7f7f81889316732f08cc9ad985"
+     }
+    ],
+    "native_floor": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k4/native_floor/attempt0",
+      "sha256": "c0a425b3b87af3a2b342d3319327e604dd4400084d2869679185aabc0175ff38"
+     }
+    ],
+    "sft": [
+     {
+      "attempt": 0,
+      "outcome": "ok",
+      "returncode": 0,
+      "dir": "orpo/k4/sft/attempt0",
+      "sha256": "c61d8536bb9eb6c28b900ac6a63ef6832bd598c6c9bc5cd751cfe194de98f52b"
+     }
+    ]
+   },
+   "types": {
+    "f32u_ga1": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "ga",
+     "method": "orpo",
+     "k": 4,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.278e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 5.364e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 5.364e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.874e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "f32u_ga2": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "ga",
+     "method": "orpo",
+     "k": 4,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.278e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 5.364e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 5.364e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 3.874e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "f32u_l2l": {
+     "layer_in": "torch.float32",
+     "base_weight": "torch.float32",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.float32",
+     "stream_dtype": "float32",
+     "train_bf16": false,
+     "train_fp16": false,
+     "mixed_precision": "no",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.float32",
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "f32",
+     "path": "l2l",
+     "method": "orpo",
+     "k": 4,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 4.470e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 3.278e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 5.364e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 5.364e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.float32",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 3.874e-07",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "unavailable: No available kernel. Aborting execution."
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_ga1": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": "MATH",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "ga",
+     "method": "orpo",
+     "k": 4,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_l2l": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.bfloat16",
+     "attn_impl": "sdpa",
+     "sdpa": "MATH",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "l2l",
+     "method": "orpo",
+     "k": 4,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": false,
+        "causal": true
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "equal",
+        "CUDNN_ATTENTION": "differs by 4.883e-04"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "FLASH_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "native_floor": {
+     "layer_in": "torch.bfloat16",
+     "base_weight": "torch.bfloat16",
+     "lora_weight": "torch.float32",
+     "layer_out": "torch.bfloat16",
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": null,
+     "attn_impl": "sdpa",
+     "sdpa": "EFFICIENT_ATTENTION",
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "ga",
+     "method": "orpo",
+     "k": 4,
+     "sdpa_probe": [
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         36,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         35,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         32,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         40,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      },
+      {
+       "signature": {
+        "shape": [
+         4,
+         9,
+         27,
+         64
+        ],
+        "dtype": "torch.bfloat16",
+        "mask": true,
+        "causal": false
+       },
+       "matches": {
+        "MATH": "differs by 1.953e-03",
+        "EFFICIENT_ATTENTION": "equal",
+        "FLASH_ATTENTION": "unavailable: No available kernel. Aborting execution.",
+        "CUDNN_ATTENTION": "equal"
+       },
+       "equal_to": [
+        "EFFICIENT_ATTENTION",
+        "CUDNN_ATTENTION"
+       ]
+      }
+     ]
+    },
+    "sft": {
+     "stream_dtype": "bfloat16",
+     "train_bf16": true,
+     "train_fp16": false,
+     "mixed_precision": "bf16",
+     "grads": [
+      "torch.float32"
+     ],
+     "l2l_state_dtype": "torch.bfloat16",
+     "attn_impl": "sdpa",
+     "sdpa": null,
+     "matmul_precision": "highest",
+     "allow_tf32": false,
+     "dtype_mode": "native",
+     "path": "sft",
+     "method": "orpo",
+     "k": 4,
+     "sdpa_probe": []
+    }
+   },
+   "losses": {
+    "f32u_ga1": [
+     3.217550277709961,
+     4.183791637420654
+    ],
+    "f32u_ga2": [
+     3.217550277709961,
+     4.183791637420654
+    ],
+    "f32u_l2l": [
+     3.217550277709961,
+     4.183791637420654
+    ],
+    "native_ga1": [
+     3.2144060134887695,
+     4.185546875
+    ],
+    "native_l2l": [
+     3.2139861583709717,
+     4.184675216674805
+    ],
+    "native_floor": [
+     3.221707582473755,
+     4.178133964538574
+    ],
+    "sft": [
+     4.925382614135742,
+     5.228775501251221
+    ]
+   },
+   "logs": {
+    "native_l2l": [
+     {
+      "loss": 3.2139861583709717,
+      "grad_norm": 0.3272508382797241,
+      "learning_rate": 0.01,
+      "l2l_steps": 1,
+      "l2l_captures": 3,
+      "l2l_capture_layer_loads": 3,
+      "l2l_capture_seconds": 0.03349827599595301,
+      "l2l_layer_loads": 58,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.6666666666666666,
+      "step": 1
+     },
+     {
+      "loss": 4.184675216674805,
+      "grad_norm": 0.8363950252532959,
+      "learning_rate": 0.01,
+      "l2l_steps": 2,
+      "l2l_captures": 5,
+      "l2l_capture_layer_loads": 5,
+      "l2l_capture_seconds": 0.035515455005224794,
+      "l2l_layer_loads": 115,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 1.0,
+      "step": 2
+     }
+    ],
+    "sft": [
+     {
+      "loss": 4.925382614135742,
+      "grad_norm": 0.6138338446617126,
+      "learning_rate": 0.01,
+      "l2l_steps": 1,
+      "l2l_captures": 2,
+      "l2l_capture_layer_loads": 2,
+      "l2l_capture_seconds": 0.03525565302697942,
+      "l2l_layer_loads": 58,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 0.6666666666666666,
+      "step": 1
+     },
+     {
+      "loss": 5.228775501251221,
+      "grad_norm": 0.6637892723083496,
+      "learning_rate": 0.01,
+      "l2l_steps": 2,
+      "l2l_captures": 4,
+      "l2l_capture_layer_loads": 4,
+      "l2l_capture_seconds": 0.03731907604378648,
+      "l2l_layer_loads": 115,
+      "l2l_large_loads": 0,
+      "l2l_weight_restores": 0,
+      "epoch": 1.0,
+      "step": 2
+     }
+    ]
+   },
+   "pairs": {
+    "f32u_l2l_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 1,
+       "grad": 0.0,
+       "loss": 0.0
+      }
+     ],
+     "overall": {
+      "grad": 0.0,
+      "loss": 0.0
+     }
+    },
+    "f32u_ga2_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.0,
+       "loss": 0.0
+      },
+      {
+       "step": 1,
+       "grad": 0.0,
+       "loss": 0.0
+      }
+     ],
+     "overall": {
+      "grad": 0.0,
+      "loss": 0.0
+     }
+    },
+    "native_l2l_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.000732421875,
+       "loss": 0.00041985511779785156
+      },
+      {
+       "step": 1,
+       "grad": 0.00738525390625,
+       "loss": 0.0008716583251953125
+      }
+     ],
+     "overall": {
+      "grad": 0.00738525390625,
+      "loss": 0.0008716583251953125
+     }
+    },
+    "native_floor_vs_ga1": {
+     "steps": [
+      {
+       "step": 0,
+       "grad": 0.001331329345703125,
+       "loss": 0.0073015689849853516
+      },
+      {
+       "step": 1,
+       "grad": 0.014392852783203125,
+       "loss": 0.007412910461425781
+      }
+     ],
+     "overall": {
+      "grad": 0.014392852783203125,
+      "loss": 0.007412910461425781
+     }
+    }
+   }
+  }
+ },
+ "method_verdict": {
+  "state": "fail",
+  "reason": "k=1: fail; k=2: fail; k=4: fail"
+ }
+}

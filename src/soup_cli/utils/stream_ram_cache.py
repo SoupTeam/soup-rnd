@@ -3,6 +3,7 @@
 import os
 import posixpath
 import re
+import sys
 from pathlib import Path
 
 _UNLIMITED = 2**60
@@ -70,7 +71,7 @@ def available_memory(
     report = {"host_available_bytes": available, "available_bytes": available, "constraints": []}
     cgroup_file, mountinfo_file = Path(cgroup_file), Path(mountinfo_file)
     if not cgroup_file.exists():
-        if os.name == "posix":
+        if sys.platform == "linux":
             report.update(available_bytes=0, error="process cgroup information unavailable")
         return report
     try:
@@ -159,11 +160,14 @@ def plan_hotset(spans, groups, depth, budget, *, pinned, excluded=()):
             continue
         center = (members[0] + members[-1]) / 2
         for idx in sorted(members, key=lambda value: (abs(value - center), value)):
-            sizes = [spans[value] for value in selected + [idx]]
+            # The cache allocates the selected layers in sorted order.
+            sizes = [spans[value] for value in sorted([*selected, idx])]
             if pinned:
                 from soup_cli.utils.layer_stream_runtime import plan_pinned_arenas
 
-                cost = plan_pinned_arenas(sizes, align=SECTOR_BYTES).pinned_bytes
+                cost = plan_pinned_arenas(
+                    sizes, align=SECTOR_BYTES, base_slack_bytes=SECTOR_BYTES - 1
+                ).pinned_bytes
             else:
                 cost = sum(sizes) + len(sizes) * SECTOR_BYTES
             if cost <= budget:
