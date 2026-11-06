@@ -3,8 +3,8 @@
 The harness (``benchmarks/harness/b14_real_moe_correctness.py``) takes any native
 DeepSeek-V3 checkpoint directory. The real run uses a published trained checkpoint on a
 Kaggle notebook and on a vast.ai machine. These tests run the same entry point on the tiny
-synthetic checkpoint of ``b13_moe_fixture`` on CPU, so they check the wiring of the comparison and its sensitivity,
-not the behavior of real weights.
+synthetic checkpoint of ``b13_moe_fixture`` on CPU, so they check the wiring of the
+comparison and its sensitivity, not the behavior of real weights.
 """
 
 from __future__ import annotations
