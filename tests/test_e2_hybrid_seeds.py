@@ -188,3 +188,17 @@ def test_seed_notebook_runs_the_seed_runner():
     code = "".join("".join(c["source"]) for c in nb["cells"])
     assert 'ARMS = ["W32_s901", "H24_s901", "H16_s901", "H8_s901"]' in code
     assert "benchmarks/e2/hybrid_seeds/run_arm.py" in code and "e2hs_results_" in code
+
+
+def test_retained_kaggle_series_replays_to_the_published_result():
+    report = HS / "reports" / "20261106"
+    evidence = report / "evidence"
+    sessions = [evidence / s for s in ("20261105_201228", "20261105_230802", "20261106_020313")]
+    result = analyze_seeds.analyze(sessions)
+    published = json.loads((report / "analysis.json").read_text())
+    assert result["label"] == published["label"] == "DECIDED"
+    assert result["per_k"] == published["per_k"]
+    assert result["recommended_k_for_speed_check"] == 8
+    manifest = json.loads((report / "MANIFEST.json").read_text())
+    for name, digest in manifest["files"].items():
+        assert hashlib.sha256((evidence / name).read_bytes()).hexdigest() == digest, name
