@@ -3700,6 +3700,49 @@ class TrainingConfig(BaseModel):
         ),
     )
 
+    stream_cache_profile: Optional[str] = Field(
+        default=None, min_length=1, max_length=4096,
+        description=(
+            "Optional local JSON cache-performance history for dense CUDA disk-streamed SFT. "
+            "Reuse selects a measured placement using Trainer's actual total update count, "
+            "including cold startup cost, within the configured RAM/GPU cache ceilings. "
+            "stream_recompute='auto' also permits measured activation retention. "
+            "Missing/stale history keeps ordinary streaming; it never starts a calibration "
+            "sweep. Current memory admission remains mandatory."
+        ),
+    )
+    stream_cache_profile_mode: Literal["reuse", "record"] = Field(
+        default="reuse",
+        description=(
+            "With stream_cache_profile, record measures two warmup and six ordinary "
+            "training updates using the requested placement and saves its costs; every "
+            "update still trains. Reuse reads matching history without per-step timing."
+        ),
+    )
+
+    @field_validator("stream_cache_profile", mode="before")
+    @classmethod
+    def _validate_stream_cache_profile_path(cls, value: Any) -> Any:
+        if value is not None and (
+            not isinstance(value, str) or not value.strip() or "\x00" in value or "://" in value
+        ):
+            raise ValueError("training.stream_cache_profile must be a nonempty local path")
+        return value
+
+    stream_recompute: Literal["on", "auto"] = Field(
+        default="on",
+        description=(
+            "With stream_cache_profile, auto may keep selected decoder activations "
+            "within the shared VRAM budget. On recomputes all streamed activations."
+        ),
+    )
+
+    @field_validator("stream_recompute", mode="before")
+    @classmethod
+    def _validate_profile_recompute(cls, value: Any) -> Any:
+        # PyYAML reads an unquoted 'on' as True.
+        return "on" if value is True else value
+
     stream_pin: Optional[bool] = Field(
         default=None,
         description=(
@@ -6592,6 +6635,9 @@ class SoupConfig(BaseModel):
                 or tcfg.stream_buffers != 2
                 or tcfg.stream_resident_layers != 0
                 or tcfg.stream_ram_cache_mb != 0
+                or tcfg.stream_cache_profile is not None
+                or tcfg.stream_cache_profile_mode != "reuse"
+                or tcfg.stream_recompute != "on"
                 or tcfg.stream_read_ahead != DEFAULT_STREAM_READ_AHEAD
                 or tcfg.stream_vram_override is not None
                 or tcfg.stream_vram_probe
@@ -6605,11 +6651,39 @@ class SoupConfig(BaseModel):
                     "training.stream_vram_override / training.stream_vram_probe "
                     "/ training.stream_expert_layout / training.stream_disk_kind "
                     "/ training.stream_pin / training.stream_resident_layers "
-                    "/ training.stream_ram_cache_mb set but "
+                    "/ training.stream_ram_cache_mb / training.stream_cache_profile "
+                    "/ training.stream_cache_profile_mode / training.stream_recompute set but "
                     "stream_layers is false; set stream_layers=true to stream the "
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_cache_profile is None:
+            if tcfg.stream_cache_profile_mode != "reuse" or tcfg.stream_recompute != "on":
+                raise ValueError(
+                    "training.stream_cache_profile_mode and stream_recompute='auto' "
+                    "require training.stream_cache_profile"
+                )
+        else:
+            if (
+                self.task != "sft" or self.backend != "transformers"
+                or self.modality != "text" or tcfg.stream_source != "disk"
+                or tcfg.batch_size == "auto" or tcfg.activation_offloading is not None
+                or tcfg.stream_vram_probe or tcfg.l2l or tcfg.stream_partial_ram is not None
+                or tcfg.stream_expert_layout != "fused"
+            ):
+                raise ValueError(
+                    "training.stream_cache_profile requires text Transformers SFT on the "
+                    "disk tier, explicit batch_size, and no L2L, partial RAM, per-expert "
+                    "layout, activation offloading or separate VRAM probe"
+                )
+            if tcfg.stream_recompute == "auto" and (
+                tcfg.fast_lora or tcfg.optimizer not in {
+                    "adamw_torch", "adamw_torch_fused", "adamw_8bit", "paged_adamw_8bit",
+                }
+            ):
+                raise ValueError(
+                    "profiled stream_recompute='auto' requires AdamW and fast_lora=false"
+                )
         if tcfg.stream_ram_cache_mb and tcfg.stream_partial_ram is not None:
             raise ValueError(
                 "Choose one host weight cache: training.stream_ram_cache_mb "

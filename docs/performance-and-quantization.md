@@ -529,8 +529,7 @@ persistent memory separately from rotating buffers. Setup time is additional to 
 This is a conservative capacity policy, not an optimal speed selector or a promise that
 occupying more VRAM is faster. Speed and peak memory must be checked for the actual model
 and configuration. Other persistent allocations already present are included in the measured
-peak. A future activation-retention auto mode must share the remaining cap including the
-optimizer/setup reserve; two independent planners must not each spend the same headroom.
+peak. The profiled activation mode below uses the same cap and charges allocations already present.
 
 **Partial RAM cache for the SSD tier (opt-in).** If the full base does not fit in
 RAM, `training.stream_ram_cache_mb` can keep a fixed, centred hotset of frozen layers
@@ -558,6 +557,54 @@ reports that the partial cache is unnecessary. An explicit cache allocation fail
 refuses with advice to lower the budget or disable pinning; SSD read/identity failures
 are propagated rather than retried through a different source. Cached buffers remain
 alive until their outstanding copy events finish at teardown.
+
+**Choosing a measured memory placement (opt-in, dense disk SFT).**
+`training.stream_cache_profile: /path/to/cache.json` with
+`stream_cache_profile_mode: record` measures two warmup and six subsequent
+optimizer updates during ordinary training. Those updates train the adapter;
+there is no replay or separate sweep. Startup, including cache allocation and
+cold first updates, is charged separately from the subsequent step time.
+Record ordinary streaming (`stream_recompute: on`, zero RAM and GPU cache) and
+desired memory configurations in the same file. With `stream_recompute: auto`,
+record mode first installs the requested weight caches, then probes how many
+of the last layers can keep their activations within the shared VRAM budget.
+Use zero weight caches to measure retention alone. If retention cannot be
+admitted, training uses recomputation and the recorded history is left intact.
+Use the same model, tokenized data, hardware and training settings for comparable
+measurements. Profiles do not automatically explore unmeasured configurations.
+
+On subsequent runs use `stream_cache_profile_mode: reuse` (the default). At
+`Trainer.on_train_begin`, the resolved total optimizer-update count selects a
+measured candidate only when its predicted whole-job time beats ordinary
+streaming by at least 2%. `stream_ram_cache_mb` and `stream_resident_layers`
+remain upper limits: set the latter to `auto` to permit a recorded GPU-layer
+count. A short job can select zero caches and avoid their setup completely.
+Set `stream_recompute: auto` to allow plans with retained activations to compete
+with the weight-only and ordinary plans. Use `on` to require recomputation.
+There is no calibration sweep or per-step synchronization in reuse mode.
+
+The bounded JSON history is keyed by checkpoint index, tokenized dataset
+fingerprint, training configuration, GPU UUID/driver, RAM limits and package/
+implementation versions. Missing, expired (30 days), corrupt or mismatching
+history keeps ordinary streaming. Profile reuse does not grant memory: current
+RAM admission still runs, and a selected GPU-resident set always passes a fresh
+full-shape forward/backward probe under the original 85% ceiling and setup/
+optimizer reserves. A recorded baseline footprint can replace only the first
+planning probe. A plan with retained activations also verifies the exact recorded
+suffix with the weight caches in place. It skips the one-layer sizing probe in
+reuse mode. Failure of the fresh candidate, or a different cache membership
+under current memory pressure, restores ordinary streaming. Execution failures
+other than OOM still propagate.
+
+This first version requires single-device text Transformers SFT, explicit batch
+size, `stream_source: disk`, `stream_recompute: on` or `auto`, no activation offloading
+and no separate `stream_vram_probe`. Use the standard dense streamer. L2L,
+`stream_partial_ram` and the per-expert layout use different memory policies.
+Checkpoint resume uses ordinary streaming. Activation retention requires AdamW
+and `fast_lora: false`. This lets the probe reserve future optimizer state and
+limits retention to the qualified backward path.
+Its speed benefit and the accuracy of whole-job predictions require GPU
+qualification on the target workload; a stored profile is not a speed guarantee.
 
 The cache preserves original tensor bytes, including packed NF4 weights and sidecars;
 it adds no quantization, arithmetic kernel, activation retention or compilation.

@@ -8,6 +8,9 @@ Removing raw files from the review diff does not remove the original Git history
 
 ## Current reports
 
+- [32B NF4 memory profile](d2-stream-cache-profile-20261104.md) records a 4.47%
+  shorter 18-update job and exact trajectory checks for the tested placements.
+
 - [Soup SFT and layer-streaming integration](d2-fast-lora-streaming-20261018.md):
   synthetic FP16/BF16 correctness passes; real-data speed, memory and quality remain unmeasured.
 - [RTX 3090 projection timing](d2-rtx3090-report-20261013.md): mixed results;

@@ -23,7 +23,9 @@ import contextlib
 import math
 import os
 import shutil
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from rich.console import Console
@@ -1162,7 +1164,14 @@ class StreamingSetupMixin:
                 "a pageable CPU source.[/]"
             )
 
-        cache_bytes = tcfg.stream_ram_cache_mb * 2**20 if tier == TIER_DISK else 0
+        cache_profile = getattr(tcfg, "stream_cache_profile", None)
+        if cache_profile and self._stream_total_experts(model_config) > 1:
+            raise ValueError("training.stream_cache_profile currently supports dense decoders only")
+        cache_setup_started = time.perf_counter() if cache_profile else None
+        # Resolve the profile after Trainer has calculated its optimizer update count.
+        cache_bytes = (
+            tcfg.stream_ram_cache_mb * 2**20 if tier == TIER_DISK and not cache_profile else 0
+        )
         defer_ram_cache = bool(cache_bytes and getattr(tcfg, "stream_resident_layers", 0) != 0)
         partial_budget = None
         self._c3_l2l_plan = None
@@ -1253,7 +1262,7 @@ class StreamingSetupMixin:
             except BaseException:
                 self._close_stream_runtime()
                 raise
-        if getattr(tcfg, "stream_resident_layers", 0) != 0:
+        if getattr(tcfg, "stream_resident_layers", 0) != 0 and not cache_profile:
             from soup_cli.utils.stream_residency import configure_stream_residency
 
             try:
@@ -1278,6 +1287,17 @@ class StreamingSetupMixin:
         if defer_ram_cache:
             try:
                 runtime.source.configure_ram_cache(cache_bytes)
+            except BaseException:
+                self._close_stream_runtime()
+                raise
+        if cache_profile:
+            from soup_cli.utils.stream_cache_profile import build_stream_cache_callback
+
+            try:
+                self._stream_cache_profile_callback = build_stream_cache_callback(
+                    self, cfg, index_path=Path(shard_dir) / "index.json",
+                    setup_started=cache_setup_started, notify=console.print,
+                )
             except BaseException:
                 self._close_stream_runtime()
                 raise
@@ -1317,6 +1337,14 @@ class StreamingSetupMixin:
         if self._STREAM_REFILL_BEFORE_BACKWARD and n_large_keys > 1:
             return 2 * slot_bytes
         return slot_bytes
+
+    def _stream_step_shape(self, cfg, tcfg, model_config) -> tuple[int, int, int]:
+        shape = self._stream_shape_config(model_config)
+        return (
+            int(tcfg.batch_size),
+            int(cfg.data.max_length),
+            int(getattr(shape, "vocab_size", 0) or 0),
+        )
 
     def _attach_streamed_save_guard(self) -> None:
         """Check every ``checkpoint-*`` adapter a streamed run writes (#1011)."""
