@@ -1,0 +1,50 @@
+# SimPO on L2L: a short run on synthetic preference pairs
+#
+# Each streamed decoder layer loads once per optimizer step and runs all
+# gradient_accumulation_steps micro-batches (training.l2l). SimPO has no reference
+# model, so only the policy's [chosen; rejected] pair walks the layers. The LoRA
+# gradients equal gradient accumulation at the same k.
+#
+# The pairs in examples/data/simpo_pairs_synthetic.jsonl are SYNTHETIC: written by hand
+# to show the format and to exercise the run. They teach a model nothing useful.
+#
+# SimPO here is TRL's CPOTrainer with loss_type=simpo: beta stays at TRL's default 0.1,
+# simpo_gamma is the reward margin and cpo_alpha weights the NLL term on the chosen answer.
+# Other CPO loss types are not run by L2L. Keep data.max_length above the longest answer:
+# TRL cuts both answers of a pair to max_length minus the longer one, and Soup refuses a
+# pair whose shorter answer would be left empty.
+#
+# L2L supports Llama and Mistral architectures on one GPU. Check layer loads in the
+# training log: l2l_layer_loads stays flat in k, while plain streaming loads k times more.
+#
+# Usage:
+#   soup train --config examples/configs/simpo_l2l_short.yaml
+
+base: HuggingFaceTB/SmolLM2-135M-Instruct
+task: simpo
+
+data:
+  train: examples/data/simpo_pairs_synthetic.jsonl
+  format: dpo
+  max_length: 256
+
+training:
+  epochs: 1
+  lr: 1e-5
+  simpo_gamma: 0.5
+  cpo_alpha: 1.0
+  quantization: none
+  batch_size: 2
+  gradient_accumulation_steps: 4   # k: micro-batches per optimizer step
+  stream_layers: true
+  l2l: true
+  warmup_ratio: 0.1
+  logging_steps: 1
+  save_steps: 100
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0
+    target_modules: auto
+
+output: ./output_simpo_l2l_short/

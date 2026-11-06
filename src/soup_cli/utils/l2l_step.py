@@ -26,6 +26,14 @@ and walk the backward the same way in reverse.
   adds no auxiliary routing loss). ``capture_layer_call`` records the layer kwargs from a
   real forward instead of rebuilding the rotary embeddings and the mask.
 
+* A preference loss with a reference model passes one or more ``ReferencePass``es: after each
+  layer's policy micro-batches the same loaded layer runs the k micro-batches again, without
+  grad and without writing to the activation store, then the pass's head turns each last
+  hidden state into log-probabilities. A pass runs under a named adapter (DPO's frozen
+  ``ref``), with every adapter off (KTO's reference) or under the policy as it is (KTO's KL
+  estimate), and walks either the policy's ids or ids of its own (KTO's KL completions have
+  their own width). It adds no layer load: the extra calls land on a layer the pool already
+  owns.
 * With ``lora.dropout`` > 0 the step replays the random stream of plain gradient
   accumulation: every decoder and head call runs at the generator state accumulation
   reaches for that micro-batch, including head draws between consecutive micro-batches.
@@ -43,8 +51,8 @@ No optimizer step. torch is imported inside functions.
 from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 #: Architectures whose top-level forward this step re-implements. ``training.l2l`` admits them
 #: at launch under the rules in ``trainer.l2l_trainer.refuse_unsupported_l2l``.
@@ -134,6 +142,60 @@ def model_parts(model: Any) -> Tuple[Any, Any]:
 def label_tokens(micro_batches: Sequence[Any]) -> int:
     """HF's ``num_items_in_batch`` when labels == input_ids: seq - 1 per row."""
     return sum(int(ids.shape[0]) * (int(ids.shape[1]) - 1) for ids in micro_batches)
+
+
+#: ``(causal, owner, hidden, mb) -> loss``. ``hidden`` is micro-batch ``mb``'s output of the
+#: last decoder layer, a leaf that requires grad. The head runs ``norm``, ``lm_head`` and the
+#: loss, and returns the scalar the step backpropagates, already scaled for the window.
+LossHead = Callable[[Any, Any, Any, int], Any]
+
+
+def sft_head(labels: Sequence[Any], n_items: int) -> LossHead:
+    """The SFT head: ``norm``, ``lm_head``, the model's ``loss_function`` over ``n_items``."""
+
+    def head(causal: Any, owner: Any, hidden: Any, mb: int) -> Any:
+        normed = owner.norm(hidden)
+        logits = causal.lm_head(normed[:, slice(0, None), :])
+        return causal.loss_function(
+            logits=logits,
+            labels=labels[mb],
+            vocab_size=int(causal.config.vocab_size),
+            num_items_in_batch=n_items,
+        )
+
+    return head
+
+
+@dataclass
+class ReferencePass:
+    """A gradient-free pass over the same layers, after each layer's policy micro-batches.
+
+    ``head`` has the shape of a :data:`LossHead`; the step calls it under ``no_grad``, inside
+    the pass's adapter state, on the last hidden state of micro-batch ``mb`` and stores the
+    result in ``outputs[mb]``. The policy head reads ``outputs`` after the step has filled it.
+
+    The adapter state is one of: ``adapter`` (a PEFT adapter name, TRL's ``ref`` for DPO)
+    active for the pass; ``adapters_off`` (every adapter switched off, TRL's
+    ``null_ref_context`` for KTO); neither, the policy as it stands.
+
+    ``micro_batches`` are the ids the pass walks; without them it walks the policy's. Ids of
+    their own need one :class:`LayerCall` per micro-batch in ``calls``, captured at that
+    micro-batch's shape.
+    """
+
+    head: LossHead
+    adapter: Optional[str] = None
+    adapters_off: bool = False
+    micro_batches: Optional[Sequence[Any]] = None
+    calls: Optional[Sequence[LayerCall]] = None
+    outputs: Dict[int, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.adapter is not None and self.adapters_off:
+            raise ValueError(
+                "a reference pass names an adapter or switches the adapters off, not both: "
+                f"adapter={self.adapter!r}, adapters_off=True"
+            )
 
 
 class _CapturedError(Exception):
@@ -307,6 +369,41 @@ def _routing_difference(before: Any, now: Any) -> str:
     return f"{changed} of {before.shape[0]} tokens chose other experts"
 
 
+def as_passes(
+    reference: Union[ReferencePass, Sequence[ReferencePass], None],
+) -> List[ReferencePass]:
+    """The extra passes of a window as a list: none, one pass, or the given sequence."""
+    if reference is None:
+        return []
+    if isinstance(reference, ReferencePass):
+        return [reference]
+    return list(reference)
+
+
+def _pass_micro_batches(spec: ReferencePass, policy_ids: Sequence[Any], k: int) -> Sequence[Any]:
+    """The ids a pass walks: its own, checked against ``k``, or the policy's."""
+    if spec.micro_batches is None:
+        return policy_ids
+    if len(spec.micro_batches) != k:
+        raise ValueError(
+            f"a reference pass has {len(spec.micro_batches)} micro-batches for a window of {k}"
+        )
+    return spec.micro_batches
+
+
+def _pass_calls(spec: ReferencePass, policy_calls: Sequence[LayerCall], k: int) -> Sequence[Any]:
+    """The layer call of each micro-batch a pass walks; ids of its own bring their own."""
+    if spec.micro_batches is None:
+        return policy_calls
+    if spec.calls is None or len(spec.calls) != k:
+        raise ValueError(
+            "a reference pass over ids of its own needs one layer call per micro-batch "
+            "(captured at that micro-batch's shape); got "
+            f"{None if spec.calls is None else len(spec.calls)} layer calls for {k}"
+        )
+    return spec.calls
+
+
 class L2LStep:
     """One layer-major step: forward, head, backward. No optimizer step."""
 
@@ -317,6 +414,7 @@ class L2LStep:
         call: LayerCall,
     ) -> None:
         self.causal, self.owner = model_parts(model)
+        self.model = model
         self.layers = list(self.owner.layers)
         self.call = call
         hook = getattr(runtime, "hook", None)
@@ -341,6 +439,30 @@ class L2LStep:
             out = module(hidden, *call.args, **call.kwargs)
         return out[0] if isinstance(out, tuple) else out
 
+    @contextmanager
+    def _adapter(self, name: str) -> Iterator[None]:
+        """The named PEFT adapter active inside, the previous one after.
+
+        The semantics of TRL's ``use_adapter(model, name)``, which the DPO trainer wraps its
+        reference forward in. ``set_adapter`` moves ``requires_grad`` to the active adapter
+        and back; the reference pass runs under ``no_grad``, so no graph keeps the flag.
+        """
+        previous = self.model.active_adapter
+        self.model.set_adapter(name)
+        try:
+            yield
+        finally:
+            self.model.set_adapter(previous)
+
+    def _pass_adapters(self, spec: ReferencePass) -> Any:
+        """The adapter state of an extra pass: a named adapter, every adapter off, or none."""
+        if spec.adapters_off:
+            # ``PeftModel.disable_adapter``: what TRL's ``null_ref_context`` enters for KTO.
+            return self.model.disable_adapter()
+        if spec.adapter is not None:
+            return self._adapter(spec.adapter)
+        return nullcontext()
+
     @staticmethod
     def _backward_context(ids: Any) -> Any:
         """Autocast off around a backward call, the state HF's accumulation runs it in.
@@ -362,15 +484,26 @@ class L2LStep:
         n_items: Optional[int] = None,
         labels: Optional[Sequence[Any]] = None,
         calls: Optional[Sequence[LayerCall]] = None,
+        head: Optional[LossHead] = None,
+        reference: Union[ReferencePass, Sequence[ReferencePass], None] = None,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
         ``calls`` is one ``LayerCall`` per micro-batch, captured at that micro-batch's own
         shape; micro-batches of different lengths run unpadded. Without it every
         micro-batch uses the call the step was built with.
+
+        ``head`` replaces the SFT head and loss (see :data:`LossHead`); it owns its labels
+        and its scale, so it excludes ``labels`` and ``n_items``.
+
+        ``reference`` adds the gradient-free passes (one :class:`ReferencePass` or a sequence
+        of them). It refuses a model whose layers draw dropout: accumulation's extra forwards
+        would draw masks too, and the replay of ``l2l_rng`` covers the policy's draws only.
         """
+        if head is not None and (labels is not None or n_items is not None):
+            raise ValueError("a custom head owns its labels and scale: pass no labels or n_items")
         with count_loads(self.runtime) as counters, RoutingGuard(self.layers) as guard:
-            losses = self._run(micro_batches, store, n_items, labels, calls, guard)
+            losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
         self.counters = counters
         return losses
 
@@ -382,6 +515,8 @@ class L2LStep:
         labels: Optional[Sequence[Any]],
         calls: Optional[Sequence[LayerCall]],
         guard: RoutingGuard,
+        head: Optional[LossHead],
+        reference: Union[ReferencePass, Sequence[ReferencePass], None] = None,
     ) -> List[Any]:
         import torch
 
@@ -392,17 +527,27 @@ class L2LStep:
             raise ValueError("an L2L step needs at least one micro-batch")
         if k > store.k:
             raise ValueError(f"{k} micro-batches, but the activation store holds {store.k}")
-        if labels is None:
-            labels = micro_batches
-        elif len(labels) != k:
-            raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
         if calls is None:
             calls = [self.call] * k
         elif len(calls) != k:
             raise ValueError(f"{len(calls)} layer calls for {k} micro-batches")
-        total = label_tokens(micro_batches) if n_items is None else int(n_items)
-        vocab = int(self.causal.config.vocab_size)
+        if head is None:
+            if labels is None:
+                labels = micro_batches
+            elif len(labels) != k:
+                raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
+            total = label_tokens(micro_batches) if n_items is None else int(n_items)
+            head = sft_head(labels, total)
 
+        passes = as_passes(reference)
+        if passes and l2l_rng.has_draws(self.call.draws):
+            raise ValueError(
+                "the L2L reference pass does not support dropout: the reference forward "
+                "of gradient accumulation draws dropout masks too, and the replay covers "
+                "the policy's draws only. Set attention_dropout to 0."
+            )
+        pass_ids = [_pass_micro_batches(spec, micro_batches, k) for spec in passes]
+        pass_calls = [_pass_calls(spec, calls, k) for spec in passes]
         replayed = None
         plan = (*self.call.draws, self.call.head_draws)
         if l2l_rng.has_draws(plan):
@@ -412,12 +557,16 @@ class L2LStep:
         embedding_states: List[Any] = []
 
         self._prime(self.owner, ())
+        pass_hidden: List[List[Any]] = []
         with torch.no_grad():
             hidden = []
             for ids in micro_batches:
                 if train_embedding:
                     embedding_states.append(l2l_rng.snapshot())
                 hidden.append(self.owner.embed_tokens(ids))
+            for spec, ids in zip(passes, pass_ids):
+                with self._pass_adapters(spec):
+                    pass_hidden.append([self.owner.embed_tokens(x) for x in ids])
             for idx, layer in enumerate(self.layers):
                 for mb in range(k):
                     store.put(idx, mb, hidden[mb])
@@ -425,6 +574,18 @@ class L2LStep:
                         hidden[mb] = self._layer(
                             layer, hidden[mb], states[mb][idx] if states else None, calls[mb]
                         )
+                for spec, current, spec_calls in zip(passes, pass_hidden, pass_calls):
+                    # Same loaded layer: nothing is stored, nothing loads. Outside
+                    # ``guard.record``, so the routing guard sees the policy forward only.
+                    with self._pass_adapters(spec):
+                        for mb in range(k):
+                            current[mb] = self._layer(layer, current[mb], None, spec_calls[mb])
+            for spec, current in zip(passes, pass_hidden):
+                spec.outputs.clear()
+                with self._pass_adapters(spec):
+                    for mb in range(k):
+                        spec.outputs[mb] = spec.head(self.causal, self.owner, current[mb], mb)
+                        current[mb] = None
 
         losses: List[Any] = []
         grads: List[Any] = []
@@ -436,11 +597,7 @@ class L2LStep:
                 torch.enable_grad(),
                 l2l_rng.state_at(head_state) if head_state is not None else nullcontext(),
             ):
-                normed = self.owner.norm(last)
-                logits = self.causal.lm_head(normed[:, slice(0, None), :])
-                loss = self.causal.loss_function(
-                    logits=logits, labels=labels[mb], vocab_size=vocab, num_items_in_batch=total
-                )
+                loss = head(self.causal, self.owner, last, mb)
             with self._backward_context(micro_batches[mb]):
                 loss.backward()
             losses.append(loss.detach())

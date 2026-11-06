@@ -162,24 +162,28 @@ def test_new_l2l_fields_are_refused_without_stream_layers(field, value):
         _config(stream_layers=False, **{field: value})
 
 
+@pytest.mark.parametrize("task", ["dpo", "orpo", "simpo"])
 @pytest.mark.parametrize("field, value", [
     ("l2l_activation_codec", "fp8_e4m3"),
     ("l2l_auto_k", True),
 ])
-def test_new_l2l_fields_are_refused_off_sft(field, value):
+def test_new_l2l_fields_are_refused_off_sft(task, field, value):
+    """L2L runs other tasks too, but only the SFT launch reads these fields."""
     from soup_cli.config.schema import SoupConfig
 
-    with pytest.raises(ValueError, match="sft"):
-        SoupConfig.model_validate({
-            "base": "example/model", "task": "dpo",
+    def build(**extra):
+        return SoupConfig.model_validate({
+            "base": "example/model", "task": task,
             "data": {"train": "train.jsonl", "format": "dpo"},
             "training": {
-                "stream_layers": True, "stream_source": "disk",
-                "stream_expert_layout": "per_expert", "l2l": True,
-                "quantization": "none", "batch_size": 1,
-                "lora": {"r": 4, "dropout": 0}, field: value,
+                "stream_layers": True, "l2l": True, "quantization": "none",
+                "batch_size": 1, "lora": {"r": 4, "dropout": 0}, **extra,
             },
         })
+
+    assert build().training.l2l is True
+    with pytest.raises(ValueError, match=rf"training\.{field}.*task='sft'"):
+        build(**{field: value})
 
 
 def test_default_values_of_new_fields_are_accepted_without_l2l():

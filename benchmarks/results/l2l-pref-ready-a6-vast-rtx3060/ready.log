@@ -1,0 +1,17 @@
+dpo k=1: pass []
+dpo k=2: pass []
+dpo k=4: pass []
+dpo: {'state': 'pass', 'reason': ''}
+kto k=1: pass []
+kto k=2: pass []
+kto k=4: fail ['float32 is not bit equal: step 0: loss 0.49947431683540344 against 0.49947434663772583']
+kto: {'state': 'fail', 'reason': 'k=4: fail'}
+orpo k=1: fail ['bf16 step 0 is outside 1.5 floors: step 0: base_model.model.model.layers.23.self_attn.v_proj.lora_B.default.weight differs by 1.850e-04, limit 1.602e-04']
+orpo k=2: fail ['bf16 step 0 is outside 1.5 floors: step 0: base_model.model.model.layers.29.self_attn.v_proj.lora_B.default.weight differs by 1.106e-04, limit 8.869e-05']
+orpo k=4: fail ['bf16 step 0 is outside 1.5 floors: step 0: base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight differs by 5.188e-04, limit 4.807e-04']
+orpo: {'state': 'fail', 'reason': 'k=1: fail; k=2: fail; k=4: fail'}
+simpo k=1: pass []
+simpo k=2: fail ['bf16 step 0 is outside 1.5 floors: step 0: base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight differs by 2.232e-04, limit 1.831e-04']
+simpo k=4: pass []
+simpo: {'state': 'fail', 'reason': 'k=2: fail'}
+EXIT=0
