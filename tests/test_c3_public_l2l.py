@@ -33,6 +33,98 @@ def test_maximum_window_is_reserved_before_cache_including_pinned_rounding(pin, 
     assert plan.activations.used_bytes == 0
 
 
+def test_fp8_partition_covers_cpu_transient_and_variable_shape_storage():
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import _store_for
+
+    plan = _plan(codec="fp8_e4m3", device_type="cpu")
+    state, stepper = _state_and_stepper(plan)
+    state.activation_codec = "fp8_e4m3"
+    try:
+        store = _store_for(state, stepper, _ids((1, 128), (1, 5)), "cpu")
+        for mb, length in enumerate((128, 5)):
+            value = torch.ones((1, length, 33), dtype=torch.float32)
+            store.put(0, mb, value)
+            assert torch.equal(store.get(0, mb), value)
+        assert plan.activations.used_bytes <= plan.activations.limit_bytes
+        assert plan.weights.reserved_bytes == 1234 + plan.activations.limit_bytes
+        with pytest.raises(ValueError, match="plan"):
+            plan.validate_window(
+                n_layers=3, shape=(1, 128, 33), k=2,
+                dtype="float32", pin=False, codec="none",
+            )
+    finally:
+        state.close()
+    assert plan.activations.used_bytes == 0
+
+
+def test_combined_fp8_moe_c3_reserves_routing_before_weights_and_keeps_it_during_growth():
+    import torch
+
+    from soup_cli.trainer.l2l_trainer import L2LState, _store_for
+    from soup_cli.utils.host_memory_budget import HostMemoryBudget
+    from soup_cli.utils.moe_l2l_budget import plan_moe_l2l
+
+    memory_plan = plan_moe_l2l(
+        HostMemoryBudget(10_000_000), n_layers=3, n_moe_layers=2,
+        max_shape=(1, 65, 33), experts_per_token=2, requested_k=2,
+        dtype="float32", pin=False, codec="fp8_e4m3", device_type="cpu",
+    )
+    routing_bytes = memory_plan.routing_record_bytes + memory_plan.routing_comparison_bytes
+    missing_routes = _plan(codec="fp8_e4m3", device_type="cpu", shape_round=1)
+    with pytest.raises(ValueError, match="routing"):
+        L2LState(
+            runtime=None, dtype=torch.float32, activation_codec="fp8_e4m3",
+            c3_plan=missing_routes, memory_plan=memory_plan, host_budget=missing_routes.activations,
+        )
+    assert missing_routes.activations.used_bytes == 0
+    plan = _plan(
+        codec="fp8_e4m3", device_type="cpu", shape_round=1, routing_bytes=routing_bytes,
+    )
+    assert plan.weights.reserved_bytes == 1234 + memory_plan.host_bytes
+    state = L2LState(
+        runtime=None, dtype=torch.float32, activation_codec="fp8_e4m3",
+        c3_plan=plan, memory_plan=memory_plan, host_budget=plan.activations,
+    )
+    stepper = SimpleNamespace(
+        causal=SimpleNamespace(config=SimpleNamespace(hidden_size=33)), layers=[None] * 3,
+    )
+    try:
+        _store_for(state, stepper, _ids((1, 5)), "cpu")
+        state.close_store()
+        assert plan.activations.used_bytes == routing_bytes
+        store = _store_for(state, stepper, _ids((1, 65), (1, 65)), "cpu")
+        value = torch.ones((1, 65, 33), dtype=torch.float32)
+        store.put(2, 1, value)
+        assert torch.equal(store.get(2, 1), value)
+        assert plan.activations.used_bytes == plan.activations.limit_bytes
+    finally:
+        state.close()
+    assert plan.activations.used_bytes == 0
+
+
+def test_fp8_device_mismatch_keeps_existing_store_and_lease():
+    from soup_cli.trainer.l2l_trainer import _store_for
+
+    plan = _plan(codec="fp8_e4m3", device_type="cpu")
+    state, stepper = _state_and_stepper(plan)
+    state.activation_codec = "fp8_e4m3"
+    wrong_device_plan = _plan(codec="fp8_e4m3", device_type="cuda")
+    try:
+        first = _store_for(state, stepper, _ids((1, 5)), "cpu")
+        reserved = plan.activations.used_bytes
+        state.c3_plan = wrong_device_plan
+        with pytest.raises(ValueError, match="plan"):
+            _store_for(state, stepper, _ids((1, 128), (1, 128)), "cpu")
+        assert state.store is first
+        assert plan.activations.used_bytes == reserved
+        assert wrong_device_plan.activations.used_bytes == 0
+    finally:
+        state.close()
+    assert plan.activations.used_bytes == 0
+
+
 @pytest.mark.parametrize(
     "changes",
     [
@@ -148,20 +240,23 @@ def test_failed_activation_drain_prevents_weight_cleanup():
     assert order == ["activation", "activation retry", "weights"]
 
 
-def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monkeypatch):
+@pytest.mark.parametrize("codec", ["none", "fp8_e4m3"])
+def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monkeypatch, codec):
     import torch
     from transformers import TrainerCallback
 
     from soup_cli.config.schema import SoupConfig
-    from soup_cli.utils.budgeted_activations import BudgetedActivationStore
     from tests.test_v07200 import TestStreamingEndToEndSetup
 
     wrapper, dataset = TestStreamingEndToEndSetup()._wrapper(tmp_path, monkeypatch)
     config = wrapper.config.model_dump()
     config["training"].update(
         l2l=True,
+        l2l_activation_codec=codec,
         gradient_accumulation_steps=2,
         stream_source="disk",
+        # Isolate disk admission from the test host; this does not measure NVMe performance.
+        stream_disk_kind="nvme",
         stream_pin=False,
         stream_partial_ram=dict(limit_bytes=10_000_000, reserved_bytes=100_000, cache_bytes=45_000),
     )
@@ -182,7 +277,6 @@ def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monk
 
         class ObserveStore(TrainerCallback):
             def on_step_end(self, args, state, control, **kwargs):
-                assert isinstance(wrapper.trainer._soup_l2l.store, BudgetedActivationStore)
                 assert 0 < plan.activations.used_bytes <= plan.activations.limit_bytes
                 observed_usage.append(plan.activations.used_bytes)
 

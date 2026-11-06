@@ -1,0 +1,27 @@
+BF16 p3 nf4 k=1 discovery
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 233.90it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1513.84it/s]
+/kaggle/working/soup/benchmarks/harness/p3_bf16_control.py:140: UserWarning: Memory efficient kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:986.)
+  return self.original(query, key, value, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_control.py:140: UserWarning: Expected query, key and value to all be of dtype: {Half, Float}. Got Query dtype: c10::BFloat16, Key dtype: c10::BFloat16, and Value dtype: c10::BFloat16 instead. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:91.)
+  return self.original(query, key, value, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_control.py:140: UserWarning: Flash attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:988.)
+  return self.original(query, key, value, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_control.py:140: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:540.)
+  return self.original(query, key, value, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_control.py:140: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:990.)
+  return self.original(query, key, value, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_control.py:140: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:706.)
+  return self.original(query, key, value, *args, **kwargs)
+BF16 p3 nf4 k=4 discovery
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 291.62it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1518.21it/s]
+BF16 p3 nf4 k=16 discovery
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 291.80it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1482.10it/s]
+BF16 p3 nf4 k=64 discovery
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 288.53it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1448.58it/s]
+Recorded 4 cases: BLOCKED_OR_FAILED 
+(/kaggle/working/evidence/discovery-nf4-p3.json)

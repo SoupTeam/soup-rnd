@@ -3537,6 +3537,15 @@ class TrainingConfig(BaseModel):
             "streaming. See ADR 0002 and docs/performance-and-quantization.md."
         ),
     )
+    l2l_activation_codec: Literal["none", "fp8_e4m3"] = Field(
+        default="none",
+        description=(
+            "Opt-in lossy E4M3 boundary activation storage for streamed text SFT with "
+            "l2l=true. Per-token scales retain the hidden dimension. Requires a known "
+            "host allocation budget and refuses compressed spilling; none preserves "
+            "the existing uncompressed RAM/spill path. This does not enable FP8 compute."
+        ),
+    )
     l2l_spill_dir: Optional[str] = Field(
         default=None,
         description=(
@@ -6473,6 +6482,21 @@ class SoupConfig(BaseModel):
         for rather than just saying no.
         """
         tcfg = self.training
+        if tcfg.l2l_activation_codec != "none":
+            if (
+                not tcfg.l2l
+                or not tcfg.stream_layers
+                or self.task != "sft"
+                or self.backend != "transformers"
+                or self.modality != "text"
+                or self.data.format == "raft"
+                or tcfg.multipack
+            ):
+                raise ValueError(
+                    "training.l2l_activation_codec='fp8_e4m3' requires the streamed "
+                    "transformers text SFT L2L trainer: set l2l=true and stream_layers=true; "
+                    "RAFT and multipack use different trainers and do not read this setting."
+                )
         if tcfg.l2l_spill_dir is not None and not tcfg.l2l:
             raise ValueError(
                 "training.l2l_spill_dir is set but training.l2l is false: the directory "

@@ -1,0 +1,598 @@
+{
+  "schema": "p3_fp8_component_smoke_v1",
+  "scope": "supported Llama builder and actual HF Trainer loop; not public B1.4 wiring",
+  "device": "cpu",
+  "compute_dtype": "float32",
+  "weight_format": "dense float32",
+  "not_nf4_or_full_model_validation": true,
+  "numerical_acceptance": "not claimed; existing DeepSeek FP8 failures stand",
+  "timing_scope": "three smoke windows per codec; not a controlled speed comparison",
+  "cases": {
+    "none": {
+      "status": "PASS",
+      "scope": "supported tiny Llama builder, not public DeepSeek enablement",
+      "route_allowance": "one synthetic MoE layer reserved conservatively for dense Llama",
+      "activation_codec": "none",
+      "maximum_batch_size": 2,
+      "requested_k": 4,
+      "effective_k": 2,
+      "activation_route_quota_bytes": 14688,
+      "total_c3_host_envelope_bytes": 8388608,
+      "quota_policy": "predeclared test quota; not a public automatic-k policy",
+      "plan": {
+        "requested_k": 4,
+        "effective_k": 2,
+        "available_host_bytes": 14688,
+        "activation_bytes": 13824,
+        "routing_record_bytes": 576,
+        "routing_comparison_bytes": 288,
+        "n_layers": 3,
+        "n_moe_layers": 1,
+        "experts_per_token": 2,
+        "max_shape": [
+          2,
+          9,
+          32
+        ],
+        "dtype": "float32",
+        "pin": false,
+        "codec": "none",
+        "device_type": "cpu"
+      },
+      "mismatched_hf_k": {
+        "status": "PASS",
+        "expected_refusal": {
+          "type": "ValueError",
+          "message": "gradient_accumulation_steps must equal memory_plan.effective_k; L2L does not resize the optimizer schedule or trim batches"
+        }
+      },
+      "training": {
+        "status": "PASS",
+        "constructor": [
+          {
+            "gradient_accumulation_steps": 2,
+            "effective_k": 2
+          }
+        ],
+        "scheduler_training_steps": [
+          3
+        ],
+        "windows": [
+          {
+            "microbatches": 2,
+            "label_tokens": 9,
+            "shapes": [
+              [
+                2,
+                4
+              ],
+              [
+                2,
+                5
+              ]
+            ]
+          },
+          {
+            "microbatches": 2,
+            "label_tokens": 23,
+            "shapes": [
+              [
+                2,
+                8
+              ],
+              [
+                2,
+                9
+              ]
+            ]
+          },
+          {
+            "microbatches": 1,
+            "label_tokens": 2,
+            "shapes": [
+              [
+                1,
+                3
+              ]
+            ]
+          }
+        ],
+        "optimizer_updates": [
+          {
+            "step": 1,
+            "changed_adapters": [
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight"
+            ]
+          },
+          {
+            "step": 2,
+            "changed_adapters": [
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight"
+            ]
+          },
+          {
+            "step": 3,
+            "changed_adapters": [
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight"
+            ]
+          }
+        ],
+        "stores": [
+          {
+            "identity": 0,
+            "k_capacity": 2,
+            "position_capacities": [
+              256,
+              320
+            ],
+            "dtype": "torch.float32",
+            "device": "cpu",
+            "used_host_bytes": 8544,
+            "store_class": "BudgetedActivationStore",
+            "allocation": null
+          },
+          {
+            "identity": 1,
+            "k_capacity": 2,
+            "position_capacities": [
+              512,
+              576
+            ],
+            "dtype": "torch.float32",
+            "device": "cpu",
+            "used_host_bytes": 14688,
+            "store_class": "BudgetedActivationStore",
+            "allocation": null
+          },
+          {
+            "identity": 1,
+            "k_capacity": 2,
+            "position_capacities": [
+              512,
+              576
+            ],
+            "dtype": "torch.float32",
+            "device": "cpu",
+            "used_host_bytes": 14688,
+            "store_class": "BudgetedActivationStore",
+            "allocation": null
+          }
+        ],
+        "steps": 3,
+        "l2l_steps": 3,
+        "gradient_finite_nonzero_every_adapter": true,
+        "whole_train_seconds": 0.4828157160000046,
+        "whole_optimizer_window_seconds": [
+          0.2279763719999437,
+          0.03789373900008286,
+          0.020981391999953303
+        ],
+        "timing_boundary": "HF on_step_begin through on_step_end, CUDA synchronized; includes forward, backward and optimizer, not batch fetching",
+        "precision": {
+          "training_args_bf16": false,
+          "training_args_fp16": false,
+          "decoder_input_dtypes": [
+            "torch.float32"
+          ],
+          "autocast_enabled_observed": [
+            false
+          ],
+          "trainable_dtypes": [
+            "torch.float32"
+          ]
+        },
+        "sdpa_observed": {
+          "calls": 30,
+          "query_dtypes": [
+            "torch.float32"
+          ]
+        },
+        "loss_logs": [
+          {
+            "loss": 4.197139263153076,
+            "grad_norm": 0.41755175590515137,
+            "learning_rate": 0.01,
+            "l2l_steps": 1,
+            "l2l_captures": 2,
+            "l2l_capture_layer_loads": 2,
+            "l2l_capture_seconds": 0.0068389750000505956,
+            "l2l_layer_loads": 4,
+            "l2l_large_loads": 2,
+            "l2l_weight_restores": 0,
+            "l2l_spill_layers": 0,
+            "epoch": 0.4,
+            "step": 1
+          },
+          {
+            "loss": 4.17807149887085,
+            "grad_norm": 0.23790374398231506,
+            "learning_rate": 0.01,
+            "l2l_steps": 2,
+            "l2l_captures": 4,
+            "l2l_capture_layer_loads": 4,
+            "l2l_capture_seconds": 0.008939327000121011,
+            "l2l_layer_loads": 7,
+            "l2l_large_loads": 4,
+            "l2l_weight_restores": 0,
+            "l2l_spill_layers": 0,
+            "epoch": 0.8,
+            "step": 2
+          },
+          {
+            "loss": 4.189968109130859,
+            "grad_norm": 0.8857102394104004,
+            "learning_rate": 0.01,
+            "l2l_steps": 3,
+            "l2l_captures": 5,
+            "l2l_capture_layer_loads": 5,
+            "l2l_capture_seconds": 0.009815115000151309,
+            "l2l_layer_loads": 10,
+            "l2l_large_loads": 6,
+            "l2l_weight_restores": 0,
+            "l2l_spill_layers": 0,
+            "epoch": 1.0,
+            "step": 3
+          }
+        ],
+        "lr_per_step": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "cleanup": {
+          "host_used_bytes": 0,
+          "store_closed": true
+        }
+      },
+      "weight_source": {
+        "type": "PartialRamSource",
+        "resident_indices": [],
+        "accounted_peak_bytes": 96608,
+        "weights_limit_bytes": 8388608,
+        "cleanup": {
+          "used_bytes": 18784,
+          "fixed_reserved_bytes": 18784,
+          "active_lease_bytes": 0,
+          "prefetch_hook_removed": true
+        }
+      }
+    },
+    "fp8_e4m3": {
+      "status": "PASS",
+      "scope": "supported tiny Llama builder, not public DeepSeek enablement",
+      "route_allowance": "one synthetic MoE layer reserved conservatively for dense Llama",
+      "activation_codec": "fp8_e4m3",
+      "maximum_batch_size": 2,
+      "requested_k": 4,
+      "effective_k": 2,
+      "activation_route_quota_bytes": 26065,
+      "total_c3_host_envelope_bytes": 8388608,
+      "quota_policy": "predeclared test quota; not a public automatic-k policy",
+      "plan": {
+        "requested_k": 4,
+        "effective_k": 2,
+        "available_host_bytes": 26065,
+        "activation_bytes": 25201,
+        "routing_record_bytes": 576,
+        "routing_comparison_bytes": 288,
+        "n_layers": 3,
+        "n_moe_layers": 1,
+        "experts_per_token": 2,
+        "max_shape": [
+          2,
+          9,
+          32
+        ],
+        "dtype": "float32",
+        "pin": false,
+        "codec": "fp8_e4m3",
+        "device_type": "cpu"
+      },
+      "mismatched_hf_k": {
+        "status": "PASS",
+        "expected_refusal": {
+          "type": "ValueError",
+          "message": "gradient_accumulation_steps must equal memory_plan.effective_k; L2L does not resize the optimizer schedule or trim batches"
+        }
+      },
+      "training": {
+        "status": "PASS",
+        "constructor": [
+          {
+            "gradient_accumulation_steps": 2,
+            "effective_k": 2
+          }
+        ],
+        "scheduler_training_steps": [
+          3
+        ],
+        "windows": [
+          {
+            "microbatches": 2,
+            "label_tokens": 9,
+            "shapes": [
+              [
+                2,
+                4
+              ],
+              [
+                2,
+                5
+              ]
+            ]
+          },
+          {
+            "microbatches": 2,
+            "label_tokens": 23,
+            "shapes": [
+              [
+                2,
+                8
+              ],
+              [
+                2,
+                9
+              ]
+            ]
+          },
+          {
+            "microbatches": 1,
+            "label_tokens": 2,
+            "shapes": [
+              [
+                1,
+                3
+              ]
+            ]
+          }
+        ],
+        "optimizer_updates": [
+          {
+            "step": 1,
+            "changed_adapters": [
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight"
+            ]
+          },
+          {
+            "step": 2,
+            "changed_adapters": [
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight"
+            ]
+          },
+          {
+            "step": 3,
+            "changed_adapters": [
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.0.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.1.self_attn.v_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.q_proj.lora_B.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_A.default.weight",
+              "base_model.model.model.layers.2.self_attn.v_proj.lora_B.default.weight"
+            ]
+          }
+        ],
+        "stores": [
+          {
+            "identity": 0,
+            "k_capacity": 2,
+            "position_capacities": [
+              256,
+              320
+            ],
+            "dtype": "torch.float32",
+            "device": "cpu",
+            "used_host_bytes": 14649,
+            "store_class": "FP8ActivationStore",
+            "allocation": {
+              "host_bytes": 13785,
+              "payload_bytes": 1728,
+              "scale_bytes": 216,
+              "pinned_overhead_bytes": 0,
+              "host_transient_bytes": 11841,
+              "device_transient_bytes": 0
+            }
+          },
+          {
+            "identity": 1,
+            "k_capacity": 2,
+            "position_capacities": [
+              512,
+              576
+            ],
+            "dtype": "torch.float32",
+            "device": "cpu",
+            "used_host_bytes": 25849,
+            "store_class": "FP8ActivationStore",
+            "allocation": {
+              "host_bytes": 24985,
+              "payload_bytes": 3264,
+              "scale_bytes": 408,
+              "pinned_overhead_bytes": 0,
+              "host_transient_bytes": 21313,
+              "device_transient_bytes": 0
+            }
+          },
+          {
+            "identity": 1,
+            "k_capacity": 2,
+            "position_capacities": [
+              512,
+              576
+            ],
+            "dtype": "torch.float32",
+            "device": "cpu",
+            "used_host_bytes": 25849,
+            "store_class": "FP8ActivationStore",
+            "allocation": {
+              "host_bytes": 24985,
+              "payload_bytes": 3264,
+              "scale_bytes": 408,
+              "pinned_overhead_bytes": 0,
+              "host_transient_bytes": 21313,
+              "device_transient_bytes": 0
+            }
+          }
+        ],
+        "steps": 3,
+        "l2l_steps": 3,
+        "gradient_finite_nonzero_every_adapter": true,
+        "whole_train_seconds": 0.2953333929999644,
+        "whole_optimizer_window_seconds": [
+          0.04312145500000497,
+          0.04075998299992989,
+          0.020856553999919925
+        ],
+        "timing_boundary": "HF on_step_begin through on_step_end, CUDA synchronized; includes forward, backward and optimizer, not batch fetching",
+        "precision": {
+          "training_args_bf16": false,
+          "training_args_fp16": false,
+          "decoder_input_dtypes": [
+            "torch.float32"
+          ],
+          "autocast_enabled_observed": [
+            false
+          ],
+          "trainable_dtypes": [
+            "torch.float32"
+          ]
+        },
+        "sdpa_observed": {
+          "calls": 30,
+          "query_dtypes": [
+            "torch.float32"
+          ]
+        },
+        "loss_logs": [
+          {
+            "loss": 4.197139263153076,
+            "grad_norm": 0.4189203679561615,
+            "learning_rate": 0.01,
+            "l2l_steps": 1,
+            "l2l_captures": 2,
+            "l2l_capture_layer_loads": 2,
+            "l2l_capture_seconds": 0.0036474819999057218,
+            "l2l_layer_loads": 4,
+            "l2l_large_loads": 2,
+            "l2l_weight_restores": 0,
+            "l2l_spill_layers": 0,
+            "epoch": 0.4,
+            "step": 1
+          },
+          {
+            "loss": 4.1780686378479,
+            "grad_norm": 0.23740807175636292,
+            "learning_rate": 0.01,
+            "l2l_steps": 2,
+            "l2l_captures": 4,
+            "l2l_capture_layer_loads": 4,
+            "l2l_capture_seconds": 0.0055836869998984184,
+            "l2l_layer_loads": 7,
+            "l2l_large_loads": 4,
+            "l2l_weight_restores": 0,
+            "l2l_spill_layers": 0,
+            "epoch": 0.8,
+            "step": 2
+          },
+          {
+            "loss": 4.189963340759277,
+            "grad_norm": 0.8838141560554504,
+            "learning_rate": 0.01,
+            "l2l_steps": 3,
+            "l2l_captures": 5,
+            "l2l_capture_layer_loads": 5,
+            "l2l_capture_seconds": 0.006671899999901143,
+            "l2l_layer_loads": 10,
+            "l2l_large_loads": 6,
+            "l2l_weight_restores": 0,
+            "l2l_spill_layers": 0,
+            "epoch": 1.0,
+            "step": 3
+          }
+        ],
+        "lr_per_step": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "cleanup": {
+          "host_used_bytes": 0,
+          "store_closed": true
+        }
+      },
+      "weight_source": {
+        "type": "PartialRamSource",
+        "resident_indices": [],
+        "accounted_peak_bytes": 107985,
+        "weights_limit_bytes": 8388608,
+        "cleanup": {
+          "used_bytes": 30161,
+          "fixed_reserved_bytes": 30161,
+          "active_lease_bytes": 0,
+          "prefetch_hook_removed": true
+        }
+      }
+    }
+  },
+  "status": "PASS"
+}

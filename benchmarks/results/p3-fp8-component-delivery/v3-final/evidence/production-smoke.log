@@ -1,0 +1,19 @@
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 424.87it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+L2L: each streamed layer loads once per optimizer step and runs 2 
+micro-batch(es)
+{'loss': '4.197', 'grad_norm': '0.4176', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 2, 'l2l_capture_layer_loads': 2, 'l2l_capture_seconds': '0.006839', 'l2l_layer_loads': 4, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.4'}
+{'loss': '4.178', 'grad_norm': '0.2379', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.008939', 'l2l_layer_loads': 7, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.8'}
+{'loss': '4.19', 'grad_norm': '0.8857', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 5, 'l2l_capture_layer_loads': 5, 'l2l_capture_seconds': '0.009815', 'l2l_layer_loads': 10, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1'}
+{'train_runtime': '0.2903', 'train_samples_per_second': '31', 'train_steps_per_second': '10.33', 'train_loss': '4.188', 'epoch': '1'}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 683.22it/s]
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+L2L: each streamed layer loads once per optimizer step and runs 2 
+micro-batch(es)
+{'loss': '4.197', 'grad_norm': '0.4189', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 2, 'l2l_capture_layer_loads': 2, 'l2l_capture_seconds': '0.003647', 'l2l_layer_loads': 4, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.4'}
+{'loss': '4.178', 'grad_norm': '0.2374', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 4, 'l2l_capture_layer_loads': 4, 'l2l_capture_seconds': '0.005584', 'l2l_layer_loads': 7, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '0.8'}
+{'loss': '4.19', 'grad_norm': '0.8838', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 5, 'l2l_capture_layer_loads': 5, 'l2l_capture_seconds': '0.006672', 'l2l_layer_loads': 10, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'epoch': '1'}
+{'train_runtime': '0.1079', 'train_samples_per_second': '83.42', 'train_steps_per_second': '27.8', 'train_loss': '4.188', 'epoch': '1'}
+Component production smoke: PASS 
+(/kaggle/working/evidence/production-smoke.json)

@@ -269,10 +269,19 @@ class RoutingGuard:
     experts (a dense model, a fused cache) gets no hook, so nothing is recorded for it.
     """
 
-    def __init__(self, layers: Sequence[Any]) -> None:
+    def __init__(
+        self, layers: Sequence[Any], *, routing_budget: Optional[Tuple[int, int]] = None
+    ) -> None:
         from soup_cli.utils.expert_stream import streamed_experts_class
 
         experts = streamed_experts_class()
+        if routing_budget is not None and (
+            len(routing_budget) != 2
+            or any(type(value) is not int or value < 0 for value in routing_budget)
+        ):
+            raise ValueError("routing budget needs nonnegative record and comparison bytes")
+        self._routing_budget = routing_budget
+        self._record_bytes = 0
         self._records: Dict[Tuple[int, int], Any] = {}
         #: (layer, micro-batch, recording) inside ``record`` or ``check``; ``None`` otherwise.
         self._visit: Optional[Tuple[int, int, bool]] = None
@@ -292,23 +301,52 @@ class RoutingGuard:
         layer, mb, recording = self._visit
         routed = (kwargs["top_k_index"] if "top_k_index" in kwargs else args[1]).detach()
         pair = (layer, mb)
+        nbytes = routed.numel() * routed.element_size()
+        if self._routing_budget is not None:
+            records, comparison = self._routing_budget
+            if nbytes > comparison or (recording and self._record_bytes + nbytes > records):
+                raise ValueError("routing tensors exceed the resolved routing budget")
         if recording:
+            if pair in self._records:
+                raise RuntimeError(
+                    f"routing guard: layer {layer} micro-batch {mb} called its streamed "
+                    "experts more than once in the forward"
+                )
             self._records[pair] = routed.to("cpu", copy=True)
+            self._record_bytes += nbytes
             return
         before = self._records.pop(pair, None)
-        if before is None:
-            raise RuntimeError(
-                f"routing guard: the recompute of layer {layer} micro-batch {mb} called its "
-                "streamed experts more often than the forward did"
-            )
-        now = routed.to("cpu")
-        if not torch.equal(before, now):
-            raise RuntimeError(
-                f"routing guard: layer {layer} micro-batch {mb} was routed differently in the "
-                f"recompute than in the forward ({_routing_difference(before, now)}), so its "
-                "gradients would not be those of the forward. The router's weights, its "
-                "correction bias or its input changed between the two."
-            )
+        now = None
+        if before is not None:
+            self._record_bytes -= before.numel() * before.element_size()
+        try:
+            if before is None:
+                raise RuntimeError(
+                    f"routing guard: the recompute of layer {layer} micro-batch {mb} called its "
+                    "streamed experts more often than the forward did"
+                )
+            now = routed.to("cpu")
+            if not torch.equal(before, now):
+                raise RuntimeError(
+                    f"routing guard: layer {layer} micro-batch {mb} was routed differently in the "
+                    f"recompute than in the forward ({_routing_difference(before, now)}), so its "
+                    "gradients would not be those of the forward. The router's weights, its "
+                    "correction bias or its input changed between the two."
+                )
+        except BaseException as error:
+            import traceback
+
+            # A failing comparison helper may also retain its arguments in its traceback.
+            traceback.clear_frames(error.__traceback__)
+            raise
+        finally:
+            # Retaining the exception must not keep owned host tensors past lease release.
+            del before, now, routed
+
+    def _discard_record(self, pair: Tuple[int, int]) -> None:
+        record = self._records.pop(pair, None)
+        if record is not None:
+            self._record_bytes -= record.numel() * record.element_size()
 
     @contextmanager
     def record(self, layer: int, mb: int) -> Iterator[None]:
@@ -320,7 +358,7 @@ class RoutingGuard:
         try:
             yield
         except BaseException:
-            self._records.pop((layer, mb), None)
+            self._discard_record((layer, mb))
             raise
         finally:
             self._visit = None
@@ -345,7 +383,7 @@ class RoutingGuard:
                     "streamed experts more often than the recompute did"
                 )
         finally:
-            self._records.pop((layer, mb), None)
+            self._discard_record((layer, mb))
             self._visit = None
 
     def close(self) -> None:
@@ -353,6 +391,7 @@ class RoutingGuard:
             handle.remove()
         self._handles = []
         self._records.clear()
+        self._record_bytes = 0
         self._visit = None
 
     def __enter__(self) -> "RoutingGuard":
@@ -363,9 +402,12 @@ class RoutingGuard:
 
 
 def _routing_difference(before: Any, now: Any) -> str:
+    import torch
+
     if before.shape != now.shape:
         return f"routing went from shape {tuple(before.shape)} to {tuple(now.shape)}"
-    changed = int((before != now).any(dim=-1).sum())
+    # Failure diagnostics must not allocate a boolean matrix outside the route budget.
+    changed = sum(not torch.equal(left, right) for left, right in zip(before, now))
     return f"{changed} of {before.shape[0]} tokens chose other experts"
 
 
@@ -486,6 +528,7 @@ class L2LStep:
         calls: Optional[Sequence[LayerCall]] = None,
         head: Optional[LossHead] = None,
         reference: Union[ReferencePass, Sequence[ReferencePass], None] = None,
+        routing_budget: Optional[Tuple[int, int]] = None,
     ) -> List[Any]:
         """``labels`` defaults to the input ids; pass them for SFT rows with ``-100``.
 
@@ -502,8 +545,15 @@ class L2LStep:
         """
         if head is not None and (labels is not None or n_items is not None):
             raise ValueError("a custom head owns its labels and scale: pass no labels or n_items")
-        with count_loads(self.runtime) as counters, RoutingGuard(self.layers) as guard:
-            losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+        with count_loads(self.runtime) as counters:
+            guard = (
+                RoutingGuard(self.layers) if routing_budget is None
+                else RoutingGuard(self.layers, routing_budget=routing_budget)
+            )
+            with guard:
+                losses = self._run(
+                    micro_batches, store, n_items, labels, calls, guard, head, reference,
+                )
         self.counters = counters
         return losses
 
@@ -618,6 +668,8 @@ class L2LStep:
                     with self._backward_context(micro_batches[mb]):
                         torch.autograd.backward(out, grad_tensors=grads[mb])
                     grads[mb] = inputs.grad
+                    # Release the restored boundary before allocating the next one.
+                    del inputs, out
             finally:
                 layer.use_checkpoint = saved
         if train_embedding:

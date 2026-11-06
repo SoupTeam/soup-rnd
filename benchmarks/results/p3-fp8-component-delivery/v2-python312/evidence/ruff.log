@@ -1,0 +1,134 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> benchmarks/harness/a4_g4_compose.py:61:1
+   |
+59 |   sys.path.insert(0, str(Path(__file__).resolve().parent))
+60 |
+61 | / import a4_activation_budget as budget  # noqa: E402
+62 | | import a4_box  # noqa: E402
+63 | | import a4_spill_store  # noqa: E402
+64 | | import l2l_activations  # noqa: E402
+65 | | from soup_cli.utils import activation_codec  # noqa: E402
+   | |___________________________________________^
+66 |
+67 |   HARNESS = Path(__file__).resolve().parent
+   |
+help: Organize imports
+   |
+64 | import l2l_activations  # noqa: E402
+65 +
+66 | from soup_cli.utils import activation_codec  # noqa: E402
+   |
+
+E501 Line too long (103 > 100)
+  --> benchmarks/harness/g4_activation_codec.py:83:101
+   |
+82 | def per_token_table(
+83 |     codecs: Tuple[str, ...] = (activation_codec.IDENTITY, activation_codec.INT8, activation_codec.FP8),
+   |                                                                                                     ^^^
+84 | ) -> List[Dict[str, Any]]:
+85 |     """Host bytes per token over all layers, and the tokens-per-step factor at a fixed
+   |
+
+E501 Line too long (101 > 100)
+  --> benchmarks/harness/g4_activation_codec.py:89:101
+   |
+87 |     rows = []
+88 |     for name, (layers, hidden) in SHAPES.items():
+89 |         base = layers * activation_codec.bytes_per_token_per_layer(hidden, activation_codec.IDENTITY)
+   |                                                                                                     ^
+90 |         for codec in codecs:
+91 |             per_token = layers * activation_codec.bytes_per_token_per_layer(hidden, codec)
+   |
+
+E501 Line too long (102 > 100)
+   --> benchmarks/harness/g4_activation_codec.py:407:101
+    |
+405 |         return self._timed(
+406 |             "restore",
+407 |             lambda: activation_codec.decode(payload, scale, self.codec.name, self.dtype, self.hidden),
+    |                                                                                                     ^^
+408 |         )
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> benchmarks/harness/g4_probe.py:53:1
+   |
+51 |   sys.path.insert(0, str(Path(__file__).resolve().parent))
+52 |
+53 | / import g4_activation_codec as codecs  # noqa: E402
+54 | | import g4_data  # noqa: E402
+55 | | import l2l_activations  # noqa: E402
+56 | | import l2l_schedule  # noqa: E402
+57 | | import stream_probe  # noqa: E402
+58 | | from soup_cli.utils import activation_codec  # noqa: E402
+   | |___________________________________________^
+59 |
+60 |   CPU_LABEL = "SYNTHETIC/CPU PILOT"
+   |
+help: Organize imports
+   |
+57 | import stream_probe  # noqa: E402
+58 +
+59 | from soup_cli.utils import activation_codec  # noqa: E402
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> benchmarks/harness/g4_rule.py:37:1
+   |
+35 |   sys.path.insert(0, str(Path(__file__).resolve().parent))
+36 |
+37 | / import g4_activation_codec as codecs  # noqa: E402
+38 | | from soup_cli.utils import activation_codec  # noqa: E402
+   | |___________________________________________^
+39 |
+40 |   PASS, FAIL, NONE = "pass", "fail", "no verdict"
+   |
+help: Organize imports
+   |
+37 | import g4_activation_codec as codecs  # noqa: E402
+38 +
+39 | from soup_cli.utils import activation_codec  # noqa: E402
+   |
+
+E501 Line too long (104 > 100)
+   --> src/soup_cli/utils/l2l_step.py:554:101
+    |
+552 |             )
+553 |             with guard:
+554 |                 losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+    |                                                                                                     ^^^^
+555 |         self.counters = counters
+556 |         return losses
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_g4_harness.py:5:1
+   |
+ 3 |   the A-B-B-A timing driver (g4_timing.py)."""
+ 4 |
+ 5 | / from __future__ import annotations
+ 6 | |
+ 7 | | import argparse
+ 8 | | import json
+ 9 | | import math
+10 | | from contextlib import contextmanager
+11 | | from pathlib import Path
+12 | |
+13 | | import pytest
+14 | |
+15 | | from soup_cli.utils import activation_codec
+16 | |
+17 | | from tests import test_l2l_probe_harness as l2l_tests
+   | |_____________________________________________________^
+18 |
+19 |   torch = pytest.importorskip("torch")
+   |
+help: Organize imports
+   |
+15 | from soup_cli.utils import activation_codec
+   -
+16 | from tests import test_l2l_probe_harness as l2l_tests
+   |
+
+Found 8 errors.
+[*] 4 fixable with `--fix`.

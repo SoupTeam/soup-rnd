@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-05",
+  "branch": "feat/fp8-activation-storage",
+  "base_revision": "e94dda7ac6e4895549dea6e4d70af99eabe3b81e",
+  "imported_planner_commit": "8f6e01e4",
+  "kernel": "batyrkhan2131123/soup-p3-fp8-production-validation-20261105",
+  "experimental_version": 2,
+  "final_regression_version": 3,
+  "baseline_kernel": "batyrkhan2131123/soup-p3-fp8-baseline-20261105",
+  "red_kernel": "batyrkhan2131123/soup-p3-fp8-red-20261105",
+  "model_source": "deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+  "regression_status": "PASS",
+  "deepseek_fp8_acceptance": "FAIL",
+  "runtime_and_harness_hashes_identical_between_versions": true,
+  "runtime_and_harness_sha256": {
+    "src/soup_cli/config/schema.py": "d341f361a08c0ac5b3ae0b9b453264bceca519d4de61fea43ec372c3fa69138c",
+    "src/soup_cli/trainer/l2l_trainer.py": "7c52ea4ec8433e39bde88ee6f76899afafed64ef010ca8f43d9839e57d227364",
+    "src/soup_cli/trainer/stream_setup.py": "d3113b3235f441c99aedd77fde29fab63b3689ffb169e5cbcbfa187da46e8362",
+    "src/soup_cli/utils/activation_codec.py": "194968b54df5de3621e20ab43ee4e5601251ea2bcfdb28ac2f188b2fd1b3fb98",
+    "src/soup_cli/utils/fp8_activations.py": "2061b183a9a56fafa1964dd7a56fae6e64f53fce337142dba1e964941e2846a0",
+    "src/soup_cli/utils/moe_l2l_budget.py": "2cf43a5bb0f69ccd9ccf3187d26fccbb673f33c0d512e0bbb067c576942acfed",
+    "src/soup_cli/utils/c3_l2l_budget.py": "a1542dd8b14efa05da04b49106060783b3b3a2b83c635384fc2a61ecbd4ab036",
+    "src/soup_cli/utils/l2l_step.py": "6a23b07e16074629db93400256c0a7ebecc108ab6a4f3645d60c73004e01303c",
+    "benchmarks/harness/g4_activation_codec.py": "aec9ef58d341bd39a3b94cbd3977af63328fe5c219e8b378aafc405b3b0041f2",
+    "benchmarks/harness/g4_probe.py": "92efe91169ae0caece9bf6826ea964e86cbdf8a88bd9996b9ad0b9109d4c3ea9",
+    "benchmarks/harness/p3_fp8_smoke.py": "35790cf0c69367057d9b5c8477e580e98911a34242d0e489f48f665224b1b96e",
+    "benchmarks/harness/p3_fp8_memory.py": "bb21311b6483b5567fd71e5677f8e079b41be6aa998a63a49292f7d46f71eceb"
+  },
+  "uncompressed_controls": {
+    "cpu": {
+      "windows": 12,
+      "losses_exact": true,
+      "gradients_exact": true,
+      "updates_exact": true
+    },
+    "cuda": {
+      "windows": 12,
+      "losses_exact": true,
+      "gradients_exact": true,
+      "updates_exact": true
+    }
+  },
+  "cpu_regressions": {
+    "passed": 1857,
+    "skipped": 64
+  },
+  "cuda_regressions": {
+    "passed": 55,
+    "skipped": 1,
+    "skip_details": [
+      {
+        "test": "tests.test_l2l_rng_cuda::test_a_state_restores_the_second_card_too",
+        "reason": "needs two visible CUDA cards"
+      }
+    ]
+  },
+  "evidence_sha256": {
+    "red/red-feature-test.log": "43504992129f81d1ac5edf89a5aae476f9aa2c0f96283d86f780ea9727ec6f4c",
+    "red/run.json": "db19241de10c5f53fe4daee2e53510a0b9f8052b27de72693d7d199a88b3bb7f",
+    "baseline/preflight.json": "4a2e6ddc4925c9ebdbdc5c39770affa3eaee3ecceb0dc387706d30d867c933b3",
+    "v1/run.json": "8a6425feff9616b20c065fc1379f20ca8b061aa42b902c3fcacf462dccf2ba5a",
+    "v1/ruff.log": "2e82e1a4710993d5126bdd7f01116815d0862723d1c976f8d1dbd9246b89bed4",
+    "v2/run.json": "a5c6cfd35d1ca25297b89f69c65a6b84201664f66337c75fcb78dfb93fb6d5d2",
+    "v2/p3-cpu.json": "dfc5133e9159d9ccc828401b6a20fb120050384ce7c5f98bd2901be1266392b1",
+    "v2/p3-cuda.json": "ef427fa2254263605de1f994a8e80cfaf79213181cfad4b7d184f65dfe23dc93",
+    "v2/cpu-tests.log": "9e3707aec0ed0f3a83c620d4088bdaf65e7749d1594acfb725a9555e53b154d2",
+    "v2/cpu-tests.xml": "718b68c3b852e18b5ee0bacd7c55d16626ef70975590c8ebed6d7b5a5c6523f0",
+    "v2/gpu-tests.log": "11355c068dda4bccac670ed1b1d092bc90d23cbd94452dde863d4b4e69f34ef4",
+    "v2/gpu-tests.xml": "84afda906a5a2d10cbceb547f641c4de38959c4abd008c409547462cbae8cf96",
+    "v2/ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "v2/dependencies.log": "aa2768b764492f623c5c544ed8e08e36e91799a215f9008700f2d4ea72f38018",
+    "v2/remove-incompatible-torchao.log": "9706e734b48052423e9b1f8f59ddb2cbeef0858dab0f59ce1fdd13617838f755",
+    "v2/mountinfo.txt": "145b1fcf4870ef17f47dc808bf188ed9e2477b1d4f72c8073868f0d06350af2b",
+    "v3/run.json": "f399081d35dca8b8c1bec70b675e6a51e328cf9304e5c508cb1a466088dd7d09",
+    "v3/cpu-tests.log": "6b4bf957f0735a3233abe76d9b8deea0f17586c11aaeff1397287a4e5b290bc8",
+    "v3/cpu-tests.xml": "bcc9e7111beb91121b3cf511e34c8105131ec41cfce594f2cd6307445cff6582",
+    "v3/gpu-tests.log": "9ad5aa481fb3abb7254ee08878241ae2c7148d69177e04029fd53e35df13f43c",
+    "v3/gpu-tests.xml": "dda6430d279f1ceb508b9dd2825e1cf9d032e1f58b0d7b716e82667a734d9f06",
+    "v3/ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "v3/dependencies.log": "efdce522e6dd00ab5b4ce5cf52cd00715925ce9d6303a0a7461a1f7f5eeed173",
+    "v3/remove-incompatible-torchao.log": "9706e734b48052423e9b1f8f59ddb2cbeef0858dab0f59ce1fdd13617838f755"
+  },
+  "limits": [
+    "No 671B optimizer step",
+    "No 8 GB whole-model fit",
+    "No training speedup claim",
+    "New complete k matrix used FP32 compute, not BF16 compute"
+  ]
+}

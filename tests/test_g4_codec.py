@@ -1,5 +1,5 @@
-"""CPU tests for the G4 boundary-activation codecs and their store
-(benchmarks/harness/g4_activation_codec.py).
+"""CPU tests for the shared boundary-activation codecs in
+``soup_cli.utils.activation_codec`` and their G4 benchmark store and analysis.
 
 What a GPU run cannot check by itself: the per-element error bound on adversarial
 rows (outliers, zeros, denormals, bf16 extremes, non-finite), the byte accounting the
@@ -13,9 +13,11 @@ import math
 
 import pytest
 
+from soup_cli.utils import activation_codec
 from tests import test_l2l_probe_harness as l2l_tests
 
 torch = pytest.importorskip("torch")
+
 
 #: The tiny streamed Llama fixture of the L2L harness tests (3 layers, hidden 64).
 streamed = l2l_tests.streamed
@@ -75,9 +77,9 @@ def _element_bound(name, x, absmax):
 
 
 @pytest.mark.parametrize("name", ["int8", "fp8_e4m3", "int4"])
-def test_round_trip_stays_inside_the_element_bound_on_adversarial_rows(codec, name):
+def test_round_trip_stays_inside_the_element_bound_on_adversarial_rows(name):
     names, x = _adversarial()
-    restored = codec.round_trip(x, name)
+    restored = activation_codec.round_trip(x, name)
     assert restored.dtype == torch.bfloat16
     assert restored.shape == x.shape
     xf, rf = x.float(), restored.float()
@@ -90,9 +92,9 @@ def test_round_trip_stays_inside_the_element_bound_on_adversarial_rows(codec, na
 
 
 @pytest.mark.parametrize("name", ["int8", "fp8_e4m3", "int4"])
-def test_the_row_absmax_element_and_zero_rows_restore_exactly(codec, name):
+def test_the_row_absmax_element_and_zero_rows_restore_exactly(name):
     names, x = _adversarial(hidden=97)  # odd: int4 packs a pad nibble
-    restored = codec.round_trip(x, name)
+    restored = activation_codec.round_trip(x, name)
     idx = x.float().abs().argmax(dim=-1, keepdim=True)
     assert torch.equal(restored.gather(-1, idx), x.gather(-1, idx))
     zero = names.index("zeros")
@@ -102,16 +104,16 @@ def test_the_row_absmax_element_and_zero_rows_restore_exactly(codec, name):
 
 @pytest.mark.parametrize("name", ["int8", "fp8_e4m3", "int4"])
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
-def test_a_non_finite_value_is_refused_not_encoded(codec, name, bad):
+def test_a_non_finite_value_is_refused_not_encoded(name, bad):
     """A NaN or Inf has no absmax to scale by: encoding it would store garbage."""
     x = torch.randn(3, 16).to(torch.bfloat16)
     x[1, 4] = bad
-    with pytest.raises(codec.NonFiniteActivationError, match="1 of 3 rows"):
-        codec.encode(x, name)
-    with pytest.raises(codec.NonFiniteActivationError):
-        codec.round_trip(x, name)
+    with pytest.raises(activation_codec.NonFiniteActivationError, match="1 of 3 rows"):
+        activation_codec.encode(x, name)
+    with pytest.raises(activation_codec.NonFiniteActivationError):
+        activation_codec.round_trip(x, name)
     clean = x[[0, 2]]
-    assert torch.isfinite(codec.round_trip(clean, name)).all()
+    assert torch.isfinite(activation_codec.round_trip(clean, name)).all()
 
 
 @pytest.mark.parametrize("name", ["int8", "fp8_e4m3", "int4"])
@@ -130,7 +132,7 @@ def test_the_store_refuses_a_step_whose_boundary_was_non_finite(codec, name):
         for layer in (2, 1, 0):
             for mb in range(2):
                 store.get(layer, mb)
-        with pytest.raises(codec.NonFiniteActivationError, match=r"\(1, 1\)"):
+        with pytest.raises(activation_codec.NonFiniteActivationError, match=r"\(1, 1\)"):
             store.end_step()
         # The next step starts clean: the flag is per step, not sticky.
         for layer in range(3):
@@ -156,24 +158,24 @@ def test_the_identity_store_keeps_non_finite_values_byte_for_byte(codec):
     store.close()
 
 
-def test_scales_are_the_float32_row_absmax(codec):
+def test_scales_are_the_float32_row_absmax():
     x = torch.tensor([[1.5, -3.0, 0.25], [0.0, 0.0, 0.0], [BF16_TINY, 0.0, -BF16_TINY]])
     x = x.to(torch.bfloat16)
     for name in ("int8", "fp8_e4m3", "int4"):
-        _payload, scale = codec.encode(x, name)
+        _payload, scale = activation_codec.encode(x, name)
         assert scale.dtype == torch.float32
         assert torch.equal(scale, x.float().abs().amax(dim=-1))
 
 
-def test_payload_dtypes_and_identity_is_untouched(codec):
+def test_payload_dtypes_and_identity_is_untouched():
     x = torch.randn(1, 4, 10).to(torch.bfloat16)
-    assert codec.encode(x, "int8")[0].dtype == torch.int8
-    assert codec.encode(x, "fp8_e4m3")[0].dtype == torch.float8_e4m3fn
-    packed = codec.encode(x, "int4")[0]
+    assert activation_codec.encode(x, "int8")[0].dtype == torch.int8
+    assert activation_codec.encode(x, "fp8_e4m3")[0].dtype == torch.float8_e4m3fn
+    packed = activation_codec.encode(x, "int4")[0]
     assert packed.dtype == torch.uint8 and packed.shape == (1, 4, 5)
-    payload, scale = codec.encode(x, "bf16")
+    payload, scale = activation_codec.encode(x, "bf16")
     assert payload is x and scale is None
-    assert codec.round_trip(x, "bf16") is x
+    assert activation_codec.round_trip(x, "bf16") is x
 
 
 def test_coarse_codec_is_measurably_worse_than_both_candidates(codec):
@@ -181,15 +183,15 @@ def test_coarse_codec_is_measurably_worse_than_both_candidates(codec):
     x = torch.randn(64, 4096, generator=torch.Generator().manual_seed(1)).to(torch.bfloat16)
     err = {}
     for name in ("int8", "fp8_e4m3", "int4"):
-        stats = codec.restore_error(x, codec.round_trip(x, name))
+        stats = codec.restore_error(x, activation_codec.round_trip(x, name))
         err[name] = stats["rel_l2"]
     assert err["int8"] < 0.02 and err["fp8_e4m3"] < 0.04
     assert err["int4"] > 4 * max(err["int8"], err["fp8_e4m3"])
 
 
-def test_unknown_codec_is_refused(codec):
+def test_unknown_codec_is_refused():
     with pytest.raises(ValueError, match="unknown codec"):
-        codec.codec_of("int2")
+        activation_codec.codec_of("int2")
 
 
 # --------------------------------------------------------------------------
@@ -223,15 +225,15 @@ def test_pooled_relative_l2_over_chunks(codec):
 # --------------------------------------------------------------------------
 # byte accounting
 # --------------------------------------------------------------------------
-def test_chunk_bytes_on_the_7b_shape(codec):
+def test_chunk_bytes_on_the_7b_shape():
     shape = (1, 512, 4096)
-    assert codec.compressed_chunk_bytes(shape, "bf16") == 512 * 4096 * 2
-    assert codec.compressed_chunk_bytes(shape, "int8") == 512 * 4096 + 512 * 4
-    assert codec.compressed_chunk_bytes(shape, "fp8_e4m3") == 512 * 4096 + 512 * 4
-    assert codec.compressed_chunk_bytes(shape, "int4") == 512 * 2048 + 512 * 4
-    assert codec.payload_chunk_bytes(shape, "int8") == 512 * 4096
-    assert codec.scale_chunk_bytes(shape, "int8") == 2048
-    assert codec.scale_chunk_bytes(shape, "bf16") == 0
+    assert activation_codec.compressed_chunk_bytes(shape, "bf16") == 512 * 4096 * 2
+    assert activation_codec.compressed_chunk_bytes(shape, "int8") == 512 * 4096 + 512 * 4
+    assert activation_codec.compressed_chunk_bytes(shape, "fp8_e4m3") == 512 * 4096 + 512 * 4
+    assert activation_codec.compressed_chunk_bytes(shape, "int4") == 512 * 2048 + 512 * 4
+    assert activation_codec.payload_chunk_bytes(shape, "int8") == 512 * 4096
+    assert activation_codec.scale_chunk_bytes(shape, "int8") == 2048
+    assert activation_codec.scale_chunk_bytes(shape, "bf16") == 0
 
 
 def test_giant_per_token_table_matches_the_pdf(codec):
@@ -244,10 +246,10 @@ def test_giant_per_token_table_matches_the_pdf(codec):
     assert all("not measured" in r["kind"] for r in rows.values())
 
 
-def test_tokens_at_budget_is_floor_arithmetic(codec):
+def test_tokens_at_budget_is_floor_arithmetic():
     budget = 32 * 4096 * 2 * 1000 + 5
-    assert codec.tokens_at_budget(budget, n_layers=32, hidden=4096, codec="bf16") == 1000
-    assert codec.tokens_at_budget(budget, n_layers=32, hidden=4096, codec="int8") == 1998
+    assert activation_codec.tokens_at_budget(budget, n_layers=32, hidden=4096, codec="bf16") == 1000
+    assert activation_codec.tokens_at_budget(budget, n_layers=32, hidden=4096, codec="int8") == 1998
 
 
 def _codec_store(codec, name, *, n_layers=3, k=2, shape=(1, 8, 64), dtype=None, **kw):
@@ -262,7 +264,7 @@ def test_store_host_bytes_are_measured_and_match_the_arithmetic(codec, name):
     store = _codec_store(codec, name, dtype=torch.bfloat16)
     try:
         held = store.host_bytes()
-        expected = codec.compressed_chunk_bytes((1, 8, 64), name)
+        expected = activation_codec.compressed_chunk_bytes((1, 8, 64), name)
         assert store.chunk_bytes == expected
         assert held["host_bytes"] == 3 * 2 * expected
         assert held["measured_bytes_per_token_per_layer"] == expected / 8
@@ -274,21 +276,22 @@ def test_store_host_bytes_are_measured_and_match_the_arithmetic(codec, name):
 def test_identity_store_accounts_the_source_dtype(codec):
     store = _codec_store(codec, "bf16", dtype=torch.float32)
     assert store.chunk_bytes == 8 * 64 * 4
-    assert store.chunk_bytes == codec.compressed_chunk_bytes(
+    assert store.chunk_bytes == activation_codec.compressed_chunk_bytes(
         (1, 8, 64), "bf16", source_element_bytes=4)
     store.close()
 
 
 @pytest.mark.parametrize("hidden", [1, 7, 97, 4097])
-def test_odd_hidden_int4_packs_one_pad_nibble_and_round_trips(codec, hidden):
+def test_odd_hidden_int4_packs_one_pad_nibble_and_round_trips(hidden):
     """An odd row packs to ceil(hidden / 2) bytes: the pad nibble is real storage."""
     x = torch.randn(2, 5, hidden).to(torch.bfloat16)
-    payload, scale = codec.encode(x, "int4")
+    payload, scale = activation_codec.encode(x, "int4")
     assert payload.shape == (2, 5, (hidden + 1) // 2)
-    assert payload.numel() * payload.element_size() == codec.payload_chunk_bytes(
+    assert payload.numel() * payload.element_size() == activation_codec.payload_chunk_bytes(
         (2, 5, hidden), "int4")
-    assert scale.numel() * scale.element_size() == codec.scale_chunk_bytes((2, 5, hidden), "int4")
-    restored = codec.round_trip(x, "int4")
+    assert scale.numel() * scale.element_size() == activation_codec.scale_chunk_bytes(
+        (2, 5, hidden), "int4")
+    restored = activation_codec.round_trip(x, "int4")
     assert restored.shape == x.shape
     idx = x.float().abs().argmax(dim=-1, keepdim=True)
     assert torch.equal(restored.gather(-1, idx), x.gather(-1, idx))
@@ -307,11 +310,11 @@ def test_compressed_chunk_bytes_equal_the_bytes_the_store_allocates(codec, name,
         payloads = list(store._inner._resident.values())
         assert len(payloads) == 3 * 2
         assert {t.untyped_storage().nbytes() for t in payloads} == {
-            codec.payload_chunk_bytes(shape, name, source_element_bytes=element)}
+            activation_codec.payload_chunk_bytes(shape, name, source_element_bytes=element)}
         slab = 0 if store._scale_slab is None else store._scale_slab.untyped_storage().nbytes()
-        assert slab == 3 * 2 * codec.scale_chunk_bytes(shape, name)
+        assert slab == 3 * 2 * activation_codec.scale_chunk_bytes(shape, name)
         held = store.host_bytes()
-        assert held["host_bytes"] == 3 * 2 * codec.compressed_chunk_bytes(
+        assert held["host_bytes"] == 3 * 2 * activation_codec.compressed_chunk_bytes(
             shape, name, source_element_bytes=element)
         assert held["spill_staging_bytes"] == 0 and held["spill_file_bytes"] == 0
         assert store.payload_chunk_bytes + store.scale_chunk_bytes == store.chunk_bytes
@@ -338,7 +341,7 @@ def test_store_returns_exactly_the_codec_round_trip_per_key(codec, name):
         for mb in range(2):
             got = store.get(layer, mb)
             assert got.dtype == torch.bfloat16
-            assert torch.equal(got, codec.round_trip(chunks[(layer, mb)], name))
+            assert torch.equal(got, activation_codec.round_trip(chunks[(layer, mb)], name))
             assert got.data_ptr() != chunks[(layer, mb)].data_ptr()
     store.end_step()
     assert store.codec_stats.timer == "perf_counter"
@@ -416,7 +419,7 @@ def test_spilled_payload_round_trips_through_the_real_backends(codec, acts, tmp_
             for layer in (2, 1, 0):
                 for mb in range(2):
                     assert torch.equal(store.get(layer, mb),
-                                       codec.round_trip(chunks[(layer, mb)], name))
+                                       activation_codec.round_trip(chunks[(layer, mb)], name))
             store.end_step()
         held = store.host_bytes()
         assert held["spill_file_bytes"] == path.stat().st_size == 2 * 2 * 4096
@@ -537,7 +540,7 @@ def test_the_exactness_checks_discriminate(codec, sched, acts, streamed):
 
     class LeakingStore(codec.CodecActivationStore):
         def put(self, layer, mb, tensor):
-            tensor.copy_(codec.round_trip(tensor, "int4"))
+            tensor.copy_(activation_codec.round_trip(tensor, "int4"))
             super().put(layer, mb, tensor)
 
     model, runtime = streamed

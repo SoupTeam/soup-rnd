@@ -1176,6 +1176,8 @@ class StreamingSetupMixin:
                     hidden_size=int(model_config.hidden_size),
                     microbatches=tcfg.gradient_accumulation_steps, dtype=dtype,
                     pin=on_cuda, shape_round=RESERVATION_ROUND,
+                    codec=tcfg.l2l_activation_codec,
+                    device_type="cuda" if on_cuda else "cpu",
                 )
                 partial_budget = self._c3_l2l_plan.weights
             console.print(
@@ -1276,11 +1278,14 @@ class StreamingSetupMixin:
         assert_streamed_adapter_saved(self.trainer.model, output_dir)
 
     def _build_l2l_trainer(
-        self, base_cls: Any, trainer_kwargs: dict, training_args: Any, loss: Any = None
+        self, base_cls: Any, trainer_kwargs: dict, training_args: Any, loss: Any = None,
+        *, memory_plan: Any = None, host_budget: Any = None,
     ) -> Any:
         """Build the trainer that runs each accumulation window as one L2L step.
 
         ``loss`` is the task's ``WindowLoss``; ``None`` is SFT.
+        ``memory_plan`` is supplied after k resolution, with its shared ``host_budget``.
+        This builder checks HF's accumulation count but never changes it.
         """
         import torch
 
@@ -1299,12 +1304,35 @@ class StreamingSetupMixin:
         warning = unready_task_warning(getattr(getattr(self, "config", None), "task", None))
         if warning is not None:
             console.print(f"[yellow]Warning:[/] {warning}")
+        codec = getattr(self.config.training, "l2l_activation_codec", "none")
+        if codec not in ("none", "fp8_e4m3"):
+            raise ValueError(f"unsupported training.l2l_activation_codec={codec!r}")
+        if codec != "none" and (
+            getattr(self.config, "task", None) != "sft"
+            or not getattr(self.config.training, "l2l", False)
+            or not getattr(self.config.training, "stream_layers", False)
+            or getattr(self.config, "backend", "transformers") != "transformers"
+            or getattr(self.config, "modality", "text") != "text"
+            or getattr(self, "_is_raft", False)
+            or getattr(self.config.training, "multipack", False)
+        ):
+            raise ValueError("training.l2l_activation_codec requires the streamed SFT L2L trainer")
+        if memory_plan is not None and (
+            training_args.gradient_accumulation_steps != memory_plan.effective_k
+        ):
+            raise ValueError(
+                "gradient_accumulation_steps must equal memory_plan.effective_k; "
+                "L2L does not resize the optimizer schedule or trim batches"
+            )
         trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
         attach_l2l_state(
             trainer,
             self._stream_runtime,
             dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
             loss=loss,
+            activation_codec=codec,
+            memory_plan=memory_plan,
+            host_budget=host_budget,
             spill_dir=self.config.training.l2l_spill_dir,
             weight_dirs=self._stream_weight_dirs,
             c3_plan=getattr(self, "_c3_l2l_plan", None),
@@ -1318,7 +1346,7 @@ class StreamingSetupMixin:
     def _close_stream_runtime(self) -> None:
         """Release the streaming weight source, if this run had one."""
         state = getattr(getattr(self, "trainer", None), "_soup_l2l", None)
-        if state is not None and state.c3_plan is not None:
+        if state is not None:
             # A failed drain retains the activation lease and the weight runtime.
             # Do not free weights while an activation transfer may still be live.
             state.close()

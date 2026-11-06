@@ -1,0 +1,64 @@
+{
+  "status": "SCREENED",
+  "cases": [],
+  "minimum_useful_host_saving_fraction": 0.25,
+  "hard_host_reservation_limit_bytes": 5368709120,
+  "minimum_useful_shape": {
+    "layers": 61,
+    "hidden": 7168,
+    "tokens_per_mb": 64,
+    "k": 64
+  },
+  "scope": "BF16/FP8 store comparison only, not training acceptance or 8 GB fit",
+  "excluded_consumers": [
+    "model and optimizer",
+    "expert arena/graphs",
+    "caller-retained hidden states/gradients",
+    "allocator caches and Python metadata",
+    "physical routing tensors"
+  ],
+  "attached_input": {
+    "root": "/kaggle/input/models/deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+    "config_sha256": "4422016f41c506339e0510a32812a63da554dc9febd5f1368e7240ded14e4a27",
+    "index_sha256": "a2c5d238ab1e8301a117336e9797e0d3551cb8f6dc9dc787318b23d8f54c9248",
+    "referenced_shards_present": 163,
+    "whole_model_allocated": false,
+    "training_671b_steps": 0
+  },
+  "policy_screen": {
+    "policy": "retain all MoE decoder boundaries in BF16; compress dense boundaries",
+    "diagnosis": "native decoder routing changes in both MoE layers, not just embeddings",
+    "status": "REJECTED_BEFORE_IMPLEMENTATION",
+    "baseline_plan": {
+      "requested_k": 64,
+      "effective_k": 64,
+      "available_host_bytes": 5368709120,
+      "activation_bytes": 4093640704,
+      "routing_record_bytes": 15204352,
+      "routing_comparison_bytes": 4096,
+      "n_layers": 61,
+      "max_shape": [
+        1,
+        64,
+        7168
+      ],
+      "dtype": "bfloat16",
+      "pin": true,
+      "codec": "none",
+      "device_type": "cuda",
+      "host_bytes": 4108849152
+    },
+    "retained_bf16_layers": 58,
+    "compressed_dense_layers": 3,
+    "candidate_host_charge_lower_bound_bytes": 3907522560,
+    "maximum_possible_saving_fraction": 0.04899829235687648,
+    "minimum_useful_saving_fraction": 0.25,
+    "bound_assumption": "Dense boundaries cost zero; routes and retained slabs stay charged",
+    "omitted_costs": "Candidate payload, scales, metadata, scratch, extra compute: all >= 0",
+    "implemented": false,
+    "numerically_validated": false,
+    "whole_step_policy_overhead": null,
+    "separate_input_policy_validation": "not applicable: memory screen rejects selection"
+  },
+  "nonfinite_metric_paths": []
+}

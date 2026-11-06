@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "kind": "predeclared bounded investigation, not FP8 acceptance",
+  "workspace": "soup-rnd-p3-fp8",
+  "base_revision": "e94dda7ac6e4895549dea6e4d70af99eabe3b81e",
+  "prior_evidence": "../p3-fp8-kaggle-20261105",
+  "execution": {
+    "provider": "Kaggle CLI only",
+    "model_input": "deepseek-ai/deepseek-r1/transformers/deepseek-r1/2",
+    "vast_authorized": false,
+    "giant_training_claimed": false
+  },
+  "precision": {
+    "base_weights_and_decoder_compute": "bfloat16",
+    "lora_parameters": "existing PEFT trainable dtype, expected float32, observed and reported",
+    "router": "native DeepSeek float32 arithmetic, no forced routes",
+    "autocast": "disabled for primary matrix; backward outside autocast",
+    "tf32": false,
+    "deterministic_algorithms": true,
+    "dropout": 0
+  },
+  "fixtures": {
+    "model": "synthetic tiny native DeepSeek-V3: 3 layers, 32 hidden, 8 experts, top-2",
+    "p3_lora": {
+      "rank": 2,
+      "alpha": 4,
+      "targets": ["q_a_proj", "q_b_proj", "kv_a_proj_with_mqa", "kv_b_proj", "o_proj"],
+      "routed_experts_trainable": false
+    },
+    "broader_fixture": "existing b13_moe_fixture.ALL_TARGETS, retained as a separate regression scope",
+    "weight_formats": ["dense BF16", "NF4 blocksize 64 without double quant"],
+    "weight_format_scope": "tiny NF4 runtime coverage does not establish the full 671B conversion/training path",
+    "weight_seed": 61,
+    "adapter_seed": 67,
+    "nonzero_adapters_required": true
+  },
+  "matrix": {
+    "k": [1, 4, 16, 64],
+    "windows": "two full windows then max(1, k//2), variable lengths and row counts, masked labels",
+    "discovery_input_offset": 0,
+    "holdout_input_offset": 10000,
+    "optimizer": "SGD lr=0.05, no momentum",
+    "comparison_scope": "matched adapters at every window start, not independent long trajectories",
+    "reference": "resident GA repeat on MATH, uncompressed production L2L, FP8 production L2L",
+    "reduced_k_permitted": false
+  },
+  "numerical_acceptance": {
+    "uncompressed": "unchanged l2l_mistral_stand.decide BF16: bitwise GA repeat; gradient/loss error <=1.5 times measured MATH-vs-EFFICIENT_ATTENTION floor",
+    "missing_floor": "BLOCKED/no_floor, never substitute an absolute tolerance or a fake backend",
+    "compressed_reference": "matched uncompressed L2L, not GA directly",
+    "fp8": "unchanged g4_rule E1/E2/E3 and exact ordered native expert IDs",
+    "e1_rms_row_relative_max": 0.05,
+    "e1_worst_row_relative_max": 0.25,
+    "e2_branch_rms_row_relative_max": 0.10,
+    "e3_global_gradient_relative_l2_max": 0.05,
+    "e3_min_tensor_cosine_min": 0.99,
+    "routing_refusal": "failure; discard partial gradients and do not apply optimizer",
+    "threshold_changes_permitted": false
+  },
+  "minimum_useful_memory": {
+    "minimum_host_reservation_reduction_fraction": 0.25,
+    "comparison_shape": {"layers": 61, "moe_layers": 58, "hidden": 7168, "tokens_per_microbatch": 64, "k": 64},
+    "reference": "same-shape BF16 charged activation-plus-routing reservation",
+    "included": ["payload", "scales", "pinned allocator rounding", "bounded host codec scratch", "routing records and comparison", "any candidate exception or correction tensors and metadata"],
+    "device_scratch": "separate constraint, never charged as host memory",
+    "process_memory": "sampled RSS and CUDA allocated/reserved peaks reported separately; reservation is not an RSS/cgroup bound",
+    "full_shape_probe_host_limit_bytes": 5368709120,
+    "whole_model_8gb_fit_claimed": false
+  },
+  "candidate_policy": {
+    "maximum_candidates": 1,
+    "selection": "only after decoder boundary, first routing divergence, routing margin and gradient diagnostics",
+    "mandatory": false,
+    "early_rejection": "reject if its minimum required reservation cannot deliver 25 percent saving; no requirement to invent another scheme",
+    "if_selected": "bounded reservations before allocation, unchanged routing guard and G4 gates, production trainer, separate holdout inputs",
+    "whole_step_cost": "synchronized forward/backward/optimizer measurements, successful steps distinguished from partial refusals; no tiny-kernel speedup extrapolation"
+  },
+  "integration": {
+    "b14": "verify caller handoff, effective_k fixed before trainer/scheduler construction; report absent public wiring without implementing it",
+    "c3": "resolved codec/device and route reservation must agree before weight cache allocation",
+    "trainer": "exercise variable lengths, growth, short windows, normalization, refusal and cleanup",
+    "expert_read_optimization": "out of scope, retain as a separate performance dependency"
+  },
+  "allowed_final_outcomes": [
+    "FP8 accepted for the tested scope",
+    "verified BF16 fallback proposed for acceptance",
+    "blocked with the exact missing evidence"
+  ],
+  "fallback_is_fp8_success": false,
+  "fallback_closes_all_phase0_requirements": false
+}

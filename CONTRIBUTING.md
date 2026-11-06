@@ -139,6 +139,31 @@ examples/             - Real-world config examples and datasets
 
 ## Running Tests
 
+### FP8 activation-storage component evidence
+
+The experimental `training.l2l_activation_codec: fp8_e4m3` path and
+`plan_moe_l2l` have a bounded
+[component-delivery report](benchmarks/results/p3-fp8-component-delivery/README.md).
+It records the exact focused CPU/CUDA commands, shared-codec checks, supported
+tiny-Llama CPU/FP32 builder smoke and isolated full-width storage measurements.
+These are archived Kaggle checks on Python 3.12, not a full repository pytest run
+or DeepSeek FP8 numerical acceptance. Earlier red runs remain in the report.
+
+Keep host payload/scales, pinned rounding, codec scratch and int64 routing leases
+distinct from sampled RSS and CUDA allocated/reserved peaks. The FP8 path is
+RAM-only; budget failures must not silently spill or switch codecs. Preserve the
+existing routing guard, G4 tolerances and failed numerical evidence.
+
+B1.4 still owns public DeepSeek launch and the caller that resolves k before
+constructing HF arguments, trainer and scheduler. Pass the resolved
+`memory_plan.effective_k`, reserve its activation and routing partition before
+optional weight allocation, then pass `memory_plan` and the same
+`c3_plan.activations` budget through `_build_l2l_trainer` / `attach_l2l_state`.
+The [feature guide](docs/performance-and-quantization.md) gives supported-caller
+limits and the full handoff. General BF16 A3 acceptance, repeated expert reads and
+full-model P3 validation remain separate owners. Do not describe component
+delivery or a passing storage-usefulness check as phase-0 closure.
+
 ### All Tests
 
 ```bash
@@ -587,12 +612,11 @@ The project follows semantic versioning: `MAJOR.MINOR.PATCH`
 1. Run `python scripts/assemble_changelog.py` and review the assembled `CHANGELOG.md`
 2. Update version in `pyproject.toml` and `src/soup_cli/__init__.py`
 3. Run full test suite and linting — this includes
-   `tests/test_issue621_recipe_snapshot.py`, which fails loudly if a schema
-   default changed since the last release without regenerating
+   `tests/test_issue621_recipe_snapshot.py`, which checks recipe overrides against
+   the live schema. For deliberate recipe changes, regenerate and review
    `tests/fixtures/recipe_config_snapshots.json`
-   (`python scripts/generate_recipe_snapshot.py`); a red run here means the
-   fixture is stale, not that the release is unsafe to cut once regenerated
-   and reviewed
+   (`python scripts/generate_recipe_snapshot.py`). Schema behavior changes need
+   consumer-level tests rather than a re-pinned snapshot of every default.
 4. Update `README.md`, the relevant page under `docs/`, and `SECURITY.md` (if security-related)
 5. Commit with message: `Release v0.X.0`
 6. Tag: `git tag v0.X.0 && git push --tags`

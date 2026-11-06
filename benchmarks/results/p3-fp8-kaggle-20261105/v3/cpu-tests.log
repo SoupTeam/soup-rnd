@@ -1,0 +1,149 @@
+..............................................ssss..........s........... [  3%]
+...........................................................s.......s.... [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+......sssssssssssss............................................sssssssss [ 41%]
+ssssssssssssss.......................................................... [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+.....................sssssssssssss...................................... [ 78%]
+.......................................................................s [ 82%]
+..s.ssssss.............................................................. [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+.................................................                        [100%]
+=============================== warnings summary ===============================
+tests/test_fp8_l2l_trainer.py: 14 warnings
+  /usr/local/lib/python3.13/dist-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+tests/test_c3_public_l2l.py: 2 warnings
+tests/test_l2l_dpo.py: 32 warnings
+tests/test_l2l_kto.py: 32 warnings
+tests/test_l2l_ordinary_mode.py: 2 warnings
+tests/test_l2l_orpo.py: 16 warnings
+tests/test_l2l_simpo.py: 20 warnings
+tests/test_l2l_trainer_mode.py: 1 warning
+  /usr/local/lib/python3.13/dist-packages/torch/utils/data/dataloader.py:775: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+    super().__init__(loader)
+
+tests/test_b13_expert_backward.py::test_installed_silu_backward_does_not_consume_the_outer_stream[None]
+tests/test_b13_expert_backward.py::test_installed_silu_backward_does_not_consume_the_outer_stream[non-reentrant]
+tests/test_b13_expert_backward.py::test_installed_silu_backward_does_not_consume_the_outer_stream[reentrant]
+  tests/test_b13_expert_backward.py:1099: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("checkpoint", [None, "non-reentrant", "reentrant"])
+
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[1-0.0]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[1-0.05]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[2-0.0]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[2-0.05]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[4-0.0]
+tests/test_b13_l2l_moe.py::test_e3_l2l_equals_resident_eager_accumulation[4-0.05]
+  tests/test_b13_l2l_moe.py:436: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("dropout", [0.0, 0.05])
+
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-1]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-2]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-neftune-1]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[embedding32-neftune-2]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[head-shared44-dropout-1]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[head-shared44-dropout-2]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[combined46-dropout-1]
+tests/test_b13_l2l_moe.py::test_supported_trainables_equal_resident_ga_across_repeated_windows[combined46-dropout-2]
+  tests/test_b13_l2l_moe.py:475: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("k", [1, 2])
+
+tests/test_b13_l2l_moe.py::test_embedding_vjp_keeps_backward_outside_forward_autocast[1]
+tests/test_b13_l2l_moe.py::test_embedding_vjp_keeps_backward_outside_forward_autocast[2]
+  tests/test_b13_l2l_moe.py:496: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("k", [1, 2])
+
+tests/test_b13_l2l_moe.py::test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again
+  tests/test_b13_l2l_moe.py:650: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_expert_loads_are_counted_and_backward_reads_each_hit_expert_again(
+
+tests/test_b13_l2l_moe.py::test_negative_control_perturbing_only_backward_reloads_changes_grads_not_losses
+  tests/test_b13_l2l_moe.py:788: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_negative_control_perturbing_only_backward_reloads_changes_grads_not_losses(
+
+tests/test_b13_l2l_moe.py::test_negative_control_state_not_applied_on_the_recompute_changes_the_grads
+  tests/test_b13_l2l_moe.py:845: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_negative_control_state_not_applied_on_the_recompute_changes_the_grads(
+
+tests/test_b13_l2l_moe.py::test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga[1]
+tests/test_b13_l2l_moe.py::test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga[2]
+tests/test_b13_l2l_moe.py::test_bf16_forward_amp_keeps_backward_outside_autocast_like_resident_ga[4]
+  tests/test_b13_l2l_moe.py:1097: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("k", [1, 2, 4])
+
+tests/test_b13_l2l_moe.py::test_eager_attention_and_lora_dropout_replay_match_resident_accumulation
+  tests/test_b13_l2l_moe.py:1139: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_eager_attention_and_lora_dropout_replay_match_resident_accumulation(
+
+tests/test_b13_moe_runtime.py::test_adapters_on_routed_experts_are_refused_before_any_expert_read[gate-up-down-modules]
+  /usr/local/lib/python3.13/dist-packages/peft/tuners/tuners_utils.py:1123: RuntimeWarning: The following rank_pattern keys did not match any targeted module and were ignored: ['.*\\.gate_up_proj'].
+    warnings.warn(
+
+tests/test_b13_moe_runtime.py::test_adapters_on_routed_experts_are_refused_before_any_expert_read[gate-up-down-modules]
+  /usr/local/lib/python3.13/dist-packages/peft/tuners/tuners_utils.py:1123: RuntimeWarning: The following alpha_pattern keys did not match any targeted module and were ignored: ['.*\\.gate_up_proj'].
+    warnings.warn(
+
+tests/test_b13_moe_runtime.py::test_e2_checkpointed_backward_lora_gradients_equal_resident_eager[mla30]
+tests/test_b13_moe_runtime.py::test_e2_checkpointed_backward_lora_gradients_equal_resident_eager[embedding32]
+tests/test_b13_moe_runtime.py::test_e2_checkpointed_backward_lora_gradients_equal_resident_eager[head-shared44]
+tests/test_b13_moe_runtime.py::test_e2_checkpointed_backward_lora_gradients_equal_resident_eager[combined46]
+  tests/test_b13_moe_runtime.py:745: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize(
+
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[1-False-False]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[2-False-False]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[4-False-False]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[2-True-False]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[4-True-False]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[1-False-True]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[2-False-True]
+tests/test_b13_moe_trainer.py::test_trainer_moe_windows_match_resident_ga[4-False-True]
+  tests/test_b13_moe_trainer.py:149: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize(
+
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[embedding32-1]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[embedding32-2]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[head-shared44-dropout-1]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[head-shared44-dropout-2]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[combined46-dropout-1]
+tests/test_b13_moe_trainer.py::test_trainer_updates_every_supported_boundary_adapter_like_resident_ga[combined46-dropout-2]
+  tests/test_b13_moe_trainer.py:189: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("k", [1, 2])
+
+tests/test_l2l_kto.py: 49 warnings
+  /kaggle/working/soup/src/soup_cli/trainer/kto.py:168: FutureWarning: The `KTOConfig` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOConfig`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOConfig`) will remain, but API changes may occur.
+    kto_config = KTOConfig(
+
+tests/test_l2l_kto.py: 17 warnings
+  /kaggle/working/soup/src/soup_cli/trainer/kto.py:234: FutureWarning: The `KTOTrainer` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOTrainer`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOTrainer`) will remain, but API changes may occur.
+    self.trainer = KTOTrainer(**trainer_kwargs)
+
+tests/test_l2l_kto.py: 32 warnings
+  /kaggle/working/soup/src/soup_cli/trainer/stream_setup.py:1327: FutureWarning: The `KTOTrainer` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOTrainer`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOTrainer`) will remain, but API changes may occur.
+    trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
+
+tests/test_l2l_kto.py::test_setup_refuses_a_parallel_data_map_before_the_trainer_is_built
+  /kaggle/working/soup/tests/test_l2l_kto.py:301: FutureWarning: The `KTOConfig` is now located in `trl.experimental`. Please update your imports to `from trl.experimental.kto import KTOConfig`. For more information, see https://github.com/huggingface/trl/issues/4223. Promoting KTO to the stable API is a high-priority task. Until then, this current path (`from trl import KTOConfig`) will remain, but API changes may occur.
+    return real_config(*args, dataset_num_proc=2, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------- generated xml file: /kaggle/working/evidence/cpu-tests.xml ----------
+1857 passed, 64 skipped, 264 warnings in 302.67s (0:05:02)
