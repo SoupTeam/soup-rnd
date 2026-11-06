@@ -187,8 +187,9 @@ def _diff(after: Optional[Dict[str, int]], before: Optional[Dict[str, int]]) -> 
     return {key: after[key] - before[key] for key in after}
 
 
-def _lm_batch(config: Any, *, rows: int, seq: int) -> Dict[str, Any]:
-    return fixture.moe_batch(config, seed=seq, rows=rows, seq=seq)
+def _lm_batch(config: Any, *, rows: int, seq: int, device: str) -> Dict[str, Any]:
+    batch = fixture.moe_batch(config, seed=seq, rows=rows, seq=seq)
+    return {key: value.to(device) for key, value in batch.items()}
 
 
 def _count_inside_experts(model: Any) -> tuple[List[int], List[Any]]:
@@ -394,11 +395,13 @@ def measure_path(
                 "pinned", "pinned_bytes", "tier", "read_ahead", "total_params",
             )
         }
-        first_batch = _lm_batch(config, rows=rows, seq=seqs[0])
+        first_batch = _lm_batch(config, rows=rows, seq=seqs[0], device=device)
         # Warm-up: CUDA context, cuBLAS handles and allocator growth belong to no measured pass.
         _one_pass(streamed, runtime, first_batch, device=device, profile=False)
         for index_of, seq in enumerate(seqs):
-            batch = first_batch if index_of == 0 else _lm_batch(config, rows=rows, seq=seq)
+            batch = first_batch if index_of == 0 else _lm_batch(
+                config, rows=rows, seq=seq, device=device,
+            )
             try:
                 measured = _one_pass(streamed, runtime, batch, device=device, profile=profile)
             except torch.cuda.OutOfMemoryError as error:
