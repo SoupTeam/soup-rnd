@@ -1,0 +1,32 @@
+H2 CE controls addendum — 2026-10-28
+Prospective addition to CE_CONFIRMATION_PROTOCOL.txt. No prior evidence is rewritten.
+
+Each of the four fresh numerical processes now captures its own controls.
+Before the first CUDA allocation, nvidia-smi must report no compute processes.
+A one-element allocation and synchronization on the sole visible GPU establish
+its host PID using the unchanged exclusive-local-CUDA-initialization method in
+l2l_box.py. Never infer ownership from a previously observed PID or alias it to
+process I/O counters. Every sampled GPU PID list must contain exactly that PID.
+Sample at initialization, every 2 seconds, and at completion. Unknown readings,
+foreign processes, missing samples or missing ownership block acceptance.
+
+Use unchanged ArmWatch with all three F1 checks required: suspend, power and
+foreign_reads, on the pinned model snapshot's physical disk. Preserve existing
+1,000,000,000-byte foreign-read threshold; do not override sensors or required
+checks. Capture begins before model loading and ends after numerical capture.
+Every F1 check must be ok. Unknown/void is rejected. Retain clocks and event
+reasons; require complete finite positive clocks. Throttling is recorded without
+turning it into a numerical failure or claiming throughput acceptance.
+
+Stop samplers before evidence sealing. Retain controls.json on failures. A failed
+control changes the child to FAILED and blocks later phases without retries.
+The offline reader recomputes controls acceptance in addition to tensor/hash
+checks. Include this addendum, h2_ce_controls.py, arm_validity.py and l2l_box.py in
+the committed artifact pin set. Original numeric thresholds, workload and
+shared2400s/600s child/40s cleanup deadlines remain unchanged. The outer watchdog
+continues to bound a stalled sensor; no control can extend the shared deadline.
+
+Still required operationally: preflight source/boot/GPU/runtime, bounded setup,
+cumulative budget, verified physical snapshot placement, complete local export
+and SHA audit before resource deletion. Local fault tests do not establish live
+sensor availability or GPU correctness. NO_VERDICT until the relevant GPU evidence.

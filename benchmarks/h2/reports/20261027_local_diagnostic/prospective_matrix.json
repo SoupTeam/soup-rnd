@@ -1,0 +1,62 @@
+{
+  "status": "DRAFT_NOT_EXECUTABLE_AUTHORITY",
+  "patch_flags": {
+    "baseline": {
+      "rope": false,
+      "cross_entropy": false,
+      "fused_linear_cross_entropy": false,
+      "rms_norm": false,
+      "swiglu": false
+    },
+    "ce_only": {
+      "rope": false,
+      "cross_entropy": true,
+      "fused_linear_cross_entropy": false,
+      "rms_norm": false,
+      "swiglu": false
+    },
+    "fused_lce_only": {
+      "rope": false,
+      "cross_entropy": false,
+      "fused_linear_cross_entropy": true,
+      "rms_norm": false,
+      "swiglu": false
+    },
+    "rms_norm_only": {
+      "rope": false,
+      "cross_entropy": false,
+      "fused_linear_cross_entropy": false,
+      "rms_norm": true,
+      "swiglu": false
+    },
+    "rope_only": {
+      "rope": true,
+      "cross_entropy": false,
+      "fused_linear_cross_entropy": false,
+      "rms_norm": false,
+      "swiglu": false
+    },
+    "swiglu_only": {
+      "rope": false,
+      "cross_entropy": false,
+      "fused_linear_cross_entropy": false,
+      "rms_norm": false,
+      "swiglu": true
+    },
+    "combined": {
+      "rope": true,
+      "cross_entropy": false,
+      "fused_linear_cross_entropy": true,
+      "rms_norm": true,
+      "swiglu": true
+    }
+  },
+  "constraints": [
+    "Fresh process per arm; never attempt to undo global patches by passing False",
+    "Explicit identical flags at class and Trainer instance patch points",
+    "Baseline bypasses both patch paths",
+    "Verify actual forward identity, module classes, runtime dtypes and kernels per arm",
+    "Same pinned initial NF4 state, raw inputs, RNG and unchanged numerical tolerances",
+    "No performance verdict from this diagnostic"
+  ]
+}

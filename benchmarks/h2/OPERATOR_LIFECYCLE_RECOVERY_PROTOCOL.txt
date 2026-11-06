@@ -1,0 +1,43 @@
+H2 operator lifecycle recovery v1 — prospective amendment, 2026-10-28
+
+Scope and cause
+Attempt010 passed baseline continuity, then failed ce_only before capture:
+the diagnostic expected the instance patch after setup. Pinned Transformers
+5.17.0 applies that patch in Trainer.train(), which this one-backward diagnostic
+deliberately never calls. This explains the harness failure, not the numerical
+discrepancy in attempt009. Historical evidence and verdicts remain unchanged.
+
+This amendment supersedes only the instance-patch timing described in
+OPERATOR_DIAGNOSTIC_PROTOCOL.txt. All matrix, numerical, identity, runtime,
+budget, process ownership, timeout, preservation and stop conditions remain.
+
+Explicit lifecycle
+After wrapper.setup and before loaded-model validation or any forward:
+1. Require exact trainer.model and model_wrapped identity, declared treatment,
+   allowed kernel config, no optimizer or scheduler, step zero, not in train.
+2. Require class count one / instance count zero for treatment; both zero for
+   baseline. A future dependency applying the instance patch during setup is
+   a hard failure, not something silently skipped or applied twice.
+3. Treatment invokes the controlled instance patch explicitly with PEFT
+   unwrapping and all five flags. Baseline invokes no patch.
+4. Retain exact class/instance call counts, global/model/module binding checks
+   before and after capture, actual CUDA kernel-family checks and state hashes.
+The lifecycle preparation is single-use, including a failed/partial attempt.
+HF's intercepted train-time entry point remains guarded against a second patch.
+No train(), optimizer creation, optimizer step, retry or threshold change.
+
+Validation and publication
+Test the real pinned HF Trainer constructor with a tiny local PEFT Llama on CPU.
+Assert the old missing-instance condition, explicit single application and real
+PEFT unwrapping for all seven arms. Perform CPU backward without parameter
+updates. Test wrong model/treatment/config, training/optimizer/scheduler state,
+missing/duplicate patch, repeated preparation and partial failure rejection.
+Patch spies validate lifecycle only: CPU tests do not execute Liger/Triton or
+prove CUDA/NF4 numerical parity. Existing exact binding negative tests remain.
+Record installed versions, test results and source hashes separately.
+Commit the new helper/runner, this amendment and tests before any new GPU run.
+The runner includes this amendment in its committed source artifact manifest.
+The original study, numerical policy, fixture and recipe must retain their SHA.
+Each GPU arm must use a new process and a new evidence root under concrete
+runtime authority and the remaining current-series H2 budget, capped at $5.
+No additional spending is authorized by this amendment. Performance NO_VERDICT.

@@ -1,0 +1,40 @@
+H2-close protocol, addendum 2 (2026-11-04). Review-code correction and re-audit of retained
+evidence after the review of 2026-11-04. No GPU run, rental, threshold, rule, workload, arm or
+label changes. H2_CLOSE_PROTOCOL.txt and addendum 1 are unchanged.
+
+1. Defect
+U2 requires every tensor of the declared trainable manifest to change its bytes. The stage U
+review (h2_close_updates.review_updates) relied on h2_ce_training.read_training, which rejects
+a step only when no adapter tensor changed. A declared tensor that never changed could therefore
+pass. The reviewer showed this with a CPU fixture; the same negative control (one declared tensor
+joined to the loss through a zero-valued term) gives UPDATES_PASS on the measured code.
+
+2. Correction (review code only)
+review_updates now fails an arm with row U2 when any declared trainable tensor has the same
+final and initial SHA256 (h2_close_updates.unchanged_adapters), and reports changed/declared.
+read_training has already tied those digests to the stored tensor bytes. The negative control
+is a regression test. The measured code that produced the published results is unchanged in its
+archive and is identified by its contract SHA256; the corrected reviewer is newer by design.
+
+3. Re-audit of the retained stage U evidence
+Archive 7c20a5ff1d20eca121a036a669e9617d0f3f39ea51d3609198313c3eb551205e (instance 58810258),
+reassembled and checked against its receipt and all 163 member SHA256 of its manifest.
+h2_close_reaudit.py updates: A and L U2_REAUDIT_PASS, 448 of 448 declared adapter tensors
+changed in each arm. The corrected review_updates over the same evidence (source check off,
+because the reviewer source differs from the measured one) gives A and L UPDATES_PASS with
+448/448, and pair measurements equal to the published ones. Results:
+reports/20261102_h2_close/evidence/stage_u_reaudit_20261104/.
+
+4. Reviewer access
+reports/20261102_h2_close/evidence/ now holds one packet per rental (stage_u_s_58810258,
+stage_p_attempt1_58823768, stage_p_58843853): every archive member byte for byte, checked
+against the preserved manifest, except tensor/optimizer payloads, the public tokenizer and
+Unsloth's generated trainer cache (bytes and SHA256 recorded in PACKET.json) and rental.json
+(SSH endpoint, budget, paths; the other fields are in rental_public.json). Kernel traces are
+gzip-compressed with the original SHA256 recorded. The per-tensor digests that U2 reads are in
+the included training.json files.
+h2_close_reaudit.py runs rechecks each of the 20 stage P run.json reports with the frozen
+runner's per-run rules and recomputes the pair labels with its frozen analysis: 0 mismatches,
+same result as the box. The frozen runner h2_perf_abba.py is not edited (its SHA256 is pinned
+by perf_workload_receipt.json). The F1 watch outcome per run is taken as logged; run.json has
+no raw sensor data.

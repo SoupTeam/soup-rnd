@@ -1,0 +1,828 @@
+"""Four fresh CE correctness processes and tensor review; never a speed benchmark.
+
+Launch only within the separately verified exclusive GPU/F1/clocks envelope.
+This runner does not rent hardware, restore a stopped instance or authorize spending.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import platform
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+from h2_ce_controls import CaptureControls, validate_controls
+from h2_ce_training import Recorder, compare_tensors, recording_trainer, review_training, write_json
+from h2_gpu_correctness import (
+    SOURCES,
+    preflight,
+    sha_file,
+    validate_authority,
+    validate_live_identity,
+    validate_loaded,
+)
+from h2_numerics import collect_probe, compare_probes, read_probe
+from h2_operator_capture import collect
+from h2_operator_patch import kernel_audit, validate_counts
+from h2_profile_window import ProfileWindow
+from h2_update_oracle import snapshot
+from h2_watchdog import bounded_process
+from rich.console import Console
+
+REPO = Path(__file__).parents[2]
+SPEC = REPO / 'benchmarks/h2'
+HARNESS = REPO / 'benchmarks/harness'
+PHASES = ('baseline_probes', 'ce_only_probes', 'baseline_training', 'ce_only_training')
+NOISE_FLOOR_PHASES = ('baseline_probes', 'ce_only_probes', 'baseline_probes_repeat',
+                      'ce_only_probes_repeat')
+# Every phase name maps to its arm flags and kind; repeats reuse the base arm's flags exactly.
+PHASE_ARMS = {
+    'baseline_probes': ('baseline', 'probes'), 'ce_only_probes': ('ce_only', 'probes'),
+    'baseline_training': ('baseline', 'training'), 'ce_only_training': ('ce_only', 'training'),
+    'baseline_probes_repeat': ('baseline', 'probes'),
+    'ce_only_probes_repeat': ('ce_only', 'probes'),
+    # attempt018 fp64-reference arm: ref64 children are probe captures; the two perturbation
+    # children run 18 backward passes each on one decisive probe.
+    'ref64_probes': ('ref64', 'probes'), 'ref64_probes_repeat': ('ref64', 'probes'),
+    'ref64_perturbed_probe02': ('ref64', 'perturbed'),
+    'ref64_perturbed_probe03': ('ref64', 'perturbed'),
+}
+REF64_PHASES = ('baseline_probes', 'ce_only_probes', 'ref64_probes', 'ref64_probes_repeat',
+                'ref64_perturbed_probe02', 'ref64_perturbed_probe03')
+PERTURBED_PROBE = {'ref64_perturbed_probe02': 2, 'ref64_perturbed_probe03': 3}
+# The contract may only choose one of these fixed series; it can never carry a free-form list.
+# H2-close stage U: only the two training children of the tested training phase.
+UPDATES_PHASES = ('baseline_training', 'ce_only_training')
+SERIES = {'ce_confirmation': PHASES, 'noise_floor': NOISE_FLOOR_PHASES, 'ref64': REF64_PHASES,
+          'updates': UPDATES_PHASES}
+ARTIFACTS = tuple('benchmarks/harness/' + n for n in sorted(set(SOURCES) | {
+    'h2_ce_confirmation.py', 'h2_ce_training.py', 'h2_ce_workset.py',
+    'h2_operator_patch.py', 'h2_operator_capture.py',
+    'h2_ce_controls.py', 'arm_validity.py', 'l2l_box.py',
+    'h2_ce_ref64.py', 'h2_ce_ref64_review.py', 'h2_ce_ref64_evidence.py',
+    'h2_close_updates.py',
+})) + tuple('benchmarks/h2/' + n for n in (
+    'operator_study.json', 'numerical_policy.json', 'candidate_configs/baseline.json',
+    'runtime_candidate.lock', 'synthetic_fixture.jsonl', 'prepared_fixture_candidate.jsonl',
+    'CE_CONFIRMATION_PROTOCOL.txt', 'ce_confirmation_plan.json', 'ce_confirmation_workset.json',
+    'CE_CONTROLS_PROTOCOL.txt',
+    'CE_PREPARED_BATCHES_PROTOCOL.txt', 'CE_HARDENING_ADDENDUM.txt',
+    'CE_NOISE_FLOOR_ADDENDUM.txt', 'CE_FP64_REFERENCE_ADDENDUM.txt', 'H2_CLOSE_PROTOCOL.txt',
+))
+_USED = False
+CLEANUP_RESERVE_SECONDS = 40
+ALARM_MARGIN_SECONDS = 15
+_ALARM = {'armed': False}
+
+
+def alarm_seconds(contract: dict, now: float) -> int:
+    """Child alarm from the shared deadline, minus cleanup reserve and an evidence margin."""
+    remaining = contract['deadline_unix_s'] - now - CLEANUP_RESERVE_SECONDS - ALARM_MARGIN_SECONDS
+    seconds = int(min(contract['max_seconds'], remaining))
+    if seconds <= 2:
+        raise ValueError('Shared deadline leaves no child budget')
+    return seconds
+
+
+def arm_alarm(seconds: int) -> None:
+    def expired(*unused) -> None:
+        # A disarmed alarm must never interrupt evidence writing, even if already pending.
+        if _ALARM['armed']:
+            raise TimeoutError('CE child deadline reached')
+    _ALARM['armed'] = True
+    signal.signal(signal.SIGALRM, expired)
+    signal.alarm(seconds)
+
+
+def disarm_alarm() -> None:
+    _ALARM['armed'] = False
+    if hasattr(signal, 'SIGALRM'):
+        signal.alarm(0)
+
+
+def series_name(contract: dict) -> str:
+    """Series selected by the contract; an absent key is the original four-phase series."""
+    name = contract.get('series', 'ce_confirmation')
+    if type(name) is not str or name not in SERIES:
+        raise ValueError('Unknown CE series')
+    return name
+
+
+def series_phases(contract: dict) -> tuple[str, ...]:
+    return SERIES[series_name(contract)]
+
+
+def determinism_receipt(loaded: dict) -> dict:
+    """Recording only: settings that can explain run-to-run bf16 differences. Never raises."""
+    import torch
+
+    def read(getter: Any) -> Any:
+        try:
+            return getter()
+        except Exception as error:
+            return 'unavailable: ' + type(error).__name__
+
+    backends = torch.backends
+    return {
+        'attention_implementation': loaded.get('attention_implementation'),
+        'cublas_workspace_config': os.environ.get('CUBLAS_WORKSPACE_CONFIG'),
+        'deterministic_algorithms': read(torch.are_deterministic_algorithms_enabled),
+        'deterministic_warn_only': read(torch.is_deterministic_algorithms_warn_only_enabled),
+        'cudnn_deterministic': read(lambda: backends.cudnn.deterministic),
+        'cudnn_benchmark': read(lambda: backends.cudnn.benchmark),
+        'sdp_flash': read(backends.cuda.flash_sdp_enabled),
+        'sdp_mem_efficient': read(backends.cuda.mem_efficient_sdp_enabled),
+        'sdp_math': read(backends.cuda.math_sdp_enabled),
+        'sdp_cudnn': read(backends.cuda.cudnn_sdp_enabled),
+        'matmul_allow_tf32': read(lambda: backends.cuda.matmul.allow_tf32),
+        'float32_matmul_precision': read(torch.get_float32_matmul_precision),
+    }
+
+
+def validate_contract(contract: dict) -> dict:
+    validate_authority(contract, 'baseline')
+    series_name(contract)
+    study = json.loads((SPEC / 'operator_study.json').read_text())
+    plan = json.loads((SPEC / 'ce_confirmation_plan.json').read_text())
+    if (contract.get('schema') != 'h2-ce-authority-v1' or contract['max_seconds'] > 600
+            or contract['budget_cap_usd'] > 5):
+        raise ValueError('CE-specific bounded authority required')
+    start = contract.get('series_started_unix_s')
+    if (type(start) not in (int, float) or not math.isfinite(start) or start > time.time()
+            or not 0 < contract['deadline_unix_s'] - start <= 2400):
+        raise ValueError('Single shared 2400s absolute deadline required')
+    worst = (contract['prior_spend_usd'] + contract['hourly_rate_usd'] * 2400 / 3600
+             + contract['cleanup_traffic_reserve_usd'])
+    if worst > contract['budget_cap_usd']:
+        raise ValueError('Whole CE series exceeds cumulative H2 budget')
+    for key in ('model_revision', 'model_files_sha256', 'versions', 'numerical_policy_sha256'):
+        if contract.get(key) != study[key]:
+            raise ValueError('Frozen study pin differs: ' + key)
+    pins = contract.get('artifacts_sha256', {})
+    if set(pins) != set(ARTIFACTS) or any(sha_file(REPO / n) != pins[n] for n in ARTIFACTS):
+        raise ValueError('Missing or changed CE source artifact')
+    for name, digest in plan['files_sha256'].items():
+        if sha_file(SPEC / name) != digest:
+            raise ValueError('Prospective plan artifact differs: ' + name)
+    if set(contract.get('runner_sha256', {})) != set(SOURCES):
+        raise ValueError('Original runner pins required')
+    return study
+
+
+def committed_preflight(contract: dict) -> dict:
+    study = validate_contract(contract)
+    preflight(contract, 'baseline')
+    for name in ARTIFACTS:
+        raw = subprocess.run(['git', 'show', contract['source_commit'] + ':' + name],
+                             cwd=REPO, check=True, capture_output=True, timeout=10).stdout
+        if hashlib.sha256(raw).hexdigest() != contract['artifacts_sha256'][name]:
+            raise ValueError('Unpublished source artifact: ' + name)
+    return study
+
+
+def tree_seal(root: Path) -> None:
+    write_json(root / 'files_sha256.json', {
+        p.relative_to(root).as_posix(): sha_file(p) for p in root.rglob('*') if p.is_file()})
+
+
+def read_child(root: Path, phase: str) -> dict:
+    if root.is_symlink() or any(p.is_symlink() for p in root.rglob('*')):
+        raise ValueError('Symlink evidence rejected')
+    pins = json.loads((root / 'files_sha256.json').read_text())
+    actual = {p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()}
+    if actual != set(pins) | {'files_sha256.json'}:
+        raise ValueError('Child file inventory mismatch')
+    for name, digest in pins.items():
+        path = os.path.realpath(root / name)
+        if (os.path.commonpath([os.path.realpath(root), path]) != os.path.realpath(root)
+                or sha_file(Path(path)) != digest):
+            raise ValueError('Child SHA/containment mismatch')
+    data = json.loads((root / 'evidence.json').read_text())
+    arm, kind = PHASE_ARMS[phase]
+    if data['status'] != 'COMPLETE_CE_CAPTURE' or data['phase'] != phase:
+        raise ValueError('Incomplete/wrong child capture')
+    validate_controls(json.loads((root / 'controls.json').read_text()), phase)
+    validate_counts(arm, data['patch_after']['patch_calls'])
+    if (data['patch_after']['status'] != 'PASS_EXPLICIT_PATCH_BINDINGS'
+            or data['patch_after']['arm'] != arm):
+        raise ValueError('Invalid patch binding evidence')
+    trace = root / {'training': 'profile/kernel_trace.json', 'probes': 'probe_00/kernel_trace.json',
+                    'perturbed': 'pass_0_0/kernel_trace.json'}[kind]
+    kernel_audit(json.loads(trace.read_text())['traceEvents'], arm)
+    return data
+
+
+def review_pair(root: Path, *, training: bool, phases: tuple[str, str] | None = None,
+                strict: bool = True) -> dict:
+    """Review two children; strict=False (probes) reports policy failures instead of raising."""
+    work = json.loads((SPEC / 'ce_confirmation_workset.json').read_text())
+    policy = json.loads((SPEC / 'numerical_policy.json').read_text())
+    suffix = '_training' if training else '_probes'
+    names = phases or tuple(arm + suffix for arm in ('baseline', 'ce_only'))
+    paths = [root / name / 'runner' for name in names]
+    evidence = [read_child(path, name) for path, name in zip(paths, names)]
+    contract = json.loads((root / 'contract.json').read_text())
+    if set(contract['artifacts_sha256']) != set(ARTIFACTS) or any(
+            sha_file(REPO / name) != contract['artifacts_sha256'][name] for name in ARTIFACTS):
+        raise ValueError('Offline reviewer/source differs from captured authority')
+    for path, data in zip(paths, evidence):
+        if json.loads((path / 'contract.json').read_text()) != contract:
+            raise ValueError('Child contract differs from whole-series authority')
+        if any(data[key] != contract[key] for key in ('source_commit', 'gpu_uuid', 'boot_id')):
+            raise ValueError('Child identity differs from authority')
+    expected_initial = json.loads((SPEC / 'operator_study.json').read_text())[
+        'reference_identity']['before_sha256']
+    for key in ('source_commit', 'gpu_uuid', 'boot_id', 'initial_identity'):
+        if evidence[0][key] != evidence[1][key]:
+            raise ValueError('Pair identity differs: ' + key)
+    if evidence[0]['initial_identity'] != expected_initial:
+        raise ValueError('Pair differs from historical initial state')
+    if training:
+        probe_initial = json.loads((root / 'baseline_probes/runner/evidence.json').read_text())
+        if probe_initial['initial_identity'] != evidence[0]['initial_identity']:
+            raise ValueError('Training initial state differs from accepted probe model')
+        for path in paths:
+            data = json.loads((path / 'training/training.json').read_text())
+            if data['compute_policy'] != 'bf16-autocast-cuda':
+                raise ValueError('GPU training review requires BF16 CUDA evidence')
+            if hashlib.sha256(json.dumps(data['before'], sort_keys=True,
+                                        separators=(',', ':')).encode()).hexdigest() != (
+                                            expected_initial):
+                raise ValueError('Training tensors start from a different state')
+        return review_training(*(p / 'training' for p in paths), policy, work['training_batches'])
+    results = []
+    failures = []
+    for index, expected in enumerate(work['probes']):
+        captures = [p / f'probe_{index:02d}' / 'model_probe' for p in paths]
+        tensors = []
+        for path in captures:
+            data, values = read_probe(path)
+            if data['compute_policy'] != 'bf16-autocast-cuda':
+                raise ValueError('GPU probe review requires BF16 CUDA evidence')
+            if hashlib.sha256(json.dumps(data['before'], sort_keys=True,
+                                        separators=(',', ':')).encode()).hexdigest() != (
+                                            expected_initial):
+                raise ValueError('Probe tensors start from a different state')
+            if {k.removeprefix('input.'): v.tolist() for k, v in values.items()
+                    if k.startswith('input.')} != expected:
+                raise ValueError('Probe actual input differs from frozen workset')
+            if not strict and (type(data['loss']) not in (int, float)
+                               or not math.isfinite(data['loss'])):
+                raise ValueError('Probe loss missing or nonfinite')
+            tensors.append({k: v for k, v in values.items() if k.startswith('gradient.')})
+        result = compare_probes(*captures, policy)
+        reason = None
+        if not strict:
+            # Only tolerance exceedances are policy failures; evidence defects are never classified.
+            defects = [r for r in result['reasons'] if not r.startswith(TOLERANCE_REASONS)]
+            if defects:
+                raise ValueError('Probe evidence defect: ' + str(defects))
+        if result['status'] != 'PASS_MODEL_PROBE_TOLERANCES':
+            reason = 'Probe comparison failed: ' + str(result['reasons'])
+        else:
+            try:
+                compare_tensors(*tensors, policy)
+            except ValueError as error:
+                if not strict and not str(error).startswith('Tensor exceeds prospective tolerance'):
+                    raise
+                reason = str(error)
+        if reason is not None:
+            if strict:
+                raise ValueError(reason)
+            failures.append({'probe': index, 'reason': reason})
+        results.append(result)
+    if failures:
+        return {'status': 'FAIL_PROBE_POLICY', 'probes': results, 'failures': failures,
+                'performance_verdict': 'NO_VERDICT'}
+    return {'status': 'PASS_CE_PROBES', 'probes': results, 'performance_verdict': 'NO_VERDICT'}
+
+
+TOLERANCE_REASONS = ('Loss differs beyond prospective tolerance',
+                     'Gradient differs beyond prospective tolerance')
+NOISE_PRIMARY = ('baseline_probes', 'ce_only_probes')
+NOISE_WITHIN = (('baseline_probes', 'baseline_probes_repeat'),
+                ('ce_only_probes', 'ce_only_probes_repeat'))
+NOISE_CROSS_EXTRA = (('baseline_probes_repeat', 'ce_only_probes_repeat'),
+                     ('baseline_probes', 'ce_only_probes_repeat'),
+                     ('baseline_probes_repeat', 'ce_only_probes'))
+
+
+def _addendum_number(prefix: str) -> float | None:
+    for line in (SPEC / 'CE_NOISE_FLOOR_ADDENDUM.txt').read_text().splitlines():
+        if line.startswith(prefix + ' = '):
+            try:
+                value = float(line[len(prefix) + 3:].strip())
+            except ValueError:
+                return None
+            return value if math.isfinite(value) and value > 0 else None
+    return None
+
+
+def noise_floor_k() -> float | None:
+    """K of the optional NOISE_FLOOR_EQUIVALENT label, read from the addendum; None if unset."""
+    return _addendum_number('K')
+
+
+def noise_floor_f() -> float | None:
+    """Floor F of the within-arm noise (never divide by zero), read from the addendum."""
+    return _addendum_number('F')
+
+
+def equivalence_for_probe(g_cross: float | None, g_within: float | None, k: float,
+                          f: float) -> dict:
+    """G_cross <= K * max(G_within, F); marginal when G_cross is 0.9 to 1.1 times that threshold."""
+    if g_cross is None or g_within is None:
+        return {'ok': False, 'marginal': False, 'threshold': None, 'ratio': None,
+                'g_cross': g_cross, 'g_within': g_within}
+    threshold = k * max(g_within, f)
+    ratio = g_cross / threshold
+    return {'ok': g_cross <= threshold, 'marginal': 0.9 <= ratio <= 1.1,
+            'threshold': threshold, 'ratio': ratio, 'g_cross': g_cross, 'g_within': g_within}
+
+
+def global_lora_b_relative_l2(left: dict, right: dict) -> float | None:
+    """FP64 relative L2 of the concatenated LoRA-B gradients (left is the reference)."""
+    names = sorted(k for k in left if k.startswith('gradient.') and 'lora_B' in k)
+    if not names or set(names) != {k for k in right if k.startswith('gradient.') and 'lora_B' in k}:
+        raise ValueError('LoRA-B gradient manifest differs')
+    norm = delta = 0.0
+    for name in names:
+        first, second = left[name].double().reshape(-1), right[name].double().reshape(-1)
+        norm += first.square().sum().item()
+        delta += (first - second).square().sum().item()
+    return math.sqrt(delta / norm) if norm else (0.0 if not delta else None)
+
+
+def noise_floor_equivalence(root: Path, reports: dict, policy: dict, k: float | None,
+                            f: float | None) -> dict:
+    """Optional extra label only. It can never turn a result into PASS."""
+    base = {'label': 'NOISE_FLOOR_EQUIVALENT', 'can_produce_pass': False, 'k': k, 'f': f,
+            'note': 'Separate criterion; K and F were set after attempt015 was seen (not blind)'}
+    if k is None or f is None:
+        return {**base, 'status': 'NOT_EVALUATED_K_OR_F_UNSET'}
+    cross = [NOISE_PRIMARY, *NOISE_CROSS_EXTRA]
+    probes = []
+    for index in range(len(reports[NOISE_PRIMARY]['probes'])):
+        def load(name: str) -> tuple[dict, dict]:
+            return read_probe(root / name / 'runner' / f'probe_{index:02d}' / 'model_probe')
+        runs = {name: load(name) for name in NOISE_FLOOR_PHASES}
+
+        def g(pair: tuple[str, str]) -> float | None:
+            return global_lora_b_relative_l2(runs[pair[0]][1], runs[pair[1]][1])
+        within = [g(pair) for pair in NOISE_WITHIN]
+        crosses = {' vs '.join(pair): g(pair) for pair in cross}
+        g_within = None if None in within else max(within)
+        g_cross = None if None in crosses.values() else max(crosses.values())
+        losses_ok = all(
+            abs(runs[a][0]['loss'] - runs[b][0]['loss'])
+            <= policy['loss_atol'] + policy['loss_rtol'] * abs(runs[a][0]['loss'])
+            for a, b in cross)
+        cosines_ok = all(row['cosine'] >= policy['gradient_cosine_min']
+                         for pair in cross
+                         for row in reports[pair]['probes'][index]['gradient_metrics'].values())
+        verdict = equivalence_for_probe(g_cross, g_within, k, f)
+        verdict.update(probe=index, within_pairs=dict(zip(
+            (' vs '.join(pair) for pair in NOISE_WITHIN), within)), cross_pairs=crosses,
+            cosines_ok=cosines_ok, losses_ok=losses_ok)
+        verdict['ok'] = verdict['ok'] and cosines_ok and losses_ok
+        probes.append(verdict)
+    return {**base, 'status': 'NOISE_FLOOR_EQUIVALENT' if all(p['ok'] for p in probes)
+            else 'NOT_EQUIVALENT_UNDER_K', 'marginal': any(p['marginal'] for p in probes),
+            'probes': probes}
+
+
+def review_noise_floor(root: Path) -> dict:
+    """Classify the four-probe series with the unchanged policy; evidence errors raise (VOID)."""
+    contract = json.loads((root / 'contract.json').read_text())
+    if series_name(contract) != 'noise_floor':
+        raise ValueError('Not a noise-floor series')
+    policy = json.loads((SPEC / 'numerical_policy.json').read_text())
+    pairs = [NOISE_PRIMARY, *NOISE_WITHIN, *NOISE_CROSS_EXTRA]
+    reports = {pair: review_pair(root, training=False, phases=pair, strict=False)
+               for pair in pairs}
+    passed = {pair: reports[pair]['status'] == 'PASS_CE_PROBES' for pair in pairs}
+    noise_ok = all(passed[pair] for pair in NOISE_WITHIN)
+    if not noise_ok:
+        classification = 'INCONCLUSIVE'
+    elif passed[NOISE_PRIMARY]:
+        classification = 'PASS'
+    else:
+        classification = 'BLOCKED'
+    if classification == 'PASS':
+        equivalence = {'label': 'NOISE_FLOOR_EQUIVALENT', 'can_produce_pass': False,
+                       'status': 'NOT_EVALUATED_POLICY_PASS'}
+    else:
+        equivalence = noise_floor_equivalence(root, reports, policy, noise_floor_k(),
+                                              noise_floor_f())
+    return {'status': 'REVIEWED_NOISE_FLOOR', 'classification': classification,
+            'primary_pair_passes_policy': passed[NOISE_PRIMARY],
+            'within_arm_pairs_pass_policy': {' vs '.join(p): passed[p] for p in NOISE_WITHIN},
+            'pairs': {' vs '.join(p): reports[p] for p in pairs},
+            'noise_floor_equivalent': equivalence,
+            'policy_sha256': contract['numerical_policy_sha256'],
+            'scope': 'Probe-only; not H2 acceptance, not a speedup; same-box history only',
+            'performance_verdict': 'NO_VERDICT'}
+
+
+def collator_config(trainer: Any) -> dict:
+    """Record the collator settings that decide labels and padding; a missing field fails closed."""
+    collator = trainer.data_collator
+    config = {'class': type(collator).__module__ + '.' + type(collator).__qualname__}
+    for name in ('pad_token_id', 'padding_free', 'completion_only_loss', 'pad_to_multiple_of'):
+        if not hasattr(collator, name):
+            raise ValueError('Collator config field missing: ' + name)
+        config[name] = getattr(collator, name)
+    return config
+
+
+def validate_prepared_batches(trainer: Any, expected: list[dict]) -> dict:
+    """Check actual collated tensors; TRL may prune raw columns for Liger."""
+    import torch
+
+    keys = {'input_ids', 'attention_mask', 'labels'}
+    if not expected or len(trainer.train_dataset) != len(expected):
+        raise ValueError('Actual prepared row count differs from frozen rows')
+    for index, reference in enumerate(expected):
+        batch = trainer.data_collator([trainer.train_dataset[index]])
+        if set(batch) != keys or set(reference) != keys:
+            raise ValueError('Actual prepared batch fields differ from frozen rows')
+        for key in sorted(keys):
+            value = batch[key]
+            if (not isinstance(value, torch.Tensor) or value.dtype != torch.int64
+                    or value.ndim != 2 or value.shape[0] != 1
+                    or value.detach().cpu().tolist() != [reference[key]]):
+                raise ValueError(f'Actual prepared batch {index} {key} differs from frozen row')
+    dataset = trainer.train_dataset
+    columns = getattr(dataset, 'column_names', None)
+    if columns is None:
+        columns = list(dataset[0])
+    return {'status': 'PASS_EXACT_COLLATED_PREPARED_ROWS', 'rows': len(expected),
+            'fields': sorted(keys), 'dataset_columns': sorted(columns),
+            'collator': collator_config(trainer)}
+
+
+def validate_workset_link(trainer: Any, work: dict, expected: list[dict]) -> dict:
+    """Bind each fixed training batch to the audited prepared row it claims to come from."""
+    indices = work.get('training_row_indices')
+    batches = work.get('training_batches')
+    if (not isinstance(indices, list) or not isinstance(batches, list)
+            or len(indices) != 16 or len(batches) != 16 or len(set(indices)) != 16
+            or any(type(i) is not int or not 0 <= i < len(expected) for i in indices)):
+        raise ValueError('Invalid training row indices')
+    for position, index in enumerate(indices):
+        collated = trainer.data_collator([trainer.train_dataset[index]])
+        for key in ('input_ids', 'attention_mask', 'labels'):
+            if (collated[key].detach().cpu().tolist() != batches[position][key]
+                    or batches[position][key] != [expected[index][key]]):
+                raise ValueError(f'Training batch {position} {key} differs from row {index}')
+    return {'status': 'PASS_WORKSET_LINKED_TO_PREPARED_ROWS', 'rows': indices}
+
+
+def write_hook_evidence(directory: Path, hooks: Any) -> None:
+    """lm_head output hashes per probe/pass and the cloned bf16 dlogits of the probe children."""
+    from safetensors.torch import save_file
+
+    directory.mkdir()
+    write_json(directory / 'lm_head_sha256.json', hooks.sha)
+    for key, grad in hooks.dlogits.items():
+        save_file({'dlogits': grad.contiguous()}, str(directory / f'{key}.safetensors'))
+
+
+def ref64_record(wrapper: Any) -> dict:
+    """CE64 call count and integrity for the receipt; zero for the arms that never install it."""
+    if wrapper is None:
+        return {'ce64_calls': 0, 'integrity_ok': True, 'refusals': [], 'flips': []}
+    state = wrapper.ce64_state
+    return {'ce64_calls': state.calls,
+            'integrity_ok': len(state.integrity) == state.calls and all(
+                row['ok'] for row in state.integrity),
+            'refusals': list(state.refusals), 'flips': list(state.flips),
+            'config': 'real' if state.real else 'test'}
+
+
+def run_child(contract: dict, phase: str, out: Path) -> dict:
+    global _USED
+    if _USED or phase not in series_phases(contract):
+        raise ValueError('Fresh process and declared phase required')
+    _USED = True
+    expected = Path(contract['evidence_root']) / phase / 'runner'
+    if os.path.realpath(out) != os.path.realpath(expected):
+        raise ValueError('Unauthorized child evidence path')
+    out.mkdir(parents=True, exist_ok=False)
+    result = {'status': 'FAILED', 'phase': phase, 'performance_verdict': 'NO_VERDICT'}
+    controls = None
+    try:
+        if platform.system() != 'Linux':
+            raise ValueError('Linux CUDA required')
+
+        arm_alarm(alarm_seconds(contract, time.time()))
+        study = committed_preflight(contract)
+        controls = CaptureControls(phase, contract['model_path'])
+        controls.start()
+        os.environ.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
+                          TOKENIZERS_PARALLELISM='false')
+        import torch
+        import trl
+        from datasets import Dataset
+        from h2_operator_patch import PatchController
+
+        import soup_cli
+        from soup_cli.config.schema import SoupConfig
+        from soup_cli.data.loader import load_dataset
+        from soup_cli.trainer.sft import SFTTrainerWrapper
+
+        source = os.path.realpath(REPO / 'src/soup_cli')
+        if os.path.commonpath([source, os.path.realpath(soup_cli.__file__)]) != source:
+            raise ValueError('Imported Soup is outside pinned source')
+        if (not torch.cuda.is_available() or torch.cuda.device_count() != 1
+                or not torch.cuda.is_bf16_supported()
+                or torch.cuda.get_device_capability()[0] < 8
+                or torch.cuda.get_device_properties(0).total_memory < 16 * 1024**3):
+            raise ValueError('One Ampere+ BF16 CUDA GPU with >=16GiB required')
+        boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+        validate_live_identity(contract, boot,
+                               str(torch.cuda.get_device_properties(0).uuid))
+        arm, kind = PHASE_ARMS[phase]
+        training = kind == 'training'
+        control = PatchController(arm)
+        ref64_series = series_name(contract) == 'ref64'
+        ce64 = None
+        if arm == 'ref64':
+            import h2_ce_ref64
+
+            ce64 = h2_ce_ref64.install()  # rebinds the same attribute as the CE-only arm, once
+            control.reference_ce = ce64
+        holder: dict = {}
+        window = None
+        if training:
+            (out / 'profile').mkdir()
+            window = ProfileWindow(out / 'profile', cuda=True, microbatch=5)
+            trl.SFTTrainer = recording_trainer(trl.SFTTrainer, holder, window)
+        recipe = json.loads((SPEC / 'candidate_configs/baseline.json').read_text())
+        recipe['base'] = contract['model_path']
+        recipe['data']['train'] = str(SPEC / 'synthetic_fixture.jsonl')
+        recipe['output'] = str(out / 'trained_output')
+        recipe['training']['use_liger'] = arm == 'ce_only'
+        config = SoupConfig.model_validate(recipe)
+        wrapper = SFTTrainerWrapper(config, device='cuda', report_to='none')
+        wrapper.setup(load_dataset(config.data))
+        loaded = validate_loaded(wrapper, 'operator_diagnostic')
+        result['loaded'] = loaded
+        result['determinism_receipt'] = determinism_receipt(loaded)
+        if (wrapper.trainer.optimizer is not None or bool(wrapper.trainer.args.use_liger_kernel)
+                != (arm == 'ce_only') or loaded['attention_implementation'] != 'sdpa'):
+            raise ValueError('Unexpected Trainer/attention state')
+        prepared = [json.loads(line) for line in
+                    (SPEC / 'prepared_fixture_candidate.jsonl').read_text().splitlines()]
+        result['prepared_batch_audit'] = validate_prepared_batches(wrapper.trainer, prepared)
+        names = list(loaded['trainable_shapes'])
+        before = snapshot(wrapper.model, names)
+        identity = hashlib.sha256(json.dumps(before, sort_keys=True,
+                                            separators=(',', ':')).encode()).hexdigest()
+        if identity != study['reference_identity']['before_sha256']:
+            raise ValueError('Initial model differs from historical pinned state')
+        result['initial_identity'] = identity
+        work = json.loads((SPEC / 'ce_confirmation_workset.json').read_text())
+        if training:
+            result['workset_link'] = validate_workset_link(wrapper.trainer, work, prepared)
+            rows = [{k: v[0] for k, v in batch.items()} for batch in work['training_batches']]
+            wrapper.trainer.train_dataset = Dataset.from_list(rows)
+
+            def collator(items: list[dict]) -> dict:
+                if len(items) != 1:
+                    raise ValueError('Fixed single-row microbatches required')
+                return {k: torch.tensor([items[0][k]], dtype=torch.long) for k in items[0]}
+            wrapper.trainer.data_collator = collator
+            holder['recorder'] = Recorder(out / 'training', wrapper.model, names,
+                                          work['training_batches'], accumulation=4,
+                                          compute_policy='bf16-autocast-cuda')
+            wrapper.train()  # Trainer alone invokes the instance patch in this process.
+            holder['recorder'].finish(holder['optimizer'],
+                                      global_step=wrapper.trainer.state.global_step)
+            window.require_complete()
+            trace = out / 'profile/kernel_trace.json'
+        else:
+            result['patch_lifecycle'] = control.prepare_capture(wrapper.trainer, wrapper.model)
+            hooks, peaks = None, {}
+            if ref64_series:
+                import h2_ce_ref64
+
+                hooks = h2_ce_ref64.LmHeadHooks(wrapper.model, keep_gradients=kind == 'probes')
+
+            def run_pass(key, call):
+                if hooks is not None:
+                    hooks.begin(key)
+                    h2_ce_ref64.peak_memory_start()
+                call()
+                if hooks is not None:
+                    hooks.end()
+                    peaks[key] = h2_ce_ref64.peak_memory_bytes()
+
+            if kind == 'perturbed':
+                index = PERTURBED_PROBE[phase]
+                tensors = {k: torch.tensor(v, dtype=torch.long)
+                           for k, v in work['probes'][index].items()}
+                for level_index in range(len(h2_ce_ref64.GRID)):
+                    for seed_index in range(h2_ce_ref64.SEEDS_PER_LEVEL):
+                        key = f'pass_{level_index}_{seed_index}'
+                        h2_ce_ref64.set_perturbation(ce64, level_index, seed_index)
+                        if (level_index, seed_index) == (0, 0):
+                            run_pass(key, lambda: collect(wrapper.model, tensors, names,
+                                                          out / key, cuda=True))
+                        else:
+                            target = out / key / 'model_probe'
+                            run_pass(key, lambda: collect_probe(
+                                wrapper.model, tensors, names, target, bf16=True))
+                trace = out / 'pass_0_0/kernel_trace.json'
+            else:
+                for index, batch in enumerate(work['probes']):
+                    tensors = {k: torch.tensor(v, dtype=torch.long) for k, v in batch.items()}
+                    path = out / f'probe_{index:02d}'
+                    if index == 0:
+                        run_pass(f'probe_{index:02d}', lambda: collect(
+                            wrapper.model, tensors, names, path, cuda=True,
+                            expected_identity=study['reference_identity']))
+                    else:
+                        run_pass(f'probe_{index:02d}', lambda: collect_probe(
+                            wrapper.model, tensors, names, path / 'model_probe', bf16=True))
+                trace = out / 'probe_00/kernel_trace.json'
+            if hooks is not None:
+                write_hook_evidence(out / 'hooks', hooks)
+                hooks.remove()
+                result['peak_memory_bytes'] = peaks
+        result['patch_after'] = control.verify(wrapper.model)
+        if ref64_series:
+            result['ref64'] = ref64_record(ce64)
+        result['kernels'] = kernel_audit(json.loads(trace.read_text())['traceEvents'], arm)
+        result.update(status='COMPLETE_CE_CAPTURE', source_commit=contract['source_commit'],
+                      gpu_uuid=contract['gpu_uuid'], boot_id=contract['boot_id'])
+    except Exception as error:
+        disarm_alarm()
+        result['error'] = type(error).__name__ + ': ' + str(error)
+    finally:
+        disarm_alarm()  # First: no timeout may interrupt controls.stop or the evidence writes.
+        if controls is not None:
+            try:
+                controls.stop()
+            except Exception as error:
+                result.update(status='FAILED',
+                              controls_error=type(error).__name__ + ': ' + str(error))
+            write_json(out / 'controls.json', controls.record)
+        write_json(out / 'evidence.json', result)
+        write_json(out / 'contract.json', contract)
+        tree_seal(out)
+    return result
+
+
+def ref64_failure_status(child: Path) -> str:
+    """INCOMPLETE only when the child left no readable evidence (killed or crashed) or hit the
+    deadline TimeoutError; every other recorded child error is VOID (addendum row 1: pins, GPU,
+    bindings, CE64 refusals, non-finite values, hooks, memory, preflight and identity failures)."""
+    try:
+        error = json.loads((child / 'evidence.json').read_text()).get('error') or ''
+    except (OSError, ValueError):
+        return 'INCOMPLETE'
+    return 'INCOMPLETE' if error.startswith('TimeoutError') else 'VOID'
+
+
+def run_series(contract: dict, out: Path) -> dict:
+    validate_contract(contract)
+    if os.path.realpath(out) != contract.get('evidence_root'):
+        raise ValueError('Exact new evidence root required')
+    out.mkdir(parents=True, exist_ok=False)
+    write_json(out / 'contract.json', contract)
+    result = {'status': 'BLOCKED', 'phases': {}, 'performance_verdict': 'NO_VERDICT',
+              'external_controls_required': True, 'provider_stop_performed': False}
+    series = series_name(contract)
+    reviewing = False
+    try:
+        for index, phase in enumerate(series_phases(contract)):
+            remaining = contract['deadline_unix_s'] - time.time() - CLEANUP_RESERVE_SECONDS
+            if remaining <= 2:
+                raise TimeoutError('Shared deadline cleanup reserve reached')
+            report = bounded_process(
+                [sys.executable, str(Path(__file__)), '--contract', str(out / 'contract.json'),
+                 '--child', '--phase', phase, '--out', str(out / phase / 'runner')],
+                out / phase / 'supervisor', seconds=min(contract['max_seconds'], remaining))
+            result['phases'][phase] = report
+            if (report['status'] != 'CHILD_EXITED' or not report['group_cleanup_confirmed']
+                    or report.get('child_status', {}).get('returncode') != 0):
+                if series == 'updates':
+                    result['status'] = 'STOPPED_H2_UPDATES_SERIES'
+                if series == 'ref64':
+                    result['status'] = ref64_failure_status(out / phase / 'runner')
+                raise ValueError('Child failed; no subsequent phases or retries')
+            evidence = json.loads((out / phase / 'runner/evidence.json').read_text())
+            if evidence['status'] != 'COMPLETE_CE_CAPTURE':
+                raise ValueError('Incomplete child evidence')
+            if series == 'ref64':
+                read_child(out / phase / 'runner', phase)
+            if series == 'ce_confirmation' and index in (1, 3):
+                review = review_pair(out, training=index == 3)
+                write_json(out / ('training_review.json' if index == 3 else 'probe_review.json'),
+                           review)
+        if series == 'ref64':
+            reviewing = True
+            import h2_ce_ref64_review
+
+            review = h2_ce_ref64_review.review_ref64(out)
+            write_json(out / 'ref64_review.json', h2_ce_ref64_review.sanitize(review))
+            result.update(status=review['run_status'] if review['run_status'] in
+                          ('VOID', 'INCOMPLETE') else 'COMPLETE_CE_REF64_SERIES',
+                          label=review['label'])
+        elif series == 'updates':
+            reviewing = True
+            import h2_close_updates
+
+            review = h2_close_updates.review_updates(out)
+            write_json(out / 'updates_review.json', review)
+            result.update(status='COMPLETE_H2_UPDATES_SERIES',
+                          arms={k: v['outcome'] for k, v in review['arms'].items()})
+        elif series == 'noise_floor':
+            reviewing = True
+            review = review_noise_floor(out)
+            write_json(out / 'noise_floor_review.json', review)
+            result.update(status='COMPLETE_CE_NOISE_FLOOR_SERIES',
+                          classification=review['classification'])
+        else:
+            result['status'] = 'COMPLETE_CE_NUMERICAL_SERIES'
+    except Exception as error:
+        result['error'] = type(error).__name__ + ': ' + str(error)
+        if reviewing:
+            result['status'] = 'VOID'  # Identity/evidence failure after all children ran.
+        elif series == 'ref64' and result['status'] == 'BLOCKED':
+            result['status'] = 'INCOMPLETE' if isinstance(error, TimeoutError) else 'VOID'
+        if series == 'updates' and not reviewing:
+            # A stopped series still gets its per-arm outcomes from whatever evidence exists.
+            try:
+                import h2_close_updates
+
+                review = h2_close_updates.review_updates(out)
+                write_json(out / 'updates_review.json', review)
+                result['arms'] = {k: v['outcome'] for k, v in review['arms'].items()}
+            except Exception as review_error:
+                result['review_error'] = type(review_error).__name__ + ': ' + str(review_error)
+            if result['status'] == 'BLOCKED':
+                result['status'] = 'STOPPED_H2_UPDATES_SERIES'
+    finally:
+        write_json(out / 'series.json', result)
+        tree_seal(out)
+    return result
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--contract', type=Path)
+    parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--review-only', action='store_true')
+    parser.add_argument('--child', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--phase', choices=sorted(PHASE_ARMS), help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    if args.review_only:
+        if args.child or args.phase or args.contract:
+            parser.error('Offline review accepts only --out')
+        recorded = json.loads((args.out / 'contract.json').read_text())
+        if series_name(recorded) == 'ref64':
+            import h2_ce_ref64_review
+
+            Console().print('REF64_' + h2_ce_ref64_review.review_ref64(args.out)['label']
+                            + '; external controls pending; NO_VERDICT')
+            return
+        if series_name(recorded) == 'updates':
+            import h2_close_updates
+
+            review = h2_close_updates.review_updates(args.out)
+            Console().print('H2_UPDATES ' + json.dumps({k: v['outcome'] for k, v in
+                                                       review['arms'].items()})
+                            + '; NO_VERDICT')
+            return
+        if series_name(recorded) == 'noise_floor':
+            review = review_noise_floor(args.out)
+            Console().print('NOISE_FLOOR_' + review['classification']
+                            + '; external controls pending; NO_VERDICT')
+            return
+        review_pair(args.out, training=False)
+        review_pair(args.out, training=True)
+        Console().print('PASS_CE_NUMERICAL_REVIEW; external controls pending; NO_VERDICT')
+        return
+    if args.contract is None or args.child != (args.phase is not None):
+        parser.error('Require contract and a valid supervised phase')
+    contract = json.loads(args.contract.read_text())
+    result = run_child(contract, args.phase, args.out) if args.child else run_series(contract,
+                                                                                   args.out)
+    Console().print(result['status'] + '; performance=NO_VERDICT')
+    if result['status'] not in {'COMPLETE_CE_CAPTURE', 'COMPLETE_CE_NUMERICAL_SERIES',
+                              'COMPLETE_CE_NOISE_FLOOR_SERIES', 'COMPLETE_CE_REF64_SERIES',
+                              'COMPLETE_H2_UPDATES_SERIES'}:
+        raise SystemExit(2)
+
+
+if __name__ == '__main__':
+    main()

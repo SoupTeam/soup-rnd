@@ -1,0 +1,6 @@
+import json,pathlib,subprocess,time
+p=pathlib.Path('/data/h2');r=json.loads((p/'evidence/setup_supervised_001/result.json').read_text());assert r['status']=='PASS' and r['group_cleanup_confirmed']
+cmd=['python3',str(p/'setup_supervisor.py'),'--script',str(p/'stage_snapshot.sh'),'--sha256','dccd83d5c1ce7a11e51b14d55b38670374563e57a7652cb06b15fcce76553a14','--output',str(p/'evidence/staging_supervised_001'),'--max-seconds','1700','--deadline-unix-s',str(min(time.time()+1700,json.loads((p/'rental.json').read_text())['lease_deadline_unix_s']-1500))]
+with (p/'evidence/staging_dispatch.log').open('xb') as f:
+ c=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=f,stderr=subprocess.STDOUT,start_new_session=True)
+print(json.dumps({'pid':c.pid,'status':'STAGING_DISPATCHED'}))
