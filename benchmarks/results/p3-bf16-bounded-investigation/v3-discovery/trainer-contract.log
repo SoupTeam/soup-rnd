@@ -1,0 +1,112 @@
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 244.58it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1510.35it/s]
+Internal BF16 caller contract k=1
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Memory efficient kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:986.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Expected query, key and value to all be of dtype: {Half, Float}. Got Query dtype: c10::BFloat16, Key dtype: c10::BFloat16, and Value dtype: c10::BFloat16 instead. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:91.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:988.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:540.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:990.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:706.)
+  return original(query, *args, **kwargs)
+Internal BF16 caller contract k=4
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Memory efficient kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:986.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Expected query, key and value to all be of dtype: {Half, Float}. Got Query dtype: c10::BFloat16, Key dtype: c10::BFloat16, and Value dtype: c10::BFloat16 instead. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:91.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:988.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:540.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:990.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:706.)
+  return original(query, *args, **kwargs)
+Internal BF16 caller contract k=16
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Memory efficient kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:986.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Expected query, key and value to all be of dtype: {Half, Float}. Got Query dtype: c10::BFloat16, Key dtype: c10::BFloat16, and Value dtype: c10::BFloat16 instead. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:91.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:988.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:540.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:990.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:706.)
+  return original(query, *args, **kwargs)
+Internal BF16 caller contract k=64
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+training.l2l is growing its CUDA activation store, but this torch has no torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged to host RAM, so the new plan may need extra free RAM.
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Memory efficient kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:986.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Expected query, key and value to all be of dtype: {Half, Float}. Got Query dtype: c10::BFloat16, Key dtype: c10::BFloat16, and Value dtype: c10::BFloat16 instead. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:91.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:988.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: Flash attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/sdp_utils_cpp.h:540.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention kernel not used because: (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:990.)
+  return original(query, *args, **kwargs)
+/kaggle/working/soup/benchmarks/harness/p3_bf16_trainer_contract.py:207: UserWarning: cuDNN attention has been runtime disabled. (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/sdp_utils.cpp:706.)
+  return original(query, *args, **kwargs)
+Caller contract: FAIL /kaggle/working/evidence/trainer-contract.json
+{'loss': '4.12', 'grad_norm': '7.799', 'learning_rate': '0.01', 'epoch': '0.3333'}
+{'loss': '4.213', 'grad_norm': '2.776', 'learning_rate': '0.01', 'epoch': '0.6667'}
+{'loss': '4.14', 'grad_norm': '4.326', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '0.813', 'train_samples_per_second': '3.69', 'train_steps_per_second': '3.69', 'train_loss': '4.158', 'epoch': '1'}
+{'loss': '4.12', 'grad_norm': '7.799', 'learning_rate': '0.01', 'epoch': '0.3333'}
+{'loss': '4.213', 'grad_norm': '2.776', 'learning_rate': '0.01', 'epoch': '0.6667'}
+{'loss': '4.14', 'grad_norm': '4.326', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '0.1623', 'train_samples_per_second': '18.48', 'train_steps_per_second': '18.48', 'train_loss': '4.158', 'epoch': '1'}
+{'loss': '4.12', 'grad_norm': '7.799', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 1, 'l2l_capture_layer_loads': 1, 'l2l_capture_seconds': '0.008871', 'l2l_layer_loads': 4, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 21, 'l2l_expert_bytes_read': 64512, 'epoch': '0.3333'}
+{'loss': '4.213', 'grad_norm': '2.776', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 2, 'l2l_capture_layer_loads': 2, 'l2l_capture_seconds': '0.01016', 'l2l_layer_loads': 7, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 54, 'l2l_expert_bytes_read': 165888, 'epoch': '0.6667'}
+{'loss': '4.14', 'grad_norm': '4.326', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 2, 'l2l_capture_layer_loads': 2, 'l2l_capture_seconds': '0.01016', 'l2l_layer_loads': 10, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 75, 'l2l_expert_bytes_read': 230400, 'epoch': '1'}
+{'train_runtime': '0.2938', 'train_samples_per_second': '10.21', 'train_steps_per_second': '10.21', 'train_loss': '4.158', 'epoch': '1'}
+{'loss': '4.1', 'grad_norm': '2.147', 'learning_rate': '0.01', 'epoch': '0.4444'}
+{'loss': '4.152', 'grad_norm': '1.063', 'learning_rate': '0.01', 'epoch': '0.8889'}
+{'loss': '4.188', 'grad_norm': '0.9322', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '0.5024', 'train_samples_per_second': '17.91', 'train_steps_per_second': '5.972', 'train_loss': '4.147', 'epoch': '1'}
+{'loss': '4.1', 'grad_norm': '2.147', 'learning_rate': '0.01', 'epoch': '0.4444'}
+{'loss': '4.152', 'grad_norm': '1.063', 'learning_rate': '0.01', 'epoch': '0.8889'}
+{'loss': '4.188', 'grad_norm': '0.9322', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '0.4696', 'train_samples_per_second': '19.16', 'train_steps_per_second': '6.388', 'train_loss': '4.147', 'epoch': '1'}
+{'loss': '4.1', 'grad_norm': '2.147', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 3, 'l2l_capture_layer_loads': 3, 'l2l_capture_seconds': '0.004321', 'l2l_layer_loads': 3, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 108, 'l2l_expert_bytes_read': 331776, 'epoch': '0.4444'}
+{'loss': '4.152', 'grad_norm': '1.063', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.008048', 'l2l_layer_loads': 6, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 231, 'l2l_expert_bytes_read': 709632, 'epoch': '0.8889'}
+{'loss': '4.188', 'grad_norm': '0.9322', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.008048', 'l2l_layer_loads': 9, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 255, 'l2l_expert_bytes_read': 783360, 'epoch': '1'}
+{'train_runtime': '0.8423', 'train_samples_per_second': '10.69', 'train_steps_per_second': '3.562', 'train_loss': '4.147', 'epoch': '1'}
+{'loss': '4.143', 'grad_norm': '0.9499', 'learning_rate': '0.01', 'epoch': '0.4848'}
+{'loss': '4.159', 'grad_norm': '0.5386', 'learning_rate': '0.01', 'epoch': '0.9697'}
+{'loss': '4.081', 'grad_norm': '3.062', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '1.733', 'train_samples_per_second': '19.04', 'train_steps_per_second': '1.731', 'train_loss': '4.128', 'epoch': '1'}
+{'loss': '4.143', 'grad_norm': '0.9499', 'learning_rate': '0.01', 'epoch': '0.4848'}
+{'loss': '4.159', 'grad_norm': '0.5386', 'learning_rate': '0.01', 'epoch': '0.9697'}
+{'loss': '4.081', 'grad_norm': '3.062', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '1.779', 'train_samples_per_second': '18.55', 'train_steps_per_second': '1.686', 'train_loss': '4.128', 'epoch': '1'}
+{'loss': '4.143', 'grad_norm': '0.9499', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 3, 'l2l_capture_layer_loads': 3, 'l2l_capture_seconds': '0.00496', 'l2l_layer_loads': 3, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 429, 'l2l_expert_bytes_read': 1317888, 'epoch': '0.4848'}
+{'loss': '4.159', 'grad_norm': '0.5386', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.008767', 'l2l_layer_loads': 6, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 993, 'l2l_expert_bytes_read': 3050496, 'epoch': '0.9697'}
+{'loss': '4.081', 'grad_norm': '3.062', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.008767', 'l2l_layer_loads': 9, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 1023, 'l2l_expert_bytes_read': 3142656, 'epoch': '1'}
+{'train_runtime': '3.118', 'train_samples_per_second': '10.58', 'train_steps_per_second': '0.962', 'train_loss': '4.128', 'epoch': '1'}
+{'loss': '4.147', 'grad_norm': '0.3027', 'learning_rate': '0.01', 'epoch': '0.4961'}
+{'loss': '4.158', 'grad_norm': '0.21', 'learning_rate': '0.01', 'epoch': '0.9922'}
+{'loss': '4.178', 'grad_norm': '0.8132', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '6.675', 'train_samples_per_second': '19.33', 'train_steps_per_second': '0.449', 'train_loss': '4.161', 'epoch': '1'}
+{'loss': '4.147', 'grad_norm': '0.3027', 'learning_rate': '0.01', 'epoch': '0.4961'}
+{'loss': '4.158', 'grad_norm': '0.21', 'learning_rate': '0.01', 'epoch': '0.9922'}
+{'loss': '4.178', 'grad_norm': '0.8132', 'learning_rate': '0.01', 'epoch': '1'}
+{'train_runtime': '6.684', 'train_samples_per_second': '19.3', 'train_steps_per_second': '0.449', 'train_loss': '4.161', 'epoch': '1'}
+{'loss': '4.147', 'grad_norm': '0.3027', 'learning_rate': '0.01', 'l2l_steps': 1, 'l2l_captures': 3, 'l2l_capture_layer_loads': 3, 'l2l_capture_seconds': '0.003829', 'l2l_layer_loads': 3, 'l2l_large_loads': 2, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 1743, 'l2l_expert_bytes_read': 5354496, 'epoch': '0.4961'}
+{'loss': '4.158', 'grad_norm': '0.21', 'learning_rate': '0.01', 'l2l_steps': 2, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.007665', 'l2l_layer_loads': 6, 'l2l_large_loads': 4, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 4002, 'l2l_expert_bytes_read': 12294144, 'epoch': '0.9922'}
+{'loss': '4.178', 'grad_norm': '0.8132', 'learning_rate': '0.01', 'l2l_steps': 3, 'l2l_captures': 6, 'l2l_capture_layer_loads': 6, 'l2l_capture_seconds': '0.007665', 'l2l_layer_loads': 9, 'l2l_large_loads': 6, 'l2l_weight_restores': 0, 'l2l_spill_layers': 0, 'l2l_expert_fetches': 4023, 'l2l_expert_bytes_read': 12358656, 'epoch': '1'}
+{'train_runtime': '12.1', 'train_samples_per_second': '10.66', 'train_steps_per_second': '0.248', 'train_loss': '4.161', 'epoch': '1'}

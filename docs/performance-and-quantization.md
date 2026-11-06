@@ -691,8 +691,10 @@ window again in `reserved_bytes`; that field covers other users and safety.
 The actual store has its own bounded partition. Micro-batches of one window may differ
 in length; each is checked against the plan before the store grows, and a store that
 must grow releases its old lease first. A larger or incompatible window is refused.
-This public path uses uncompressed RAM activations, not activation spilling or dynamic
-weight eviction. Failed activation drains retain their leases and prevent weight cleanup.
+This public path uses RAM activations (`l2l_activation_codec: none` or opt-in
+`fp8_e4m3`), not activation spilling or dynamic weight eviction. The FP8 partition
+includes per-token scales, pinned allocation rounding and host codec scratch.
+Failed activation drains retain their leases and prevent weight cleanup.
 
 These values illustrate the configuration, not a measured safe recipe. Choose
 reservations for the actual workload. The trainer also charges resident extras
@@ -953,8 +955,9 @@ training:
     dropout: 0
 ```
 
-The result matches gradient accumulation. The LoRA gradients and the losses were bit-identical
-on SmolLM2-135M (RTX 3060, k = 1, 2, 4, `quantization: none` and `4bit`). Layer loads stay at 58
+With the default uncompressed store, the result matches gradient accumulation.
+The LoRA gradients and losses were bit-identical on SmolLM2-135M
+(RTX 3060, k = 1, 2, 4, `quantization: none` and `4bit`). Layer loads stay at 58
 for every k with L2L, against 58, 115 and 229 with accumulation. Learning rate, logging,
 checkpoints and resume stay with the Hugging Face loop. The default `false` changes nothing for
 existing configs. Report:
@@ -969,6 +972,120 @@ one expert read per window. Expert activations must be stateless; registered
 buffers are refused for backward, while expert-local random draws use local RNG
 replay. L2L separately replays LoRA/eager-attention dropout in accumulation order.
 See [the boundary and standalone smoke](expert-forward.md#b13-backward-and-l2l).
+
+**FP8 boundary storage (experimental, opt-in).** Set
+`training.l2l_activation_codec: fp8_e4m3` to store boundaries as E4M3 values with
+one FP32 scale per token. The default `none` retains uncompressed storage.
+Storage integration is separate from numerical acceptance: **FP8 failed the
+tested DeepSeek configurations**. This is not FP8 matrix multiplication or
+weight quantization; compute stays FP32/BF16 and existing L2L hardware limits apply.
+
+```yaml
+task: sft
+backend: transformers
+training:
+  stream_layers: true
+  l2l: true
+  l2l_activation_codec: fp8_e4m3
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  lora:
+    dropout: 0
+```
+
+FP8 storage is RAM-only and limited to streamed Transformers text SFT without
+RAFT or multipack. Insufficient or unknown host budget is an error, not a fallback
+to disk or BF16. Variable-batch and variable-length micro-batches retain their own
+row capacities and original shapes. A larger position replaces the store within
+the admitted envelope; short final windows reuse it. Compression is lossy:
+uncompressed gradient-parity claims do not apply to FP8.
+
+The store and MoE planner share `fp8_activation_allocation`. Host reservations
+include payloads, FP32 scales, pinned allocator rounding and bounded CPU scratch.
+CUDA codec scratch is reported separately; it is not subtracted from host RAM.
+These are owned-tensor bounds, not limits on RSS, allocator caches, caller-retained
+tensors or the whole training process.
+
+`plan_moe_l2l` selects the largest fitting `effective_k` up to the requested limit.
+Its host bound includes retained int64 routing records and one comparison copy.
+The trainer accepts that resolved plan and refuses an HF accumulation count that
+differs; it does not select or change k after trainer setup. Budgeted per-expert
+MoE execution requires the resolved routing contract, including the MoE layer
+count and experts per token. An undersized plan, changed reservation or oversized
+live routing record is refused rather than charged to unreserved host memory.
+Legacy unbudgeted, uncompressed B1.3 execution is not a host-budget guarantee.
+The optional `expert_input_dtype` reports `saved_expert_input_bytes` separately:
+one recomputed layer/micro-batch's gathered expert inputs, without a layer or k
+multiplier. It is not a whole-device bound or another host activation lease.
+Supply the actual expert input dtype, not the checkpoint's weight format; include
+this workspace among the caller's other host consumers when compute runs on CPU.
+
+Internal callers combining the plan with C3 must supply its routing-record plus
+comparison bytes as `plan_c3_l2l(routing_bytes=...)`, before weight-cache allocation.
+Pass the resulting activation partition as the same `host_budget` object when
+attaching the plan. A store drains its asynchronous users before growth or close;
+if draining fails, retain its reservation and do not close the weight runtime
+underneath it.
+
+The public DeepSeek launch gate remains unchanged for B1.4. Routing equality and
+numerical tolerances are not relaxed: different recompute routes abort the window
+before an optimizer update. The retained
+[FP32 report](../benchmarks/results/p3-fp8-kaggle-20261105/README.md) and
+[matched BF16 investigation](../benchmarks/results/p3-bf16-bounded-investigation/README.md)
+cover k=1/4/16/64. The latter tests exact P3 attention-only adapters and the broader
+fixture, dense BF16 and tiny-model NF4 weights, and separate discovery/holdout inputs.
+Across 96 windows, uncompressed L2L matched resident GA bitwise. FP8 refused 75
+windows for routing changes; 18 of the remaining 21 failed G4. No complete FP8
+case was accepted. Decoder-layer diagnostics, not embedding-only router probes,
+support that result.
+The archived numerical runs used Kaggle's Python 3.13 image, outside Soup's
+declared Python `>=3.10,<3.13` range. Their measurements are preserved, not
+presented as supported-interpreter certification.
+
+Those NF4 cases use a tiny native DeepSeek model, not a conversion or training run
+of the attached 671B checkpoint. The R1 Input's config declares
+`torch_dtype: bfloat16` and FP8 E4M3 block-quantized weight storage. That metadata
+does not establish its runtime arithmetic, and it is not the P3 NF4 artifact.
+Full-dimension storage-only probes measured a 49.7894% reduction in charged host bytes at k=64
+(4,108,849,152 to 2,063,077,441 bytes), including the routing reservation.
+That reservation was not populated with full-model routing tensors. These are
+storage results, not a whole-model memory, throughput or numerical verdict.
+
+Keep `l2l_activation_codec: none` for the uncompressed acceptance path. The
+specification's BF16 fallback is explicit, not an automatic codec switch or FP8
+success. General BF16 A3 acceptance remains separate: the matched control does
+not replace the required independent reference floor, unavailable for BF16 on
+the tested T4 backend. A public builder that selects FP16 on such hardware still
+refuses FP8 trainer storage; internal FP32 attachment does not change that policy.
+
+**Handoff boundaries.**
+
+- **B1.4 caller:** bound fixed consumers and maximum batch/sequence shape, supply
+  the actual expert input dtype and admit its compute-device workspace, resolve k
+  once, reserve C3 activation/routing bytes before optional weight allocation, then
+  build HF arguments, trainer and scheduler with
+  `gradient_accumulation_steps=memory_plan.effective_k`. Forward
+  `memory_plan=memory_plan` and `host_budget=c3_plan.activations` through
+  `_build_l2l_trainer` to `attach_l2l_state`, retaining the same shared budget object.
+  Do not resolve k against a partition already sized with requested k or subtract
+  activations twice. Public DeepSeek wiring and launch admission remain with B1.4.
+- **BF16 acceptance owner:** establish the independent A3 floor and acceptance
+  evidence; bitwise matched-control results alone do not close that requirement.
+- **P3 performance owner:** repeated expert reads remain a dependency, not part of
+  this storage/planner change.
+- **Full-model validation owner:** validate the real NF4 artifact, expert/attention
+  workspace and total host/device peaks, the real-model k=8 numerical comparison,
+  and the specified 8-GB GPU / 32-GiB cgroup / no-swap / physical-disk conditions.
+  Caller-owned compute tensors, framework memory and live expert workspace are
+  outside this owned-host-tensor planner and need separate admission.
+
+The [component delivery checks](../benchmarks/results/p3-fp8-component-delivery/README.md)
+record 562 focused CPU tests, 36 CUDA tests and 362 shared-codec checks on Python
+3.12, plus production-builder and full-width storage smokes. The standalone builder
+smoke is tiny dense Llama on CPU/FP32 with a predeclared k=4-to-2 quota, not CUDA
+BF16 or public DeepSeek caller acceptance. The report separates reservations,
+observed host storage, sampled RSS and CUDA allocated/reserved peaks.
+Delivery of these two components is not DeepSeek FP8 readiness or closure of phase 0.
 
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
@@ -988,8 +1105,9 @@ Refused at launch:
 - `attention_dropout` above 0 with the `sdpa` attention implementation.
 - Activations that do not fit host RAM even with every layer spilled to disk (see below).
 
-**Activations and the spill file.** L2L keeps one chunk of `batch x seq x hidden` per layer
-and micro-batch between the forward and the backward walk (80 layers, hidden 8192, seq 4096,
+**Uncompressed activations and the spill file.** With `l2l_activation_codec: none`,
+L2L keeps one chunk of `batch x seq x hidden` per layer and micro-batch between
+the forward and the backward walk (80 layers, hidden 8192, seq 4096,
 k=16 in bf16 is 80 GiB). Each micro-batch position has its own capacity, sized to the
 largest activation seen at that position. Smaller windows reuse the store; a growing window
 closes the previous store and spill file before replanning. Before allocating, the run

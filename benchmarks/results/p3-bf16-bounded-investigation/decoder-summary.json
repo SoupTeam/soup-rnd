@@ -1,0 +1,2970 @@
+{
+  "source": "v3-discovery/*.tensors.zip",
+  "local_vjp_is_not_a_gate": true,
+  "rows": [
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 1,
+      "complete": true,
+      "first_divergence": null,
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03151880861902454,
+                "min_cosine": 0.999532957872396,
+                "max_rel_l2": 0.03151880861902454,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.999532957872396,
+                    "rel_l2": 0.03151880861902454
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04104835301924276,
+                "min_cosine": 0.9937454861710595,
+                "max_rel_l2": 0.11317641650288832,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9937454861710595,
+                    "rel_l2": 0.11317641650288832
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9984863236818639,
+                    "rel_l2": 0.05846423747590516
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.998323281281362,
+                    "rel_l2": 0.057967672836194736
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9984418985144097,
+                    "rel_l2": 0.05674072472603533
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9992376112469412,
+                    "rel_l2": 0.04524991065767455
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03430981222100602,
+                "min_cosine": 0.9995365030907312,
+                "max_rel_l2": 0.03430981222100602,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995365030907312,
+                    "rel_l2": 0.03430981222100602
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04735208696297112,
+                "min_cosine": 0.9978777002871786,
+                "max_rel_l2": 0.06788884825567394,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9978777002871786,
+                    "rel_l2": 0.06788884825567394
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9986819314255129,
+                    "rel_l2": 0.055653515949860254
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985600525909485,
+                    "rel_l2": 0.05364813123809652
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.998877099276838,
+                    "rel_l2": 0.05305315382469679
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9993254285263354,
+                    "rel_l2": 0.05041501198048055
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.015266472293763014,
+                "min_cosine": 0.9998985325645019,
+                "max_rel_l2": 0.015266472293763014,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9998985325645019,
+                    "rel_l2": 0.015266472293763014
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03887728077344873,
+                "min_cosine": 0.9916778174622869,
+                "max_rel_l2": 0.12931784219063863,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9916778174622869,
+                    "rel_l2": 0.12931784219063863
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983252287147713,
+                    "rel_l2": 0.06733117948672028
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9986437614749158,
+                    "rel_l2": 0.055695596124155734
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987296607381314,
+                    "rel_l2": 0.05040157392855697
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991979754629343,
+                    "rel_l2": 0.044492167312104355
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 4,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 2,
+        "token_flat": 8,
+        "batch_row": 0,
+        "sequence_position": 8,
+        "removed_experts": [
+          2
+        ],
+        "added_experts": [
+          1
+        ],
+        "set_changed": true
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 2,
+          "set_changed_tokens": 2,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03151880861902454,
+                "min_cosine": 0.999532957872396,
+                "max_rel_l2": 0.03151880861902454,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.999532957872396,
+                    "rel_l2": 0.03151880861902454
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04104835301924276,
+                "min_cosine": 0.9937454861710595,
+                "max_rel_l2": 0.11317641650288832,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9937454861710595,
+                    "rel_l2": 0.11317641650288832
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9984863236818639,
+                    "rel_l2": 0.05846423747590516
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.998323281281362,
+                    "rel_l2": 0.057967672836194736
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9984418985144097,
+                    "rel_l2": 0.05674072472603533
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9992376112469412,
+                    "rel_l2": 0.04524991065767455
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 1,
+          "set_changed_tokens": 1,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03430981222100602,
+                "min_cosine": 0.9995365030907312,
+                "max_rel_l2": 0.03430981222100602,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995365030907312,
+                    "rel_l2": 0.03430981222100602
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04735208696297112,
+                "min_cosine": 0.9978777002871786,
+                "max_rel_l2": 0.06788884825567394,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9978777002871786,
+                    "rel_l2": 0.06788884825567394
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9986819314255129,
+                    "rel_l2": 0.055653515949860254
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985600525909485,
+                    "rel_l2": 0.05364813123809652
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.998877099276838,
+                    "rel_l2": 0.05305315382469679
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9993254285263354,
+                    "rel_l2": 0.05041501198048055
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.015266472293763014,
+                "min_cosine": 0.9998985325645019,
+                "max_rel_l2": 0.015266472293763014,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9998985325645019,
+                    "rel_l2": 0.015266472293763014
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03887728077344873,
+                "min_cosine": 0.9916778174622869,
+                "max_rel_l2": 0.12931784219063863,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9916778174622869,
+                    "rel_l2": 0.12931784219063863
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983252287147713,
+                    "rel_l2": 0.06733117948672028
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9986437614749158,
+                    "rel_l2": 0.055695596124155734
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987296607381314,
+                    "rel_l2": 0.05040157392855697
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991979754629343,
+                    "rel_l2": 0.044492167312104355
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 16,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 2,
+        "token_flat": 8,
+        "batch_row": 0,
+        "sequence_position": 8,
+        "removed_experts": [
+          2
+        ],
+        "added_experts": [
+          1
+        ],
+        "set_changed": true
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 13,
+          "set_changed_tokens": 11,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03151880861902454,
+                "min_cosine": 0.999532957872396,
+                "max_rel_l2": 0.03151880861902454,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.999532957872396,
+                    "rel_l2": 0.03151880861902454
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04104835301924276,
+                "min_cosine": 0.9937454861710595,
+                "max_rel_l2": 0.11317641650288832,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9937454861710595,
+                    "rel_l2": 0.11317641650288832
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9984863236818639,
+                    "rel_l2": 0.05846423747590516
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.998323281281362,
+                    "rel_l2": 0.057967672836194736
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9984418985144097,
+                    "rel_l2": 0.05674072472603533
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9992376112469412,
+                    "rel_l2": 0.04524991065767455
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 4,
+          "set_changed_tokens": 4,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03430981222100602,
+                "min_cosine": 0.9995365030907312,
+                "max_rel_l2": 0.03430981222100602,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995365030907312,
+                    "rel_l2": 0.03430981222100602
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04735208696297112,
+                "min_cosine": 0.9978777002871786,
+                "max_rel_l2": 0.06788884825567394,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9978777002871786,
+                    "rel_l2": 0.06788884825567394
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9986819314255129,
+                    "rel_l2": 0.055653515949860254
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985600525909485,
+                    "rel_l2": 0.05364813123809652
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.998877099276838,
+                    "rel_l2": 0.05305315382469679
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9993254285263354,
+                    "rel_l2": 0.05041501198048055
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.015266472293763014,
+                "min_cosine": 0.9998985325645019,
+                "max_rel_l2": 0.015266472293763014,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9998985325645019,
+                    "rel_l2": 0.015266472293763014
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03887728077344873,
+                "min_cosine": 0.9916778174622869,
+                "max_rel_l2": 0.12931784219063863,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9916778174622869,
+                    "rel_l2": 0.12931784219063863
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983252287147713,
+                    "rel_l2": 0.06733117948672028
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9986437614749158,
+                    "rel_l2": 0.055695596124155734
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987296607381314,
+                    "rel_l2": 0.05040157392855697
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991979754629343,
+                    "rel_l2": 0.044492167312104355
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "dense",
+      "adapters": "p3",
+      "k": 64,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 2,
+        "token_flat": 8,
+        "batch_row": 0,
+        "sequence_position": 8,
+        "removed_experts": [
+          2
+        ],
+        "added_experts": [
+          1
+        ],
+        "set_changed": true
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 30,
+          "set_changed_tokens": 24,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03151880861902454,
+                "min_cosine": 0.999532957872396,
+                "max_rel_l2": 0.03151880861902454,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.999532957872396,
+                    "rel_l2": 0.03151880861902454
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04104835301924276,
+                "min_cosine": 0.9937454861710595,
+                "max_rel_l2": 0.11317641650288832,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9937454861710595,
+                    "rel_l2": 0.11317641650288832
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9984863236818639,
+                    "rel_l2": 0.05846423747590516
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.998323281281362,
+                    "rel_l2": 0.057967672836194736
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9984418985144097,
+                    "rel_l2": 0.05674072472603533
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9992376112469412,
+                    "rel_l2": 0.04524991065767455
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 35,
+          "set_changed_tokens": 30,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03430981222100602,
+                "min_cosine": 0.9995365030907312,
+                "max_rel_l2": 0.03430981222100602,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995365030907312,
+                    "rel_l2": 0.03430981222100602
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04735208696297112,
+                "min_cosine": 0.9978777002871786,
+                "max_rel_l2": 0.06788884825567394,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9978777002871786,
+                    "rel_l2": 0.06788884825567394
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9986819314255129,
+                    "rel_l2": 0.055653515949860254
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985600525909485,
+                    "rel_l2": 0.05364813123809652
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.998877099276838,
+                    "rel_l2": 0.05305315382469679
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9993254285263354,
+                    "rel_l2": 0.05041501198048055
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.015266472293763014,
+                "min_cosine": 0.9998985325645019,
+                "max_rel_l2": 0.015266472293763014,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9998985325645019,
+                    "rel_l2": 0.015266472293763014
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03887728077344873,
+                "min_cosine": 0.9916778174622869,
+                "max_rel_l2": 0.12931784219063863,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9916778174622869,
+                    "rel_l2": 0.12931784219063863
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983252287147713,
+                    "rel_l2": 0.06733117948672028
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9986437614749158,
+                    "rel_l2": 0.055695596124155734
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987296607381314,
+                    "rel_l2": 0.05040157392855697
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991979754629343,
+                    "rel_l2": 0.044492167312104355
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 1,
+      "complete": true,
+      "first_divergence": null,
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.048161496343614774,
+                "min_cosine": 0.9989222121851503,
+                "max_rel_l2": 0.048161496343614774,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989222121851503,
+                    "rel_l2": 0.048161496343614774
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05684019707983052,
+                "min_cosine": 0.9937584296772516,
+                "max_rel_l2": 0.11273984185362265,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9937584296772516,
+                    "rel_l2": 0.11273984185362265
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9970706188991214,
+                    "rel_l2": 0.07712500398823961
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9972069622819336,
+                    "rel_l2": 0.07654127736171998
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_A.default.weight",
+                    "cosine": 0.9972026105349682,
+                    "rel_l2": 0.0754650743914801
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988301646521862,
+                    "rel_l2": 0.06971033395714751
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.051709501100292106,
+                "min_cosine": 0.9989038894367895,
+                "max_rel_l2": 0.051709501100292106,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989038894367895,
+                    "rel_l2": 0.051709501100292106
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05571427622961546,
+                "min_cosine": 0.9958633485374566,
+                "max_rel_l2": 0.09356550992633485,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9958633485374566,
+                    "rel_l2": 0.09356550992633485
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9964282981880394,
+                    "rel_l2": 0.08978904537070796
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985655401851671,
+                    "rel_l2": 0.07740896653178386
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9983293543847898,
+                    "rel_l2": 0.06764485290789403
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983495112141385,
+                    "rel_l2": 0.06069816670022909
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.0053519272850544525,
+                "min_cosine": 0.9999856842013722,
+                "max_rel_l2": 0.0053519272850544525,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999856842013722,
+                    "rel_l2": 0.0053519272850544525
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.039060753593592956,
+                "min_cosine": 0.9953192323709512,
+                "max_rel_l2": 0.10315904163145355,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9953192323709512,
+                    "rel_l2": 0.10315904163145355
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9974498064150416,
+                    "rel_l2": 0.0714982709336162
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9986525038944486,
+                    "rel_l2": 0.052913519982320016
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9989347727481738,
+                    "rel_l2": 0.047431908080786095
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9990061425734804,
+                    "rel_l2": 0.0447526010557013
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 4,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 1,
+        "batch_row": 0,
+        "sequence_position": 1,
+        "removed_experts": [],
+        "added_experts": [],
+        "set_changed": false
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.048161496343614774,
+                "min_cosine": 0.9989222121851503,
+                "max_rel_l2": 0.048161496343614774,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989222121851503,
+                    "rel_l2": 0.048161496343614774
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05684019707983052,
+                "min_cosine": 0.9937584296772516,
+                "max_rel_l2": 0.11273984185362265,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9937584296772516,
+                    "rel_l2": 0.11273984185362265
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9970706188991214,
+                    "rel_l2": 0.07712500398823961
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9972069622819336,
+                    "rel_l2": 0.07654127736171998
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_A.default.weight",
+                    "cosine": 0.9972026105349682,
+                    "rel_l2": 0.0754650743914801
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988301646521862,
+                    "rel_l2": 0.06971033395714751
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 1,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.051709501100292106,
+                "min_cosine": 0.9989038894367895,
+                "max_rel_l2": 0.051709501100292106,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989038894367895,
+                    "rel_l2": 0.051709501100292106
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05571427622961546,
+                "min_cosine": 0.9958633485374566,
+                "max_rel_l2": 0.09356550992633485,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9958633485374566,
+                    "rel_l2": 0.09356550992633485
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9964282981880394,
+                    "rel_l2": 0.08978904537070796
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985655401851671,
+                    "rel_l2": 0.07740896653178386
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9983293543847898,
+                    "rel_l2": 0.06764485290789403
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983495112141385,
+                    "rel_l2": 0.06069816670022909
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.0053519272850544525,
+                "min_cosine": 0.9999856842013722,
+                "max_rel_l2": 0.0053519272850544525,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999856842013722,
+                    "rel_l2": 0.0053519272850544525
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.039060753593592956,
+                "min_cosine": 0.9953192323709512,
+                "max_rel_l2": 0.10315904163145355,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9953192323709512,
+                    "rel_l2": 0.10315904163145355
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9974498064150416,
+                    "rel_l2": 0.0714982709336162
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9986525038944486,
+                    "rel_l2": 0.052913519982320016
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9989347727481738,
+                    "rel_l2": 0.047431908080786095
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9990061425734804,
+                    "rel_l2": 0.0447526010557013
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 16,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 1,
+        "batch_row": 0,
+        "sequence_position": 1,
+        "removed_experts": [],
+        "added_experts": [],
+        "set_changed": false
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 4,
+          "set_changed_tokens": 4,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.048161496343614774,
+                "min_cosine": 0.9989222121851503,
+                "max_rel_l2": 0.048161496343614774,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989222121851503,
+                    "rel_l2": 0.048161496343614774
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05684019707983052,
+                "min_cosine": 0.9937584296772516,
+                "max_rel_l2": 0.11273984185362265,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9937584296772516,
+                    "rel_l2": 0.11273984185362265
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9970706188991214,
+                    "rel_l2": 0.07712500398823961
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9972069622819336,
+                    "rel_l2": 0.07654127736171998
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_A.default.weight",
+                    "cosine": 0.9972026105349682,
+                    "rel_l2": 0.0754650743914801
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988301646521862,
+                    "rel_l2": 0.06971033395714751
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 8,
+          "set_changed_tokens": 5,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.051709501100292106,
+                "min_cosine": 0.9989038894367895,
+                "max_rel_l2": 0.051709501100292106,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989038894367895,
+                    "rel_l2": 0.051709501100292106
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05571427622961546,
+                "min_cosine": 0.9958633485374566,
+                "max_rel_l2": 0.09356550992633485,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9958633485374566,
+                    "rel_l2": 0.09356550992633485
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9964282981880394,
+                    "rel_l2": 0.08978904537070796
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985655401851671,
+                    "rel_l2": 0.07740896653178386
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9983293543847898,
+                    "rel_l2": 0.06764485290789403
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983495112141385,
+                    "rel_l2": 0.06069816670022909
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.0053519272850544525,
+                "min_cosine": 0.9999856842013722,
+                "max_rel_l2": 0.0053519272850544525,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999856842013722,
+                    "rel_l2": 0.0053519272850544525
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.039060753593592956,
+                "min_cosine": 0.9953192323709512,
+                "max_rel_l2": 0.10315904163145355,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9953192323709512,
+                    "rel_l2": 0.10315904163145355
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9974498064150416,
+                    "rel_l2": 0.0714982709336162
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9986525038944486,
+                    "rel_l2": 0.052913519982320016
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9989347727481738,
+                    "rel_l2": 0.047431908080786095
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9990061425734804,
+                    "rel_l2": 0.0447526010557013
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "dense",
+      "adapters": "broad",
+      "k": 64,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 1,
+        "batch_row": 0,
+        "sequence_position": 1,
+        "removed_experts": [],
+        "added_experts": [],
+        "set_changed": false
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 36,
+          "set_changed_tokens": 24,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.048161496343614774,
+                "min_cosine": 0.9989222121851503,
+                "max_rel_l2": 0.048161496343614774,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989222121851503,
+                    "rel_l2": 0.048161496343614774
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05684019707983052,
+                "min_cosine": 0.9937584296772516,
+                "max_rel_l2": 0.11273984185362265,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9937584296772516,
+                    "rel_l2": 0.11273984185362265
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9970706188991214,
+                    "rel_l2": 0.07712500398823961
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9972069622819336,
+                    "rel_l2": 0.07654127736171998
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_A.default.weight",
+                    "cosine": 0.9972026105349682,
+                    "rel_l2": 0.0754650743914801
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988301646521862,
+                    "rel_l2": 0.06971033395714751
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 28,
+          "set_changed_tokens": 19,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.051709501100292106,
+                "min_cosine": 0.9989038894367895,
+                "max_rel_l2": 0.051709501100292106,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9989038894367895,
+                    "rel_l2": 0.051709501100292106
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05571427622961546,
+                "min_cosine": 0.9958633485374566,
+                "max_rel_l2": 0.09356550992633485,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9958633485374566,
+                    "rel_l2": 0.09356550992633485
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9964282981880394,
+                    "rel_l2": 0.08978904537070796
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9985655401851671,
+                    "rel_l2": 0.07740896653178386
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.9983293543847898,
+                    "rel_l2": 0.06764485290789403
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9983495112141385,
+                    "rel_l2": 0.06069816670022909
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.0053519272850544525,
+                "min_cosine": 0.9999856842013722,
+                "max_rel_l2": 0.0053519272850544525,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999856842013722,
+                    "rel_l2": 0.0053519272850544525
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.039060753593592956,
+                "min_cosine": 0.9953192323709512,
+                "max_rel_l2": 0.10315904163145355,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9953192323709512,
+                    "rel_l2": 0.10315904163145355
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9974498064150416,
+                    "rel_l2": 0.0714982709336162
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9986525038944486,
+                    "rel_l2": 0.052913519982320016
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9989347727481738,
+                    "rel_l2": 0.047431908080786095
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.9990061425734804,
+                    "rel_l2": 0.0447526010557013
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 1,
+      "complete": true,
+      "first_divergence": null,
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03209078563643577,
+                "min_cosine": 0.9995074077998587,
+                "max_rel_l2": 0.03209078563643577,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995074077998587,
+                    "rel_l2": 0.03209078563643577
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04867768983181584,
+                "min_cosine": 0.9957372699547146,
+                "max_rel_l2": 0.09403727915457263,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9957372699547146,
+                    "rel_l2": 0.09403727915457263
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9962302978737899,
+                    "rel_l2": 0.08807621585542069
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9984089821258078,
+                    "rel_l2": 0.07776720346585186
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.998763600315605,
+                    "rel_l2": 0.06136694797216068
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987784646455053,
+                    "rel_l2": 0.058868366777975356
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03113335234376308,
+                "min_cosine": 0.9996298160972258,
+                "max_rel_l2": 0.03113335234376308,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9996298160972258,
+                    "rel_l2": 0.03113335234376308
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.048718811134101245,
+                "min_cosine": 0.9979880248604541,
+                "max_rel_l2": 0.06513132690267981,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979880248604541,
+                    "rel_l2": 0.06513132690267981
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9981118645151513,
+                    "rel_l2": 0.06452602743662396
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.999471715736159,
+                    "rel_l2": 0.05350658779283511
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9990177841942757,
+                    "rel_l2": 0.050788711530261016
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9995959233083161,
+                    "rel_l2": 0.04530204906167213
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.011586458174150997,
+                "min_cosine": 0.9999398876917712,
+                "max_rel_l2": 0.011586458174150997,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999398876917712,
+                    "rel_l2": 0.011586458174150997
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03613758647974952,
+                "min_cosine": 0.9897498304100482,
+                "max_rel_l2": 0.14289310713407244,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9897498304100482,
+                    "rel_l2": 0.14289310713407244
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9987333379519198,
+                    "rel_l2": 0.05955981384235646
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9984326421625215,
+                    "rel_l2": 0.05776938911039288
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9988104885692531,
+                    "rel_l2": 0.04883726881186951
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991392056310018,
+                    "rel_l2": 0.04382323769533305
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 4,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 13,
+        "batch_row": 1,
+        "sequence_position": 5,
+        "removed_experts": [],
+        "added_experts": [],
+        "set_changed": false
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03209078563643577,
+                "min_cosine": 0.9995074077998587,
+                "max_rel_l2": 0.03209078563643577,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995074077998587,
+                    "rel_l2": 0.03209078563643577
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04867768983181584,
+                "min_cosine": 0.9957372699547146,
+                "max_rel_l2": 0.09403727915457263,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9957372699547146,
+                    "rel_l2": 0.09403727915457263
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9962302978737899,
+                    "rel_l2": 0.08807621585542069
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9984089821258078,
+                    "rel_l2": 0.07776720346585186
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.998763600315605,
+                    "rel_l2": 0.06136694797216068
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987784646455053,
+                    "rel_l2": 0.058868366777975356
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 3,
+          "set_changed_tokens": 2,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03113335234376308,
+                "min_cosine": 0.9996298160972258,
+                "max_rel_l2": 0.03113335234376308,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9996298160972258,
+                    "rel_l2": 0.03113335234376308
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.048718811134101245,
+                "min_cosine": 0.9979880248604541,
+                "max_rel_l2": 0.06513132690267981,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979880248604541,
+                    "rel_l2": 0.06513132690267981
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9981118645151513,
+                    "rel_l2": 0.06452602743662396
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.999471715736159,
+                    "rel_l2": 0.05350658779283511
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9990177841942757,
+                    "rel_l2": 0.050788711530261016
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9995959233083161,
+                    "rel_l2": 0.04530204906167213
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.011586458174150997,
+                "min_cosine": 0.9999398876917712,
+                "max_rel_l2": 0.011586458174150997,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999398876917712,
+                    "rel_l2": 0.011586458174150997
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03613758647974952,
+                "min_cosine": 0.9897498304100482,
+                "max_rel_l2": 0.14289310713407244,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9897498304100482,
+                    "rel_l2": 0.14289310713407244
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9987333379519198,
+                    "rel_l2": 0.05955981384235646
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9984326421625215,
+                    "rel_l2": 0.05776938911039288
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9988104885692531,
+                    "rel_l2": 0.04883726881186951
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991392056310018,
+                    "rel_l2": 0.04382323769533305
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 16,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 13,
+        "batch_row": 1,
+        "sequence_position": 5,
+        "removed_experts": [],
+        "added_experts": [],
+        "set_changed": false
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 6,
+          "set_changed_tokens": 4,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03209078563643577,
+                "min_cosine": 0.9995074077998587,
+                "max_rel_l2": 0.03209078563643577,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995074077998587,
+                    "rel_l2": 0.03209078563643577
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04867768983181584,
+                "min_cosine": 0.9957372699547146,
+                "max_rel_l2": 0.09403727915457263,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9957372699547146,
+                    "rel_l2": 0.09403727915457263
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9962302978737899,
+                    "rel_l2": 0.08807621585542069
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9984089821258078,
+                    "rel_l2": 0.07776720346585186
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.998763600315605,
+                    "rel_l2": 0.06136694797216068
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987784646455053,
+                    "rel_l2": 0.058868366777975356
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 8,
+          "set_changed_tokens": 5,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03113335234376308,
+                "min_cosine": 0.9996298160972258,
+                "max_rel_l2": 0.03113335234376308,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9996298160972258,
+                    "rel_l2": 0.03113335234376308
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.048718811134101245,
+                "min_cosine": 0.9979880248604541,
+                "max_rel_l2": 0.06513132690267981,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979880248604541,
+                    "rel_l2": 0.06513132690267981
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9981118645151513,
+                    "rel_l2": 0.06452602743662396
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.999471715736159,
+                    "rel_l2": 0.05350658779283511
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9990177841942757,
+                    "rel_l2": 0.050788711530261016
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9995959233083161,
+                    "rel_l2": 0.04530204906167213
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.011586458174150997,
+                "min_cosine": 0.9999398876917712,
+                "max_rel_l2": 0.011586458174150997,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999398876917712,
+                    "rel_l2": 0.011586458174150997
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03613758647974952,
+                "min_cosine": 0.9897498304100482,
+                "max_rel_l2": 0.14289310713407244,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9897498304100482,
+                    "rel_l2": 0.14289310713407244
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9987333379519198,
+                    "rel_l2": 0.05955981384235646
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9984326421625215,
+                    "rel_l2": 0.05776938911039288
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9988104885692531,
+                    "rel_l2": 0.04883726881186951
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991392056310018,
+                    "rel_l2": 0.04382323769533305
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "p3",
+      "k": 64,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 13,
+        "batch_row": 1,
+        "sequence_position": 5,
+        "removed_experts": [],
+        "added_experts": [],
+        "set_changed": false
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 39,
+          "set_changed_tokens": 33,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03209078563643577,
+                "min_cosine": 0.9995074077998587,
+                "max_rel_l2": 0.03209078563643577,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995074077998587,
+                    "rel_l2": 0.03209078563643577
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.04867768983181584,
+                "min_cosine": 0.9957372699547146,
+                "max_rel_l2": 0.09403727915457263,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9957372699547146,
+                    "rel_l2": 0.09403727915457263
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9962302978737899,
+                    "rel_l2": 0.08807621585542069
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9984089821258078,
+                    "rel_l2": 0.07776720346585186
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.998763600315605,
+                    "rel_l2": 0.06136694797216068
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9987784646455053,
+                    "rel_l2": 0.058868366777975356
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 33,
+          "set_changed_tokens": 25,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03113335234376308,
+                "min_cosine": 0.9996298160972258,
+                "max_rel_l2": 0.03113335234376308,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9996298160972258,
+                    "rel_l2": 0.03113335234376308
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.048718811134101245,
+                "min_cosine": 0.9979880248604541,
+                "max_rel_l2": 0.06513132690267981,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979880248604541,
+                    "rel_l2": 0.06513132690267981
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9981118645151513,
+                    "rel_l2": 0.06452602743662396
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_B.default.weight",
+                    "cosine": 0.999471715736159,
+                    "rel_l2": 0.05350658779283511
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9990177841942757,
+                    "rel_l2": 0.050788711530261016
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9995959233083161,
+                    "rel_l2": 0.04530204906167213
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.011586458174150997,
+                "min_cosine": 0.9999398876917712,
+                "max_rel_l2": 0.011586458174150997,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999398876917712,
+                    "rel_l2": 0.011586458174150997
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.03613758647974952,
+                "min_cosine": 0.9897498304100482,
+                "max_rel_l2": 0.14289310713407244,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9897498304100482,
+                    "rel_l2": 0.14289310713407244
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9987333379519198,
+                    "rel_l2": 0.05955981384235646
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9984326421625215,
+                    "rel_l2": 0.05776938911039288
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9988104885692531,
+                    "rel_l2": 0.04883726881186951
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9991392056310018,
+                    "rel_l2": 0.04382323769533305
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 1,
+      "complete": true,
+      "first_divergence": null,
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03458982719608618,
+                "min_cosine": 0.9994819815186977,
+                "max_rel_l2": 0.03458982719608618,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9994819815186977,
+                    "rel_l2": 0.03458982719608618
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05968841226397922,
+                "min_cosine": 0.9902373539891216,
+                "max_rel_l2": 0.24370992596045035,
+                "worst": [
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9902373539891216,
+                    "rel_l2": 0.24370992596045035
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9965528562535694,
+                    "rel_l2": 0.09255993512766317
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.997147512581434,
+                    "rel_l2": 0.07827377557832474
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9979215623008015,
+                    "rel_l2": 0.06736338222378031
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9986834410710042,
+                    "rel_l2": 0.06192125429050008
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03011012340064295,
+                "min_cosine": 0.9995497355565726,
+                "max_rel_l2": 0.03011012340064295,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995497355565726,
+                    "rel_l2": 0.03011012340064295
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.02629285310352376,
+                "min_cosine": 0.9955677822429816,
+                "max_rel_l2": 0.10324816469763516,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9955677822429816,
+                    "rel_l2": 0.10324816469763516
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9966494194539515,
+                    "rel_l2": 0.08185498194093226
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979507657357809,
+                    "rel_l2": 0.06403767748940713
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988685314566739,
+                    "rel_l2": 0.047988847784369605
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_B.default.weight",
+                    "cosine": 0.9988879667227853,
+                    "rel_l2": 0.04746083650415473
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.005917807068983772,
+                "min_cosine": 0.9999825621071371,
+                "max_rel_l2": 0.005917807068983772,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999825621071371,
+                    "rel_l2": 0.005917807068983772
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.041486645956908576,
+                "min_cosine": 0.9938597948003741,
+                "max_rel_l2": 0.11067965528801657,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9938597948003741,
+                    "rel_l2": 0.11067965528801657
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9973781991937881,
+                    "rel_l2": 0.07255986768081332
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9989720529055319,
+                    "rel_l2": 0.05073201142834771
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9987482634559695,
+                    "rel_l2": 0.05067974932092622
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9990362367882499,
+                    "rel_l2": 0.04753829346452315
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 4,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 2,
+        "batch_row": 0,
+        "sequence_position": 2,
+        "removed_experts": [
+          0
+        ],
+        "added_experts": [
+          4
+        ],
+        "set_changed": true
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03458982719608618,
+                "min_cosine": 0.9994819815186977,
+                "max_rel_l2": 0.03458982719608618,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9994819815186977,
+                    "rel_l2": 0.03458982719608618
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05968841226397922,
+                "min_cosine": 0.9902373539891216,
+                "max_rel_l2": 0.24370992596045035,
+                "worst": [
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9902373539891216,
+                    "rel_l2": 0.24370992596045035
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9965528562535694,
+                    "rel_l2": 0.09255993512766317
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.997147512581434,
+                    "rel_l2": 0.07827377557832474
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9979215623008015,
+                    "rel_l2": 0.06736338222378031
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9986834410710042,
+                    "rel_l2": 0.06192125429050008
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 1,
+          "set_changed_tokens": 1,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03011012340064295,
+                "min_cosine": 0.9995497355565726,
+                "max_rel_l2": 0.03011012340064295,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995497355565726,
+                    "rel_l2": 0.03011012340064295
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.02629285310352376,
+                "min_cosine": 0.9955677822429816,
+                "max_rel_l2": 0.10324816469763516,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9955677822429816,
+                    "rel_l2": 0.10324816469763516
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9966494194539515,
+                    "rel_l2": 0.08185498194093226
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979507657357809,
+                    "rel_l2": 0.06403767748940713
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988685314566739,
+                    "rel_l2": 0.047988847784369605
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_B.default.weight",
+                    "cosine": 0.9988879667227853,
+                    "rel_l2": 0.04746083650415473
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.005917807068983772,
+                "min_cosine": 0.9999825621071371,
+                "max_rel_l2": 0.005917807068983772,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999825621071371,
+                    "rel_l2": 0.005917807068983772
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.041486645956908576,
+                "min_cosine": 0.9938597948003741,
+                "max_rel_l2": 0.11067965528801657,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9938597948003741,
+                    "rel_l2": 0.11067965528801657
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9973781991937881,
+                    "rel_l2": 0.07255986768081332
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9989720529055319,
+                    "rel_l2": 0.05073201142834771
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9987482634559695,
+                    "rel_l2": 0.05067974932092622
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9990362367882499,
+                    "rel_l2": 0.04753829346452315
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 16,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 2,
+        "batch_row": 0,
+        "sequence_position": 2,
+        "removed_experts": [
+          0
+        ],
+        "added_experts": [
+          4
+        ],
+        "set_changed": true
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 4,
+          "set_changed_tokens": 2,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03458982719608618,
+                "min_cosine": 0.9994819815186977,
+                "max_rel_l2": 0.03458982719608618,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9994819815186977,
+                    "rel_l2": 0.03458982719608618
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05968841226397922,
+                "min_cosine": 0.9902373539891216,
+                "max_rel_l2": 0.24370992596045035,
+                "worst": [
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9902373539891216,
+                    "rel_l2": 0.24370992596045035
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9965528562535694,
+                    "rel_l2": 0.09255993512766317
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.997147512581434,
+                    "rel_l2": 0.07827377557832474
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9979215623008015,
+                    "rel_l2": 0.06736338222378031
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9986834410710042,
+                    "rel_l2": 0.06192125429050008
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 2,
+          "set_changed_tokens": 2,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03011012340064295,
+                "min_cosine": 0.9995497355565726,
+                "max_rel_l2": 0.03011012340064295,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995497355565726,
+                    "rel_l2": 0.03011012340064295
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.02629285310352376,
+                "min_cosine": 0.9955677822429816,
+                "max_rel_l2": 0.10324816469763516,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9955677822429816,
+                    "rel_l2": 0.10324816469763516
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9966494194539515,
+                    "rel_l2": 0.08185498194093226
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979507657357809,
+                    "rel_l2": 0.06403767748940713
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988685314566739,
+                    "rel_l2": 0.047988847784369605
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_B.default.weight",
+                    "cosine": 0.9988879667227853,
+                    "rel_l2": 0.04746083650415473
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.005917807068983772,
+                "min_cosine": 0.9999825621071371,
+                "max_rel_l2": 0.005917807068983772,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999825621071371,
+                    "rel_l2": 0.005917807068983772
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.041486645956908576,
+                "min_cosine": 0.9938597948003741,
+                "max_rel_l2": 0.11067965528801657,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9938597948003741,
+                    "rel_l2": 0.11067965528801657
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9973781991937881,
+                    "rel_l2": 0.07255986768081332
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9989720529055319,
+                    "rel_l2": 0.05073201142834771
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9987482634559695,
+                    "rel_l2": 0.05067974932092622
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9990362367882499,
+                    "rel_l2": 0.04753829346452315
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "format": "nf4",
+      "adapters": "broad",
+      "k": 64,
+      "complete": true,
+      "first_divergence": {
+        "layer": 1,
+        "microbatch": 1,
+        "token_flat": 2,
+        "batch_row": 0,
+        "sequence_position": 2,
+        "removed_experts": [
+          0
+        ],
+        "added_experts": [
+          4
+        ],
+        "set_changed": true
+      },
+      "layers": [
+        {
+          "layer": 2,
+          "ordered_changed_tokens": 29,
+          "set_changed_tokens": 19,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03458982719608618,
+                "min_cosine": 0.9994819815186977,
+                "max_rel_l2": 0.03458982719608618,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9994819815186977,
+                    "rel_l2": 0.03458982719608618
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.05968841226397922,
+                "min_cosine": 0.9902373539891216,
+                "max_rel_l2": 0.24370992596045035,
+                "worst": [
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9902373539891216,
+                    "rel_l2": 0.24370992596045035
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9965528562535694,
+                    "rel_l2": 0.09255993512766317
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_B.default.weight",
+                    "cosine": 0.997147512581434,
+                    "rel_l2": 0.07827377557832474
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9979215623008015,
+                    "rel_l2": 0.06736338222378031
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9986834410710042,
+                    "rel_l2": 0.06192125429050008
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 1,
+          "ordered_changed_tokens": 27,
+          "set_changed_tokens": 20,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.03011012340064295,
+                "min_cosine": 0.9995497355565726,
+                "max_rel_l2": 0.03011012340064295,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9995497355565726,
+                    "rel_l2": 0.03011012340064295
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 16,
+                "global_rel_l2": 0.02629285310352376,
+                "min_cosine": 0.9955677822429816,
+                "max_rel_l2": 0.10324816469763516,
+                "worst": [
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9955677822429816,
+                    "rel_l2": 0.10324816469763516
+                  },
+                  {
+                    "name": "self_attn.kv_a_proj_with_mqa.lora_A.default.weight",
+                    "cosine": 0.9966494194539515,
+                    "rel_l2": 0.08185498194093226
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_A.default.weight",
+                    "cosine": 0.9979507657357809,
+                    "rel_l2": 0.06403767748940713
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9988685314566739,
+                    "rel_l2": 0.047988847784369605
+                  },
+                  {
+                    "name": "mlp.shared_experts.down_proj.lora_B.default.weight",
+                    "cosine": 0.9988879667227853,
+                    "rel_l2": 0.04746083650415473
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "layer": 0,
+          "ordered_changed_tokens": 0,
+          "set_changed_tokens": 0,
+          "local_vjp": [
+            {
+              "microbatch": 0,
+              "input": {
+                "tensors": 1,
+                "global_rel_l2": 0.005917807068983772,
+                "min_cosine": 0.9999825621071371,
+                "max_rel_l2": 0.005917807068983772,
+                "worst": [
+                  {
+                    "name": "decoder_input",
+                    "cosine": 0.9999825621071371,
+                    "rel_l2": 0.005917807068983772
+                  }
+                ]
+              },
+              "adapters": {
+                "tensors": 10,
+                "global_rel_l2": 0.041486645956908576,
+                "min_cosine": 0.9938597948003741,
+                "max_rel_l2": 0.11067965528801657,
+                "worst": [
+                  {
+                    "name": "self_attn.q_b_proj.lora_A.default.weight",
+                    "cosine": 0.9938597948003741,
+                    "rel_l2": 0.11067965528801657
+                  },
+                  {
+                    "name": "self_attn.q_b_proj.lora_B.default.weight",
+                    "cosine": 0.9973781991937881,
+                    "rel_l2": 0.07255986768081332
+                  },
+                  {
+                    "name": "self_attn.kv_b_proj.lora_B.default.weight",
+                    "cosine": 0.9989720529055319,
+                    "rel_l2": 0.05073201142834771
+                  },
+                  {
+                    "name": "self_attn.o_proj.lora_A.default.weight",
+                    "cosine": 0.9987482634559695,
+                    "rel_l2": 0.05067974932092622
+                  },
+                  {
+                    "name": "self_attn.q_a_proj.lora_B.default.weight",
+                    "cosine": 0.9990362367882499,
+                    "rel_l2": 0.04753829346452315
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

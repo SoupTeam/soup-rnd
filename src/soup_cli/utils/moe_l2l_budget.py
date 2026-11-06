@@ -1,6 +1,7 @@
-"""Memory estimates for uncompressed MoE L2L windows."""
+"""Memory estimates for MoE L2L windows, including FP8 boundary storage."""
 
 from dataclasses import dataclass
+from typing import Sequence
 
 from soup_cli.utils.budgeted_activations import activation_allocation_bytes
 from soup_cli.utils.host_memory_budget import HostMemoryBudget
@@ -17,11 +18,38 @@ class MoEL2LMemoryPlan:
     activation_bytes: int
     routing_record_bytes: int
     routing_comparison_bytes: int
+    n_layers: int
+    n_moe_layers: int
+    experts_per_token: int
+    max_shape: tuple[int, int, int]
+    dtype: str
+    pin: bool
+    codec: str
+    device_type: str
     saved_expert_input_bytes: int | None = None
 
     @property
     def host_bytes(self) -> int:
         return self.activation_bytes + self.routing_record_bytes + self.routing_comparison_bytes
+
+    def validate_microbatches(
+        self, *, n_layers: int, shapes: Sequence[tuple[int, ...]],
+        dtype: str, pin: bool, codec: str,
+    ) -> None:
+        """Refuse changes to the resolved window before allocating or collecting work."""
+        if (
+            not shapes or len(shapes) > self.effective_k or n_layers != self.n_layers
+            or dtype != self.dtype or pin != self.pin or codec != self.codec
+        ):
+            raise ValueError("MoE L2L window differs from its resolved memory plan")
+        for shape in shapes:
+            if (
+                len(shape) != 3
+                or any(type(value) is not int or value < 1 for value in shape)
+                or shape[-1] != self.max_shape[-1]
+                or any(value > cap for value, cap in zip(shape, self.max_shape))
+            ):
+                raise ValueError("MoE L2L shape exceeds its resolved memory plan")
 
 
 def plan_moe_l2l(
@@ -35,13 +63,15 @@ def plan_moe_l2l(
     dtype: str,
     pin: bool,
     expert_input_dtype: str | None = None,
+    codec: str = "none",
+    device_type: str = "cuda",
 ) -> MoEL2LMemoryPlan:
     """Select the largest RAM-fitting ``k`` for a fixed upper bound on micro-batch shape.
 
     ``max_shape`` is ``(batch, sequence, hidden)``. Charge every position at that
-    capacity using the C3 resident store's FP32/BF16 allocation calculation. Charge
-    pageable int64 routing records for the streamed MoE layers, plus one temporary
-    record for the recompute comparison in B1.3.
+    capacity using the store's allocation calculation. FP8 includes per-token scales,
+    pinned rounding and codec host scratch. Charge pageable int64 routing records for
+    streamed MoE layers, plus one temporary record for the B1.3 recompute comparison.
 
     If supplied, expert_input_dtype is the dtype of the gathered hidden states
     entering the streamed experts. Backward runs for one recomputed layer and
@@ -60,28 +90,53 @@ def plan_moe_l2l(
         raise ValueError("MoE layer count must not exceed the total layer count")
     if dtype not in ("float32", "bfloat16"):
         raise ValueError("MoE L2L host planning supports float32 or bfloat16 activations")
-
     if expert_input_dtype is not None and expert_input_dtype not in SUPPORTED_STREAM_DTYPES:
         raise ValueError(f"unsupported saved expert input dtype {expert_input_dtype!r}")
+    if codec not in ("none", "fp8_e4m3"):
+        raise ValueError("MoE L2L codec must be none or fp8_e4m3")
+    if device_type not in ("cpu", "cuda") or type(pin) is not bool:
+        raise ValueError("MoE L2L needs a cpu/cuda device type and boolean pin")
 
     batch_size, sequence_length, hidden_size = max_shape
     tokens = batch_size * sequence_length
-    activation_bytes_per_batch = activation_allocation_bytes(
-        n_layers=n_layers,
-        k=1,
-        chunk_bytes=tokens * hidden_size * dtype_bytes(dtype),
-        spill_layers=0,
-        ring=1,
-        pin=pin,
-    )
-    comparison_bytes = tokens * experts_per_token * 8  # one int64 top-k index tensor
+    comparison_bytes = tokens * experts_per_token * 8
     routing_bytes_per_batch = n_moe_layers * comparison_bytes
-    host_bytes_per_batch = activation_bytes_per_batch + routing_bytes_per_batch
     available = host_budget.available_bytes
-    effective_k = min(requested_k, (available - comparison_bytes) // host_bytes_per_batch)
+    if codec == "none":
+        activation_bytes_per_batch = activation_allocation_bytes(
+            n_layers=n_layers, k=1,
+            chunk_bytes=tokens * hidden_size * dtype_bytes(dtype),
+            spill_layers=0, ring=1, pin=pin,
+        )
+        host_bytes_per_batch = activation_bytes_per_batch + routing_bytes_per_batch
+        effective_k = min(requested_k, (available - comparison_bytes) // host_bytes_per_batch)
+        activation_bytes = max(0, effective_k) * activation_bytes_per_batch
+        minimum_bytes = host_bytes_per_batch + comparison_bytes
+    else:
+        from soup_cli.utils.fp8_activations import fp8_activation_allocation
+
+        def allocation(k: int) -> int:
+            return fp8_activation_allocation(
+                n_layers=n_layers, mb_shapes=[max_shape] * k, pin=pin,
+                compute_dtype=dtype, device_type=device_type,
+            ).host_bytes
+
+        minimum_bytes = allocation(1) + routing_bytes_per_batch + comparison_bytes
+        # Scale slabs and shared codec scratch need not scale linearly with k.
+        # Search the shared estimator rather than multiplying a one-batch estimate.
+        low, high = 0, requested_k
+        while low < high:
+            middle = (low + high + 1) // 2
+            needed = allocation(middle) + middle * routing_bytes_per_batch + comparison_bytes
+            if needed <= available:
+                low = middle
+            else:
+                high = middle - 1
+        effective_k = low
+        activation_bytes = allocation(effective_k) if effective_k else 0
     if effective_k < 1:
         raise MemoryError(
-            f"MoE L2L k=1 needs {host_bytes_per_batch + comparison_bytes} host bytes "
+            f"MoE L2L k=1 needs {minimum_bytes} host bytes "
             f"for activations and routing, but only {available} available"
         )
 
@@ -95,8 +150,16 @@ def plan_moe_l2l(
         requested_k=requested_k,
         effective_k=effective_k,
         available_host_bytes=available,
-        activation_bytes=effective_k * activation_bytes_per_batch,
+        activation_bytes=activation_bytes,
         routing_record_bytes=effective_k * routing_bytes_per_batch,
         routing_comparison_bytes=comparison_bytes,
+        n_layers=n_layers,
+        n_moe_layers=n_moe_layers,
+        experts_per_token=experts_per_token,
+        max_shape=max_shape,
+        dtype=dtype,
+        pin=pin,
+        codec=codec,
+        device_type=device_type,
         saved_expert_input_bytes=saved_expert_input_bytes,
     )

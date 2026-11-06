@@ -47,8 +47,8 @@ exactly ``payload_chunk_bytes`` per spilled chunk and ``chunk_bytes`` is payload
 scales exactly. The A4 planner takes ``payload_chunk_bytes`` as its ``chunk_bytes`` and
 ``scale_chunk_bytes`` as its ``pinned_floor_bytes``, both unrounded.
 
-Benchmark harness code, not shipped. Top level imports the standard library and the
-sibling harness module only; torch is imported inside functions.
+Benchmark harness code, not shipped. Numerical codecs live in
+``soup_cli.utils.activation_codec``; torch remains imported only inside functions.
 """
 
 from __future__ import annotations
@@ -64,104 +64,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import l2l_activations  # noqa: E402
 
-IDENTITY = "bf16"
-INT8 = "int8"
-FP8 = "fp8_e4m3"
-COARSE = "int4"
-#: The codecs a training arm may use. ``int4`` is a control and never trains.
-CANDIDATES = (INT8, FP8)
-SCALE_BYTES = 4
-SCALE_DTYPE = "float32"
+from soup_cli.utils import activation_codec  # noqa: E402
+
 SECTOR_BYTES = l2l_activations.SECTOR_BYTES
-#: bf16 bytes per element: the ``source_element_bytes`` every arithmetic table assumes.
-BF16_BYTES = 2
-
-
-@dataclass(frozen=True)
-class Codec:
-    """One codec. ``levels`` is the largest stored magnitude; 0 means identity."""
-
-    name: str
-    levels: int
-    payload_dtype: Optional[str]
-    packed: bool = False
-
-    @property
-    def identity(self) -> bool:
-        return self.levels == 0
-
-
-CODECS: Dict[str, Codec] = {
-    IDENTITY: Codec(IDENTITY, 0, None),
-    INT8: Codec(INT8, 127, "int8"),
-    FP8: Codec(FP8, 448, "float8_e4m3fn"),
-    COARSE: Codec(COARSE, 7, "uint8", packed=True),
-}
-
-
-class NonFiniteActivationError(ValueError):
-    """A boundary activation holds a NaN or an Inf, which a per-row absmax codec cannot
-    encode: the scale would be non-finite and every restored value garbage."""
-
-
-def codec_of(name: str) -> Codec:
-    try:
-        return CODECS[name]
-    except KeyError:
-        raise ValueError(f"unknown codec {name!r}; choose from {sorted(CODECS)}") from None
-
-
-# ==========================================================================
-# byte accounting (pure, no torch)
-# ==========================================================================
-def rows_of(shape: Tuple[int, ...]) -> int:
-    """Tokens in a chunk: every dimension but the hidden one."""
-    return math.prod(int(dim) for dim in shape[:-1])
-
-
-def payload_shape(shape: Tuple[int, ...], codec: str) -> Tuple[int, ...]:
-    spec = codec_of(codec)
-    hidden = int(shape[-1])
-    last = (hidden + 1) // 2 if spec.packed else hidden
-    return tuple(int(dim) for dim in shape[:-1]) + (last,)
-
-
-def payload_chunk_bytes(
-    shape: Tuple[int, ...], codec: str, *, source_element_bytes: int = BF16_BYTES
-) -> int:
-    """Bytes of one chunk's payload. The identity stores ``source_element_bytes`` per value."""
-    spec = codec_of(codec)
-    element = source_element_bytes if spec.identity else 1
-    return math.prod(payload_shape(shape, codec)) * element
-
-
-def scale_chunk_bytes(shape: Tuple[int, ...], codec: str) -> int:
-    """Bytes of one chunk's scales: one float32 per row, none for the identity."""
-    return 0 if codec_of(codec).identity else rows_of(shape) * SCALE_BYTES
-
-
-def compressed_chunk_bytes(
-    shape: Tuple[int, ...], codec: str, *, source_element_bytes: int = BF16_BYTES
-) -> int:
-    """The host bytes one stored chunk costs: payload + scales. Sector padding is zero
-    by construction: the store refuses to spill a payload that is not a sector multiple."""
-    return payload_chunk_bytes(
-        shape, codec, source_element_bytes=source_element_bytes
-    ) + scale_chunk_bytes(shape, codec)
-
-
-def bytes_per_token_per_layer(
-    hidden: int, codec: str, *, source_element_bytes: int = BF16_BYTES
-) -> int:
-    return compressed_chunk_bytes(
-        (1, int(hidden)), codec, source_element_bytes=source_element_bytes
-    )
-
-
-def tokens_at_budget(budget_bytes: int, *, n_layers: int, hidden: int, codec: str) -> int:
-    """Tokens whose boundary activations fit ``budget_bytes``, before allocator rounding.
-    Arithmetic, not a measurement, and never a speed."""
-    return int(budget_bytes) // (int(n_layers) * bytes_per_token_per_layer(hidden, codec))
 
 
 #: Labelled estimates for the giants and the 7B fixture: (decoder layers, hidden).
@@ -174,14 +79,20 @@ SHAPES: Dict[str, Tuple[int, int]] = {
 }
 
 
-def per_token_table(codecs: Tuple[str, ...] = (IDENTITY, INT8, FP8)) -> List[Dict[str, Any]]:
+def per_token_table(
+    codecs: Tuple[str, ...] = (
+        activation_codec.IDENTITY, activation_codec.INT8, activation_codec.FP8,
+    ),
+) -> List[Dict[str, Any]]:
     """Host bytes per token over all layers, and the tokens-per-step factor at a fixed
     RAM budget, for each shape and codec. Labelled arithmetic."""
     rows = []
     for name, (layers, hidden) in SHAPES.items():
-        base = layers * bytes_per_token_per_layer(hidden, IDENTITY)
+        base = layers * activation_codec.bytes_per_token_per_layer(
+            hidden, activation_codec.IDENTITY,
+        )
         for codec in codecs:
-            per_token = layers * bytes_per_token_per_layer(hidden, codec)
+            per_token = layers * activation_codec.bytes_per_token_per_layer(hidden, codec)
             rows.append({
                 "shape": name, "layers": layers, "hidden": hidden, "codec": codec,
                 "bytes_per_token": per_token,
@@ -189,95 +100,6 @@ def per_token_table(codecs: Tuple[str, ...] = (IDENTITY, INT8, FP8)) -> List[Dic
                 "kind": "arithmetic estimate, not measured",
             })
     return rows
-
-
-# ==========================================================================
-# the codecs (torch)
-# ==========================================================================
-def encode(x: Any, codec: str, *, check_finite: bool = True) -> Tuple[Any, Optional[Any]]:
-    """``(payload, scale)`` on ``x``'s device. ``scale`` is float32 of shape ``x.shape[:-1]``,
-    None for the identity, whose payload is ``x`` itself.
-
-    A lossy codec raises ``NonFiniteActivationError`` on a NaN or Inf anywhere in ``x``
-    (a host sync). ``check_finite=False`` skips the check for a caller that tests the
-    returned scale itself, as ``CodecActivationStore`` does once per step: a row with a
-    NaN or Inf is exactly a row whose scale is not finite."""
-    import torch
-
-    spec = codec_of(codec)
-    if spec.identity:
-        return x, None
-    with torch.no_grad():
-        values = x.float()
-        absmax = values.abs().amax(dim=-1, keepdim=True)
-        if check_finite and not bool(torch.isfinite(absmax).all()):
-            bad = int((~torch.isfinite(absmax)).sum())
-            raise NonFiniteActivationError(
-                f"{codec}: {bad} of {absmax.numel()} rows hold a NaN or an Inf; a per-row "
-                "absmax codec cannot encode them")
-        safe = torch.where(absmax > 0, absmax, torch.ones_like(absmax))
-        unit = values / safe
-        if spec.name == FP8:
-            payload = (unit * spec.levels).clamp_(-spec.levels, spec.levels).to(
-                torch.float8_e4m3fn
-            )
-        else:
-            levels = torch.round(unit * spec.levels).clamp_(-spec.levels, spec.levels)
-            if spec.packed:
-                payload = _pack_nibbles(levels)
-            else:
-                payload = levels.to(torch.int8)
-        return payload, absmax.squeeze(-1)
-
-
-def decode(payload: Any, scale: Optional[Any], codec: str, dtype: Any, hidden: int) -> Any:
-    """The restored activation, in ``dtype``, on ``payload``'s device."""
-    import torch
-
-    spec = codec_of(codec)
-    if spec.identity:
-        return payload
-    with torch.no_grad():
-        if spec.packed:
-            levels = _unpack_nibbles(payload, hidden)
-        else:
-            levels = payload.float()
-        return (levels / spec.levels * scale.unsqueeze(-1)).to(dtype)
-
-
-def _pack_nibbles(levels: Any) -> Any:
-    """Signed levels in [-7, 7] as unsigned nibbles (level + 8), two per byte, the even
-    index in the low nibble. An odd hidden size gets one zero-level pad nibble."""
-    import torch
-
-    biased = (levels + 8).to(torch.uint8)
-    if biased.shape[-1] % 2:
-        pad = torch.full(biased.shape[:-1] + (1,), 8, dtype=torch.uint8, device=biased.device)
-        biased = torch.cat([biased, pad], dim=-1)
-    return biased[..., 0::2] | (biased[..., 1::2] << 4)
-
-
-def _unpack_nibbles(packed: Any, hidden: int) -> Any:
-    import torch
-
-    low = (packed & 0x0F).float() - 8
-    high = (packed >> 4).float() - 8
-    out = torch.stack([low, high], dim=-1).flatten(-2)
-    return out[..., :hidden]
-
-
-def round_trip(x: Any, codec: str) -> Any:
-    payload, scale = encode(x, codec)
-    return decode(payload, scale, codec, x.dtype, int(x.shape[-1]))
-
-
-def store_compress(x: Any, codec: str) -> Tuple[Any, Any, Any]:
-    """What ``CodecActivationStore.put`` runs per chunk on the device, without a host
-    sync: ``(payload, scale, all scales finite)``. A lossy codec only."""
-    import torch
-
-    payload, scale = encode(x, codec, check_finite=False)
-    return payload, scale, torch.isfinite(scale).all()
 
 
 # ==========================================================================
@@ -453,17 +275,17 @@ class CodecActivationStore:
     ):
         import torch
 
-        self.codec = codec_of(codec)
+        self.codec = activation_codec.codec_of(codec)
         self.shape = tuple(int(dim) for dim in chunk_shape)
         self.dtype = dtype
         self.device = torch.device(device)
         self.is_cuda = self.device.type == "cuda"
         self.hidden = int(self.shape[-1])
         source_element = torch.empty((), dtype=dtype).element_size()
-        self.payload_chunk_bytes = payload_chunk_bytes(
+        self.payload_chunk_bytes = activation_codec.payload_chunk_bytes(
             self.shape, codec, source_element_bytes=source_element
         )
-        self.scale_chunk_bytes = scale_chunk_bytes(self.shape, codec)
+        self.scale_chunk_bytes = activation_codec.scale_chunk_bytes(self.shape, codec)
         self.chunk_bytes = self.payload_chunk_bytes + self.scale_chunk_bytes
         if spill_layers and self.payload_chunk_bytes % SECTOR_BYTES:
             raise ValueError(
@@ -476,7 +298,7 @@ class CodecActivationStore:
         self._inner = l2l_activations.ActivationStore(
             n_layers=n_layers,
             k=k,
-            chunk_shape=payload_shape(self.shape, codec),
+            chunk_shape=activation_codec.payload_shape(self.shape, codec),
             dtype=payload_dtype,
             device=device,
             pin=pin,
@@ -497,7 +319,7 @@ class CodecActivationStore:
                 if ring_ is not None
                 for buf, _event in list(ring_._free.queue)  # noqa: SLF001 — measured
             )
-            rows = rows_of(self.shape)
+            rows = activation_codec.rows_of(self.shape)
             # One slab holds every chunk's scales: one allocation instead of
             # n_layers x k small ones. Scales never spill. Zeroed, so an unwritten
             # slot restores to zeros and is never named by the finite check.
@@ -572,7 +394,7 @@ class CodecActivationStore:
             return
 
         payload, scale, finite = self._timed(
-            "compress", lambda: store_compress(tensor, self.codec.name))
+            "compress", lambda: activation_codec.store_compress(tensor, self.codec.name))
         self._finite = finite if self._finite is None else self._finite & finite
         self._inner.put(layer, mb, payload)
         self._scale_slab[layer, mb].copy_(scale.reshape(-1), non_blocking=True)
@@ -586,7 +408,9 @@ class CodecActivationStore:
         scale = scale.view(self.shape[:-1])
         return self._timed(
             "restore",
-            lambda: decode(payload, scale, self.codec.name, self.dtype, self.hidden),
+            lambda: activation_codec.decode(
+                payload, scale, self.codec.name, self.dtype, self.hidden,
+            ),
         )
 
     def begin_backward(self) -> None:
@@ -604,7 +428,7 @@ class CodecActivationStore:
 
             # bool() above waited for the step's work, the slab copies included.
             bad = (~torch.isfinite(self._scale_slab)).any(dim=-1).nonzero().tolist()
-            raise NonFiniteActivationError(
+            raise activation_codec.NonFiniteActivationError(
                 f"{self.codec.name}: {len(bad)} boundary chunk(s) held a NaN or an Inf, "
                 f"first (layer, micro-batch) {[tuple(key) for key in bad[:4]]}; a per-row "
                 "absmax codec cannot encode them, so the step is refused")
@@ -632,7 +456,7 @@ class CodecActivationStore:
             if self._scale_slab is not None else 0
         )
         chunks = len(inner)
-        rows = rows_of(self.shape)
+        rows = activation_codec.rows_of(self.shape)
         scale_per_chunk = scales / (self.n_layers * self.k)
         per_chunk = (resident / chunks if chunks else 0.0) + scale_per_chunk
         spill = self._inner._spill  # noqa: SLF001 — measured, not assumed

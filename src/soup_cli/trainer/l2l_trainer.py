@@ -16,6 +16,11 @@ The layer arguments (position ids, mask) are captured once per distinct shape an
 micro-batch gets the call of its shape. The activation store sizes every micro-batch's
 chunks to that micro-batch, so a short row does not pay for the longest row of its window.
 
+FP8 is an opt-in boundary codec: capacities retain the logical hidden width for
+per-token scales, and the host lease includes codec scratch, not device workspace.
+It is lossy and does not relax the routing guard. An already-resolved memory plan
+can bound each window; the trainer never selects k or changes HF's schedule.
+
 Each micro-batch position keeps its largest capacity seen so far. A larger window grows
 the store after releasing its old allocations. When the store does not fit the host-RAM
 budget, the lowest layers spill to one file (``soup_cli.utils.l2l_spill``); ``train`` removes
@@ -32,6 +37,7 @@ import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -44,6 +50,7 @@ from typing import (
     Union,
 )
 
+from soup_cli.utils.host_memory_budget import HostMemoryBudget, MemoryLease
 from soup_cli.utils.l2l_step import (
     LoadCounters,
     LossHead,
@@ -51,6 +58,9 @@ from soup_cli.utils.l2l_step import (
     as_passes,
     sft_head,
 )
+
+if TYPE_CHECKING:
+    from soup_cli.utils.moe_l2l_budget import MoEL2LMemoryPlan
 
 #: Architectures ``training.l2l`` admits at launch. The L2L step itself runs more
 #: (``l2l_step.SUPPORTED_ARCHS``, which adds DeepSeek-V3); enabling those publicly is a
@@ -157,10 +167,51 @@ class L2LState:
     #: Files of dead runs the last ``train`` removed from the spill directory.
     stale_removed: List[str] = field(default_factory=list)
     c3_plan: Any = None
+    #: Boundary storage only; compute and routing checks retain their existing behavior.
+    activation_codec: Literal["none", "fp8_e4m3"] = "none"
+    #: An already-resolved MoEL2LMemoryPlan. The trainer never selects accumulation k.
+    memory_plan: Optional[MoEL2LMemoryPlan] = None
+    host_budget: Optional[HostMemoryBudget] = None
+    _routing_lease: Optional[MemoryLease] = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.loss is None:
             self.loss = SFT_WINDOW_LOSS
+        if self.activation_codec not in ("none", "fp8_e4m3"):
+            raise ValueError(f"unsupported L2L activation codec {self.activation_codec!r}")
+        if self.activation_codec == "fp8_e4m3":
+            if self.loss is not SFT_WINDOW_LOSS:
+                raise ValueError("FP8 activation storage supports the SFT window loss only")
+            if str(self.dtype).removeprefix("torch.") not in ("float32", "bfloat16"):
+                raise ValueError("FP8 activation compute dtype must be float32 or bfloat16")
+        if (
+            getattr(self.runtime, "expert_pool", None) is not None
+            and self.memory_plan is None
+            and (
+                self.activation_codec != "none"
+                or self.host_budget is not None or self.c3_plan is not None
+            )
+        ):
+            raise ValueError("budgeted MoE routing requires a resolved memory_plan")
+        if self.memory_plan is not None:
+            if self.host_budget is None:
+                raise ValueError("an L2L memory_plan requires an explicit host_budget")
+            if self.memory_plan.codec != self.activation_codec:
+                raise ValueError("L2L activation codec differs from the resolved memory plan")
+        if (
+            self.c3_plan is not None and self.host_budget is not None
+            and self.host_budget is not self.c3_plan.activations
+        ):
+            raise ValueError("C3 L2L host_budget must be the reserved activation partition")
+        if self.c3_plan is not None and self.memory_plan is not None:
+            routing_bytes = (
+                self.memory_plan.routing_record_bytes + self.memory_plan.routing_comparison_bytes
+            )
+            if self.c3_plan.routing_bytes != routing_bytes:
+                raise ValueError(
+                    "combined C3 and L2L memory plans require matching routing_bytes reserved "
+                    "in the C3 activation partition before weight allocation"
+                )
 
     def log_fields(self) -> Dict[str, Any]:
         fields = {
@@ -188,10 +239,18 @@ class L2LState:
 
         return os.path.join(self.output_dir or ".", SPILL_DIR_NAME)
 
-    def close(self) -> None:
+    def close_store(self) -> None:
+        """Drain the current store before growth without releasing routing headroom."""
         if self.store is not None:
             self.store.close()
             self.store = None
+
+    def close(self) -> None:
+        """Release the routing reservation only after activation users have drained."""
+        self.close_store()
+        if self._routing_lease is not None:
+            self._routing_lease.close()
+            self._routing_lease = None
 
 
 def require_right_padded(mask: Any) -> None:
@@ -430,25 +489,88 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
     store = state.store
     n_layers = len(stepper.layers)
     pin = str(device).startswith("cuda")
+    dtype = str(state.dtype).removeprefix("torch.")
+    if not ids_list or any(ids.ndim != 2 or min(ids.shape) < 1 for ids in ids_list):
+        raise ValueError("L2L activation windows need nonempty two-dimensional micro-batches")
+    if n_layers < 1 or hidden < 1:
+        raise ValueError("L2L activation windows need positive layer and hidden dimensions")
+    shapes = [(int(ids.shape[0]), int(ids.shape[1]), hidden) for ids in ids_list]
     if state.c3_plan is not None:
-        # Before any release: a window outside the reserved plan keeps the current store.
+        # Before any release: an out-of-plan window retains the current store and lease.
         state.c3_plan.validate_microbatches(
-            n_layers=n_layers,
-            shapes=[(int(ids.shape[0]), int(ids.shape[1]), hidden) for ids in ids_list],
-            dtype=str(state.dtype).removeprefix("torch."),
-            pin=pin,
+            n_layers=n_layers, shapes=shapes, dtype=dtype, pin=pin,
+            codec=state.activation_codec,
+            device_type=torch.device(device).type,
         )
-    need = [int(ids.shape[0]) * int(ids.shape[1]) * hidden for ids in ids_list]
+    if state.memory_plan is not None:
+        state.memory_plan.validate_microbatches(
+            n_layers=n_layers, shapes=shapes, dtype=dtype, pin=pin,
+            codec=state.activation_codec,
+        )
+        if torch.device(device).type != state.memory_plan.device_type:
+            raise ValueError("L2L device differs from the resolved memory plan")
+        if getattr(state.runtime, "expert_pool", None) is not None:
+            moe_layers = len(state.runtime.expert_readers)
+            top_k = getattr(stepper.causal.config, "num_experts_per_tok", None)
+            if (
+                not moe_layers or moe_layers > state.memory_plan.n_moe_layers
+                or type(top_k) is not int or top_k < 1
+                or top_k > state.memory_plan.experts_per_token
+            ):
+                raise ValueError("MoE routing dimensions exceed the resolved memory plan")
+    if store is not None and (state.activation_codec != "none" or state.memory_plan is not None):
+        expected_device = torch.device(device)
+        actual_device = torch.device(store.device)
+        if expected_device.type == "cuda" and expected_device.index is None:
+            expected_device = torch.device("cuda", torch.cuda.current_device())
+        if actual_device.type == "cuda" and actual_device.index is None:
+            actual_device = torch.device("cuda", torch.cuda.current_device())
+        if (
+            store.n_layers != n_layers or store.dtype != state.dtype
+            or actual_device != expected_device
+        ):
+            raise ValueError("L2L activation store layers, dtype or device changed between windows")
+        if state.activation_codec == "fp8_e4m3" and any(
+            len(shape) < 2 or shape[-1] != hidden for shape in store.mb_shapes
+        ):
+            raise ValueError("FP8 activation store hidden width changed between windows")
+    need = [math.prod(shape) for shape in shapes]
     have = [math.prod(shape) for shape in store.mb_shapes] if store is not None else []
+    caps = [max(n, h) for n, h in zip(need, have)] + need[len(have):] + have[len(need):]
+    fp8 = state.activation_codec == "fp8_e4m3"
+    mb_shapes = [(cap // hidden, hidden) for cap in caps] if fp8 else [(cap,) for cap in caps]
+    if fp8:
+        from soup_cli.utils.fp8_activations import fp8_activation_allocation
+
+        allocation = fp8_activation_allocation(
+            n_layers=n_layers, mb_shapes=mb_shapes, pin=pin,
+            compute_dtype=dtype, device_type=torch.device(device).type,
+        ).host_bytes
+    elif state.memory_plan is not None:
+        from soup_cli.utils.budgeted_activations import activation_allocation_bytes
+
+        allocation = activation_allocation_bytes(
+            n_layers=n_layers, k=len(caps),
+            chunk_bytes=max(caps) * torch.empty((), dtype=state.dtype).element_size(),
+            spill_layers=0, ring=1, pin=pin,
+        )
+    if state.memory_plan is not None:
+        if allocation > state.memory_plan.activation_bytes:
+            raise ValueError("L2L activation allocation exceeds the resolved memory plan")
+        routing = (
+            state.memory_plan.routing_record_bytes + state.memory_plan.routing_comparison_bytes
+        )
+        if state._routing_lease is None:
+            state._routing_lease = state.host_budget.reserve("l2l.routing", routing)
+        elif state._routing_lease.nbytes != routing:
+            raise ValueError("L2L routing reservation differs from the resolved memory plan")
     if store is not None and len(need) <= len(have) and all(
         n <= h for n, h in zip(need, have)
     ):
         return store
-    caps = [max(n, h) for n, h in zip(need, have)] + need[len(have):] + have[len(need):]
-    pin = str(device).startswith("cuda")
     rebuilding_cuda = store is not None and pin
-    state.close()
-    # close() releases the old chunks/rings; do not retain the old store while replanning.
+    state.close_store()
+    # Drop old storage before replanning. Routing headroom survives routine store growth.
     del store
     if rebuilding_cuda:
         empty_host_cache = getattr(getattr(torch, "accelerator", None), "empty_host_cache", None)
@@ -462,24 +584,40 @@ def _store_for(state: L2LState, stepper: Any, ids_list: List[Any], device: Any) 
                 "torch.accelerator.empty_host_cache(); idle pinned blocks may remain charged "
                 "to host RAM, so the new plan may need extra free RAM."
             )
-    n_layers = len(stepper.layers)
-    itemsize = torch.empty((), dtype=state.dtype).element_size()
+    host_budget = state.host_budget
     if state.c3_plan is not None:
-        from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+        host_budget = state.c3_plan.activations
+    if fp8 or host_budget is not None:
+        if host_budget is None:
+            safe_budget = l2l_spill.ram_budget().budget_bytes
+            if safe_budget is None or safe_budget <= 0:
+                raise ValueError("FP8 activation storage requires a known positive host RAM budget")
+            host_budget = HostMemoryBudget(safe_budget)
+        if fp8:
+            from soup_cli.utils.fp8_activations import FP8ActivationStore
 
-        # The lease charges every chunk at the largest capacity: an upper bound of the
-        # per-micro-batch allocations, inside the partition reserved before the cache.
-        state.store = BudgetedActivationStore(
-            host_budget=state.c3_plan.activations,
-            n_layers=n_layers,
-            k=len(caps),
-            chunk_shape=(max(caps),),
-            mb_shapes=[(cap,) for cap in caps],
-            dtype=state.dtype,
-            device=device,
-            pin=pin,
-        )
+            factory = FP8ActivationStore
+            chunk_shape = (max(caps) // hidden, hidden)
+        else:
+            from soup_cli.utils.budgeted_activations import BudgetedActivationStore
+
+            factory = BudgetedActivationStore
+            chunk_shape = (max(caps),)
+        try:
+            state.store = factory(
+                host_budget=host_budget, n_layers=n_layers, k=len(caps),
+                chunk_shape=chunk_shape, mb_shapes=mb_shapes,
+                dtype=state.dtype, device=device, pin=pin,
+            )
+        except BaseException:
+            # A failed store constructor owns its own cleanup; no routing guard ran yet.
+            state.close()
+            raise
+        state.spill_plan = {
+            "n_layers": n_layers, "spill_layers": 0, "codec": state.activation_codec,
+        }
         return state.store
+    itemsize = torch.empty((), dtype=state.dtype).element_size()
     budget = l2l_spill.ram_budget()
     logger.info(
         "training.l2l activation budget: %s [limiting level %s: %s]",
@@ -558,7 +696,12 @@ def run_window(
         # A pass over ids of its own (KTO's KL completions) takes calls of its own shapes.
         if extra.micro_batches is not None and extra.calls is None:
             extra.calls = _calls_for(state, model, extra.micro_batches)
-    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
+    routing = {}
+    if state.memory_plan is not None:
+        routing["routing_budget"] = (
+            state.memory_plan.routing_record_bytes, state.memory_plan.routing_comparison_bytes
+        )
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference, **routing)
     return losses, stepper.counters
 
 
@@ -662,6 +805,9 @@ def attach_l2l_state(
     dtype: Any,
     loss: Optional[WindowLoss] = None,
     c3_plan: Any = None,
+    activation_codec: Literal["none", "fp8_e4m3"] = "none",
+    memory_plan: Optional[MoEL2LMemoryPlan] = None,
+    host_budget: Optional[HostMemoryBudget] = None,
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
 ) -> L2LState:
@@ -670,13 +816,27 @@ def attach_l2l_state(
     ``loss`` is the task's :class:`WindowLoss`; the default is SFT. ``spill_dir`` is
     ``training.l2l_spill_dir`` (None: ``<output_dir>/_l2l_spill``), and ``weight_dirs`` lists
     the directories the weights stream from on the disk tier.
+    ``memory_plan`` is already resolved and must match HF's accumulation count. Its
+    routing allocation and activation storage use the supplied ``host_budget``; a C3
+    store instead uses its reserved activation partition. Without either budget, FP8
+    reads the safe RAM budget and refuses an unknown limit rather than spilling.
     """
     args = getattr(trainer, "args", None)
+    if memory_plan is not None and (
+        args is None or args.gradient_accumulation_steps != memory_plan.effective_k
+    ):
+        raise ValueError(
+            "L2L gradient_accumulation_steps must equal the resolved memory_plan.effective_k; "
+            "the trainer does not change the scheduler or trim windows"
+        )
     state = L2LState(
         runtime=runtime,
         dtype=dtype,
         loss=loss,
         c3_plan=c3_plan,
+        activation_codec=activation_codec,
+        memory_plan=memory_plan,
+        host_budget=host_budget,
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
         output_dir=getattr(args, "output_dir", None),

@@ -63,6 +63,8 @@ import a4_box  # noqa: E402
 import a4_spill_store  # noqa: E402
 import l2l_activations  # noqa: E402
 
+from soup_cli.utils import activation_codec  # noqa: E402
+
 HARNESS = Path(__file__).resolve().parent
 LABEL = "SYNTHETIC/CPU PILOT: G4+A4 composition smoke, no verdict"
 SPECS = budget.ARM_BUDGETS
@@ -135,15 +137,14 @@ def sha256(path: Path) -> str:
 # ==========================================================================
 # pure arithmetic
 # ==========================================================================
-def chunk_sizes(g4: Any, shape: Tuple[int, ...], codec: str, source_element_bytes: int
-                ) -> Dict[str, int]:
-    """G4's unrounded bytes of one chunk."""
+def chunk_sizes(shape: Tuple[int, ...], codec: str, source_element_bytes: int) -> Dict[str, int]:
+    """Unrounded bytes of one chunk from the shared numerical codec."""
     return {
-        "payload": int(g4.payload_chunk_bytes(shape, codec,
-                                              source_element_bytes=source_element_bytes)),
-        "scale": int(g4.scale_chunk_bytes(shape, codec)),
-        "compressed": int(g4.compressed_chunk_bytes(shape, codec,
-                                                    source_element_bytes=source_element_bytes)),
+        "payload": int(activation_codec.payload_chunk_bytes(
+            shape, codec, source_element_bytes=source_element_bytes)),
+        "scale": int(activation_codec.scale_chunk_bytes(shape, codec)),
+        "compressed": int(activation_codec.compressed_chunk_bytes(
+            shape, codec, source_element_bytes=source_element_bytes)),
     }
 
 
@@ -243,7 +244,7 @@ def run_spec(g4: Any, row: Row, spec: str, *, n_layers: int, ring: int, steps: i
     import torch
 
     dtype = getattr(torch, row.dtype)
-    sizes = chunk_sizes(g4, row.shape, row.codec, DTYPE_BYTES[row.dtype])
+    sizes = chunk_sizes(row.shape, row.codec, DTYPE_BYTES[row.dtype])
     os.makedirs(spill_dir, exist_ok=True)
     free = a4_spill_store.free_bytes(spill_dir)
     budget_bytes, plan, refusal = plan_for(sizes, spec, n_layers=n_layers, k=row.k, ring=ring,
@@ -376,10 +377,10 @@ def run_spec(g4: Any, row: Row, spec: str, *, n_layers: int, ring: int, steps: i
                 for mb in range(row.k):
                     restored = store.get(layer, mb)
                     x = _source(row.shape, dtype, step * 10_000 + layer * 10 + mb)
-                    payload, scale = g4.encode(x, row.codec)
+                    payload, scale = activation_codec.encode(x, row.codec)
                     got = seen.pop((layer, mb))
                     payload_ok &= torch.equal(_bits(got), _bits(payload))
-                    want = g4.decode(payload, scale, row.codec, dtype, hidden)
+                    want = activation_codec.decode(payload, scale, row.codec, dtype, hidden)
                     decoded_ok &= torch.equal(_bits(restored), _bits(want))
             store.end_step()
             elapsed = time.perf_counter() - started
@@ -421,7 +422,7 @@ def run_spec(g4: Any, row: Row, spec: str, *, n_layers: int, ring: int, steps: i
 def run_row(g4: Any, row: Row, *, n_layers: int, ring: int, steps: int, spill_dir: str,
             backend: str, specs: Sequence[str] = SPECS,
             log: Callable[[str], None] = print) -> Dict[str, Any]:
-    sizes = chunk_sizes(g4, row.shape, row.codec, DTYPE_BYTES[row.dtype])
+    sizes = chunk_sizes(row.shape, row.codec, DTYPE_BYTES[row.dtype])
     result: Dict[str, Any] = {"row": row.name, "shape": list(row.shape), "codec": row.codec,
                               "dtype": row.dtype, "k": row.k, "n_layers": n_layers,
                               "ring": ring, "source_element_bytes": DTYPE_BYTES[row.dtype],

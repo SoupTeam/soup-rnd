@@ -1,0 +1,358 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.16, pytest-8.4.2, pluggy-1.7.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /kaggle/working/soup
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.15.1, langsmith-0.14.12, platformdirs-4.13.5, typeguard-4.6.0
+collecting ... collected 48 items / 37 deselected / 11 selected
+
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[top_k-none] FAILED [  9%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[top_k-fp8_e4m3] FAILED [ 18%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[moe_layers-none] FAILED [ 27%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[moe_layers-fp8_e4m3] FAILED [ 36%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_host-none] FAILED [ 45%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_host-fp8_e4m3] FAILED [ 54%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_c3-none] FAILED [ 63%]
+tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_c3-fp8_e4m3] FAILED [ 72%]
+tests/test_fp8_l2l_trainer.py::test_replacing_plan_cannot_reuse_an_undersized_routing_lease FAILED [ 81%]
+tests/test_fp8_l2l_trainer.py::test_routing_mismatch_traceback_releases_owned_records FAILED [ 90%]
+tests/test_fp8_l2l_trainer.py::test_live_routes_cannot_exceed_the_resolved_comparison_budget FAILED [100%]
+
+=================================== FAILURES ===================================
+_____ test_native_routing_contract_refuses_before_expert_reads[top_k-none] _____
+tests/test_fp8_l2l_trainer.py:561: in test_native_routing_contract_refuses_before_expert_reads
+    with pytest.raises(ValueError, match="routing|memory_plan"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 73.38it/s]
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1701.06it/s]
+___ test_native_routing_contract_refuses_before_expert_reads[top_k-fp8_e4m3] ___
+tests/test_fp8_l2l_trainer.py:567: in test_native_routing_contract_refuses_before_expert_reads
+    run_window(
+src/soup_cli/trainer/l2l_trainer.py:679: in run_window
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:506: in run
+    losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:615: in _run
+    out = self._layer(
+src/soup_cli/utils/l2l_step.py:439: in _layer
+    out = module(hidden, *call.args, **call.kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1603: in forward
+    return self._body(hidden_states, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1649: in _body
+    return functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/_functorch/functional_call.py:154: in functional_call
+    return nn.utils.stateless._functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/nn/utils/stateless.py:279: in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/modeling_layers.py:110: in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:528: in forward
+    hidden_states = self.mlp(hidden_states)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:220: in forward
+    hidden_states = self.experts(hidden_states, topk_indices, topk_weights).view(*orig_shape)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1885: in _call_impl
+    return inner()
+           ^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1812: in inner
+    args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:306: in _watch
+    raise RuntimeError(
+E   RuntimeError: routing guard: layer 1 micro-batch 0 was routed differently in the recompute than in the forward (1 of 12 tokens chose other experts), so its gradients would not be those of the forward. The router's weights, its correction bias or its input changed between the two.
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 263.43it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1801.12it/s]
+__ test_native_routing_contract_refuses_before_expert_reads[moe_layers-none] ___
+tests/test_fp8_l2l_trainer.py:561: in test_native_routing_contract_refuses_before_expert_reads
+    with pytest.raises(ValueError, match="routing|memory_plan"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 263.10it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1822.16it/s]
+_ test_native_routing_contract_refuses_before_expert_reads[moe_layers-fp8_e4m3] _
+tests/test_fp8_l2l_trainer.py:567: in test_native_routing_contract_refuses_before_expert_reads
+    run_window(
+src/soup_cli/trainer/l2l_trainer.py:679: in run_window
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:506: in run
+    losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:615: in _run
+    out = self._layer(
+src/soup_cli/utils/l2l_step.py:439: in _layer
+    out = module(hidden, *call.args, **call.kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1603: in forward
+    return self._body(hidden_states, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1649: in _body
+    return functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/_functorch/functional_call.py:154: in functional_call
+    return nn.utils.stateless._functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/nn/utils/stateless.py:279: in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/modeling_layers.py:110: in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:528: in forward
+    hidden_states = self.mlp(hidden_states)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:220: in forward
+    hidden_states = self.experts(hidden_states, topk_indices, topk_weights).view(*orig_shape)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1885: in _call_impl
+    return inner()
+           ^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1812: in inner
+    args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:306: in _watch
+    raise RuntimeError(
+E   RuntimeError: routing guard: layer 1 micro-batch 0 was routed differently in the recompute than in the forward (1 of 12 tokens chose other experts), so its gradients would not be those of the forward. The router's weights, its correction bias or its input changed between the two.
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 289.00it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1907.76it/s]
+_ test_native_routing_contract_refuses_before_expert_reads[missing_host-none] __
+tests/test_fp8_l2l_trainer.py:561: in test_native_routing_contract_refuses_before_expert_reads
+    with pytest.raises(ValueError, match="routing|memory_plan"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 280.54it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1945.22it/s]
+_ test_native_routing_contract_refuses_before_expert_reads[missing_host-fp8_e4m3] _
+tests/test_fp8_l2l_trainer.py:567: in test_native_routing_contract_refuses_before_expert_reads
+    run_window(
+src/soup_cli/trainer/l2l_trainer.py:679: in run_window
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:506: in run
+    losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:615: in _run
+    out = self._layer(
+src/soup_cli/utils/l2l_step.py:439: in _layer
+    out = module(hidden, *call.args, **call.kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1603: in forward
+    return self._body(hidden_states, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1649: in _body
+    return functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/_functorch/functional_call.py:154: in functional_call
+    return nn.utils.stateless._functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/nn/utils/stateless.py:279: in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/modeling_layers.py:110: in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:528: in forward
+    hidden_states = self.mlp(hidden_states)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:220: in forward
+    hidden_states = self.experts(hidden_states, topk_indices, topk_weights).view(*orig_shape)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1885: in _call_impl
+    return inner()
+           ^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1812: in inner
+    args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:306: in _watch
+    raise RuntimeError(
+E   RuntimeError: routing guard: layer 1 micro-batch 0 was routed differently in the recompute than in the forward (1 of 12 tokens chose other experts), so its gradients would not be those of the forward. The router's weights, its correction bias or its input changed between the two.
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 269.09it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1814.60it/s]
+__ test_native_routing_contract_refuses_before_expert_reads[missing_c3-none] ___
+tests/test_fp8_l2l_trainer.py:561: in test_native_routing_contract_refuses_before_expert_reads
+    with pytest.raises(ValueError, match="routing|memory_plan"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 254.42it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1980.15it/s]
+_ test_native_routing_contract_refuses_before_expert_reads[missing_c3-fp8_e4m3] _
+tests/test_fp8_l2l_trainer.py:567: in test_native_routing_contract_refuses_before_expert_reads
+    run_window(
+src/soup_cli/trainer/l2l_trainer.py:679: in run_window
+    losses = stepper.run(ids_list, store, calls=calls, head=head, reference=reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:506: in run
+    losses = self._run(micro_batches, store, n_items, labels, calls, guard, head, reference)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:615: in _run
+    out = self._layer(
+src/soup_cli/utils/l2l_step.py:439: in _layer
+    out = module(hidden, *call.args, **call.kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1603: in forward
+    return self._body(hidden_states, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/layer_stream_runtime.py:1649: in _body
+    return functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/_functorch/functional_call.py:154: in functional_call
+    return nn.utils.stateless._functional_call(
+/usr/local/lib/python3.13/dist-packages/torch/nn/utils/stateless.py:279: in _functional_call
+    return module(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/modeling_layers.py:110: in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:528: in forward
+    hidden_states = self.mlp(hidden_states)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1790: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py:220: in forward
+    hidden_states = self.experts(hidden_states, topk_indices, topk_weights).view(*orig_shape)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1779: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1885: in _call_impl
+    return inner()
+           ^^^^^^^
+/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py:1812: in inner
+    args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+src/soup_cli/utils/l2l_step.py:306: in _watch
+    raise RuntimeError(
+E   RuntimeError: routing guard: layer 1 micro-batch 0 was routed differently in the recompute than in the forward (1 of 12 tokens chose other experts), so its gradients would not be those of the forward. The router's weights, its correction bias or its input changed between the two.
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 292.04it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 2005.37it/s]
+_________ test_replacing_plan_cannot_reuse_an_undersized_routing_lease _________
+tests/test_fp8_l2l_trainer.py:591: in test_replacing_plan_cannot_reuse_an_undersized_routing_lease
+    with pytest.raises(ValueError, match="routing"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+____________ test_routing_mismatch_traceback_releases_owned_records ____________
+tests/test_fp8_l2l_trainer.py:636: in test_routing_mismatch_traceback_releases_owned_records
+    assert owned() is None
+E   AssertionError: assert tensor([[0, 1],\n        [2, 3]]) is None
+E    +  where tensor([[0, 1],\n        [2, 3]]) = <weakref at 0x7e4660d94c20; to 'torch.Tensor' at 0x7e4660d7b020>()
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 278.99it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1798.03it/s]
+________ test_live_routes_cannot_exceed_the_resolved_comparison_budget _________
+tests/test_fp8_l2l_trainer.py:678: in test_live_routes_cannot_exceed_the_resolved_comparison_budget
+    with pytest.raises(ValueError, match="routing.*(budget|plan)"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+----------------------------- Captured stderr call -----------------------------
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00, 297.51it/s]
+Loading weights:   0%|          | 0/47 [00:00<?, ?it/s]Loading weights: 100%|██████████| 47/47 [00:00<00:00, 1832.95it/s]
+=============================== warnings summary ===============================
+tests/test_fp8_l2l_trainer.py: 14 warnings
+  /usr/local/lib/python3.13/dist-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[top_k-none]
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[top_k-fp8_e4m3]
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[moe_layers-none]
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[moe_layers-fp8_e4m3]
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_host-none]
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_host-fp8_e4m3]
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_c3-none]
+FAILED tests/test_fp8_l2l_trainer.py::test_native_routing_contract_refuses_before_expert_reads[missing_c3-fp8_e4m3]
+FAILED tests/test_fp8_l2l_trainer.py::test_replacing_plan_cannot_reuse_an_undersized_routing_lease
+FAILED tests/test_fp8_l2l_trainer.py::test_routing_mismatch_traceback_releases_owned_records
+FAILED tests/test_fp8_l2l_trainer.py::test_live_routes_cannot_exceed_the_resolved_comparison_budget
+=============== 11 failed, 37 deselected, 14 warnings in 31.12s ================

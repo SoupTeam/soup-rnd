@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from soup_cli.utils import activation_codec
 from tests import test_l2l_probe_harness as l2l_tests
 
 torch = pytest.importorskip("torch")
@@ -263,7 +264,7 @@ def test_a_cuda_run_without_cuda_fails_instead_of_skipping(probe, monkeypatch, t
 def test_recording_store_measures_without_changing_the_step(probe, streamed):
     sched = l2l_tests._load("l2l_schedule")
     acts = l2l_tests._load("l2l_activations")
-    codec = l2l_tests._load("g4_activation_codec")
+    g4 = l2l_tests._load("g4_activation_codec")
     model, runtime = streamed
     sched.make_non_vacuous(model)
     mbs = l2l_tests._micro_batches(2)
@@ -288,7 +289,7 @@ def test_recording_store_measures_without_changing_the_step(probe, streamed):
     assert 0 < int8 < 0.02 < int4
     # The recorded output error is the layer re-run on the codec's restore.
     x = recorder.sample
-    assert codec.restore_error(x, codec.round_trip(x, "int8"))["rms_row_rel"] > 0
+    assert g4.restore_error(x, activation_codec.round_trip(x, "int8"))["rms_row_rel"] > 0
 
 
 # --------------------------------------------------------------------------
