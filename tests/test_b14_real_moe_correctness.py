@@ -2,14 +2,15 @@
 
 The harness (``benchmarks/harness/b14_real_moe_correctness.py``) takes any native
 DeepSeek-V3 checkpoint directory. The real run uses a published trained checkpoint on a
-Kaggle notebook. These tests run the same entry point on the tiny synthetic checkpoint of
-``b13_moe_fixture`` on CPU, so they check the wiring of the comparison and its sensitivity,
+Kaggle notebook and on a vast.ai machine. These tests run the same entry point on the tiny
+synthetic checkpoint of ``b13_moe_fixture`` on CPU, so they check the wiring of the comparison and its sensitivity,
 not the behavior of real weights.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional
 
 import pytest
 
@@ -61,7 +62,7 @@ def test_one_wrong_expert_in_the_resident_model_fails_the_verdict(
 # --------------------------------------------------------------------------
 # The definition of "real small MoE" (ticket 08), checked on plain data.
 # --------------------------------------------------------------------------
-def _config(**overrides):
+def _config(**overrides: Any) -> Dict[str, Any]:
     fields = dict(
         model_type="deepseek_v3", num_hidden_layers=4, first_k_dense_replace=1,
         n_routed_experts=4, n_shared_experts=1, num_experts_per_tok=2,
@@ -71,7 +72,7 @@ def _config(**overrides):
     return fields
 
 
-def _names(config, *, drop=()):
+def _names(config: Dict[str, Any], *, drop: Iterable[str] = ()) -> List[str]:
     names = ["model.embed_tokens.weight", "lm_head.weight"]
     for layer in range(config["first_k_dense_replace"], config["num_hidden_layers"]):
         for expert in range(config["n_routed_experts"]):
@@ -80,7 +81,13 @@ def _names(config, *, drop=()):
     return [name for name in names if name not in drop]
 
 
-def _check(config=None, *, names=None, size=9_000_000_000, expert_std=0.023):
+def _check(
+    config: Optional[Dict[str, Any]] = None,
+    *,
+    names: Optional[List[str]] = None,
+    size: int = 9_000_000_000,
+    expert_std: float = 0.023,
+) -> List[str]:
     config = config if config is not None else _config()
     return harness.check_definition(
         config, names if names is not None else _names(config), size, expert_std,

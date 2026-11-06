@@ -13,14 +13,16 @@ pass in bfloat16 on CPU, on two independent machines:
 | torch / transformers / peft | 2.11.0+cpu / 5.20.2 / 0.21.2 | 2.7.1+cu126 (CPU used) / 5.20.2 / 0.21.2 |
 | harness source | `2509cba2` (dataset, same code) | `0e2f4100` (adds env paths only) |
 | verdict | PASS | PASS |
-| logits, loss | bitwise equal | bitwise equal |
-| LoRA gradients compared / non-zero / mismatching | 160 / 160 / 0 | 160 / 160 / 0 |
+| logits | bitwise equal | bitwise equal |
+| loss | equal under the pass rule (bf16 `allclose`); value not stored | same |
+| LoRA gradients compared / non-zero / mismatching | 160 / 160 / 0 (bitwise) | 160 / 160 / 0 (bitwise) |
 | negative control (one resident expert doubled) | detected | detected |
 | harness run time | 1389 s | 599 s |
 | peak process RSS (`ru_maxrss`) | 28.2 GB | 37.9 GB |
 
-Both machines also passed the same harness on the tiny synthetic checkpoint before the real run
-(Kaggle probe, `kaggle-probe/`): float32 and bfloat16, bitwise, control detected.
+The same harness also passed on the tiny synthetic checkpoint before the real run, on Kaggle only
+(`kaggle-probe/`): float32 and bfloat16, bitwise, control detected. There is no synthetic probe
+record for the vast.ai machine.
 
 ## Definition used (ticket 08 checkbox 1)
 
@@ -36,14 +38,18 @@ commit `5ff2dd4a`. The six points and their result for this checkpoint:
 5. At least two MoE layers, more routed experts than `num_experts_per_tok`, at least one shared
    expert: met.
 6. Trained weights: std of expert weights differs from `initializer_range` (0.02) by at least 5%.
-   Measured std of three layer-1 experts: 0.0231 (15.6% off). Router std: 0.0571. Met.
+   Measured std of three layer-1 `gate_proj` experts: 0.0231 (15.6% off). Router std: 0.0571. Met.
+   This is a weak proxy: a random init with std 0.023 would pass it. The evidence of training is
+   the author's model card (350 billion tokens), not this number.
 
 The 20 GB and 5% limits are my choices, not from the plan or the card.
 
 ## Pass rule (fixed before the run)
 
-B1.3 contract: float32 bitwise; bfloat16 `atol=1e-6, rtol=1e-5`. Both machines met the stricter
-bitwise equality in bfloat16.
+B1.3 contract: float32 bitwise; bfloat16 `atol=1e-6, rtol=1e-5`. B1.3 states the bf16 tolerance for
+bf16 autocast; here it is applied to bf16-stored weights, which has no autocast path. Logits and
+all 160 gradients met the stricter bitwise equality on both machines; the loss met the tolerance
+(`bitwise` in the JSON covers logits and gradients, not the loss).
 
 ## What was run
 
@@ -66,12 +72,15 @@ bitwise equality in bfloat16.
 - LoRA sits on the MLA projections only. Adapters on routed experts are refused by the runtime.
 - `e_score_correction_bias` is zero in this checkpoint, so the router bias path is covered by the
   synthetic tests, not by these weights.
-- The hit sets differ between the machines by one expert in 5 of 15 layers (`kaggle` against
-  `vast` JSON). Different CPUs give different bfloat16 rounding, which moves a near-tie in the
-  router. Equality is shown within each machine, not across machines. The JSON records
+- The JSON stores the number of experts hit per layer, not the sets. The counts differ between the
+  machines by one in layers 7, 9, 11, 12 and 14, so the routing differed. The likely cause is
+  different bfloat16 rounding on the two CPUs moving a near-tie in the router; I did not test
+  that. Equality is shown within each machine, not across machines. The JSON records
   `loss_equal` but not the loss values, so the two machines' losses were not compared.
-- Peak RSS on Kaggle, 28.2 GB, is close to its 31.3 GiB: the resident model (17.5 GiB) dominates.
-  The peak after the streamed pass alone was 10.6 GB (Kaggle).
+- Peak RSS on Kaggle, 28.2 GB (26.3 GiB), leaves about 5 GiB of its 31.3 GiB: the resident model
+  (17.5 GiB) dominates. The peak after the streamed pass alone was 10.6 GB (Kaggle).
+- The negative control doubles one expert in the lowest layer that was hit. It shows the
+  comparison sees a wrong expert there, not in every layer.
 - The vast.ai host had 251 GiB RAM and no memory limit set, so its 37.9 GB is not a fit result.
 
 ## Environment notes
@@ -82,11 +91,14 @@ bitwise equality in bfloat16.
   arguments` (`httpx2` against the image's Brotli 1.1.0). `pip install -U 'Brotli>=1.2'` fixed it
   (`vast/pip2.log`); the weights were already on disk and the rerun is the one reported.
 - vast.ai rental: instance 59462997, about 17 minutes at 0.097 USD/h, destroyed after the result
-  was copied. Ceiling was 0.3 USD.
+  was copied. Ceiling was 0.3 USD. The times come from the shell clock and `vastai` output in the
+  session; no invoice was saved here. The first failed vast.ai run and the first failed Kaggle probe
+  were not kept.
 
 ## Files
 
-- `kaggle/result-run.json`, `kaggle/soup-b14-run.log`, `kaggle/run.py`, `kaggle/kernel-metadata.json`
+- `kaggle/result-run.json`, `kaggle/soup-b14-run.log`, `kaggle/kernel-metadata.json`, `kaggle/run.py`
+  (the kernel wrapper; reformatted to fit the 100-column lint, same behavior)
 - `vast/result-run.json`, `vast/run.log`, `vast/pip2.log`
 - `kaggle-probe/result-probe.json`, `kaggle-probe/soup-b14-probe.log`
 

@@ -71,6 +71,10 @@ def check_definition(
     ``config`` is the parsed ``config.json``, ``weight_names`` the keys of
     ``model.safetensors.index.json``, ``safetensors_bytes`` the sum of the ``.safetensors``
     file sizes, ``expert_std`` the std of a sample of routed expert weights.
+
+    Points 1, 3, 4, 5 and 6 are checked here. Point 2 of the ticket definition (the config loads
+    without ``trust_remote_code`` and without edits) is checked by the run itself, which loads the
+    checkpoint that way; the ids therefore skip "2".
     """
     failed: List[str] = []
     if config.get("model_type") != "deepseek_v3" or not isinstance(

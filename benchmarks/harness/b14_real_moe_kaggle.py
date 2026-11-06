@@ -42,6 +42,8 @@ EVIDENCE: dict = {"stages": {}}
 
 
 def log(message: str) -> None:
+    # bare print on purpose: this entry runs before `rich` is installed (see PIP), and a Kaggle
+    # kernel keeps only stdout in its log.
     print(f"[{time.time() - T0:7.1f}s] {message}", flush=True)
 
 
