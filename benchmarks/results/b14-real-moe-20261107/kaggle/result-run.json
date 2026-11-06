@@ -1,0 +1,81 @@
+{
+  "stages": {},
+  "stage": "run",
+  "source_root": "/kaggle/input/datasets/aldiyarsagat/soup-b14-source",
+  "source_sha": "2509cba2f4b10f1d43eca738d436296875b5e746",
+  "environment": {
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "python": "3.13.18",
+    "cpu_count": 4,
+    "ram_total_bytes": 33658155008,
+    "ram_available_bytes": 32373948416,
+    "disk_tmp": {
+      "total": 8758385086464,
+      "used": 7720187424768,
+      "free": 1038180884480
+    },
+    "disk_working": {
+      "total": 20957446144,
+      "used": 118784,
+      "free": 20940550144
+    },
+    "cpu_model": "Intel(R) Xeon(R) CPU @ 2.20GHz"
+  },
+  "versions": {
+    "torch": "2.11.0+cpu",
+    "transformers": "5.20.2",
+    "peft": "0.21.2",
+    "safetensors": "0.8.0",
+    "huggingface_hub": "1.33.0"
+  },
+  "definition": {
+    "failed_points": [],
+    "safetensors_bytes": 18733381272,
+    "expert_std": 0.0231308713555336,
+    "router_std": 0.057130273431539536,
+    "repo": "ByteDance-Seed/academic-ds-9B",
+    "revision": "2a205727f616995ad4aba57806f8e2d0d2f28743"
+  },
+  "batch": {
+    "rows": 2,
+    "length": 15,
+    "texts": [
+      "The capital of France is Paris, and the river Seine runs through the city.",
+      "Mixture of experts models route each token to a small subset of experts."
+    ]
+  },
+  "correctness": {
+    "logits_equal": true,
+    "loss_equal": true,
+    "grad_mismatches": [],
+    "grads_compared": 160,
+    "grads_nonzero": 160,
+    "grads_missing": [],
+    "bitwise": true,
+    "control_detected": true,
+    "verdict": "PASS",
+    "dtype": "bfloat16",
+    "experts_hit_by_layer": {
+      "1": 57,
+      "2": 62,
+      "3": 62,
+      "4": 56,
+      "5": 54,
+      "6": 54,
+      "7": 53,
+      "8": 45,
+      "9": 50,
+      "10": 44,
+      "11": 46,
+      "12": 45,
+      "13": 51,
+      "14": 52,
+      "15": 48
+    },
+    "peak_rss_bytes_after_streamed": 10577895424,
+    "peak_rss_bytes": 28195561472,
+    "seconds": 1389.2628417015076
+  },
+  "ok": true,
+  "seconds_total": 1535.608357667923
+}
