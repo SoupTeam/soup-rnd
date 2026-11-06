@@ -1,8 +1,9 @@
 # B1.4 ticket 09: the per_expert path on an 8 GB GPU
 
 This is a capacity report. It says what fits and runs, how much memory it takes, how much it
-reads from disk and how many GPU kernels one pass launches. It states no speed. Nothing in the
-result files is a duration or a throughput, and none is derived from the logs here.
+reads from disk and how many GPU kernels one pass launches. It states no speed. The measurement
+sections of the result files hold no duration. Only bookkeeping carries time (`environment.uptime`,
+the log timestamps, the rental length below), and no throughput is computed from it.
 
 ## Result
 
@@ -108,9 +109,10 @@ Tesla T4, 16 GB (Kaggle, a different capacity, not the card's constraint), torch
 | 512 | 1.93 | 2.09 | 6.64 | 944 | 2832 | 49.02 | 15 691 + 68 456 = 84 147 |
 | 2048 | 4.82 | 6.37 | 7.89 | 957 | 2871 | 49.70 | 16 830 + 70 396 = 87 226 |
 
-Peak allocated memory is identical on both GPUs at every length (993 306 112; 1 927 735 808;
-4 822 503 936 bytes), so it comes from the path and not from the card. Reserved memory differs
-because the allocators differ in version. The router chose 36 to 51 of the 64 experts per layer
+On the real model, peak allocated memory is identical on both GPUs at every length (993 306 112;
+1 927 735 808; 4 822 503 936 bytes). Reserved memory differs. On the synthetic model it does not
+hold at length 2048 (1.31 GB on the 3070, 1.71 GB on the T4); the two hosts also run different
+torch versions (2.7.1 and 2.11), and I did not test which one causes the difference. The router chose 36 to 51 of the 64 experts per layer
 at length 16 and 60 to 64 at 512 and 2048, so the two longer rows read nearly every expert once
 per pass over three reads. A real-text batch would hit a similar number (ticket 08 saw 44 to 62
 on 15 tokens). The visited counts differ by at most 1 between the machines (the same routing
@@ -165,8 +167,8 @@ differs only in the shortened kernel names of the evidence, a later commit). Fil
 - Read per visited expert: 3 reads and 17 301 504 bytes of slot, as above. 12 to 14 device copy
   events per visited expert (`memcpy_events_total`: 8 092 / 617 on the real model at length 16).
 - ATen operations per added visited expert: 139.0 on torch 2.7.1 and 116.0 on torch 2.11
-  (identical for the real and the synthetic checkpoint on one torch), while kernels are within 1 percent across the two
-  versions. Quote kernels, not ATen operations, across torch versions.
+  (identical for the real and the synthetic checkpoint on one torch), while kernel totals are within 2 percent across the two
+  versions (1.0 percent on the real model at length 16, 1.9 percent on the synthetic one). Quote kernels, not ATen operations, across torch versions.
 
 P3 estimates grouped routes at 2 to 10 percent and names small matrix multiplications as a risk.
 This report gives D3 the baseline count; it does not test grouping.
@@ -188,8 +190,9 @@ This report gives D3 the baseline count; it does not test grouping.
   did not reduce it in these runs on a host with more RAM than the checkpoint. I did not check why
   repeated passes over the same files were not served from cache; treat `read_bytes` as measured
   on these hosts, not as a rule.
-- The layer-load counter reads 29 loads for 16 layers in every pass (16 forward loads plus 13 in
-  backward by arithmetic; not broken down further).
+- The layer-load counter reads 29 loads for 16 layers in every pass of the real model (16 forward
+  loads plus 13 in backward by arithmetic). The synthetic runs read 3 loads for 3 layers, so no
+  backward reloads. I did not find why the two differ.
 - Peak RSS is a sample every 20 ms, a lower bound. The whole-process `ru_maxrss` is the other
   bound and contains the cache step.
 - Two torch versions and two hosts: RTX 3070 host (torch 2.7.1+cu126, i7-11700KF, 109 GiB RAM,
@@ -227,6 +230,9 @@ Harness: `benchmarks/harness/b14_path_report.py` (counters, `measure_path`),
 Tests: `tests/test_b14_path_report.py` (10 tests, CPU).
 
 ## Reproduce
+
+The Kaggle tiny run used lengths 16 and 256 (`B14_SEQS=16,256`); every other run used 16, 512,
+2048.
 
 ```text
 # on a CUDA host, from the checkout root, deps as in pip-versions.txt
