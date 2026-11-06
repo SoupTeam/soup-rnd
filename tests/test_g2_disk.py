@@ -168,7 +168,19 @@ def _spill_files(tmp_path):
 
 
 @pytest.mark.parametrize("mode", ["write", "read", "cycle"])
-def test_smoke_arm_measures_verifies_and_removes_its_spill(g2, quiet, tmp_path, mode):
+def test_smoke_arm_measures_verifies_and_removes_its_spill(
+    g2, quiet, tmp_path, mode, monkeypatch,
+):
+    sample = g2._sample_row
+
+    def delayed_final_sample(*args):
+        row = sample(*args)
+        if row["elapsed_s"] >= 0.4:
+            row["elapsed_s"] += 0.1
+            row["interval_s"] += 0.1
+        return row
+
+    monkeypatch.setattr(g2, "_sample_row", delayed_final_sample)
     record = _arm(g2, tmp_path, mode, "--smoke", "--buffered")
     assert record["status"] == "smoke_passed", record["invalid_reasons"]
     assert record["kind"] == "SMOKE, excluded" and record["direct"] is False
@@ -177,6 +189,7 @@ def test_smoke_arm_measures_verifies_and_removes_its_spill(g2, quiet, tmp_path, 
     assert saved["status"] == "smoke_passed"
     rows = (tmp_path / "arm" / "samples.jsonl").read_text().splitlines()
     assert rows and "ram_available_bytes" in json.loads(rows[0])
+    assert json.loads(rows[-1])["elapsed_s"] >= 0.5  # the deadline caps the summary
     assert record["verify"]["stamp_checks"] > 0
     assert _spill_files(tmp_path) == []
     assert record["spill_file"]["removed"] is True

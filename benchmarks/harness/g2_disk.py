@@ -1351,8 +1351,10 @@ def run_arm(args: argparse.Namespace, out_dir: str, *,
         final = meter.snapshot()
         record["requests"], record["cycles"] = final["requests"], final["cycles"]
         try:
+            # A late final sample still brackets the deadline for interpolation.
             summary = summarize(rows, warmup_s=args.warmup, window_s=args.window,
-                                directions=MODE_DIRECTIONS[mode]) if rows else None
+                                directions=MODE_DIRECTIONS[mode],
+                                end_s=args.warmup + args.duration) if rows else None
         except ValueError as exc:
             summary = None
             record["error"] = record["error"] or f"summary: {exc}"
