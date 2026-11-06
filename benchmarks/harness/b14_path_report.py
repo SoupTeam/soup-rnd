@@ -110,7 +110,7 @@ class OpCounter:
         for event in events:
             category = event.get("cat")
             if category == "kernel":
-                kernels[event.get("name", "")] += 1
+                kernels[event.get("name", "")[:110]] += 1
             elif category == "gpu_memcpy":
                 memcpy += 1
             elif category == "cuda_runtime" and _is_cuda_launch_call(event.get("name", "")):
