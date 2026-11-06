@@ -5,10 +5,12 @@ synchronously (see ``docs/expert-forward.md``). The only read-ahead is the layer
 disk tier's ``AsyncDiskSource`` driven by ``StreamPrefetcher``. It stages the non-expert
 layer weights. This file checks that with it active the per_expert forward and backward
 equal the run without it (the RAM tier reads nothing ahead), and that the experts are
-still read by the pool, once per routed expert.
+still read by the pool, once per routed expert in a forward pass.
 
 Seam: ``build_streamed_model`` on a per_expert cache, observed through ``run_moe_pass``.
 Correctness only. No timing claim: the test does not show that a read finished early.
+It runs on CPU with a 3-layer model, so it cannot see the staging-slot reuse race that
+``AsyncDiskSource.release`` guards against on a pinned CUDA copy.
 """
 
 from __future__ import annotations
@@ -64,10 +66,9 @@ def test_per_expert_forward_and_backward_match_with_and_without_layer_read_ahead
         weights, tmp_path / "shards", index=index, tier="disk", read_ahead=read_ahead
     )
     try:
-        assert plain.runtime.stats()["tier"] == "ram"
-        assert plain.runtime.stats()["read_ahead"] is None
-        assert ahead.runtime.stats()["tier"] == "disk"
-        assert ahead.runtime.stats()["read_ahead"] == read_ahead
+        plain_stats, ahead_stats = plain.runtime.stats(), ahead.runtime.stats()
+        assert (plain_stats["tier"], plain_stats["read_ahead"]) == ("ram", None)
+        assert (ahead_stats["tier"], ahead_stats["read_ahead"]) == ("disk", read_ahead)
         fixture.copy_adapter_weights(plain.model, ahead.model)
         batch = fixture.moe_batch(config)
 
@@ -111,7 +112,7 @@ def test_layer_read_ahead_leaves_the_expert_reads_to_the_pool(
 
         assert ahead_reads == plain_reads
         for layer, experts in hits.items():
-            assert set(plain_reads[layer]) == experts
+            assert sorted(plain_reads[layer]) == sorted(experts)  # each routed expert once
         plain_fetches = plain.runtime.stats()["expert_fetches"] - plain_before
         assert plain_fetches == ahead.runtime.stats()["expert_fetches"] > 0
     finally:
