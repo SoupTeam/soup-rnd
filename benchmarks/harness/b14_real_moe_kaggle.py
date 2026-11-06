@@ -28,7 +28,7 @@ from pathlib import Path
 
 REPO = "ByteDance-Seed/academic-ds-9B"
 REVISION = "2a205727f616995ad4aba57806f8e2d0d2f28743"
-OUT = Path("/kaggle/working")
+OUT = Path(os.environ.get("B14_OUT", "/kaggle/working"))
 WORK = Path("/tmp/b14")
 PIP = ["transformers==5.20.2", "peft==0.21.2", "huggingface_hub", "safetensors", "rich", "pydantic",
        "pyyaml", "typer", "psutil"]
@@ -51,9 +51,10 @@ def sh(command: list[str]) -> str:
 
 
 def attach_source() -> Path:
-    roots = glob.glob("/kaggle/input/**/src/soup_cli", recursive=True)
+    base = os.environ.get("B14_SRC", "/kaggle/input")
+    roots = glob.glob(f"{base}/**/src/soup_cli", recursive=True)
     if not roots:
-        raise RuntimeError("repository dataset not attached: no src/soup_cli under /kaggle/input")
+        raise RuntimeError(f"repository source not found: no src/soup_cli under {base}")
     root = Path(roots[0]).parent.parent
     sys.path.insert(0, str(root / "src"))
     sys.path.insert(0, str(root / "benchmarks" / "harness"))
@@ -74,6 +75,7 @@ def environment() -> dict:
         "cpu_model": next(
             (line.split(":", 1)[1].strip() for line in open("/proc/cpuinfo")
              if line.startswith("model name")), ""),
+        "gpu_note": "CPU-only run; any GPU on the host is not used",
     }
 
 
