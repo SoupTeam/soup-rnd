@@ -449,6 +449,7 @@ def test_trainer_setup_consumes_budget_and_reports_cache(tmp_path, monkeypatch):
     config["training"].update(
         {
             "stream_source": "disk",
+            "stream_disk_kind": "nvme",
             "stream_pin": False,
             "stream_partial_ram": {
                 "limit_bytes": 10_000_000,
