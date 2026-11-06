@@ -1,0 +1,87 @@
+{
+  "schema": "g3-preparation-results-v1",
+  "task_status": "INCOMPLETE_ENVIRONMENT_BLOCKED",
+  "support_verdict": "NO_VERDICT",
+  "gpu_transfer_arms": 0,
+  "sensor_calibration_runs": 0,
+  "performance_measured": false,
+  "source_commits": [
+    "c611499fa064310028e764b346497fa7e605f9d3",
+    "50cbebde583e74fa50184b9dc35c6f96b4c50ac5"
+  ],
+  "local_validation": {
+    "passed": 231,
+    "skipped": 7,
+    "real_sdk_test_cases_skipped_on_macos": 2,
+    "ruff": "PASS"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "instance_id": 57253071,
+      "volume_id": 57253070,
+      "source_commit": "c611499fa064310028e764b346497fa7e605f9d3",
+      "result": "PREPARATION_COMPILATION_FAILED",
+      "gpu": "RTX3090",
+      "driver": "595.91.07",
+      "target": {
+        "filesystem": "xfs",
+        "namespace": "nvme0n1",
+        "direct_topology_verified": true
+      },
+      "error": "cudaDeviceGetUuid is not a CUDA Runtime API declaration",
+      "archive_sha256": "981e8edfac47d0bf21254ffe757bf4bb4dda571d54b8ffc65deacb20b05e1040",
+      "archive_bytes": 27209293,
+      "archive_verified": true,
+      "committed_source_files_verified": 2497,
+      "instance_deleted_confirmed": true,
+      "volume_deleted_confirmed": true
+    },
+    {
+      "attempt": 2,
+      "instance_id": 57256165,
+      "volume_id": 57256164,
+      "source_commit": "50cbebde583e74fa50184b9dc35c6f96b4c50ac5",
+      "result": "TARGET_TOPOLOGY_BLOCKED_SDK_COMPILE_PASS",
+      "gpu": "RTX3090",
+      "driver": "595.84",
+      "cuda_image": "nvidia/cuda:12.8.1-devel-ubuntu22.04",
+      "sdk_mode": "stats off; compile and link only, no executable run",
+      "native_compile_exit_code": 0,
+      "source_sha256": "013c9944bfb81777e7b8cdd15cfdfa451d9c578a4f0f39b7d42ddc32d9071f08",
+      "binary_sha256": "7b1f5104896c2b39805bca0ae6e88b1c46a6bb98f409408f982c0fa2546ef870",
+      "target": {
+        "filesystem": "xfs",
+        "device": "loop21",
+        "major_minor": "7:21",
+        "direct_topology_verified": false
+      },
+      "archive_sha256": "e4a224cda3e3a35823b61d0d6b09a89e8460bdc49f4158ccdd8ed5bab38d74de",
+      "archive_bytes": 180552,
+      "archive_verified": true,
+      "instance_deleted_confirmed": true,
+      "volume_deleted_confirmed": true
+    }
+  ],
+  "budget": {
+    "authorized_total_usd": 3,
+    "exact_provider_invoice_usd": null,
+    "conservative_reserved_cost_for_both_preparations_usd": 0.5,
+    "reservation_is_not_an_invoice": true,
+    "new_rentals_started_after_attempt2": false
+  },
+  "blocker": "Verified direct-NVMe machine109150 and candidate15326 have no matching rentable offers. Attempt2 was loop-backed. G3 remains incomplete; no unsupported/performance claim.",
+  "task_checklist": {
+    "controlled_gds_support_verdict": false,
+    "native_nvme_to_gpu_transfer": false,
+    "comparison_with_unbuffered_control": false,
+    "bandwidth_cpu_pinned_ram_measurements": false,
+    "reproducible_unsupported_verdict": false
+  },
+  "scope_limits": [
+    "One-namespace runner only; positive closure still requires separately frozen concurrent two-drive measurement.",
+    "Internal total CUDA/cuFile pinned-host allocation remains unknown.",
+    "CUDA12.8 SDK lacks cufile_stats.h; stats-off mode cannot produce positive direct-route/performance evidence."
+  ],
+  "unix_s": 1792695179.378763
+}

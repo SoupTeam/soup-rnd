@@ -1,0 +1,50 @@
+G3 prospective two-drive topology gate — local preparation, not a measured result
+
+Purpose
+The original one-device protocol remains unchanged. Two files, two partitions,
+or two namespaces on a single physical NVMe must not count as two drives.
+The offline g3_pair_topology.py gate conservatively rejects such pairs.
+
+Input
+Two JSON records, each with boot_id, gpu_uuid, unix_s, canonical data_path,
+namespace (nvmeXnY), controller (nvmeX), nonempty physical serial,
+controller_sysfs (resolved PCI device path below /sys/devices/pci...),
+mount_major_minor, fstype (ext4/xfs), and topology_status
+ATTRIBUTABLE_LOCAL_NVME. All are evidence fields, not user overrides.
+Obtain namespace/mount mapping from the existing live inventory and validate it
+with g3_probe.local_nvme_device. Resolve controller sysfs and read its serial
+on that same owned Linux host. Do not infer physical identity from directory
+names, provider advertisements, or namespace numbers alone.
+
+Acceptance is only a candidate for live review
+The two records must be at most 300 seconds old relative to the supplied
+observation time, from the same boot and GPU, and distinct in path, namespace,
+controller, serial, controller sysfs path and mount major:minor.
+Input files are unauthenticated historical evidence. A fabricated, replayed,
+or wrongly mapped record can satisfy an offline gate. Before actual execution,
+recollect and review all identities live. The gate never grants execution.
+It never sets SUPPORTED, DIRECT_PATH_VERIFIED or a performance verdict.
+Missing physical identity is BLOCKED_PAIR_TOPOLOGY, not hardware unsupported.
+
+Usage from repository root
+python benchmarks/harness/g3_pair_topology.py --records /path/pair.json \
+  --observed-unix-s <observation-time> --out /new/path/result.json
+Output creation is exclusive. Input and gate SHA256 are included.
+No CUDA imports, package installs, fixture reads, rental or host changes occur.
+
+Still required before a complete two-drive study
+- Same-boot F1 calibration on EACH physical disk, including the independent
+  foreign reader. Neither sibling reader may be classified as foreign traffic.
+- Positive, independently audited direct-path capability on EACH drive.
+- A separate frozen bounded concurrent runner with a barrier after allocation,
+  registration and warmup. Merely starting two processes does not prove their
+  measured I/O intervals overlap. Retain per-reader timing and overlap evidence.
+- Watch both devices and GPU clocks with exact process ownership; preserve void
+  arms and follow the predeclared ABBA stopping rule. Never loosen F1 thresholds.
+- Independent full-byte and route-counter audit for each reader; the slower
+  completion determines paired elapsed time. Do not sum per-process throughput
+  and call it concurrent throughput. Keep one-drive and two-drive results apart.
+- Source freeze, exact authority, budget/runtime/boot/UUID checks and preservation.
+
+This change implements only the missing topology gate. The concurrent runner,
+real two-drive execution and performance conclusion remain pending.
