@@ -9,7 +9,7 @@ directory and checked on resume, because a different k changes the optimizer-ste
 
 import json
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any, Optional
 
@@ -20,8 +20,6 @@ AVAILABLE_CODECS = ("none",)
 
 #: True once the memory planner can pick k at launch.
 AUTO_K_AVAILABLE = False
-
-_FIELDS = ("requested_k", "effective_k", "activation_codec", "auto_k")
 
 
 @dataclass(frozen=True)
@@ -74,7 +72,7 @@ def load_recipe(output_dir: "str | os.PathLike[str]") -> Optional[L2LRecipe]:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return L2LRecipe(**{name: data[name] for name in _FIELDS})
+        return L2LRecipe(**{field.name: data[field.name] for field in fields(L2LRecipe)})
     except (ValueError, KeyError, TypeError) as exc:
         raise ValueError(f"{path} is not a valid L2L recipe: {exc}") from exc
 

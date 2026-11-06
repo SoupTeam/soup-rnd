@@ -3525,8 +3525,9 @@ class TrainingConfig(BaseModel):
         description=(
             "BETA — layer-to-layer (L2L) execution for SFT with stream_layers: "
             "each streamed decoder layer is loaded once per optimizer step and "
-            "runs all k micro-batches, k = gradient_accumulation_steps, then "
-            "the optimizer takes one step on the adapters. Needs "
+            "runs all k micro-batches, then "
+            "the optimizer takes one step on the adapters. k is the effective k of the run "
+            "recipe, today gradient_accumulation_steps. Needs "
             "stream_layers=true, task='sft' and lora.dropout=0; the launch "
             "also needs a Llama or Mistral model, or a DeepSeek-V3 model with "
             "stream_expert_layout='per_expert' (which needs "
@@ -6463,11 +6464,11 @@ class SoupConfig(BaseModel):
                 "holds L2L's activation spill and nothing else reads it. Set l2l=true or "
                 "drop l2l_spill_dir."
             )
-        for name, is_set in (
+        for name, differs_from_default in (
             ("l2l_activation_codec", tcfg.l2l_activation_codec != "none"),
             ("l2l_auto_k", tcfg.l2l_auto_k),
         ):
-            if is_set and not tcfg.l2l:
+            if differs_from_default and not tcfg.l2l:
                 raise ValueError(
                     f"training.{name} is set but training.l2l is false: it changes how L2L "
                     f"runs and nothing else reads it. Set l2l=true or drop {name}."

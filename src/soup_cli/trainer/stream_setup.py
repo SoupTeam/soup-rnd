@@ -555,7 +555,7 @@ class StreamingSetupMixin:
     #: The resolved L2L recipe (``soup_cli.utils.l2l_recipe``); None without ``training.l2l``.
     _l2l_recipe = None
 
-    def _effective_k(self, tcfg) -> int:
+    def _effective_k(self, tcfg: Any) -> int:
         """The k the run uses: the L2L recipe's effective k, else the accumulation steps."""
         recipe = self._l2l_recipe
         return recipe.effective_k if recipe is not None else tcfg.gradient_accumulation_steps
