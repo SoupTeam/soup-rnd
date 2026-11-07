@@ -224,7 +224,10 @@ def set_blas_policy() -> Dict[str, Any]:
             matmul.allow_bf16_reduced_precision_reduction = (False, False)
         except RuntimeError:  # torch 2.7: a bool and a separate split-K flag
             matmul.allow_bf16_reduced_precision_reduction = False
-            matmul.allow_bf16_reduced_precision_reduction_split_k = False
+            try:
+                matmul.allow_bf16_reduced_precision_reduction_split_k = False
+            except AttributeError:  # torch 2.7.1 has no split-K flag; D3's policy check fails
+                pass
     cuda = torch.backends.cuda
     try:
         split_k: Any = bool(cuda.matmul.allow_bf16_reduced_precision_reduction_split_k)
