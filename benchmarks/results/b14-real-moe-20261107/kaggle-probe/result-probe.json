@@ -1,0 +1,75 @@
+{
+  "stages": {},
+  "stage": "probe",
+  "source_root": "/kaggle/input/datasets/aldiyarsagat/soup-b14-source",
+  "source_sha": "2509cba2f4b10f1d43eca738d436296875b5e746",
+  "environment": {
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "python": "3.13.18",
+    "cpu_count": 4,
+    "ram_total_bytes": 33658155008,
+    "ram_available_bytes": 32628662272,
+    "disk_tmp": {
+      "total": 8758385086464,
+      "used": 7720151896064,
+      "free": 1038216413184
+    },
+    "disk_working": {
+      "total": 20957446144,
+      "used": 118784,
+      "free": 20940550144
+    },
+    "cpu_model": "Intel(R) Xeon(R) CPU @ 2.20GHz"
+  },
+  "versions": {
+    "torch": "2.11.0+cpu",
+    "transformers": "5.20.2",
+    "peft": "0.21.2",
+    "safetensors": "0.8.0",
+    "huggingface_hub": "1.33.0"
+  },
+  "hf": {
+    "sha": "2a205727f616995ad4aba57806f8e2d0d2f28743",
+    "safetensors_bytes": 18733381272
+  },
+  "synthetic": {
+    "float32": {
+      "logits_equal": true,
+      "loss_equal": true,
+      "grad_mismatches": [],
+      "grads_compared": 30,
+      "grads_nonzero": 30,
+      "grads_missing": [],
+      "bitwise": true,
+      "control_detected": true,
+      "verdict": "PASS",
+      "dtype": "float32",
+      "experts_hit_by_layer": {
+        "1": 6,
+        "2": 7
+      },
+      "peak_rss_bytes_after_streamed": 569925632,
+      "peak_rss_bytes": 570748928
+    },
+    "bfloat16": {
+      "logits_equal": true,
+      "loss_equal": true,
+      "grad_mismatches": [],
+      "grads_compared": 30,
+      "grads_nonzero": 30,
+      "grads_missing": [],
+      "bitwise": true,
+      "control_detected": true,
+      "verdict": "PASS",
+      "dtype": "bfloat16",
+      "experts_hit_by_layer": {
+        "1": 6,
+        "2": 7
+      },
+      "peak_rss_bytes_after_streamed": 570929152,
+      "peak_rss_bytes": 571482112
+    }
+  },
+  "ok": true,
+  "seconds_total": 40.647242069244385
+}
