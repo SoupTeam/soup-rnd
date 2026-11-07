@@ -219,8 +219,12 @@ def set_blas_policy() -> Dict[str, Any]:
 
     if torch.cuda.is_available():
         torch.backends.cuda.preferred_blas_library("cublaslt")
-        # (allow, split-K): the tuple form is how D3's own harness selects its reference policy
-        torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = (False, False)
+        matmul = torch.backends.cuda.matmul
+        try:  # torch 2.11: one (allow, split-K) tuple, as D3's own harness assigns it
+            matmul.allow_bf16_reduced_precision_reduction = (False, False)
+        except RuntimeError:  # torch 2.7: a bool and a separate split-K flag
+            matmul.allow_bf16_reduced_precision_reduction = False
+            matmul.allow_bf16_reduced_precision_reduction_split_k = False
     cuda = torch.backends.cuda
     try:
         split_k: Any = bool(cuda.matmul.allow_bf16_reduced_precision_reduction_split_k)
