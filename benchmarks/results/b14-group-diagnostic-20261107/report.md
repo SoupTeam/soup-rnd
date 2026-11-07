@@ -3,7 +3,7 @@
 Answer to the D3 owner's proposal in the PR #28 thread
 (<https://github.com/SoupTeam/soup-rnd/pull/28#issuecomment-6709450031>): compare native and
 grouped dispatch at 1 to 128 routed rows per expert, attribute kernels by phase, and measure
-paired wall time without the profiler. This is a layer-level kernel-count and device-time
+interleaved wall time without the profiler. This is a layer-level kernel-count and device-time
 diagnostic. It is not a speed claim (contract #52) and it is not a result for the full B1.4 path.
 
 ## Result in five lines
@@ -13,10 +13,12 @@ diagnostic. It is not a speed claim (contract #52) and it is not a result for th
   the native path by its own policy, so the counts are identical.
 - Backward is 262 of the 385 kernels (68 percent) and D3 leaves it unchanged by design: each
   expert is recomputed one at a time natively.
-- Grouped GEMM adds 16 device copies (pointer tables, 47 to 63) and is about 1 percent slower in
-  wall time than sequential, inside the repeat-to-repeat spread. Forward device time is 3
-  percent lower at 32 and 64 rows and 1 percent higher at 128 rows. No sign of the 2x cost
-  that P3 names for small matrix products.
+- Grouped GEMM adds 16 device copies (pointer tables, 47 to 63) and is 0.1 to 0.6 ms (0.2 to 1.3
+  percent) slower in wall time than sequential, inside the repeat-to-repeat spread. Forward
+  device time is 3 percent lower at 32 and 64 rows and 1 percent higher at 128 rows, but those
+  rows are not bitwise equal to the resident layer (see below), so by the spec's own order
+  (validate, then accept timing) they are not accepted yet. The 2x small-matrix cost of P3 was
+  not tested: D3 never groups below 32 rows here.
 - At 32 and 64 rows the grouped GEMM output is not bitwise equal to the resident layer (1 bf16
   unit in the last place on the output, 0.0625 on the route-weight gradient).
 - Not measured: the real checkpoint weights, real routing, the full model and the L2L trainer
@@ -106,11 +108,13 @@ The T4 has a different capacity and does not speak for the 8 GB card.
 1. **Kernel count does not depend on rows.** `sequential` launches 385 kernels in every bucket,
    about 48 per visited expert for forward plus backward of one layer. The row count changes
    device time (forward 565 to 797 us, backward 1118 to 1787 us), not the number of launches.
-2. **The backward is two thirds of the launches and D3 does not touch it.** 262 of 385 kernels
-   are in `bwd` in every arm and bucket, and the backward device times of the three arms agree
-   within 1.8 percent.
+2. **The backward is two thirds of the launches and D3 does not touch it on this path.** 262
+   of 385 kernels are in `bwd` in every arm and bucket, and the backward device times of the
+   three arms agree within 1.8 percent. On the non-packed pool measured here,
    `ReloadExpert.backward` in `expert_group_autograd.py` restores and recomputes one expert at a
-   time. Any saving from grouping can only come from the forward (119 kernels, 31 percent).
+   time with native operations. D3 also has a packed-only pool whose backward calls
+   `packed_expert_backward` and `gemm.input_gradient`; that path was not measured. For the path
+   measured, any saving from grouping can only come from the forward (119 kernels, 31 percent).
 3. **Grouping the restore changes no kernels.** `grouped_restore` has 385 kernels like
    `sequential` and 7 fewer device copies (54 to 47, all in the forward: 20 to 13). Its wall
    time is 0.6 to 1.2 ms below `sequential` in all eight buckets (1.2 to 2.3 percent). The
@@ -121,11 +125,17 @@ The T4 has a different capacity and does not speak for the 8 GB card.
    (47) equal `grouped_restore`. From 32 rows the 16 GEMM kernels of the forward become 4, the
    total goes 385 to 373 (3.1 percent) and the forward 119 to 107 (10.1 percent). The cost is
    16 more copies (47 to 63, the pointer tables of `cublasGemmGroupedBatchedEx`).
-5. **No 2x cost at these shapes, and no clear gain.** Forward device time of `grouped_gemm`
-   against `sequential`: 580 against 599 us at 32 rows (-3.2 percent), 617 against 637 at 64
-   (-3.1 percent), 804 against 797 at 128 (+0.9 percent). Wall time is 0.4 to 0.6 ms higher
-   (0.9 to 1.3 percent), within the repeat spread. Each grouped call synchronises the device
-   (`GroupedGemm._prepare`), which is a likely part of that, not measured separately.
+5. **No clear gain, and the small-matrix risk is untested.** Forward device time of
+   `grouped_gemm` against `sequential`: 580 against 599 us at 32 rows (-3.2 percent), 617
+   against 637 at 64 (-3.1 percent), 804 against 797 at 128 (+0.9 percent). Grouped GEMM never
+   ran below 32 rows, because D3 goes native at 16 rows and below, so P3's 2x cost for small
+   matrix products was not exercised. Wall time of `grouped_gemm` is 0.1 to 0.3 ms above
+   `sequential` at 1 to 16 rows and 0.45 to 0.63 ms above it at 32 to 128 rows (0.2 to 1.3
+   percent). It is 0.8 to 1.6 ms above `grouped_restore` in every bucket, including 1 to 16
+   rows where kernels and copies are identical. So the extra cost is not tied to grouping a
+   matrix product: `GroupedGemm` synchronises the device in `launch` after every call, native
+   calls included, which is a likely cause. Not isolated, and an arm-order effect is not
+   excluded: the arms run in rotating order but only medians are kept, no paired differences.
 6. **The device does almost nothing in this layer.** Forward device time is 0.54 to 0.81 ms and
    backward 1.1 to 1.8 ms for all 8 experts, against about 50 ms of wall time (forward about 24
    ms, backward about 26 ms). The rest is weight restore (file read, staging, copies) and
@@ -136,7 +146,9 @@ The T4 has a different capacity and does not speak for the 8 GB card.
    64 rows: output by 0.0039 (one bf16 unit at values in [0.5, 1)) and route-weight gradient by
    0.0625. The input gradient is equal, and every other arm and bucket is bitwise equal,
    including `grouped_gemm` at 128 rows. D3 asserts bitwise equality in its tests for OLMoE
-   shapes; this geometry was not validated by D3 and no tolerance is set here.
+   shapes; this geometry was not validated by D3 and no tolerance is set here. The harness
+   records the comparison but does not gate the timing on it, so the table shows timing for
+   these two rows anyway; treat them as not accepted until a tolerance is agreed.
 
 ## What it means for the path of ticket 09
 
@@ -150,12 +162,13 @@ recorded visited experts, not rows per expert.
   1.5 per expert.
 - Length 2048 is above the largest bucket measured (128). Not covered.
 
-The path of ticket 09 runs the expert forward twice per layer (forward and recompute) and the
-backward once. If both forwards were grouped, the saving would be about 3 kernels per visited
-expert out of the roughly 82 of ticket 09, which is 3.7 percent. That is derived, not measured.
-It rests on a two-point estimate of 82, on different code (the full model with attention
-and LoRA), and on D3's grouped forward being used in the recompute, which was not checked. It is
-inside P3's 2 to 10 percent range, at the low end.
+The step of ticket 09 runs the expert forward twice per layer (forward and recompute) and the
+backward once, and its figure of about 82 kernels per visited expert is a two-point estimate on
+the full model with attention and LoRA. The D3 owner asked not to reuse that slope as a grouped
+prediction, and this report does not: it gives the layer figures above only (12 fewer kernels
+per 8 experts per grouped forward at 32 rows and above, 1.5 per expert, phase-normalized).
+Whether the recompute forward of the L2L step goes through the grouped path was not checked, so
+no saving for the full path is stated.
 
 ## What was not done
 
@@ -168,8 +181,16 @@ inside P3's 2 to 10 percent range, at the low end.
   above 128, top-k above 1, uneven rows per expert, other codecs (NF4), more than 8 experts.
 - The split of `bwd` into recompute and input gradient, and of `fwd` into gather, scatter and
   route multiply. Both are inline in D3 and B1.3 and splitting them means editing that source.
-- Grouped backward. D3 has none, so Artix6034's FP16 T4 prototype figure (16 to 24 percent
-  slower backward at k=8) is a different code path and is not tested here.
+- Grouped backward and the packed-only pool. The measured pool recomputes natively. Artix6034's
+  FP16 T4 prototype figure (16 to 24 percent slower backward at k=8) is a different code path
+  and is not tested here.
+- Expert visits and kernel events per kernel. The JSON keeps counts and device time per phase,
+  `expert_fetches` per arm (16 in every bucket: each expert is read once forward and once
+  backward), not kernel names or individual events.
+- A test that rows up to 16 take the native path. The policy is D3's (`native_olmoe_rows_max`);
+  here it is visible only in the GPU data (identical kernel and copy counts at 1 to 16 rows).
+  Rows 17 to 31 were not measured.
+- Attention-LoRA gradients and optimizer updates: the layer has no attention.
 - Any speed statement. Wall time is a diagnostic of this layer on this host.
 
 ## Deviations from D3 as shipped
@@ -187,7 +208,9 @@ inside P3's 2 to 10 percent range, at the low end.
 Harness `benchmarks/harness/b14_group_diag.py` (`route_for_bucket`, `attribute_kernels`,
 `attribute_memcpy`, `attribute_kernel_time_us`, `build_layer`, `run_bucket`), tests
 `tests/test_b14_group_diag.py` (30, CPU). Source: branch `b14-d3-grouped-diagnostic`, D3 head
-`a2eed33c` plus the harness. Defaults: 8 experts, hidden 2048, width 1408, bfloat16, 20 repeats.
+`a2eed33c` plus the harness. Defaults: 8 experts, hidden 2048, width 1408, bfloat16, 20 repeats. The source pin is the
+commit names in this report: `environment.source_sha` is null in both JSON files because the
+hosts held a source tarball, not a git checkout.
 
 ```bash
 # vast.ai, RTX 3070: source tarball of src/ and the harness uploaded to /root

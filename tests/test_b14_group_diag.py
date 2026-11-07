@@ -2,14 +2,17 @@
 
 Three seams of ``benchmarks/harness/b14_group_diag.py``: ``route_for_bucket``,
 ``attribute_kernels`` and ``run_bucket``. All run on CPU. The CUDA numbers (kernel counts
-per phase, paired timing, grouped GEMM) come only from the run on the rented or Kaggle GPU.
+per phase, interleaved timing, grouped GEMM) come only from the run on the rented or Kaggle GPU.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Iterator
+
 import pytest
 
-from benchmarks.harness.b14_group_diag import BUCKETS, route_for_bucket
+from benchmarks.harness.b14_group_diag import BUCKETS, Layer, route_for_bucket
 
 
 def test_buckets_are_the_agreed_row_counts() -> None:
@@ -144,7 +147,7 @@ def test_the_phase_counts_add_up_to_every_kernel_event() -> None:
 
     counts = attribute_kernels(events)
 
-    assert sum(counts.values()) == sum(1 for e in events if e["cat"] == "kernel") == 8
+    assert sum(counts.values()) == sum(1 for event in events if event["cat"] == "kernel") == 8
 
 
 def _copy(correlation: int, ts: int = 950) -> dict:
@@ -181,7 +184,7 @@ def test_gpu_time_is_the_sum_of_kernel_durations_per_phase() -> None:
 # run_bucket on a tiny CPU layer: sequential, grouped restore, grouped GEMM (refused on CPU).
 # --------------------------------------------------------------------------
 @pytest.fixture()
-def layer(tmp_path):
+def layer(tmp_path: Path) -> Iterator[Layer]:
     from benchmarks.harness.b14_group_diag import build_layer
 
     built = build_layer(
@@ -191,7 +194,7 @@ def layer(tmp_path):
     built.close()
 
 
-def test_the_two_cpu_arms_equal_the_resident_layer_bit_for_bit(layer) -> None:
+def test_the_two_cpu_arms_equal_the_resident_layer_bit_for_bit(layer: Layer) -> None:
     from benchmarks.harness.b14_group_diag import run_bucket
 
     record = run_bucket(layer, rows=4, arms=("sequential", "grouped_restore"), repeats=2)
@@ -203,7 +206,7 @@ def test_the_two_cpu_arms_equal_the_resident_layer_bit_for_bit(layer) -> None:
         }
 
 
-def test_the_record_names_the_bucket_and_the_visited_experts(layer) -> None:
+def test_the_record_names_the_bucket_and_the_visited_experts(layer: Layer) -> None:
     from benchmarks.harness.b14_group_diag import run_bucket
 
     record = run_bucket(layer, rows=4, arms=("sequential",), repeats=1)
@@ -211,7 +214,7 @@ def test_the_record_names_the_bucket_and_the_visited_experts(layer) -> None:
     assert (record["rows"], record["experts"], record["tokens"]) == (4, 8, 32)
 
 
-def test_each_expert_is_read_once_forward_and_once_backward(layer) -> None:
+def test_each_expert_is_read_once_forward_and_once_backward(layer: Layer) -> None:
     from benchmarks.harness.b14_group_diag import run_bucket
 
     record = run_bucket(layer, rows=2, arms=("sequential", "grouped_restore"), repeats=1)
@@ -220,7 +223,7 @@ def test_each_expert_is_read_once_forward_and_once_backward(layer) -> None:
     assert record["arms"]["grouped_restore"]["expert_fetches"] == 16
 
 
-def test_the_grouped_gemm_arm_is_refused_without_cuda_and_says_why(layer) -> None:
+def test_the_grouped_gemm_arm_is_refused_without_cuda_and_says_why(layer: Layer) -> None:
     from benchmarks.harness.b14_group_diag import run_bucket
 
     record = run_bucket(layer, rows=2, arms=("sequential", "grouped_gemm"), repeats=1)
@@ -230,7 +233,7 @@ def test_the_grouped_gemm_arm_is_refused_without_cuda_and_says_why(layer) -> Non
     assert record["arms"]["sequential"]["status"] == "ok"
 
 
-def test_without_cuda_there_are_no_kernel_counts_and_timing_is_recorded(layer) -> None:
+def test_without_cuda_there_are_no_kernel_counts_and_timing_is_recorded(layer: Layer) -> None:
     from benchmarks.harness.b14_group_diag import run_bucket
 
     record = run_bucket(layer, rows=2, arms=("sequential",), repeats=3)
@@ -240,7 +243,7 @@ def test_without_cuda_there_are_no_kernel_counts_and_timing_is_recorded(layer) -
     assert arm["timing_ms"]["samples"] == 3 and arm["timing_ms"]["total_median"] > 0
 
 
-def test_the_record_is_json_serialisable(layer) -> None:
+def test_the_record_is_json_serialisable(layer: Layer) -> None:
     import json
 
     from benchmarks.harness.b14_group_diag import run_bucket

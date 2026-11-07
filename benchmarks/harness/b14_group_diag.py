@@ -280,7 +280,7 @@ def build_layer(workdir: Any, *, hidden: int, intermediate: int, experts: int, d
 
 
 # --------------------------------------------------------------------------
-# One bucket: correctness, kernel counts per phase and paired timing, arm by arm.
+# One bucket: correctness, kernel counts per phase and interleaved timing, arm by arm.
 # --------------------------------------------------------------------------
 @contextlib.contextmanager
 def _range(name: str, annotate: bool) -> Any:
@@ -358,13 +358,13 @@ def _execute(layer: Layer, module: Any, inputs: Tuple[Any, Any, Any], *,
     import torch
 
     hidden, index, weights = inputs
-    x = hidden.clone().requires_grad_(True)
-    w = weights.clone().requires_grad_(True)
+    inputs_grad = hidden.clone().requires_grad_(True)
+    weights_grad = weights.clone().requires_grad_(True)
     _sync(layer)
     started = time.perf_counter()
     _PASS["name"] = "fwd"
     with _range("fwd", annotate):
-        out = module(x, index, w)
+        out = module(inputs_grad, index, weights_grad)
     _sync(layer)
     middle = time.perf_counter()
     probe = (torch.arange(out.numel(), device=out.device, dtype=torch.float32)
@@ -374,8 +374,8 @@ def _execute(layer: Layer, module: Any, inputs: Tuple[Any, Any, Any], *,
         out.backward(probe)
     _sync(layer)
     ended = time.perf_counter()
-    result: Dict[str, Any] = {"output": out.detach(), "hidden_grad": x.grad,
-                              "route_weight_grad": w.grad}
+    result: Dict[str, Any] = {"output": out.detach(), "hidden_grad": inputs_grad.grad,
+                              "route_weight_grad": weights_grad.grad}
     if timed:
         result["forward_ms"] = (middle - started) * 1e3
         result["backward_ms"] = (ended - middle) * 1e3
@@ -395,7 +395,8 @@ def _compare(result: Dict[str, Any], reference: Dict[str, Any]) -> Dict[str, Any
     }
 
 
-def _profile_kernels(layer: Layer, module: Any, inputs: Tuple[Any, Any, Any]) -> Optional[Dict]:
+def _profile_kernels(layer: Layer, module: Any,
+                     inputs: Tuple[Any, Any, Any]) -> Optional[Dict[str, Any]]:
     if not layer.device.startswith("cuda"):
         return None
     from torch.profiler import ProfilerActivity, profile
@@ -424,7 +425,7 @@ def _profile_kernels(layer: Layer, module: Any, inputs: Tuple[Any, Any, Any]) ->
 
 def run_bucket(layer: Layer, *, rows: int, arms: Sequence[str] = ARMS,
                repeats: int = 20) -> Dict[str, Any]:
-    """Run every arm on the same routed inputs: correctness, kernels per phase, paired timing.
+    """Run every arm on the same routed inputs: correctness, kernels per phase, interleaved timing.
 
     Timing runs the arms in rotating order, one repeat at a time, after one untimed warm-up,
     with no profiler. It is a diagnostic of this layer on this host, not a speed claim.
