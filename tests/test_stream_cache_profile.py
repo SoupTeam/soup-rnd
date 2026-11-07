@@ -30,6 +30,27 @@ def test_short_job_avoids_setup_and_long_job_reuses_amortized_cache():
     assert choose_cache(rows()[1:], 100, ram_mib=14336, resident_limit="auto") is None
 
 
+def test_reuse_excludes_record_probe_time_from_the_estimated_job(tmp_path):
+    baseline, weights = rows()
+    assert choose_cache([baseline, weights], 18, ram_mib=14336, resident_limit="auto").ordinary
+
+    measured = replace(weights, record_only_seconds=10.)
+    path = tmp_path / "cache.json"
+    for candidate in (baseline, measured):
+        save_measurement(path, "key", candidate)
+    history = load_measurements(path, "key")
+    assert history == [baseline, measured]
+    assert measured.startup_seconds == weights.startup_seconds
+    assert choose_cache(history, 18, ram_mib=14336, resident_limit="auto") == measured
+    assert choose_cache(history, 4, ram_mib=14336, resident_limit="auto").ordinary
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -1, True, 41])
+def test_record_probe_time_must_be_within_the_measured_startup(value):
+    with pytest.raises(ValueError, match="record-only time"):
+        replace(rows()[1], record_only_seconds=value)
+
+
 def test_close_call_keeps_ordinary_streaming():
     candidates = [CacheMeasurement(0, 0, 0, 10), CacheMeasurement(1024, 0, 0, 9.9)]
     assert choose_cache(candidates, 100, ram_mib=1024, resident_limit=0).ordinary
@@ -258,7 +279,7 @@ def test_recording_uses_real_updates_without_replay(tmp_path, monkeypatch, retai
 
     def retention(*_args, **kwargs):
         retention_calls.append(kwargs["retain"])
-        return SimpleNamespace(retained_layers=retained)
+        return SimpleNamespace(retained_layers=retained, record_only_seconds=3.0)
 
     monkeypatch.setattr(
         "soup_cli.utils.stream_cache_recompute.configure_cached_stream_recompute", retention,
@@ -286,6 +307,7 @@ def test_recording_uses_real_updates_without_replay(tmp_path, monkeypatch, retai
     else:
         assert len(result) == 1 and result[0].step_seconds == 1
         assert result[0].startup_seconds == 11
+        assert result[0].record_only_seconds == (3.0 if retained else 0.0)
         assert result[0].retained_layers == (retained or 0)
     assert not callback.recording
     # No further synchronization, probes or clock reads after the eight samples.

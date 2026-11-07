@@ -8,6 +8,12 @@ Removing raw files from the review diff does not remove the original Git history
 
 ## Current reports
 
+- [Streaming research overview](d2-streaming-research-summary.md) links the cache,
+  transfer and profile results with their measured scopes.
+
+- [Kaggle T4 memory profile](stream-cache-profile-kaggle-20261107/README.md)
+  records the small-model placement comparison and the reuse-startup correction.
+
 - [32B NF4 memory profile](d2-stream-cache-profile-20261104.md) records a 4.47%
   shorter 18-update job and exact trajectory checks for the tested placements.
 

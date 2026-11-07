@@ -1,0 +1,76 @@
+{
+  "status": "passed",
+  "policy": "auto",
+  "phase": "accuracy",
+  "updates": 4,
+  "placement": {
+    "ram_indices": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      16,
+      17,
+      18,
+      19
+    ],
+    "gpu_indices": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "retained_layers": 24
+  },
+  "messages": [
+    "training.stream_resident_layers='auto': measured resident candidate fits the shared cap; resident layers [8, 9, 10, 11, 12, 13, 14, 15], payload 56289504 bytes, cap 8589934592 bytes, setup reserve 90701824 bytes (optimizer state estimated; setup forward/backward, no optimizer step).",
+    "[cyan]Cached stream activation plan:[/] 24 retained layers; complete retained suffix fits the shared cap; shared cap 8589934592 bytes, setup/optimizer reserves 67108864/23592960 bytes",
+    "Stream cache profile: 8 GPU layers, RAM ceiling 96 MiB, 24 layers retaining activations; reused; no sweep."
+  ],
+  "setup_seconds": 2.4124390180000432,
+  "train_seconds": 6.283157741000025,
+  "full_seconds": 8.695598478000022,
+  "step_seconds_after_2": 1.481917439,
+  "peak_vram_allocated_bytes": 604945920,
+  "peak_vram_reserved_bytes": 633339904,
+  "peak_rss_bytes": 1772515328,
+  "losses": [
+    7.786526203155518,
+    7.822332859039307,
+    7.881069183349609,
+    7.838099479675293,
+    7.79380464553833,
+    7.8489179611206055,
+    7.813292503356934,
+    7.777803421020508
+  ],
+  "comparisons": [
+    {
+      "checks": 1682,
+      "bitwise": true,
+      "max_abs": 0.0
+    },
+    {
+      "checks": 1682,
+      "bitwise": true,
+      "max_abs": 0.0
+    },
+    {
+      "checks": 1682,
+      "bitwise": true,
+      "max_abs": 0.0
+    },
+    {
+      "checks": 1682,
+      "bitwise": true,
+      "max_abs": 0.0
+    }
+  ],
+  "adapter_tensors": 336,
+  "profile_identity": "06700e5e56ff9bc0745b037d21bf2b27beb66c0d9a2eef20c403b247ad8d0294"
+}

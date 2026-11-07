@@ -36,6 +36,7 @@ class CacheMeasurement:
     baseline_allocated: int = 0
     baseline_reserved: int = 0
     retained_layers: int = 0
+    record_only_seconds: float = 0.0
 
     def __post_init__(self) -> None:
         for value in (self.ram_mib, self.resident_count, self.baseline_allocated,
@@ -47,6 +48,9 @@ class CacheMeasurement:
                 )) or not math.isfinite(self.startup_seconds) or self.startup_seconds < 0
                 or not math.isfinite(self.step_seconds) or self.step_seconds <= 0):
             raise ValueError("cache profile timings must be finite and positive")
+        if (type(self.record_only_seconds) not in (int, float)
+                or not 0 <= self.record_only_seconds <= self.startup_seconds):
+            raise ValueError("record-only time must be within the measured startup")
         for indices in (self.ram_indices, self.gpu_indices):
             if (any(type(idx) is not int or idx < 0 for idx in indices)
                     or tuple(sorted(set(indices))) != tuple(indices)):
@@ -69,7 +73,7 @@ class CacheMeasurement:
         return self.ram_mib, self.resident_count, self.retained_layers
 
     def estimate(self, updates: int) -> float:
-        return self.startup_seconds + updates * self.step_seconds
+        return self.startup_seconds - self.record_only_seconds + updates * self.step_seconds
 
 
 def profile_identity(value: dict[str, Any]) -> str:
@@ -164,6 +168,8 @@ def save_measurement(path: str | Path, identity: str, row: CacheMeasurement) -> 
             fields = asdict(item)
             if not item.retained_layers:
                 del fields["retained_layers"]
+            if not item.record_only_seconds:
+                del fields["record_only_seconds"]
             serialized.append(fields)
         data["profiles"][identity] = {"updated": time.time(), "rows": serialized}
         if len(data["profiles"]) > 64:
@@ -276,6 +282,7 @@ def build_stream_cache_callback(
             self.step_started = 0.0
             self.signature: dict[str, Any] = {}
             self.plan: Any = None
+            self.record_only_seconds = 0.0
 
         def on_train_begin(self, args: Any, state: Any, control: Any, **kwargs: Any) -> Any:
             import torch
@@ -324,12 +331,14 @@ def build_stream_cache_callback(
                                          selected.baseline_reserved)
             try:
                 rows, seq_len, vocab = owner._stream_step_shape(cfg, tcfg, model.config)
+                self.record_only_seconds = 0.0
                 if count:
                     self.plan = configure_stream_residency(
                         model, runtime, "auto" if hint else count, rows=rows, seq_len=seq_len,
                         vocab_size=vocab, override_bytes=tcfg.stream_vram_override,
                         notify=notify, **({"hint": hint} if hint else {}),
                     )
+                    self.record_only_seconds += getattr(self.plan, "record_only_seconds", 0.0)
                     if selected is not None and not self.plan.enabled:
                         notify("Stream cache profile: current GPU probe refused the candidate; "
                                "ordinary streaming.")
@@ -356,6 +365,7 @@ def build_stream_cache_callback(
                         retain=selected.retained_layers if selected is not None else None,
                     )
                     retained = retention.retained_layers
+                    self.record_only_seconds += getattr(retention, "record_only_seconds", 0.0)
                     if selected is not None and retained != selected.retained_layers:
                         _clear_profile_caches(owner, model)
                         notify("Stream cache profile: current VRAM refused retained activations; "
@@ -408,6 +418,8 @@ def build_stream_cache_callback(
                                      self.identity, CacheMeasurement(
                                          **self.signature, startup_seconds=startup,
                                          step_seconds=step,
+                                         record_only_seconds=min(startup,
+                                                                 self.record_only_seconds),
                                      ))
                     notify(f"Stream cache profile saved to {tcfg_path}; actual training continued.")
                 except (OSError, ValueError, KeyError, TypeError):

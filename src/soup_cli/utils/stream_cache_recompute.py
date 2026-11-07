@@ -30,6 +30,7 @@ class CacheRecomputePlan:
     optimizer_reserve_bytes: int = 0
     setup_seconds: float = 0.0
     reason: str = "not measured"
+    record_only_seconds: float = 0.0
 
 
 def configure_cached_stream_recompute(
@@ -125,7 +126,9 @@ def configure_cached_stream_recompute(
 
     try:
         if retain is None:
+            planning_started = time.perf_counter()
             count = _measure_preserving_state(model, select, **shape)
+            state["record_only_seconds"] = time.perf_counter() - planning_started
             if count == 0:
                 return fallback("native one-layer probe selected no retained layers")
         else:

@@ -564,6 +564,9 @@ alive until their outstanding copy events finish at teardown.
 optimizer updates during ordinary training. Those updates train the adapter;
 there is no replay or separate sweep. Startup, including cache allocation and
 cold first updates, is charged separately from the subsequent step time.
+The profile also measures planning passes that reuse can skip. Their
+`record_only_seconds` is deducted from predicted reuse startup, while the fresh
+candidate memory checks remain charged and mandatory. Older rows use zero.
 Record ordinary streaming (`stream_recompute: on`, zero RAM and GPU cache) and
 desired memory configurations in the same file. With `stream_recompute: auto`,
 record mode first installs the requested weight caches, then probes how many

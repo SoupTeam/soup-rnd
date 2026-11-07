@@ -69,8 +69,13 @@ def kept(model):
     return {layer.idx for layer in streamed_decoder_layers(model) if not layer.recompute}
 
 
-def test_shared_cap_includes_resident_peak_optimizer_and_setup_and_preserves_state():
+def test_shared_cap_includes_resident_peak_optimizer_and_setup_and_preserves_state(monkeypatch):
     import torch
+
+    import soup_cli.utils.stream_cache_recompute as recompute
+
+    clock = iter((0.0, 1.0, 4.0, 9.0))
+    monkeypatch.setattr(recompute, "time", SimpleNamespace(perf_counter=lambda: next(clock)))
 
     model, runtime, seen, planner, measure = instruments()
     model[0].eval()
@@ -81,6 +86,8 @@ def test_shared_cap_includes_resident_peak_optimizer_and_setup_and_preserves_sta
     result = configure(model, runtime, planner, measure)
     assert result.retained_layers == 2
     assert result.cap_bytes == 8500
+    assert result.setup_seconds == 9.0
+    assert result.record_only_seconds == 3.0
     assert seen[0][1]["override_bytes"] == 8100
     assert seen[1][1] == dict(rows=2, seq_len=128, vocab_size=64, device="cpu")
     assert kept(model) == {4, 5}
@@ -103,6 +110,7 @@ def test_recorded_suffix_runs_only_the_full_probe(peak, accepted):
     model, runtime, seen, planner, measure = instruments(peak=peak)
     result = configure(model, runtime, planner, measure, retain=3)
     assert [stage for stage, _ in seen] == ["measure"]
+    assert result.record_only_seconds == 0.0
     assert result.retained_layers == (3 if accepted else 0)
     assert kept(model) == ({3, 4, 5} if accepted else set())
 

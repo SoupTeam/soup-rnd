@@ -44,6 +44,7 @@ class ResidencyPlan:
     preload_seconds: float = 0.0
     reason: str = "disabled"
     baseline_from_profile: bool = False
+    record_only_seconds: float = 0.0
 
     @property
     def selected_indices(self) -> tuple[int, ...]:
@@ -319,7 +320,9 @@ def configure_stream_residency(
         state["baseline_from_profile"] = True
     else:
         try:
+            planning_started = time.perf_counter()
             baseline = probe()
+            state["record_only_seconds"] = time.perf_counter() - planning_started
         except Exception as exc:
             if not _is_out_of_memory(exc):
                 raise
