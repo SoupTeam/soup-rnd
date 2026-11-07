@@ -70,12 +70,11 @@ def test_a_cpu_run_has_no_cuda_launch_count() -> None:
 
 
 def test_profiling_a_nonexistent_cuda_device_is_refused() -> None:
-    import torch
+    from unittest.mock import patch
 
-    if torch.cuda.is_available():
-        pytest.skip("this host has CUDA")
-    with pytest.raises(RuntimeError, match="CUDA"):
-        OpCounter(profile_cuda=True).__enter__()
+    with patch("torch.cuda.is_available", return_value=False):
+        with pytest.raises(RuntimeError, match="CUDA"):
+            OpCounter(profile_cuda=True).__enter__()
 
 
 # --------------------------------------------------------------------------
