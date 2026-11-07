@@ -1,0 +1,35 @@
+"""Offline transport oracles including continued progress beyond ten minutes."""
+import json,os,random,sys,tarfile,tempfile,time
+from pathlib import Path
+from rich.console import Console
+ROOT=Path(__file__).parent;sys.path.insert(0,str(ROOT));import archive_ranges as ranges;import lossless_results as codec
+proof={}
+with tempfile.TemporaryDirectory(prefix='offline-range-test-',dir=ROOT) as temporary:
+ r=Path(temporary);assert os.path.commonpath([os.path.realpath(ROOT),os.path.realpath(r)])==os.path.realpath(ROOT)
+ source=r/'source';source.mkdir();rng=random.Random(792);(source/'base.bin').write_bytes(rng.randbytes(24*2**20));old=r/'prior/results.tar';old.parent.mkdir();old_idx=codec.pack(source,['base.bin'],old);(old.parent/'index.json').write_text(json.dumps(old_idx));partial=old.parent/'partial.tar';partial.write_bytes(old.read_bytes()[:int(old.stat().st_size*.7)])
+ (source/'new.bin').write_bytes(rng.randbytes(4*2**20));new=r/'canonical.tar';idx=codec.pack(source,['base.bin','new.bin'],new);layout=ranges.layout_from_archive(new);clock=[0.];calls=[];events=[]
+ def transfer(batch,offset,sink,deadline):
+  clock[0]+=601
+  with new.open('rb') as f:
+   data=[]
+   for item in batch:f.seek(item['offset']);data.append(f.read(item['bytes']))
+  data=b''.join(data)[offset:];take=min(2**20,len(data));sink.write(data[:take]);calls.append(offset)
+  if take<len(data):raise TimeoutError('injected useful progress then timeout')
+ result=ranges.rebuild(layout,idx,r/'rebuilt',[partial],transfer,lambda:10**9,10**8,refresh=lambda:None,record=events.append,clock=lambda:clock[0],sleep=lambda _:None)
+ decoded=codec.unpack(r/'rebuilt/results.tar',r/'decoded');assert decoded['all_original_files_verified']==2
+ assert (r/'decoded/base.bin').read_bytes()==(source/'base.bin').read_bytes();assert (r/'decoded/new.bin').read_bytes()==(source/'new.bin').read_bytes()
+ assert len(calls)>2 and result['encoded_object_bytes_reused']>0 and result['new_network_object_bytes']<idx['archive_bytes']
+ assert all(e.get('no_progress_seconds',0)==0 for e in events)
+ proof['positive_progress_after_multiple_601s_intervals']={'passed':True,'attempts':len(calls),'actual_virtual_elapsed_seconds':clock[0],'canonical_sha_equal':True,'every_original_verified':True,'reused_encoded_bytes':result['encoded_object_bytes_reused'],'new_network_bytes':result['new_network_object_bytes']}
+ c=[0.]
+ def no_progress(*args):c[0]+=301;raise TimeoutError('no bytes')
+ try:ranges.rebuild(layout,idx,r/'no-progress',[],no_progress,lambda:10**9,10**8,clock=lambda:c[0],sleep=lambda _:None)
+ except RuntimeError as e:assert 'no new archive bytes' in str(e)
+ else:raise AssertionError('no-progress failure not bounded')
+ proof['zero_progress_over_600s_rejected']=True
+ old_real=ROOT.parent/'stream8-compile-20261022-resume/bundles/r2-baseline-8/results.tar';real_idx=json.loads((old_real.parent/'index.json').read_text());real_layout=ranges.layout_from_archive(old_real)
+ def forbid_network(*args):raise AssertionError('already retained objects must not cross network')
+ began=time.perf_counter();real=ranges.rebuild(real_layout,real_idx,r/'actual-server-roundtrip',[old_real],forbid_network,lambda:10**9,10**8)
+ assert real['new_network_object_bytes']==0 and codec.file_sha(r/'actual-server-roundtrip/results.tar')==real_idx['archive_sha256']
+ proof['actual_prior_server_archive_canonical_rebuild']={'passed':True,'archive_bytes':real_idx['archive_bytes'],'sha256':real_idx['archive_sha256'],'network_bytes':0,'seconds':time.perf_counter()-began,'not_new_gpu_evidence':True}
+(ROOT/'offline-range-regression.json').write_text(json.dumps(proof,indent=2));Console().print(proof)

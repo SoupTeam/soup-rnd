@@ -1,0 +1,317 @@
+{
+  "status": "TIMING_CAPTURED_NOT_A_CORRECTNESS_OR_QUALITY_VERDICT",
+  "arm": "baseline",
+  "warmup": 6,
+  "steps": 8,
+  "diagnostic_instrumented": false,
+  "scope": "synchronized optimizer-step window; excludes first-batch fetch/save/eval",
+  "data_sha256": "313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9",
+  "gpu_before": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 4060, GPU-c9be3615-9506-8d23-de1c-77e24caa21ad, 580.95.05, P2, 2505 MHz, [N/A], 53, 103 MiB\n",
+  "seconds": [
+    9.97387469210662,
+    10.026422278024256,
+    10.022487262962386,
+    9.935611204942688,
+    9.982421407010406,
+    10.000984854996204,
+    10.151694868924096,
+    10.024729618104175
+  ],
+  "peak_allocated_bytes": [
+    5052084736,
+    5052084736,
+    5052084736,
+    5052084736,
+    5052084736,
+    5052084736,
+    5052084736,
+    5052084736
+  ],
+  "peak_reserved_bytes": [
+    5530189824,
+    5530189824,
+    5530189824,
+    5530189824,
+    5530189824,
+    5530189824,
+    5530189824,
+    5530189824
+  ],
+  "initial_adapter_sha256": "4b0bffec36ae011fe0aab9779d2ec9d0c8c63a13770ac048a0be46550dc64d89",
+  "setup_seconds": 38.09829227020964,
+  "patch_counts": {},
+  "decoder_dtype": "torch.bfloat16",
+  "amp": {
+    "fp16": false,
+    "bf16": true
+  },
+  "input_shapes": [
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ]
+  ],
+  "training_wall_seconds_including_final_save": 142.27239090786316,
+  "training_log_history": [
+    {
+      "loss": 0.08679254353046417,
+      "grad_norm": 0.14626385271549225,
+      "learning_rate": 2e-05,
+      "entropy": 0.06034209579229355,
+      "num_tokens": 2048.0,
+      "mean_token_accuracy": 0.9875991940498352,
+      "epoch": 0.0625,
+      "step": 1
+    },
+    {
+      "loss": 0.08806198835372925,
+      "grad_norm": 0.15505631268024445,
+      "learning_rate": 1.9749279121818235e-05,
+      "entropy": 0.060511836782097816,
+      "num_tokens": 4096.0,
+      "mean_token_accuracy": 0.9875991940498352,
+      "epoch": 0.125,
+      "step": 2
+    },
+    {
+      "loss": 0.08493427187204361,
+      "grad_norm": 0.15351080894470215,
+      "learning_rate": 1.900968867902419e-05,
+      "entropy": 0.0597083754837513,
+      "num_tokens": 6144.0,
+      "mean_token_accuracy": 0.9871031641960144,
+      "epoch": 0.1875,
+      "step": 3
+    },
+    {
+      "loss": 0.08330599963665009,
+      "grad_norm": 0.118662528693676,
+      "learning_rate": 1.78183148246803e-05,
+      "entropy": 0.056796468794345856,
+      "num_tokens": 8192.0,
+      "mean_token_accuracy": 0.9900892078876495,
+      "epoch": 0.25,
+      "step": 4
+    },
+    {
+      "loss": 0.07795756310224533,
+      "grad_norm": 0.1581369787454605,
+      "learning_rate": 1.6234898018587336e-05,
+      "entropy": 0.0608984362334013,
+      "num_tokens": 10240.0,
+      "mean_token_accuracy": 0.988095223903656,
+      "epoch": 0.3125,
+      "step": 5
+    },
+    {
+      "loss": 0.07581839710474014,
+      "grad_norm": 0.1387530118227005,
+      "learning_rate": 1.4338837391175582e-05,
+      "entropy": 0.05865187756717205,
+      "num_tokens": 12288.0,
+      "mean_token_accuracy": 0.9895877540111542,
+      "epoch": 0.375,
+      "step": 6
+    },
+    {
+      "loss": 0.07901172339916229,
+      "grad_norm": 0.14777131378650665,
+      "learning_rate": 1.2225209339563144e-05,
+      "entropy": 0.05927362106740475,
+      "num_tokens": 14336.0,
+      "mean_token_accuracy": 0.990083783864975,
+      "epoch": 0.4375,
+      "step": 7
+    },
+    {
+      "loss": 0.07381220161914825,
+      "grad_norm": 0.1726621687412262,
+      "learning_rate": 1e-05,
+      "entropy": 0.05997704714536667,
+      "num_tokens": 16384.0,
+      "mean_token_accuracy": 0.9900793433189392,
+      "epoch": 0.5,
+      "step": 8
+    },
+    {
+      "loss": 0.07230554521083832,
+      "grad_norm": 0.14046625792980194,
+      "learning_rate": 7.774790660436857e-06,
+      "entropy": 0.05999150313436985,
+      "num_tokens": 18432.0,
+      "mean_token_accuracy": 0.990083783864975,
+      "epoch": 0.5625,
+      "step": 9
+    },
+    {
+      "loss": 0.07332119345664978,
+      "grad_norm": 0.15169745683670044,
+      "learning_rate": 5.66116260882442e-06,
+      "entropy": 0.059044381603598595,
+      "num_tokens": 20480.0,
+      "mean_token_accuracy": 0.9895877540111542,
+      "epoch": 0.625,
+      "step": 10
+    },
+    {
+      "loss": 0.08378240466117859,
+      "grad_norm": 0.15506485104560852,
+      "learning_rate": 3.7651019814126656e-06,
+      "entropy": 0.060263074934482574,
+      "num_tokens": 22528.0,
+      "mean_token_accuracy": 0.9890927076339722,
+      "epoch": 0.6875,
+      "step": 11
+    },
+    {
+      "loss": 0.07673428952693939,
+      "grad_norm": 0.14779245853424072,
+      "learning_rate": 2.1816851753197023e-06,
+      "entropy": 0.057757019996643066,
+      "num_tokens": 24576.0,
+      "mean_token_accuracy": 0.9895877540111542,
+      "epoch": 0.75,
+      "step": 12
+    },
+    {
+      "loss": 0.07336398214101791,
+      "grad_norm": 0.18532629311084747,
+      "learning_rate": 9.903113209758098e-07,
+      "entropy": 0.06135758012533188,
+      "num_tokens": 26624.0,
+      "mean_token_accuracy": 0.9885912537574768,
+      "epoch": 0.8125,
+      "step": 13
+    },
+    {
+      "loss": 0.07394854724407196,
+      "grad_norm": 0.1619550883769989,
+      "learning_rate": 2.507208781817638e-07,
+      "entropy": 0.06175709143280983,
+      "num_tokens": 28672.0,
+      "mean_token_accuracy": 0.9890872836112976,
+      "epoch": 0.875,
+      "step": 14
+    },
+    {
+      "train_runtime": 141.4099,
+      "train_samples_per_second": 0.198,
+      "train_steps_per_second": 0.099,
+      "total_flos": 1303885104807936.0,
+      "train_loss": 0.0787964750613485,
+      "epoch": 0.875,
+      "step": 14
+    }
+  ],
+  "deterministic_algorithms": true,
+  "median_seconds_per_optimizer_step": 10.011736058979295,
+  "gpu_after": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 4060, GPU-c9be3615-9506-8d23-de1c-77e24caa21ad, 580.95.05, P2, 2745 MHz, [N/A], 56, 5513 MiB\n"
+}

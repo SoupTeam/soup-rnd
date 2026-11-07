@@ -1,0 +1,146 @@
+{
+  "accuracy": {
+    "native": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    },
+    "packed": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    },
+    "prefetch": {
+      "bitwise": true,
+      "checks": 4884,
+      "failures": [],
+      "passed": true
+    }
+  },
+  "archive_manifest_sha256": "36361ec16791f2a9b4043b558b9ae1e54a1d6d498ad0f3ea4996be367a5e1c44",
+  "audit_script_sha256": "bb1ac0b3d9814a4452e9b4e50a0b15c4a119b605d58a5773dd104ccc07c08079",
+  "budget": {
+    "invoice_verified": false,
+    "new_allowance_remaining_usd": 4.3946302709214295,
+    "new_stage_cost_usd": 0.6053697290785705,
+    "old_separate_unused_usd": 4.909114004480999
+  },
+  "bundle_verified_sha256": "a7840d0507ff8e0281224f73c4ae18b0c1a72296b1b949016e0de8452fd39291",
+  "checkpoint_integrity": {
+    "expected_total_bytes": 61343935088,
+    "forced_redownloads_used": 0,
+    "helper_sha256": "ba16dc71dd8fddcb2622fe7720dd8cee24ed6a4da14eb4308d36826d90ec14e1",
+    "initial_failed_files": [],
+    "scope": "Captured official SHA/size checks and native prepare fingerprints agree. Checkpoint payloads are not retained/rehashed by this local audit; bad full payloads are not retained.",
+    "verified_files": 13
+  },
+  "cleanup": {
+    "instance_id": 58130492,
+    "instance_verified_absent": true,
+    "label": "soup-expert-prefetch-20261028-a",
+    "label_verified_absent": true,
+    "method": "fresh read-only full account listings after exact-owned cleanup",
+    "unix": 1793214384.8802185,
+    "verified_absent": true,
+    "volume_id": 58130491,
+    "volume_verified_absent": true
+  },
+  "confirmation": {
+    "candidate": "packed",
+    "paired_bootstrap_95_percent": [
+      17.23617397233982,
+      18.255389291778435
+    ],
+    "paired_rounds": 4,
+    "passes_practical_2_percent_gate": true,
+    "selection_samples_excluded": true,
+    "step_time_reduction_percent": 17.747360289446902,
+    "throughput_increase_percent": 21.576645262571304
+  },
+  "exploration": {
+    "native": {
+      "cuda": {
+        "allocated_bytes": 2885328896,
+        "peak_allocated_bytes": 3913049088,
+        "peak_reserved_bytes": 4114612224,
+        "reserved_bytes": 4114612224
+      },
+      "median_step_seconds": 16.682758923561778,
+      "sampled_peak_rss_bytes": 12826697728,
+      "setup_seconds": 38.50897063699085,
+      "updates_seconds": [
+        17.98305560904555,
+        16.589197339024395,
+        16.381825056974776,
+        16.814942550030537,
+        16.34979884303175,
+        16.77632050809916
+      ],
+      "whole_entry_seconds": 185.44371832697652
+    },
+    "packed": {
+      "cuda": {
+        "allocated_bytes": 2890985472,
+        "peak_allocated_bytes": 3918705664,
+        "peak_reserved_bytes": 4141875200,
+        "reserved_bytes": 4141875200
+      },
+      "median_step_seconds": 13.505737901024986,
+      "sampled_peak_rss_bytes": 12859805696,
+      "setup_seconds": 42.75209815998096,
+      "updates_seconds": [
+        14.449740611948073,
+        13.284488404984586,
+        13.6882175890496,
+        13.323258213000372,
+        13.310291458969004,
+        13.992535945028067
+      ],
+      "whole_entry_seconds": 162.00283403799403
+    },
+    "prefetch": {
+      "cuda": {
+        "allocated_bytes": 2890985472,
+        "peak_allocated_bytes": 3918705664,
+        "peak_reserved_bytes": 4141875200,
+        "reserved_bytes": 4141875200
+      },
+      "median_step_seconds": 13.769245710456744,
+      "sampled_peak_rss_bytes": 12856877056,
+      "setup_seconds": 43.1321586020058,
+      "updates_seconds": [
+        14.724912001984194,
+        13.753336135996506,
+        13.723456110106781,
+        13.785155284916982,
+        13.351144258049317,
+        14.183663520962
+      ],
+      "whole_entry_seconds": 164.30472266394645
+    }
+  },
+  "launch_manifest_sha256": "67227d2696287cdc04f283bbf30317748948121529b898656523a9085ef9a032",
+  "limits": {
+    "precision": "Three separate full two-update/four-micro captures",
+    "quality": "No downstream quality/convergence claim",
+    "rss": "Process RSS excludes filesystem/kernel memory",
+    "storage": "Physical NVMe unverified; logical payload is not physical I/O",
+    "timed_tensors": "NO VERDICT on unrecorded full final timed tensors"
+  },
+  "qualification_run_sha256": "b5445292322a9b9e6d4e1f42df52b47e8b941ca4cf89be9738d55e27fd405d98",
+  "retention": {
+    "archive_bytes": 626278400,
+    "archive_sha256": "4f4b5dca898c8207d970e7f37df136a83bd418c6ebacd86977eb5aa506a7f005",
+    "decoded_unique_chunks_verified": 416,
+    "inner_manifest_sha256": "b1d3fa520e69a6043845b0759b7edceb9feeb83e44667864cfdecda395cf65b2",
+    "original_bytes": 3533513136,
+    "verified_files": 228
+  },
+  "selection": "packed",
+  "source_commit": "f5670242e13b2b480a78e8fc1e3c797d6bb13800",
+  "speed_verdict": "CONFIRMED_PRACTICAL_WIN",
+  "status": "passed_standalone_transfer_audit",
+  "workers": 14
+}

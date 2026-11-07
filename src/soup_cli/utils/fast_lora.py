@@ -39,6 +39,8 @@ logger = logging.getLogger(__name__)
 
 _PATCH_MARKER = "_soup_fast_lora_single_projection"
 _ORIGINAL_FORWARD_MARKER = "_soup_fast_lora_original_forward"
+_INSTALLED_FORWARD_MARKER = "_soup_fast_lora_single_installed_forward"
+_HAD_INSTANCE_FORWARD_MARKER = "_soup_fast_lora_single_had_instance_forward"
 _GROUP_PATCH_OWNER_MARKER = "_soup_fast_lora_group_owner"
 _FORWARD_OWNER_MARKER = "_soup_fast_lora_forward_owner"
 
@@ -55,15 +57,19 @@ def _as_dtype(tensor: Any, dtype: Any) -> Any:
     return tensor if tensor.dtype == dtype else tensor.to(dtype)
 
 
-def _scaled_lora_add(out: Any, hidden: Any, lora_b: Any, scaling: float) -> Any:
-    """Add a LoRA update with PEFT's promote, add, then cast semantics."""
+def _scaled_lora_add(
+    out: Any, hidden: Any, lora_b: Any, scaling: float, *, quantized: bool = False
+) -> Any:
+    """Preserve dense versus Linear4bit's distinct scaled-update cast seams."""
     import torch
 
-    lora_term = torch.matmul(hidden, lora_b.t())
+    lora_term = torch.matmul(hidden, lora_b.t()) * float(scaling)
+    if quantized:
+        # PEFT Linear4bit (autocast disabled) narrows the scaled update before
+        # addition. Dense Linear promotes the addition, then narrows its result.
+        return out + lora_term.to(out.dtype)
     promoted = torch.promote_types(out.dtype, lora_term.dtype)
-    return torch.add(
-        out.to(promoted), lora_term.to(promoted), alpha=float(scaling)
-    ).to(out.dtype)
+    return (out.to(promoted) + lora_term.to(promoted)).to(out.dtype)
 
 
 def _flatten(tensor: Any) -> Any:
@@ -76,6 +82,94 @@ def _flatten(tensor: Any) -> Any:
     against a silent shape assumption.
     """
     return tensor.reshape(-1, tensor.shape[-1])
+
+
+def _projection_autocast_dtype(x: Any) -> Any:
+    """Record adapter GEMM dtype, including NF4 bases with FP32 master adapters."""
+    import torch
+
+    if (
+        x.device.type != "meta"
+        and x.dtype != torch.float64
+        and torch.is_autocast_enabled(x.device.type)
+    ):
+        return torch.get_autocast_dtype(x.device.type)
+    return None
+
+
+def _amp_input_accumulation_dtype(x: Any, adapters: Any, dtype: Any) -> Any:
+    """Autocast reuses the cast of an eligible FP32 leaf across its GEMMs.
+
+    Those branches meet before the single cast backward. Non-leaves, views,
+    disabled caching and explicit low-precision adapter input casts instead
+    have separate cast backwards before accumulation in the original dtype.
+    """
+    import torch
+
+    if (
+        dtype is not None and x.dtype == torch.float32 and x.requires_grad
+        and x.is_leaf and not x._is_view() and torch.is_autocast_cache_enabled()
+        and all(a.dtype == torch.float32 for a in adapters if a.numel())
+    ):
+        return dtype
+    return x.dtype
+
+
+def _nf4_autocast_requires_fallback(x: Any, states: Any) -> bool:
+    """Keep FP32/shared-cast or mixed-compute NF4 graphs on PEFT's own graph.
+
+    Streamed Llama uses the same half dtype for activations and base compute.
+    A different input dtype introduces extra cast/accumulation boundaries that
+    the manual NF4 AMP backward does not model.
+    """
+    if x.device.type == "meta" or not any(state.qmeta is not None for state in states):
+        return False
+    import torch
+
+    if not torch.is_autocast_enabled(x.device.type):
+        return False
+    return any(
+        state.qmeta is not None and (
+            x.dtype != torch.get_autocast_dtype(x.device.type)
+            or state.compute_dtype not in (None, x.dtype)
+        )
+        for state in states
+    )
+
+
+def _amp_adapter_backward(
+    x: Any, a: Any, b: Any, hidden: Any, grad: Any, scaling: float,
+    dtype: Any, needs_input_grad: bool,
+) -> tuple[Any, Any, Any]:
+    """Differentiate the actual autocast GEMMs, including their cast edges.
+
+    PEFT's FP32 master parameters are narrowed for the forward GEMMs. Their
+    backward GEMMs also run in that narrow dtype, then cast gradients back to
+    the master/input dtype. Computing dH/dA in FP32 changes the optimizer update.
+    """
+    import torch
+
+    with torch.autocast(x.device.type, enabled=False):
+        scaled = _as_dtype(grad, dtype) * scaling
+        grad_b = _flatten(scaled).t() @ _flatten(_as_dtype(hidden, dtype))
+        grad_h = torch.matmul(scaled, _as_dtype(b, dtype))
+        grad_a = _flatten(grad_h).t() @ _as_dtype(_flatten(x), dtype)
+        grad_x = torch.matmul(grad_h, _as_dtype(a, dtype)) if needs_input_grad else None
+    return (
+        grad_a.to(a.dtype), grad_b.to(b.dtype),
+        None if grad_x is None else grad_x.to(x.dtype),
+    )
+
+
+def _amp_base_backward(
+    x: Any, weight: Any, grad: Any, dtype: Any,
+    qmeta: dict[str, Any] | None = None, qparts: Any = (),
+) -> Any:
+    import torch
+
+    with torch.autocast(x.device.type, enabled=False):
+        dense = _dense_weight(weight, qmeta, qparts, dtype)
+        return torch.matmul(_as_dtype(grad, dtype), dense).to(x.dtype)
 
 
 def _quant_state_parts(quant_state: Any) -> tuple[list[Any], dict[str, Any]]:
@@ -221,6 +315,12 @@ def _projection_state(
         qparts, qmeta = _quant_state_parts(qstate)
         qmeta = dict(qmeta)
         qmeta["_count"] = len(qparts)
+        # Storage does not determine PEFT's addition dtype. Streaming can put
+        # an NF4 base under the ordinary Linear wrapper, which promotes the
+        # addition before narrowing. Only Linear4bit narrows the update first.
+        from peft.tuners.lora import Linear as LoraLinear
+
+        qmeta["_narrow_lora_update"] = adapter is not None and not isinstance(proj, LoraLinear)
 
     if adapter is None:
         lora_a = x.new_empty(0)
@@ -262,6 +362,201 @@ def _is_supported_lora_projection(proj: Any) -> bool:
     return isinstance(proj, _supported_lora_projection_types())
 
 
+_REFERENCE_DEFINITIONS: Any = None
+_REFERENCE_CAST_METHOD: Any = None
+
+
+def _verified_class_forward(cls: type, method_name: str = "forward") -> Any:
+    """Anchor a pristine method to installed source, not a first-use monkeypatch."""
+    import ast
+    import inspect
+    import sys
+    import textwrap
+    import types
+
+    def signature(code: Any) -> Any:
+        return (
+            code.co_code, code.co_names, code.co_varnames, code.co_freevars,
+            code.co_cellvars, code.co_argcount, code.co_posonlyargcount,
+            code.co_kwonlyargcount,
+            tuple(signature(c) if isinstance(c, types.CodeType) else c for c in code.co_consts),
+        )
+
+    current = getattr(cls, method_name)
+    if not isinstance(current, types.FunctionType):
+        return None
+    # Code/qualname metadata can be copied into a function with a different
+    # global namespace. It is not the installed definition's execution context.
+    owner = sys.modules.get(cls.__module__)
+    if owner is None or current.__globals__ is not vars(owner):
+        return None
+    if (current.__module__ != cls.__module__
+            or current.__qualname__ != f"{cls.__name__}.{method_name}"):
+        return None
+    try:
+        tree = ast.parse(textwrap.dedent(inspect.getsource(cls)))
+        definition = next(node for node in tree.body if isinstance(node, ast.ClassDef))
+        # Runtime uses the last definition; preceding @overload declarations
+        # are typing stubs, not the method that PEFT executes.
+        method = next(node for node in reversed(definition.body)
+                      if isinstance(node, ast.FunctionDef) and node.name == method_name)
+        if method.decorator_list:
+            return None
+        # Compile, never execute, the complete installed module. On Python 3.12,
+        # compiling a class alone can emit different call bytecode when a global
+        # was imported by the surrounding module. Keep that compiler context.
+        source_file = inspect.getsourcefile(owner)
+        if source_file is None:
+            return None
+        compiled = compile(inspect.getsource(owner), source_file, "exec", dont_inherit=True)
+        class_codes = [c for c in compiled.co_consts
+                       if isinstance(c, types.CodeType) and c.co_name == cls.__name__]
+        if len(class_codes) != 1:
+            return None
+        class_code = class_codes[0]
+        expected = next(c for c in reversed(class_code.co_consts)
+                        if isinstance(c, types.CodeType) and c.co_name == method_name)
+        return current if signature(current.__code__) == signature(expected) else None
+    except (OSError, TypeError, SyntaxError, StopIteration):
+        return None
+
+
+def _reference_definitions() -> Any:
+    """Lazy, exact identities for the installed vanilla Llama/PEFT graph."""
+    global _REFERENCE_DEFINITIONS, _REFERENCE_CAST_METHOD
+    if _REFERENCE_DEFINITIONS is None:
+        from peft.tuners.tuners_utils import BaseTunerLayer
+        from torch import nn
+        from transformers.activations import SiLUActivation
+        from transformers.models.llama.modeling_llama import LlamaAttention, LlamaMLP
+
+        types = (LlamaAttention, LlamaMLP, nn.Linear, nn.Identity, nn.Dropout,
+                 SiLUActivation, *_supported_lora_projection_types())
+        try:
+            from bitsandbytes.nn import Linear4bit
+
+            types += (Linear4bit,)
+        except ImportError:
+            pass
+        definitions = (
+            {"qkv": LlamaAttention, "mlp": LlamaMLP},
+            {cls: (method, None if method is None else method.__code__)
+             for cls in types for method in (_verified_class_forward(cls),)},
+        )
+        cast = _verified_class_forward(BaseTunerLayer, "_cast_input_dtype")
+        _REFERENCE_CAST_METHOD = (cast, None if cast is None else cast.__code__)
+        # Publish the readiness sentinel last: peers must never observe class
+        # definitions before the corresponding cast-method metadata exists.
+        _REFERENCE_DEFINITIONS = definitions
+    return _REFERENCE_DEFINITIONS
+
+
+def _reference_method(module: Any, forward: Any) -> bool:
+    _parents, definitions = _reference_definitions()
+    trusted, code = definitions.get(type(module), (None, None))
+    return (
+        trusted is not None and type(module).forward is trusted and trusted.__code__ is code
+        and getattr(forward, "__func__", None) is trusted
+        and getattr(forward, "__self__", None) is module
+    )
+
+
+def _reference_hooks(module: Any, *, output_observers: bool = False) -> bool:
+    """Only explicitly supported read-only output observers may remain.
+
+    QKV child/parent output hooks execute normally. Mutating hooks are outside
+    this scope; there is no hook-purity detector. MLP-bypassed inner hooks are
+    unsupported even if read-only.
+    """
+    from torch.nn.modules import module as module_hooks
+
+    return not (
+        module_hooks._global_forward_pre_hooks or module_hooks._global_forward_hooks
+        or module_hooks._global_backward_pre_hooks or module_hooks._global_backward_hooks
+        or
+        getattr(module, "_forward_pre_hooks", {}) or getattr(module, "_backward_hooks", {})
+        or getattr(module, "_backward_pre_hooks", {})
+        or (not output_observers and getattr(module, "_forward_hooks", {}))
+    )
+
+
+def _reference_parent(module: Any, kind: str, original_forward: Any) -> bool:
+    parents, _definitions = _reference_definitions()
+    return (
+        type(module) is parents[kind] and _reference_method(module, original_forward)
+        and _reference_hooks(module, output_observers=True)
+    )
+
+
+def _reference_projections(
+    projections: Any, originals: Any, states: Any, x: Any, *, output_observers: bool = False
+) -> bool:
+    """Non-vacuous low-X/FP32-master scope; unsupported state remains legacy."""
+    import torch
+    from torch import nn
+
+    if x.dtype not in (torch.float16, torch.bfloat16) or torch.is_autocast_enabled(x.device.type):
+        return False
+    present = [state for state in states if state is not None and state.lora_a.numel()]
+    if not present or any(state is None for state in states):
+        return False
+    for proj, original, state in zip(projections, originals, states):
+        if not _reference_method(proj, original):
+            return False
+        if not _reference_hooks(proj, output_observers=output_observers):
+            return False
+        base = proj.get_base_layer() if hasattr(proj, "get_base_layer") else proj
+        base_forward = original if base is proj else base.forward
+        if not _reference_method(base, base_forward):
+            return False
+        if base is not proj and not _reference_hooks(base):
+            return False
+        if state.weight.requires_grad or (state.bias is not None and state.bias.requires_grad):
+            return False
+        if state.compute_dtype not in (None, x.dtype):
+            return False
+        if state.qmeta is None and state.weight.dtype != x.dtype:
+            return False
+        if not state.lora_a.numel():
+            continue
+        if state.lora_a.dtype != torch.float32 or state.lora_b.dtype != torch.float32:
+            return False
+        if not getattr(proj, "cast_input_dtype_enabled", True):
+            return False
+        cast, cast_code = _REFERENCE_CAST_METHOD
+        current_cast = proj._cast_input_dtype
+        if (cast is None or getattr(current_cast, "__func__", None) is not cast
+                or cast.__code__ is not cast_code
+                or getattr(current_cast, "__self__", None) is not proj):
+            return False
+        adapter = proj.active_adapters[0]
+        layers = (proj.lora_A[adapter], proj.lora_B[adapter], proj.lora_dropout[adapter])
+        if type(layers[0]) is not nn.Linear or type(layers[1]) is not nn.Linear:
+            return False
+        if type(layers[2]) not in (nn.Identity, nn.Dropout):
+            return False
+        if any(not _reference_method(layer, layer.forward) or not _reference_hooks(layer)
+               for layer in layers):
+            return False
+        if layers[0].bias is not None or layers[1].bias is not None:
+            return False
+    return True
+
+
+def _projection_forward_matches(proj: Any, original: Any) -> bool:
+    """Permit only our installed single wrapper around the same vanilla method.
+
+    The normal group-then-single install patches MLP children too. They are not
+    executed by the MLP Function; an arbitrary replacement is still ineligible.
+    """
+    return proj.forward == original or (
+        getattr(proj, _PATCH_MARKER, False)
+        and getattr(proj.forward, "__func__", None) is
+        getattr(proj, _INSTALLED_FORWARD_MARKER, None)
+        and getattr(proj, _ORIGINAL_FORWARD_MARKER, None) == original
+    )
+
+
 def _dense_weight(
     weight: Any,
     qmeta: dict[str, Any] | None,
@@ -275,6 +570,30 @@ def _dense_weight(
 
     state = _rebuild_quant_state(qmeta, qparts)
     return dequantize_4bit(weight, state).to(dtype)
+
+
+def _base_linear(
+    x: Any, weight: Any, bias: Any, qmeta: dict[str, Any] | None, qparts: list[Any]
+) -> Any:
+    """Use PEFT's packed-base dispatch instead of rounding NF4 weights first."""
+    import torch
+
+    if qmeta is not None and x.is_cuda and x.dtype in (
+        torch.float16, torch.bfloat16, torch.float32
+    ):
+        import bitsandbytes as bnb
+
+        state = _rebuild_quant_state(qmeta, qparts)
+        return bnb.matmul_4bit(
+            x, weight.t(), bias=_as_dtype(bias, x.dtype) if bias is not None else None,
+            quant_state=state,
+        )
+    import torch.nn.functional as functional
+
+    return functional.linear(
+        x, _dense_weight(weight, qmeta, qparts, x.dtype),
+        _as_dtype(bias, x.dtype) if bias is not None else None,
+    )
 
 
 def _single_projection_function() -> Any:
@@ -300,53 +619,71 @@ def _single_projection_function() -> Any:
         saved-bytes test reports the actual delta against peft's graph.
 
         NF4: ``weight`` is the packed tensor and ``quant_state`` carries the
-        per-block tensors. The forward dequantises for the base matmul only;
+        per-block tensors. The forward preserves bitsandbytes' base dispatch;
         the backward rebuilds the ``QuantState`` from the saved tensors and
         dequantises again for ``dX``.
         """
 
         @staticmethod
-        def forward(ctx, x, weight, bias, lora_a, lora_b, scaling, quant_state):
+        def forward(
+            ctx, x, weight, bias, lora_a, lora_b, scaling, quant_state, narrow_update=None
+        ):
             import torch.nn.functional as functional
 
+            ctx.amp_dtype = _projection_autocast_dtype(x)
+            ctx.amp_input_dtype = (
+                x.dtype if quant_state is not None
+                else _amp_input_accumulation_dtype(x, (lora_a,), ctx.amp_dtype)
+            )
             h = functional.linear(_as_dtype(x, lora_a.dtype), lora_a)  # [N, r]
             if quant_state is None:
                 out = functional.linear(x, weight, bias)
                 ctx.save_for_backward(x, weight, lora_a, lora_b, h)
                 ctx.qmeta = None
             else:
-                from bitsandbytes.functional import dequantize_4bit
-
-                # Transient on purpose: under streaming this dense matrix would
-                # alias a pool slot, so it must not outlive the call.
-                dense = dequantize_4bit(weight, quant_state).to(x.dtype)
-                out = functional.linear(
-                    x, dense, _as_dtype(bias, x.dtype) if bias is not None else None
-                )
-                del dense
                 qs_tensors, qs_meta = _quant_state_parts(quant_state)
+                out = _base_linear(x, weight, bias, qs_meta, qs_tensors)
                 ctx.save_for_backward(x, weight, lora_a, lora_b, h, *qs_tensors)
                 ctx.qmeta = qs_meta
 
             ctx.scaling = float(scaling)
-            # ``torch.addmm(out, h, lora_b.t(), alpha=s)`` is the 2-D form of
-            # this sum. matmul + add keeps one code path that also covers the
-            # ``[B, S, H]`` inputs transformers hands to real projections, and
-            # the add's ``alpha`` still folds the scaling into the term.
-            out = _scaled_lora_add(out, h, lora_b, ctx.scaling)
+            # PEFT multiplies the completed update before addition; alpha=s
+            # would reassociate the multiply and change non-power-of-two scales.
+            out = _scaled_lora_add(
+                out, h, lora_b, ctx.scaling,
+                quantized=quant_state is not None if narrow_update is None else narrow_update,
+            )
             return out
 
         @staticmethod
         @torch.autograd.function.once_differentiable
         def backward(ctx, grad_out):
             scaling = ctx.scaling
-            x, weight, lora_a, lora_b, h = ctx.saved_tensors[:5]
+            # Non-reentrant checkpoint hooks allow each saved tensor to be
+            # unpacked once. Reuse this tuple for the NF4 state as well.
+            saved = ctx.saved_tensors
+            x, weight, lora_a, lora_b, h = saved[:5]
+
+            if ctx.amp_dtype is not None:
+                grad_a, grad_b, grad_x = _amp_adapter_backward(
+                    x, lora_a, lora_b, h, grad_out, scaling,
+                    ctx.amp_dtype, ctx.needs_input_grad[0],
+                )
+                if ctx.needs_input_grad[0]:
+                    base_dx = _amp_base_backward(
+                        x, weight, grad_out, ctx.amp_dtype, ctx.qmeta, list(saved[5:])
+                    )
+                    grad_x = (
+                        grad_x.to(ctx.amp_input_dtype) + base_dx.to(ctx.amp_input_dtype)
+                    ).to(x.dtype)
+                gradients = (grad_x, None, None, grad_a, grad_b, None, None)
+                return gradients + (None,) if len(ctx.needs_input_grad) == 8 else gradients
 
             # dB sums over every leading dimension, so flatten it; dB and dA
             # are weight-shaped regardless of the input's rank.
-            grad_b = _as_dtype(_flatten(grad_out), h.dtype).t() @ _flatten(h) * scaling
+            grad_b = (_as_dtype(_flatten(grad_out), h.dtype) * scaling).t() @ _flatten(h)
             # dH keeps the input's leading dimensions; dA = dH^T @ X.
-            grad_h = torch.matmul(_as_dtype(grad_out, lora_b.dtype), lora_b) * scaling
+            grad_h = torch.matmul(_as_dtype(grad_out, lora_b.dtype) * scaling, lora_b)
             grad_a = _flatten(grad_h).t() @ _as_dtype(_flatten(x), grad_h.dtype)
 
             grad_x = None
@@ -356,7 +693,7 @@ def _single_projection_function() -> Any:
                 else:
                     from bitsandbytes.functional import dequantize_4bit
 
-                    quant_state = _rebuild_quant_state(ctx.qmeta, list(ctx.saved_tensors[5:]))
+                    quant_state = _rebuild_quant_state(ctx.qmeta, list(saved[5:]))
                     dense = dequantize_4bit(weight, quant_state).to(x.dtype)
 
                 # dX = dY @ W, plus the LoRA term accumulated into the same
@@ -367,11 +704,12 @@ def _single_projection_function() -> Any:
                 grad_x = torch.matmul(grad_out, _as_dtype(dense, grad_out.dtype))
                 grad_x = torch.add(
                     grad_x,
-                    torch.matmul(
-                        _as_dtype(grad_h, grad_x.dtype), _as_dtype(lora_a, grad_x.dtype)
+                    _as_dtype(
+                        torch.matmul(grad_h, _as_dtype(lora_a, grad_h.dtype)), grad_x.dtype
                     ),
                 )
-            return grad_x, None, None, grad_a, grad_b, None, None
+            gradients = (grad_x, None, None, grad_a, grad_b, None, None)
+            return gradients + (None,) if len(ctx.needs_input_grad) == 8 else gradients
 
     _FUNCTION = _FastLoraSingleProjection
     return _FUNCTION
@@ -387,6 +725,8 @@ def _make_patched_forward(original_forward: Any) -> Any:
         state = _projection_state(self, x)
         if state is None:
             return original_forward(x)
+        if _nf4_autocast_requires_fallback(x, (state,)):
+            return original_forward(x)
 
         input_dtype = x.dtype
         work_x = x
@@ -401,6 +741,7 @@ def _make_patched_forward(original_forward: Any) -> Any:
             state.lora_b,
             state.scaling,
             None if state.qmeta is None else _rebuild_quant_state(state.qmeta, state.qparts),
+            None if state.qmeta is None else state.qmeta["_narrow_lora_update"],
         )
         return out if work_x is x else out.to(input_dtype)
 
@@ -429,8 +770,11 @@ def patch_fast_lora_single_projection(model: Any) -> int:
 
     for child in targets:
         setattr(child, _ORIGINAL_FORWARD_MARKER, child.forward)
+        setattr(child, _HAD_INSTANCE_FORWARD_MARKER, "forward" in vars(child))
         setattr(child, _PATCH_MARKER, True)
-        child.forward = types.MethodType(_make_patched_forward(child.forward), child)
+        installed = _make_patched_forward(child.forward)
+        setattr(child, _INSTALLED_FORWARD_MARKER, installed)
+        child.forward = types.MethodType(installed, child)
     return len(targets)
 
 
@@ -441,8 +785,14 @@ def unpatch_fast_lora_single_projection(model: Any) -> int:
         original = getattr(child, _ORIGINAL_FORWARD_MARKER, None)
         if original is None or not getattr(child, _PATCH_MARKER, False):
             continue
-        child.forward = original
+        if getattr(child.forward, "__func__", None) is getattr(child, _INSTALLED_FORWARD_MARKER):
+            if getattr(child, _HAD_INSTANCE_FORWARD_MARKER):
+                child.forward = original
+            else:
+                delattr(child, "forward")
         delattr(child, _ORIGINAL_FORWARD_MARKER)
         delattr(child, _PATCH_MARKER)
+        delattr(child, _INSTALLED_FORWARD_MARKER)
+        delattr(child, _HAD_INSTANCE_FORWARD_MARKER)
         restored += 1
     return restored

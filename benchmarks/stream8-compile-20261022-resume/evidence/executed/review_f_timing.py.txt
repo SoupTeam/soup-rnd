@@ -1,0 +1,82 @@
+"""Independent fresh-process timing and full trajectory audit of F."""
+import json
+import time
+from pathlib import Path
+
+from rich.console import Console
+
+from paired_analysis import paired_summary
+
+
+def main():
+    import torch
+    from safetensors.torch import load_file
+
+    torch.set_num_threads(2)
+    root = Path(__file__).parent
+    name = 'f-timings-8-resident'
+    receipt = json.loads((root / f'bundle-{name}-verified.json').read_text())
+    assert receipt['all_original_files_verified'] > 0
+    base = root / f'bundles/{name}/retained/results/model-8'
+    pairs, runs, checks, pids, initials = [], [], [], [], set()
+    expected_uuid = 'GPU-72f1f8b8-6875-712e-9ed7-97bd231370ef'
+    for cycle in range(4):
+        items = []
+        for arm in ['baseline', 'resident']:
+            folder = base / f'timing-resident-pair-{cycle}-{arm}'
+            metric = json.loads((folder / 'metrics.json').read_text())
+            provenance = json.loads((folder / 'residency-compile-provenance.json').read_text())
+            assert metric['warmup'] == 6 and metric['steps'] == 8
+            assert len(metric['seconds']) == 8
+            assert metric['amp'] == {'bf16': True, 'fp16': False}
+            assert metric['decoder_dtype'] == 'torch.bfloat16'
+            assert metric['deterministic_algorithms']
+            assert len(metric['input_shapes']) == 28
+            assert all(shape == [1, 1024] for shape in metric['input_shapes'])
+            assert metric['data_sha256'] == '313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9'
+            assert expected_uuid in metric['gpu_before']
+            assert provenance['affinity'] == [0, 1, 2, 3]
+            assert provenance['indices'] == ([] if arm == 'baseline' else [16, 17, 18, 19])
+            assert provenance['research_bench_sha256'] == '080b4de75b8f228f367d7f9de2e4b7be7793b2b3c1e6c06c27ec0b0638b10f1b'
+            assert len(provenance['all_update_wall_seconds']) == 14
+            assert provenance['compiled_decoders'] == 0
+            initials.add(metric['initial_adapter_sha256'])
+            pids.append(provenance['pid'])
+            items.append((folder, metric))
+            runs.append({'pair': cycle, 'arm': arm, 'pid': provenance['pid'],
+                         'seconds': metric['seconds'],
+                         'tokens_per_update': 2048,
+                         'cpu_host_memory_at_exit': provenance['host_memory_at_exit'],
+                         'ordinary_setup_seconds': provenance['ordinary_setup_seconds'],
+                         'whole_entry_seconds': provenance['whole_entry_seconds'],
+                         'training_wall_seconds_including_final_save':
+                             metric['training_wall_seconds_including_final_save'],
+                         'whole_peak_allocated_bytes': provenance['whole_run_peak_allocated_bytes'],
+                         'whole_peak_reserved_bytes': provenance['whole_run_peak_reserved_bytes'],
+                         'last_update_counters': provenance['per_update_loads'][-1]})
+        pairs.append(tuple(item[1]['seconds'] for item in items))
+        losses = [[row['loss'] for row in item[1]['training_log_history'] if 'loss' in row]
+                  for item in items]
+        assert all(len(values) == 14 for values in losses)
+        assert all(f'{a:.3f}' == f'{b:.3f}' for a, b in zip(*losses, strict=True))
+        left, right = [load_file(str(item[0] / 'adapter/adapter_model.safetensors'))
+                       for item in items]
+        assert set(left) == set(right) and len(left) == 504
+        assert all(torch.isfinite(value).all() and torch.equal(value, right[key])
+                   for key, value in left.items())
+        checks.append({'pair': cycle, 'all14_losses_equal': losses[0] == losses[1],
+                       'final504_adapters_bitwise_equal': True})
+    assert len(set(pids)) == 8 and len(initials) == 1
+    assert next(iter(initials)) == '4b0bffec36ae011fe0aab9779d2ec9d0c8c63a13770ac048a0be46550dc64d89'
+    report = paired_summary(pairs)
+    report.update(runs=runs, trajectories=checks, fresh_process_count=8,
+                  identical_initial_sha256=next(iter(initials)), physical_gpu_uuid=expected_uuid,
+                  receipt=receipt, checked_unix=time.time(), integrator_independent=True)
+    (root / 'f-resident-independent-timing-review.json').write_text(
+        json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    Console().print({key: value for key, value in report.items()
+                     if key not in ['runs', 'receipt']})
+
+
+if __name__ == '__main__':
+    main()

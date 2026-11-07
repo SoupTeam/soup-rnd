@@ -1,0 +1,317 @@
+{
+  "status": "TIMING_CAPTURED_NOT_A_CORRECTNESS_OR_QUALITY_VERDICT",
+  "arm": "baseline",
+  "warmup": 6,
+  "steps": 8,
+  "diagnostic_instrumented": false,
+  "scope": "synchronized optimizer-step window; excludes first-batch fetch/save/eval",
+  "data_sha256": "313d17f90f4b62004a1d8232ba9bc0b19388a65e933c930ddc9aecfe7ffbf0f9",
+  "gpu_before": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3060 Ti, GPU-72f1f8b8-6875-712e-9ed7-97bd231370ef, 595.91.07, P2, 1665 MHz, 47.00 W, 56, 141 MiB\n",
+  "seconds": [
+    5.843660571146756,
+    5.848063311073929,
+    5.849844662006944,
+    5.839988613966852,
+    5.8337424320634454,
+    5.846986815799028,
+    5.841812636004761,
+    5.838242828147486
+  ],
+  "peak_allocated_bytes": [
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376,
+    5990693376
+  ],
+  "peak_reserved_bytes": [
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560,
+    6616514560
+  ],
+  "initial_adapter_sha256": "4b0bffec36ae011fe0aab9779d2ec9d0c8c63a13770ac048a0be46550dc64d89",
+  "setup_seconds": 23.21345731196925,
+  "patch_counts": {},
+  "decoder_dtype": "torch.bfloat16",
+  "amp": {
+    "fp16": false,
+    "bf16": true
+  },
+  "input_shapes": [
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ],
+    [
+      1,
+      1024
+    ]
+  ],
+  "training_wall_seconds_including_final_save": 83.32881236588582,
+  "training_log_history": [
+    {
+      "loss": 0.08662115782499313,
+      "grad_norm": 0.1485196053981781,
+      "learning_rate": 2e-05,
+      "entropy": 0.060332346707582474,
+      "num_tokens": 2048.0,
+      "mean_token_accuracy": 0.988095223903656,
+      "epoch": 0.0625,
+      "step": 1
+    },
+    {
+      "loss": 0.08813001960515976,
+      "grad_norm": 0.1551971733570099,
+      "learning_rate": 1.9749279121818235e-05,
+      "entropy": 0.060669438913464546,
+      "num_tokens": 4096.0,
+      "mean_token_accuracy": 0.988095223903656,
+      "epoch": 0.125,
+      "step": 2
+    },
+    {
+      "loss": 0.08544854819774628,
+      "grad_norm": 0.15245464444160461,
+      "learning_rate": 1.900968867902419e-05,
+      "entropy": 0.059575216844677925,
+      "num_tokens": 6144.0,
+      "mean_token_accuracy": 0.988095223903656,
+      "epoch": 0.1875,
+      "step": 3
+    },
+    {
+      "loss": 0.08348636329174042,
+      "grad_norm": 0.11846845597028732,
+      "learning_rate": 1.78183148246803e-05,
+      "entropy": 0.056649208068847656,
+      "num_tokens": 8192.0,
+      "mean_token_accuracy": 0.9900892078876495,
+      "epoch": 0.25,
+      "step": 4
+    },
+    {
+      "loss": 0.07856938242912292,
+      "grad_norm": 0.15845273435115814,
+      "learning_rate": 1.6234898018587336e-05,
+      "entropy": 0.060809649527072906,
+      "num_tokens": 10240.0,
+      "mean_token_accuracy": 0.9885912537574768,
+      "epoch": 0.3125,
+      "step": 5
+    },
+    {
+      "loss": 0.07651373744010925,
+      "grad_norm": 0.13906019926071167,
+      "learning_rate": 1.4338837391175582e-05,
+      "entropy": 0.058450859040021896,
+      "num_tokens": 12288.0,
+      "mean_token_accuracy": 0.9895877540111542,
+      "epoch": 0.375,
+      "step": 6
+    },
+    {
+      "loss": 0.07893801480531693,
+      "grad_norm": 0.14697250723838806,
+      "learning_rate": 1.2225209339563144e-05,
+      "entropy": 0.059725966304540634,
+      "num_tokens": 14336.0,
+      "mean_token_accuracy": 0.9895877540111542,
+      "epoch": 0.4375,
+      "step": 7
+    },
+    {
+      "loss": 0.0737566277384758,
+      "grad_norm": 0.1702088713645935,
+      "learning_rate": 1e-05,
+      "entropy": 0.06027874909341335,
+      "num_tokens": 16384.0,
+      "mean_token_accuracy": 0.9895833134651184,
+      "epoch": 0.5,
+      "step": 8
+    },
+    {
+      "loss": 0.07296374440193176,
+      "grad_norm": 0.14184722304344177,
+      "learning_rate": 7.774790660436857e-06,
+      "entropy": 0.06002705916762352,
+      "num_tokens": 18432.0,
+      "mean_token_accuracy": 0.990083783864975,
+      "epoch": 0.5625,
+      "step": 9
+    },
+    {
+      "loss": 0.07325516641139984,
+      "grad_norm": 0.15124565362930298,
+      "learning_rate": 5.66116260882442e-06,
+      "entropy": 0.05927914381027222,
+      "num_tokens": 20480.0,
+      "mean_token_accuracy": 0.9895877540111542,
+      "epoch": 0.625,
+      "step": 10
+    },
+    {
+      "loss": 0.08385562896728516,
+      "grad_norm": 0.15650394558906555,
+      "learning_rate": 3.7651019814126656e-06,
+      "entropy": 0.059905821457505226,
+      "num_tokens": 22528.0,
+      "mean_token_accuracy": 0.9895882308483124,
+      "epoch": 0.6875,
+      "step": 11
+    },
+    {
+      "loss": 0.07623478025197983,
+      "grad_norm": 0.14980566501617432,
+      "learning_rate": 2.1816851753197023e-06,
+      "entropy": 0.05750829353928566,
+      "num_tokens": 24576.0,
+      "mean_token_accuracy": 0.9895877540111542,
+      "epoch": 0.75,
+      "step": 12
+    },
+    {
+      "loss": 0.07386800646781921,
+      "grad_norm": 0.18457511067390442,
+      "learning_rate": 9.903113209758098e-07,
+      "entropy": 0.06135244108736515,
+      "num_tokens": 26624.0,
+      "mean_token_accuracy": 0.9885912537574768,
+      "epoch": 0.8125,
+      "step": 13
+    },
+    {
+      "loss": 0.0735412985086441,
+      "grad_norm": 0.15866558253765106,
+      "learning_rate": 2.507208781817638e-07,
+      "entropy": 0.061718523502349854,
+      "num_tokens": 28672.0,
+      "mean_token_accuracy": 0.9890872836112976,
+      "epoch": 0.875,
+      "step": 14
+    },
+    {
+      "train_runtime": 82.6801,
+      "train_samples_per_second": 0.339,
+      "train_steps_per_second": 0.169,
+      "total_flos": 1303885104807936.0,
+      "train_loss": 0.07894160545298032,
+      "epoch": 0.875,
+      "step": 14
+    }
+  ],
+  "deterministic_algorithms": true,
+  "median_seconds_per_optimizer_step": 5.842736603575759,
+  "gpu_after": "name, uuid, driver_version, pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu, memory.used [MiB]\nNVIDIA GeForce RTX 3060 Ti, GPU-72f1f8b8-6875-712e-9ed7-97bd231370ef, 595.91.07, P2, 1920 MHz, 130.36 W, 68, 6599 MiB\n"
+}

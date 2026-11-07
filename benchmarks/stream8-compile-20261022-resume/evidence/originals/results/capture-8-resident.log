@@ -1,0 +1,56 @@
+Loading tokenizer: /root/liger/model-8
+╭────────────────────── Layer streaming disk pre-flight ───────────────────────╮
+│ HF/local source: 16.38 GB                                                    │
+│ Soup materialized copy: 0.00 GB (no write required)                          │
+│ Layer-shard cache: 16.38 GB (reusable)                                       │
+│ Projected total on disk: 32.76 GB                                            │
+│ Additional writes before training: 0.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Preparing layer shards -> /root/liger/shards/root__liger__model-8
+╭─────────────────────────── training.stream_layers ───────────────────────────╮
+│ Layer streaming BETA — arch qwen3, tier ram                                  │
+│   base store   16.38 GB across 36 layers (pinned)                            │
+│   VRAM buffers 2 x 386 MB + 1 x 1245 MB large-layer slot = 2016 MB           │
+│   resident     0 MB extras + adapters                                        │
+│   peak VRAM    ~4.71 GB at batch 1 x seq 1024 (logits 2.18 GB)               │
+│   free VRAM    8.05 GB                                                       │
+│   forecast     422-620 tok/s — a compute-bound bound, not a promise          │
+│                (from 30.48 TFLOPS measured on this card now using bfloat16 @ │
+│ 1665 MHz)                                                                    │
+│   ! accumulating 2x at batch 1: the base is re-read once per micro-batch.    │
+│ Per token that is free, but reaching effective batch 2 by raising            │
+│ training.batch_size instead measured ~2.5x faster. Accumulation holds peak   │
+│ VRAM flat, so raise batch_size while the budget above allows, then           │
+│ accumulate for the rest.                                                     │
+│   ! training.stream_pin=true forces page-locked host memory — the base store │
+│ on the RAM tier, the async reader's staging on the disk tier. On a CUDA      │
+│ target the run refuses, on either tier, rather than falling back to pageable │
+│ memory if the box cannot page-lock it; on a non-CUDA target there is no CUDA │
+│ pinning to force, so the request is announced as inapplicable and the run    │
+│ proceeds with pageable host memory.                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Layer streaming is BETA: slower than resident training, but this model may not 
+run resident on this card at all.
+expandable_segments allocator hint not enabled: CUDA was already initialised 
+before Soup could set it — the allocator reads PYTORCH_CUDA_ALLOC_CONF once, at 
+context creation
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Layer streaming ready: 36 layers, 16.38 GB pinned RAM store (17.18 GB 
+page-locked), 2 x 386 MB decoder buffers + 1 x 1245 MB large-layer slot
+LoRA applied: 10,911,744 trainable / 8,190,735,360 total (0.13%)
+chat_template override applied. Subsequent tokenizer.save_pretrained() / soup 
+push will persist this Jinja string into tokenizer_config.json — replacing 
+whatever the model originally shipped.
+Map:   0%|          | 0/32 [00:00<?, ? examples/s][transformers] return_assistant_tokens_mask==True but chat template does not contain `{% generation %}` keyword.
+Map:  25%|██▌       | 8/32 [00:00<00:00, 72.77 examples/s]Map:  50%|█████     | 16/32 [00:00<00:00, 71.38 examples/s]Map:  75%|███████▌  | 24/32 [00:00<00:00, 70.34 examples/s]Map: 100%|██████████| 32/32 [00:00<00:00, 68.59 examples/s]Map: 100%|██████████| 32/32 [00:00<00:00, 66.03 examples/s]
+Map:   0%|          | 0/32 [00:00<?, ? examples/s]Map: 100%|██████████| 32/32 [00:00<00:00, 1974.25 examples/s]
+Gradient checkpointing: handled per-layer by layer streaming (HF's own is left 
+off to avoid double recompute)
+Truncating train dataset:   0%|          | 0/32 [00:00<?, ? examples/s]Truncating train dataset: 100%|██████████| 32/32 [00:00<00:00, 8541.28 examples/s]
+[transformers] The model is already on multiple devices. Skipping the move to device specified in `args`.
+Rewind log: /root/liger/results/model-8/capture-resident/adapter/rewind.jsonl
+[transformers] The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:07<00:07,  7.76s/it]                                             {'loss': '0.08662', 'grad_norm': '0.1485', 'learning_rate': '2e-05', 'entropy': '0.06033', 'num_tokens': '2048', 'mean_token_accuracy': '0.9881', 'epoch': '0.0625'}
+ 50%|█████     | 1/2 [00:07<00:07,  7.76s/it]100%|██████████| 2/2 [00:14<00:00,  7.41s/it]                                             {'loss': '0.08813', 'grad_norm': '0.1552', 'learning_rate': '1e-05', 'entropy': '0.06067', 'num_tokens': '4096', 'mean_token_accuracy': '0.9881', 'epoch': '0.125'}
+100%|██████████| 2/2 [00:14<00:00,  7.41s/it]                                             {'train_runtime': '15.34', 'train_samples_per_second': '0.261', 'train_steps_per_second': '0.13', 'train_loss': '0.08738', 'epoch': '0.125'}
+100%|██████████| 2/2 [00:15<00:00,  7.41s/it]100%|██████████| 2/2 [00:15<00:00,  7.67s/it]

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 import re
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
@@ -85,13 +86,25 @@ def _log_bf_by_integration(np, control, treatment, g):
     h0 = log_m(0.0)[:, 0]
     prior = np.exp(-d * d / (2 * g)) / math.sqrt(2 * math.pi * g)
     shift = h0.max()
-    h0_mass = np.trapezoid(np.exp(h0 - shift), log_sigma[:, 0])
-    h1_inner = np.trapezoid(np.exp(log_m(d * sigma) - shift) * prior, d[0], axis=1)
-    h1_mass = np.trapezoid(h1_inner, log_sigma[:, 0])
+    integrate = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+    h0_mass = integrate(np.exp(h0 - shift), log_sigma[:, 0])
+    h1_inner = integrate(np.exp(log_m(d * sigma) - shift) * prior, d[0], axis=1)
+    h1_mass = integrate(h1_inner, log_sigma[:, 0])
     return math.log(h1_mass / h0_mass)
 
 
 class TestBayesFactor:
+    @pytest.mark.parametrize("api", ["trapz", "trapezoid"])
+    def test_integration_reference_supports_both_numpy_apis(self, api):
+        np = pytest.importorskip("numpy")
+        integrate = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+        only_one_api = SimpleNamespace(
+            asarray=np.asarray, linspace=np.linspace, exp=np.exp, **{api: integrate}
+        )
+        control, treatment, g = [1.0, 1.4], [0.7, 1.9], 1.0
+        expected = _log_bf_by_integration(only_one_api, control, treatment, g)
+        assert _log_bf(control, treatment, g) == pytest.approx(expected, abs=2e-4)
+
     @pytest.mark.parametrize(
         ("control", "treatment", "g"),
         [

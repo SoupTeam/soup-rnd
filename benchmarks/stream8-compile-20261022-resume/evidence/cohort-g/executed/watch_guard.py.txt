@@ -1,0 +1,20 @@
+"""Read-only local cost telemetry, bounded by the existing lease deadline."""
+import json
+import time
+from pathlib import Path
+
+import cloud
+
+ROOT = Path(__file__).parent
+while not (ROOT / 'vast-finished').exists() and time.time() < 1792681991.997527:
+    try:
+        reply = cloud.ssh('cat /root/liger/guard-status.json', 20)
+        if reply.returncode == 0:
+            status = json.loads(reply.stdout)
+            assert str(status['instance_id']) == '57214971'
+            temporary = ROOT / 'independent-last-guard.tmp'
+            temporary.write_text(json.dumps(status, indent=2), encoding='utf-8')
+            temporary.replace(ROOT / 'independent-last-guard.json')
+    except Exception:
+        pass
+    time.sleep(30)

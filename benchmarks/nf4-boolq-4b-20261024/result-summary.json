@@ -1,0 +1,328 @@
+{
+  "study": "nf4-boolq-4b-20261024",
+  "status": "COMPLETE_INDEPENDENTLY_REPLAYED",
+  "protocol": {
+    "study": "soup-nf4-boolq-4b-20261024",
+    "models": [
+      {
+        "model_id": "Qwen/Qwen3-4B",
+        "size_b": 4,
+        "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+        "config": {
+          "architectures": [
+            "Qwen3ForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "bos_token_id": 151643,
+          "eos_token_id": 151645,
+          "head_dim": 128,
+          "hidden_act": "silu",
+          "hidden_size": 2560,
+          "initializer_range": 0.02,
+          "intermediate_size": 9728,
+          "max_position_embeddings": 40960,
+          "max_window_layers": 36,
+          "model_type": "qwen3",
+          "num_attention_heads": 32,
+          "num_hidden_layers": 36,
+          "num_key_value_heads": 8,
+          "rms_norm_eps": 1e-06,
+          "rope_scaling": null,
+          "rope_theta": 1000000,
+          "sliding_window": null,
+          "tie_word_embeddings": true,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.51.0",
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 151936
+        },
+        "weight_bytes": 8044936192,
+        "weight_files": [
+          "model-00001-of-00003.safetensors",
+          "model-00002-of-00003.safetensors",
+          "model-00003-of-00003.safetensors"
+        ]
+      }
+    ],
+    "maximum_stage_usd": 13.34,
+    "maximum_lease_seconds": 14400,
+    "additional_authorized_allowance_usd": 10,
+    "combined_available_before_pilot_usd": 13.343605273574783,
+    "dataset": "BoolQ",
+    "data_manifest_sha256": "0b0ce8074fada3789659335f6422dc0a126db74b0119abecb894b1859b6c9c97",
+    "context_tokens": 512,
+    "batch": 1,
+    "accumulation": 2,
+    "lora_rank_alpha": 4,
+    "expected_trainable_tensors": 504,
+    "training_updates": 128,
+    "training_examples": 256,
+    "evaluation_examples": 256,
+    "training_seed": 792,
+    "adapter_initialization_seed": 123,
+    "independent_training_seeds": 1,
+    "quality_train_init": "Seeded CPU FP32 Kaiming A, zero B, identical named adapters",
+    "adapter_dtype_policy": "Explicit common FP32 LoRA in both arms, native dtypes recorded",
+    "save_strategy": "no intermediate checkpoints; native final adapters retained",
+    "calibration_retention": "Native final adapter and finite/hash report; no named duplicates",
+    "precision": "BF16 arithmetic both arms; frozen weights BF16 or double-quantized NF4",
+    "source": "RAM both formats; physical 8GiB GPU; actual RAM recorded without a 32GiB cap claim",
+    "quality_primary": "Matched held-out accuracy after finetuning",
+    "quality_secondary": [
+      "full-vocabulary answer-token NLL",
+      "before/after diagnostics",
+      "unrestricted next-token accuracy",
+      "A/B probability mass"
+    ],
+    "quality_acceptance": "Descriptive paired deltas; no noninferiority margin agreed",
+    "no_full_convergence_generation_or_larger_model_quality_claim": true,
+    "timing_order": [
+      [
+        "bf16",
+        "nf4"
+      ],
+      [
+        "nf4",
+        "bf16"
+      ],
+      [
+        "nf4",
+        "bf16"
+      ],
+      [
+        "bf16",
+        "nf4"
+      ]
+    ],
+    "timing_warmup": 2,
+    "timing_measured_updates": 4,
+    "timing_initialization": "Own trained adapter, reset optimizer, same minibatch order",
+    "within_precision_reference_first_rtol": 0.01,
+    "within_precision_atol": 1e-05,
+    "within_precision_loss_three_decimals": true,
+    "finite_required": true,
+    "no_cross_precision_tensor_allclose_claim": true,
+    "metric_fp64_replay_roundoff": {
+      "relative": 1e-10,
+      "absolute": 1e-10
+    },
+    "bootstrap_resamples": 20000,
+    "bootstrap_seed": 792,
+    "expected_8b_baseline_encoded_bytes": 536870912,
+    "expected_whole_matrix_encoded_bytes": 1073741824,
+    "source_sha256": "e1031672235316fbefcc13aabd81d8792fb34b5bbdf504e511c058c1d33df0f2",
+    "source_base_head": "2227dedb55983c07c6c09103fe68e7e796878550"
+  },
+  "quality": {
+    "bf16": {
+      "before": {
+        "count": 256,
+        "accuracy": 0.859375,
+        "answer_nll": 2.4174166724535735,
+        "unrestricted_accuracy": 0.859375,
+        "mean_choice_probability_mass": 0.9999999842249285,
+        "majority_yes_baseline": 0.58984375
+      },
+      "after": {
+        "count": 256,
+        "accuracy": 0.8671875,
+        "answer_nll": 1.799176630876807,
+        "unrestricted_accuracy": 0.8671875,
+        "mean_choice_probability_mass": 0.9999999999206113,
+        "majority_yes_baseline": 0.58984375
+      }
+    },
+    "nf4": {
+      "before": {
+        "count": 256,
+        "accuracy": 0.8515625,
+        "answer_nll": 1.6564512939059215,
+        "unrestricted_accuracy": 0.8515625,
+        "mean_choice_probability_mass": 0.9999990651584324,
+        "majority_yes_baseline": 0.58984375
+      },
+      "after": {
+        "count": 256,
+        "accuracy": 0.85546875,
+        "answer_nll": 1.1013485905231732,
+        "unrestricted_accuracy": 0.85546875,
+        "mean_choice_probability_mass": 0.999999986626589,
+        "majority_yes_baseline": 0.58984375
+      }
+    }
+  },
+  "before_comparison": {
+    "count": 256,
+    "accuracy_delta_percentage_points": -0.78125,
+    "paired_bootstrap95_accuracy_delta_pp": [
+      -3.515625,
+      1.953125
+    ],
+    "nll_delta": -0.7609653785476518,
+    "nf4_only_correct": 6,
+    "bf16_only_correct": 8,
+    "prediction_disagreements": 14,
+    "resamples": 20000,
+    "seed": 792,
+    "quality_verdict": "DESCRIPTIVE_PAIRED_COMPARISON_NOT_A_NONINFERIORITY_PROOF",
+    "scope": "One seed, bounded early finetuning, length-eligible BoolQ subset; no generation quality claim"
+  },
+  "after_comparison": {
+    "count": 256,
+    "accuracy_delta_percentage_points": -1.171875,
+    "paired_bootstrap95_accuracy_delta_pp": [
+      -3.90625,
+      1.171875
+    ],
+    "nll_delta": -0.6978280403536335,
+    "nf4_only_correct": 4,
+    "bf16_only_correct": 7,
+    "prediction_disagreements": 11,
+    "resamples": 20000,
+    "seed": 792,
+    "quality_verdict": "DESCRIPTIVE_PAIRED_COMPARISON_NOT_A_NONINFERIORITY_PROOF",
+    "scope": "One seed, bounded early finetuning, length-eligible BoolQ subset; no generation quality claim"
+  },
+  "performance": {
+    "passed": true,
+    "roles": {
+      "bf16": {
+        "median_optimizer_step_seconds": 2.338469790731324,
+        "median_complete_six_update_entry_seconds": 41.85269369545858,
+        "peak_allocated_vram_bytes": 2417554944,
+        "peak_reserved_vram_bytes": 2728394752,
+        "peak_process_rss_bytes": 9711775744
+      },
+      "nf4": {
+        "median_optimizer_step_seconds": 1.9431726035254542,
+        "median_complete_six_update_entry_seconds": 38.014515962975565,
+        "peak_allocated_vram_bytes": 2117206016,
+        "peak_reserved_vram_bytes": 2455764992,
+        "peak_process_rss_bytes": 3892981760
+      }
+    },
+    "paired_step_reductions_percent": [
+      18.454726345645323,
+      17.083560221906602,
+      14.65656622965742,
+      17.376095925329473
+    ],
+    "median_paired_step_reduction_percent": 17.229828073618037,
+    "bootstrap95_percent": [
+      14.65656622965742,
+      18.454726345645323
+    ],
+    "pids": [
+      7162,
+      7344,
+      7641,
+      7804,
+      8084,
+      8247,
+      8527,
+      8696
+    ],
+    "scope": "Descriptive precision tradeoff, not quality-equivalent speedup"
+  },
+  "within_precision_repeatability_gates_passed": 6,
+  "validation": {
+    "local_study_controls": {
+      "tests": 10,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "retention_controls": {
+      "tests": 4,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "gpu_host_controls": {
+      "tests": 144,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  },
+  "actual_batch_mask_audit": {
+    "passed": true,
+    "arms": {
+      "bf16": {
+        "actual_minibatches": 256,
+        "all_exact_input_ids_and_answer_only_labels": true
+      },
+      "nf4": {
+        "actual_minibatches": 256,
+        "all_exact_input_ids_and_answer_only_labels": true
+      }
+    },
+    "training_attention_mask": "native TRL all-ones mask",
+    "cache_attention_mask": "zero only after the answer and EOS",
+    "causal_scope": "Future padding cannot affect the earlier supervised positions",
+    "native_mask_reconstruction_disclosed_not_claimed_identical_to_cache_mask": true
+  },
+  "hardware": {
+    "scope": "4B quality pilot; no enforced 32GiB RAM capacity claim",
+    "samples": [
+      {
+        "gpu": "GPU-3d61651a-acec-dbeb-ff4a-ba7441990c80, NVIDIA GeForce RTX 3060 Ti, 8192, 0, 1",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792851734.9636645
+      },
+      {
+        "gpu": "GPU-3d61651a-acec-dbeb-ff4a-ba7441990c80, NVIDIA GeForce RTX 3060 Ti, 8192, 0, 1",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792851740.1677806
+      },
+      {
+        "gpu": "GPU-3d61651a-acec-dbeb-ff4a-ba7441990c80, NVIDIA GeForce RTX 3060 Ti, 8192, 0, 1",
+        "all_reported_apps": "",
+        "target_gpu_apps": [],
+        "unix": 1792851745.3116832
+      }
+    ],
+    "passed": true,
+    "gpu_name": "NVIDIA GeForce RTX 3060 Ti",
+    "gpu_uuid": "GPU-3d61651a-acec-dbeb-ff4a-ba7441990c80",
+    "host_meminfo": "MemTotal:       528163048 kB\nMemFree:        74169184 kB\nMemAvailable:   339973772 kB\nBuffers:          476448 kB\nCached:         259085460 kB\nSwapCached:          620 kB\nActive:         41508776 kB\nInactive:       389914888 kB\nActive(anon):      24896 kB\nInactive(anon): 171888320 kB\nActive(file):   41483880 kB\nInactive(file): 218026568 kB\nUnevictable:       27628 kB\nMlocked:           27628 kB\nSwapTotal:       8388604 kB\nSwapFree:        8328700 kB\nDirty:             10836 kB\nWriteback:             0 kB\nAnonPages:      171889712 kB\nMapped:           900596 kB\nShmem:             42360 kB\nKReclaimable:    9727716 kB\nSlab:           14671680 kB\nSReclaimable:    8844704 kB\nSUnreclaim:      5826976 kB\nKernelStack:       63136 kB\nPageTables:       532476 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    272470128 kB\nCommitted_AS:   188028684 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:     1142624 kB\nVmallocChunk:          0 kB\nPercpu:           693504 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:   8404992 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:    51459864 kB\nDirectMap2M:    354193408 kB\nDirectMap1G:    131072000 kB\n",
+    "cgroup": {
+      "/sys/fs/cgroup/memory.max": "183565811712\n"
+    }
+  },
+  "cost": {
+    "pilot_conservative_usd": 1.8421295165782556,
+    "pilot_cap_usd": 13.34,
+    "combined_available_before_usd": 13.343605273574783,
+    "combined_remaining_usd": 11.501475756996527,
+    "additional_ten_dollar_allowance_used": 0,
+    "invoice_claim": false
+  },
+  "cleanup": {
+    "unix": 1792853998.0122523,
+    "instance_id": "57524169",
+    "volume_id": "57524168",
+    "instance_verified_absent": true,
+    "volume_verified_absent": true,
+    "verified_absent": true,
+    "method": "fresh read-only account listings, independent of deletion receipts",
+    "account_instance_count": 0,
+    "account_volume_count": 0
+  },
+  "raw_retention": {
+    "files": 731,
+    "logical_bytes": 2334282736
+  },
+  "limits": [
+    "One independent training seed and short answer-only LoRA fine-tuning",
+    "256 length-eligible held-out BoolQ rows; pretraining contamination unassessed",
+    "No acceptable quality degradation margin or equivalence conclusion",
+    "4B result does not establish 32B/70B/120B quality or capacity",
+    "Actual host RAM is recorded; no enforced 32GiB RAM claim",
+    "Precision tradeoff, not a quality-equivalent universal speedup"
+  ]
+}

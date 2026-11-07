@@ -32,6 +32,7 @@ def windows_path_os(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Simulate Windows inside paths.py without changing pytest's OS operations."""
     local_os = SimpleNamespace(**vars(os))
     local_os.name = "nt"
+    local_os.O_NOFOLLOW = 0
     monkeypatch.setattr(path_utils, "os", local_os)
     return local_os
 
@@ -137,7 +138,8 @@ class TestOpenNoFollow:
             assert exc_info.value.errno == errno.ELOOP
             assert "File swapped during open" in str(exc_info.value)
             # Pytest capture must still stat its own real file descriptors.
-            capfd.readouterr()
+            os.write(1, b"capture intact\n")
+            assert capfd.readouterr().out == "capture intact\n"
             with real_file.open("rb") as unaffected:
                 assert os.fstat(unaffected.fileno()).st_size == len(b"content")
 

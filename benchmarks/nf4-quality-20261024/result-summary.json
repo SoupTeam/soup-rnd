@@ -1,0 +1,68 @@
+{
+  "study": "nf4-quality-20261024",
+  "status": "BLOCKED_BEFORE_MODEL_DOWNLOAD",
+  "model_planned": "Qwen/Qwen3-32B",
+  "dataset": "BoolQ",
+  "gpu_training_updates": 0,
+  "quality_result": null,
+  "speed_result": null,
+  "peak_training_memory_result": null,
+  "numerical_tolerances_changed": false,
+  "attempts": [
+    {
+      "instance_id": 57511194,
+      "volume_id": 57511193,
+      "label": "soup-nf4-quality-20261024-a",
+      "verified_absent": true,
+      "volume_verified_absent": true,
+      "conservative_usd": 0.2714191050086102,
+      "elapsed_seconds": 123.22107982635498,
+      "actual_network_telemetry_retained": true
+    },
+    {
+      "instance_id": 57512280,
+      "volume_id": 57512279,
+      "label": "soup-nf4-quality-20261024-b",
+      "verified_absent": true,
+      "volume_verified_absent": true,
+      "conservative_usd": 0.2749756214166078,
+      "elapsed_seconds": 252.40897297859192,
+      "actual_network_telemetry_retained": true
+    }
+  ],
+  "attempt_a_error": "Preflight imported Rich before installing dependencies",
+  "attempt_b_primary_preflight_error": "GPU pre-existing-work/memory-pressure predicate",
+  "attempt_b_additional_independent_blocker": {
+    "native_cgroup_memory_max_bytes": 45650804736,
+    "native_cgroup_memory_max_gib": 42.515625,
+    "requested_ram_upper_bound_bytes": 34359738368,
+    "cgroup_filesystem": "read-only; no writable delegated bound established",
+    "advertised_cpu_ram_mib": 32068,
+    "actual_contract_cpu_ram_mib": 64136,
+    "gpu_contention_raw_process_attribution": "not independently retained; no utilization claim"
+  },
+  "cpu_controls": {
+    "study_controls_passed": 10,
+    "retention_controls_passed": 4
+  },
+  "cost": {
+    "conservative_usd": 0.546394726425218,
+    "cap_usd": 3.89,
+    "remaining_usd": 3.343605273574782,
+    "invoice_claim": false
+  },
+  "cleanup": {
+    "unix": 1792844991.7515838,
+    "instance_id": "57512280",
+    "volume_id": "57512279",
+    "instance_verified_absent": true,
+    "volume_verified_absent": true,
+    "verified_absent": true,
+    "method": "fresh read-only account listings, independent of deletion receipts",
+    "account_instance_count": 0,
+    "account_volume_count": 0
+  },
+  "next_quality_question": "Matched BF16/NF4 task quality; a 4B pilot cannot establish 32B quality",
+  "capacity_scope": "No 32B/70B/120B 8GiB-VRAM/32GiB-RAM success or failure inferred",
+  "retained_files": 141
+}

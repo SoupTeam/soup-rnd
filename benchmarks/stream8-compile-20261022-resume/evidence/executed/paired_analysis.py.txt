@@ -1,0 +1,46 @@
+"""Paired process-level inference; optimizer updates are not independent replicates."""
+from __future__ import annotations
+
+import math
+import random
+import statistics
+from pathlib import Path
+
+
+def percentile(values: list[float], fraction: float) -> float:
+    ordered = sorted(values)
+    index = (len(ordered) - 1) * fraction
+    lower, upper = math.floor(index), math.ceil(index)
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (index - lower)
+
+
+def paired_summary(pairs: list[tuple[list[float], list[float]]]) -> dict:
+    """Bootstrap whole paired fresh processes, preserving within-run correlation."""
+    if len(pairs) != 4:
+        raise ValueError("exactly four complete process pairs are required")
+    medians = []
+    for left, right in pairs:
+        if len(left) != 8 or len(right) != 8:
+            raise ValueError("each process needs eight measured optimizer updates")
+        if not all(math.isfinite(v) and v > 0 for v in left + right):
+            raise ValueError("finite positive update times are required")
+        a, b = statistics.median(left), statistics.median(right)
+        medians.append({"control_seconds": a, "candidate_seconds": b,
+                        "time_reduction_percent": 100 * (1 - b / a)})
+    ratios = [p["time_reduction_percent"] for p in medians]
+    rng = random.Random(792)
+    bootstrap = [statistics.median(rng.choices(ratios, k=4)) for _ in range(20000)]
+    low, high = percentile(bootstrap, .025), percentile(bootstrap, .975)
+    median = statistics.median(ratios)
+    positive = sum(v > 0 for v in ratios) / len(ratios)
+    return {"pairs": medians, "median_paired_time_reduction_percent": median,
+            "positive_pair_fraction": positive, "bootstrap_95_interval_percent": [low, high],
+            "bootstrap_resamples": 20000, "bootstrap_seed": 792,
+            "resampling_unit": "whole fresh AB/BA process pair; no update-level resampling",
+            "practical_gain": median >= 2 and positive >= .75 and low > 0,
+            "limitation": "conditional on four observed process pairs on this physical GPU"}
+
+
+def write_report(path: Path, result: dict) -> None:
+    import json
+    path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
