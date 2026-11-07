@@ -147,6 +147,36 @@ def test_the_phase_counts_add_up_to_every_kernel_event() -> None:
     assert sum(counts.values()) == sum(1 for e in events if e["cat"] == "kernel") == 8
 
 
+def _copy(correlation: int, ts: int = 950) -> dict:
+    return {"ph": "X", "cat": "gpu_memcpy", "name": "Memcpy HtoD", "pid": 0, "tid": "stream 7",
+            "ts": ts, "dur": 5, "args": {"correlation": correlation}}
+
+
+def test_copies_are_attributed_to_the_phase_that_launched_them() -> None:
+    from benchmarks.harness.b14_group_diag import attribute_memcpy
+
+    events = [
+        _phase("restore_fwd", 0, 100), _phase("gemm", 200, 100),
+        {"ph": "X", "cat": "cuda_runtime", "name": "cudaMemcpyAsync", "pid": 1, "tid": 7,
+         "ts": 10, "dur": 2, "args": {"correlation": 5}},
+        _copy(5), _launch(1, 210), _kernel(1),
+    ]
+
+    assert attribute_memcpy(events) == {"restore_fwd": 1}
+
+
+def test_gpu_time_is_the_sum_of_kernel_durations_per_phase() -> None:
+    from benchmarks.harness.b14_group_diag import attribute_kernel_time_us
+
+    events = [_phase("gemm", 0, 100), _phase("act", 200, 100)]
+    for number, at in ((1, 10), (2, 20), (3, 210)):
+        events += [_launch(number, at), _kernel(number)]
+    events[3]["dur"] = 40  # kernel 1 runs 40 us, the others 3 us
+    events.append(_kernel(77))  # no launch event, 3 us, unattributed
+
+    assert attribute_kernel_time_us(events) == {"gemm": 43, "act": 3, "unattributed": 3}
+
+
 # --------------------------------------------------------------------------
 # run_bucket on a tiny CPU layer: sequential, grouped restore, grouped GEMM (refused on CPU).
 # --------------------------------------------------------------------------

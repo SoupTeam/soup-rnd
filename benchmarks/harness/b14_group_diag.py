@@ -36,18 +36,8 @@ _LAUNCH_CATEGORIES = ("cuda_runtime", "cuda_driver")
 UNATTRIBUTED = "unattributed"
 
 
-def attribute_kernels(events: List[Dict[str, Any]]) -> Dict[str, int]:
-    """Count CUDA kernels per phase from the events of an exported ``torch.profiler`` trace.
-
-    A phase is a ``record_function("phase:<name>")`` range. A kernel belongs to the innermost
-    phase that was open when the kernel was launched; the launch is the runtime or driver event
-    with the kernel's correlation id. Phases of the launching thread come first. Autograd runs
-    the backward on its own thread inside the main thread's range, so when no phase of that
-    thread covers the launch, a phase of another thread of the process may claim it. This is
-    valid only while the harness runs one stream of work at a time. A kernel with no
-    such phase or no launch event counts as ``unattributed``, so the counts always add up to
-    the number of kernel events.
-    """
+def _attribute(events: List[Dict[str, Any]], category: str,
+               weight: Callable[[Dict[str, Any]], int]) -> Dict[str, int]:
     phases = [
         event for event in events
         if event.get("cat") == "user_annotation"
@@ -59,9 +49,9 @@ def attribute_kernels(events: List[Dict[str, Any]]) -> Dict[str, int]:
             correlation = (event.get("args") or {}).get("correlation")
             if correlation is not None:
                 launches.setdefault(correlation, event)
-    counts: Dict[str, int] = {}
+    totals: Dict[str, int] = {}
     for event in events:
-        if event.get("cat") != "kernel":
+        if event.get("cat") != category:
             continue
         launch = launches.get((event.get("args") or {}).get("correlation"))
         name = UNATTRIBUTED
@@ -77,8 +67,33 @@ def attribute_kernels(events: List[Dict[str, Any]]) -> Dict[str, int]:
             if chosen:
                 innermost = min(chosen, key=lambda phase: (phase.get("dur", 0), -phase["ts"]))
                 name = innermost["name"][len(PHASE_PREFIX):]
-        counts[name] = counts.get(name, 0) + 1
-    return counts
+        totals[name] = totals.get(name, 0) + weight(event)
+    return totals
+
+
+def attribute_kernels(events: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Count CUDA kernels per phase from the events of an exported ``torch.profiler`` trace.
+
+    A phase is a ``record_function("phase:<name>")`` range. A kernel belongs to the innermost
+    phase that was open when the kernel was launched; the launch is the runtime or driver event
+    with the kernel's correlation id. Phases of the launching thread come first. Autograd runs
+    the backward on its own thread inside the main thread's range, so when no phase of that
+    thread covers the launch, a phase of another thread of the process may claim it. This is
+    valid only while the harness runs one stream of work at a time. A kernel with no such phase
+    or no launch event counts as ``unattributed``, so the counts always add up to the number of
+    kernel events.
+    """
+    return _attribute(events, "kernel", lambda event: 1)
+
+
+def attribute_memcpy(events: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Count device copies per phase, by the same rule as ``attribute_kernels``."""
+    return _attribute(events, "gpu_memcpy", lambda event: 1)
+
+
+def attribute_kernel_time_us(events: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Sum the device time of the kernels per phase, in microseconds, by the same rule."""
+    return _attribute(events, "kernel", lambda event: int(event.get("dur", 0)))
 
 
 ARMS = ("sequential", "grouped_restore", "grouped_gemm")
@@ -204,11 +219,8 @@ def set_blas_policy() -> Dict[str, Any]:
 
     if torch.cuda.is_available():
         torch.backends.cuda.preferred_blas_library("cublaslt")
-        torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False
-        try:  # torch 2.11 has no such attribute, and D3's policy check reads it
-            torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction_split_k = False
-        except AttributeError:
-            pass
+        # (allow, split-K): the tuple form is how D3's own harness selects its reference policy
+        torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = (False, False)
     cuda = torch.backends.cuda
     try:
         split_k: Any = bool(cuda.matmul.allow_bf16_reduced_precision_reduction_split_k)
@@ -395,9 +407,11 @@ def _profile_kernels(layer: Layer, module: Any, inputs: Tuple[Any, Any, Any]) ->
     finally:
         restore()
     by_phase = attribute_kernels(events)
+    copies = attribute_memcpy(events)
     return {
         "total": sum(by_phase.values()), "by_phase": dict(sorted(by_phase.items())),
-        "memcpy_events": sum(1 for event in events if event.get("cat") == "gpu_memcpy"),
+        "memcpy_events": sum(copies.values()), "memcpy_by_phase": dict(sorted(copies.items())),
+        "gpu_time_us_by_phase": dict(sorted(attribute_kernel_time_us(events).items())),
     }
 
 
