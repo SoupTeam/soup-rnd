@@ -6,7 +6,7 @@ grouped dispatch at 1 to 128 routed rows per expert, attribute kernels by phase,
 interleaved wall time without the profiler. This is a layer-level kernel-count and device-time
 diagnostic. It is not a speed claim (contract #52) and it is not a result for the full B1.4 path.
 
-## Result in five lines
+## Result
 
 - On an RTX 3070 8 GB, D3 grouped GEMM removes 12 of 385 kernels (3.1 percent) of one layer's
   forward plus backward, and only at 32 rows per expert and above. At 16 rows and below D3 runs
@@ -21,6 +21,10 @@ diagnostic. It is not a speed claim (contract #52) and it is not a result for th
   not tested: D3 never groups below 32 rows here.
 - At 32 and 64 rows the grouped GEMM output is not bitwise equal to the resident layer (1 bf16
   unit in the last place on the output, 0.0625 on the route-weight gradient).
+- A second run added 256 and 512 rows (below). Kernel counts do not change (373 against 385).
+  Grouped GEMM forward device time is 28 percent lower at 256 rows and 1 percent higher at 512,
+  both bitwise equal to the resident layer, and wall time stays within about 1 ms of
+  sequential. 256 rows is the mean for length 2048.
 - Not measured: the real checkpoint weights, real routing, the full model and the L2L trainer
   with grouping. D3 refuses this geometry as shipped; the harness widens its shape list locally.
 
@@ -103,6 +107,50 @@ and wall time medians of 118 to 145 ms. The `grouped_gemm` arm is refused there:
 `ValueError: native BF16 sm_80+ required`. Table: `python make_tables.py kaggle-t4/result.json`.
 The T4 has a different capacity and does not speak for the 8 GB card.
 
+## Second run: 128, 256 and 512 rows
+
+The first run stopped at 128 rows, while the mean for length 2048 is about 256. A second rental
+of the same vast.ai offer (the same machine) ran buckets 128, 256 and 512 with the commit that sizes the activation
+budget from the largest bucket (`7aa1c4ac`); everything else is unchanged. Files:
+`vast-rtx3070-256-512/result.json`, `run.log`, `remote-group2.sh`. Bucket 128 is a repeat of the
+first run.
+
+| Rows per expert | Arm | Kernels | Forward kernels | Backward kernels | Copies | Forward device us | Backward device us | Wall ms (median) | Bitwise equal to resident |
+|---|---|---|---|---|---|---|---|---|---|
+| 128 | sequential | 385 | 119 | 262 | 54 | 914 | 1968 | 50.42 | yes |
+| 128 | grouped_restore | 385 | 119 | 262 | 47 | 893 | 1974 | 49.58 | yes |
+| 128 | grouped_gemm | 373 | 107 | 262 | 63 | 860 | 1975 | 50.68 | yes |
+| 256 | sequential | 385 | 119 | 262 | 54 | 2005 | 3839 | 52.13 | yes |
+| 256 | grouped_restore | 385 | 119 | 262 | 47 | 2017 | 3853 | 51.26 | yes |
+| 256 | grouped_gemm | 373 | 107 | 262 | 63 | 1448 | 3852 | 52.07 | yes |
+| 512 | sequential | 385 | 119 | 262 | 54 | 2731 | 6437 | 54.40 | yes |
+| 512 | grouped_restore | 385 | 119 | 262 | 47 | 2745 | 6401 | 53.91 | yes |
+| 512 | grouped_gemm | 373 | 107 | 262 | 63 | 2763 | 6404 | 55.13 | yes |
+
+- **Counts do not change.** 385 kernels (119 forward, 262 backward) for `sequential` and
+  `grouped_restore`, 373 (107 and 262) for `grouped_gemm`, copies 54, 47 and 63, as at 128 rows.
+  Every arm and bucket is bitwise equal to the resident layer, including `grouped_gemm` at 128,
+  256 and 512 rows.
+- **Forward device time of `grouped_gemm` against `sequential`:** 860 against 914 us at 128 rows
+  (-5.9 percent), 1448 against 2005 at 256 (-27.8 percent), 2763 against 2731 at 512 (+1.2
+  percent). The 256-row gain sits in the GEMM phase: 1001 us grouped against 1562 us for the
+  native calls of `grouped_restore`, while at 128 and 512 rows the two are within 6 percent
+  (548 against 582, 1973 against 1939). Native device time grows 2.7 times from 128 to 256 rows
+  and 1.2 times from 256 to 512, so the native path looks slow at 256 rows rather than the
+  grouped path fast. This is one observation on one card and one cuBLAS build; the cause (kernel
+  choice for that shape) was not examined.
+- **Run-to-run variation is large.** `sequential` at 128 rows has forward device time 797 us in
+  the first run and 914 us in the second, backward 1787 and 1968 us. The 3 percent differences
+  of the first run (32 and 64 rows) are inside that variation.
+- **Wall time stays within about 1 ms.** `grouped_gemm` minus `sequential`: +0.26 ms at 128,
+  -0.06 at 256, +0.73 at 512. `grouped_gemm` minus `grouped_restore`: +1.10, +0.81, +1.22 ms, the
+  same constant offset as in the first run, which supports the per-call synchronisation as the
+  cause. `grouped_restore` minus `sequential`: -0.85, -0.87, -0.49 ms. Even where the grouped
+  GEMM saves 557 us of forward device time (256 rows), that is about 1 percent of the 52 ms.
+- **The device share of the wall time grows with rows.** Forward plus backward device time of
+  `sequential` is 2.9 ms at 128 rows, 5.8 ms at 256 and 9.2 ms at 512, against 50.4, 52.1 and
+  54.4 ms of wall time (6, 11 and 17 percent). Restore still dominates at these sizes.
+
 ## What it shows
 
 1. **Kernel count does not depend on rows.** `sequential` launches 385 kernels in every bucket,
@@ -160,7 +208,9 @@ recorded visited experts, not rows per expert.
 - Length 16 falls in D3's native zone: no kernels removed.
 - Length 512 falls near the 64-row bucket: 12 fewer kernels per 8 experts per grouped forward,
   1.5 per expert.
-- Length 2048 is above the largest bucket measured (128). Not covered.
+- Length 2048 falls at the 256-row bucket of the second run: the same 12 fewer kernels, forward
+  device time 28 percent lower for grouped GEMM on this card, wall time within about 1 ms of
+  sequential. Uneven rows per expert in the real model were not measured.
 
 The step of ticket 09 runs the expert forward twice per layer (forward and recompute) and the
 backward once, and its figure of about 82 kernels per visited expert is a two-point estimate on
@@ -178,7 +228,7 @@ no saving for the full path is stated.
   in `l2l_trainer.py` and `l2l_step.py`, so this diagnostic is built on the D3 head `a2eed33c`
   and does not touch the B1.4 branch.
 - Buckets between the powers of two (17 to 31 rows is where the native cutoff ends), buckets
-  above 128, top-k above 1, uneven rows per expert, other codecs (NF4), more than 8 experts.
+  above 512, top-k above 1, uneven rows per expert, other codecs (NF4), more than 8 experts.
 - The split of `bwd` into recompute and input gradient, and of `fwd` into gather, scatter and
   route multiply. Both are inline in D3 and B1.3 and splitting them means editing that source.
 - Grouped backward and the packed-only pool. The measured pool recomputes natively. Artix6034's
@@ -225,16 +275,22 @@ PYTHONPATH=/root/soup/src B14G_OUT=/root/out B14G_WORK=/root B14G_TAG=vast-rtx30
 The vast run used `b14_group_diag.py` from commit `c103d6d1`. The Kaggle run used commit
 `0545ae41`; the two later commits only change the policy code for torch 2.7.
 
+The second run (128, 256, 512 rows) used `b14_group_diag.py` from commit `7aa1c4ac` and
+`remote-group2.sh`, the same install steps in one script.
+
 Attempts not used: Kaggle run 1 failed setting the split-K flag; run 2 was cancelled by Kaggle
 with no output; run 3 set the policy as `False` instead of `(False, False)` and every
 `grouped_gemm` arm was refused by the policy check. Vast runs 1 to 3 failed on torch 2.7.1 (the
 tuple form is rejected, then the split-K flag is missing) and on `torchvision` after the torch
 upgrade (`operator torchvision::nms does not exist`). Their results are not kept.
 
-Rental: instance 59596767, offer 56413546, 0.130 USD/h, `vastai show instance` reported 335 s of
+Rental of the first run: instance 59596767, offer 56413546, 0.130 USD/h, `vastai show instance` reported 335 s of
 running time; with loading, the four launches and the upload the instance lived a few minutes
 longer, under 0.1 USD against the ceiling of 1 USD. Destroyed after the files were copied.
-The Kaggle runs are free. Left on the Kaggle account (private): dataset
+Rental of the second run: instance 59599544, same offer, `vastai show instance` reported 210 s
+of running time, again under 0.1 USD; destroyed after the files were copied. Three RTX 4090
+instances of other users were running on the shared team account and were not touched. The
+Kaggle runs are free. Left on the Kaggle account (private): dataset
 `soup-b14-grouped-source` and kernel `soup-b14-group-diag`.
 
 Files and hashes: `SHA256SUMS`.
