@@ -111,7 +111,9 @@ class Layer:
     """One MoE expert layer: a resident reference, its shard file and the arms built on it."""
 
     def __init__(self, *, module: Any, reader: Any, codes: Dict[str, Any], hidden: int,
-                 intermediate: int, experts: int, device: str, dtype: str) -> None:
+                 intermediate: int, experts: int, device: str, dtype: str,
+                 max_rows: int = max(BUCKETS)) -> None:
+        self.max_rows = max_rows  # largest bucket this layer is sized for (activation budgets)
         self.module, self.reader, self.codes = module, reader, codes
         self.hidden, self.intermediate, self.experts = hidden, intermediate, experts
         self.device, self.dtype = device, dtype
@@ -128,7 +130,7 @@ class Layer:
         from soup_cli.utils.expert_group_compute import plan_grouped_forward
 
         plan = plan_grouped_forward(
-            tokens=max(BUCKETS) * self.experts, top_k=1, experts=self.experts,
+            tokens=self.max_rows * self.experts, top_k=1, experts=self.experts,
             hidden=self.hidden, intermediate=self.intermediate, width=GROUP_WIDTH,
         )
         return max(2**24, int(plan["activation_bytes"] * 1.1))
@@ -187,7 +189,7 @@ class Layer:
         expert_group_gemm.SUPPORTED_SHAPES.update({
             (self.hidden, 2 * self.intermediate), (self.intermediate, self.hidden),
         })
-        rows = max(BUCKETS) * self.experts
+        rows = self.max_rows * self.experts
         budget = rows * 2 * self.intermediate * 2 * 2 + 2**20
         try:
             gemm = expert_group_gemm.GroupedGemm(
@@ -242,7 +244,7 @@ def set_blas_policy() -> Dict[str, Any]:
 
 
 def build_layer(workdir: Any, *, hidden: int, intermediate: int, experts: int, device: str,
-                dtype: str, seed: int = 5) -> Layer:
+                dtype: str, seed: int = 5, max_rows: int = max(BUCKETS)) -> Layer:
     """A DeepSeek-V3-style expert layer with random weights, resident and as a shard file."""
     import torch
     from transformers import DeepseekV3Config
@@ -276,7 +278,8 @@ def build_layer(workdir: Any, *, hidden: int, intermediate: int, experts: int, d
     )
     codes = {NF4_CODE_KEY: info.codes[0], NF4_NESTED_CODE_KEY: info.codes[1]}
     return Layer(module=module, reader=reader, codes=codes, hidden=hidden,
-                 intermediate=intermediate, experts=experts, device=device, dtype=dtype)
+                 intermediate=intermediate, experts=experts, device=device, dtype=dtype,
+                 max_rows=max_rows)
 
 
 # --------------------------------------------------------------------------
@@ -521,7 +524,7 @@ def main() -> int:
     policy = set_blas_policy()
     with tempfile.TemporaryDirectory(dir=os.environ.get("B14G_WORK"), prefix="b14g-") as work:
         layer = build_layer(work, hidden=hidden, intermediate=intermediate, experts=experts,
-                            device=device, dtype=dtype)
+                            device=device, dtype=dtype, max_rows=max(buckets))
         try:
             records = []
             for rows in buckets:

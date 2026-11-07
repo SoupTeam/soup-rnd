@@ -252,3 +252,21 @@ def test_the_record_is_json_serialisable(layer: Layer) -> None:
                         repeats=1)
 
     assert json.loads(json.dumps(record))["rows"] == 1
+
+
+def test_a_layer_built_for_larger_buckets_runs_a_bucket_above_128_rows(tmp_path: Path) -> None:
+    from benchmarks.harness.b14_group_diag import build_layer, run_bucket
+
+    built = build_layer(
+        tmp_path, hidden=512, intermediate=256, experts=8, device="cpu", dtype="float32",
+        max_rows=512,
+    )
+    try:
+        record = run_bucket(built, rows=512, arms=("sequential", "grouped_restore"), repeats=1)
+    finally:
+        built.close()
+
+    assert record["tokens"] == 4096
+    for arm in ("sequential", "grouped_restore"):
+        assert record["arms"][arm]["status"] == "ok"
+        assert all(record["arms"][arm]["bitwise_equal_to_resident"].values())
