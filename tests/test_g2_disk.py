@@ -182,6 +182,33 @@ def test_smoke_arm_measures_verifies_and_removes_its_spill(g2, quiet, tmp_path, 
     assert record["spill_file"]["removed"] is True
 
 
+@pytest.mark.parametrize("mode", ["write", "read", "cycle"])
+@pytest.mark.parametrize("warmup", [0.0, 0.2])
+def test_a_late_final_sample_keeps_the_declared_measurement_interval(
+    g2, quiet, tmp_path, monkeypatch, mode, warmup
+):
+    sample = g2._sample_row
+    end = warmup + 0.4
+
+    def late_sample(*args, **kwargs):
+        row = sample(*args, **kwargs)
+        # Model a descheduled sampler returning after two extra complete windows.
+        row["elapsed_s"] = end + 0.25
+        row["interval_s"] = end + 0.25
+        return row
+
+    monkeypatch.setattr(g2, "_sample_row", late_sample)
+    record = _arm(g2, tmp_path, mode, "--smoke", "--buffered", "--warmup", str(warmup))
+    assert record["status"] == "smoke_passed", record["invalid_reasons"]
+    assert record["summary"]["end_s"] == pytest.approx(end)
+    assert record["summary"]["n_windows"] == 4
+    assert record["measured_s"] == pytest.approx(0.4)
+    rows = [json.loads(line) for line in
+            (tmp_path / "arm" / "samples.jsonl").read_text().splitlines()]
+    assert rows[-1]["elapsed_s"] > end  # keep the raw late sample for audit
+    assert _spill_files(tmp_path) == []
+
+
 def test_direct_spill_round_trip_uses_shipped_io_helpers(g2, tmp_path, monkeypatch):
     import io
 
