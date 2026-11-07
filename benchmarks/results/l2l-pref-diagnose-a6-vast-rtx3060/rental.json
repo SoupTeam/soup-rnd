@@ -1,0 +1,23 @@
+{
+ "card": "RTX 3060 12 GB",
+ "date": "2026-11-04",
+ "server": "Vast.ai, оффер 47491621, инстанс 59130581, машина 43183, Wisconsin US, Xeon E5-2696 v3, 72 потока",
+ "image": "nvidia/cuda:13.0.0-devel-ubuntu24.04, Python 3.12.3, драйвер 580.173.02",
+ "uptime": "нагрузка хоста на старте: load average 5,83 / 6,96 / 10,61 на 72 потоках (uptime.txt, 16:31 UTC)",
+ "commit": "14562346865fcd416a69d24d2a53bd4a07771713",
+ "cost": "около 0,03 USD всего: рабочий инстанс 59130581 11 минут (16:24:28Z to 16:35:27Z), около 0,085 USD/ч (ставка из предложения 0,0694 USD/ч; у первого инстанса фактическая ставка была на 22% выше предложения), около 0,016 USD; неудавшийся инстанс 59129442 10 минут по 0,0833 USD/ч, около 0,014 USD. Потолок 0,5 USD, остановка на 0,4. Падение credit аккаунта (0,96 до 0,62 за время работы) не считается моим расходом: на общем аккаунте работает чужой инстанс.",
+ "account": "команда vast.ai `soup-rnd` (по указанию пользователя)",
+ "destroy": "`vastai destroy instance 59130581 -y` в 16:35:27Z; `vastai show instances` после этого: только чужой инстанс 59126915 (show-instances-after.txt)",
+ "commands": [
+  "vastai create instance 47491621 --image nvidia/cuda:13.0.0-devel-ubuntu24.04 --disk 60 --ssh --direct --label a6-08-diagnose --cancel-unavail",
+  "vastai attach ssh 59130581 \"$(cat ~/.ssh/id_ed25519.pub)\"",
+  "git ls-files -z | tar --null -T - -czf - | ssh ... 'mkdir -p /root/soup && tar xzf - -C /root/soup'",
+  "ssh -f ... \"cd /root/soup && CARD='RTX 3060 12GB' nohup bash benchmarks/harness/l2l_pref_diagnose/remote.sh > /root/remote.out 2>&1 < /dev/null &\"",
+  "# внутри remote.sh, из /root/soup: bootstrap (a0-bootstrap.sh), затем",
+  "python benchmarks/harness/l2l_pref_diagnose.py run --device cuda --out /root/results/a8 --label \"RTX 3060 12GB, synthetic data, SmolLM2-135M\" --model-path /root/hf",
+  "vastai destroy instance 59130581 -y"
+ ],
+ "failed": [
+  "Инстанс 59129442 (оффер 54058503, RTX 3060, Корея) создан 16:14:13Z и 10 минут оставался в статусе `loading`; по просьбе пользователя уничтожен в 16:24Z (первая команда без `-y` отменилась сама, повторена с `-y`). Измерений на нём нет. Записи: `create-attempt1-failed.log`, `failed-instance-1-destroyed.txt`."
+ ]
+}

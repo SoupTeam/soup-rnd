@@ -29,6 +29,15 @@ certify the new merged source as a fresh CUDA measurement.
 
 ## Execution path
 
+The 2026-11-07 merge with `main` at `e94dda7a` retains A6's window-loss and
+reference-pass interfaces and B1.3's DeepSeek-V3 internal step, routing checks,
+embedding gradients and head RNG replay. D3's OLMoE public launch stays SFT-only;
+the native SFT loss still receives Trainer's original token-count tensor through
+the new loss-head interface. Historical CUDA results remain pinned to their
+measured sources; this merge is not another GPU experiment.
+The shared expert-read counters select the active B1/B6 or D3 pool, including
+the L2L logs, so an absent B1 pool cannot overwrite D3's reads with zeros.
+
 The 2026-11-04 merge with `main` at `76051b77` retains the separate B6
 `training.stream_expert_layout` runtime and C3 partial-RAM path. D3's
 `training.stream_experts` owns its own pool, readers and budget; it does not

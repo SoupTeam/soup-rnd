@@ -49,6 +49,10 @@ _MAX_LORA_PATTERN_KEY_LEN = 512
 # which key it was, not enough to paste kilobytes into a terminal or a log.
 _MAX_LORA_PATTERN_KEY_SHOWN = 80
 
+# Tasks that training.l2l accepts. A task joins the tuple when its L2L window loss
+# (trainer/l2l_trainer.py WindowLoss) ships; the refusal below reads the tuple.
+L2L_SUPPORTED_TASKS = ("sft", "orpo", "simpo", "dpo", "kto")
+
 # v0.71.23 #266 — Spectrum targeted-training unfrozen-parameter caps
 _MAX_UNFROZEN_PARAMETERS = 50_000
 _MAX_UNFROZEN_PATTERN_LEN = 512
@@ -3553,13 +3557,14 @@ class TrainingConfig(BaseModel):
     l2l: bool = Field(
         default=False,
         description=(
-            "BETA — layer-to-layer (L2L) execution for SFT with stream_layers: "
-            "each streamed decoder layer is loaded once per optimizer step and "
-            "runs all k micro-batches, k = gradient_accumulation_steps, then "
-            "the optimizer takes one step on the adapters. Needs "
-            "stream_layers=true, task='sft' and lora.dropout=0; the launch "
-            "also needs a Llama/Mistral model with attention_dropout=0 on a "
-            "single GPU. k=1 behaves like plain streaming. See ADR 0002."
+            "BETA. Layer-to-layer (L2L) execution for sft, dpo, orpo, simpo and "
+            "kto with stream_layers: each streamed decoder layer is loaded once "
+            "per optimizer step and runs all k micro-batches, k = "
+            "gradient_accumulation_steps, then the optimizer takes one step on "
+            "the adapters. Needs stream_layers=true; the launch also needs a "
+            "Llama/Mistral model on a single GPU. Only dpo passed the readiness "
+            "check; orpo, simpo and kto are not ready. k=1 behaves like plain "
+            "streaming. See ADR 0002 and docs/performance-and-quantization.md."
         ),
     )
     l2l_spill_dir: Optional[str] = Field(
@@ -6455,6 +6460,39 @@ class SoupConfig(BaseModel):
             )
         return self
 
+    @staticmethod
+    def _refuse_dpo_l2l_unsupported(tcfg: Any) -> None:
+        """training.l2l with task='dpo' reproduces TRL's sigmoid DPO against a frozen ``ref``
+        adapter at a fixed beta. Refuse what changes that between steps or draws random numbers
+        in the reference forward, which the layer-major walk cannot replay. A regenerated
+        reference (dpo_ref_regen_epochs) is refused for every DPO run by the variants check.
+        lora.dropout is not refused: TRL's DPOTrainer zeroes every nn.Dropout when it is built
+        (``disable_dropout=True``), so no LoRA dropout mask is drawn in either forward."""
+        if tcfg.dpo_beta_schedule is not None or tcfg.dpo_beta_end is not None:
+            raise ValueError(
+                "training.l2l with task='dpo' keeps beta fixed: remove "
+                "training.dpo_beta_schedule and training.dpo_beta_end."
+            )
+        if tcfg.neftune_alpha is not None:
+            raise ValueError(
+                "training.l2l with task='dpo' does not support training.neftune_alpha: the "
+                "reference forward draws NEFTune noise between the policy forwards, an "
+                "order the layer-major walk does not reproduce."
+            )
+
+    @staticmethod
+    def _refuse_kto_l2l_unsupported(tcfg: Any) -> None:
+        """training.l2l with task='kto' reproduces TRL's plain KTO against the policy with its
+        adapters off. Refuse what draws random numbers in the extra forwards, which the
+        layer-major walk cannot replay. lora.dropout is not refused: TRL's KTOTrainer zeroes
+        every nn.Dropout when it is built (``disable_dropout=True``)."""
+        if tcfg.neftune_alpha is not None:
+            raise ValueError(
+                "training.l2l with task='kto' does not support training.neftune_alpha: the "
+                "KL and reference forwards draw NEFTune noise between the policy forwards, "
+                "an order the layer-major walk does not reproduce."
+            )
+
     @model_validator(mode="after")
     def _validate_stream_layers_compat(self) -> "SoupConfig":
         """v0.72.0 BETA — layer-streaming compatibility gates.
@@ -6505,10 +6543,15 @@ class SoupConfig(BaseModel):
                     "training.l2l requires training.stream_layers=true: L2L reuses "
                     "the streamed layer loads, and a resident model has none to reuse."
                 )
-            if self.task != "sft":
+            if self.task not in L2L_SUPPORTED_TASKS:
                 raise ValueError(
-                    f"training.l2l supports task='sft' only; got task={self.task!r}."
+                    f"training.l2l supports task in {list(L2L_SUPPORTED_TASKS)}; "
+                    f"got task={self.task!r}."
                 )
+            if self.task == "dpo":
+                self._refuse_dpo_l2l_unsupported(tcfg)
+            if self.task == "kto":
+                self._refuse_kto_l2l_unsupported(tcfg)
         if not tcfg.stream_layers:
             # Footgun: a non-default stream_* while streaming is off almost
             # certainly means the user forgot stream_layers=true.

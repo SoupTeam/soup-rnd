@@ -318,7 +318,8 @@ def mode_correctness(args, model, runtime, config, sink, torch_dtype) -> None:
     })
     sink.add("correctness", record)
     print(f"correctness {args.label} k={args.k}: A-vs-A {record['a_vs_a']['equal']}, "
-          f"L2L {record['l2l']['equal']} (max |d| {record['l2l']['max_abs']:.3e}), "
+          f"L2L {record['l2l']['equal']} "
+          f"(max |d| {l2l_schedule.gap_text(record['l2l']['max_abs'])}), "
           f"losses {record['l2l_losses_equal']}")
 
 

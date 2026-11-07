@@ -1,16 +1,19 @@
 # Performance & Quantization
 
 RND developer note: [B1.1 expert-shard storage format](expert-shard-format.md)
-documents the independently readable MoE cache. It is storage-only and does not
-enable expert-streamed training.
+documents the independently readable MoE cache.
 
-[B1.2 expert forward](expert-forward.md) adds an internal sequential forward
-primitive and a prospective correctness/memory gate. The opt-in
+[B1.2/B1.3 streamed experts](expert-forward.md) provide an internal sequential
+forward primitive, first-order backward through frozen routed experts, and internal
+runtime/L2L integration for native DeepSeek-V3. The opt-in
 `training.stream_expert_layout: per_expert` supports experimental frozen-expert
 SFT with attention/shared-expert adapters. The narrow disk preflight requires
 a new cache, one disk, NF4 without double quant and readable source headers.
-Tiny-model CPU and CUDA checks cover backward and adapter reload; no real giant
-checkpoint has yet been validated. See `benchmarks/b6-giant-moe-20261028.md`.
+Routed experts stay frozen, with no expert adapters. One bounded expert arena is
+not a bound on total allocated/reserved VRAM. Tiny-model CPU and CUDA checks cover
+backward and adapter reload; no real giant checkpoint has yet been validated.
+See `benchmarks/b6-giant-moe-20261028.md`. Public MoE L2L launch, planner and
+defaults remain unchanged (B1.4).
 
 [D3 grouped-expert preparation](grouped-expert-design.md) records the proposed
 bounded grouping design, reused B1.2 controls and disabled draft protocol.
@@ -966,11 +969,22 @@ checkpoints and resume stay with the Hugging Face loop. The default `false` chan
 existing configs. Report:
 [`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
 
+**Internal MoE boundary (B1.3).** The internal step and trainer attachment also
+run native DeepSeek-V3 with per-expert storage; the public launch guard below
+still admits only Llama/Mistral. Non-expert LoRA trains through frozen routed
+experts using one shared weight arena. Each hit expert is read for no-grad
+forward, grad recompute and expert backward: three reads per micro-batch, not
+one expert read per window. Expert activations must be stateless; registered
+buffers are refused for backward, while expert-local random draws use local RNG
+replay. L2L separately replays LoRA/eager-attention dropout in accumulation order.
+See [the boundary and standalone smoke](expert-forward.md#b13-backward-and-l2l).
+
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
 Refused when the config is read:
 - `stream_layers: false`. A resident model has no layer loads to reuse.
-- `task` other than `sft`.
+- `task` other than `sft`, `dpo`, `orpo`, `simpo` and `kto`. The four preference tasks have their
+  own limits in the next section.
 
 Refused at launch:
 - `model_type` other than `llama` or `mistral`.
@@ -1150,7 +1164,8 @@ ran on: the sign of the speed gap changes with the host (see "Status after A5" b
 The activation store sizes the chunks of micro-batch `i` to the largest micro-batch that has
 been in position `i`, so a short row does not pay for the longest row of its window; the RAM
 check sums those sizes. The store was 191 MB for that run. The RAM check used random tokens, not
-real text. MoE and multi-GPU are out of scope.
+real text. Public MoE launch and multi-GPU are out of scope; the separate internal B1.3 MoE
+path is described above.
 
 **Loss scaling and the last window.** The Hugging Face loop passes `num_items_in_batch`: the
 number of label tokens (labels not equal to `-100`, after the shift) in the whole accumulation
@@ -1250,8 +1265,123 @@ compare 7B runs with a tolerance. The stand is
 | `l2l_weight_restores` | NF4 weight restores; 0 with `quantization: none` |
 | `l2l_spill_layers` | layers whose activations go to the spill file; 0 when everything stays in RAM |
 
+Internal B1.3 MoE runs additionally log `l2l_expert_fetches` and
+`l2l_expert_bytes_read` (logical stored bytes). These include expert backward
+reloads and are distinct from decoder-layer loads and physical disk traffic.
+
 Divide `l2l_layer_loads` by `l2l_steps` to get loads per optimizer step. With L2L this stays
 flat as k grows. With plain accumulation it grows roughly in proportion to k.
+
+### L2L for preference tasks (`dpo`, `orpo`, `simpo`, `kto`, BETA)
+
+`training.l2l: true` accepts `task: dpo`, `orpo`, `simpo` and `kto` next to `sft`. The default
+stays `false` ([ADR 0002](adr/0002-l2l-is-a-bool-and-k-is-gradient-accumulation.md)). Each
+layer is loaded once per optimizer step and runs all k micro-batches, as for SFT. A window loss
+replaces the cross-entropy head. It reproduces the loss of the installed TRL trainer for that
+method, and the Hugging Face loop divides the loss of each micro-batch by `len(window)`, the same
+as gradient accumulation does for these four trainers.
+
+The config accepts all four methods, but only DPO passed the readiness rule. ORPO, SimPO and KTO
+ran in the same test and missed it by narrow margins (below), so they are marked not ready.
+The flag does not stop them, but building their trainer prints a warning that the task is not
+ready. Their runs are not verified to match accumulation.
+
+| Method | Ready | Model and card | Report |
+|---|---|---|---|
+| `dpo` | ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-dpo-a6-ready.md`](../benchmarks/probe-vast-l2l-dpo-a6-ready.md) |
+| `orpo` | not ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-orpo-a6-ready.md`](../benchmarks/probe-vast-l2l-orpo-a6-ready.md) |
+| `simpo` | not ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-simpo-a6-ready.md`](../benchmarks/probe-vast-l2l-simpo-a6-ready.md) |
+| `kto` | not ready | SmolLM2-135M, RTX 3060 12 GB | [`probe-vast-l2l-kto-a6-ready.md`](../benchmarks/probe-vast-l2l-kto-a6-ready.md) |
+
+"Ready" for DPO holds only under the limits listed at the end of this section: bf16 at one kernel
+setting, float32 by a driver workaround, 12 synthetic rows, one model, one card.
+
+The rule that gives the verdicts is
+[`benchmarks/l2l-preference-readiness-rule-a6.md`](../benchmarks/l2l-preference-readiness-rule-a6.md).
+It was written and committed before the GPU run. A method passes when every cell of k = 1, 2 and 4
+meets four criteria: float32 gradients and recorded losses bit for bit equal to accumulation, bf16 gradients and loss at
+step 0 within 1.5 times the noise floor, finite non-trivial gradients, and the same layer loads
+per step as L2L SFT. The rule was not changed after the data. The ticket 06 reports in
+`benchmarks/` stay "not passed" under their own, stricter criterion.
+
+What each report found, on the same 12-row synthetic set, k = 1, 2 and 4, 84 arm runs, all valid:
+
+- **DPO** passed 3 of 3 cells. DPO at k = 1 was measured earlier
+  ([`probe-vast-l2l-dpo-divergence-a6-ticket08.md`](../benchmarks/probe-vast-l2l-dpo-divergence-a6-ticket08.md)),
+  and the criterion was proposed after that, so this pass is not independent evidence.
+- **ORPO** did not pass at any k. In bf16 at step 0, 1 to 3 of 120 LoRA tensors fell outside 1.5
+  floors, by 1.08 to 1.78 times. The largest difference over all tensors was below the largest
+  floor.
+- **SimPO** did not pass at k = 2. In bf16 at step 0, 3 tensors fell outside, by up to 1.22 times. k = 1 and k = 4
+  passed.
+- **KTO** did not pass at k = 4. The float32 gradients were bit-equal at every step, and the
+  recorded loss of step 0 differed by 3e-8, the last float32 digit. k = 1 and k = 2 passed.
+- In all four reports the float32 gradients were bit-equal in all 12 cells except that one KTO
+  loss, and the layer loads per step equalled those of L2L SFT in all 12 (the reference and KL
+  passes reuse the loaded layer).
+
+**Refused when the config is read**, besides the SFT refusals above:
+
+- `task: dpo` with `dpo_beta_schedule` or `dpo_beta_end`. The L2L loss keeps beta fixed.
+- `dpo_ref_regen_epochs` on any DPO run. It is refused with or without L2L.
+- `task: dpo` or `task: kto` with `neftune_alpha`. The reference forwards draw NEFTune noise
+  between the policy forwards, an order the layer-major walk does not reproduce.
+
+**Refused when the trainer is built.** Soup exposes none of these settings today, so the checks
+guard against a TRL default that moves.
+
+- DPO reproduces plain sigmoid DPO against the `ref` adapter. It refuses a trainer with a
+  `loss_type` other than `sigmoid`, `loss_weights` other than `[1.0]`, a `ref_model`,
+  `precompute_ref_log_probs` on (precomputed reference log-probabilities), `ld_alpha`, or an
+  `f_divergence_type` other than `reverse_kl`, `label_smoothing` other than 0, or
+  `use_weighting` on (both change the sigmoid loss in TRL 0.29.1).
+- KTO reproduces plain KTO with the adapters switched off as the reference. It refuses a
+  `loss_type` other than `kto`, `calculate_KL` off, a `ref_model`, `precompute_ref_log_probs` on,
+  a `ref_adapter_name`, and `aux_loss_enabled`. It also needs `dataset_num_proc` unset or 1,
+  one process, and TRL's sequential sampler, because TRL builds each row's KL completion inside
+  a block of consecutive rows.
+- ORPO refuses a trainer with `aux_loss_enabled` on.
+- SimPO refuses a `loss_type` other than `simpo`, `label_smoothing` other than 0 and
+  `aux_loss_enabled` on. It also refuses rows whose short answer TRL truncates to zero tokens, on
+  this path and on the ordinary path.
+- Every one of these checks also refuses a trainer that lacks the attribute, so a TRL that
+  renames it stops the run instead of passing unchecked.
+- All four share the launch refusals of the SFT section: `model_type` other than `llama` or
+  `mistral`, more than one visible GPU, `fp16`, and padding before real tokens.
+
+`lora.dropout` above 0 is not refused for DPO and KTO, because TRL zeroes every `nn.Dropout`
+when it builds those trainers, so no mask is drawn in either forward.
+
+**Limits.**
+
+- **Model and card.** SmolLM2-135M on one RTX 3060 12 GB (Vast.ai host in Poland, torch
+  2.14.1+cu130, transformers 5.19.0, trl 0.29.1, peft 0.21.2). The result does not carry to other
+  models or cards.
+- **Data.** 12 synthetic rows per method (`examples/data/*_synthetic.jsonl`). Model quality was
+  not measured.
+- **bf16 holds at one kernel setting.** The bf16 criterion pins the `MATH` SDPA backend in both
+  paths and judges step 0 only, where the adapters are equal. Without the pin, DPO at
+  k = 1 missed the tolerance on the step 0 loss (8.28e-3 against a limit of 7.87e-3). The
+  default kernel is `EFFICIENT_ATTENTION` in both paths, and the cause of the gap is not
+  explained beyond bf16 rounding inside an operation
+  ([`probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md`](../benchmarks/probe-vast-l2l-dpo-sdpa-kernel-a6-ticket08.md)).
+  bf16 results are not bit-equal to accumulation, even at step 0.
+- **float32 is a workaround.** The runs got float32 by replacing two functions in the check
+  driver. No supported config setting produces it, so the bit-for-bit result describes the L2L
+  step, not a user setting.
+- **Cost of the reference passes.** Each reference pass keeps k hidden states on the GPU (batch x
+  seq x hidden each) for the whole walk over the layers. DPO has one pass. KTO has three passes
+  (policy KL, reference, reference KL), so KTO holds four sets of k hidden states where the
+  policy forward alone holds one. Each pass also does an adapter switch on every layer
+  (`set_adapter` or `disable_adapter`), which walks all LoRA modules each time. Neither the
+  memory nor the time of this was measured.
+- **Library versions.** The division of the window loss by `len(batch_samples)` was read in the
+  code of transformers 5.16.1 (the floor in `pyproject.toml`) and 5.20.2, and it is the same.
+  The code of trl 0.29.0, the floor in `pyproject.toml`, was not read. The losses of the four
+  methods were checked on trl 0.29.1 only.
+- **Not measured.** Speed, weight reads from disk, memory beyond the layer-load counters, NF4 and
+  quantized runs, real datasets, models larger than SmolLM2-135M, more than one card, and the
+  trl 0.29.0 trainers.
 
 ### Preference losses over streaming (v0.72.4)
 

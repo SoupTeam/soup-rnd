@@ -1,10 +1,13 @@
 # Replay the completed pretrained D3 studies
 
-The author supplies these original raw archives directly to the reviewer, outside
-Git. Obtain the actual files before running the command below: summaries and
-payload manifests alone cannot replay native tensors, F1 records or CUDA traces.
-Artifact hand-off/receipt must be confirmed separately; this document does not
-claim that a reviewer has already downloaded them.
+The original raw archives are available outside Git in the private
+[SoupTeam/soup-evidence D3 folder](https://huggingface.co/datasets/SoupTeam/soup-evidence/tree/bacdc0556962240d2f6b29b5817b0aea78dccf68/d3).
+The 2026-11-07 upload preserved both ZIPs unchanged; their remote sizes and
+SHA-256 identities match the table below. README and SHA256SUMS.json are alongside
+them. Reviewers need access to that private dataset. This confirms artifact
+publication, not that a reviewer has already downloaded or replayed the files.
+Obtain the actual ZIPs before running the command below: summaries and payload
+manifests alone cannot replay native tensors, F1 records or CUDA traces.
 
 | Study | File | Bytes | SHA-256 |
 | --- | --- | ---: | --- |

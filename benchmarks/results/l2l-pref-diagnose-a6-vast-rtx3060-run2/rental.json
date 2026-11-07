@@ -1,0 +1,22 @@
+{
+ "card": "RTX 3060 12 GB",
+ "date": "2026-11-04",
+ "server": "Vast.ai, оффер 47491621, инстанс 59133143, машина 43183 (тот же хост, что в первом прогоне), Wisconsin US, Xeon E5-2696 v3, 72 потока",
+ "image": "nvidia/cuda:13.0.0-devel-ubuntu24.04, Python 3.12.3, драйвер 580.173.02",
+ "uptime": "нагрузка хоста: load average 7,27 / 6,19 / 7,07 на 72 потоках (uptime.txt, 16:51 UTC)",
+ "commit": "26013409352a2caaeab88849e850682e32f09631",
+ "cost": "около 0,02 USD: инстанс 59133143 12,5 минуты (16:47:45Z to 17:00:14Z) по фактической ставке 0,10 USD/ч из `vastai show instance`. С первым прогоном (около 0,03 USD, ставка оценена) вместе около 0,05 USD при потолке 0,5 USD, остановка на 0,4. Счёта vast.ai нет, число приблизительное.",
+ "account": "команда vast.ai `soup-rnd` (по указанию пользователя)",
+ "destroy": "`vastai destroy instance 59133143 -y` в 17:00:14Z; `vastai show instances` после этого: 0 instances (show-instances-after.txt; чужой инстанс 59126915 к этому времени уже завершился без моего участия)",
+ "commands": [
+  "vastai create instance 47491621 --image nvidia/cuda:13.0.0-devel-ubuntu24.04 --disk 60 --ssh --direct --label a6-08-kernel --cancel-unavail",
+  "vastai attach ssh 59133143 \"$(cat ~/.ssh/id_ed25519.pub)\"",
+  "git ls-files -z | tar --null -T - -czf - | ssh ... 'mkdir -p /root/soup && tar xzf - -C /root/soup'",
+  "ssh -f ... \"cd /root/soup && CARD='RTX 3060 12GB' nohup bash benchmarks/harness/l2l_pref_diagnose/remote.sh > /root/remote.out 2>&1 < /dev/null &\"",
+  "# внутри remote.sh, из /root/soup: bootstrap (a0-bootstrap.sh), затем",
+  "python benchmarks/harness/l2l_pref_diagnose.py run --device cuda --out /root/results/a8 --label \"RTX 3060 12GB, synthetic data, SmolLM2-135M\" --model-path /root/hf",
+  "vastai destroy instance 59133143 -y"
+ ],
+ "failed": [],
+ "estimated": false
+}

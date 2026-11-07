@@ -715,36 +715,6 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             console.print(f"[green]Rewind log:[/] {log.path}")
         return trainer
 
-    def _build_l2l_trainer(self, base_cls: Any, trainer_kwargs: dict, training_args: Any) -> Any:
-        """Build the SFT trainer that runs each accumulation window as one L2L step."""
-        import torch
-
-        from soup_cli.trainer.l2l_trainer import (
-            attach_l2l_state,
-            make_l2l_trainer_class,
-            refuse_unsupported_l2l,
-        )
-        from soup_cli.utils.layer_stream import resolve_stream_dtype
-
-        base = self.model.get_base_model() if hasattr(self.model, "get_base_model") else self.model
-        refuse_unsupported_l2l(
-            base.config, n_gpu=int(training_args.n_gpu), fp16=bool(training_args.fp16)
-        )
-        trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
-        attach_l2l_state(
-            trainer,
-            self._stream_runtime,
-            dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
-            spill_dir=self.config.training.l2l_spill_dir,
-            weight_dirs=self._stream_weight_dirs,
-            c3_plan=getattr(self, "_c3_l2l_plan", None),
-        )
-        console.print(
-            "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
-            f"{int(training_args.gradient_accumulation_steps)} micro-batch(es)"
-        )
-        return trainer
-
     def _report_rewind(self) -> None:
         """One line after training when the flight recorder lost records."""
         state = getattr(self, "_rewind_state", None)

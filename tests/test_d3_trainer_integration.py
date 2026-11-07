@@ -164,6 +164,9 @@ def test_public_builder_loss_gradients_updates_and_close(checkpoint, tmp_path, b
         assert any(not _same_bits(initial[n], p) for n, p in streamed.named_parameters()
                    if p.requires_grad)
         assert runtime.stats()["expert_fetches"] > 0
+        pool = runtime.expert_resources.pool
+        assert runtime.stats()["expert_fetches"] == pool.fetches
+        assert runtime.stats()["expert_bytes_read"] == pool.logical_bytes_read > 0
         assert not any(".mlp.experts." in n for n, _ in streamed.named_parameters())
     finally:
         runtime.close()
@@ -383,6 +386,27 @@ def test_router_auxiliary_loss_is_not_silently_dropped():
         })
 
 
+@pytest.mark.parametrize("task", ["dpo", "orpo", "simpo", "kto"])
+def test_public_l2l_launch_keeps_olmoe_preference_tasks_out_of_scope(task, monkeypatch):
+    from types import SimpleNamespace
+
+    from soup_cli.trainer import l2l_trainer
+    from soup_cli.trainer.stream_setup import StreamingSetupMixin
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("constructed a trainer for an unqualified OLMoE task")
+
+    monkeypatch.setattr(l2l_trainer, "make_l2l_trainer_class", forbidden)
+    wrapper = SimpleNamespace(
+        config=SimpleNamespace(task=task),
+        model=SimpleNamespace(config=SimpleNamespace(model_type="olmoe")),
+    )
+    with pytest.raises(ValueError, match="OLMoE L2L supports task 'sft' only"):
+        StreamingSetupMixin._build_l2l_trainer(
+            wrapper, object, {}, SimpleNamespace(n_gpu=0, fp16=False)
+        )
+
+
 def test_sft_setup_mixin_selects_expert_layout_from_the_config(checkpoint, tmp_path):
     from tokenizers import Tokenizer
     from tokenizers.models import WordLevel
@@ -459,6 +483,10 @@ def test_actual_sft_trainer_steps_and_adapter_roundtrip(checkpoint, tmp_path, l2
         result = trainer.train()
         assert result.global_step == 2
         assert runtime.stats()["expert_fetches"] > 0
+        if l2l:
+            fields = trainer._soup_l2l.log_fields()
+            assert fields["l2l_expert_fetches"] > 0
+            assert fields["l2l_expert_bytes_read"] > 0
         model.eval()
         ids = torch.tensor([rows[0]])
         with torch.no_grad():

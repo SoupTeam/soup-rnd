@@ -1,0 +1,1929 @@
+#!/usr/bin/env python3
+"""Rental guard: one laptop-independent controller for a billed GPU rental.
+
+Design and contract: ``benchmarks/rental-guard.md``. Subcommands:
+
+    plan     pure budget / deadline planner; refuses a plan that does not fit (writes plan.json)
+    bind     the same plan re-derived from the real creation time and instance id
+    guard    on the instance: starts the detached deleter FIRST, then supervises the steps
+             with --not-after, and runs periodic / stop / final exports in killable children
+    deleter  on the instance: destroys THIS instance at delete_epoch with the per-instance key
+    export   snapshot of the track's roots (size + SHA-256 per file, ``changed`` flagged),
+             files uploaded first, manifest LAST
+    pull     verify every file of an export against its manifest, then apply atomically
+    confirm  external, account key: is the plan's instance id gone from the listing?
+    scope-probe  external, GET only: does the server enforce ``id eq`` key constraints?
+             (two throwaway read-only keys; never a DELETE)
+    watch    external backstop, account key: destroy ONLY the plan's id if still listed after
+             delete_epoch + grace, then confirm
+    stack    freeze | check: the NVIDIA/CUDA package stack of a DISPOSABLE rental VM
+
+Standard library only at module level; ``huggingface_hub`` is imported lazily by the HF store.
+Keys come from environment variables named by arguments, never from files in the repo.
+Exit codes: 0 ok; 1 failed; 2 refused; 3 export incomplete (manifest uploaded, required
+artifacts missing); 4 watch: not due yet.
+"""
+
+from __future__ import annotations
+
+import argparse
+import errno
+import glob
+import hashlib
+import json
+import math
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+
+PLAN_SCHEMA = "rental-guard-plan/1"
+EXPORT_SCHEMA = "rental-guard-export/1"
+ARTIFACTS_SCHEMA = "rental-artifacts/1"
+DEFAULT_API_BASE = "https://console.vast.ai/api/v0"
+MANIFEST = "MANIFEST.json"
+PULL_RECORD = "PULL.json"
+DISPOSABLE_ENV = "SOUP_BENCH_DISPOSABLE_VM"
+DISPOSABLE_CONSENT = "yes-destroy-after"
+EXIT_OK, EXIT_FAILED, EXIT_REFUSED, EXIT_INCOMPLETE, EXIT_NOT_DUE = 0, 1, 2, 3, 4
+CHUNK = 1 << 20
+POLL_S = 0.2
+#: Plan defaults (seconds unless named otherwise); the simulations override them.
+PLAN_DEFAULTS: Dict[str, Any] = {
+    "round_s": 60, "other_reserve_s": 900, "export_window_s": 1800,
+    "export_interval_s": 900, "export_timeout_s": 1200, "export_margin_s": 120,
+    "term_grace_s": 30, "destroy_retry_window_s": 600, "destroy_backoff_s": 5,
+    "destroy_request_timeout_s": 20, "watch_grace_s": 300,
+    # A finished or stopped rental is destroyed at once, never kept to its maximum term;
+    # only the simulations that test waiting for delete_epoch turn it off (--keep-after-stop).
+    "destroy_on_stop": True,
+    "boot_s": 0, "setup_s": 0, "down_gb": 0.0, "up_gb": 0.0,
+    "down_usd_per_gb": 0.0, "up_usd_per_gb": 0.0,
+    # Every export re-uploads the whole results tree (a snapshot), so upload traffic is
+    # export_gb x number of exports, not the size of the results once.
+    "export_gb": 0.0,
+    # Credit the account's OTHER running instances burn during this rental (their summed
+    # dph_total x this rental's hours) is not available to it.
+    "other_instances_usd_per_hour": 0.0,
+}
+
+
+# --------------------------------------------------------------------------
+# small helpers
+# --------------------------------------------------------------------------
+def utc(epoch: Optional[float] = None) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() if epoch is None
+                                                          else epoch))
+
+
+def utc_ms(epoch: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(epoch)) + f".{int(epoch % 1 * 1000):03d}Z"
+
+
+def write_json_atomic(path: str, data: Any) -> None:
+    """Temporary file, then rename. On Windows a reader holding the target open makes the
+    rename fail with a sharing violation for a moment: retried for at most ~1 s."""
+    folder = os.path.dirname(os.path.abspath(path))
+    os.makedirs(folder, exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=1, sort_keys=True, default=str)
+        handle.write("\n")
+    for attempt in range(20):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if os.name == "posix" or attempt == 19:
+                raise
+            time.sleep(0.05)
+
+
+def read_json(path: str) -> Any:
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def log(message: str) -> None:
+    print(f"{utc_ms(time.time())} {message}", flush=True)
+
+
+# --------------------------------------------------------------------------
+# plan: pure budget and deadline arithmetic (probe-expert-stream-two-reads.md §4.5)
+# --------------------------------------------------------------------------
+class PlanRefusedError(Exception):
+    """The plan does not fit; ``reasons`` lists every finding, ``derived`` what was computed."""
+
+    def __init__(self, reasons: List[str], derived: Dict[str, Any]) -> None:
+        super().__init__("; ".join(reasons))
+        self.reasons = reasons
+        self.derived = derived
+
+
+def round_up_tenth(usd: float) -> float:
+    """Round a dollar amount up to the next $0.10 (an exact multiple stays)."""
+    return math.ceil(round(usd * 10, 6)) / 10
+
+
+def _number(inputs: Mapping[str, Any], key: str, minimum: float = 0.0) -> float:
+    if key not in inputs or inputs[key] is None:
+        raise PlanRefusedError([f"missing input {key}"], {})
+    value = float(inputs[key])
+    if not math.isfinite(value) or value < minimum:
+        raise PlanRefusedError([f"input {key}={inputs[key]!r} must be >= {minimum}"], {})
+    return value
+
+
+def compute_plan(raw: Mapping[str, Any]) -> Dict[str, Any]:
+    """The whole rental plan from its inputs, or ``PlanRefusedError``. Pure (no clock).
+
+    Inputs: ``hourly_usd`` (at the allocated disk), ``down_usd_per_gb``, ``up_usd_per_gb``,
+    ``down_gb``, ``up_gb``, ``ceiling_usd`` (approved), ``credit_usd`` (account), ``created_epoch``,
+    ``boot_s``, ``setup_s``, ``steps`` ([{name, estimate_s, argv?}]), ``export_window_s`` and the
+    operational knobs of ``PLAN_DEFAULTS``; ``instance_id`` once the instance exists.
+    """
+    inputs = {**PLAN_DEFAULTS, **dict(raw)}
+    hourly = _number(inputs, "hourly_usd")
+    if hourly <= 0:
+        raise PlanRefusedError(["hourly_usd must be > 0"], {})
+    ceiling = _number(inputs, "ceiling_usd")
+    credit = _number(inputs, "credit_usd")
+    created = _number(inputs, "created_epoch")
+    round_s = _number(inputs, "round_s", 1.0)
+    window = _number(inputs, "export_window_s")
+    other_s = _number(inputs, "other_reserve_s")
+    boot, setup = _number(inputs, "boot_s"), _number(inputs, "setup_s")
+    timeout, margin = _number(inputs, "export_timeout_s"), _number(inputs, "export_margin_s")
+    for key in ("export_interval_s", "term_grace_s", "destroy_retry_window_s",
+                "destroy_backoff_s", "destroy_request_timeout_s", "watch_grace_s"):
+        _number(inputs, key)
+    rental_hint_s = sum(max(0.0, float(step.get("estimate_s", 0) or 0))
+                        for step in inputs.get("steps") or [])
+    export_gb = _number(inputs, "export_gb")
+    interval = _number(inputs, "export_interval_s", 1.0)
+    other_burn = _number(inputs, "other_instances_usd_per_hour")
+    # periodic exports over the work, plus the stop/final export (never fewer than one)
+    planned_exports = int(math.ceil((boot + setup + rental_hint_s) / interval)) + 1
+    export_up_gb = export_gb * planned_exports
+    traffic_raw = (_number(inputs, "down_gb") * _number(inputs, "down_usd_per_gb")
+                   + (_number(inputs, "up_gb") + export_up_gb) * _number(inputs, "up_usd_per_gb"))
+    traffic = round_up_tenth(traffic_raw)
+    other = hourly * other_s / 3600.0
+    compute_budget = ceiling - traffic - other
+    steps = [dict(step) for step in inputs.get("steps") or []]
+    reasons: List[str] = []
+    derived: Dict[str, Any] = {
+        "traffic_usd_raw": traffic_raw, "traffic_reserve_usd": traffic,
+        "planned_exports": planned_exports, "export_upload_gb": export_up_gb,
+        "other_reserve_usd": other, "compute_budget_usd": compute_budget,
+    }
+    if ceiling > credit:
+        reasons.append(f"ceiling ${ceiling:.2f} exceeds the account credit ${credit:.2f}")
+    if timeout + margin > window:
+        reasons.append(f"export_timeout_s {timeout:g} + export_margin_s {margin:g} does not fit "
+                       f"the export window {window:g} s")
+    if compute_budget <= 0:
+        reasons.append(f"ceiling ${ceiling:.2f} leaves no compute after the traffic reserve "
+                       f"${traffic:.2f} and the other reserve ${other:.2f}")
+        raise PlanRefusedError(reasons, derived)
+    raw_delete = created + compute_budget / hourly * 3600.0
+    delete_epoch = math.floor(round(raw_delete / round_s, 9)) * round_s
+    run_not_after = delete_epoch - window
+    schedule: List[Dict[str, Any]] = []
+    cursor = created + boot + setup
+    if cursor > run_not_after:
+        reasons.append(f"boot + setup ({boot + setup:g} s) end after run_not_after "
+                       f"({utc(run_not_after)})")
+    for index, step in enumerate(steps):
+        name = str(step.get("name") or f"step{index}")
+        estimate = float(step.get("estimate_s", -1))
+        if not math.isfinite(estimate) or estimate < 0:
+            reasons.append(f"step {name}: estimate_s missing or negative")
+            continue
+        start, finish = cursor, cursor + estimate
+        fits = finish <= run_not_after
+        schedule.append({"name": name, "estimate_s": estimate, "start_utc": utc(start),
+                         "finish_utc": utc(finish), "fits": fits})
+        if not fits:
+            reasons.append(f"step {name} (estimate {estimate:g} s) would end {utc(finish)}, "
+                           f"after run_not_after {utc(run_not_after)} by "
+                           f"{finish - run_not_after:.0f} s")
+        cursor = finish
+    compute_cost = hourly * (delete_epoch - created) / 3600.0
+    total = compute_cost + traffic + other
+    if total > ceiling + 1e-9:
+        reasons.append(f"planned total ${total:.4f} exceeds the ceiling ${ceiling:.2f}")
+    if total > credit + 1e-9:
+        reasons.append(f"planned total ${total:.4f} exceeds the credit ${credit:.2f}")
+    other_burn_usd = other_burn * (delete_epoch - created) / 3600.0
+    if total + other_burn_usd > credit + 1e-9:
+        reasons.append(f"planned total ${total:.4f} + ${other_burn_usd:.4f} the account's other "
+                       f"instances burn over the same {(delete_epoch - created) / 3600:.2f} h "
+                       f"exceeds the credit ${credit:.2f}")
+    derived["other_instances_usd"] = other_burn_usd
+    derived.update({
+        "raw_delete_epoch": raw_delete, "compute_cost_usd": compute_cost,
+        "planned_total_usd": total, "rental_seconds": delete_epoch - created,
+        "schedule": schedule, "work_end_utc": utc(cursor),
+        "slack_before_run_not_after_s": run_not_after - cursor,
+    })
+    if reasons:
+        raise PlanRefusedError(reasons, derived)
+    instance_id = inputs.get("instance_id")
+    return {
+        "schema": PLAN_SCHEMA,
+        "inputs": {key: inputs[key] for key in sorted(inputs)},
+        "derived": derived,
+        "instance_id": None if instance_id is None else int(instance_id),
+        "created_epoch": created, "delete_epoch": delete_epoch,
+        "run_not_after_epoch": run_not_after,
+        "times_utc": {"created": utc(created), "delete": utc(delete_epoch),
+                      "run_not_after": utc(run_not_after),
+                      "watch_due": utc(delete_epoch + float(inputs["watch_grace_s"]))},
+        "steps": steps,
+        **{key: inputs[key] for key in (
+            "export_interval_s", "export_timeout_s", "export_margin_s", "term_grace_s",
+            "destroy_retry_window_s", "destroy_backoff_s", "destroy_request_timeout_s",
+            "watch_grace_s", "destroy_on_stop")},
+    }
+
+
+def load_plan(path: str, require_instance: bool = True) -> Dict[str, Any]:
+    plan = read_json(path)
+    if not isinstance(plan, dict) or plan.get("schema") != PLAN_SCHEMA:
+        raise ValueError(f"{path}: not a {PLAN_SCHEMA} plan")
+    if require_instance and not isinstance(plan.get("instance_id"), int):
+        raise ValueError(f"{path}: the plan has no instance_id (run `bind` after creation)")
+    return plan
+
+
+# --------------------------------------------------------------------------
+# required artifacts per track
+# --------------------------------------------------------------------------
+def expand_braces(pattern: str) -> List[str]:
+    """``a{b,c}d{e,f}`` -> every combination (no nesting)."""
+    match = re.search(r"\{([^{}]*)\}", pattern)
+    if match is None:
+        return [pattern]
+    head, tail = pattern[:match.start()], pattern[match.end():]
+    return [expanded for option in match.group(1).split(",")
+            for expanded in expand_braces(head + option + tail)]
+
+
+def glob_regex(pattern: str) -> "re.Pattern[str]":
+    """A ``/``-separated glob: ``**`` any depth, ``*`` / ``?`` within one segment."""
+    out, index = [], 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out.append("(?:.*/)?")
+            index += 3
+        elif pattern.startswith("**", index):
+            out.append(".*")
+            index += 2
+        elif pattern[index] == "*":
+            out.append("[^/]*")
+            index += 1
+        elif pattern[index] == "?":
+            out.append("[^/]")
+            index += 1
+        else:
+            out.append(re.escape(pattern[index]))
+            index += 1
+    return re.compile("".join(out) + r"\Z")
+
+
+def _qualified(pattern: str) -> str:
+    root, sep, rest = pattern.partition(":")
+    if not sep or not root or not rest:
+        raise ValueError(f"artifact pattern {pattern!r} is not ROOT:GLOB")
+    return f"{root}/{rest}"
+
+
+def check_required(names: Iterable[str], required: Sequence[str]) -> Tuple[Dict[str, List[str]],
+                                                                          List[str]]:
+    """Each brace alternative of each required ``ROOT:GLOB`` must match at least one file."""
+    names = sorted(names)
+    matches: Dict[str, List[str]] = {}
+    missing: List[str] = []
+    for pattern in required:
+        for alternative in expand_braces(pattern):
+            regex = glob_regex(_qualified(alternative))
+            found = [name for name in names if regex.match(name)]
+            matches[alternative] = found
+            if not found:
+                missing.append(alternative)
+    return matches, missing
+
+
+def load_track(artifacts_path: str, track: str) -> Dict[str, Any]:
+    spec = read_json(artifacts_path)
+    if spec.get("schema") != ARTIFACTS_SCHEMA:
+        raise ValueError(f"{artifacts_path}: not a {ARTIFACTS_SCHEMA} file")
+    tracks = spec.get("tracks") or {}
+    if track not in tracks:
+        raise ValueError(f"track {track!r} not in {artifacts_path} ({sorted(tracks)})")
+    return tracks[track]
+
+
+def resolve_roots(track: Mapping[str, Any], environ: Mapping[str, str],
+                  overrides: Mapping[str, str]) -> Dict[str, str]:
+    """Root name -> absolute path; ``${VAR}`` from the environment, a missing one refuses."""
+    roots: Dict[str, str] = {}
+    for name, template in (track.get("roots") or {}).items():
+        if name in overrides:
+            roots[name] = os.path.abspath(overrides[name])
+            continue
+        missing = [var for var in re.findall(r"\$\{(\w+)\}", template) if not environ.get(var)]
+        if missing:
+            raise ValueError(f"root {name} ({template}) needs {', '.join(missing)} in the "
+                             f"environment (or --root {name}=PATH)")
+        roots[name] = os.path.abspath(re.sub(r"\$\{(\w+)\}", lambda m: environ[m.group(1)],
+                                             template))
+    for name, path in overrides.items():
+        roots.setdefault(name, os.path.abspath(path))
+    return roots
+
+
+# --------------------------------------------------------------------------
+# stores: local directory (tests, simulations) and a private HF dataset repo
+# --------------------------------------------------------------------------
+class StoreError(Exception):
+    pass
+
+
+def _safe_key(key: str) -> bool:
+    parts = key.split("/")
+    return bool(key) and not key.startswith("/") and "\\" not in key and ":" not in parts[0] \
+        and all(part not in ("", ".", "..") for part in parts)
+
+
+class LocalDirStore:
+    """``<root>/<export_id>/files/<key>`` and ``<root>/<export_id>/MANIFEST.json``.
+
+    Injectable faults (query string of the store spec; simulations only). Each names the export
+    kinds it hits (``periodic``, ``stop``, ``final``, ``manual``), comma-separated:
+
+    - ``hang_kinds``: after the first uploaded file, the next store write never returns;
+    - ``enospc_upload_kinds``: the second upload raises ENOSPC (the store is full);
+    - ``enospc_snapshot_kinds``: the snapshot's second file copy raises ENOSPC (staging full).
+    """
+
+    FAULTS = ("hang_kinds", "enospc_upload_kinds", "enospc_snapshot_kinds")
+
+    def __init__(self, root: str, faults: Optional[Mapping[str, str]] = None) -> None:
+        self.root = os.path.abspath(root)
+        unknown = set(faults or {}) - set(self.FAULTS)
+        if unknown:
+            raise StoreError(f"unknown store faults {sorted(unknown)}")
+        self.faults = {name: {kind for kind in str((faults or {}).get(name, "")).split(",")
+                              if kind} for name in self.FAULTS}
+        self._uploaded = 0
+        self._kind = ""
+
+    def wrap_copy(self, copy: Callable[[str, str], Tuple[int, str]],
+                  kind: str) -> Callable[[str, str], Tuple[int, str]]:
+        """The snapshot's copy function; the kind of this export arms the upload faults too."""
+        self._kind = kind
+        if kind not in self.faults["enospc_snapshot_kinds"]:
+            return copy
+        copied = [0]
+
+        def full(src: str, dest: str) -> Tuple[int, str]:
+            if copied[0] >= 1:
+                raise OSError(errno.ENOSPC, "No space left on device (injected, snapshot)")
+            copied[0] += 1
+            return copy(src, dest)
+
+        return full
+
+    def describe(self) -> str:
+        return f"local:{self.root}"
+
+    def begin(self, export_id: str) -> None:
+        os.makedirs(os.path.join(self.root, export_id, "files"), exist_ok=False)
+        self._uploaded = 0
+
+    def _fault(self) -> None:
+        if self._kind in self.faults["hang_kinds"] and self._uploaded >= 1:
+            while True:  # a store write that never returns
+                time.sleep(3600)
+        if self._kind in self.faults["enospc_upload_kinds"] and self._uploaded >= 1:
+            raise OSError(errno.ENOSPC, "No space left on device (injected, upload)")
+
+    def upload_files(self, export_id: str, files_dir: str, keys: Sequence[str]) -> None:
+        for key in keys:
+            self._fault()
+            dest = os.path.join(self.root, export_id, "files", *key.split("/"))
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            tmp = dest + ".upload-tmp"
+            shutil.copyfile(os.path.join(files_dir, *key.split("/")), tmp)
+            os.replace(tmp, dest)
+            self._uploaded += 1
+
+    def put_manifest(self, export_id: str, data: bytes) -> None:
+        self._fault()
+        path = os.path.join(self.root, export_id, MANIFEST)
+        with open(path + ".upload-tmp", "wb") as handle:
+            handle.write(data)
+        os.replace(path + ".upload-tmp", path)
+
+    def list_exports(self) -> List[str]:
+        if not os.path.isdir(self.root):
+            return []
+        return sorted(name for name in os.listdir(self.root)
+                      if os.path.isdir(os.path.join(self.root, name)))
+
+    def has_manifest(self, export_id: str) -> bool:
+        return os.path.isfile(os.path.join(self.root, export_id, MANIFEST))
+
+    def get_manifest(self, export_id: str) -> bytes:
+        with open(os.path.join(self.root, export_id, MANIFEST), "rb") as handle:
+            return handle.read()
+
+    def list_files(self, export_id: str) -> List[str]:
+        base = os.path.join(self.root, export_id, "files")
+        found = []
+        for dirpath, _, filenames in os.walk(base):
+            for name in filenames:
+                rel = os.path.relpath(os.path.join(dirpath, name), base)
+                found.append(rel.replace(os.sep, "/"))
+        return sorted(found)
+
+    def fetch_file(self, export_id: str, key: str, dest: str) -> None:
+        shutil.copyfile(os.path.join(self.root, export_id, "files", *key.split("/")), dest)
+
+
+class HFDatasetStore:
+    """A PRIVATE Hugging Face dataset repo: ``exports/<id>/files/<key>``, manifest last.
+
+    The token is read from the environment variable named by ``token_env`` (never a file in
+    the repo); ``huggingface_hub`` is imported here only. Not exercised against the real Hub
+    by the tests (no network): see benchmarks/rental-guard.md.
+    """
+
+    def __init__(self, repo_id: str, token_env: str = "HF_TOKEN",
+                 environ: Mapping[str, str] = os.environ) -> None:
+        token = environ.get(token_env)
+        if not token:
+            raise StoreError(f"HF store: ${token_env} is not set")
+        from huggingface_hub import HfApi  # lazy: only the HF backend needs it
+
+        self.repo_id, self.token, self.api = repo_id, token, HfApi()
+        self._files: Optional[List[str]] = None
+
+    def describe(self) -> str:
+        return f"hf:{self.repo_id}"
+
+    def begin(self, export_id: str) -> None:
+        info = self.api.repo_info(self.repo_id, repo_type="dataset", token=self.token)
+        if not getattr(info, "private", False):
+            raise StoreError(f"HF store: {self.repo_id} is not private; refusing to upload")
+
+    def upload_files(self, export_id: str, files_dir: str, keys: Sequence[str]) -> None:
+        self.api.upload_folder(folder_path=files_dir, path_in_repo=f"exports/{export_id}/files",
+                               repo_id=self.repo_id, repo_type="dataset", token=self.token,
+                               commit_message=f"rental export {export_id}: files")
+
+    def put_manifest(self, export_id: str, data: bytes) -> None:
+        self.api.upload_file(path_or_fileobj=data,
+                             path_in_repo=f"exports/{export_id}/{MANIFEST}",
+                             repo_id=self.repo_id, repo_type="dataset", token=self.token,
+                             commit_message=f"rental export {export_id}: manifest (last)")
+
+    def _all(self) -> List[str]:
+        if self._files is None:
+            self._files = list(self.api.list_repo_files(self.repo_id, repo_type="dataset",
+                                                        token=self.token))
+        return self._files
+
+    def list_exports(self) -> List[str]:
+        return sorted({path.split("/")[1] for path in self._all()
+                       if path.startswith("exports/") and path.count("/") >= 2})
+
+    def has_manifest(self, export_id: str) -> bool:
+        return f"exports/{export_id}/{MANIFEST}" in self._all()
+
+    def _download(self, path: str) -> str:
+        from huggingface_hub import hf_hub_download
+
+        return hf_hub_download(self.repo_id, path, repo_type="dataset", token=self.token)
+
+    def get_manifest(self, export_id: str) -> bytes:
+        with open(self._download(f"exports/{export_id}/{MANIFEST}"), "rb") as handle:
+            return handle.read()
+
+    def list_files(self, export_id: str) -> List[str]:
+        prefix = f"exports/{export_id}/files/"
+        return sorted(path[len(prefix):] for path in self._all() if path.startswith(prefix))
+
+    def fetch_file(self, export_id: str, key: str, dest: str) -> None:
+        shutil.copyfile(self._download(f"exports/{export_id}/files/{key}"), dest)
+
+
+def open_store(spec: str, environ: Mapping[str, str] = os.environ) -> Any:
+    """``local:PATH[?fault=N&...]`` or ``hf:OWNER/REPO[?token_env=NAME]``."""
+    kind, sep, rest = spec.partition(":")
+    if not sep or not rest:
+        raise StoreError(f"store spec {spec!r} is not local:PATH or hf:OWNER/REPO")
+    target, _, query = rest.partition("?")
+    options = dict(urllib.parse.parse_qsl(query))
+    if kind == "local":
+        return LocalDirStore(target, options)
+    if kind == "hf":
+        return HFDatasetStore(target, options.get("token_env", "HF_TOKEN"), environ)
+    raise StoreError(f"unknown store kind {kind!r}")
+
+
+# --------------------------------------------------------------------------
+# export: snapshot + upload, manifest last
+# --------------------------------------------------------------------------
+def _stat(path: str) -> Tuple[int, int]:
+    st = os.stat(path)
+    return st.st_size, st.st_mtime_ns
+
+
+def copy_hashed(src: str, dest: str) -> Tuple[int, str]:
+    """Copy ``src`` to ``dest`` once, hashing exactly the bytes written."""
+    digest, size = hashlib.sha256(), 0
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(src, "rb") as reader, open(dest, "wb") as writer:
+        while True:
+            block = reader.read(CHUNK)
+            if not block:
+                break
+            digest.update(block)
+            writer.write(block)
+            size += len(block)
+    return size, digest.hexdigest()
+
+
+def snapshot(roots: Mapping[str, str], files_dir: str, excludes: Sequence[str] = (),
+             copy: Callable[[str, str], Tuple[int, str]] = copy_hashed
+             ) -> Tuple[Dict[str, Dict[str, Any]], List[str], List[str]]:
+    """Copy every regular file under each root into ``files_dir/<root>/<rel>``.
+
+    Returns ``(files, excluded, missing_roots)``. A file whose size or mtime changed while it
+    was copied, or whose copy length differs from its first stat, is ``changed``: a prefix of
+    a file still being written. Only explicit ``excludes`` (and symlinks) are left out, and
+    each is listed in ``excluded``; nothing is skipped silently.
+    """
+    exclude = [glob_regex(_qualified(alt)) for pattern in excludes
+               for alt in expand_braces(pattern)]
+    staged = os.path.abspath(files_dir)
+    files: Dict[str, Dict[str, Any]] = {}
+    excluded: List[str] = []
+    missing_roots: List[str] = []
+    for name in sorted(roots):
+        root = roots[name]
+        if not os.path.isdir(root):
+            missing_roots.append(name)
+            continue
+        if os.path.commonpath([staged, os.path.abspath(root)]) == os.path.abspath(root):
+            raise ValueError(f"staging {staged} is inside root {name} ({root})")
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames.sort()
+            for filename in sorted(filenames):
+                path = os.path.join(dirpath, filename)
+                key = f"{name}/" + os.path.relpath(path, root).replace(os.sep, "/")
+                if os.path.islink(path) or not os.path.isfile(path):
+                    excluded.append(f"{key} (not a regular file)")
+                    continue
+                if any(regex.match(key) for regex in exclude):
+                    excluded.append(key)
+                    continue
+                try:
+                    before = _stat(path)
+                    size, sha = copy(path, os.path.join(staged, *key.split("/")))
+                    after = _stat(path)
+                except FileNotFoundError:
+                    excluded.append(f"{key} (vanished while copied)")
+                    continue
+                files[key] = {"size": size, "sha256": sha,
+                              "changed": before != after or before[0] != size}
+    return files, excluded, missing_roots
+
+
+def new_export_id(kind: str) -> str:
+    now = time.time()
+    return (time.strftime("%Y%m%dT%H%M%S", time.gmtime(now)) + f"{int(now % 1 * 1000):03d}Z"
+            f"-{kind}-{os.getpid()}")
+
+
+def run_export(store: Any, roots: Mapping[str, str], track: Mapping[str, Any], track_name: str,
+               kind: str, staging: str, record_path: Optional[str] = None) -> Dict[str, Any]:
+    """One export; the record says ``complete`` / ``incomplete`` / ``failed``."""
+    export_id = new_export_id(kind)
+    record: Dict[str, Any] = {"export_id": export_id, "kind": kind, "track": track_name,
+                              "store": store.describe(), "started_utc": utc(), "status": "running",
+                              "pid": os.getpid(), "roots": dict(roots)}
+    if record_path:
+        write_json_atomic(record_path, record)
+    work = os.path.join(staging, export_id)
+    try:
+        copy = getattr(store, "wrap_copy", lambda fn, _kind: fn)(copy_hashed, kind)
+        files, excluded, missing_roots = snapshot(roots, os.path.join(work, "files"),
+                                                  track.get("exclude") or (), copy)
+        matches, missing = check_required(files, track.get("required") or ())
+        missing += [f"root {name} ({roots[name]}) does not exist" for name in missing_roots
+                    if any(p.startswith(f"{name}:") for p in track.get("required") or ())]
+        done_key = next((key for key in files if key.endswith("/DONE")), None)
+        done_text = None
+        if done_key is not None and not files[done_key]["changed"]:
+            with open(os.path.join(work, "files", *done_key.split("/")), encoding="utf-8",
+                      errors="replace") as handle:
+                done_text = handle.read().strip()
+        changed = sorted(key for key, entry in files.items() if entry["changed"])
+        status = "complete" if not missing else "incomplete"
+        manifest = {"schema": EXPORT_SCHEMA, "export_id": export_id, "kind": kind,
+                    "track": track_name, "created_utc": utc(), "roots": dict(roots),
+                    "files": files, "changed": changed, "excluded": excluded,
+                    "required": matches, "missing_required": missing,
+                    "missing_roots": missing_roots, "status": status, "done": done_text}
+        store.begin(export_id)
+        store.upload_files(export_id, os.path.join(work, "files"), sorted(files))
+        store.put_manifest(export_id, json.dumps(manifest, indent=1, sort_keys=True)
+                           .encode("utf-8"))
+        record.update(status=status, files=len(files),
+                      bytes=sum(entry["size"] for entry in files.values()), changed=changed,
+                      missing_required=missing, excluded=excluded, done=done_text)
+    except (OSError, ValueError, StoreError) as exc:
+        code = errno.errorcode.get(getattr(exc, "errno", None) or -1, "")
+        record.update(status="failed", error=f"{type(exc).__name__}: {exc}", errno=code or None)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    record["finished_utc"] = utc()
+    if record_path:
+        write_json_atomic(record_path, record)
+    return record
+
+
+# --------------------------------------------------------------------------
+# pull: verify everything, then apply atomically
+# --------------------------------------------------------------------------
+class PullRefusedError(Exception):
+    pass
+
+
+def _sha256_file(path: str) -> Tuple[int, str]:
+    digest, size = hashlib.sha256(), 0
+    with open(path, "rb") as handle:
+        while True:
+            block = handle.read(CHUNK)
+            if not block:
+                return size, digest.hexdigest()
+            digest.update(block)
+            size += len(block)
+
+
+def pull(store: Any, dest: str, export_id: Optional[str] = None) -> Dict[str, Any]:
+    """Apply one export under ``dest/<export_id>/`` only if every file matches the manifest.
+
+    Default: the newest export WITH a manifest; newer ones without (incomplete uploads) are
+    listed in the record. Files are fetched into a staging directory next to the target,
+    verified, and the directory is renamed into place; on any mismatch the staging directory
+    is removed and nothing is written under ``dest``.
+    """
+    exports = store.list_exports()
+    complete = [name for name in exports if store.has_manifest(name)]
+    incomplete = [name for name in exports if name not in complete]
+    if export_id is None:
+        if not complete:
+            raise PullRefusedError(f"no export with a manifest in {store.describe()} "
+                                   f"(incomplete: {incomplete})")
+        export_id = complete[-1]
+    elif export_id not in complete:
+        raise PullRefusedError(f"export {export_id} has no manifest (an incomplete upload)")
+    try:
+        manifest = json.loads(store.get_manifest(export_id).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise PullRefusedError(f"{export_id}: manifest unreadable: {exc}") from None
+    if not isinstance(manifest, dict) or manifest.get("schema") != EXPORT_SCHEMA \
+            or manifest.get("export_id") != export_id or not isinstance(manifest.get("files"),
+                                                                         dict):
+        raise PullRefusedError(f"{export_id}: not a {EXPORT_SCHEMA} manifest for this export")
+    listed = manifest["files"]
+    bad = [key for key in listed if not _safe_key(key)]
+    if bad:
+        raise PullRefusedError(f"{export_id}: unsafe paths in the manifest {bad[:5]}")
+    stored = set(store.list_files(export_id))
+    if stored != set(listed):
+        raise PullRefusedError(f"{export_id}: store and manifest differ: missing "
+                               f"{sorted(set(listed) - stored)[:5]}, unlisted "
+                               f"{sorted(stored - set(listed))[:5]}")
+    target = os.path.join(dest, export_id)
+    if os.path.lexists(target):
+        raise PullRefusedError(f"{target} already exists")
+    # staged NEXT TO dest (same filesystem, so the final rename is atomic); on a mismatch it
+    # is removed and dest is not even created
+    stage = f"{os.path.abspath(dest).rstrip(os.sep)}.pull-staging-{export_id}-{os.getpid()}"
+    try:
+        for key in sorted(listed):
+            entry = listed[key]
+            local = os.path.join(stage, *key.split("/"))
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+            store.fetch_file(export_id, key, local)
+            size, sha = _sha256_file(local)
+            if size != entry.get("size") or sha != entry.get("sha256"):
+                raise PullRefusedError(f"{export_id}: {key}: size {size} sha256 {sha[:12]} "
+                                       f"differs from the manifest ({entry.get('size')}, "
+                                       f"{str(entry.get('sha256'))[:12]})")
+        record = {"pulled_utc": utc(), "export_id": export_id, "files": len(listed),
+                  "status": manifest.get("status"), "changed": manifest.get("changed"),
+                  "missing_required": manifest.get("missing_required"),
+                  "done": manifest.get("done"), "newer_incomplete": [
+                      name for name in incomplete if name > export_id],
+                  "manifest": manifest}
+        write_json_atomic(os.path.join(stage, PULL_RECORD), record)
+        os.makedirs(dest, exist_ok=True)
+        os.replace(stage, target)
+    except BaseException:
+        shutil.rmtree(stage, ignore_errors=True)
+        raise
+    write_json_atomic(os.path.join(dest, "LATEST.json"),
+                      {key: record[key] for key in record if key != "manifest"})
+    return record
+
+
+# --------------------------------------------------------------------------
+# identity of the instance and the vast.ai API
+# --------------------------------------------------------------------------
+def parse_environ_block(data: bytes) -> Dict[str, str]:
+    """``/proc/<pid>/environ``: NUL-separated ``KEY=VALUE`` entries."""
+    env: Dict[str, str] = {}
+    for entry in data.split(b"\0"):
+        key, sep, value = entry.partition(b"=")
+        if sep and key:
+            env[key.decode("utf-8", "replace")] = value.decode("utf-8", "replace")
+    return env
+
+
+def _read_proc1_environ() -> Optional[bytes]:
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        with open("/proc/1/environ", "rb") as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def container_identity(environ: Mapping[str, str], key_env: str = "CONTAINER_API_KEY",
+                       id_env: str = "CONTAINER_ID",
+                       proc_reader: Callable[[], Optional[bytes]] = _read_proc1_environ
+                       ) -> Dict[str, Any]:
+    """CONTAINER_ID and the per-instance key: own environment first, else ``/proc/1/environ``
+    (an ssh shell does not inherit them; F3 audit NOTES.md)."""
+    found: Dict[str, Any] = {"id": environ.get(id_env), "key": environ.get(key_env),
+                             "id_source": "env", "key_source": "env"}
+    if not found["id"] or not found["key"]:
+        block = proc_reader()
+        proc = parse_environ_block(block) if block else {}
+        for field, name in (("id", id_env), ("key", key_env)):
+            if not found[field] and proc.get(name):
+                found[field], found[f"{field}_source"] = proc[name], "/proc/1/environ"
+    for field in ("id", "key"):
+        if not found[field]:
+            found[field], found[f"{field}_source"] = None, None
+    return found
+
+
+def _read_body(stream: Any, limit: int) -> Tuple[Optional[str], Optional[str]]:
+    """``(body, error)``: reading a response (or an HTTP error's) body can itself fail."""
+    try:
+        return stream.read(limit).decode("utf-8", "replace"), None
+    except Exception as exc:  # noqa: BLE001 - any failure here is a diagnostic, not a crash
+        return None, f"body read failed: {type(exc).__name__}: {exc}"
+
+
+def api_call(method: str, url: str, key: str, timeout: float,
+             opener: Callable[..., Any] = urllib.request.urlopen) -> Dict[str, Any]:
+    """One HTTP request; NEVER raises, so the deleter and watch always reach their retry.
+
+    An HTTP error whose body cannot be read keeps its status and records the read failure;
+    any other failure (socket, TLS, ``http.client`` protocol errors, which are not
+    ``OSError``) is recorded as ``error`` with no status. The key never enters the record."""
+    sent = time.time()
+    result: Dict[str, Any] = {"method": method, "url": url, "sent_utc": utc_ms(sent),
+                              "sent_epoch": sent, "status": None, "body": None, "error": None}
+    try:
+        request = urllib.request.Request(url, method=method,
+                                         headers={"Authorization": f"Bearer {key}",
+                                                  "Accept": "application/json"})
+        with opener(request, timeout=max(0.5, timeout)) as response:
+            result["status"] = response.status
+            result["body"], result["error"] = _read_body(response, 1 << 20)
+    except urllib.error.HTTPError as exc:
+        result["status"] = exc.code
+        result["body"], result["error"] = _read_body(exc, 4096)
+    except Exception as exc:  # noqa: BLE001 - see the docstring
+        result["error"] = f"{type(exc).__name__}: {exc}"
+    if result["error"] and result["status"] is not None and 200 <= result["status"] < 300:
+        # a 2xx whose body broke off is not a confirmed success: retry, then confirm
+        result["status_unconfirmed"] = result["status"]
+        result["status"] = None
+    result["elapsed_s"] = round(time.time() - sent, 3)
+    return result
+
+
+def destroy_accepted(response: Mapping[str, Any]) -> bool:
+    """A 2xx whose JSON body does not say ``success: false``."""
+    status = response.get("status")
+    if status is None or not 200 <= status < 300:
+        return False
+    try:
+        body = json.loads(response.get("body") or "{}")
+    except ValueError:
+        return True
+    return not (isinstance(body, dict) and body.get("success") is False)
+
+
+def listed_ids(response: Mapping[str, Any]) -> Optional[List[int]]:
+    """Instance ids of a ``GET /instances/`` answer; None when it cannot be read."""
+    if response.get("status") != 200:
+        return None
+    try:
+        body = json.loads(response.get("body") or "")
+    except ValueError:
+        return None
+    rows = body.get("instances") if isinstance(body, dict) else body
+    if not isinstance(rows, list):
+        return None
+    try:
+        return sorted(int(row["id"]) for row in rows)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def instance_url(api_base: str, instance_id: int) -> str:
+    return f"{api_base.rstrip('/')}/instances/{int(instance_id)}/"
+
+
+def attempt_record(response: Mapping[str, Any]) -> Dict[str, Any]:
+    """What a deleter / watch attempt keeps: timing, status, error and a body excerpt."""
+    out = {key: response.get(key) for key in ("sent_utc", "sent_epoch", "status", "error",
+                                              "elapsed_s", "url")}
+    if "status_unconfirmed" in response:
+        out["status_unconfirmed"] = response["status_unconfirmed"]
+    out["body"] = (response.get("body") or "")[:500]
+    return out
+
+
+# --------------------------------------------------------------------------
+# deleter: destroys THIS instance at delete_epoch, never waits for anything else
+# --------------------------------------------------------------------------
+def _pid_is_exporter(pid: int) -> bool:
+    if not sys.platform.startswith("linux"):
+        return True  # no /proc: the pid file is the only evidence (simulations)
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as handle:
+            argv = handle.read().split(b"\0")
+    except OSError:
+        return False
+    return any(part.endswith(b"rental_guard.py") for part in argv) and b"export" in argv
+
+
+def kill_exporter(workdir: str) -> Optional[Dict[str, Any]]:
+    """Kill the export child named in ``exporter.pid`` (no wait)."""
+    path = os.path.join(workdir, "exporter.pid")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            pid = int(handle.read().split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
+    outcome: Dict[str, Any] = {"pid": pid, "killed": False, "error": None}
+    if not _pid_is_exporter(pid):
+        outcome["error"] = "pid is not a rental_guard export (exited or reused)"
+        return outcome
+    try:
+        kill_pid_tree(pid, hard=True)
+        outcome["killed"] = True
+    except Exception as exc:  # noqa: BLE001 - the deleter must reach its next DELETE
+        outcome["error"] = f"{type(exc).__name__}: {exc}"
+    return outcome
+
+
+def run_deleter(plan: Mapping[str, Any], workdir: str, api_base: str,
+                environ: Mapping[str, str] = os.environ,
+                proc_reader: Callable[[], Optional[bytes]] = _read_proc1_environ,
+                key_env: str = "CONTAINER_API_KEY") -> int:
+    """Arm, wait for ``delete_epoch`` (or ``DESTROY_NOW``), then DELETE with bounded retries.
+
+    Nothing here waits for an export: the first DELETE goes out before the exporter is
+    killed, and a record that cannot be written (a full disk) never stops a request."""
+    record_path = os.path.join(workdir, "state", "deleter.json")
+
+    def save() -> None:
+        try:
+            write_json_atomic(record_path, record)
+        except OSError as exc:
+            sys.stderr.write(f"deleter: record not written ({exc}); continuing\n")
+
+    ident = container_identity(environ, key_env=key_env, proc_reader=proc_reader)
+    delete_epoch = float(plan["delete_epoch"])
+    record: Dict[str, Any] = {
+        "status": "starting", "pid": os.getpid(), "plan_instance_id": plan["instance_id"],
+        "container_id": ident["id"], "id_source": ident["id_source"],
+        "key_source": ident["key_source"], "delete_epoch": delete_epoch,
+        "delete_utc": utc(delete_epoch), "api_base": api_base, "attempts": [],
+        "started_utc": utc_ms(time.time())}
+    refusal = None
+    if ident["id"] is None:
+        refusal = "CONTAINER_ID is neither in the environment nor in /proc/1/environ"
+    elif str(ident["id"]).strip() != str(plan["instance_id"]):
+        refusal = (f"CONTAINER_ID {ident['id']!r} is not the plan's instance id "
+                   f"{plan['instance_id']}; this deleter destroys nothing")
+    elif not ident["key"]:
+        refusal = f"${key_env} is neither in the environment nor in /proc/1/environ"
+    if refusal:
+        record.update(status="refused", reason=refusal, finished_utc=utc_ms(time.time()))
+        save()
+        sys.stderr.write(f"DELETER REFUSED: {refusal}\n")
+        return EXIT_REFUSED
+    record["status"] = "armed"
+    save()
+    log(f"deleter armed: instance {plan['instance_id']} destroy at {utc(delete_epoch)}")
+    trigger = os.path.join(workdir, "DESTROY_NOW")
+    reason = "delete_epoch"
+    while True:
+        now = time.time()
+        if now >= delete_epoch:
+            break
+        if os.path.exists(trigger):
+            reason = "DESTROY_NOW (destroy on stop)"
+            break
+        time.sleep(min(0.25, delete_epoch - now))
+    started = time.time()
+    deadline = max(started, delete_epoch) + float(plan["destroy_retry_window_s"])
+    backoff = float(plan["destroy_backoff_s"])
+    url = instance_url(api_base, int(plan["instance_id"]))
+    record.update(status="destroying", reason=reason, destroy_started_utc=utc_ms(started))
+    outcome = "failed"
+    while True:
+        remaining = deadline - time.time()
+        response = api_call("DELETE", url, ident["key"],
+                            min(float(plan["destroy_request_timeout_s"]), max(0.5, remaining)))
+        record["attempts"].append(attempt_record(response))
+        if len(record["attempts"]) == 1:
+            record["exporter_kill"] = kill_exporter(workdir)
+        save()
+        if destroy_accepted(response):
+            outcome = "destroy-accepted"
+            break
+        if response.get("status") == 404:
+            outcome = "not-found"
+            break
+        if time.time() + backoff > deadline:
+            break
+        time.sleep(backoff)
+        backoff = min(backoff * 2, 30.0)
+    record.update(status=outcome, finished_utc=utc_ms(time.time()))
+    if outcome == "failed":
+        record["reason"] = (f"DESTROY FAILED after {len(record['attempts'])} attempts; the "
+                            f"instance may still bill: run `watch` / `confirm` with the account "
+                            f"key NOW")
+        sys.stderr.write(f"ERROR: {record['reason']}\n")
+    save()
+    log(f"deleter: {outcome} ({len(record['attempts'])} attempts)")
+    return EXIT_OK if outcome != "failed" else EXIT_FAILED
+
+
+# --------------------------------------------------------------------------
+# guard: deleter first, then the steps, exports in killable children
+# --------------------------------------------------------------------------
+def _detach_kwargs() -> Dict[str, Any]:
+    if os.name == "posix":
+        return {"start_new_session": True}  # setsid: no controlling terminal, own group
+    flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+        subprocess, "DETACHED_PROCESS", 0)
+    return {"creationflags": flags}
+
+
+def _group_kwargs() -> Dict[str, Any]:
+    if os.name == "posix":
+        return {"start_new_session": True}
+    return {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
+
+
+def kill_pid_tree(pid: int, hard: bool = True) -> None:
+    """POSIX: signal the process group (children start in their own session). Windows: no
+    SIGTERM exists, so both are ``taskkill /T /F`` (TerminateProcess on the whole tree; the
+    venv launcher's job object alone would leave grandchildren). Raises OSError."""
+    if os.name == "posix":
+        os.killpg(pid, signal.SIGKILL if hard else signal.SIGTERM)
+        return
+    try:
+        done = subprocess.run(["taskkill", "/T", "/F", "/PID", str(pid)], capture_output=True,
+                              timeout=10, check=False)
+    except subprocess.TimeoutExpired:
+        done = None
+    if done is None or done.returncode != 0:
+        os.kill(pid, signal.SIGTERM)  # TerminateProcess on the pid itself
+
+
+def group_alive(pgid: int) -> bool:
+    """POSIX: does any process of group ``pgid`` still exist (the leader may be gone)?"""
+    if os.name != "posix":
+        return False
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def kill_group(proc: subprocess.Popen, hard: bool = True) -> Dict[str, Any]:
+    """Signal the child's whole process group or tree, whether or not its leader is alive.
+
+    The child was started with its own session (POSIX), so its pid is the group id; a
+    leader that already exited leaves the group in place as long as any member lives, and
+    ``killpg`` still reaches every member. On Windows the tree is reached through the leader
+    pid (``taskkill /T``), which only works while the leader lives; a dead leader's orphans
+    are not reachable there (documented; the guard targets the Linux VM)."""
+    outcome: Dict[str, Any] = {"pgid": proc.pid, "signal": "KILL" if hard else "TERM",
+                               "leader_exited": proc.poll() is not None, "error": None}
+    try:
+        if os.name == "posix":
+            os.killpg(proc.pid, signal.SIGKILL if hard else signal.SIGTERM)
+        elif proc.poll() is None:
+            kill_pid_tree(proc.pid, hard)
+    except ProcessLookupError:
+        outcome["error"] = "no process left in the group"
+    except OSError as exc:
+        outcome["error"] = f"{type(exc).__name__}: {exc}"
+    return outcome
+
+
+def kill_tree(proc: subprocess.Popen, hard: bool = True) -> None:
+    """Signal a child started in its own group/session and everything below it."""
+    kill_group(proc, hard)
+
+
+def stop_group(proc: subprocess.Popen, grace_s: float) -> List[Dict[str, Any]]:
+    """TERM the whole group, wait up to ``grace_s`` for leader AND members, then KILL."""
+    actions = [kill_group(proc, hard=False)]
+    stop = time.monotonic() + grace_s
+    while time.monotonic() < stop and (proc.poll() is None or group_alive(proc.pid)):
+        time.sleep(0.1)
+    if proc.poll() is None or group_alive(proc.pid):
+        actions.append(kill_group(proc, hard=True))
+    try:
+        proc.wait(timeout=5.0)
+    except subprocess.TimeoutExpired:
+        actions.append({"error": "leader not reaped 5 s after SIGKILL"})
+    # A killed member whose parent was the leader is a zombie until init reaps it, and
+    # killpg(pgid, 0) still counts zombies: give the group a bounded moment to drain.
+    drain = time.monotonic() + 5.0
+    while group_alive(proc.pid) and time.monotonic() < drain:
+        time.sleep(0.05)
+    actions.append({"group_alive_after": group_alive(proc.pid)})
+    return actions
+
+
+class Guard:
+    def __init__(self, args: argparse.Namespace, plan: Dict[str, Any]) -> None:
+        self.args, self.plan = args, plan
+        self.workdir = os.path.abspath(args.workdir)
+        self.state = os.path.join(self.workdir, "state")
+        self.delete_epoch = float(plan["delete_epoch"])
+        self.not_after = float(plan["run_not_after_epoch"])
+        self.export: Optional[Dict[str, Any]] = None
+        self.exports: List[Dict[str, Any]] = []
+        self.seq = 0
+        self.record: Dict[str, Any] = {
+            "status": "starting", "pid": os.getpid(), "started_utc": utc_ms(time.time()),
+            "instance_id": plan["instance_id"], "delete_utc": utc(self.delete_epoch),
+            "run_not_after_utc": utc(self.not_after), "steps": [], "exports": self.exports,
+            "deleter": None, "stop_reason": None}
+
+    def write(self) -> None:
+        write_json_atomic(os.path.join(self.state, "guard.json"), self.record)
+
+    # -- the deleter, before anything else ------------------------------------------------
+    def start_deleter(self) -> bool:
+        argv = [sys.executable, os.path.abspath(__file__), "deleter", "--plan",
+                os.path.abspath(self.args.plan), "--workdir", self.workdir, "--api-base",
+                self.args.api_base, "--key-env", self.args.key_env]
+        log_path = os.path.join(self.state, "logs", "deleter.log")
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, "ab") as out:
+            proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out,
+                                    stderr=subprocess.STDOUT, close_fds=True, **_detach_kwargs())
+        self.record["deleter"] = {"pid": proc.pid, "argv": argv}
+        record_path = os.path.join(self.state, "deleter.json")
+        stop = time.monotonic() + float(self.args.deleter_wait_s)
+        while time.monotonic() < stop:
+            try:
+                status = read_json(record_path).get("status")
+            except (OSError, ValueError):
+                status = None
+            if status is not None and status != "starting":
+                self.record["deleter"]["status"] = status
+                return status == "armed"
+            if proc.poll() is not None:
+                break
+            time.sleep(0.05)
+        self.record["deleter"]["status"] = "not armed"
+        return False
+
+    # -- exports --------------------------------------------------------------------------
+    def start_export(self, kind: str) -> bool:
+        now = time.time()
+        deadline = min(now + float(self.plan["export_timeout_s"]),
+                       self.delete_epoch - float(self.plan["export_margin_s"]))
+        self.seq += 1
+        entry: Dict[str, Any] = {"seq": self.seq, "kind": kind, "started_utc": utc_ms(now),
+                                 "deadline_utc": utc_ms(deadline), "outcome": None}
+        self.exports.append(entry)
+        if deadline - now < 1.0:
+            entry["outcome"] = "skipped: no time left before delete_epoch - margin"
+            self.write()
+            return False
+        record = os.path.join(self.state, "exports", f"{self.seq:03d}-{kind}.json")
+        argv = [sys.executable, os.path.abspath(__file__), "export", "--store", self.args.store,
+                "--artifacts", self.args.artifacts, "--track", self.args.track, "--kind", kind,
+                "--staging", os.path.join(self.workdir, "staging"), "--record", record,
+                "--root", f"guard={self.state}"]
+        for override in self.args.root or []:
+            argv += ["--root", override]
+        log_path = os.path.join(self.state, "logs", f"export-{self.seq:03d}-{kind}.log")
+        with open(log_path, "ab") as out:
+            proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out,
+                                    stderr=subprocess.STDOUT, close_fds=True, **_group_kwargs())
+        with open(os.path.join(self.workdir, "exporter.pid"), "w", encoding="utf-8") as handle:
+            handle.write(f"{proc.pid}\n")
+        entry.update(pid=proc.pid, record=record)
+        self.export = {"proc": proc, "deadline": deadline, "entry": entry}
+        self.write()
+        return True
+
+    def _end_export(self, outcome: str) -> None:
+        entry = self.export["entry"]
+        entry["outcome"] = outcome
+        entry["finished_utc"] = utc_ms(time.time())
+        try:
+            entry["status"] = read_json(entry["record"]).get("status")
+        except (OSError, ValueError):
+            entry["status"] = None
+        try:
+            os.remove(os.path.join(self.workdir, "exporter.pid"))
+        except OSError:
+            pass
+        self.export = None
+        self.write()
+
+    def poll_export(self) -> None:
+        if self.export is None:
+            return
+        proc = self.export["proc"]
+        code = proc.poll()
+        if code is not None:
+            self._end_export(f"exit {code}")
+        elif time.time() >= self.export["deadline"]:
+            self.kill_export("killed at its hard timeout")
+
+    def kill_export(self, why: str) -> None:
+        if self.export is None:
+            return
+        proc = self.export["proc"]
+        kill_tree(proc)
+        try:
+            proc.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            why += " (not reaped within 2 s)"
+        self._end_export(why)
+
+    def blocking_export(self, kind: str) -> None:
+        self.poll_export()  # a periodic export that already ended keeps its own outcome
+        self.kill_export("superseded by the stop/final export")
+        if not self.start_export(kind):
+            return
+        while self.export is not None:
+            self.poll_export()
+            time.sleep(POLL_S)
+
+    def tick(self, last_export: List[float]) -> None:
+        self.poll_export()
+        now = time.time()
+        if self.export is None and now - last_export[0] >= float(self.plan["export_interval_s"]):
+            last_export[0] = now
+            self.start_export("periodic")
+
+    # -- the steps ------------------------------------------------------------------------
+    def run_steps(self) -> Tuple[str, bool]:
+        """``(stop_reason, deadline_hit)``; stop_reason "complete" when every step passed."""
+        last_export = [time.time()]
+        env = {**os.environ, "RENTAL_GUARD_NOT_AFTER": utc(self.not_after),
+               "RENTAL_GUARD_NOT_AFTER_EPOCH": str(int(self.not_after))}
+        for index, step in enumerate(self.plan.get("steps") or []):
+            name = str(step.get("name") or f"step{index}")
+            entry: Dict[str, Any] = {"name": name, "estimate_s": step.get("estimate_s")}
+            self.record["steps"].append(entry)
+            now = time.time()
+            finish = now + float(step.get("estimate_s", 0))
+            if finish > self.not_after:
+                entry["outcome"] = (f"refused: now + estimate ({utc(finish)}) is after "
+                                    f"run_not_after ({utc(self.not_after)})")
+                self.write()
+                return f"step {name} refused (does not fit before run_not_after)", False
+            if not step.get("argv"):
+                entry["outcome"] = "refused: no argv"
+                self.write()
+                return f"step {name} has no argv", False
+            log_path = os.path.join(self.state, "logs", f"step-{index:02d}-{name}.log")
+            with open(log_path, "ab") as out:
+                proc = subprocess.Popen([str(part) for part in step["argv"]], env=env,
+                                        cwd=step.get("cwd") or self.workdir,
+                                        stdin=subprocess.DEVNULL, stdout=out,
+                                        stderr=subprocess.STDOUT, **_group_kwargs())
+            entry.update(pid=proc.pid, started_utc=utc_ms(now))
+            self.write()
+            deadline_hit = False
+            while True:
+                if time.time() >= self.not_after:
+                    # the whole group: a leader that exited (or execs a wrapper) may have
+                    # left members still working, and they must stop at run_not_after too
+                    deadline_hit = proc.poll() is None or group_alive(proc.pid)
+                    if deadline_hit:
+                        entry["deadline_utc"] = utc_ms(time.time())
+                        entry["stop_actions"] = stop_group(proc, float(self.plan["term_grace_s"]))
+                    break
+                if proc.poll() is not None:
+                    break
+                self.tick(last_export)
+                try:
+                    proc.wait(timeout=POLL_S)
+                except subprocess.TimeoutExpired:
+                    pass
+            if not deadline_hit and group_alive(proc.pid):
+                # the step's leader is done, members of its group are not: they would keep
+                # writing into results the next step (or the final export) reads
+                entry["leftover_group"] = stop_group(proc, float(self.plan["term_grace_s"]))
+            entry.update(returncode=proc.returncode, finished_utc=utc_ms(time.time()))
+            if deadline_hit:
+                entry["outcome"] = "deadline: stopped at run_not_after"
+                self.write()
+                return f"deadline: step {name} still running at run_not_after", True
+            entry["outcome"] = "ok" if proc.returncode == 0 else f"exit {proc.returncode}"
+            self.write()
+            if proc.returncode != 0:
+                return f"step {name} exited {proc.returncode}", False
+            if entry.get("leftover_group"):
+                entry["outcome"] = "exit 0, but members of its process group outlived it"
+                self.write()
+                return f"step {name} left processes running after it exited", False
+        return "complete", False
+
+    def run(self) -> int:
+        if os.path.exists(os.path.join(self.state, "deleter.json")):
+            sys.stderr.write(f"GUARD REFUSED: {self.state}/deleter.json exists (a used workdir; "
+                             f"its deleter may still be armed). Use a fresh --workdir.\n")
+            return EXIT_REFUSED
+        os.makedirs(os.path.join(self.state, "logs"), exist_ok=True)
+        self.write()
+        if not self.start_deleter():
+            self.record.update(status="refused", stop_reason="the deleter is not armed (see "
+                               "state/deleter.json); no workload was started")
+            self.write()
+            with open(os.path.join(self.state, "DONE"), "w", encoding="utf-8") as handle:
+                handle.write("stop: deleter not armed\n")
+            sys.stderr.write("GUARD REFUSED: the deleter is not armed\n")
+            return EXIT_REFUSED
+        self.record["status"] = "running"
+        self.write()
+        reason, deadline_hit = self.run_steps()
+        self.record["stop_reason"] = reason
+        workload_ok = reason == "complete"
+        with open(os.path.join(self.state, "DONE"), "w", encoding="utf-8") as handle:
+            handle.write(("complete" if workload_ok else f"stop: {reason}") + "\n")
+        self.blocking_export("final" if deadline_hit else "stop")
+        delivery = self.delivery()
+        if self.plan.get("destroy_on_stop"):
+            with open(os.path.join(self.workdir, "DESTROY_NOW"), "w", encoding="utf-8") as handle:
+                handle.write(f"{utc_ms(time.time())} {reason}\n")
+            self.record["destroy_now_utc"] = utc_ms(time.time())
+        outcome = ("complete" if workload_ok and delivery["delivered"] else
+                   "workload ok, results NOT delivered" if workload_ok else
+                   f"workload stopped: {reason}")
+        self.record.update(status="done", outcome=outcome, workload={
+            "ok": workload_ok, "reason": reason}, delivery=delivery,
+            finished_utc=utc_ms(time.time()))
+        self.write()
+        log(f"guard done: {outcome}; delivery: {delivery['why']}")
+        if workload_ok and delivery["delivered"]:
+            return EXIT_OK
+        return EXIT_INCOMPLETE if workload_ok else EXIT_FAILED
+
+    def delivery(self) -> Dict[str, Any]:
+        """Did the last (stop/final) export reach the store whole, with every required
+        artifact? Only that counts as delivered; a periodic one before it does not."""
+        last = self.exports[-1] if self.exports else None
+        if last is None or last.get("kind") not in ("stop", "final"):
+            return {"delivered": False, "why": "no stop/final export ran", "export_id": None}
+        try:
+            record = read_json(last["record"]) if last.get("record") else {}
+        except (OSError, ValueError):
+            record = {}
+        status = record.get("status")
+        delivered = last.get("outcome") == "exit 0" and status == "complete"
+        why = ("the final export is complete: every required artifact uploaded, manifest last"
+               if delivered else
+               f"final export {last.get('outcome')!r}, status {status!r}, missing required "
+               f"{record.get('missing_required') or []}")
+        return {"delivered": delivered, "why": why, "export_id": record.get("export_id"),
+                "export_status": status, "missing_required": record.get("missing_required"),
+                "outcome": last.get("outcome")}
+
+
+# --------------------------------------------------------------------------
+# confirm and watch: external, account key
+# --------------------------------------------------------------------------
+def check_listing(plan: Mapping[str, Any], api_base: str, key: str,
+                  timeout: float = 30.0) -> Dict[str, Any]:
+    response = api_call("GET", f"{api_base.rstrip('/')}/instances/", key, timeout)
+    ids = listed_ids(response)
+    iid = int(plan["instance_id"])
+    return {"checked_utc": response["sent_utc"], "checked_epoch": response["sent_epoch"],
+            "http_status": response["status"], "error": response["error"],
+            "instance_id": iid, "listed": None if ids is None else iid in ids,
+            "listed_count": None if ids is None else len(ids)}
+
+
+def run_confirm(plan: Mapping[str, Any], api_base: str, key: str,
+                record_path: Optional[str]) -> int:
+    check = check_listing(plan, api_base, key)
+    check["verdict"] = ("gone" if check["listed"] is False else
+                        "still listed" if check["listed"] else "unknown")
+    if record_path:
+        write_json_atomic(record_path, check)
+    log(f"confirm: instance {check['instance_id']} {check['verdict']}")
+    return {"gone": EXIT_OK, "still listed": EXIT_FAILED}.get(check["verdict"], EXIT_REFUSED)
+
+
+def shown_instance_id(response: Mapping[str, Any]) -> Optional[int]:
+    """The id in a ``GET /instances/<id>/`` answer (``{"instances": {"id": ...}}``)."""
+    try:
+        shown = json.loads(response.get("body") or "").get("instances")
+        return int(shown["id"]) if isinstance(shown, dict) else None
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return None
+
+
+SCOPE_DENIED = (401, 403)
+SCOPE_SHOWN = ("the server enforced id eq on both probe keys for a read: each key read its own "
+               "instance before and after it was refused the other")
+
+
+def run_scope_probe(plan: Mapping[str, Any], api_base: str, account_key: str,
+                    match_key: str, decoy_key: str, decoy_id: int,
+                    record_path: Optional[str],
+                    call: Callable[..., Dict[str, Any]] = api_call) -> int:
+    """Read-only check that vast.ai enforces ``id eq`` constraints, before a scoped watch key
+    is trusted. GET only, never DELETE: testing a destroy scope with a DELETE against another
+    instance destroys that instance exactly when the scope is NOT enforced.
+
+    Two throwaway READ-ONLY keys (``probe-key-permissions.json``: ``instance_read`` /
+    ``api.instance.show`` constrained to one id, no write permission, so they can change
+    nothing whatever the server enforces): the match key bound to the plan's instance A, the
+    decoy key bound to ``decoy_id`` B, which must be a second LIVE instance of the account
+    (it is only ever read). A 401/403 alone is not a scope denial: an invalid or revoked key
+    gets one too. So every refusal is bracketed by the same key's positive control:
+
+    * account key reads A and B (200, the instance in the body): both exist;
+    * match key: reads A, is refused B (401/403), reads A again;
+    * decoy key: reads B, is refused A (401/403), reads B again.
+
+    Shown only when all eight GETs behave (:data:`SCOPE_SHOWN`). Anything else is
+    ``NOT SHOWN`` with the reasons and the observed responses, never a partial "shown": a key
+    whose validity is not established, a 404 (no denial), a hidden 200, a 429, a timeout.
+    Not shown even then: that the WATCH key's ``api.instance.destroy`` constraint holds. That
+    needs a destroy against separately authorised disposable targets. Exit 0 only when shown;
+    1 otherwise (store no key)."""
+    iid, decoy = int(plan["instance_id"]), int(decoy_id)
+    record: Dict[str, Any] = {"instance_id": iid, "decoy_id": decoy, "method": "GET only",
+                              "checks": [], "verdict": None,
+                              "not_shown": "the watch key's destroy constraint (needs "
+                                           "separately authorised disposable targets)"}
+    if decoy == iid:
+        record["verdict"] = "REFUSED: --decoy-id must differ from the plan's instance id"
+    elif len({account_key, match_key, decoy_key}) != 3:
+        record["verdict"] = "REFUSED: the account, match and decoy keys must be three keys"
+    else:
+        def get(which: str, key: str, target: int, read: bool) -> Tuple[bool, Any]:
+            response = call("GET", instance_url(api_base, target), key, 30.0)
+            status = response.get("status")
+            # A read counts only with the requested instance in the body; a refusal only as
+            # 401/403 (a 404 is what an unscoped key gets for an id it cannot see).
+            ok = (status == 200 and shown_instance_id(response) == target) if read \
+                else status in SCOPE_DENIED
+            record["checks"].append({"which": which, "target": target, "ok": ok,
+                                     "expected": "200 with the instance" if read else "401/403",
+                                     **attempt_record(response)})
+            return ok, status
+
+        failed = []
+        if not all([get("account", account_key, target, True)[0] for target in (iid, decoy)]):
+            failed.append("the account key does not read both instances (the decoy id must "
+                          "be a second live instance of this account)")
+        for name, key, own, other in (("match", match_key, iid, decoy),
+                                      ("decoy", decoy_key, decoy, iid)):
+            before, _ = get(f"{name} own before", key, own, True)
+            refused, status = get(f"{name} other", key, other, False)
+            after, _ = get(f"{name} own after", key, own, True)
+            if not (before and after):
+                failed.append(f"{name} key validity not established (it did not read its own "
+                              f"instance {own} both before and after)")
+            if not refused:
+                failed.append(f"{name} key got {status} for instance {other}, not 401/403")
+        record["observed"] = [f"{c['which']}: GET {c['target']} -> {c['status']}"
+                              for c in record["checks"]]
+        record["verdict"] = SCOPE_SHOWN if not failed else "NOT SHOWN: " + "; ".join(failed)
+    if record_path:
+        write_json_atomic(record_path, record)
+    log(f"scope-probe: {record['verdict']}")
+    return EXIT_OK if record["verdict"] == SCOPE_SHOWN else EXIT_FAILED
+
+
+def run_watch(plan: Mapping[str, Any], api_base: str, key: str, record_path: Optional[str],
+              once: bool, poll_s: float, give_up_s: float) -> int:
+    """Destroy ONLY the plan's id, and only once it is still listed after delete + grace.
+
+    ``once`` (a cron tick): not due -> exit 4; due -> one listing, at most one DELETE when
+    the id is still listed, one confirming listing, then exit (0 gone, 1 still listed or
+    unknown). It never sleeps or polls, so a cron schedule controls the cadence. Without
+    ``once``: sleep until due, then poll until gone or ``give_up_s``."""
+    iid = int(plan["instance_id"])
+    due = float(plan["delete_epoch"]) + float(plan["watch_grace_s"])
+    record: Dict[str, Any] = {"instance_id": iid, "due_utc": utc(due), "mode":
+                              "once" if once else "loop", "checks": [], "deletes": [],
+                              "verdict": None}
+
+    def save() -> None:
+        if not record_path:
+            return
+        try:
+            write_json_atomic(record_path, record)
+        except OSError as exc:
+            sys.stderr.write(f"watch: record not written ({exc}); continuing\n")
+
+    def look() -> Dict[str, Any]:
+        check = check_listing(plan, api_base, key)
+        record["checks"].append(check)
+        return check
+
+    def delete() -> None:
+        response = api_call("DELETE", instance_url(api_base, iid), key, 30.0)
+        record["deletes"].append(attempt_record(response))
+        log(f"watch: instance {iid} still listed after delete + grace: DELETE -> "
+            f"{response['status']} {response['error'] or ''}".rstrip())
+
+    def gone() -> int:
+        record["verdict"] = "gone (confirmed by listing)"
+        save()
+        log(f"watch: instance {iid} gone")
+        return EXIT_OK
+
+    if time.time() < due:
+        if once:
+            record["verdict"] = "not due"
+            save()
+            return EXIT_NOT_DUE
+        time.sleep(max(0.0, due - time.time()))
+    if once:
+        first = look()
+        if first["listed"] is False:
+            return gone()
+        if first["listed"]:
+            delete()
+            if look()["listed"] is False:
+                return gone()
+        record["verdict"] = ("STILL LISTED after this tick's DELETE" if first["listed"]
+                             else "UNKNOWN: the listing could not be read")
+        save()
+        sys.stderr.write(f"ERROR: watch tick: instance {iid} {record['verdict']}; the next "
+                         f"tick retries\n")
+        return EXIT_FAILED
+    stop = time.time() + give_up_s
+    while True:
+        check = look()
+        if check["listed"] is False:
+            return gone()
+        if check["listed"]:
+            delete()
+        save()
+        if time.time() + poll_s > stop:
+            record["verdict"] = "STILL LISTED or unknown at give-up"
+            save()
+            sys.stderr.write(f"ERROR: watch gave up; instance {iid} may still bill\n")
+            return EXIT_FAILED
+        time.sleep(poll_s)
+
+
+# --------------------------------------------------------------------------
+# stack freeze / check (ported from two_read_series_b.sh freeze_stack / stack_fingerprint)
+# --------------------------------------------------------------------------
+STACK_PACKAGES = re.compile(r"nvidia|cuda|libnvidia|libcuda|libnccl|libcudnn")
+UPDATE_UNITS = ("apt-daily.timer", "apt-daily-upgrade.timer", "apt-daily.service",
+                "apt-daily-upgrade.service", "unattended-upgrades.service")
+TIMERS = ("apt-daily.timer", "apt-daily-upgrade.timer")
+APT_NO_UPGRADE_CONF = "/etc/apt/apt.conf.d/99soup-no-auto-upgrade"
+APT_NO_UPGRADE_TEXT = ('APT::Periodic::Update-Package-Lists "0";\n'
+                       'APT::Periodic::Unattended-Upgrade "0";\n')
+PACKAGE_PROCS = "apt|apt-get|aptitude|dpkg|unattended-upgr|apt.systemd.dai"
+NVML_GLOB = "/usr/lib/x86_64-linux-gnu/libnvidia-ml.so*"
+Runner = Callable[[Sequence[str]], Tuple[int, str]]
+
+
+def run_command(argv: Sequence[str], timeout: float = 120.0) -> Tuple[int, str]:
+    try:
+        proc = subprocess.run(list(argv), capture_output=True, text=True, timeout=timeout,
+                              errors="replace", check=False)
+        return proc.returncode, proc.stdout + proc.stderr
+    except (OSError, subprocess.SubprocessError) as exc:
+        return 127, f"{type(exc).__name__}: {exc}"
+
+
+def _read_text(path: str) -> Optional[str]:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def stack_fingerprint(runner: Runner, reader: Callable[[str], Optional[str]] = _read_text,
+                      nvml_glob: Callable[[], List[str]] = lambda: sorted(glob.glob(NVML_GLOB))
+                      ) -> str:
+    lines = [runner(["nvidia-smi", "--version"])[1].strip()]
+    version = reader("/proc/driver/nvidia/version")
+    lines.append(version.splitlines()[0] if version else "no /proc/driver/nvidia/version")
+    _, packages = runner(["dpkg-query", "-W", "-f", "${Package} ${Version} ${Status}\n"])
+    lines += [line for line in packages.splitlines() if STACK_PACKAGES.search(line)]
+    for path in nvml_glob():
+        try:
+            st = os.lstat(path)
+            lines.append(f"{path} {st.st_size} {int(st.st_mtime)}")
+        except OSError as exc:
+            lines.append(f"{path} {exc}")
+    return "\n".join(lines) + "\n"
+
+
+def kernel_module_version(text: Optional[str]) -> Optional[str]:
+    match = re.search(r"\b(\d{3}\.\d+(?:\.\d+)?)\b", (text or "").splitlines()[0] if text else "")
+    return match.group(1) if match else None
+
+
+def disposable_refusal(environ: Mapping[str, str], flag: bool, platform: str) -> Optional[str]:
+    if not platform.startswith("linux"):
+        return f"not Linux (sys.platform={platform}); the stack freeze is for the rented VM only"
+    if not flag and environ.get(DISPOSABLE_ENV) != DISPOSABLE_CONSENT:
+        return (f"refused: `stack freeze` masks the apt units ({', '.join(UPDATE_UNITS)}), writes "
+                f"{APT_NO_UPGRADE_CONF} and holds every NVIDIA/CUDA package, and never undoes "
+                f"it. It runs only on a dedicated rental VM destroyed after the session: pass "
+                f"--disposable-host or set {DISPOSABLE_ENV}={DISPOSABLE_CONSENT}. Nothing changed.")
+    return None
+
+
+def stack_freeze(outdir: str, runner: Runner = run_command, environ: Mapping[str, str] = os.environ,
+                 disposable: bool = False, platform: str = sys.platform,
+                 reader: Callable[[str], Optional[str]] = _read_text,
+                 writer: Optional[Callable[[str, str], None]] = None,
+                 sleep: Callable[[float], None] = time.sleep, wait_limit_s: float = 900.0,
+                 nvml_glob: Callable[[], List[str]] = lambda: sorted(glob.glob(NVML_GLOB))
+                 ) -> int:
+    """Every step checked by its exit status, then by reading the state back; fails closed."""
+    refusal = disposable_refusal(environ, disposable, platform)
+    if refusal:
+        sys.stderr.write(refusal + "\n")
+        return EXIT_REFUSED
+    os.makedirs(outdir, exist_ok=True)
+    readback: List[str] = []
+
+    def note(line: str) -> None:
+        readback.append(line)
+        with open(os.path.join(outdir, "freeze.txt"), "w", encoding="utf-8") as handle:
+            handle.write("\n".join(readback) + "\n")
+
+    def fail(why: str) -> int:
+        note(f"FAILED: {why}")
+        sys.stderr.write(f"stack freeze FAILED: {why}\n")
+        return EXIT_FAILED
+
+    def write_conf(path: str, text: str) -> None:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+
+    note(f"freeze started {utc()}")
+    for tool in ("systemctl", "apt-config", "apt-mark", "dpkg-query", "pgrep", "nvidia-smi"):
+        if runner(["which", tool])[0] != 0:
+            return fail(f"required tool {tool} not found")
+    with open(os.path.join(outdir, "stack-before-freeze.txt"), "w", encoding="utf-8") as handle:
+        handle.write(stack_fingerprint(runner, reader, nvml_glob))
+    for unit in TIMERS:
+        code, out = runner(["systemctl", "stop", unit])
+        if code != 0:
+            state = runner(["systemctl", "show", "-p", "LoadState", "--value", unit])[1].strip()
+            note(f"stop {unit} failed; LoadState {state}")
+            if state != "not-found":
+                return fail(f"systemctl stop {unit} failed (LoadState {state})")
+    if runner(["systemctl", "mask", *UPDATE_UNITS])[0] != 0:
+        return fail("systemctl mask failed")
+    for unit in UPDATE_UNITS:
+        state = runner(["systemctl", "is-enabled", unit])[1].strip()
+        note(f"is-enabled {unit}: {state}")
+        if state != "masked":
+            return fail(f"{unit} is {state!r}, not masked")
+    for unit in TIMERS:
+        state = runner(["systemctl", "is-active", unit])[1].strip()
+        note(f"is-active {unit}: {state}")
+        if state in ("active", "activating", "reloading"):
+            return fail(f"{unit} is still {state!r}")
+    try:
+        (writer or write_conf)(APT_NO_UPGRADE_CONF, APT_NO_UPGRADE_TEXT)
+    except OSError as exc:
+        return fail(f"cannot write {APT_NO_UPGRADE_CONF}: {exc}")
+    dump = runner(["apt-config", "dump"])[1].splitlines()
+    for value in ("Update-Package-Lists", "Unattended-Upgrade"):
+        lines = [line for line in dump if line.startswith(f"APT::Periodic::{value} ")]
+        state = lines[-1] if lines else ""
+        note(f"apt-config {value}: {state}")
+        if state != f'APT::Periodic::{value} "0";':
+            return fail(f"apt reads APT::Periodic::{value} as {state!r}, not \"0\"")
+    waited = 0.0
+    while runner(["pgrep", "-x", PACKAGE_PROCS])[0] == 0:  # never kill a package run
+        if waited >= wait_limit_s:
+            return fail(f"a package run still active after {wait_limit_s:.0f} s")
+        sleep(10.0)
+        waited += 10.0
+    _, listing = runner(["dpkg-query", "-W", "-f", "${Package}\n"])
+    packages = [line.strip() for line in listing.splitlines()
+                if line.strip() and STACK_PACKAGES.search(line)]
+    if packages:
+        if runner(["apt-mark", "hold", *packages])[0] != 0:
+            return fail("apt-mark hold failed")
+        held = set(runner(["apt-mark", "showhold"])[1].split())
+        for package in packages:
+            if package not in held:
+                return fail(f"{package} is not held after apt-mark hold")
+    note(f"held: {len(packages)} stack packages ({' '.join(packages) or 'none under dpkg'})")
+    frozen = stack_fingerprint(runner, reader, nvml_glob)
+    with open(os.path.join(outdir, "stack-frozen.txt"), "w", encoding="utf-8") as handle:
+        handle.write(frozen)
+    kmod = kernel_module_version(reader("/proc/driver/nvidia/version"))
+    user = (runner(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"])[1]
+            .strip().splitlines() or [""])[0].strip()
+    note(f"kernel module {kmod}, user-space driver {user}")
+    if not kmod or kmod != user:
+        return fail(f"kernel module {kmod!r} and user-space driver {user!r} differ")
+    note(f"frozen {utc()}; waited {waited:.0f} s for package runs")
+    return EXIT_OK
+
+
+def stack_check(outdir: str, name: str, runner: Runner = run_command,
+                environ: Mapping[str, str] = os.environ, disposable: bool = False,
+                platform: str = sys.platform,
+                reader: Callable[[str], Optional[str]] = _read_text,
+                nvml_glob: Callable[[], List[str]] = lambda: sorted(glob.glob(NVML_GLOB))
+                ) -> int:
+    """The frozen fingerprint still holds before step ``name``; no frozen file fails closed."""
+    refusal = disposable_refusal(environ, disposable, platform)
+    if refusal:
+        sys.stderr.write(refusal + "\n")
+        return EXIT_REFUSED
+    frozen = _read_text(os.path.join(outdir, "stack-frozen.txt"))
+    if frozen is None:
+        sys.stderr.write("stack check FAILED: no stack-frozen.txt (run `stack freeze` first)\n")
+        return EXIT_FAILED
+    now = stack_fingerprint(runner, reader, nvml_glob)
+    if now == frozen:
+        return EXIT_OK
+    with open(os.path.join(outdir, f"stack-changed-before-{name}.txt"), "w",
+              encoding="utf-8") as handle:
+        handle.write(now)
+    sys.stderr.write(f"stack check FAILED: the NVIDIA stack changed before {name}\n")
+    return EXIT_FAILED
+
+
+# --------------------------------------------------------------------------
+# CLI
+# --------------------------------------------------------------------------
+def _parse_step(text: str) -> Dict[str, Any]:
+    name, sep, seconds = text.rpartition("=")
+    if not sep or not name:
+        raise argparse.ArgumentTypeError(f"--step wants NAME=SECONDS, got {text!r}")
+    return {"name": name, "estimate_s": float(seconds)}
+
+
+def _parse_root(text: str) -> Tuple[str, str]:
+    name, sep, path = text.partition("=")
+    if not sep or not name or not path:
+        raise argparse.ArgumentTypeError(f"--root wants NAME=PATH, got {text!r}")
+    return name, path
+
+
+def _plan_inputs(args: argparse.Namespace) -> Dict[str, Any]:
+    steps = list(args.step or [])
+    if args.steps_json:
+        steps += read_json(args.steps_json)
+    inputs = {"hourly_usd": args.hourly, "ceiling_usd": args.ceiling, "credit_usd": args.credit,
+              "created_epoch": args.created_epoch if args.created_epoch is not None
+              else time.time(), "steps": steps, "instance_id": args.instance_id}
+    for key in PLAN_DEFAULTS:
+        value = getattr(args, key, None)
+        if value is not None:
+            inputs[key] = value
+    return inputs
+
+
+def _emit_plan(inputs: Dict[str, Any], out: str) -> int:
+    try:
+        plan = compute_plan(inputs)
+    except PlanRefusedError as exc:
+        sys.stderr.write("PLAN REFUSED (nothing may be created):\n")
+        for reason in exc.reasons:
+            sys.stderr.write(f"  - {reason}\n")
+        return EXIT_REFUSED
+    write_json_atomic(out, plan)
+    print(json.dumps({"out": out, **plan["times_utc"],
+                      "planned_total_usd": round(plan["derived"]["planned_total_usd"], 4),
+                      "instance_id": plan["instance_id"]}))
+    return EXIT_OK
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    plan = sub.add_parser("plan", help="budget and deadline plan (creates nothing)")
+    plan.add_argument("--hourly", type=float, required=True,
+                      help="USD per hour at the allocated disk, re-read before creation")
+    plan.add_argument("--ceiling", type=float, required=True, help="approved USD ceiling")
+    plan.add_argument("--credit", type=float, required=True, help="account credit, USD")
+    plan.add_argument("--created-epoch", type=float, default=None,
+                      help="planned creation time (default: now)")
+    plan.add_argument("--instance-id", type=int, default=None)
+    plan.add_argument("--step", type=_parse_step, action="append", help="NAME=SECONDS")
+    plan.add_argument("--steps-json", default=None,
+                      help="JSON list of {name, estimate_s, argv, cwd?}")
+    for key, value in PLAN_DEFAULTS.items():
+        if isinstance(value, bool):
+            continue
+        flag = "--" + key.replace("_", "-")
+        plan.add_argument(flag, type=float, default=None, help=f"default {value}")
+    plan.add_argument("--keep-after-stop", dest="destroy_on_stop", action="store_false",
+                      default=None,
+                      help="do NOT destroy when the work finishes or stops; keep the instance "
+                           "billing until delete_epoch (simulations only)")
+    plan.add_argument("--out", required=True)
+
+    bind = sub.add_parser("bind", help="re-derive a plan from the real creation time and id")
+    bind.add_argument("--plan", required=True)
+    bind.add_argument("--instance-id", type=int, required=True)
+    bind.add_argument("--created-epoch", type=float, required=True)
+    bind.add_argument("--out", required=True)
+
+    def common_api(p: argparse.ArgumentParser, key_env: str) -> None:
+        p.add_argument("--plan", required=True)
+        p.add_argument("--api-base", default=DEFAULT_API_BASE)
+        p.add_argument("--key-env", default=key_env,
+                       help=f"environment variable holding the key (default {key_env})")
+
+    guard = sub.add_parser("guard", help="on the instance: deleter first, then the steps")
+    common_api(guard, "CONTAINER_API_KEY")
+    guard.add_argument("--workdir", required=True)
+    guard.add_argument("--store", required=True)
+    guard.add_argument("--artifacts", required=True)
+    guard.add_argument("--track", required=True)
+    guard.add_argument("--root", action="append", help="NAME=PATH root override")
+    guard.add_argument("--deleter-wait-s", type=float, default=20.0)
+
+    deleter = sub.add_parser("deleter", help="on the instance: destroy at delete_epoch")
+    common_api(deleter, "CONTAINER_API_KEY")
+    deleter.add_argument("--workdir", required=True)
+
+    export = sub.add_parser("export", help="one verified export to the store")
+    export.add_argument("--store", required=True)
+    export.add_argument("--artifacts", required=True)
+    export.add_argument("--track", required=True)
+    export.add_argument("--kind", default="manual")
+    export.add_argument("--staging", required=True, help="scratch dir outside every root")
+    export.add_argument("--record", default=None)
+    export.add_argument("--root", type=_parse_root, action="append", help="NAME=PATH")
+
+    pull_p = sub.add_parser("pull", help="verify and apply one export")
+    pull_p.add_argument("--store", required=True)
+    pull_p.add_argument("--dest", required=True)
+    pull_p.add_argument("--export-id", default=None)
+
+    confirm = sub.add_parser("confirm", help="external: is the plan's instance gone?")
+    common_api(confirm, "VAST_API_KEY")
+    confirm.add_argument("--record", default=None)
+
+    probe = sub.add_parser("scope-probe", help="GET only, never DELETE: does the server "
+                                               "enforce id constraints on scoped keys?")
+    common_api(probe, "VAST_API_KEY")
+    probe.add_argument("--match-key-env", default="VAST_PROBE_MATCH_KEY",
+                       help="read-only key constrained to the plan's id")
+    probe.add_argument("--decoy-key-env", default="VAST_PROBE_DECOY_KEY",
+                       help="read-only key constrained to --decoy-id")
+    probe.add_argument("--decoy-id", type=int, required=True,
+                       help="a second live instance of the account, bound to the decoy key "
+                            "(only ever read)")
+    probe.add_argument("--record", default=None)
+
+    watch = sub.add_parser("watch", help="external backstop: destroy the plan's id if listed")
+    common_api(watch, "VAST_API_KEY")
+    watch.add_argument("--record", default=None)
+    watch.add_argument("--once", action="store_true", help="one look (cron); exit 4 if not due")
+    watch.add_argument("--poll-s", type=float, default=30.0)
+    watch.add_argument("--give-up-s", type=float, default=1800.0)
+
+    stack = sub.add_parser("stack", help="NVIDIA stack freeze/check (disposable VM only)")
+    stack.add_argument("action", choices=("freeze", "check"))
+    stack.add_argument("--out", required=True, help="directory for freeze.txt / fingerprints")
+    stack.add_argument("--name", default="next-step", help="check: the step about to run")
+    stack.add_argument("--disposable-host", action="store_true")
+    return parser
+
+
+def _key(args: argparse.Namespace) -> Optional[str]:
+    key = os.environ.get(args.key_env)
+    if not key:
+        sys.stderr.write(f"REFUSED: ${args.key_env} is not set\n")
+    return key
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = build_parser().parse_args(argv)
+    if args.command == "plan":
+        return _emit_plan(_plan_inputs(args), args.out)
+    if args.command == "bind":
+        inputs = dict(load_plan(args.plan, require_instance=False)["inputs"])
+        inputs.update(instance_id=args.instance_id, created_epoch=args.created_epoch)
+        return _emit_plan(inputs, args.out)
+    if args.command == "export":
+        try:
+            track = load_track(args.artifacts, args.track)
+            roots = resolve_roots(track, os.environ, dict(args.root or []))
+            store = open_store(args.store)
+        except (OSError, ValueError, StoreError) as exc:
+            sys.stderr.write(f"EXPORT REFUSED: {exc}\n")
+            return EXIT_REFUSED
+        record = run_export(store, roots, track, args.track, args.kind, args.staging,
+                            args.record)
+        print(json.dumps({k: record.get(k) for k in ("export_id", "status", "files", "error",
+                                                    "missing_required", "changed")}))
+        return {"complete": EXIT_OK, "incomplete": EXIT_INCOMPLETE}.get(record["status"],
+                                                                       EXIT_FAILED)
+    if args.command == "pull":
+        try:
+            record = pull(open_store(args.store), args.dest, args.export_id)
+        except (PullRefusedError, StoreError, OSError) as exc:
+            sys.stderr.write(f"PULL REFUSED (nothing written): {exc}\n")
+            return EXIT_FAILED
+        print(json.dumps({k: v for k, v in record.items() if k != "manifest"}))
+        return EXIT_OK
+    if args.command == "stack":
+        if args.action == "freeze":
+            return stack_freeze(args.out, disposable=args.disposable_host)
+        return stack_check(args.out, args.name, disposable=args.disposable_host)
+    try:
+        plan = load_plan(args.plan)
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(f"REFUSED: {exc}\n")
+        return EXIT_REFUSED
+    if args.command == "deleter":
+        if os.name == "posix":
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)  # survives the ssh session
+        return run_deleter(plan, args.workdir, args.api_base, key_env=args.key_env)
+    if args.command == "guard":
+        if os.name == "posix":
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)
+        return Guard(args, plan).run()
+    key = _key(args)
+    if not key:
+        return EXIT_REFUSED
+    if args.command == "confirm":
+        return run_confirm(plan, args.api_base, key, args.record)
+    if args.command == "scope-probe":
+        keys = [os.environ.get(name) for name in (args.match_key_env, args.decoy_key_env)]
+        if not all(keys):
+            sys.stderr.write(f"REFUSED: ${args.match_key_env} and ${args.decoy_key_env} "
+                             f"must both be set\n")
+            return EXIT_REFUSED
+        return run_scope_probe(plan, args.api_base, key, keys[0], keys[1], args.decoy_id,
+                               args.record)
+    return run_watch(plan, args.api_base, key, args.record, args.once, args.poll_s,
+                     args.give_up_s)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

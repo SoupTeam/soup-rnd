@@ -1,0 +1,72 @@
+{
+ "torch": "2.14.1+cu130",
+ "cuda": "13.0",
+ "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+ "python": "3.12.12",
+ "platform": "Windows-11-10.0.26300-SP0",
+ "rows": [
+  {
+   "case": "float(fp32 scalar)",
+   "baseline": 0,
+   "after": 4,
+   "delta": 4,
+   "value": 1.0
+  },
+  {
+   "case": "control: no host read",
+   "baseline": 0,
+   "after": 0,
+   "delta": 0
+  },
+  {
+   "case": "float(bf16 scalar)",
+   "baseline": 0,
+   "after": 2,
+   "delta": 2,
+   "value": 1.0
+  },
+  {
+   "case": "float(fp64 scalar)",
+   "baseline": 0,
+   "after": 8,
+   "delta": 8,
+   "value": 1.0
+  },
+  {
+   "case": "k=2 x 5 steps of float(loss)",
+   "baseline": 0,
+   "after": 4,
+   "delta": 4
+  },
+  {
+   "case": "k=3 x 5 steps of float(loss)",
+   "baseline": 0,
+   "after": 4,
+   "delta": 4
+  },
+  {
+   "case": "k=4 x 5 steps of float(loss)",
+   "baseline": 0,
+   "after": 4,
+   "delta": 4
+  },
+  {
+   "case": "arm order, read in warm-up=False",
+   "baseline": 0,
+   "after": 4,
+   "delta": 4,
+   "peak_at_reset": 0,
+   "peak_after_measured_read": 4,
+   "peak_minus_baseline": 4
+  },
+  {
+   "case": "arm order, read in warm-up=True",
+   "baseline": 0,
+   "after": 4,
+   "delta": 4,
+   "peak_at_reset": 4,
+   "peak_after_measured_read": 4,
+   "peak_minus_baseline": 4
+  }
+ ]
+}

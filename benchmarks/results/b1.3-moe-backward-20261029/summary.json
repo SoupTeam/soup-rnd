@@ -1,0 +1,372 @@
+{
+  "base": "9d8b1d7b4b3eabc1634a1f6c2318814c640535c3",
+  "measured_source": "e691ffffc64349e53ce6d65b97ae7ab7ac2f1bd8",
+  "cpu_suite": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "87",
+    "tests": "563",
+    "time": "222.983",
+    "timestamp": "2026-10-29T22:39:11.376424+05:00",
+    "hostname": "VictusBatyrkhan"
+  },
+  "gpu_suite": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "1",
+    "tests": "87",
+    "time": "22.140",
+    "timestamp": "2026-10-29T17:45:45.095387+00:00",
+    "hostname": "efe85ef99de8"
+  },
+  "smokes": [
+    {
+      "device": "cpu",
+      "targets": "default",
+      "trainables": 30,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 0.49807488918304443,
+      "negative_max": 4.197987079620361,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": null,
+        "reserved_bytes": null
+      }
+    },
+    {
+      "device": "cpu",
+      "targets": "embedding",
+      "trainables": 32,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 0.9114522337913513,
+      "negative_max": 3.6118409633636475,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": null,
+        "reserved_bytes": null
+      }
+    },
+    {
+      "device": "cpu",
+      "targets": "head-shared",
+      "trainables": 44,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 0.8293575644493103,
+      "negative_max": 3.2739899158477783,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": null,
+        "reserved_bytes": null
+      }
+    },
+    {
+      "device": "cpu",
+      "targets": "all",
+      "trainables": 46,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 2.0346198081970215,
+      "negative_max": 10.373320579528809,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": null,
+        "reserved_bytes": null
+      }
+    },
+    {
+      "device": "gpu",
+      "targets": "default",
+      "trainables": 30,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 0.49807465076446533,
+      "negative_max": 4.197972774505615,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": 67928576,
+        "reserved_bytes": 69206016
+      }
+    },
+    {
+      "device": "gpu",
+      "targets": "embedding",
+      "trainables": 32,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 0.9114487171173096,
+      "negative_max": 3.6118414402008057,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": 67939328,
+        "reserved_bytes": 69206016
+      }
+    },
+    {
+      "device": "gpu",
+      "targets": "head-shared",
+      "trainables": 44,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 0.6841253638267517,
+      "negative_max": 2.4082300662994385,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": 67986432,
+        "reserved_bytes": 69206016
+      }
+    },
+    {
+      "device": "gpu",
+      "targets": "all",
+      "trainables": 46,
+      "windows": 6,
+      "clean_max": 0,
+      "negative_min": 1.8663718700408936,
+      "negative_max": 14.119805335998535,
+      "arena_bytes": 6144,
+      "peak_cuda": {
+        "allocated_bytes": 67997184,
+        "reserved_bytes": 69206016
+      }
+    }
+  ],
+  "changed_files": [
+    "AGENTS.md",
+    "benchmarks/harness/b13_moe_backward_smoke.py",
+    "benchmarks/harness/b13_moe_fixture.py",
+    "docs/agents/domain.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md",
+    "docs/expert-forward.md",
+    "docs/expert-shard-format.md",
+    "docs/performance-and-quantization.md",
+    "src/soup_cli/trainer/l2l_trainer.py",
+    "src/soup_cli/utils/expert_stream.py",
+    "src/soup_cli/utils/l2l_rng.py",
+    "src/soup_cli/utils/l2l_step.py",
+    "src/soup_cli/utils/layer_stream_runtime.py",
+    "tests/test_b13_expert_backward.py",
+    "tests/test_b13_expert_backward_cuda.py",
+    "tests/test_b13_l2l_moe.py",
+    "tests/test_b13_l2l_moe_cuda.py",
+    "tests/test_b13_moe_runtime.py",
+    "tests/test_b13_moe_trainer.py",
+    "tests/test_b1_expert_forward.py",
+    "tests/test_b1_expert_shard.py"
+  ],
+  "git_blob_objects": {
+    "AGENTS.md": "ab6078b96c0be17514de7792a98d650ab682a60c",
+    "benchmarks/harness/b13_moe_backward_smoke.py": "74e89c626cbdd8d1b275775d76baac91393d1ca9",
+    "benchmarks/harness/b13_moe_fixture.py": "e530082f7de713c108e44f0df6083c46cbefff58",
+    "docs/agents/domain.md": "4032de016c1e91119d33d477633e2b8f265f4195",
+    "docs/agents/issue-tracker.md": "0209a19af92c9c485cf3acc3d9e253171517ea17",
+    "docs/agents/triage-labels.md": "5276464244857a3cc29890ff4a978a197b21f3fc",
+    "docs/expert-forward.md": "b9239ea21ab4384832a1890e82c182f71559fe11",
+    "docs/expert-shard-format.md": "315bc0a6c2558a4c2bff5fa3cd6d7f964035e527",
+    "docs/performance-and-quantization.md": "119812231c2da688c1db703ca04ffa8de4f3b03d",
+    "src/soup_cli/trainer/l2l_trainer.py": "3a9ba883d13d6d30f0589e6fc2124e665db41191",
+    "src/soup_cli/utils/expert_stream.py": "dc4b6cf4576326b0168862cc646f33f73745f669",
+    "src/soup_cli/utils/l2l_rng.py": "a8561ccddc3d5e2d8c0e1238d26cafdf959d4330",
+    "src/soup_cli/utils/l2l_step.py": "b3614b240d0b351ac9a70d244e0d2063bd53a15e",
+    "src/soup_cli/utils/layer_stream_runtime.py": "a62be3eabdfe5f7619dc75a14824f1e5627fba09",
+    "tests/test_b13_expert_backward.py": "96c153de09b9966cb706146c29305c6fd1841134",
+    "tests/test_b13_expert_backward_cuda.py": "f63c98d4e37f1dbb70d6b8415fcbb9ac22411078",
+    "tests/test_b13_l2l_moe.py": "7d163abd4fc233fa8374f0f23cbf7369b102f660",
+    "tests/test_b13_l2l_moe_cuda.py": "0a3311784a7d909216609a0db35f4ff58c5d860c",
+    "tests/test_b13_moe_runtime.py": "abfa2cc58af0a8023f17e36767233ec208bca718",
+    "tests/test_b13_moe_trainer.py": "3345ec6820d9cce49ff490931f9262c81f9f6144",
+    "tests/test_b1_expert_forward.py": "43af1b91bfd45135899bb47507321a09b15845bf",
+    "tests/test_b1_expert_shard.py": "423d09977a14c98c7c32768625fe2123e6ef0292"
+  },
+  "full_suite": {
+    "source": "e691ffffc64349e53ce6d65b97ae7ab7ac2f1bd8",
+    "command_record": "full-dev-configured-e691ffff/run.json",
+    "dev_setup_record": "dev-setup/install.json",
+    "passed": 36488,
+    "failed": 20,
+    "skipped": 234,
+    "xfailed": 2,
+    "deselected": 12,
+    "errors": 0,
+    "coverage_percent": 86.7421844633239,
+    "required_coverage_percent": 77,
+    "coverage_gate_passed": true,
+    "baseline_source": "9d8b1d7b4b3eabc1634a1f6c2318814c640535c3",
+    "baseline_all_failed_nodes_reproduced": true,
+    "baseline_record": "base-configured-residuals/run.json",
+    "failed_nodeids": [
+      "tests/test_e4_part2_calibrate.py::TestFullDryRun::test_every_record_carries_the_identity_the_review_asked_for",
+      "tests/test_f1_arm_validity.py::test_unreaped_child_makes_foreign_reads_unknown_with_reason",
+      "tests/test_issue1234_embedding_contrastive_batch_size.py::TestRealCpuEmbeddingTraining::test_cpu_template_training_trains_and_updates_lora",
+      "tests/test_issue901_failed_page_lock_recovery.py::TestOnRealHardware::test_a_failed_page_lock_poisons_the_next_launch_and_only_the_next",
+      "tests/test_issue901_failed_page_lock_recovery.py::TestOnRealHardware::test_the_drain_makes_the_first_launch_after_a_failed_page_lock_succeed",
+      "tests/test_issue974_direct_range_reads.py::TestOnRealHardware::test_every_region_is_a_pinned_sector_aligned_view_of_a_power_of_two_arena",
+      "tests/test_l2l_mistral_stand.py::test_main_sets_the_cublas_workspace_before_anything_else",
+      "tests/test_l2l_ordinary_mode.py::test_wrapper_without_l2l_logs_no_l2l_fields[True]",
+      "tests/test_l2l_ordinary_mode.py::test_wrapper_without_l2l_logs_no_l2l_fields[False]",
+      "tests/test_l2l_smollm2_check.py::test_measure_k_records_the_gpu_peak_key",
+      "tests/test_l2l_trainer_window.py::test_resume_does_not_shift_the_windows",
+      "tests/test_multi_gpu.py::TestMultiNodeLauncher::test_cli_launches_exact_command_and_env[8-0]",
+      "tests/test_multi_gpu.py::TestMultiNodeLauncher::test_cli_launches_exact_command_and_env[8-1]",
+      "tests/test_multi_gpu.py::TestMultiNodeLauncher::test_cli_launches_exact_command_and_env[1-0]",
+      "tests/test_multi_gpu.py::TestMultiNodeLauncher::test_cli_launches_exact_command_and_env[1-1]",
+      "tests/test_multi_gpu.py::TestMultiNodeLauncher::test_cli_launches_exact_command_and_env[auto-0]",
+      "tests/test_multi_gpu.py::TestMultiNodeLauncher::test_cli_launches_exact_command_and_env[auto-1]",
+      "tests/test_multi_gpu.py::TestMultiNodeLauncher::test_user_nccl_overrides_survive_launch",
+      "tests/test_resume_trainable_dtype.py::test_qlora_sft_resume_keeps_bf16_adapter",
+      "tests/test_v0537.py::TestToolEndpointsLive::test_bash_tool_blocks_network_namespace"
+    ],
+    "is_full_suite_pass": false
+  },
+  "cloud": {
+    "state": {
+      "command": [
+        "vastai",
+        "show",
+        "instances",
+        "--raw"
+      ],
+      "observed_utc": "2026-10-29T19:36:50.994122+00:00",
+      "task_owned_ids": [
+        58148283,
+        58239965
+      ],
+      "remaining_task_instances": []
+    },
+    "cost": {
+      "command": [
+        "vastai",
+        "show",
+        "invoices",
+        "--raw",
+        "--only_charges",
+        "--instance_label",
+        "b13-cuda"
+      ],
+      "observed_utc": "2026-10-29T19:37:08.238542+00:00",
+      "task_owned_ids": [
+        58148283,
+        58239965
+      ],
+      "posted_charges_usd": "0.565",
+      "budget_usd": "15.00",
+      "rows": [
+        {
+          "amount": "0.010",
+          "description": "Instance 58148283 GPU  charge:    hours * $/hr",
+          "instance_id": 58148283,
+          "quantity": "0.170",
+          "rate": "0.0600",
+          "timestamp": 1793145600,
+          "type": "charge"
+        },
+        {
+          "amount": "0.002",
+          "description": "Instance 58148283 storage charge: hours * $/hr",
+          "instance_id": 58148283,
+          "quantity": "0.210",
+          "rate": "0.0074",
+          "timestamp": 1793145600,
+          "type": "charge"
+        },
+        {
+          "amount": "0.459",
+          "description": "Instance 58239965 GPU  charge:    hours * $/hr",
+          "instance_id": 58239965,
+          "quantity": "7.646",
+          "rate": "0.0600",
+          "timestamp": 1793232000,
+          "type": "charge"
+        },
+        {
+          "amount": "0.063",
+          "description": "Instance 58239965 storage charge: hours * $/hr",
+          "instance_id": 58239965,
+          "quantity": "8.454",
+          "rate": "0.0074",
+          "timestamp": 1793232000,
+          "type": "charge"
+        },
+        {
+          "amount": "0.031",
+          "description": "Instance 58239965 download charge",
+          "instance_id": 58239965,
+          "quantity": "3.584",
+          "rate": "0.009",
+          "timestamp": 1793232000,
+          "type": "charge"
+        }
+      ],
+      "note": "Provider posted/displayed charges at observation time; delayed final billing, if any, is not fabricated. Both task-owned IDs are absent from the final instance list."
+    }
+  },
+  "historical_full_attempts": {
+    "windows_495b": {
+      "collection_errors": 9,
+      "reason": "Untouched POSIX resource import in E4 benchmark harness"
+    },
+    "linux_34b9_coverage": {
+      "orchestrator_timeout_seconds": 1800,
+      "complete": false
+    },
+    "linux_e691_before_complete_dev": {
+      "passed": 36110,
+      "failed": 80,
+      "errors": 9,
+      "skipped": 325,
+      "xfailed": 2,
+      "deselected": 230,
+      "all_89_failed_nodes_reproduced_on_base": true
+    },
+    "after_documented_dev_setup_89_node_diagnostic": {
+      "passed": 79,
+      "failed": 10,
+      "all_10_failed_nodes_reproduced_on_base": true
+    }
+  },
+  "new_b13_files_in_complete_suite": {
+    "tests/test_b13_expert_backward.py": {
+      "cases": 87,
+      "skipped": 0,
+      "failed": 0
+    },
+    "tests/test_b13_expert_backward_cuda.py": {
+      "cases": 16,
+      "skipped": 0,
+      "failed": 0
+    },
+    "tests/test_b13_l2l_moe.py": {
+      "cases": 67,
+      "skipped": 0,
+      "failed": 0
+    },
+    "tests/test_b13_l2l_moe_cuda.py": {
+      "cases": 23,
+      "skipped": 0,
+      "failed": 0
+    },
+    "tests/test_b13_moe_runtime.py": {
+      "cases": 26,
+      "skipped": 0,
+      "failed": 0
+    },
+    "tests/test_b13_moe_trainer.py": {
+      "cases": 14,
+      "skipped": 0,
+      "failed": 0
+    }
+  },
+  "archive": {
+    "file": "raw-results.zip",
+    "members": 146,
+    "bytes": 2242169,
+    "sha256": "0c2a6d5c5e36e4531af6912decc418b6339825fb072a71cbe18922217fc31a53",
+    "crc": "passed",
+    "all_member_hashes": "passed"
+  }
+}

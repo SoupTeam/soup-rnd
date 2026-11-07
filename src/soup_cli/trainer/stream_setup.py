@@ -1308,6 +1308,49 @@ class StreamingSetupMixin:
 
         assert_streamed_adapter_saved(self.trainer.model, output_dir)
 
+    def _build_l2l_trainer(
+        self, base_cls: Any, trainer_kwargs: dict, training_args: Any, loss: Any = None
+    ) -> Any:
+        """Build the trainer that runs each accumulation window as one L2L step.
+
+        ``loss`` is the task's ``WindowLoss``; ``None`` is SFT.
+        """
+        import torch
+
+        from soup_cli.trainer.l2l_trainer import (
+            attach_l2l_state,
+            make_l2l_trainer_class,
+            refuse_unsupported_l2l,
+            unready_task_warning,
+        )
+        from soup_cli.utils.layer_stream import resolve_stream_dtype
+
+        base = self.model.get_base_model() if hasattr(self.model, "get_base_model") else self.model
+        refuse_unsupported_l2l(
+            base.config,
+            n_gpu=int(training_args.n_gpu),
+            fp16=bool(training_args.fp16),
+            task=getattr(getattr(self, "config", None), "task", "sft"),
+        )
+        warning = unready_task_warning(getattr(getattr(self, "config", None), "task", None))
+        if warning is not None:
+            console.print(f"[yellow]Warning:[/] {warning}")
+        trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
+        attach_l2l_state(
+            trainer,
+            self._stream_runtime,
+            dtype=getattr(torch, resolve_stream_dtype(str(self.device))),
+            loss=loss,
+            spill_dir=self.config.training.l2l_spill_dir,
+            weight_dirs=self._stream_weight_dirs,
+            c3_plan=getattr(self, "_c3_l2l_plan", None),
+        )
+        console.print(
+            "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
+            f"{int(training_args.gradient_accumulation_steps)} micro-batch(es)"
+        )
+        return trainer
+
     def _close_stream_runtime(self) -> None:
         """Release the streaming weight source, if this run had one."""
         state = getattr(getattr(self, "trainer", None), "_soup_l2l", None)
