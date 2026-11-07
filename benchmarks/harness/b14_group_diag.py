@@ -178,7 +178,7 @@ class Layer:
             gemm = expert_group_gemm.GroupedGemm(
                 library, call_budget_bytes=budget, native_olmoe_rows_max=16,
             )
-        except (ValueError, RuntimeError) as error:
+        except (ValueError, RuntimeError, AttributeError) as error:
             raise ArmRefusedError(f"refused: {type(error).__name__}: {error}") from error
         self._closers.append(gemm.close)
         return gemm
@@ -205,13 +205,20 @@ def set_blas_policy() -> Dict[str, Any]:
     if torch.cuda.is_available():
         torch.backends.cuda.preferred_blas_library("cublaslt")
         torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False
-        if hasattr(torch.backends.cuda.matmul, "allow_bf16_reduced_precision_reduction_split_k"):
+        try:  # torch 2.11 has no such attribute, and D3's policy check reads it
             torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction_split_k = False
+        except AttributeError:
+            pass
     cuda = torch.backends.cuda
+    try:
+        split_k: Any = bool(cuda.matmul.allow_bf16_reduced_precision_reduction_split_k)
+    except AttributeError:
+        split_k = "attribute missing in this torch"
     return {
         "preferred_blas_library": str(cuda.preferred_blas_library()),
         "allow_bf16_reduced_precision_reduction": bool(
             cuda.matmul.allow_bf16_reduced_precision_reduction),
+        "allow_bf16_reduced_precision_reduction_split_k": split_k,
     }
 
 
