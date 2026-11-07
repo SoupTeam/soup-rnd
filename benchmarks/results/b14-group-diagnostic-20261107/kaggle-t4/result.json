@@ -1,0 +1,828 @@
+{
+ "environment": {
+  "python": "3.13.16",
+  "torch": "2.11.0+cu130",
+  "cuda_runtime": "13.0",
+  "device": "cuda",
+  "transformers": "5.20.2",
+  "gpu": "Tesla T4",
+  "capability": [
+   7,
+   5
+  ],
+  "vram_bytes": 15636037632,
+  "source_sha": null
+ },
+ "blas_policy": {
+  "preferred_blas_library": "_BlasBackend.Cublaslt",
+  "allow_bf16_reduced_precision_reduction": false,
+  "allow_bf16_reduced_precision_reduction_split_k": false
+ },
+ "geometry": {
+  "hidden": 2048,
+  "moe_intermediate": 1408,
+  "experts": 8,
+  "dtype": "bfloat16",
+  "top_k": 1,
+  "group_width": 4,
+  "grouped_gemm_native_rows_max": 16,
+  "supported_shapes_added": [
+   [
+    2048,
+    2816
+   ],
+   [
+    1408,
+    2048
+   ]
+  ]
+ },
+ "repeats": 20,
+ "timing_is_diagnostic_not_a_speed_claim": true,
+ "buckets": [
+  {
+   "rows": 1,
+   "experts": 8,
+   "tokens": 8,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 2723,
+       "fwd": 1373,
+       "unattributed": 14
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 57.37100499999315,
+      "backward_median": 60.52921200000583,
+      "total_median": 117.47998450000807,
+      "total_min": 113.337711000014,
+      "total_max": 120.8395570000107
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 61,
+       "bwd": 2717,
+       "fwd": 452,
+       "gemm": 836,
+       "unattributed": 14
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 56.44980249999776,
+      "backward_median": 61.55835500000251,
+      "total_median": 117.61362750000615,
+      "total_min": 113.51703200000429,
+      "total_max": 128.94560200001592
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  },
+  {
+   "rows": 2,
+   "experts": 8,
+   "tokens": 16,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 16842,
+       "fwd": 9440,
+       "unattributed": 15
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 64.82425949999993,
+      "backward_median": 72.99871000000735,
+      "total_median": 137.94693900000254,
+      "total_min": 132.56711299999324,
+      "total_max": 142.51656799999068
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 104,
+       "bwd": 16828,
+       "fwd": 428,
+       "gemm": 8892,
+       "unattributed": 15
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 63.96106699999393,
+      "backward_median": 74.56332850000535,
+      "total_median": 139.2002314999985,
+      "total_min": 134.70450900001651,
+      "total_max": 142.1768720000216
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  },
+  {
+   "rows": 4,
+   "experts": 8,
+   "tokens": 32,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 16510,
+       "fwd": 9304,
+       "unattributed": 16
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 65.18687499999487,
+      "backward_median": 74.29549249999923,
+      "total_median": 139.6551209999899,
+      "total_min": 135.33631499998933,
+      "total_max": 151.91232800000876
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 96,
+       "bwd": 16530,
+       "fwd": 453,
+       "gemm": 8724,
+       "unattributed": 16
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 64.49920149999855,
+      "backward_median": 75.42061150000734,
+      "total_median": 139.8874330000126,
+      "total_min": 136.4762990000088,
+      "total_max": 148.94634800000972
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  },
+  {
+   "rows": 8,
+   "experts": 8,
+   "tokens": 64,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 16603,
+       "fwd": 9392,
+       "unattributed": 22
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 65.30390049999824,
+      "backward_median": 73.7823900000194,
+      "total_median": 138.6615435000067,
+      "total_min": 134.86773199997515,
+      "total_max": 143.98628699996152
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 98,
+       "bwd": 16593,
+       "fwd": 540,
+       "gemm": 8722,
+       "unattributed": 22
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 65.18252799999402,
+      "backward_median": 75.53107849999208,
+      "total_median": 140.67197899998973,
+      "total_min": 137.00945599998704,
+      "total_max": 144.13058399998135
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  },
+  {
+   "rows": 16,
+   "experts": 8,
+   "tokens": 128,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 17197,
+       "fwd": 9776,
+       "unattributed": 32
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 64.6343714999773,
+      "backward_median": 72.93727249998483,
+      "total_median": 137.03054350000343,
+      "total_min": 134.80186300000696,
+      "total_max": 142.27968100004773
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 104,
+       "bwd": 17188,
+       "fwd": 731,
+       "gemm": 8934,
+       "unattributed": 32
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 64.09942649997902,
+      "backward_median": 74.51046450000831,
+      "total_median": 138.47327400000609,
+      "total_min": 134.73197900003697,
+      "total_max": 141.83329200000117
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  },
+  {
+   "rows": 32,
+   "experts": 8,
+   "tokens": 256,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 17175,
+       "fwd": 9586,
+       "unattributed": 53
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 65.70625749998271,
+      "backward_median": 74.2143765000094,
+      "total_median": 139.19461600002592,
+      "total_min": 134.85864800003355,
+      "total_max": 168.8429289999931
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 104,
+       "bwd": 17161,
+       "fwd": 482,
+       "gemm": 8977,
+       "unattributed": 52
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 64.51706350003406,
+      "backward_median": 75.01969899999494,
+      "total_median": 139.75686099999507,
+      "total_min": 135.22533899998734,
+      "total_max": 149.47208800003864
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  },
+  {
+   "rows": 64,
+   "experts": 8,
+   "tokens": 512,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 20926,
+       "fwd": 9076,
+       "unattributed": 129
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 65.5275080000024,
+      "backward_median": 77.43825150001271,
+      "total_median": 142.6395530000093,
+      "total_min": 137.59291799999573,
+      "total_max": 146.14104800000405
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 106,
+       "bwd": 20926,
+       "fwd": 540,
+       "gemm": 8424,
+       "unattributed": 130
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 64.8756770000034,
+      "backward_median": 79.6094584999878,
+      "total_median": 144.44817800003307,
+      "total_min": 139.5208860000139,
+      "total_max": 148.7067159999924
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  },
+  {
+   "rows": 128,
+   "experts": 8,
+   "tokens": 1024,
+   "arms": {
+    "sequential": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "bwd": 262,
+       "fwd": 119,
+       "unattributed": 4
+      },
+      "memcpy_events": 54,
+      "memcpy_by_phase": {
+       "fwd": 20,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "bwd": 26492,
+       "fwd": 13270,
+       "unattributed": 266
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 66.12461449998364,
+      "backward_median": 77.34477250002669,
+      "total_median": 142.74917450001112,
+      "total_min": 138.26253199999883,
+      "total_max": 151.5781759999868
+     }
+    },
+    "grouped_restore": {
+     "status": "ok",
+     "expert_fetches": 16,
+     "bitwise_equal_to_resident": {
+      "output": true,
+      "hidden_grad": true,
+      "route_weight_grad": true
+     },
+     "max_abs_diff_vs_resident": {
+      "output": 0.0,
+      "hidden_grad": 0.0,
+      "route_weight_grad": 0.0
+     },
+     "kernels": {
+      "total": 385,
+      "by_phase": {
+       "act": 16,
+       "bwd": 262,
+       "fwd": 87,
+       "gemm": 16,
+       "unattributed": 4
+      },
+      "memcpy_events": 47,
+      "memcpy_by_phase": {
+       "fwd": 13,
+       "restore_bwd": 16,
+       "restore_fwd": 16,
+       "unattributed": 2
+      },
+      "gpu_time_us_by_phase": {
+       "act": 158,
+       "bwd": 25172,
+       "fwd": 654,
+       "gemm": 11450,
+       "unattributed": 256
+      }
+     },
+     "timing_ms": {
+      "samples": 20,
+      "forward_median": 65.31045850002215,
+      "backward_median": 79.0782744999774,
+      "total_median": 144.68816249998895,
+      "total_min": 139.9225679999745,
+      "total_max": 151.4986000000249
+     }
+    },
+    "grouped_gemm": {
+     "status": "refused: ValueError: native BF16 sm_80+ required"
+    }
+   }
+  }
+ ]
+}
