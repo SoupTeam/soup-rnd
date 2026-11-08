@@ -85,6 +85,34 @@ def test_profiling_a_nonexistent_cuda_device_is_refused() -> None:
 EXPERT_BYTES = 3 * 32 * 16 * 4
 
 
+#: Words that make a field name a duration or a speed. Compared whole, per ``_`` part, so a name
+#: such as ``runtime`` or ``secondary`` is not one.
+_DURATION_WORDS = {"time", "second", "seconds", "sec", "duration", "tok", "latency"}
+
+
+def _duration_fields(value: object, path: str = "") -> list[str]:
+    """Paths of the dict keys, at any depth, whose name says duration or speed."""
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, inner in value.items():
+            here = f"{path}.{key}" if path else str(key)
+            if _DURATION_WORDS & set(str(key).lower().split("_")):
+                found.append(here)
+            found += _duration_fields(inner, here)
+    elif isinstance(value, list):
+        for index, inner in enumerate(value):
+            found += _duration_fields(inner, f"{path}[{index}]")
+    return found
+
+
+def test_duration_fields_are_found_by_name_not_by_substring() -> None:
+    record = {
+        "runtime": 1, "secondary": 2, "passes": [{"wall_time_s": 3, "tok_s": 4}], "p": "/x/time",
+    }
+
+    assert _duration_fields(record) == ["passes[0].wall_time_s", "passes[0].tok_s"]
+
+
 @pytest.fixture(scope="module")
 def tiny_result(tmp_path_factory: pytest.TempPathFactory) -> dict:
     weights = fixture.moe_weights_dir(tmp_path_factory.mktemp("b14-path-weights"))
@@ -147,9 +175,9 @@ def test_memory_is_recorded_idle_and_peak_and_no_wall_time_is_recorded(
     assert one["rss_peak_sampled_bytes"] >= tiny_result["idle"]["rss_bytes"]
     assert tiny_result["idle"]["cuda_allocated_bytes"] is None
     assert [p["seq"] for p in tiny_result["passes"]] == [6, 12]
-    # Capacity report: nothing in the result is a duration.
-    text = json.dumps(tiny_result).lower()
-    assert "second" not in text and "time" not in text and "tok_s" not in text
+    # Capacity report: no field of the result is a duration.
+    assert _duration_fields(tiny_result) == []
+    assert json.loads(json.dumps(tiny_result))["passes"][0]["seq"] == 6
 
 
 # --------------------------------------------------------------------------

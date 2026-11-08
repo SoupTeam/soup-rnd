@@ -90,7 +90,7 @@ all 160 gradients met the stricter bitwise equality on both machines; the loss m
 - vast.ai: the first run failed in the download with `TypeError: process() takes no keyword
   arguments` (`httpx2` against the image's Brotli 1.1.0). `pip install -U 'Brotli>=1.2'` fixed it
   (`vast/pip2.log`); the weights were already on disk and the rerun is the one reported.
-- vast.ai rental: instance 59462997, about 17 minutes at 0.097 USD/h, destroyed after the result
+- vast.ai rental: about 17 minutes at 0.097 USD/h, destroyed after the result
   was copied. Ceiling was 0.3 USD. The times come from the shell clock and `vastai` output in the
   session; no invoice was saved here. The first failed vast.ai run and the first failed Kaggle probe
   were not kept.

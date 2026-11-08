@@ -45,7 +45,7 @@ def _largest_tensor_recorder():
     return Recorder()
 
 
-def test_layer_larger_than_limit_matches_resident_without_a_layer_sized_tensor(tmp_path):
+def test_layer_larger_than_limit_matches_resident_without_a_single_layer_sized_tensor(tmp_path):
     import torch
 
     from soup_cli.utils.expert_stream import ExpertBufferPool

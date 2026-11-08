@@ -176,7 +176,7 @@ This report gives D3 the baseline count; it does not test grouping.
 ## Limits
 
 - One forward and one backward pass per length, batch of one row. This is not an optimizer step,
-  not the L2L trainer, and not a training run. The public L2L launch guard for MoE is unchanged.
+  not the L2L trainer, and not a training run. `src/` is untouched, so the L2L launch guard for MoE is whatever the measured commit has.
 - Random token ids, not text. Loss values (13.8 to 16.7 on the real model) mean nothing.
 - Correctness was not compared on CUDA in this report. Ticket 08 proved bitwise equality with a
   resident model on CPU only; the only CUDA evidence here is that the LoRA gradients are non-zero
@@ -203,16 +203,18 @@ This report gives D3 the baseline count; it does not test grouping.
 
 ## Environment and cost
 
-- vast.ai instance 59466949, offer 58572966 (RTX 3070 8192 MiB, driver 615.71.09, CUDA runtime
+- vast.ai rental (RTX 3070 8192 MiB, driver 615.71.09, CUDA runtime
   12.6), image `pytorch/pytorch:2.7.1-cuda12.6-cudnn9-runtime`, 200 GB disk. Ran 1 111 s
   according to `vastai show instance`, at 0.151 USD/h, so about 0.05 USD (ceiling set at 2 USD).
-  Destroyed after the files were copied. The team credit moved from 65.29 to 65.22 USD over the
-  rental, which includes other team use.
+  Destroyed after the files were copied.
+- Removed before publication: the Kaggle account name (shown as `<kaggle-user>` in the JSON
+  `source_root` and the kernel metadata), the vast.ai instance and offer numbers, the ssh host
+  and port, and the team credit balance. No measured value changed.
 - Python 3.11.13, torch 2.7.1+cu126, transformers 5.20.2, peft 0.21.2, safetensors 0.8.0,
   psutil 7.0.0 (`vast-rtx3070/pip-versions.txt`, `environment` in each JSON).
-- Kaggle script kernel `aldiyarsagat/soup-b14-path-big` (stages `oversized` then `real`) and
-  `aldiyarsagat/soup-b14-path-tiny`, source from the private dataset
-  `aldiyarsagat/soup-b14-source`. Free.
+- Kaggle script kernel `<kaggle-user>/soup-b14-path-big` (stages `oversized` then `real`) and
+  `<kaggle-user>/soup-b14-path-tiny`, source from the private dataset
+  `<kaggle-user>/soup-b14-source`. Free.
 - Measured source: `3c215ba7cfc5cb643fda1f2fab2274673e126d1f` for every result except the Kaggle
   tiny run (`9c3533f9`, see above). `source_sha` is in each JSON.
 
