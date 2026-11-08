@@ -552,6 +552,14 @@ class StreamingSetupMixin:
     #: pre-flight charges a second large slot for it (#1049).
     _STREAM_REFILL_BEFORE_BACKWARD = False
 
+    #: The resolved L2L recipe (``soup_cli.utils.l2l_recipe``); None without ``training.l2l``.
+    _l2l_recipe = None
+
+    def _effective_k(self, tcfg: Any) -> int:
+        """The k the run uses: the L2L recipe's effective k, else the accumulation steps."""
+        recipe = self._l2l_recipe
+        return recipe.effective_k if recipe is not None else tcfg.gradient_accumulation_steps
+
     #: Set by :meth:`_setup_streaming_transformers`; absent on a resident run.
     _stream_runtime = None
     #: The directories the streamed layers are read from (cache plus stripe folders), so
@@ -1200,7 +1208,7 @@ class StreamingSetupMixin:
                     partial_budget, n_layers=int(model_config.num_hidden_layers),
                     batch_size=tcfg.batch_size, max_length=cfg.data.max_length,
                     hidden_size=int(model_config.hidden_size),
-                    microbatches=tcfg.gradient_accumulation_steps, dtype=dtype,
+                    microbatches=self._effective_k(tcfg), dtype=dtype,
                     pin=on_cuda, shape_round=RESERVATION_ROUND,
                 )
                 partial_budget = self._c3_l2l_plan.weights
@@ -1327,15 +1335,24 @@ class StreamingSetupMixin:
         from soup_cli.utils.layer_stream import resolve_stream_dtype
 
         base = self.model.get_base_model() if hasattr(self.model, "get_base_model") else self.model
+        tcfg = getattr(getattr(self, "config", None), "training", None)
         refuse_unsupported_l2l(
             base.config,
             n_gpu=int(training_args.n_gpu),
             fp16=bool(training_args.fp16),
             task=getattr(getattr(self, "config", None), "task", "sft"),
+            expert_layout=getattr(tcfg, "stream_expert_layout", "fused"),
         )
         warning = unready_task_warning(getattr(getattr(self, "config", None), "task", None))
         if warning is not None:
             console.print(f"[yellow]Warning:[/] {warning}")
+        # The SFT run's recipe holds the effective k; HF's arguments are built from it, and
+        # the other tasks have no recipe, so their arguments are the k.
+        recipe = self._l2l_recipe
+        effective_k = (
+            recipe.effective_k if recipe is not None
+            else int(training_args.gradient_accumulation_steps)
+        )
         trainer = make_l2l_trainer_class(base_cls)(**trainer_kwargs)
         attach_l2l_state(
             trainer,
@@ -1345,10 +1362,11 @@ class StreamingSetupMixin:
             spill_dir=self.config.training.l2l_spill_dir,
             weight_dirs=self._stream_weight_dirs,
             c3_plan=getattr(self, "_c3_l2l_plan", None),
+            effective_k=effective_k,
         )
         console.print(
             "[green]L2L:[/] each streamed layer loads once per optimizer step and runs "
-            f"{int(training_args.gradient_accumulation_steps)} micro-batch(es)"
+            f"{effective_k} micro-batch(es)"
         )
         return trainer
 
@@ -1586,7 +1604,7 @@ class StreamingSetupMixin:
                 f"               (from {ceiling.tflops:.2f} TFLOPS measured on "
                 f"this card now using {ceiling.dtype}{clock})"
             )
-        advice = accumulation_advice(batch_size=batch, accum=tcfg.gradient_accumulation_steps)
+        advice = accumulation_advice(batch_size=batch, accum=self._effective_k(tcfg))
         if advice is not None:
             lines.append(f"  [yellow]![/] {advice}")
         plan = None

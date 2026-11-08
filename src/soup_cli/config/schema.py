@@ -3559,10 +3559,12 @@ class TrainingConfig(BaseModel):
         description=(
             "BETA. Layer-to-layer (L2L) execution for sft, dpo, orpo, simpo and "
             "kto with stream_layers: each streamed decoder layer is loaded once "
-            "per optimizer step and runs all k micro-batches, k = "
-            "gradient_accumulation_steps, then the optimizer takes one step on "
-            "the adapters. Needs stream_layers=true; the launch also needs a "
-            "Llama/Mistral model on a single GPU. Only dpo passed the readiness "
+            "per optimizer step and runs all k micro-batches, then the optimizer "
+            "takes one step on the adapters. k is the effective k of the run recipe, "
+            "today gradient_accumulation_steps. Needs stream_layers=true; the launch "
+            "also needs a Llama/Mistral model, or for sft a DeepSeek-V3 model with "
+            "stream_expert_layout='per_expert' (which needs stream_source='disk' and "
+            "quantization='4bit'), on a single GPU. Only dpo passed the readiness "
             "check; orpo, simpo and kto are not ready. k=1 behaves like plain "
             "streaming. See ADR 0002 and docs/performance-and-quantization.md."
         ),
@@ -3579,6 +3581,26 @@ class TrainingConfig(BaseModel):
             "I/O fails. When the weights stream from disk, the default directory is refused "
             "on the weights' disk; a directory set here is allowed there with a warning. "
             "Only valid with training.l2l=true."
+        ),
+    )
+
+    l2l_activation_codec: Literal["none", "fp8_e4m3"] = Field(
+        default="none",
+        description=(
+            "BETA — how training.l2l stores the activations between layers. 'none' keeps them "
+            "in the compute dtype. 'fp8_e4m3' is accepted by the schema, but the launch "
+            "refuses it until the FP8 store exists. The value is recorded in the run's "
+            "l2l_recipe.json, and a resume with another codec is refused. Only valid with "
+            "training.l2l=true."
+        ),
+    )
+    l2l_auto_k: bool = Field(
+        default=False,
+        description=(
+            "BETA — let the memory planner pick the largest k that fits host RAM, up to "
+            "gradient_accumulation_steps. Accepted by the schema, but the launch refuses it "
+            "until the planner is wired in. Off: k = gradient_accumulation_steps. Only valid "
+            "with training.l2l=true."
         ),
     )
 
@@ -6525,6 +6547,17 @@ class SoupConfig(BaseModel):
                 "holds L2L's activation spill and nothing else reads it. Set l2l=true or "
                 "drop l2l_spill_dir."
             )
+        # Options of the L2L launch that are off by default: name -> is set.
+        l2l_options = {
+            "l2l_activation_codec": tcfg.l2l_activation_codec != "none",
+            "l2l_auto_k": tcfg.l2l_auto_k,
+        }
+        for name, differs_from_default in l2l_options.items():
+            if differs_from_default and not tcfg.l2l:
+                raise ValueError(
+                    f"training.{name} is set but training.l2l is false: it changes how L2L "
+                    f"runs and nothing else reads it. Set l2l=true or drop {name}."
+                )
         if tcfg.stream_partial_ram is not None:
             if (not tcfg.stream_layers or tcfg.stream_source != "disk"
                     or self.task != "sft" or self.backend != "transformers"
@@ -6548,6 +6581,13 @@ class SoupConfig(BaseModel):
                     f"training.l2l supports task in {list(L2L_SUPPORTED_TASKS)}; "
                     f"got task={self.task!r}."
                 )
+            if self.task != "sft":
+                for name, differs_from_default in l2l_options.items():
+                    if differs_from_default:
+                        raise ValueError(
+                            f"training.{name} is set with task={self.task!r}: only the "
+                            f"task='sft' launch reads it. Use task='sft' or drop {name}."
+                        )
             if self.task == "dpo":
                 self._refuse_dpo_l2l_unsupported(tcfg)
             if self.task == "kto":
@@ -6585,8 +6625,6 @@ class SoupConfig(BaseModel):
                 )
             if tcfg.moe_lora or tcfg.lora.target_parameters:
                 raise ValueError("per_expert streaming cannot train routed-expert adapters")
-            if tcfg.l2l:
-                raise ValueError("per_expert streaming does not support training.l2l")
         # #971 — `stream_source: 'ram'` INSISTS on the RAM tier: 'ram' insists,
         # 'disk' forces, 'auto' falls back (trainer/stream_setup.py). The
         # read-ahead reader belongs to the NVMe disk tier, so a non-default
