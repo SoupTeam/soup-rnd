@@ -537,7 +537,9 @@ def test_actual_sft_trainer_steps_and_adapter_roundtrip(checkpoint, tmp_path, l2
 
 
 @pytest.mark.parametrize("l2l", [False, True])
-def test_public_sft_wrapper_trains_saves_and_releases_experts(checkpoint, tmp_path, l2l):
+def test_public_sft_wrapper_trains_saves_and_releases_experts(
+    checkpoint, tmp_path, l2l, monkeypatch,
+):
     from tokenizers import Tokenizer
     from tokenizers.models import WordLevel
     from tokenizers.pre_tokenizers import Whitespace
@@ -545,6 +547,10 @@ def test_public_sft_wrapper_trains_saves_and_releases_experts(checkpoint, tmp_pa
 
     from soup_cli.config.schema import SoupConfig
     from soup_cli.trainer.sft import SFTTrainerWrapper
+
+    # Artifact paths are intentionally confined to cwd. Run this integration from
+    # its own temporary project directory, as a real user launch would.
+    monkeypatch.chdir(tmp_path)
 
     raw = Tokenizer(WordLevel({str(i): i for i in range(64)}, unk_token="0"))
     raw.pre_tokenizer = Whitespace()

@@ -1,5 +1,7 @@
 """CPU-only prototype; no CUDA or academic checkpoint qualification."""
 
+import sys
+
 import pytest
 import torch
 
@@ -65,7 +67,7 @@ def test_missing_expert_layer_is_refused_before_reader_creation(monkeypatch, tmp
 
     from transformers import AutoModelForCausalLM
 
-    from soup_cli.utils import expert_shard
+    from soup_cli.utils import expert_shard, expert_training
     from soup_cli.utils.expert_training import install_expert_training
 
     def forbidden(*args, **kwargs):
@@ -75,6 +77,10 @@ def test_missing_expert_layer_is_refused_before_reader_creation(monkeypatch, tmp
     torch.set_num_threads(1)
     try:
         model = AutoModelForCausalLM.from_config(fixture.moe_config())
+        # Exercise the cache/model mismatch branch; this test does not qualify
+        # CPU arithmetic and should not stop at the macOS platform guard.
+        monkeypatch.setattr(expert_training, "_cpu_training_platform",
+                            lambda: ("linux", "x86_64"))
         monkeypatch.setattr(expert_shard, "ExpertShardReader", forbidden)
         index = SimpleNamespace(expert_layout="per_expert", expert_layers=(1,))
         with pytest.raises(ValueError, match="same independently readable experts"):
@@ -85,6 +91,8 @@ def test_missing_expert_layer_is_refused_before_reader_creation(monkeypatch, tmp
 
 
 @pytest.mark.parametrize("storage", ["dense", "nf4", "nf4-nested"])
+@pytest.mark.skipif(sys.platform == "darwin",
+                    reason="CPU stream_experts exactness is not qualified on macOS")
 def test_tiny_deepseek_grouped_cpu_forward_and_backward(tmp_path, storage):
     from soup_cli.utils.layer_stream_runtime import build_meta_skeleton, quantised_layer_suffixes
     from tests.test_b13_moe_runtime import _apply_stored_nf4
@@ -152,6 +160,8 @@ def test_tiny_deepseek_grouped_cpu_forward_and_backward(tmp_path, storage):
         torch.set_num_threads(previous)
 
 
+@pytest.mark.skipif(sys.platform == "darwin",
+                    reason="CPU stream_experts exactness is not qualified on macOS")
 def test_tiny_deepseek_grouped_cpu_real_sft_trainer(tmp_path):
     from datasets import Dataset
     from tokenizers import Tokenizer
