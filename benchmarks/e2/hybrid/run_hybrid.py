@@ -7,6 +7,10 @@ hashes of the frozen and kept tensors, and fingerprints cover every LoRA tensor.
 
 --seed (default 42) seeds Python, NumPy and torch; without --keep-top nothing is frozen
 and the run is an all-layer run (hybrid_seeds/PROTOCOL.txt section 2).
+
+--cache-dir (with --keep-top) installs the E2 frozen-prefix activation cache right after
+the freeze, keyed to the frozen bottom, in that new empty directory
+(hybrid_cache/PROTOCOL.txt section 3). Without it nothing about the run changes.
 """
 
 import argparse
@@ -15,6 +19,8 @@ import json
 import os
 import random
 import re
+import time
+from contextlib import ExitStack
 from pathlib import Path
 
 import numpy as np
@@ -62,9 +68,67 @@ def split_layers(model, keep_top):
 class FreezeBottomAtStep(TrainerCallback):
     """After optimizer step `step`, stop training LoRA below the top `keep_top` layers."""
 
-    def __init__(self, model, keep_top, step):
+    def __init__(self, model, keep_top, step, cache_dir=None, model_revision=None,
+                 on_install=None):
         self.model, self.keep_top, self.step = model, keep_top, step
         self.record = {"freeze_at_step": step, "keep_top": keep_top, "frozen": False}
+        self.cache_dir, self.model_revision = cache_dir, model_revision
+        self.on_install = on_install
+        self.stack, self.runner = None, None
+
+    def install_cache(self):
+        """Install the E2 cache over the now-frozen bottom (as SFTTrainerWrapper.train)."""
+        from soup_cli.utils.frozen_prefix_cache import (
+            FrozenPrefixCache,
+            build_cache_metadata,
+            fingerprint_prefix_configuration,
+        )
+        from soup_cli.utils.frozen_prefix_forward import install_frozen_prefix_cache
+        from soup_cli.utils.layer_stream_runtime import decoder_owner
+
+        started = time.perf_counter()
+        decoder = decoder_owner(self.model)
+        cutoff = len(decoder.layers) - self.keep_top
+        cache = FrozenPrefixCache(self.cache_dir)
+        config_fingerprint = fingerprint_prefix_configuration(decoder, cutoff)
+
+        def metadata_factory(*, input_ids, attention_mask, position_ids):
+            return build_cache_metadata(
+                model_revision=self.model_revision,
+                frozen_prefix_fingerprint="runner-computed",
+                config_fingerprint=config_fingerprint,
+                cutoff=cutoff,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+            )
+
+        self.stack = ExitStack()
+        self.runner = self.stack.enter_context(install_frozen_prefix_cache(
+            model=self.model, cache=cache, cutoff=cutoff, metadata_factory=metadata_factory,
+        ))
+        if self.on_install is not None:
+            self.on_install(self.runner)
+        self.record["cache"] = {
+            "installed_at_step": self.step,
+            "cutoff": cutoff,
+            "install_seconds": time.perf_counter() - started,
+        }
+
+    def close_cache(self):
+        if self.stack is None:
+            return
+        files = [p for p in Path(self.cache_dir).iterdir() if p.is_file()]
+        self.record["cache"].update({
+            "hits": self.runner.hits,
+            "misses": self.runner.misses,
+            "files": len(files),
+            "bytes": sum(p.stat().st_size for p in files),
+        })
+        self.stack.close()
+        self.stack = None
+        if self.on_install is not None:
+            self.on_install(None)
 
     def on_step_end(self, args, state, control, **kwargs):
         if state.global_step != self.step or self.record["frozen"]:
@@ -81,6 +145,8 @@ class FreezeBottomAtStep(TrainerCallback):
             "bottom_at_freeze": lora_digest(bottom),
             "top_at_freeze": lora_digest(top),
         })
+        if self.cache_dir is not None:
+            self.install_cache()
 
     def finish(self, initial_bottom, initial_top):
         _, _, bottom, top = split_layers(self.model, self.keep_top)
@@ -110,6 +176,7 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--keep-top", type=int)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--cache-dir", type=Path)
     parser.add_argument("--freeze-at-step", type=int, default=2000)
     args = parser.parse_args()
 
@@ -201,11 +268,25 @@ def main():
     if args.keep_top is not None:
         _, _, initial_bottom, initial_top = split_layers(trainer.model, args.keep_top)
         initial_bottom, initial_top = lora_digest(initial_bottom), lora_digest(initial_top)
-        freezer = FreezeBottomAtStep(trainer.model, args.keep_top, args.freeze_at_step)
+        if args.cache_dir is not None:
+            args.cache_dir.mkdir(parents=True, exist_ok=False)
+        freezer = FreezeBottomAtStep(
+            trainer.model, args.keep_top, args.freeze_at_step,
+            cache_dir=args.cache_dir, model_revision=str(cfg.base),
+            on_install=lambda runner: setattr(wrapper, "_e2_runner", runner),
+        )
         trainer.add_callback(freezer)
+    elif args.cache_dir is not None:
+        raise ValueError("--cache-dir needs --keep-top")
 
     print("Starting training...", flush=True)
-    wrapper.train()
+    train_started = time.perf_counter()
+    try:
+        wrapper.train()
+    finally:
+        if freezer is not None:
+            freezer.close_cache()
+    train_call_seconds = time.perf_counter() - train_started
 
     assert trainer.state.global_step == args.steps
 
@@ -261,6 +342,7 @@ def main():
         "device": "cuda",
         "torch_version": torch.__version__,
         "hybrid": hybrid,
+        "train_call_seconds": train_call_seconds,
     }
 
     output = Path(args.output)

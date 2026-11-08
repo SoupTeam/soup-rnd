@@ -1,0 +1,76 @@
+E2 hybrid with the activation cache: parity and A-B-B-A speed at K=8 on Kaggle.
+Prospective protocol. Committed before the first run of this series. After that,
+nothing here changes; corrections go into a dated ADDENDUM file next to this one.
+
+1. Question
+
+The hybrid schedule (LoRA on all 32 layers in epoch 1, bottom 24 layers' LoRA frozen
+after step 2,000, top 8 only afterwards) matched all-layer quality over three seeds
+(benchmarks/e2/hybrid_seeds/reports/20261106, recommended K = 8). Two questions:
+  (a) parity: with the E2 frozen-prefix cache installed at the freeze, is training
+      bit-identical to the same hybrid run without the cache?
+  (b) speed: is training with the hybrid and the cache faster than all-layer LoRA, in
+      fresh processes in A-B-B-A order?
+
+2. Platform and code
+
+Kaggle GPU T4 x2, Mistral-7B-v0.3 at caa1feb0e54d415e2df31207e5f4e273e33509b1, float16
+base over both GPUs; kit verified by the notebook; library versions recorded.
+Runner: benchmarks/e2/hybrid/run_hybrid.py with --cache-dir: right after the freeze it
+installs soup_cli.utils.frozen_prefix_forward.install_frozen_prefix_cache over the frozen
+layers 0-23 (the same installation SFTTrainerWrapper.train performs for top-K training),
+in a new empty directory under /tmp. The cache is filled on first use: epoch 2 writes
+it, epoch 3 reads it. The install, including fingerprinting the frozen prefix, happens
+between step 2,000 and step 2,001 and is therefore inside the timed first step of
+epoch 2; its duration is also recorded.
+
+3. Runs (one Kaggle session, in this order; seed 42; 6,000 steps = 3 epochs)
+
+  C        hybrid K=8, no cache (parity reference)
+  cycle 1  A B B A
+  cycle 2  A B B A
+  cycle 3  A B B A
+
+  A  all-layer LoRA (W32 config), no freeze, no cache
+  B  hybrid K=8 with the cache
+
+All use recipe_check/configs/W32.yaml (LoRA r4 q/v, 2,000 train / 200 validation rows,
+length 128, batch 1, lr 1e-4 linear over 6,000 steps, seed 42, deterministic), each in
+a fresh process, training only (no gate suites; validation CE is recorded). The cache
+directory of each B run is deleted after the run, its size recorded first.
+
+3 epochs, not 2: a cache filled in epoch 2 is first read in epoch 3.
+
+4. Validity (any failure gives NO_VERDICT for the series, with the reason)
+
+  V1  every run completes 6,000 steps with finite CE, 2,000/200 rows, deterministic.
+  V2  parity: every B run equals C in final LoRA fingerprint, training-batch hash and
+      validation CE (bit for bit); every A run equals every other A run in the same.
+  V3  cache use in every B run: installed at step 2,000; in epoch 2 hits + misses =
+      2,000; in epoch 3 misses = 0 and hits = 2,000; cache files = epoch-2 misses.
+  V4  hybrid mechanics in B and C as in hybrid PROTOCOL.txt V3 (frozen layers 0-23).
+  V5  configs equal the W32 template apart from base and output.
+
+5. Decision (summed step wall seconds from the runner's step timer, per epoch)
+
+  Primary, warm epoch: per cycle r_c = mean(A epoch-3 time) / mean(B epoch-3 time).
+    WARM_SPEEDUP   median of the three r_c >= 1.10 and every r_c >= 1.00
+    NOT_SHOWN      otherwise
+  Secondary, whole training: the same with the sum of all three epochs' step times
+  (epoch 1 at full cost, the install and the cache build in epoch 2 included).
+    TRAINING_SPEEDUP / NOT_SHOWN, same thresholds.
+
+These are the thresholds of the E2 warm-performance rule approved for the original
+E2 (benchmarks/e2/decision_rules/e2_abba128_warm_approved.json). Reported, not decided:
+epoch-2 ratio, process wall time, install time, cache size, GPU temperature and clocks
+before and after each run.
+
+6. Limits stated in advance
+
+Kaggle is a shared virtual machine: suspend, power and foreign-I/O checks of METHOD.md
+cannot be applied, so no run is voided on those grounds; GPU state is recorded only.
+The speed is that of two T4s with the model split across them and a disk-backed cache
+on Kaggle's local disk. One attempt per run; one restart only for a failure before
+training starts (reason written into the results); 5 hours per run. Kaggle's free quota
+only. Never claimed: other GPUs, models, K, data sizes or epoch counts; quality (settled
+in hybrid_seeds).

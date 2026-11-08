@@ -147,3 +147,19 @@ write(
     .replace('"e2rc_results"', '"e2hs_results"'),
     PACK.replace("e2rc_results_", "e2hs_results_"),
 )
+write(
+    HYBRID.parent / "hybrid_cache" / "e2_hybrid_cache.ipynb",
+    INTRO.replace(
+        "# E2 recipe check (Kaggle, GPU T4 x2)", "# E2 hybrid cache ABBA (Kaggle, GPU T4 x2)"
+    )
+    .replace("benchmarks/e2/recipe_check/PROTOCOL.txt", "benchmarks/e2/hybrid_cache/PROTOCOL.txt")
+    .replace("e2rc_results_*.zip", "e2hc_results_*.zip"),
+    "# One session, the protocol order (about 6 hours). Do not change.\n"
+    'ARMS = ["C",\n'
+    '        "A_c1_1", "B_c1_1", "B_c1_2", "A_c1_2",\n'
+    '        "A_c2_1", "B_c2_1", "B_c2_2", "A_c2_2",\n'
+    '        "A_c3_1", "B_c3_1", "B_c3_2", "A_c3_2"]',
+    RUN.replace("benchmarks/e2/recipe_check/run_arm.py", "benchmarks/e2/hybrid_cache/run_arm.py")
+    .replace('"e2rc_results"', '"e2hc_results"'),
+    PACK.replace("e2rc_results_", "e2hc_results_"),
+)
