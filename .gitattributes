@@ -77,3 +77,8 @@ benchmarks/results/g2-cpu-pilot/shapes_seq512.json -text -whitespace
 # Preserve imported A6 raw device captures and their original output whitespace.
 benchmarks/results/l2l-pref-*/nvidia-smi*.txt -text -whitespace
 benchmarks/results/l2l-pref-a6-vast-rtx3060/a6.log -text -whitespace
+
+# Keep B14 and the post-fallback D3 smoke manifests reproducible on checkout.
+benchmarks/results/b14-d3-current-row-check-20261109/** text eol=lf
+benchmarks/results/d3-academic-deepseek-support-20261109/** text eol=lf
+benchmarks/results/d3-academic-deepseek-support-20261109/evidence.tar.gz -text

@@ -13,7 +13,9 @@ import threading
 from pathlib import Path
 from typing import Any
 
-SUPPORTED_SHAPES = {(32, 32), (16, 32), (2048, 2048), (1024, 2048)}
+SUPPORTED_SHAPES = {
+    (32, 32), (16, 32), (2048, 2048), (1024, 2048),
+}
 
 
 def plan_grouped_linear(

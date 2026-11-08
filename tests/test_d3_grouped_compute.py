@@ -58,6 +58,17 @@ def test_explicit_olmoe_policy_keeps_tiny_controls_grouped_and_accounts_boundary
         plan_grouped_linear(shapes, native_olmoe_rows_max=512)
 
 
+def test_academic_deepseek_projection_shapes_are_not_yet_validated_for_grouped_gemm():
+    from soup_cli.utils.expert_group_gemm import plan_grouped_linear
+
+    for shape in ((2048, 2816), (1408, 2048)):
+        with pytest.raises(ValueError, match="unsupported grouped GEMM shape"):
+            plan_grouped_linear([(129, *shape)], native_olmoe_rows_max=128,
+                                native_olmoe_rows_from=None)
+    with pytest.raises(ValueError, match="unsupported grouped GEMM shape"):
+        plan_grouped_linear([(129, 2048, 2817)])
+
+
 def test_large_row_native_boundary_preserves_grouped_interval_and_tiny_controls():
     from soup_cli.utils.expert_group_gemm import plan_grouped_linear
 

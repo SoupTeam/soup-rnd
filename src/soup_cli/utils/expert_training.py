@@ -6,6 +6,7 @@ the returned resource. No benchmark modules are imported by the training path.
 
 from __future__ import annotations
 
+import inspect
 import os
 import platform
 import sys
@@ -15,6 +16,13 @@ from pathlib import Path
 from typing import Any
 
 _MATH_LOCK = threading.Lock()
+
+
+def _uses_grouped_gemm(architecture: str, backend: str, device: str) -> bool:
+    """Whether this recipe has a validated CUDA grouped-GEMM training path."""
+    return (str(device).split(":", 1)[0] == "cuda"
+            and backend != "sequential"
+            and architecture != "deepseek_v3")
 
 
 def _cpu_training_platform() -> tuple[str, str]:
@@ -43,15 +51,31 @@ def validate_cpu_expert_recipe(*, dtype: str) -> None:
 
 def validate_expert_training(config: Any, options: Any, *, device: str, dtype: str) -> None:
     """Validate the model and requested backend before cache reads/allocations."""
-    if getattr(config, "model_type", "") != "olmoe":
-        raise ValueError("training.stream_experts currently supports native OLMoE only")
+    arch = getattr(config, "model_type", "")
+    kind = str(device).split(":", 1)[0]
+    if arch not in ("olmoe", "deepseek_v3"):
+        raise ValueError("training.stream_experts supports native OLMoE or DeepSeek-V3 only")
     if getattr(config, "output_router_logits", False):
         raise ValueError("stream_experts does not yet support the router auxiliary loss")
     if getattr(config, "hidden_act", "silu") != "silu":
         raise ValueError("stream_experts requires stateless SiLU experts")
-    kind = str(device).split(":", 1)[0]
     if kind not in ("cpu", "cuda"):
         raise ValueError("stream_experts supports CPU or CUDA only")
+    if arch == "deepseek_v3" and kind == "cuda":
+        if sys.platform != "linux":
+            raise ValueError("DeepSeek-V3 CUDA expert training currently requires Linux")
+        if dtype != "bfloat16":
+            raise ValueError("DeepSeek-V3 CUDA expert training requires native BF16")
+        if options.backend not in ("sequential", "grouped"):
+            raise ValueError("DeepSeek-V3 CUDA expert training supports sequential/grouped only")
+        geometry = (getattr(config, "hidden_size", None),
+                    getattr(config, "moe_intermediate_size", None),
+                    getattr(config, "n_routed_experts", None))
+        if geometry != (2048, 1408, 64):
+            raise ValueError(
+                "DeepSeek-V3 CUDA expert training is qualified for academic-ds-9B "
+                "H=2048, I=1408, E=64 only"
+            )
     if options.backend == "triton" and (kind != "cuda" or dtype != "bfloat16"):
         raise ValueError("the Triton expert backend requires CUDA BF16")
     if options.backend == "fused_nf4" and (kind != "cuda" or dtype != "bfloat16"):
@@ -63,11 +87,12 @@ def validate_expert_training(config: Any, options: Any, *, device: str, dtype: s
             raise ValueError("grouped CUDA expert compute currently requires Linux")
         if dtype != "bfloat16":
             raise ValueError("grouped CUDA expert compute requires native BF16")
-        if (config.hidden_size, config.intermediate_size) != (2048, 1024):
+        if arch == "olmoe" and (config.hidden_size, config.intermediate_size) != (2048, 1024):
             raise ValueError("grouped CUDA geometry is qualified for OLMoE H=2048, I=1024 only")
-        path = options.cublas_library
-        if not path or not os.path.isabs(path) or not os.path.isfile(path):
-            raise ValueError("grouped CUDA requires an explicit existing cublas_library path")
+        if _uses_grouped_gemm(arch, options.backend, device):
+            path = options.cublas_library
+            if not path or not os.path.isabs(path) or not os.path.isfile(path):
+                raise ValueError("grouped CUDA requires an explicit existing cublas_library path")
         if options.backend == "fused_nf4":
             import torch
 
@@ -75,7 +100,50 @@ def validate_expert_training(config: Any, options: Any, *, device: str, dtype: s
                 raise ValueError("packed WMMA training candidate is currently limited to sm_86")
 
 
-def expert_training_reservations(shard_dir, index, options, *, dtype):
+def initialize_deepseek_rotary(model: Any, *, device: str) -> None:
+    """Initialize DeepSeek RoPE frequencies on the execution device.
+
+    Transformers constructs these non-persistent buffers on CPU in the meta
+    skeleton. Recomputing through the model's registered RoPE initializer on
+    CUDA preserves the checkpoint's YaRN arithmetic order for exact replay.
+    """
+    if getattr(getattr(model, "config", None), "model_type", "") != "deepseek_v3":
+        return
+    if str(device).split(":", 1)[0] != "cuda":
+        return
+
+    import torch
+    from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
+
+    rotary = [module for module in model.modules()
+              if type(module).__name__ == "DeepseekV3RotaryEmbedding"]
+    if len(rotary) != 1:
+        raise ValueError(f"DeepSeek-V3 requires one native rotary module, got {len(rotary)}")
+    module = rotary[0]
+    rope_type = getattr(module, "rope_type", None)
+    initializer = ROPE_INIT_FUNCTIONS.get(rope_type)
+    if not callable(initializer):
+        raise ValueError(f"unsupported DeepSeek-V3 rotary type: {rope_type!r}")
+    try:
+        supports_device = "device" in inspect.signature(initializer).parameters
+    except (TypeError, ValueError):
+        supports_device = False
+    if not supports_device:
+        raise ValueError("installed Transformers RoPE initializer cannot target the CUDA device")
+    target = torch.device(device)
+    inv_freq, attention_scaling = initializer(module.config, device=target)
+    device_matches = (inv_freq.device.type == target.type
+                      and (target.index is None or inv_freq.device.index == target.index))
+    if not device_matches or inv_freq.dtype != torch.float32:
+        raise ValueError("DeepSeek-V3 RoPE initializer returned an unexpected tensor device/dtype")
+    # Keep both registered, non-persistent buffers coherent. Dynamic RoPE
+    # implementations restore original_inv_freq when returning to short inputs.
+    module.register_buffer("inv_freq", inv_freq, persistent=False)
+    module.register_buffer("original_inv_freq", inv_freq.clone(), persistent=False)
+    module.attention_scaling = attention_scaling
+
+
+def expert_training_reservations(shard_dir, index, options, *, dtype, architecture, device):
     """Read only a shard header, to charge the extra arena and staging in preflight."""
     from soup_cli.utils.expert_group import plan_grouped_expert_buffer
     from soup_cli.utils.expert_shard import ExpertShardReader
@@ -94,13 +162,15 @@ def expert_training_reservations(shard_dir, index, options, *, dtype):
                                           packed_only=options.backend == "fused_nf4")
         if plan.weight_bytes > options.weight_budget_bytes:
             raise ValueError("expert weight arena exceeds weight_budget_bytes before allocation")
+        gemm_bytes = (options.call_budget_bytes + 4 * 2**20
+                      if _uses_grouped_gemm(architecture, options.backend, device) else 0)
         return {
             "host_bytes": plan.host_staging_bytes,
             # Packed arenas can occupy an allocator block larger than their
             # requested size. Their constructor checks this configured ceiling.
             "device_bytes": ((options.weight_budget_bytes if options.backend == "fused_nf4"
                               else plan.weight_bytes) + options.activation_budget_bytes
-                             + options.call_budget_bytes + 4 * 2**20),
+                             + gemm_bytes),
         }
     finally:
         reader.close()
@@ -167,10 +237,15 @@ def install_expert_training(model, shard_dir, index, options, *, device, dtype, 
 
     config = model.config
     validate_expert_training(config, options, device=device, dtype=dtype)
+    use_gemm = _uses_grouped_gemm(config.model_type, options.backend, device)
     if index.expert_layout != "per_expert":
         raise ValueError("stream_experts requires a per_expert cache; reshard the checkpoint")
     layers = decoder_owner(model).layers
-    if tuple(index.expert_layers) != tuple(range(len(layers))):
+    expected_layers = tuple(i for i, layer in enumerate(layers)
+                            if _find_experts(layer) is not None)
+    if not expected_layers or tuple(index.expert_layers) != expected_layers:
+        raise ValueError("model and cache must identify the same independently readable experts")
+    if config.model_type == "olmoe" and expected_layers != tuple(range(len(layers))):
         raise ValueError("OLMoE requires independently readable experts in every layer")
     stack = ExitStack()
     replacements = []
@@ -196,16 +271,17 @@ def install_expert_training(model, shard_dir, index, options, *, device, dtype, 
                 raise ValueError(f"layer {idx}: expert shape/adapters/frozen-weight mismatch")
             replacements.append((parent, attr, module, reader))
         width = 1 if options.backend == "sequential" else options.group_width
-        first = readers[0]
+        first = readers[expected_layers[0]]
         plan = plan_grouped_expert_buffer(first, dtype=dtype, group_width=width,
                                           packed_only=options.backend == "fused_nf4")
         if plan.weight_bytes > options.weight_budget_bytes:
             raise ValueError("expert weight arena exceeds weight_budget_bytes before allocation")
         if str(device).startswith("cuda"):
-            _math_policy(stack)
+            if use_gemm:
+                _math_policy(stack)
             required = ((options.weight_budget_bytes if options.backend == "fused_nf4"
                          else plan.weight_bytes) + options.activation_budget_bytes
-                        + options.call_budget_bytes + 4 * 2**20)
+                        + (options.call_budget_bytes + 4 * 2**20 if use_gemm else 0))
             if required > torch.cuda.mem_get_info(device)[0]:
                 raise ValueError("expert arena/activation/workspace budgets exceed available VRAM")
         pool = GroupedExpertPool(
@@ -215,7 +291,7 @@ def install_expert_training(model, shard_dir, index, options, *, device, dtype, 
         )
         stack.callback(pool.close)
         gemm = None
-        if str(device).startswith("cuda") and options.backend != "sequential":
+        if use_gemm:
             from soup_cli.utils.expert_group_gemm import GroupedGemm
 
             with torch.cuda.device(device):
@@ -252,6 +328,8 @@ def install_expert_training(model, shard_dir, index, options, *, device, dtype, 
             "expert_backend": options.backend, "expert_group_width": width,
             "expert_source": "disk-buffered",
             "expert_compute_backend": ("packed-hybrid-wmma" if options.backend == "fused_nf4"
+                                       else "grouped-restore-eager"
+                                       if options.backend == "grouped" and gemm is None
                                        else "native-eager" if gemm is None else "cublas-hybrid"),
             "expert_disk_bytes": sum(reader._size for reader in readers.values()),
             "expert_weight_bytes": plan.weight_bytes,

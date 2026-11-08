@@ -3953,6 +3953,9 @@ def build_streamed_model(
                 model, shard_dir, index, expert_options, device=device, dtype=dtype,
                 codes=extras.codes,
             )
+            from soup_cli.utils.expert_training import initialize_deepseek_rotary
+
+            initialize_deepseek_rotary(model, device=device)
         runtime = install_streaming(
             model,
             shard_dir=shard_dir,

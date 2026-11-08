@@ -1119,7 +1119,7 @@ class EvalGateConfig(BaseModel):
 
 
 class ExpertStreamConfig(BaseModel):
-    """Explicit, bounded OLMoE expert runtime; disabled unless configured."""
+    """Explicit, bounded streamed-expert runtime; disabled unless configured."""
 
     model_config = ConfigDict(extra="forbid")
     backend: Literal["sequential", "grouped", "triton", "fused_nf4"] = "grouped"

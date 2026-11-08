@@ -962,7 +962,8 @@ class StreamingSetupMixin:
             from soup_cli.utils.expert_training import expert_training_reservations
 
             expert_reservations = expert_training_reservations(
-                shard_dir, index, expert_options, dtype=dtype,
+                shard_dir, index, expert_options, dtype=dtype, architecture=arch,
+                device=str(self.device),
             )
         large_store_bytes = large_layer_store_bytes(shard_dir, index)
         large_buffer_bytes = large_layer_buffer_bytes(shard_dir, index)

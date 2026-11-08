@@ -1,0 +1,51 @@
+{
+  "kind": "targeted B14 grouped-GEMM diagnostic; not a speed claim",
+  "date": "2026-11-09",
+  "base_commit": "1b4547d40e26fcc6d68785fac53b11bda6a9ab6d",
+  "source_tree": "D3 worktree including uncommitted changes; copied runtime/harness SHA-256 values verified against local files",
+  "device": {
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "vram_bytes": 25296044032,
+    "compute_capability": [8, 6],
+    "driver": "580.95.05",
+    "cuda_runtime": "13.0"
+  },
+  "software": {
+    "python": "3.10.12",
+    "torch": "2.11.0+cu130",
+    "transformers": "5.19.0"
+  },
+  "geometry": {
+    "hidden": 2048,
+    "intermediate": 1408,
+    "experts": 8,
+    "dtype": "bfloat16",
+    "top_k": 1,
+    "group_width": 4,
+    "per_expert_rows": [32, 64],
+    "projection_shapes_inner_columns": [[2048, 2816], [1408, 2048]]
+  },
+  "arms": ["sequential", "grouped_restore", "grouped_gemm"],
+  "seed": 5,
+  "interleaved_timing_samples_per_arm_bucket": 20,
+  "blas_policy": {
+    "preferred_blas_library": "Cublaslt",
+    "allow_bf16_reduced_precision_reduction": false,
+    "allow_bf16_reduced_precision_reduction_split_k": false
+  },
+  "validation": "Compare output, hidden gradient, and route-weight gradient against resident-layer reference; report exact equality and max absolute difference. No tolerance configured.",
+  "harness_sha256": "0d4e30d367e9ac5b2221579f5fce9064a2845b298c3c4402aaa5375156f27a54",
+  "source_sha256": {
+    "src/soup_cli/__init__.py": "f2e2c4e701eb2ab55fa10ba8cafe8cd927585c8c8ce7d2079bd39ff096db6e48",
+    "src/soup_cli/utils/expert_group_compute.py": "ad8381fcc46591aa8e3c6951f4ec52d81ab12e8451063d6443ec08fbc410d8a8",
+    "src/soup_cli/utils/expert_stream.py": "ca6c63f37b6eb8b8f424003c16a0c2a6ce70d26a840a6f75583cb5c1ef274140",
+    "src/soup_cli/utils/expert_group.py": "e3c0f8e05bc6fd842da63abfe097937f7128b469004fd56c3b75b7ca4e387180",
+    "src/soup_cli/utils/expert_group_autograd.py": "99de6cacf753b2e3c379fe854615e692f7d8c0676aaf46126dc6ba5f8f8d11cf",
+    "src/soup_cli/utils/expert_group_gemm.py": "982c3e439ef40949fa397882bac8a675c0f2d31c0c4e6d1603e608e3ef3a2340",
+    "src/soup_cli/utils/expert_shard.py": "32edf36de6f0df6cf6a96eb81b9ea2c9208c5de33b9a70399fadcf1021860a71",
+    "src/soup_cli/utils/layer_shard.py": "b88ee271560f8b2f1f3832f40f8ac31b291c82d4f0197aaaf55a07229d4bd683",
+    "src/soup_cli/utils/layer_stream_runtime.py": "d44fdf9a700ea029619a471852270c982f3faebb51a2856c105ab0bc293ae4ed"
+  },
+  "result_file": "result.json",
+  "result_sha256": "e32589545ba6f5811fbe4bf4578a93e8a22429114dc541329b99576454e637ec"
+}

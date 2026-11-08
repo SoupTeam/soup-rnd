@@ -135,6 +135,17 @@ rows 129–480 use grouped GEMM. These are explicit profile boundaries, not a
 general exactness guarantee for arbitrary GPUs/shapes. `backend: sequential`
 uses width one and native GEMMs for the reference path.
 
+For the bounded academic-ds-9B DeepSeek-V3 recipe, `backend: grouped` groups
+expert restoration but retains native per-expert GEMMs. The cuBLAS grouped-GEMM
+path is deliberately not enabled for its `(2048, 2816)` and `(1408, 2048)`
+projections: the B14 row check found output and route-weight-gradient differences
+at 32/64 routed rows and no end-to-end median improvement. Enable that path only
+after its numerical contract is agreed and validated. DeepSeek grouped-restore
+does not require `cublas_library` or reserve grouped-GEMM workspace.
+The post-fallback full-model smoke compares grouped restore with sequential for
+NF4 and nested NF4; both one-step losses and updated adapter hashes match exactly
+([record](../benchmarks/results/d3-academic-deepseek-support-20261109/post-fallback/report.md)).
+
 The runtime owns the process BLAS policy until close. Both BF16 reduction flags
 are set/restored through the tuple setter; the split-K attribute is read-only.
 The regression exercises the real torch setters without initializing CUDA.

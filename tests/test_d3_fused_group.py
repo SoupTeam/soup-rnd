@@ -243,11 +243,24 @@ def test_preflight_reserves_packed_allocator_ceiling(tmp_path, monkeypatch):
                                 expert_quant_specs=reader.quant_specs, dtype=reader.dtype)
         options = ExpertStreamConfig(backend="fused_nf4", native_rows_from=None)
         charge = expert_training.expert_training_reservations(
-            str(tmp_path), index, options, dtype="bfloat16")
+            str(tmp_path), index, options, dtype="bfloat16", architecture="olmoe",
+            device="cuda")
         assert charge["device_bytes"] == (
             options.weight_budget_bytes + options.activation_budget_bytes
             + options.call_budget_bytes + 4 * 2**20)
         assert charge["host_bytes"] > reader.max_span
+
+        grouped = ExpertStreamConfig(backend="grouped", weight_budget_bytes=128 * 2**20,
+                                     activation_budget_bytes=16 * 2**20,
+                                     call_budget_bytes=32 * 2**20)
+        olmoe = expert_training.expert_training_reservations(
+            str(tmp_path), index, grouped, dtype="bfloat16", architecture="olmoe",
+            device="cuda")
+        deepseek = expert_training.expert_training_reservations(
+            str(tmp_path), index, grouped, dtype="bfloat16", architecture="deepseek_v3",
+            device="cuda")
+        assert olmoe["device_bytes"] - deepseek["device_bytes"] == (
+            grouped.call_budget_bytes + 4 * 2**20)
     finally:
         old_pool.close()
         baseline.close()
