@@ -8,6 +8,11 @@ tests. It makes the same calls as ``b6_real_moe.py`` (``shard_checkpoint`` with 
 ``b5_acceptance`` can read it. ``soup train`` is not run: it writes no journal for the judge and
 keeps no gradients.
 
+With ``--store`` the cache is a synthetic store written by ``b5_synth_store.py`` (ticket 05):
+the sharding step is skipped, ``build_streamed_model`` reads the store as it reads a real cache,
+the batches are random token ids, and the journal is signed ``synthetic`` with the store's own
+generator string. A folder without the store's ``SYNTHETIC.json`` marker is refused.
+
 One journal, ``<output>/journal.jsonl``. Besides the recorder's rows it has ``environment``,
 ``phase_end`` (peak RSS, disk, seconds), ``training_clock`` (GPU clock samples during the steps),
 ``runtime`` and ``complete``. An existing output folder is refused.
@@ -39,9 +44,10 @@ from typing import Any, Dict, List, Optional
 from rich.console import Console
 
 try:
-    from benchmarks.harness import b5_recorder
+    from benchmarks.harness import b5_recorder, b5_synth_store
 except ImportError:  # run as a script from benchmarks/harness
     import b5_recorder  # type: ignore[no-redef]
+    import b5_synth_store  # type: ignore[no-redef]
 
 console = Console()
 
@@ -137,6 +143,33 @@ def _text_batches(args: argparse.Namespace, max_length: int, device: str) -> Lis
     return batches
 
 
+def _random_batches(vocab_size: int, steps: int, max_length: int) -> List[Dict[str, Any]]:
+    """One batch per step of random token ids: a synthetic store has no tokenizer or text."""
+    import torch
+
+    batches = []
+    for step in range(steps):
+        generator = torch.Generator().manual_seed(SEED + step)
+        ids = torch.randint(0, vocab_size, (1, max_length), generator=generator)
+        batches.append({"input_ids": ids, "labels": ids.clone()})
+    return batches
+
+
+def _open_store(store: Path, *, dtype: str, quant: str) -> Any:
+    """The marker and the index of a synthetic store, or a ValueError naming what is wrong."""
+    from soup_cli.utils.layer_shard import read_shard_index
+
+    marker = b5_synth_store.read_marker(store)
+    index = read_shard_index(str(store))
+    if index.dtype != dtype:
+        raise ValueError(f"the store holds dtype {index.dtype}, this run needs {dtype}")
+    if index.quant != quant:
+        raise ValueError(f"the store is quant {index.quant!r}, the config asks for {quant!r}")
+    if index.expert_layout != "per_expert":
+        raise ValueError("the store is not a per_expert cache")
+    return marker, index
+
+
 def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = None) -> None:
     """Prepare the cache, train ``args.steps`` steps, save, reload; write the journal."""
     os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
@@ -160,7 +193,14 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
     if tcfg.stream_expert_layout != "per_expert":
         raise ValueError("the config must set stream_expert_layout: per_expert")
     quant = "nf4" if tcfg.quantization == "4bit" else "none"
-    source, cache, output = Path(args.source), Path(args.cache), Path(args.output)
+    store = Path(args.store) if getattr(args, "store", None) else None
+    if store is not None:
+        source = cache = store
+        if args.kind != "synthetic":
+            raise ValueError("a synthetic store can only be run with --kind synthetic")
+    else:
+        source, cache = Path(args.source), Path(args.cache)
+    output = Path(args.output)
     source_config = json.loads((source / "config.json").read_text(encoding="utf-8"))
     if source_config.get("model_type") != "deepseek_v3":
         raise ValueError("this harness accepts a deepseek_v3 checkpoint only")
@@ -176,6 +216,7 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
     else:
         dtype, props = "float32", None
     tier = args.tier or tcfg.stream_source
+    marker, prebuilt = _open_store(store, dtype=dtype, quant=quant) if store else (None, None)
     free_before = shutil.disk_usage(cache.parent if cache.parent.exists() else Path(".")).free
     output.mkdir(parents=True, exist_ok=False)
     recorder = b5_recorder.AdapterRecorder(output / "journal.jsonl")
@@ -185,7 +226,10 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
         recorder.event(name, **values)
         console.print({"event": name, **{k: v for k, v in values.items() if k != "argv"}})
 
-    if args.kind == "real":
+    if store is not None:
+        recorder.signature("synthetic", args.model or f"synthetic MoE store {store.name}",
+                           generator=marker["generator"])
+    elif args.kind == "real":
         recorder.signature("real", args.model, revision=args.revision)
     else:
         recorder.signature("synthetic", args.model, generator=args.generator)
@@ -206,13 +250,15 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
                   ("torch", "transformers", "peft", "bitsandbytes", "tiktoken", "safetensors",
                    "accelerate", "soup-cli")},
         cuda=torch.version.cuda, host_ram_bytes=_host_ram(), disk_free_bytes=free_before,
-        source_bytes=_folder_bytes(source),
+        source_bytes=_folder_bytes(source), store=store.name if store else None,
     )
 
     # ---- preparation: the new per-expert cache ------------------------------------------
     started = time.perf_counter()
     _reset_peak_rss()
-    if quant == "nf4":
+    if store is not None:
+        index = prebuilt  # nothing to shard: the store is the cache
+    elif quant == "nf4":
         with _meta_construction():
             skeleton = build_meta_skeleton(str(source), dtype=dtype, quant="nf4",
                                            double_quant=False)
@@ -232,7 +278,8 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
                                  expert_layout="per_expert")
     event("phase_end", phase="preparation", seconds=time.perf_counter() - started,
           peak_rss_bytes=_peak_rss(), cache_bytes=_folder_bytes(cache),
-          disk_free_bytes=shutil.disk_usage(cache).free, source_parameters=index.total_params)
+          disk_free_bytes=shutil.disk_usage(cache).free, source_parameters=index.total_params,
+          prebuilt_store=store is not None)
 
     def build() -> Any:
         with _meta_construction():
@@ -242,7 +289,8 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
                 double_quant=False, tier=tier, read_ahead=1)
 
     if batches is None:
-        batches = _text_batches(args, max_length, device)
+        batches = (_random_batches(source_config["vocab_size"], args.steps, max_length)
+                   if store is not None else _text_batches(args, max_length, device))
     batches = [{key: value.to(device) for key, value in batch.items()} for batch in batches]
     if len(batches) < args.steps:
         raise ValueError(f"{len(batches)} batches for {args.steps} steps")
@@ -342,8 +390,11 @@ def _json_safe(value: Any) -> Any:
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("config", "source", "cache", "output", "model"):
+    for name in ("config", "output"):
         parser.add_argument("--" + name, required=True)
+    for name in ("source", "cache", "model"):
+        parser.add_argument("--" + name)
+    parser.add_argument("--store", help="a synthetic store from b5_synth_store.py")
     parser.add_argument("--data")
     parser.add_argument("--kind", choices=("real", "synthetic"), default="real")
     parser.add_argument("--revision")
@@ -353,12 +404,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--tier", choices=("ram", "disk"))
     parser.add_argument("--shard-threads", type=int, default=8)
     args = parser.parse_args(argv)
-    if args.kind == "real" and not args.revision:
-        parser.error("--kind real needs --revision")
-    if args.kind == "synthetic" and not args.generator:
-        parser.error("--kind synthetic needs --generator")
-    if not args.data:
-        parser.error("--data is required for a text run")
+    if args.store:
+        args.kind = "synthetic"
+    else:
+        missing = [name for name in ("source", "cache", "model") if not getattr(args, name)]
+        if missing:
+            parser.error("need " + ", ".join("--" + name for name in missing) + " (or --store)")
+        if args.kind == "real" and not args.revision:
+            parser.error("--kind real needs --revision")
+        if args.kind == "synthetic" and not args.generator:
+            parser.error("--kind synthetic needs --generator")
+        if not args.data:
+            parser.error("--data is required for a text run")
     run(args)
     return 0
 
