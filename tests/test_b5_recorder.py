@@ -125,3 +125,23 @@ def test_the_recorder_writes_no_nan_and_never_overwrites_a_journal(tmp_path: Pat
     with pytest.raises(FileExistsError):
         b5_recorder.AdapterRecorder(journal)
     assert all(json.loads(line) for line in journal.read_text().splitlines())
+
+
+def test_a_nan_gradient_leaves_an_abort_row_and_the_judge_names_it(tmp_path: Path) -> None:
+    import torch
+
+    journal = tmp_path / "events.jsonl"
+    recorder = b5_recorder.AdapterRecorder(journal)
+    recorder.signature("synthetic", "toy", generator="test")
+    params = {"w": torch.nn.Parameter(torch.ones(3))}
+    recorder.start(params)
+    params["w"].grad = torch.tensor([1.0, float("nan"), 1.0])
+    recorder.gradients(params)
+
+    with pytest.raises(FloatingPointError):
+        recorder.step(0, 1.0, params)
+
+    rows = b5_judge.read_journal(journal)
+    assert [row["event"] for row in rows][-1] == "abort"
+    result = b5_judge.judge([rows])
+    assert any(failure.startswith("aborted:") for failure in result["failures"]), result

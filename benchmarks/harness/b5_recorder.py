@@ -19,8 +19,9 @@ Call order in a training loop::
     ...load the adapter into a fresh model...
     recorder.reload(adapter_params(fresh_model))
 
-The journal is written with ``allow_nan=False``: a NaN or inf stops the run at that record
-with a ``ValueError``. An existing journal is never overwritten.
+The journal is written with ``allow_nan=False``. A NaN or inf in a step writes an ``abort``
+event that names the cause, then raises ``FloatingPointError``; the judge fails a journal with
+an ``abort`` event. An existing journal is never overwritten.
 
 Benchmark harness code, not shipped. torch is imported inside the functions that need it.
 """
@@ -60,6 +61,7 @@ class AdapterRecorder:
         self._initial: Optional[Dict[str, Any]] = None
         self._initial_digest: Optional[str] = None
         self._pending: Optional[Dict[str, Any]] = None
+        self._before: Optional[str] = None
 
     def event(self, name: str, /, **values: Any) -> None:
         row = {"event": name, "unix": time.time(), **values}
@@ -110,9 +112,20 @@ class AdapterRecorder:
         for name, param in params.items():
             delta = param.detach().float().cpu() - self._initial[name]
             squares += torch.sum(delta * delta)
+        distance = float(squares.sqrt())
+        numbers = {"loss": loss, "gradient_norm": self._pending["gradient_norm"],
+                   "distance_from_initial": distance}
+        bad = [name for name, value in numbers.items() if not math.isfinite(value)]
+        if bad or self._pending["gradient_nonfinite_tensors"]:
+            # Keep the cause: allow_nan=False would otherwise stop the run with no row.
+            reason = (f"non-finite {', '.join(bad) or 'gradient tensors'} at step {step}; "
+                      f"{self._pending['gradient_nonfinite_tensors']} gradient tensors "
+                      "hold NaN or inf")
+            self.event("abort", step=step, reason=reason)
+            raise FloatingPointError(reason)
         self.event("step", step=step, loss=loss, **self._pending,
                    adapter_sha256_before=self._before, adapter_sha256_after=after,
-                   distance_from_initial=float(squares.sqrt()), **extra)
+                   distance_from_initial=distance, **extra)
         self._before = after
         self._pending = None
 

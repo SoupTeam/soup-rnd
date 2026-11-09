@@ -152,6 +152,13 @@ def _check_update(initial: Mapping[str, Any], steps: Sequence[Mapping[str, Any]]
         out.add("no_initial", "adapter_initial has no valid sha256 and l2_norm")
         return
     start = initial["sha256"]
+    tensors = _number(initial, "tensors")
+    elements = _number(initial, "elements")
+    if tensors is None or elements is None or elements <= 0:
+        out.add("initial_mismatch", "adapter_initial has no numeric tensors and elements")
+    elif steps and tensors != _number(steps[0], "trainable_tensors"):
+        out.add("initial_mismatch", f"adapter_initial records {tensors:g} tensors, step 0 "
+                f"trains {steps[0].get('trainable_tensors')}")
     if steps and steps[0].get("adapter_sha256_before") != start:
         out.add("digest_chain", "step 0 starts from an adapter that is not the recorded initial")
     for previous, row in zip(steps, steps[1:]):
@@ -159,6 +166,8 @@ def _check_update(initial: Mapping[str, Any], steps: Sequence[Mapping[str, Any]]
             out.add("digest_chain", f"step {row.get('step')} does not start where "
                     f"step {previous.get('step')} ended")
     for row in steps:
+        if row.get("adapter_sha256_after") == row.get("adapter_sha256_before"):
+            out.add("no_update", f"step {row.get('step')} left the adapter unchanged")
         distance = _number(row, "distance_from_initial")
         if distance is None or not _is_digest(row.get("adapter_sha256_after")):
             out.add("malformed", f"step {row.get('step')} has no distance_from_initial "
@@ -182,8 +191,11 @@ def _check_reload(journal: Sequence[Mapping[str, Any]], steps: Sequence[Mapping[
     reloads = [row for row in journal if row.get("event") == "reload"]
     if not reloads:
         out.add("reload", "no reload event: the saved adapter was not read back")
-    elif steps and reloads[-1].get("parameter_sha256") != steps[-1].get("adapter_sha256_after"):
-        out.add("reload", "the adapter read back after saving differs from the trained one")
+    for row in reloads:
+        if steps and row.get("parameter_sha256") != steps[-1].get("adapter_sha256_after"):
+            out.add("reload", "the adapter read back after saving differs from the trained one")
+        if row.get("equal", True) is not True:
+            out.add("reload", "the reloaded model's logits differ from the trained model's")
 
 
 def _judge_one(journal: Sequence[Mapping[str, Any]], prefix: str) -> Dict[str, Any]:
@@ -191,6 +203,8 @@ def _judge_one(journal: Sequence[Mapping[str, Any]], prefix: str) -> Dict[str, A
     for row in journal:
         if row.get("event") == _UNPARSABLE:
             out.add("unparsable", f"line {row.get('line')} is not a JSON object")
+        if row.get("event") == "abort":
+            out.add("aborted", f"the recorder stopped the run: {row.get('reason')}")
         for key in _nonfinite_fields(row):
             out.add("nonfinite", f"event {row.get('event')} step {row.get('step')}: "
                     f"{key} is {row[key]}")
@@ -199,11 +213,16 @@ def _judge_one(journal: Sequence[Mapping[str, Any]], prefix: str) -> Dict[str, A
     if len(steps) < MIN_STEPS:
         out.add("too_few_steps", f"{len(steps)} steps recorded, at least {MIN_STEPS} are required")
     _check_gradients(steps, out)
+    if [row.get("step") for row in steps] != list(range(len(steps))):
+        out.add("step_order", f"step numbers {[row.get('step') for row in steps]} are not "
+                f"0..{len(steps) - 1} in order")
     initials = [row for row in journal if row.get("event") == "adapter_initial"]
     if not initials:
         out.add("no_initial", "no adapter_initial event: without the starting state "
                 "'updated' cannot be shown")
     else:
+        if len(initials) > 1:
+            out.add("initial_mismatch", f"{len(initials)} adapter_initial events, one is required")
         _check_update(initials[0], steps, out)
     _check_reload(journal, steps, out)
     return {"kind": kind, "failures": out.items, "steps": len(steps)}
@@ -333,6 +352,7 @@ def template_record(kind: str) -> Dict[str, Any]:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     from rich.console import Console
 
+    console = Console(soft_wrap=True)
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     judge_cmd = sub.add_parser("judge", help="judge the journals of one report")
@@ -345,28 +365,30 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     report_cmd.add_argument("--out", required=True)
     args = parser.parse_args(argv)
     if args.command == "template":
-        print(json.dumps(template_record(args.kind), indent=1, ensure_ascii=False))
+        console.out(json.dumps(template_record(args.kind), indent=1, ensure_ascii=False))
         return 0
     if args.command == "report":
         target = Path(args.out)
-        if target.exists():
-            print(f"{target} exists; a report is never overwritten")
-            return 2
         record = json.loads(Path(args.record).read_text(encoding="utf-8"))
         try:
             text = render_report(record)
         except ValueError as exc:
-            print(f"REFUSED: {exc}")
+            console.print(f"REFUSED: {exc}", markup=False)
             return 3
-        target.write_text(text, encoding="utf-8")
-        print(f"wrote {target}")
+        try:
+            with target.open("x", encoding="utf-8") as handle:
+                handle.write(text)
+        except FileExistsError:
+            console.print(f"{target} exists; a report is never overwritten", markup=False)
+            return 2
+        console.print(f"wrote {target}", markup=False)
         return 0
     result = judge([read_journal(path) for path in args.journal])
     if args.output:
         Path(args.output).write_text(json.dumps(result, indent=1, allow_nan=False) + "\n",
                                      encoding="utf-8")
-    console = Console()
-    console.print("PASS" if result["passed"] else "FAIL", result.get("kind") or "")
+    console.print("PASS" if result["passed"] else "FAIL", result.get("kind") or "",
+                  markup=False)
     for failure in result["failures"]:
         console.print(f"  {failure}", markup=False)
     return 0 if result["passed"] else 1

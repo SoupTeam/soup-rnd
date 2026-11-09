@@ -166,6 +166,46 @@ def _two_signatures_one_journal(journal: List[Dict[str, Any]]) -> List[Dict[str,
     return journal
 
 
+def _stalled_middle_step(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Three steps; the optimizer did nothing on the middle one, first and last still move."""
+    first, last = _steps(journal)
+    middle = dict(first, step=1, adapter_sha256_before=HEX_B, adapter_sha256_after=HEX_B,
+                  distance_from_initial=first["distance_from_initial"])
+    last.update(step=2)
+    journal.insert(journal.index(last), middle)
+    return journal
+
+
+def _duplicate_step_index(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    _steps(journal)[1]["step"] = 0
+    return journal
+
+
+def _initial_tensor_count_differs(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    journal[1]["tensors"] = 99
+    return journal
+
+
+def _two_initial_records(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    journal.insert(2, dict(journal[1], sha256=HEX_C))
+    return journal
+
+
+def _early_bad_reload(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    journal.insert(-2, {"event": "reload", "parameter_sha256": HEX_A})
+    return journal
+
+
+def _reload_logits_differ(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    journal[-2]["equal"] = False
+    return journal
+
+
+def _abort_event(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    journal.insert(-2, {"event": "abort", "reason": "non-finite gradient_norm at step 2"})
+    return journal
+
+
 @pytest.mark.parametrize(("mutate", "code"), [
     pytest.param(_zero_all, "zero_gradient", id="zero-gradients-on-all-steps"),
     pytest.param(_zero_one, "zero_gradient", id="zero-gradient-on-one-step"),
@@ -188,6 +228,13 @@ def _two_signatures_one_journal(journal: List[Dict[str, Any]]) -> List[Dict[str,
     pytest.param(_real_without_revision, "signature", id="real-without-revision"),
     pytest.param(_two_signatures_one_journal, "mixed_signatures",
                  id="two-kinds-in-one-journal"),
+    pytest.param(_stalled_middle_step, "no_update", id="middle-step-did-not-move-the-adapter"),
+    pytest.param(_duplicate_step_index, "step_order", id="duplicate-step-index"),
+    pytest.param(_initial_tensor_count_differs, "initial_mismatch", id="initial-tensor-count"),
+    pytest.param(_two_initial_records, "initial_mismatch", id="two-initial-records"),
+    pytest.param(_early_bad_reload, "reload", id="earlier-reload-differs"),
+    pytest.param(_reload_logits_differ, "reload", id="reload-logits-differ"),
+    pytest.param(_abort_event, "aborted", id="run-aborted-by-the-recorder"),
 ])
 def test_a_defective_journal_fails_with_its_reason(mutate: Any, code: str) -> None:
     result = b5_judge.judge([mutate(copy.deepcopy(good_journal()))])
@@ -375,3 +422,9 @@ def test_the_report_command_refuses_the_empty_template_and_never_overwrites(
     record.write_text(json.dumps(report_record()), encoding="utf-8")
     assert b5_judge.main(["report", "--record", str(record), "--out", str(out)]) == 0
     assert b5_judge.main(["report", "--record", str(record), "--out", str(out)]) == 2
+
+
+def test_the_template_command_prints_json_that_loads_back(capsys: Any) -> None:
+    assert b5_judge.main(["template", "--kind", "synthetic"]) == 0
+
+    assert json.loads(capsys.readouterr().out)["kind"] == "synthetic"
