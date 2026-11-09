@@ -10,6 +10,8 @@ from __future__ import annotations
 import copy
 from typing import Any, Dict, List
 
+import pytest
+
 from benchmarks.harness import b5_cold_acceptance
 
 GIB = 2**30
@@ -360,7 +362,7 @@ def test_the_committed_run_journals_pass_the_committed_rule() -> None:
     root = Path(__file__).resolve().parent.parent / (
         "benchmarks/evidence/b5-synthetic671b-20261109/attempt3/host/results")
     if not root.is_dir():
-        return
+        pytest.skip("the run evidence is not in this checkout")
     record = json.loads((root / "store/store-record.json").read_text(encoding="utf-8"))
     cold = b5_judge.read_journal(root / "cold1/run/journal.jsonl")
     warm = b5_judge.read_journal(root / "warm1/run/journal.jsonl")
@@ -379,3 +381,17 @@ def test_the_report_is_signed_synthetic_on_every_heading_and_table() -> None:
 
     assert labelled and all(line.rstrip("* ").endswith("синтетические веса") for line in labelled)
     assert text.index("## Размер формы") < text.index("## Запуск и окружение")
+
+
+def test_a_derived_free_space_passes_but_is_named_in_the_warnings() -> None:
+    record = good_store_record()
+    record["free_before_derived"] = True
+
+    result = b5_cold_acceptance.verdict(good_journal(), record)
+
+    assert result["passed"] is True
+    assert len(result["warnings"]) == 1 and "derived" in result["warnings"][0]
+
+
+def test_a_measured_free_space_has_no_warning() -> None:
+    assert b5_cold_acceptance.verdict(good_journal(), good_store_record())["warnings"] == []

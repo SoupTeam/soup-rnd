@@ -477,6 +477,8 @@ def _file_is_complete(path: Path, entries: Sequence[_Entry]) -> bool:
     try:
         with open(path, "rb") as handle:
             length = int.from_bytes(handle.read(8), "little")
+            if length > path.stat().st_size - 8:  # a corrupt prefix: do not read it
+                return False
             header = json.loads(handle.read(length).decode("utf-8"))
         header.pop("__metadata__", None)
         if set(header) != {entry.name for entry in entries}:
@@ -491,7 +493,7 @@ def _file_is_complete(path: Path, entries: Sequence[_Entry]) -> bool:
                 return False
             end = max(end, stop)
         return path.stat().st_size == 8 + length + end
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError, OverflowError, MemoryError):
         return False
 
 
@@ -500,7 +502,11 @@ def _complete_files(out: Path, files: Dict[str, List[_Entry]], generator: str) -
     marker = out / MARKER_NAME
     if not out.is_dir() or not marker.is_file():
         raise StoreRefusedError(f"cannot resume: {out} has no {MARKER_NAME} marker")
-    written_by = json.loads(marker.read_text(encoding="utf-8")).get("generator")
+    try:
+        written_by = json.loads(marker.read_text(encoding="utf-8")).get("generator")
+    except (OSError, ValueError, AttributeError) as error:
+        raise StoreRefusedError(f"cannot resume: the {MARKER_NAME} marker of {out} is not "
+                                f"readable ({error})") from error
     if written_by != generator:
         raise StoreRefusedError(
             f"cannot resume: the folder was written with another seed, shape or dtype "
@@ -596,6 +602,8 @@ def write_store(
     plan = plan_store(shape, dtype=dtype, double_quant=double_quant, seed=seed)
     complete: set = set()
     if resume:
+        for stale in out.glob(".soup.*.tmp"):  # a kill during an atomic write leaves one
+            stale.unlink(missing_ok=True)
         complete = _complete_files(out, _files(shape, dtype, double_quant),
                                    describe(shape, seed, dtype, double_quant))
         plan = dataclasses.replace(plan, skipped_files=len(complete))
@@ -635,7 +643,8 @@ def write_store(
         written.append(out / "index.json")
         _atomic_write_index(_build_index(shape, seed, dtype, double_quant), str(out))
     except BaseException:
-        for path in written:
+        # A resumed folder keeps every file written so far (each one is whole: atomic write).
+        for path in ([] if resume else written):
             path.unlink(missing_ok=True)
         for stale in out.glob(".soup.*.tmp"):
             stale.unlink(missing_ok=True)
@@ -713,7 +722,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "planned_bytes": plan.total_bytes, "required_free_bytes": plan.required_free_bytes(),
         "free_before_bytes": free_before, "free_assumed": args.assume_free_bytes is not None,
         "free_now_bytes": free_now, "existing_bytes": existing, "resumed": args.resume,
-        "free_before_derived": args.resume,
+        "free_before_derived": args.resume and existing > 0,
         "parameters": plan.parameters,
         "largest_file_bytes": plan.largest_file_bytes,
     }

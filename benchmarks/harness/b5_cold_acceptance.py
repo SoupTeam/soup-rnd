@@ -122,6 +122,15 @@ def _check_steps(journal: Sequence[Mapping[str, Any]], card: float,
                                 f"{card:g}")
 
 
+def _store_warnings(record: Optional[Mapping[str, Any]]) -> List[str]:
+    """What the verdict accepts but the report must say."""
+    if record and record.get("free_before_derived"):
+        return ["store record: free_before_bytes was derived after a resume (free space now "
+                "plus the bytes the first segment wrote), not measured before the write; the "
+                "df taken before the first segment is the measurement"]
+    return []
+
+
 def _check_store(record: Optional[Mapping[str, Any]], failures: List[str]) -> None:
     if not record:
         failures.append("store_record: no record of the store write was given")
@@ -250,7 +259,8 @@ def verdict(journal: Sequence[Mapping[str, Any]], store_record: Optional[Mapping
     if not _events(journal, "complete"):
         failures.append("incomplete: no complete event, the run did not reach the end")
     return {"passed": not failures, "failures": failures, "judge": judged,
-            "mode": "warm" if warm else "cold", "measured": _measured(journal)}
+            "mode": "warm" if warm else "cold", "warnings": _store_warnings(store_record),
+            "measured": _measured(journal)}
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

@@ -592,3 +592,85 @@ def test_the_resume_flag_records_what_was_skipped_and_the_free_space_it_derives(
     # The free space before the first segment: what is free now plus what that segment wrote.
     assert data["free_before_bytes"] == data["free_now_bytes"] + data["existing_bytes"]
     assert data["free_before_derived"] is True
+
+
+def test_a_failed_resume_keeps_the_files_it_wrote_itself_too(tmp_path: Path) -> None:
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=SEED)
+    kept = _killed_halfway(out, 4)
+
+    def stop(name: str, done: int, total: int) -> None:
+        if done == 6:
+            raise RuntimeError("stopped")
+
+    with pytest.raises(RuntimeError):
+        synth.write_store(out, synth.SMALL, seed=SEED, resume=True, on_file=stop)
+
+    present = {item.name for item in out.glob("*.safetensors")}
+    assert set(kept) < present  # the four found, and what this call wrote before the stop
+    assert not (out / "index.json").exists()
+    assert not list(out.glob(".soup.*.tmp"))
+
+
+def test_a_resume_removes_a_temporary_file_a_kill_left_behind(tmp_path: Path) -> None:
+    fresh = tmp_path / "synthetic-fresh"
+    synth.write_store(fresh, synth.SMALL, seed=SEED)
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=SEED)
+    _killed_halfway(out, 4)
+    (out / ".soup.layer_099.tmp").write_bytes(b"x" * 1000)
+
+    synth.write_store(out, synth.SMALL, seed=SEED, resume=True)
+
+    assert not list(out.glob(".soup.*.tmp"))
+    assert synth.store_bytes(out) == synth.store_bytes(fresh)
+
+
+def test_a_corrupt_header_makes_a_file_incomplete_instead_of_crashing(tmp_path: Path) -> None:
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=SEED)
+    victim = out / "layer_000.safetensors"
+    victim.write_bytes((2**62).to_bytes(8, "little") + b"{}")
+    (out / "index.json").unlink()
+
+    plan = synth.write_store(out, synth.SMALL, seed=SEED, resume=True)
+
+    assert plan.skipped_files == len(plan.files) - 1
+    assert (out / "index.json").is_file()
+
+
+def test_a_truncated_marker_is_refused_not_a_crash(tmp_path: Path) -> None:
+    out = tmp_path / "synthetic-resumed"
+    out.mkdir()
+    (out / synth.MARKER_NAME).write_text('{"signature": "synth')
+
+    with pytest.raises(synth.StoreRefusedError, match="marker"):
+        synth.write_store(out, synth.SMALL, seed=SEED, resume=True)
+
+
+def test_a_resume_is_refused_when_free_space_is_just_below_the_files_left(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "synthetic-resumed"
+    plan = synth.write_store(out, synth.SMALL, seed=SEED)
+    _killed_halfway(out, len(plan.files) - 1)
+    last = plan.files[sorted(plan.files)[-1]]
+    needed = int(last * synth.DISK_MARGIN) + max(plan.files.values())
+
+    with pytest.raises(synth.StoreRefusedError, match="free bytes"):
+        synth.write_store(out, synth.SMALL, seed=SEED, resume=True, free_bytes=needed - 1)
+
+
+def test_the_record_of_a_write_with_nothing_to_resume_is_not_marked_derived(
+    tmp_path: Path,
+) -> None:
+    import json
+
+    record = tmp_path / "record.json"
+    out = tmp_path / "synthetic-store"
+
+    code = synth.main(["write", "--shape", "small", "--dtype", "float32", "--seed", "3",
+                       "--out", str(out), "--record", str(record)])
+    data = json.loads(record.read_text(encoding="utf-8"))
+
+    assert code == 0 and data["free_before_derived"] is False

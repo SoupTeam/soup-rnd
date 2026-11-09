@@ -18,7 +18,7 @@ Attempt 3  vastai create instance 58836814 --image nvidia/cuda:13.0.0-devel-ubun
                 0.267 USD/h at 480 GB: GPU 0.133 + disk 0.133)
              created 14:49:52
 vastai attach ssh 59901752 "$(cat ~/.ssh/id_ed25519.pub)"
-scp -P 53071 repo.tgz remote-setup.sh remote-write.sh remote-run.sh root@198.16.206.233:/root/b5/
+scp -P 53071 repo.tgz remote-setup.sh remote-write.sh remote-run.sh root@<host-ip>:/root/b5/
 ssh -f ... 'cd /root/b5 && nohup bash -c "bash remote-setup.sh && bash remote-write.sh store" &'
   16:05  the host stopped the instance (intended_status "stopped") with 94 of 122 store files done.
          I did not stop it. The vast account is shared, so a team member cannot be excluded.
@@ -41,12 +41,12 @@ Cost, estimated (the invoice of the day was not posted when this was written):
 
 | Part | Basis | USD |
 | --- | --- | --- |
-| attempt 3, instance | 7304 s (2.03 h) x 0.2667 USD/h, less about 5 minutes of GPU while stopped | 0.53 |
-| attempt 3, traffic | `inet_down_billed` 3.33 GB x 20 USD/TB (venv packages) | 0.07 |
+| attempt 3, instance | 7304 s (2.03 h) x 0.2667 USD/h, less about 5 minutes of GPU (0.133 USD/h) while stopped, the disk is billed while stopped | 0.53 |
+| attempt 3, traffic | `inet_down_billed` 3 327 887 read as kilobytes (3.33 GB, the unit is assumed) x 20 USD/TB (venv packages) | 0.07 |
 | attempt 1 | about 6 minutes x 0.198 USD/h | 0.02 |
-| attempt 2 | about 1 minute x 0.231 USD/h | 0.01 |
-| total | | about 0.63 |
+| attempt 2 | about 1 minute x 0.231 USD/h | 0.004 |
+| total | | about 0.62 |
 
 Team credit: 118.743 USD before (14:42), 117.188 USD after (16:52). The drop of 1.556 USD
-includes the other instance on the shared account, which ran the whole time and cannot be
-separated. The ceiling the user confirmed is 3 USD.
+is about 0.94 USD more than my estimate. A possible cause is the other instance on the shared
+account, which ran the whole time; that is not verified. The ceiling the user confirmed is 3 USD.
