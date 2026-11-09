@@ -472,3 +472,123 @@ def test_the_environment_event_records_the_host_ram_limit_reading(cold_run: dict
     environment = _event(cold_run["rows"], "environment")
 
     assert set(environment["ram_limit"]) >= {"limit_bytes", "swap_max_bytes", "source"}
+
+
+# ---- resume: a write that was killed half way is finished, not started again -------------------
+def _killed_halfway(folder: Path, files_kept: int) -> list[str]:
+    """Leave only the first ``files_kept`` safetensors files, as a killed write does."""
+    names = sorted(item.name for item in folder.glob("*.safetensors"))
+    (folder / "index.json").unlink()
+    for name in names[files_kept:]:
+        (folder / name).unlink()
+    return names[:files_kept]
+
+
+def test_a_resumed_write_equals_a_fresh_write_of_the_same_seed(tmp_path: Path) -> None:
+    fresh = tmp_path / "synthetic-fresh"
+    synth.write_store(fresh, synth.SMALL, seed=SEED)
+    resumed = tmp_path / "synthetic-resumed"
+    synth.write_store(resumed, synth.SMALL, seed=SEED)
+    _killed_halfway(resumed, 4)
+
+    synth.write_store(resumed, synth.SMALL, seed=SEED, resume=True)
+
+    assert _digests(resumed) == _digests(fresh)
+
+
+def test_a_resumed_write_does_not_touch_the_files_that_are_already_complete(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=SEED)
+    kept = _killed_halfway(out, 4)
+    before = {name: (out / name).stat().st_mtime_ns for name in kept}
+
+    plan = synth.write_store(out, synth.SMALL, seed=SEED, resume=True)
+
+    assert {name: (out / name).stat().st_mtime_ns for name in kept} == before
+    assert plan.skipped_files == 4
+
+
+def test_a_resumed_write_rewrites_a_file_of_the_wrong_size(tmp_path: Path) -> None:
+    fresh = tmp_path / "synthetic-fresh"
+    synth.write_store(fresh, synth.SMALL, seed=SEED)
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=SEED)
+    kept = _killed_halfway(out, 4)
+    broken = out / kept[-1]
+    broken.write_bytes(broken.read_bytes()[:-8])
+
+    plan = synth.write_store(out, synth.SMALL, seed=SEED, resume=True)
+
+    assert _digests(out) == _digests(fresh)
+    assert plan.skipped_files == 3
+
+
+def test_a_resumed_write_refuses_a_folder_of_another_seed(tmp_path: Path) -> None:
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=SEED)
+    _killed_halfway(out, 4)
+
+    with pytest.raises(synth.StoreRefusedError, match="seed"):
+        synth.write_store(out, synth.SMALL, seed=SEED + 1, resume=True)
+
+
+def test_a_resumed_write_refuses_a_folder_that_is_not_a_synthetic_store(tmp_path: Path) -> None:
+    out = tmp_path / "synthetic-other"
+    out.mkdir()
+    (out / "something.txt").write_text("x")
+
+    with pytest.raises(synth.StoreRefusedError, match="marker"):
+        synth.write_store(out, synth.SMALL, seed=SEED, resume=True)
+
+
+def test_a_failed_resume_keeps_the_files_it_found(tmp_path: Path) -> None:
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=SEED)
+    kept = _killed_halfway(out, 4)
+
+    def stop(name: str, done: int, total: int) -> None:
+        if done > 5:
+            raise RuntimeError("stopped")
+
+    with pytest.raises(RuntimeError):
+        synth.write_store(out, synth.SMALL, seed=SEED, resume=True, on_file=stop)
+
+    assert all((out / name).is_file() for name in kept)
+    assert not (out / "index.json").exists()
+
+
+def test_a_resume_needs_free_space_only_for_the_files_still_to_write(tmp_path: Path) -> None:
+    out = tmp_path / "synthetic-resumed"
+    plan = synth.write_store(out, synth.SMALL, seed=SEED)
+    _killed_halfway(out, len(plan.files) - 1)
+    last = max(plan.files.values())
+
+    synth.write_store(out, synth.SMALL, seed=SEED, resume=True,
+                      free_bytes=int(plan.files[sorted(plan.files)[-1]] * synth.DISK_MARGIN)
+                      + last + 1)
+
+    assert (out / "index.json").is_file()
+
+
+def test_the_resume_flag_records_what_was_skipped_and_the_free_space_it_derives(
+    tmp_path: Path,
+) -> None:
+    import json
+
+    out = tmp_path / "synthetic-resumed"
+    synth.write_store(out, synth.SMALL, seed=3, dtype="float32")
+    kept = _killed_halfway(out, 4)
+    record = tmp_path / "record.json"
+
+    code = synth.main(["write", "--shape", "small", "--dtype", "float32", "--seed", "3",
+                       "--out", str(out), "--record", str(record), "--resume"])
+    data = json.loads(record.read_text(encoding="utf-8"))
+
+    assert code == 0
+    assert data["resumed"] is True and data["skipped_files"] == len(kept)
+    assert data["actual_bytes"] == synth.store_bytes(out)
+    # The free space before the first segment: what is free now plus what that segment wrote.
+    assert data["free_before_bytes"] == data["free_now_bytes"] + data["existing_bytes"]
+    assert data["free_before_derived"] is True

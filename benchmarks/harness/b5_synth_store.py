@@ -423,6 +423,8 @@ class StorePlan:
     parameters: int
     #: Host RAM the writer needs for its largest file: tensors plus the serialised copy.
     peak_ram_bytes: int
+    #: Files a resumed write found complete and left alone (0 for a fresh write).
+    skipped_files: int = 0
 
     def required_free_bytes(self) -> int:
         return int(self.total_bytes * DISK_MARGIN) + self.largest_file_bytes
@@ -463,6 +465,50 @@ def read_marker(store: Path) -> Dict[str, Any]:
 # --------------------------------------------------------------------------
 # write
 # --------------------------------------------------------------------------
+def _file_is_complete(path: Path, entries: Sequence[_Entry]) -> bool:
+    """True if ``path`` is a whole safetensors file of exactly these tensors.
+
+    The header names every tensor with its dtype, shape and byte range. The file is whole when
+    those match the entries and the file ends where the last range ends. The planned size is
+    only an estimate (the header length is estimated), so it is not compared.
+    """
+    if not path.is_file():
+        return False
+    try:
+        with open(path, "rb") as handle:
+            length = int.from_bytes(handle.read(8), "little")
+            header = json.loads(handle.read(length).decode("utf-8"))
+        header.pop("__metadata__", None)
+        if set(header) != {entry.name for entry in entries}:
+            return False
+        end = 0
+        for entry in entries:
+            info = header[entry.name]
+            start, stop = info["data_offsets"]
+            if (info["dtype"] != _SAFETENSORS_DTYPE[entry.dtype]
+                    or list(info["shape"]) != list(entry.dims)
+                    or stop - start != entry.numel * _ITEMSIZE[entry.dtype]):
+                return False
+            end = max(end, stop)
+        return path.stat().st_size == 8 + length + end
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def _complete_files(out: Path, files: Dict[str, List[_Entry]], generator: str) -> set:
+    """Names of the files of a killed write that a resume keeps (see ``write_store``)."""
+    marker = out / MARKER_NAME
+    if not out.is_dir() or not marker.is_file():
+        raise StoreRefusedError(f"cannot resume: {out} has no {MARKER_NAME} marker")
+    written_by = json.loads(marker.read_text(encoding="utf-8")).get("generator")
+    if written_by != generator:
+        raise StoreRefusedError(
+            f"cannot resume: the folder was written with another seed, shape or dtype "
+            f"(marker {written_by!r}, this call {generator!r})")
+    return {name for name, entries in files.items() if _file_is_complete(out / name, entries)}
+
+
+
 def _generator(seed: int, file_name: str, tensor: str) -> Any:
     import torch
 
@@ -525,35 +571,59 @@ def write_store(
     double_quant: bool = False,
     free_bytes: Optional[int] = None,
     on_file: Optional[Callable[[str, int, int], None]] = None,
+    resume: bool = False,
 ) -> StorePlan:
     """Write the store under ``out`` and return the plan it followed.
 
     ``free_bytes`` replaces the measured free space (tests). ``on_file(name, done, total)`` is
     called after each safetensors file.
+
+    ``resume=True`` finishes a write that was killed half way. The folder must carry the marker
+    of this very shape, seed and dtype. A safetensors file is kept when it exists under its final
+    name, its header matches its tensors and it ends where the header says. Files are written
+    atomically (a temporary name, then a rename) and every tensor is drawn from a generator
+    seeded by the seed, the file name and the tensor name, so a kept file is what a fresh write
+    would put there. Any other file is written again. Free space is checked against the files
+    still to write.
     """
     from soup_cli.utils.layer_shard import _atomic_save, _atomic_write_index
 
     out = Path(out)
     if SIGNATURE not in out.name.lower():
         raise StoreRefusedError(f"the store folder name must contain {SIGNATURE!r}: {out.name}")
-    if out.exists() and (not out.is_dir() or any(out.iterdir())):
+    if not resume and out.exists() and (not out.is_dir() or any(out.iterdir())):
         raise StoreRefusedError(f"{out} exists and is not an empty folder")
     plan = plan_store(shape, dtype=dtype, double_quant=double_quant, seed=seed)
+    complete: set = set()
+    if resume:
+        complete = _complete_files(out, _files(shape, dtype, double_quant),
+                                   describe(shape, seed, dtype, double_quant))
+        plan = dataclasses.replace(plan, skipped_files=len(complete))
+    to_write = sum(size for name, size in plan.files.items() if name not in complete)
+    required = (plan.required_free_bytes() if not resume
+                else int(to_write * DISK_MARGIN) + plan.largest_file_bytes)
     free = (shutil.disk_usage(_existing_ancestor(out)).free if free_bytes is None
             else free_bytes)
-    if free < plan.required_free_bytes():
+    if free < required:
         raise StoreRefusedError(
-            f"the {SIGNATURE} store needs {plan.required_free_bytes()} free bytes "
-            f"({plan.total_bytes} planned x {DISK_MARGIN} + the largest file "
-            f"{plan.largest_file_bytes}), {free} are free at {_existing_ancestor(out)}")
+            f"the {SIGNATURE} store needs {required} free bytes "
+            f"({to_write if resume else plan.total_bytes} to write x {DISK_MARGIN} + the "
+            f"largest file {plan.largest_file_bytes}), {free} are free at "
+            f"{_existing_ancestor(out)}")
     created = not out.exists()
     out.mkdir(parents=True, exist_ok=True)
     written: List[Path] = []
     tables = _code_tables(double_quant)
     files = _files(shape, dtype, double_quant)
     try:
-        written += _write_small_files(out, shape, seed, dtype, double_quant, with_index=False)
+        small = _write_small_files(out, shape, seed, dtype, double_quant, with_index=False)
+        if not resume:  # a resumed folder keeps its marker and config if the write fails again
+            written += small
         for done, (name, entries) in enumerate(files.items(), start=1):
+            if name in complete:
+                if on_file is not None:
+                    on_file(name, done, len(files))
+                continue
             blob = {entry.name: _draw(entry, _generator(seed, name, entry.name), tables)
                     for entry in entries}
             path = out / name
@@ -616,6 +686,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--record", type=Path,
                         help="write: a JSON record of plan, actual size, free space and time")
+    parser.add_argument("--resume", action="store_true",
+                        help="write: finish a write that was killed half way (same seed, shape "
+                             "and dtype), keeping the complete files")
     parser.add_argument("--assume-free-bytes", type=int,
                         help="write: use this instead of the measured free bytes (to record a "
                              "refusal on a small disk)")
@@ -628,21 +701,28 @@ def main(argv: Optional[List[str]] = None) -> int:
     console.print(_plan_table(plan))
     if args.command == "plan":
         return 0
-    free_before = (args.assume_free_bytes if args.assume_free_bytes is not None
-                   else shutil.disk_usage(_existing_ancestor(args.out)).free)
+    free_now = (args.assume_free_bytes if args.assume_free_bytes is not None
+                else shutil.disk_usage(_existing_ancestor(args.out)).free)
+    # A resume cannot measure the free space before the first segment: it adds back what that
+    # segment wrote. The record says so; the df taken before the first segment is the measurement.
+    existing = store_bytes(args.out) if args.resume and args.out.is_dir() else 0
+    free_before = free_now + existing
     record: Dict[str, Any] = {
         "signature": SIGNATURE, "generator": describe(shape, args.seed, args.dtype,
                                                       args.double_quant),
         "planned_bytes": plan.total_bytes, "required_free_bytes": plan.required_free_bytes(),
         "free_before_bytes": free_before, "free_assumed": args.assume_free_bytes is not None,
+        "free_now_bytes": free_now, "existing_bytes": existing, "resumed": args.resume,
+        "free_before_derived": args.resume,
         "parameters": plan.parameters,
         "largest_file_bytes": plan.largest_file_bytes,
     }
     started = time.perf_counter()
     try:
-        write_store(args.out, shape, seed=args.seed, dtype=args.dtype,
-                    double_quant=args.double_quant, free_bytes=free_before,
-                    on_file=lambda name, done, total: console.print(f"{done}/{total} {name}"))
+        written_plan = write_store(
+            args.out, shape, seed=args.seed, dtype=args.dtype, double_quant=args.double_quant,
+            free_bytes=free_now, resume=args.resume,
+            on_file=lambda name, done, total: console.print(f"{done}/{total} {name}"))
     except StoreRefusedError as error:
         console.print(f"[red]{SIGNATURE} store refused:[/] {escape(str(error))}")
         record["refused"] = True
@@ -654,7 +734,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         raise
     actual = store_bytes(args.out)
     record.update(refused=False, failed=False, seconds=time.perf_counter() - started,
-                  actual_bytes=actual)
+                  actual_bytes=actual, skipped_files=written_plan.skipped_files)
     _write_record(args.record, record)
     console.print(f"{SIGNATURE} store written to {args.out}: {actual:,} bytes")
     return 0
