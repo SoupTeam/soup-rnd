@@ -381,3 +381,94 @@ def test_the_deepseek_v3_dimensions_give_the_tensor_shapes_of_the_real_model(
         else:
             assert fused == {}
     assert tuple(model.get_input_embeddings().weight.shape) == (shape.vocab, shape.hidden)
+
+
+@pytest.fixture(scope="module")
+def cold_run(small_store: Path, tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    from benchmarks.harness import b5_judge, b5_real_moe
+
+    root = tmp_path_factory.mktemp("b5-synth-cold-run")
+    b5_real_moe.run(_run_args(root, small_store, cold=True))
+    return {"rows": b5_judge.read_journal(root / "out" / "journal.jsonl")}
+
+
+def _event(rows: list[dict[str, Any]], name: str) -> dict[str, Any]:
+    (row,) = [row for row in rows if row["event"] == name]
+    return row
+
+
+def test_a_cold_run_states_the_shape_of_the_store(
+    cold_run: dict[str, Any], small_store: Path
+) -> None:
+    shape = _event(cold_run["rows"], "shape")
+
+    assert (shape["layers"], shape["moe_layers"], shape["experts"]) == (3, 2, 8)
+    assert (shape["hidden"], shape["expert_size"]) == (64, 64)
+    assert shape["parameters"] == synth.total_params(synth.SMALL)
+    assert shape["store_bytes"] == synth.store_bytes(small_store)
+
+
+def test_a_cold_run_drops_the_cache_right_before_training_and_says_how(
+    cold_run: dict[str, Any],
+) -> None:
+    rows = cold_run["rows"]
+    drop = _event(rows, "cold_cache")
+    start = _event(rows, "training_start")
+
+    assert drop["method"] in ("drop_caches", "fadvise", "none")
+    assert drop["resident_after_bytes"] <= drop["resident_before_bytes"]
+    assert drop["store_bytes"] > 0
+    assert 0 <= start["unix"] - drop["unix"] < 600
+
+
+def test_every_step_carries_the_disk_read_counter_field(cold_run: dict[str, Any]) -> None:
+    steps = [row for row in cold_run["rows"] if row["event"] == "step"]
+
+    assert steps and all("disk_read_bytes" in row for row in steps)
+    assert all(row["disk_read_bytes"] is None or row["disk_read_bytes"] >= 0 for row in steps)
+
+
+def test_a_run_without_cold_writes_no_cache_drop(trained: dict[str, Any]) -> None:
+    assert not [row for row in trained["rows"] if row["event"] == "cold_cache"]
+
+
+def test_the_write_command_records_plan_actual_size_free_space_and_time(tmp_path: Path) -> None:
+    import json
+
+    record = tmp_path / "record.json"
+    out = tmp_path / "synthetic-store"
+
+    code = synth.main(["write", "--shape", "small", "--dtype", "float32", "--seed", "3",
+                       "--out", str(out), "--record", str(record)])
+    data = json.loads(record.read_text(encoding="utf-8"))
+
+    assert code == 0
+    assert data["planned_bytes"] == synth.plan_store(synth.SMALL, dtype="float32",
+                                                     seed=3).total_bytes
+    assert data["actual_bytes"] == synth.store_bytes(out)
+    assert data["required_free_bytes"] > data["planned_bytes"]
+    assert data["free_before_bytes"] >= data["required_free_bytes"]
+    assert data["seconds"] > 0 and data["signature"] == "synthetic"
+    assert data["generator"].startswith("b5_synth_store/1 seed=3")
+
+
+def test_a_refused_write_records_the_refusal_and_writes_nothing(tmp_path: Path) -> None:
+    import json
+
+    record = tmp_path / "record.json"
+    out = tmp_path / "synthetic-store"
+
+    code = synth.main(["write", "--shape", "small", "--dtype", "float32", "--out", str(out),
+                       "--record", str(record), "--assume-free-bytes", "1000"])
+    data = json.loads(record.read_text(encoding="utf-8"))
+
+    assert code == 3
+    assert data["refused"] is True and data["free_before_bytes"] == 1000
+    assert data["free_before_bytes"] < data["required_free_bytes"]
+    assert not out.exists()
+
+
+def test_the_environment_event_records_the_host_ram_limit_reading(cold_run: dict[str, Any]) -> None:
+    environment = _event(cold_run["rows"], "environment")
+
+    assert set(environment["ram_limit"]) >= {"limit_bytes", "swap_max_bytes", "source"}

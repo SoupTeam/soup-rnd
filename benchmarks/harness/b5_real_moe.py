@@ -8,6 +8,12 @@ tests. It makes the same calls as ``b6_real_moe.py`` (``shard_checkpoint`` with 
 ``b5_acceptance`` can read it. ``soup train`` is not run: it writes no journal for the judge and
 keeps no gradients.
 
+With ``--cold`` (a store run only) the page cache of the store is dropped right before step 0
+(after the model is built), and the ``cold_cache`` event says how and what was left
+(``b5_cold.py``). Every step row has ``disk_read_bytes``, the ``read_bytes`` counter of the
+process before and after the step, or null where the host has no counter. A ``shape`` event
+gives the store's shape and bytes.
+
 With ``--store`` the cache is a synthetic store written by ``b5_synth_store.py`` (ticket 05):
 the sharding step is skipped, ``build_streamed_model`` reads the store as it reads a real cache,
 the batches are random token ids, and the journal is signed ``synthetic`` with the store's own
@@ -44,8 +50,9 @@ from typing import Any, Dict, List, Optional
 from rich.console import Console
 
 try:
-    from benchmarks.harness import b5_recorder, b5_synth_store
+    from benchmarks.harness import b5_cold, b5_recorder, b5_synth_store
 except ImportError:  # run as a script from benchmarks/harness
+    import b5_cold  # type: ignore[no-redef]
     import b5_recorder  # type: ignore[no-redef]
     import b5_synth_store  # type: ignore[no-redef]
 
@@ -249,7 +256,8 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
         versions={name: _version(name) for name in
                   ("torch", "transformers", "peft", "bitsandbytes", "tiktoken", "safetensors",
                    "accelerate", "soup-cli")},
-        cuda=torch.version.cuda, host_ram_bytes=_host_ram(), disk_free_bytes=free_before,
+        cuda=torch.version.cuda, host_ram_bytes=_host_ram(), ram_limit=_ram_limit(),
+        disk_free_bytes=free_before,
         source_bytes=_folder_bytes(source), store=store.name if store else None,
     )
 
@@ -281,6 +289,11 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
           disk_free_bytes=shutil.disk_usage(cache).free, source_parameters=index.total_params,
           prebuilt_store=store is not None)
 
+    if store is not None:
+        event("shape", **{key: marker["shape"][key] for key in
+                          ("layers", "moe_layers", "experts", "hidden", "expert_size")},
+              parameters=index.total_params, store_bytes=b5_synth_store.store_bytes(store))
+
     def build() -> Any:
         with _meta_construction():
             return build_streamed_model(
@@ -295,6 +308,9 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
     if len(batches) < args.steps:
         raise ValueError(f"{len(batches)} batches for {args.steps} steps")
 
+    if getattr(args, "cold", False) and store is None:
+        raise ValueError("--cold needs --store: only a store of known files can be dropped")
+
     # ---- training ---------------------------------------------------------------------
     model, runtime = build()
     adapter = output / "adapter"
@@ -302,6 +318,11 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
         params = b5_recorder.adapter_params(model)
         optimizer = torch.optim.AdamW(list(params.values()), lr=tcfg.lr)
         recorder.start(params)
+        _reset_peak_rss()
+        if getattr(args, "cold", False):
+            # Last thing before step 0: the model build above may have read some files. The
+            # drop runs before the clock sampler starts, so its idle seconds are not samples.
+            event("cold_cache", **b5_cold.drop_page_cache(store))
         sampler = None
         if device == "cuda":
             try:
@@ -311,7 +332,6 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
             sampler = arm_validity.Sampler("gpu_clock", arm_validity.gpu_clock, 1.0)
             torch.cuda.reset_peak_memory_stats()
             sampler.start()
-        _reset_peak_rss()
         started = time.perf_counter()
         event("training_start")
         model.train()
@@ -320,6 +340,7 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
                 inputs = batches[step]
                 tokens = int(inputs["input_ids"].numel())  # batch of one, no padding
                 before = runtime.stats()
+                read_before = b5_cold.process_read_bytes()
                 optimizer.zero_grad(set_to_none=True)
                 if device == "cuda":
                     torch.cuda.synchronize()
@@ -333,6 +354,7 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
                     torch.cuda.synchronize()
                 seconds = time.perf_counter() - step_started
                 after = runtime.stats()
+                read_after = b5_cold.process_read_bytes()
                 recorder.step(
                     step, float(loss.detach()), params, seconds=seconds, tokens=tokens,
                     tokens_per_second=tokens / seconds,
@@ -340,6 +362,8 @@ def run(args: argparse.Namespace, *, batches: Optional[List[Dict[str, Any]]] = N
                     peak_reserved=torch.cuda.max_memory_reserved() if device == "cuda" else None,
                     expert_fetches=after["expert_fetches"] - before["expert_fetches"],
                     expert_bytes_read=after["expert_bytes_read"] - before["expert_bytes_read"],
+                    disk_read_bytes=(None if read_before is None or read_after is None
+                                     else read_after - read_before),
                     peak_rss_bytes=_peak_rss())
                 console.print({"step": step, "loss": float(loss.detach()), "seconds": seconds})
         finally:
@@ -384,6 +408,15 @@ def _host_ram() -> Optional[int]:
         return None
 
 
+def _ram_limit() -> Dict[str, Any]:
+    """The cgroup memory limit reading (``host_box.ram_limit``); None limit means unlimited."""
+    try:
+        from benchmarks.harness import host_box
+    except ImportError:
+        import host_box  # type: ignore[no-redef]
+    return host_box.ram_limit()
+
+
 def _json_safe(value: Any) -> Any:
     return json.loads(json.dumps(value, default=str))
 
@@ -402,8 +435,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--steps", type=int, default=4)
     parser.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
     parser.add_argument("--tier", choices=("ram", "disk"))
+    parser.add_argument("--cold", action="store_true",
+                        help="drop the page cache of the --store right before step 0")
     parser.add_argument("--shard-threads", type=int, default=8)
     args = parser.parse_args(argv)
+    if args.cold and not args.store:
+        parser.error("--cold needs --store: only a store of known files can be dropped")
     if args.store:
         args.kind = "synthetic"
     else:

@@ -44,6 +44,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -597,6 +598,12 @@ def _plan_table(plan: StorePlan) -> Table:
     return table
 
 
+def _write_record(path: Optional[Path], record: Dict[str, Any]) -> None:
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("command", choices=("plan", "write"))
@@ -607,6 +614,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--dtype", choices=DTYPES, default="bfloat16")
     parser.add_argument("--double-quant", action="store_true")
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--record", type=Path,
+                        help="write: a JSON record of plan, actual size, free space and time")
+    parser.add_argument("--assume-free-bytes", type=int,
+                        help="write: use this instead of the measured free bytes (to record a "
+                             "refusal on a small disk)")
     args = parser.parse_args(argv)
     overrides = {name: getattr(args, name) for name in
                  ("layers", "moe_layers", "experts", "hidden", "expert_size")
@@ -616,14 +628,35 @@ def main(argv: Optional[List[str]] = None) -> int:
     console.print(_plan_table(plan))
     if args.command == "plan":
         return 0
+    free_before = (args.assume_free_bytes if args.assume_free_bytes is not None
+                   else shutil.disk_usage(_existing_ancestor(args.out)).free)
+    record: Dict[str, Any] = {
+        "signature": SIGNATURE, "generator": describe(shape, args.seed, args.dtype,
+                                                      args.double_quant),
+        "planned_bytes": plan.total_bytes, "required_free_bytes": plan.required_free_bytes(),
+        "free_before_bytes": free_before, "free_assumed": args.assume_free_bytes is not None,
+        "parameters": plan.parameters,
+        "largest_file_bytes": plan.largest_file_bytes,
+    }
+    started = time.perf_counter()
     try:
         write_store(args.out, shape, seed=args.seed, dtype=args.dtype,
-                    double_quant=args.double_quant,
+                    double_quant=args.double_quant, free_bytes=free_before,
                     on_file=lambda name, done, total: console.print(f"{done}/{total} {name}"))
     except StoreRefusedError as error:
         console.print(f"[red]{SIGNATURE} store refused:[/] {escape(str(error))}")
+        record["refused"] = True
+        _write_record(args.record, record)
         return 3
-    console.print(f"{SIGNATURE} store written to {args.out}: {store_bytes(args.out):,} bytes")
+    except BaseException:
+        record.update(refused=False, failed=True, seconds=time.perf_counter() - started)
+        _write_record(args.record, record)
+        raise
+    actual = store_bytes(args.out)
+    record.update(refused=False, failed=False, seconds=time.perf_counter() - started,
+                  actual_bytes=actual)
+    _write_record(args.record, record)
+    console.print(f"{SIGNATURE} store written to {args.out}: {actual:,} bytes")
     return 0
 
 

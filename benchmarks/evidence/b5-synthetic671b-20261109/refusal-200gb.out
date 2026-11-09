@@ -1,0 +1,19 @@
+synthetic MoE store plan (random weights, no model
+                     quality)                     
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+┃ synthetic quantity           ┃           value ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+│ layers / MoE layers          │         61 / 58 │
+│ routed experts per MoE layer │             256 │
+│ hidden / expert size         │     7168 / 2048 │
+│ parameters                   │ 671,026,419,200 │
+│ planned store bytes          │ 380,276,485,553 │
+│ largest file bytes           │   6,341,878,760 │
+│ peak writer RAM bytes        │  12,683,757,520 │
+│ free bytes required          │ 405,632,188,590 │
+└──────────────────────────────┴─────────────────┘
+synthetic store refused: the synthetic store needs 405632188590 free bytes 
+(380276485553 planned x 1.05 + the largest file 6341878760), 200000000000 are 
+free at 
+/private/tmp/claude-501/-Users-Asus--herdr-worktrees-soup-rnd-b5-moe-scaling/d08
+ecea3-af06-4fbd-84d2-8df34143cb88/scratchpad
