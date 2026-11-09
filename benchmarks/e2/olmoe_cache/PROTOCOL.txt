@@ -1,0 +1,63 @@
+E2 hybrid with the activation cache on pretrained OLMoE: parity and A-B-B-A speed on Kaggle.
+Prospective protocol. Committed before the first run of this series. After that,
+nothing here changes; corrections go into a dated ADDENDUM file next to this one.
+
+1. Question
+
+The Mistral-7B series (hybrid_cache/reports/20261109) showed the frozen-prefix cache,
+installed at the hybrid freeze, is bit-identical to no cache and faster. The task card
+asks for a pretrained Small-MoE. Same two questions on allenai/OLMoE-1B-7B-0924:
+  (a) parity: is hybrid training with the cache bit-identical to the same run without it?
+  (b) speed: is hybrid with the cache faster than all-layer LoRA, A-B-B-A, fresh processes?
+Quality (gate suites) is a separate, later series; nothing here claims it.
+
+2. Platform and code
+
+Kaggle GPU T4 x2, allenai/OLMoE-1B-7B-0924 at 6d84c48581ece794365f2b8e9cfb043c68ade9c5
+(the revision of benchmarks/e2/moe/olmoe_research), float16 base over both GPUs. Runner:
+benchmarks/e2/hybrid/run_hybrid.py as in hybrid_cache, with the cache support for OLMoE
+(frozen_prefix_forward.py, commit 908f8a93). OLMoE has 16 decoder layers, 64 experts, 8 per
+token: K = 4 of 16 (K/L = 1/4, as K = 8 of 32 for Mistral); layers 0-11 are frozen and cached.
+
+MoE router loss: Soup adds the expert load-balancing loss from every layer's router logits
+when moe_aux_loss_coeff > 0. A cached prefix has no router logits, so ALL arms (A, B, C) use
+moe_aux_loss_coeff: 0 (olmoe_cache/configs/O16.yaml). Routers and experts are not LoRA targets
+(q_proj, v_proj only), so this removes a regulariser equally from every arm; stated as a limit.
+
+3. Runs (one Kaggle session, in this order; seed 42; 6,000 steps = 3 epochs)
+
+  C        hybrid K=4, no cache (parity reference)
+  cycle 1  A B B A
+  cycle 2  A B B A
+  cycle 3  A B B A
+  A  all-layer LoRA (O16 config), no freeze, no cache
+  B  hybrid K=4 with the cache
+
+LoRA r4 q/v, 2,000 train / 200 validation rows, length 128, batch 1, lr 1e-4 linear over 6,000
+steps, deterministic algorithms, each run a fresh process, training only. The cache directory of
+each B run is deleted after the run, its size recorded first.
+
+4. Validity (any failure gives NO_VERDICT for the series, with the reason)
+
+  V1  every run completes 6,000 steps with finite CE, 2,000/200 rows, deterministic.
+  V2  every B run equals C in final LoRA fingerprint, training-batch hash and validation CE
+      (bit for bit); every A run equals every other A run in the same.
+  V3  cache use in every B run: installed at step 2,000 over layers 0-11; epoch 2: hits + misses
+      = 2,000; epoch 3: misses = 0 and hits = 2,000; cache files = epoch-2 misses.
+  V4  hybrid mechanics in B and C: frozen layers 0-11, bottom bit-identical after the freeze.
+  V5  configs equal olmoe_cache/configs/O16.yaml apart from base and output.
+
+5. Decision: as hybrid_cache/PROTOCOL.txt section 5 (summed step wall seconds per epoch)
+
+  Primary, warm epoch (3): WARM_SPEEDUP if the median of the three per-cycle ratios
+  mean(A) / mean(B) >= 1.10 and every ratio >= 1.00, else NOT_SHOWN.
+  Secondary, whole training: TRAINING_SPEEDUP / NOT_SHOWN, same thresholds.
+  Reported, not decided: epoch-2 ratio, process wall time, install time, cache size, GPU state.
+
+6. Limits stated in advance
+
+Kaggle is a shared virtual machine; GPU state is recorded, no run is voided on it. One attempt per
+run; one restart only for a failure before training starts (reason written into the results);
+5 hours per run. Kaggle's free quota only. Run with Save Version -> Save & Run All (Commit).
+Router load-balancing loss off in every arm. Never claimed: quality, other K, models, data sizes,
+epoch counts, GPUs, or any statement about MoE in general from one model.

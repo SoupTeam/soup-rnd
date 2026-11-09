@@ -18,7 +18,21 @@ sys.path.insert(0, str(HERE.parent / "hybrid"))
 import analyze_hybrid as hybrid  # noqa: E402
 import analyze_recipe as recipe  # noqa: E402
 
-STEPS, STEPS_PER_EPOCH, EPOCHS, KEEP_TOP = 6000, 2000, 3, 8
+STEPS, STEPS_PER_EPOCH, EPOCHS = 6000, 2000, 3
+
+
+class Setup:
+    """Per-series constants: layer count, kept top layers and the config template check."""
+
+    def __init__(self, layers=32, keep_top=8, template_check=None, template_name="W32"):
+        self.layers, self.keep_top = layers, keep_top
+        self.template_name = template_name
+        self.template_check = template_check or (
+            lambda arm_dir: recipe._config_matches_template(arm_dir, template_name)
+        )
+
+
+MISTRAL = Setup()
 MIN_MEDIAN, MIN_EACH = 1.10, 1.00
 ORDER = ("C",) + tuple(
     f"{kind}_c{cycle}_{index}"
@@ -31,7 +45,7 @@ def _json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load(arm_dir: Path) -> dict:
+def load(arm_dir: Path, setup: Setup = MISTRAL) -> dict:
     name = arm_dir.name
     out = {"arm": name, "problems": []}
     problems = out["problems"]
@@ -64,24 +78,25 @@ def load(arm_dir: Path) -> dict:
         == [STEPS_PER_EPOCH] * EPOCHS,
     }
     problems += [f"V1: {n}" for n, ok in checks.items() if not ok]
-    if not recipe._config_matches_template(arm_dir, "W32"):
-        problems.append("V5: config differs from the W32 template")
+    if not setup.template_check(arm_dir):
+        problems.append(f"V5: config differs from the {setup.template_name} template")
     hybrid_record = quality.get("hybrid")
     if name == "C" or name.startswith("B"):
-        problems += hybrid._hybrid_problems(arm_dir, KEEP_TOP)
+        problems += hybrid._hybrid_problems(arm_dir, setup.keep_top, setup.layers)
     elif hybrid_record is not None:
         problems.append("V1: an A run froze layers")
     if name.startswith("B"):
-        problems += _cache_problems(out, record)
+        problems += _cache_problems(out, record, setup)
     elif out["cache"] is not None:
         problems.append("V3: a cache was installed outside B")
     return out
 
 
-def _cache_problems(run: dict, record: dict) -> list[str]:
+def _cache_problems(run: dict, record: dict, setup: Setup = MISTRAL) -> list[str]:
     cache = run["cache"] or {}
-    if cache.get("installed_at_step") != STEPS_PER_EPOCH or cache.get("cutoff") != 32 - KEEP_TOP:
-        return ["V3: cache not installed at step 2000 over layers 0-23"]
+    cutoff = setup.layers - setup.keep_top
+    if cache.get("installed_at_step") != STEPS_PER_EPOCH or cache.get("cutoff") != cutoff:
+        return [f"V3: cache not installed at step 2000 over layers 0-{cutoff - 1}"]
     if len(run["epoch_cache"]) != EPOCHS:
         return ["V3: no per-epoch cache counters"]
     (_, _), (h2, m2), (h3, m3) = run["epoch_cache"]
@@ -113,8 +128,8 @@ def label(ratios: list[float], good: str) -> str:
     return good if ok else "NOT_SHOWN"
 
 
-def analyze(session: Path) -> dict:
-    runs = {p.name: load(p) for p in sorted(session.iterdir()) if p.name in ORDER}
+def analyze(session: Path, setup: Setup = MISTRAL) -> dict:
+    runs = {p.name: load(p, setup) for p in sorted(session.iterdir()) if p.name in ORDER}
     reasons = [f"{name}: missing" for name in ORDER if name not in runs]
     reasons += [f"{n}: {p}" for n, r in runs.items() for p in r["problems"]]
     result = {

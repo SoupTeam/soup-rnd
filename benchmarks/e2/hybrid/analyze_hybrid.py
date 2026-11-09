@@ -31,12 +31,12 @@ def load(arm_dir: Path) -> dict:
     return arm
 
 
-def _hybrid_problems(arm_dir: Path, keep_top: int) -> list[str]:
+def _hybrid_problems(arm_dir: Path, keep_top: int, layers: int | None = None) -> list[str]:
     try:
         hybrid = json.loads((arm_dir / "quality.json").read_text(encoding="utf-8"))["hybrid"]
     except (OSError, ValueError, KeyError) as exc:
         return [f"V3: no hybrid record ({exc})"]
-    cutoff = LAYERS - keep_top
+    cutoff = (layers or LAYERS) - keep_top
     checks = {
         "freeze reached": hybrid.get("frozen") is True,
         "freeze at step 2000": hybrid.get("freeze_at_step") == 2000,
