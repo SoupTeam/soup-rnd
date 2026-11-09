@@ -18,7 +18,7 @@ Attempt 3  vastai create instance 58836814 --image nvidia/cuda:13.0.0-devel-ubun
                 0.267 USD/h at 480 GB: GPU 0.133 + disk 0.133)
              created 14:49:52
 vastai attach ssh 59901752 "$(cat ~/.ssh/id_ed25519.pub)"
-scp -P 53071 repo.tgz remote-setup.sh remote-write.sh remote-run.sh root@<host-ip>:/root/b5/
+scp -P <port> repo.tgz remote-setup.sh remote-write.sh remote-run.sh root@<host-ip>:/root/b5/
 ssh -f ... 'cd /root/b5 && nohup bash -c "bash remote-setup.sh && bash remote-write.sh store" &'
   16:05  the host stopped the instance (intended_status "stopped") with 94 of 122 store files done.
          I did not stop it. The vast account is shared, so a team member cannot be excluded.
