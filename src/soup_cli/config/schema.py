@@ -3531,7 +3531,7 @@ class TrainingConfig(BaseModel):
             "kto with stream_layers: each streamed decoder layer is loaded once "
             "per optimizer step and runs all k micro-batches, then the optimizer "
             "takes one step on the adapters. k is the effective k of the run recipe, "
-            "today gradient_accumulation_steps. Needs stream_layers=true; the launch "
+            "gradient_accumulation_steps by default. Needs stream_layers=true; the launch "
             "also needs a Llama/Mistral model, or for sft a DeepSeek-V3 model with "
             "stream_expert_layout='per_expert' (which needs stream_source='disk' and "
             "quantization='4bit'), on a single GPU. Only dpo passed the readiness "
@@ -3568,9 +3568,9 @@ class TrainingConfig(BaseModel):
         default=False,
         description=(
             "BETA — let the memory planner pick the largest k that fits host RAM, up to "
-            "gradient_accumulation_steps. Accepted by the schema, but the launch refuses it "
-            "until the planner is wired in. Off: k = gradient_accumulation_steps. Only valid "
-            "with training.l2l=true."
+            "gradient_accumulation_steps. Requires DeepSeek-V3 per_expert streaming, "
+            "a fixed batch_size and RAM-only activations. Off: k = gradient_accumulation_steps. "
+            "Only valid with training.l2l=true."
         ),
     )
 
