@@ -1,0 +1,132 @@
+{
+    'event': 'environment',
+    'python': '3.12.3',
+    'platform': 'Linux-7.0.0-38-generic-x86_64-with-glibc2.39',
+    'gpu': 'NVIDIA GeForce RTX 3060 Ti',
+    'device_count': 1,
+    'vram_bytes': 8222670848,
+    'compute_capability': [8, 6],
+    'dtype': 'bfloat16',
+    'quant': 'nf4',
+    'double_quant': False,
+    'expert_layout': 'per_expert',
+    'tier': 'disk',
+    'trust_remote_code': False,
+    'lora_targets': [
+        'q_a_proj',
+        'q_b_proj',
+        'kv_a_proj_with_mqa',
+        'kv_b_proj',
+        'o_proj'
+    ],
+    'lora_r': 8,
+    'lora_alpha': 16,
+    'lr': 0.0001,
+    'max_length': 128,
+    'steps': 3,
+    'seed': 20261109,
+    'config_sha256': 
+'c513efd031b5697911ca46bdfe6669461831b8654ae6c84caa8e68d6fda12796',
+    'versions': {
+        'torch': '2.14.1+cu130',
+        'transformers': '5.20.2',
+        'peft': '0.21.2',
+        'bitsandbytes': '0.50.2',
+        'tiktoken': '0.14.0',
+        'safetensors': '0.8.0',
+        'accelerate': '1.15.0',
+        'soup-cli': None
+    },
+    'cuda': '13.0',
+    'host_ram_bytes': 202543054848,
+    'ram_limit': {
+        'source': '/sys/fs/cgroup/memory.max',
+        'limit_bytes': 194440593408,
+        'current_bytes': 79792451584,
+        'peak_bytes': 83874971648,
+        'swap_source': '/sys/fs/cgroup/memory.swap.max',
+        'swap_max_bytes': 0,
+        'swap_total_bytes': 0,
+        'version': 2
+    },
+    'disk_free_bytes': 128926367744,
+    'source_bytes': 380276433625,
+    'store': 'synthetic-v3'
+}
+{
+    'event': 'phase_end',
+    'phase': 'preparation',
+    'seconds': 0.00011048302985727787,
+    'peak_rss_bytes': 800907264,
+    'cache_bytes': 380276433625,
+    'disk_free_bytes': 128926343168,
+    'source_parameters': 671026419200,
+    'prebuilt_store': True
+}
+{
+    'event': 'shape',
+    'layers': 61,
+    'moe_layers': 58,
+    'experts': 256,
+    'hidden': 7168,
+    'expert_size': 2048,
+    'parameters': 671026419200,
+    'store_bytes': 380276433625
+}
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+{
+    'event': 'cold_cache',
+    'method': 'fadvise',
+    'store_bytes': 380276433625,
+    'resident_before_bytes': 78781139337,
+    'resident_after_bytes': 0,
+    'seconds': 6.265782313072123
+}
+{'event': 'training_start'}
+{'step': 0, 'loss': 13.005899429321289, 'seconds': 211.0123192720348}
+{'step': 1, 'loss': 13.354353904724121, 'seconds': 69.38664963899646}
+{'step': 2, 'loss': 13.270356178283691, 'seconds': 67.77986243600026}
+{
+    'event': 'training_clock',
+    'samples': 341,
+    'throttled_samples': 0,
+    'reason_counts': {},
+    'unavailable_samples': 0,
+    'sm_clock_mhz': {'min': 1665, 'median': 1665, 'max': 1950}
+}
+{
+    'event': 'phase_end',
+    'phase': 'training',
+    'seconds': 350.9949071179144,
+    'peak_rss_bytes': 6641844224,
+    'disk_free_bytes': 128926048256
+}
+{
+    'event': 'runtime',
+    'stats': {
+        'n_layers': 61,
+        'buffers': 2,
+        'buffer_bytes': 2679562752,
+        'large_buffer_bytes': 1853358080,
+        'expert_buffer_bytes': 112853504,
+        'store_bytes': 4168671232,
+        'staging_bytes': 4168687616,
+        'resident_bytes': 0,
+        'host_allocated_bytes': 4168704000,
+        'accounted_peak_bytes': None,
+        'resident_tensor_bytes_served': 0,
+        'pinned': False,
+        'pinned_bytes': 0,
+        'tier': 'disk',
+        'read_ahead': 1,
+        'disk_bytes': 12447297536,
+        'layer_loads': 358,
+        'layer_restores': 488,
+        'large_loads': 7,
+        'device': 'cuda',
+        'total_params': 671026419200,
+        'expert_fetches': 9639,
+        'expert_bytes_read': 238783168512
+    }
+}
+{'event': 'complete'}

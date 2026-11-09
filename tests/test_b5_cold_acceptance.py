@@ -348,3 +348,34 @@ def test_the_size_tolerance_is_the_one_of_the_writer() -> None:
     from benchmarks.harness import b5_synth_store as synth
 
     assert b5_cold_acceptance.SIZE_TOLERANCE == synth.SIZE_TOLERANCE
+
+
+def test_the_committed_run_journals_pass_the_committed_rule() -> None:
+    """The journals of the rented run, judged again by the rule file's code, pass."""
+    import json
+    from pathlib import Path
+
+    from benchmarks.harness import b5_judge
+
+    root = Path(__file__).resolve().parent.parent / (
+        "benchmarks/evidence/b5-synthetic671b-20261109/attempt3/host/results")
+    if not root.is_dir():
+        return
+    record = json.loads((root / "store/store-record.json").read_text(encoding="utf-8"))
+    cold = b5_judge.read_journal(root / "cold1/run/journal.jsonl")
+    warm = b5_judge.read_journal(root / "warm1/run/journal.jsonl")
+
+    assert b5_cold_acceptance.verdict(cold, record)["failures"] == []
+    assert b5_cold_acceptance.verdict(warm, record, warm=True)["failures"] == []
+    assert b5_cold_acceptance.verdict(warm, record)["passed"] is False  # no cache drop
+
+
+def test_the_report_is_signed_synthetic_on_every_heading_and_table() -> None:
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parent.parent
+            / "benchmarks/b5-synthetic671b-report3-20261109.md").read_text(encoding="utf-8")
+    labelled = [line for line in text.splitlines() if line.startswith("#") or line.startswith("**")]
+
+    assert labelled and all(line.rstrip("* ").endswith("синтетические веса") for line in labelled)
+    assert text.index("## Размер формы") < text.index("## Запуск и окружение")
