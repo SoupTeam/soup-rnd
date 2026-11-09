@@ -19,7 +19,7 @@ and walk the backward the same way in reverse.
   large slot is not refilled between that recompute and its immediate backward.
 * The backward turns the wrapper's checkpoint off for its per-(layer,
   micro-batch) forward+backward, which would otherwise pay a third forward.
-* The top-level forward is re-implemented for Llama/Mistral and DeepSeek-V3:
+* The top-level forward is re-implemented for Llama/Mistral, OLMoE and DeepSeek-V3:
   ``embed_tokens`` -> layers with the kwargs HF passed to layer 0 -> ``norm`` ->
   ``lm_head(h[:, slice(0, None), :])`` -> the model's own ``loss_function``
   with ``num_items_in_batch``. DeepSeek-V3's top-level forward is that same sequence (it
@@ -54,9 +54,9 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
-#: Architectures whose top-level forward this step re-implements. ``training.l2l`` admits them
-#: at launch under the rules in ``trainer.l2l_trainer.refuse_unsupported_l2l``.
-SUPPORTED_ARCHS = ("llama", "mistral", "deepseek_v3")
+#: Architectures whose top-level forward this step re-implements. Public launch admission is
+#: narrower: see ``trainer.l2l_trainer.PUBLIC_ARCHS`` and ``PER_EXPERT_ARCHS``.
+SUPPORTED_ARCHS = ("llama", "mistral", "olmoe", "deepseek_v3")
 
 
 @dataclass(frozen=True)
@@ -133,6 +133,8 @@ def model_parts(model: Any) -> Tuple[Any, Any]:
             f"the L2L step re-implements the top-level forward of {SUPPORTED_ARCHS} only; "
             f"got {arch!r}"
         )
+    if arch == "olmoe" and getattr(causal.config, "output_router_logits", False):
+        raise ValueError("OLMoE L2L does not yet support the router auxiliary loss")
     for name in ("lm_head", "loss_function"):
         if getattr(causal, name, None) is None:
             raise ValueError(f"the causal LM has no {name!r}")
@@ -150,7 +152,7 @@ def label_tokens(micro_batches: Sequence[Any]) -> int:
 LossHead = Callable[[Any, Any, Any, int], Any]
 
 
-def sft_head(labels: Sequence[Any], n_items: int) -> LossHead:
+def sft_head(labels: Sequence[Any], n_items: Any) -> LossHead:
     """The SFT head: ``norm``, ``lm_head``, the model's ``loss_function`` over ``n_items``."""
 
     def head(causal: Any, owner: Any, hidden: Any, mb: int) -> Any:
@@ -481,7 +483,7 @@ class L2LStep:
         micro_batches: Sequence[Any],
         store: Any,
         *,
-        n_items: Optional[int] = None,
+        n_items: Optional[Any] = None,
         labels: Optional[Sequence[Any]] = None,
         calls: Optional[Sequence[LayerCall]] = None,
         head: Optional[LossHead] = None,
@@ -511,7 +513,7 @@ class L2LStep:
         self,
         micro_batches: Sequence[Any],
         store: Any,
-        n_items: Optional[int],
+        n_items: Optional[Any],
         labels: Optional[Sequence[Any]],
         calls: Optional[Sequence[LayerCall]],
         guard: RoutingGuard,
@@ -536,7 +538,9 @@ class L2LStep:
                 labels = micro_batches
             elif len(labels) != k:
                 raise ValueError(f"{len(labels)} label tensors for {k} micro-batches")
-            total = label_tokens(micro_batches) if n_items is None else int(n_items)
+            # Preserve Trainer's tensor operand: CUDA division by a Python int can
+            # round differently even when the item count is identical.
+            total = label_tokens(micro_batches) if n_items is None else n_items
             head = sft_head(labels, total)
 
         passes = as_passes(reference)

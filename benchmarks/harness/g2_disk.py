@@ -19,9 +19,9 @@ Modes (``run --mode``; the CLI runs each arm in a fresh process):
 
 Method (C4 ``origin/c4-ssd-research`` runner): sector-aligned buffers, per-window JSONL
 samples with per-disk OS counters and RAM available, the first ``--warmup`` seconds
-excluded, every full window kept (no outlier removal), mean / min / P10 and the first
-and last five windows per direction, F1 ``ArmWatch``, AC power, source hashes, fixture
-certificates. Each direction reports two rates: ``wall`` (bytes per window second) and
+excluded, every full window within ``--duration`` kept (no outlier removal), mean / min / P10,
+and the first and last five windows per direction, F1 ``ArmWatch``, AC power, source hashes
+and fixture certificates. Each direction reports two rates: ``wall`` (bytes per window second) and
 ``busy`` (bytes per second spent inside that direction's I/O calls). ``cycle`` alternates
 write and read passes, so its wall rates share the clock; ``busy`` is the per-byte cost
 the break-even charges and the rate ``export_rates`` exports.
@@ -1351,8 +1351,11 @@ def run_arm(args: argparse.Namespace, out_dir: str, *,
         final = meter.snapshot()
         record["requests"], record["cycles"] = final["requests"], final["cycles"]
         try:
+            # A delayed sampler can record past the deadline. Retain that raw row,
+            # but interpolate only the declared measurement interval.
             summary = summarize(rows, warmup_s=args.warmup, window_s=args.window,
-                                directions=MODE_DIRECTIONS[mode]) if rows else None
+                                directions=MODE_DIRECTIONS[mode],
+                                end_s=args.warmup + args.duration) if rows else None
         except ValueError as exc:
             summary = None
             record["error"] = record["error"] or f"summary: {exc}"

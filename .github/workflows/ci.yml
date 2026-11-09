@@ -300,7 +300,7 @@ jobs:
     # #394: prove the documented standalone install on an Apple Silicon runner.
     # Keep this separate from the main matrix because `.[dev]` deliberately
     # installs the PyTorch/TRL stack and would hide an accidental MLX dependency.
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -520,6 +520,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Reclaim unused Ubuntu SDK space
+        if: runner.os == 'Linux'
+        shell: bash
+        # The full Torch/CUDA dependency graph can exhaust a hosted runner while
+        # wheels and installed libraries coexist. Keep Python/Node tool caches,
+        # the checkout and HF evidence/model caches; remove only unrelated SDKs.
+        run: |
+          set -euo pipefail
+          df -h /
+          sudo rm -rf -- /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
       - name: Pin the HF cache to a deterministic path
         # Set here and not in the job-level `env:` block: the `runner` context
         # is not available there (only github / needs / strategy / matrix /
@@ -541,7 +552,7 @@ jobs:
           key: hf-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
           restore-keys: hf-${{ runner.os }}-
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install --no-cache-dir -e ".[dev]"
       - name: Warm HF Hub cache (models the tests load)
         # Pre-download the models the unit tests load, with retries, so a
         # transient HF Hub 429 (Too Many Requests) on a single matrix cell does

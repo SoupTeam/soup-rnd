@@ -63,6 +63,32 @@ def test_harness_reexports_the_shipped_core(harness):
     assert harness.LayerCall is l2l_step.LayerCall
 
 
+def test_native_loss_receives_the_original_tensor_denominator(
+    harness, streamed, monkeypatch  # noqa: F811
+):
+    import torch
+
+    from soup_cli.utils.l2l_step import L2LStep, capture_layer_call, model_parts
+
+    model, runtime = streamed
+    harness.make_non_vacuous(model)
+    batches = _micro_batches(2)
+    step = L2LStep(model, runtime, capture_layer_call(model, batches[0]))
+    causal, _owner = model_parts(model)
+    original = causal.loss_function
+    count = torch.tensor(2 * (SEQ - 1), dtype=torch.int64)
+    received = []
+
+    def checked(*args, **kwargs):
+        received.append(kwargs["num_items_in_batch"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(causal, "loss_function", checked)
+    step.run(batches, _store(2), n_items=count)
+    assert len(received) == 2
+    assert all(value is count for value in received)
+
+
 # --------------------------------------------------------------------------
 # ticket 02: layer loads and weight restores, read from the shipped counters
 # --------------------------------------------------------------------------

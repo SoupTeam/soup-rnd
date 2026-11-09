@@ -1,0 +1,125 @@
+{
+  "kind": "synthetic CUDA development evidence; not a prospective trained-model qualification",
+  "formal_session_started": false,
+  "full_original_archive": {
+    "name": "d3-fused-development-58638000-20261101.tar.gz",
+    "bytes": 195925831,
+    "sha256": "f4bc770291ac8a336a81a6a7d5f5deb3d293d108a82c80205648edcc0390fd46",
+    "retained_locally": true,
+    "published_in_full": false
+  },
+  "original_manifest_entries_verified": 875,
+  "published_raw_entries": 255,
+  "published_source_entries": 624,
+  "excluded_synthetic_fixture_payloads": {
+    "d3-fused-screen/trainer-development-01/synthetic-checkpoint/chat_template.jinja": {
+      "bytes": 65,
+      "sha256": "c4123e078b4bdc0f5f63fa38eca171496c1d7ee48987353469d9d611d0428e66",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/trainer-development-01/synthetic-checkpoint/tokenizer_config.json": {
+      "bytes": 167,
+      "sha256": "e8418902e622dc9ab85a8fee41490691ee83d0a449234385b1091f8f907759ac",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/trainer-development-01/synthetic-checkpoint/config.json": {
+      "bytes": 817,
+      "sha256": "ad8c149138b875d1c778b77d02c6a4aae052f906a37b8cf73e141729a4ba8e02",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/trainer-development-01/synthetic-checkpoint/model.safetensors": {
+      "bytes": 168109032,
+      "sha256": "716a43a33905f83daa4c79681a18a4e772ce5df00b2a7ed7cd06940873697a39",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/trainer-development-01/synthetic-checkpoint/tokenizer.json": {
+      "bytes": 2021,
+      "sha256": "5bd29a9e34278845c66e7e15d181a342e29047d429c5dbdef6cf4451e2706e4e",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/trainer-development-01/synthetic-checkpoint/generation_config.json": {
+      "bytes": 216,
+      "sha256": "d40215ef167522f4b20989e7c66a029b926955f4c0ff0687ea6d43991f48e75c",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/mlp-01/nested-1/experts.safetensors": {
+      "bytes": 12984896,
+      "sha256": "e67bb68af659fc309f0687d9fd08551a7fa4008c30432f0cb66c89796b5a1400",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/mlp-01/nested-0/experts.safetensors": {
+      "bytes": 14157072,
+      "sha256": "181125f4e6a6c83090aa57160fd21c0154976e292bb5e3145e9156ebfdefb94d",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/mlp-02/nested-1/experts.safetensors": {
+      "bytes": 12984896,
+      "sha256": "e67bb68af659fc309f0687d9fd08551a7fa4008c30432f0cb66c89796b5a1400",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    },
+    "d3-fused-screen/mlp-02/nested-0/experts.safetensors": {
+      "bytes": 14157072,
+      "sha256": "181125f4e6a6c83090aa57160fd21c0154976e292bb5e3145e9156ebfdefb94d",
+      "reason": "synthetic fixture bytes retained in full local archive; deterministic generators included"
+    }
+  },
+  "screens": {
+    "hybrid_arithmetic_cells": 20,
+    "single_fused_dispatch_profiles": 8,
+    "disk_backed_mlp_cells": 8,
+    "public_synthetic_trainer_children": 8
+  },
+  "trainer_byte_comparisons": [
+    {
+      "codec": "nf4",
+      "l2l": false,
+      "exact_file_hashes": {
+        "gradients-0.safetensors": "3ba41fc02430cff52616fc6ce40eb30229139455fc1a4f00a31102aa552fd52e",
+        "gradients-1.safetensors": "ace92226f87f5d2bab4329dd1c6e7e44245494c040582c17a4ca98206233c2f9",
+        "trained-logits.safetensors": "0f9ec504c2115e828dffbd9fa24a4fccbe6a8609152911ee3c0080640a990251"
+      },
+      "fused_matrices": 119
+    },
+    {
+      "codec": "nf4",
+      "l2l": true,
+      "exact_file_hashes": {
+        "gradients-0.safetensors": "3ba41fc02430cff52616fc6ce40eb30229139455fc1a4f00a31102aa552fd52e",
+        "gradients-1.safetensors": "ace92226f87f5d2bab4329dd1c6e7e44245494c040582c17a4ca98206233c2f9",
+        "trained-logits.safetensors": "0f9ec504c2115e828dffbd9fa24a4fccbe6a8609152911ee3c0080640a990251"
+      },
+      "fused_matrices": 129
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": false,
+      "exact_file_hashes": {
+        "gradients-0.safetensors": "00f13b92f7cb92a9ec29c3f23abc19c7c5503eb81243f89c5d44651ea9aadc8e",
+        "gradients-1.safetensors": "780697d4a6e7006bbd35d644b2546cafb8d609792f9065fddc46f8348537132f",
+        "trained-logits.safetensors": "f9fc1714df0cea4e666dd5eb43520dc9ca2f21150d9770f9cefe8230de75d829"
+      },
+      "fused_matrices": 119
+    },
+    {
+      "codec": "nf4-dq",
+      "l2l": true,
+      "exact_file_hashes": {
+        "gradients-0.safetensors": "00f13b92f7cb92a9ec29c3f23abc19c7c5503eb81243f89c5d44651ea9aadc8e",
+        "gradients-1.safetensors": "780697d4a6e7006bbd35d644b2546cafb8d609792f9065fddc46f8348537132f",
+        "trained-logits.safetensors": "f9fc1714df0cea4e666dd5eb43520dc9ca2f21150d9770f9cefe8230de75d829"
+      },
+      "fused_matrices": 129
+    }
+  ],
+  "retained_unsuccessful": [
+    "attempt-01/raw-triton-native-mismatch",
+    "attempt-02/raw-triton-native-mismatch",
+    "attempt-03/raw-wmma-small-row-native-mismatch",
+    "dispatch-01/memcpy-misclassified-as-compute",
+    "mlp-01/allocator-budget-refusal",
+    "native-wmma-startup-failed.log",
+    "native-wmma-diagnosis.json",
+    "split-k-order-diagnosis.json"
+  ],
+  "source_notice": "Source was uncommitted during development. Original launch snapshots are retained. Current working-tree changes after each run are not relabeled as executed source."
+}

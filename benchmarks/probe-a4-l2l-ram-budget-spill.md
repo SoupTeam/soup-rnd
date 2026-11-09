@@ -70,6 +70,11 @@ What was missing, and what this track adds:
 
 ## 2. The planner and the priority rule
 
+The constructor-failure CPU check inspects every resident allocation and the first
+staging allocation directly, including a case retaining the closed store's metadata.
+This avoids treating Python 3.11's retained list-comprehension closure as live pinned
+storage; the file, threads and all allocation-liveness assertions remain strict.
+
 **Inputs.** A host-RAM total (the tighter of `--host-total-bytes` and the cgroup limit
 the process is under; a declaration cannot raise the cgroup's), `n_layers`, `k`,
 `chunk_bytes`, ring depth, pinning, and the other consumers taken from the runtime's own

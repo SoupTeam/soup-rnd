@@ -53,8 +53,9 @@ from soup_cli.utils.l2l_step import (
     sft_head,
 )
 
-#: Architectures ``training.l2l`` admits at launch with any weight layout.
-PUBLIC_ARCHS = ("llama", "mistral")
+#: Architectures ``training.l2l`` admits at launch with any weight layout. The L2L step
+#: implements a broader set; DeepSeek-V3 is separately admitted only with per-expert layout.
+PUBLIC_ARCHS = ("llama", "mistral", "olmoe")
 
 #: Architectures ``training.l2l`` admits only with ``training.stream_expert_layout``
 #: set to ``EXPERT_LAYOUT_PER_EXPERT``: the DeepSeek-V3 step reads each routed expert from its
@@ -109,7 +110,8 @@ MAX_CACHED_SHAPES = 64
 
 
 def refuse_unsupported_l2l(
-    model_config: Any, *, n_gpu: int, fp16: bool = False, expert_layout: str = "fused"
+    model_config: Any, *, n_gpu: int, fp16: bool = False, task: str = "sft",
+    expert_layout: str = "fused",
 ) -> None:
     """Refuse at launch what the schema cannot see: the model, the GPU count, fp16.
 
@@ -129,6 +131,10 @@ def refuse_unsupported_l2l(
             f"{' and '.join(PUBLIC_ARCHS)}, and for {' and '.join(PER_EXPERT_ARCHS)} "
             f"with training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}."
         )
+    if arch == "olmoe" and getattr(model_config, "output_router_logits", False):
+        raise ValueError("OLMoE L2L does not yet support the router auxiliary loss")
+    if arch == "olmoe" and task != "sft":
+        raise ValueError("OLMoE L2L supports task 'sft' only; preference tasks are not qualified")
     if n_gpu > 1:
         raise ValueError(
             f"training.l2l is single-GPU, but {n_gpu} GPUs are visible. Re-run with "
@@ -194,7 +200,10 @@ class L2LState:
             fields["l2l_effective_k"] = self.effective_k
         # Only a runtime that streams routed experts has them to count; a dense run's log
         # keeps the fields it always had.
-        if getattr(self.runtime, "expert_pool", None) is not None:
+        if (
+            getattr(self.runtime, "expert_pool", None) is not None
+            or getattr(self.runtime, "expert_resources", None) is not None
+        ):
             fields["l2l_expert_fetches"] = self.totals.expert_fetches
             fields["l2l_expert_bytes_read"] = self.totals.expert_bytes_read
         return fields
@@ -322,7 +331,7 @@ class WindowLoss:
     #: what the layers walk; ``extras`` is handed to ``make_head``.
     read_window: Callable[..., Tuple[List[Any], Any]]
     #: ``(extras, divisor) -> LossHead``; the head returns the loss already scaled.
-    make_head: Callable[[Any, int], LossHead]
+    make_head: Callable[[Any, Any], LossHead]
     #: ``extras -> ReferencePass`` or a sequence of them, for a loss that needs gradient-free
     #: passes: a reference model (DPO, KTO) or an estimate from the policy itself (KTO's KL);
     #: ``None`` for a loss that does not. The policy head reads the passes' ``outputs`` after
@@ -331,7 +340,7 @@ class WindowLoss:
         Callable[[Any], Union[ReferencePass, Sequence[ReferencePass]]]
     ] = None
 
-    def divisor(self, k: int, num_items: Optional[int]) -> int:
+    def divisor(self, k: int, num_items: Optional[Any]) -> Any:
         """The number the window's loss is divided by. The one place the scale rule lives."""
         if self.divide_by == "micro_batches":
             return int(k)
@@ -340,7 +349,8 @@ class WindowLoss:
                 "training.l2l needs num_items_in_batch from the HF loop to scale "
                 "the loss over the window; this trainer did not receive one."
             )
-        return int(num_items)
+        # SFT must forward the original HF tensor, including its dtype and device.
+        return num_items
 
 
 SFT_WINDOW_LOSS = WindowLoss(
@@ -559,7 +569,7 @@ def run_window(
     model: Any,
     ids_list: List[Any],
     label_list: Any,
-    n_items: Optional[int],
+    n_items: Optional[Any],
     device: Any,
 ) -> Tuple[List[Any], Any]:
     """One L2L step over the window; returns the losses and the step's load counters.
@@ -654,12 +664,7 @@ def make_l2l_trainer_class(base_cls: type) -> type:
             # precision; forward, head and the recompute in backward all run inside it.
             with self.accelerator.autocast():
                 losses, counters = run_window(
-                    state,
-                    model,
-                    ids_list,
-                    label_list,
-                    None if num_items_in_batch is None else int(num_items_in_batch),
-                    device,
+                    state, model, ids_list, label_list, num_items_in_batch, device
                 )
             state.steps += 1
             state.totals.add(counters)

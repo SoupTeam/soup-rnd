@@ -1,0 +1,345 @@
+{
+  "scope": "Trained OLMoE complete forward with synthetic token IDs; not training, quality, throughput or full D3 sign-off",
+  "source": {
+    "git_head": "c94214d397ffbe609916221e43fb2efd8c43ad4d",
+    "git_blob_sha256": {
+      "benchmarks/harness/d3_full_model.py": "760d9cf571dcecd9d2fbe3ec02b7730b5443fb8aee09faa63b473624d6e05792",
+      "benchmarks/harness/d3_full_model_gate.py": "294618fa4f4857e7c8d67d8d681ebf80bf330097d25ea68f15d6e35c901046e9",
+      "benchmarks/harness/d3_grouped_restore_check.py": "b68d2b87db17bae988393e96a532ddb628a09a9710284e52443e9f8894a67ec1",
+      "benchmarks/harness/d3_cublas_grouped_probe.py": "719f41641fe6aa82424084033ed1d860c02f9230644358f59e4ccfff0de3a43c",
+      "benchmarks/harness/d3_f1_mapping_probe.py": "a32bec7b3f39de405e2b61e715022b2e53501093872ab00c0ba80c0c42f84c40",
+      "benchmarks/harness/d3_f1_controls.py": "ead6f9bbb2f0c0debea8820f1c5dbc0da302e6d259f4ec282c75271566915040",
+      "benchmarks/harness/arm_validity.py": "ae7e6e5f4d4df460202c8229deb167c43a350f41538c25dc571f21a5791190f9",
+      "benchmarks/harness/b1_expert_forward_gate.py": "a18204cf966d861573f6b47115a08e9896d36f9ae4bbebe46ba347c95a616b0a",
+      "benchmarks/protocols/b1.2-expert-forward/protocol.json": "ffa940bd265fb36a5cf52f6dd06ec879003ac750fed6c80308b4c68cd818fdb8",
+      "benchmarks/protocols/d3-full-model/setup-evidence.zip": "2d06048e1762bd1ba3b6e462675daa08764a9e8dec32e462a77bbe9e389d356d",
+      "src/soup_cli/utils/expert_group.py": "ebe62c73cd5fe85d59b115d18f20c8fcd8566d0e4b04fd917329c98602b23510",
+      "src/soup_cli/utils/expert_group_decode.py": "a6704db87f8d0d39f48a3c3a82b65a9e3110f3f1bb153c230243b7bb53c4b3f0",
+      "src/soup_cli/utils/expert_group_gemm.py": "299add9b669d9beaba53b6ab88538b74a81d5bfe8ee14e1dc6a3584e0cb1e05d",
+      "src/soup_cli/utils/expert_group_compute.py": "ad8381fcc46591aa8e3c6951f4ec52d81ab12e8451063d6443ec08fbc410d8a8",
+      "src/soup_cli/utils/expert_shard.py": "00d4c856f520188d20d918fc0e354ccfac3bf0a4d85fba68cbb051194b232f1d",
+      "src/soup_cli/utils/expert_stream.py": "8bab7271dbb391322dfdb6d32dfe1e468f67a41f5809657e80f5fc955e2c88dc",
+      "src/soup_cli/utils/layer_shard.py": "a29028689ace13d43fad2cd3a13fcabcabe0de6883c24d07e83485a31d90dad3",
+      "src/soup_cli/utils/layer_stream_runtime.py": "f10977bdcebb8171b8cdd9af4c569443a3d259df1903bbba04a2e22325024e12",
+      "src/soup_cli/utils/safetensors_reader.py": "42a56609c459cc3c2cd3a05f4684e53753b303b631bffc0dcb6e6a498c49822b",
+      "benchmarks/protocols/d3-full-model/protocol.json": "231ab21c5908c59ce3744ac1bdcf475f46290b38f5a3cbf69090a982ae9e3bbc"
+    }
+  },
+  "protocol_sha256": "231ab21c5908c59ce3744ac1bdcf475f46290b38f5a3cbf69090a982ae9e3bbc",
+  "cells": 12,
+  "formats": {
+    "dense": {
+      "native": {
+        "peak_allocated_bytes": 13902164992,
+        "peak_reserved_bytes": 14111735808,
+        "peak_rss_bytes": 2628669440,
+        "pool": null,
+        "first_forward_gemm": null,
+        "expected_sha256": "0ed6f11e27da58fd0336bf042f03d18f854cb0f49356aea19586edfde1af4c96",
+        "negative_sha256": "a6623ff31172890bf6365f10a4a301df66e57dc7db09ceaef3cc53671dd2d0cb",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "sequential": {
+        "peak_allocated_bytes": 1029846016,
+        "peak_reserved_bytes": 1239416832,
+        "peak_rss_bytes": 1812443136,
+        "pool": {
+          "slot_count": 1,
+          "weight_budget_bytes": 67108864,
+          "plan": {
+            "dense_bytes": 12582912,
+            "packed_and_stats_bytes": 0,
+            "code_bytes": 0,
+            "scratch_bytes": 0,
+            "padding_bytes": 0,
+            "weight_bytes": 12582912,
+            "host_staging_bytes": 12595200
+          },
+          "cuda_allocation_delta": 12582912,
+          "fetches": 3444,
+          "logical_bytes_read": 43335548928,
+          "closed": false,
+          "cpu_nf4_temporaries": false
+        },
+        "first_forward_gemm": null,
+        "expected_sha256": "0ed6f11e27da58fd0336bf042f03d18f854cb0f49356aea19586edfde1af4c96",
+        "negative_sha256": "a6623ff31172890bf6365f10a4a301df66e57dc7db09ceaef3cc53671dd2d0cb",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "grouped-resident": {
+        "peak_allocated_bytes": 13906359296,
+        "peak_reserved_bytes": 14113832960,
+        "peak_rss_bytes": 2623991808,
+        "pool": null,
+        "first_forward_gemm": {
+          "cublas_version": 130101,
+          "workspace_bytes": 4194304,
+          "call_budget_bytes": 67108864,
+          "native_rows_max": 16,
+          "native_olmoe_rows_max": 128,
+          "calls": 442,
+          "grouped_matrices": 332,
+          "native_matrices": 1390,
+          "closed": false,
+          "poisoned": false,
+          "scope": "workspace/output bound; CUDA/cuBLAS contexts and weights separate"
+        },
+        "expected_sha256": "0ed6f11e27da58fd0336bf042f03d18f854cb0f49356aea19586edfde1af4c96",
+        "negative_sha256": "a6623ff31172890bf6365f10a4a301df66e57dc7db09ceaef3cc53671dd2d0cb",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "grouped": {
+        "peak_allocated_bytes": 1071789056,
+        "peak_reserved_bytes": 1279262720,
+        "peak_rss_bytes": 1817038848,
+        "pool": {
+          "plan": {
+            "slot_count": 4,
+            "slot_weight_bytes": 12582912,
+            "metadata_bytes": 0,
+            "weight_bytes": 50331648,
+            "host_staging_bytes": 12595200
+          },
+          "weight_budget_bytes": 67108864,
+          "cuda_allocation_delta": 50331648,
+          "fetches": 3444,
+          "logical_bytes_read": 43335548928,
+          "groups_loaded": 885,
+          "closed": false,
+          "decode_backend": "none",
+          "gemm_backend": "unchanged-eager",
+          "cpu_nf4_temporaries": false
+        },
+        "first_forward_gemm": {
+          "cublas_version": 130101,
+          "workspace_bytes": 4194304,
+          "call_budget_bytes": 67108864,
+          "native_rows_max": 16,
+          "native_olmoe_rows_max": 128,
+          "calls": 442,
+          "grouped_matrices": 332,
+          "native_matrices": 1390,
+          "closed": false,
+          "poisoned": false,
+          "scope": "workspace/output bound; CUDA/cuBLAS contexts and weights separate"
+        },
+        "expected_sha256": "0ed6f11e27da58fd0336bf042f03d18f854cb0f49356aea19586edfde1af4c96",
+        "negative_sha256": "a6623ff31172890bf6365f10a4a301df66e57dc7db09ceaef3cc53671dd2d0cb",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      }
+    },
+    "nf4": {
+      "native": {
+        "peak_allocated_bytes": 13902164992,
+        "peak_reserved_bytes": 14111735808,
+        "peak_rss_bytes": 2086019072,
+        "pool": null,
+        "first_forward_gemm": null,
+        "expected_sha256": "1b92bde7cecdb7baaecb0c6b3a11bd889f1d39e805e00c56773ee88ef0d4abc4",
+        "negative_sha256": "06bd49f8757e4819bee17fef966d888f0edeae5c767b702c2c07ee4760994172",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "sequential": {
+        "peak_allocated_bytes": 1034040320,
+        "peak_reserved_bytes": 1243611136,
+        "peak_rss_bytes": 1813024768,
+        "pool": {
+          "slot_count": 1,
+          "weight_budget_bytes": 67108864,
+          "plan": {
+            "dense_bytes": 12582912,
+            "packed_and_stats_bytes": 3538944,
+            "code_bytes": 64,
+            "scratch_bytes": 0,
+            "padding_bytes": 448,
+            "weight_bytes": 16122368,
+            "host_staging_bytes": 3559424
+          },
+          "cuda_allocation_delta": 16777216,
+          "fetches": 3463,
+          "logical_bytes_read": 12255363072,
+          "closed": false,
+          "cpu_nf4_temporaries": false
+        },
+        "first_forward_gemm": null,
+        "expected_sha256": "1b92bde7cecdb7baaecb0c6b3a11bd889f1d39e805e00c56773ee88ef0d4abc4",
+        "negative_sha256": "06bd49f8757e4819bee17fef966d888f0edeae5c767b702c2c07ee4760994172",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "grouped-resident": {
+        "peak_allocated_bytes": 13906359296,
+        "peak_reserved_bytes": 14111735808,
+        "peak_rss_bytes": 2087706624,
+        "pool": null,
+        "first_forward_gemm": {
+          "cublas_version": 130101,
+          "workspace_bytes": 4194304,
+          "call_budget_bytes": 67108864,
+          "native_rows_max": 16,
+          "native_olmoe_rows_max": 128,
+          "calls": 446,
+          "grouped_matrices": 326,
+          "native_matrices": 1406,
+          "closed": false,
+          "poisoned": false,
+          "scope": "workspace/output bound; CUDA/cuBLAS contexts and weights separate"
+        },
+        "expected_sha256": "1b92bde7cecdb7baaecb0c6b3a11bd889f1d39e805e00c56773ee88ef0d4abc4",
+        "negative_sha256": "06bd49f8757e4819bee17fef966d888f0edeae5c767b702c2c07ee4760994172",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "grouped": {
+        "peak_allocated_bytes": 1086469120,
+        "peak_reserved_bytes": 1291845632,
+        "peak_rss_bytes": 1817223168,
+        "pool": {
+          "plan": {
+            "slot_count": 4,
+            "slot_weight_bytes": 16122368,
+            "metadata_bytes": 5120,
+            "weight_bytes": 64494592,
+            "host_staging_bytes": 3559424
+          },
+          "weight_budget_bytes": 67108864,
+          "cuda_allocation_delta": 65011712,
+          "fetches": 3463,
+          "logical_bytes_read": 12255363072,
+          "groups_loaded": 891,
+          "closed": false,
+          "decode_backend": "triton-grouped",
+          "gemm_backend": "unchanged-eager",
+          "cpu_nf4_temporaries": false
+        },
+        "first_forward_gemm": {
+          "cublas_version": 130101,
+          "workspace_bytes": 4194304,
+          "call_budget_bytes": 67108864,
+          "native_rows_max": 16,
+          "native_olmoe_rows_max": 128,
+          "calls": 446,
+          "grouped_matrices": 326,
+          "native_matrices": 1406,
+          "closed": false,
+          "poisoned": false,
+          "scope": "workspace/output bound; CUDA/cuBLAS contexts and weights separate"
+        },
+        "expected_sha256": "1b92bde7cecdb7baaecb0c6b3a11bd889f1d39e805e00c56773ee88ef0d4abc4",
+        "negative_sha256": "06bd49f8757e4819bee17fef966d888f0edeae5c767b702c2c07ee4760994172",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      }
+    },
+    "nf4-dq": {
+      "native": {
+        "peak_allocated_bytes": 13902164992,
+        "peak_reserved_bytes": 14111735808,
+        "peak_rss_bytes": 2093387776,
+        "pool": null,
+        "first_forward_gemm": null,
+        "expected_sha256": "953e4735d3bf60a92a0c30f468eb98086a3ea959d36568974f1fd14140bec9a2",
+        "negative_sha256": "bd63d8777df508eace2fe876d1a5d072b3dd3bee0b1ef8bde7aa56bbdad1ed0d",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "sequential": {
+        "peak_allocated_bytes": 1034040320,
+        "peak_reserved_bytes": 1243611136,
+        "peak_rss_bytes": 1817550848,
+        "pool": {
+          "slot_count": 1,
+          "weight_budget_bytes": 67108864,
+          "plan": {
+            "dense_bytes": 12582912,
+            "packed_and_stats_bytes": 3245576,
+            "code_bytes": 1088,
+            "scratch_bytes": 262144,
+            "padding_bytes": 952,
+            "weight_bytes": 16092672,
+            "host_staging_bytes": 3284992
+          },
+          "cuda_allocation_delta": 16777216,
+          "fetches": 3461,
+          "logical_bytes_read": 11232938536,
+          "closed": false,
+          "cpu_nf4_temporaries": false
+        },
+        "first_forward_gemm": null,
+        "expected_sha256": "953e4735d3bf60a92a0c30f468eb98086a3ea959d36568974f1fd14140bec9a2",
+        "negative_sha256": "bd63d8777df508eace2fe876d1a5d072b3dd3bee0b1ef8bde7aa56bbdad1ed0d",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "grouped-resident": {
+        "peak_allocated_bytes": 13906359296,
+        "peak_reserved_bytes": 14111735808,
+        "peak_rss_bytes": 2093953024,
+        "pool": null,
+        "first_forward_gemm": {
+          "cublas_version": 130101,
+          "workspace_bytes": 4194304,
+          "call_budget_bytes": 67108864,
+          "native_rows_max": 16,
+          "native_olmoe_rows_max": 128,
+          "calls": 444,
+          "grouped_matrices": 322,
+          "native_matrices": 1410,
+          "closed": false,
+          "poisoned": false,
+          "scope": "workspace/output bound; CUDA/cuBLAS contexts and weights separate"
+        },
+        "expected_sha256": "953e4735d3bf60a92a0c30f468eb98086a3ea959d36568974f1fd14140bec9a2",
+        "negative_sha256": "bd63d8777df508eace2fe876d1a5d072b3dd3bee0b1ef8bde7aa56bbdad1ed0d",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      },
+      "grouped": {
+        "peak_allocated_bytes": 1086469120,
+        "peak_reserved_bytes": 1291845632,
+        "peak_rss_bytes": 1818742784,
+        "pool": {
+          "plan": {
+            "slot_count": 4,
+            "slot_weight_bytes": 16092672,
+            "metadata_bytes": 5120,
+            "weight_bytes": 64375808,
+            "host_staging_bytes": 3284992
+          },
+          "weight_budget_bytes": 67108864,
+          "cuda_allocation_delta": 65011712,
+          "fetches": 3461,
+          "logical_bytes_read": 11232938536,
+          "groups_loaded": 887,
+          "closed": false,
+          "decode_backend": "triton-grouped",
+          "gemm_backend": "unchanged-eager",
+          "cpu_nf4_temporaries": false
+        },
+        "first_forward_gemm": {
+          "cublas_version": 130101,
+          "workspace_bytes": 4194304,
+          "call_budget_bytes": 67108864,
+          "native_rows_max": 16,
+          "native_olmoe_rows_max": 128,
+          "calls": 444,
+          "grouped_matrices": 322,
+          "native_matrices": 1410,
+          "closed": false,
+          "poisoned": false,
+          "scope": "workspace/output bound; CUDA/cuBLAS contexts and weights separate"
+        },
+        "expected_sha256": "953e4735d3bf60a92a0c30f468eb98086a3ea959d36568974f1fd14140bec9a2",
+        "negative_sha256": "bd63d8777df508eace2fe876d1a5d072b3dd3bee0b1ef8bde7aa56bbdad1ed0d",
+        "input_sha256": "5c2e1364b7385bfa7ac8f029c61976542651d8944c3f37f402fd70a36054fb4c",
+        "F1": "ok"
+      }
+    }
+  },
+  "d3_accepted": false
+}

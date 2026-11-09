@@ -144,9 +144,14 @@ def test_wrapper_gives_the_effective_k_to_hf_the_window_the_store_and_the_log(
 
 def test_wrapper_gives_the_effective_k_to_the_c3_reservation(tmp_path, monkeypatch):
     from soup_cli.config.schema import SoupConfig
+    from soup_cli.utils import layer_stream
     from tests.test_v07200 import TestStreamingEndToEndSetup
 
     _force_effective_k(monkeypatch, 1)
+    # This test is about reservation wiring, not media detection. CI temp dirs
+    # may be on SSD-backed volumes (not NVMe), so freeze the preflight result.
+    monkeypatch.setattr(layer_stream, "classify_disk_kind",
+                        lambda _path: layer_stream.DiskClassification("nvme"))
     wrapper, dataset = TestStreamingEndToEndSetup()._wrapper(tmp_path, monkeypatch)
     config = wrapper.config.model_dump()
     config["training"].update(

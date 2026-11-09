@@ -126,7 +126,9 @@ def write_prepared(
     dtype = "float32" if smoke else "bfloat16"
     shard_checkpoint(str(weights), str(directory), dtype=dtype, arch="llama")
     files = {
-        str(path.relative_to(output)): {"sha256": file_sha(path), "bytes": path.stat().st_size}
+        path.relative_to(output).as_posix(): {
+            "sha256": file_sha(path), "bytes": path.stat().st_size,
+        }
         for path in sorted(directory.rglob("*"))
         if path.is_file()
     }

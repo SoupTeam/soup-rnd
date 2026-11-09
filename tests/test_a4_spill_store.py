@@ -455,8 +455,10 @@ def test_no_store_buffer_is_reachable_when_the_pinned_cache_is_released(bud, spi
     assert _no_spill_threads()
 
 
-def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spill, tmp_path,
-                                                                       monkeypatch):
+@pytest.mark.parametrize("retain_metadata", [False, True])
+def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(
+    bud, spill, tmp_path, monkeypatch, retain_metadata
+):
     """The second ring buffer fails after the resident chunks and spill file are ready.
     Keep the real file handles so open-before-failure and closed-after-cleanup are
     observable on every platform, even where the open spill file has been unlinked.
@@ -465,6 +467,7 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     acts = _shipped_acts()
     real_buffer, real_store = acts.aligned_buffer, acts.ActivationStore
     made, opened, handles, instances = [], [], [], []
+    resident_refs, retained = [], []
 
     def record_open(kind, path, size):
         backend = spill.open_spill(kind, path, size)
@@ -478,6 +481,7 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
             assert not handle.closed
             assert os.fstat(handle.fileno()).st_size == plan.spill_file_bytes
         if made:
+            resident_refs.extend(_storage_ref(buf) for buf in instances[0]()._resident.values())
             raise RuntimeError("CUDA error: out of memory (injected page-lock failure)")
         made.append(real_buffer(nbytes, pin=pin))
         return made[-1]
@@ -487,6 +491,8 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
             import weakref
 
             instances.append(weakref.ref(self))
+            if retain_metadata:
+                retained.append(self)
             super().__init__(**kwargs)
 
     monkeypatch.setattr(acts, "aligned_buffer", second_fails)
@@ -495,7 +501,9 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     probe = _ReleaseProbe()
 
     def watch_then_release():
-        probe.refs = [_storage_ref(made[0]), lambda: instances[0]() is not None]
+        # Python 3.11's cleared list-comprehension frame can retain its closure and
+        # the empty store. Inspect every allocation, not metadata-object reachability.
+        probe.refs = [_storage_ref(made[0]), *resident_refs]
         made.clear()
         return probe()
 
@@ -504,9 +512,12 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     with pytest.raises(RuntimeError, match="injected page-lock failure"):
         _store(spill, plan, tmp_path, release=watch_then_release, opener=record_open)
     assert len(opened) == 1
+    assert len(resident_refs) == (plan.n_layers - plan.spill_layers) * plan.k
     assert all(handle.closed for handle in handles)
     _released(spill, opened[0].path)
     assert probe.calls == 1 and probe.alive == [0]
+    if retain_metadata:
+        assert retained[0]._closed and not retained[0]._resident
     assert _no_spill_threads()
 
 

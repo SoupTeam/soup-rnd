@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-21",
+  "repository": "SoupTeam/soup-rnd",
+  "source": "GitHub connector current read, Git fetch origin main and exact Git-blob comparison; no merge/commit performed",
+  "main_sha": "fdf067fc8bdfc056bc41269988335e8007be9389",
+  "pull_requests": [
+    {
+      "number": 11,
+      "url": "https://github.com/SoupTeam/soup-rnd/pull/11",
+      "merged": true,
+      "head_sha": "cfc9515c68b7171b59fb4071b079bc6793bfc738",
+      "merge_commit_sha": "84042a125633f4c00ef9943646b51e3ec94e20e0",
+      "merged_at": "2026-10-15T07:39:30Z",
+      "title": "bench(f4): descriptive MoE GEMM curves with preserved provenance"
+    },
+    {
+      "number": 24,
+      "url": "https://github.com/SoupTeam/soup-rnd/pull/24",
+      "merged": true,
+      "head_sha": "683c96eb6783b7b09f55d6362cf80b622a8b3964",
+      "merge_commit_sha": "4b90b8d3d13926f6c4eea43004b5eda479c349e2",
+      "merged_at": "2026-10-20T17:41:51Z",
+      "title": "B1.1: feat(stream): add independently readable MoE expert shards"
+    },
+    {
+      "number": 25,
+      "url": "https://github.com/SoupTeam/soup-rnd/pull/25",
+      "merged": true,
+      "head_sha": "3f03496397adf41479a4a8e8bd39c70ca052e6f7",
+      "merge_commit_sha": "fdf067fc8bdfc056bc41269988335e8007be9389",
+      "merged_at": "2026-10-20T17:42:09Z",
+      "title": "B1.2: feat(stream): add bounded MoE expert forward streaming"
+    }
+  ],
+  "f4_review_scope": "Approved and merged as descriptive research baseline. Reviewer explicitly does not certify missing per-arm validity, universal factor, measured dense-layer baseline or withdrawn torch.where attribution. No new paid rerun requested.",
+  "f4_latest_approval": {
+    "id": "PRR_kwDOU-NSw88AAAABSZi8wA",
+    "state": "APPROVED",
+    "body": "The requested changelog and Windows LF-checkout fixes are complete on this head. All seven full Linux/Windows/macOS test jobs and the remaining CI checks pass. The retained CPU replay/source-hash audit supports acceptance of the corrected descriptive report. The earlier changes request is resolved. This approval accepts the published observations and disclosed limitations; it does not certify missing per-arm validity, a universal MoE factor, a measured dense-layer baseline, or the withdrawn torch.where attribution. No new GPU run is required for this report.",
+    "submitted_at": "2026-10-15T07:39:18Z",
+    "author": {
+      "login": "nurikw3",
+      "name": "nurikw3",
+      "email": null,
+      "avatar_url": "https://avatars.githubusercontent.com/u/95142612?u=43794c9bb38b552e5536292e5b4eb1b0de161eed&v=4",
+      "id": null
+    }
+  },
+  "main_runtime_equals_measured_source": [
+    "src/soup_cli/utils/expert_stream.py",
+    "src/soup_cli/utils/expert_shard.py",
+    "src/soup_cli/utils/layer_shard.py",
+    "src/soup_cli/utils/layer_stream_runtime.py",
+    "src/soup_cli/utils/safetensors_reader.py"
+  ],
+  "live_trello_rechecked": false,
+  "trello_scope": "Use the card description read on 2026-10-20; current browser page did not expose content. No board changes made.",
+  "current_blocker": "Full native resident model needs the declared 16 GB+ native-BF16 GPU class. Current 12 GB RTX 3060 cannot satisfy that capacity gate.",
+  "integration_review": "B1 interface coordination/review remains open; no messages sent to developers.",
+  "new_full_model_formal_execution": false
+}

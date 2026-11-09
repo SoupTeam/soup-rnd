@@ -183,4 +183,3 @@ def test_expert_reads_grow_with_the_micro_batches_of_a_window(
     assert min(per_micro_batch) > FLAT_PER_MICRO_BATCH * max(per_micro_batch), per_micro_batch
     # Layer loads are the part that does not follow k.
     assert len(loads) == 1, loads
-

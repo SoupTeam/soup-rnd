@@ -1,0 +1,207 @@
+{
+  "kind": "development CUDA qualification; not a formal trained-model or performance study",
+  "date": "2026-10-22",
+  "task_complete": false,
+  "latest_unique_cuda_cases": 25,
+  "cuda_failures": 0,
+  "cuda_skips": 0,
+  "cpu_development_cases": 37,
+  "full_repository_suite": "not run for these changes",
+  "source_commit": "uncommitted changes based on d48ea5073e88a85751e7ad2acacb21211983618c",
+  "executed_new_sources_sha256": {
+    "src/soup_cli/utils/expert_group_activation.py": "411f690babcdeb99c4a78b9d9f109da542f0ec5224d7cf932eec89e265b16cd5",
+    "src/soup_cli/utils/expert_group_autograd.py": "df623f6d1e0ccb5cf86255fdd353cd11738c36ee559cb3ded07a4b07f2457066",
+    "tests/test_d3_expert_activation.py": "992864b27d64ae9e541c1c6b851d5619bd0979b5476e422ba2b7ab0f92bac9b5",
+    "tests/test_d3_expert_derivatives.py": "82c29dde0daca1db556e47c457169566d0d3ad74107133a0e9aec0e9c4b52ed4"
+  },
+  "software": {
+    "torch": "2.14.1+cu130",
+    "triton": "3.8.0",
+    "transformers": "5.19.0",
+    "bitsandbytes": "0.50.2",
+    "safetensors": "0.8.0",
+    "pytest": "9.1.1",
+    "cuda_runtime": "13.0"
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "archive": "d3-cuda-development-01-20261022.zip",
+      "verification": {
+        "kind": "offline development evidence verification, no CUDA replay",
+        "archive_sha256": "6fce7ee4de005db83840bb4dd686db3555d55a32a5e5f930e155fde78248aade",
+        "payload_hashes": 624,
+        "source_hashes": 613,
+        "passed_cases": 14,
+        "collected_equals_executed": true,
+        "zip_crc": "passed",
+        "activation_peak": {
+          "eager_allocated_peak_delta_bytes": "4194304",
+          "fused_allocated_peak_delta_bytes": "2097152",
+          "scope": "activation only, after warm-up; not whole-model VRAM"
+        },
+        "preflight": {
+          "source_verified": 613,
+          "folder": "/workspace/d3-development-20261022-a558f9c0f1",
+          "packages": {
+            "torch": "2.14.1+cu132",
+            "triton": "3.8.0",
+            "transformers": null,
+            "bitsandbytes": null,
+            "safetensors": null,
+            "pytest": null,
+            "pytest-cov": null,
+            "rich": null,
+            "numpy": "2.5.4",
+            "nvidia-cublas-cu13": null,
+            "nvidia-cublas-cu12": null
+          },
+          "disk_free_gib": 99.97027587890625,
+          "memory.max": "32139902976",
+          "memory.current": "1035243520",
+          "cpu.max": "2304000 100000",
+          "gpu": "NVIDIA GeForce RTX 3090",
+          "capability": [
+            8,
+            6
+          ],
+          "native_bf16": true,
+          "cuda": "13.2",
+          "python": "3.12.15 (main, Oct 13 2026, 16:52:04) [GCC 15.3.0]",
+          "gpu_memory": [
+            25018040320,
+            25296044032
+          ]
+        }
+      },
+      "base_commit": "d48ea5073e88a85751e7ad2acacb21211983618c",
+      "uncommitted_snapshot": true
+    },
+    {
+      "phase": 2,
+      "archive": "d3-cuda-development-02-20261022.zip",
+      "verification": {
+        "kind": "offline development evidence verification, no CUDA replay",
+        "archive_sha256": "2126e1e22e93b868a08aec42bf159caa49550f74ff7b06e523d3d2005fb0e620",
+        "payload_hashes": 622,
+        "source_hashes": 613,
+        "passed_cases": 22,
+        "collected_equals_executed": true,
+        "zip_crc": "passed",
+        "activation_peak": {
+          "eager_allocated_peak_delta_bytes": "4194304",
+          "fused_allocated_peak_delta_bytes": "2097152",
+          "scope": "activation only, after warm-up; not whole-model VRAM"
+        },
+        "preflight": {
+          "source_verified": 613,
+          "folder": "/workspace/d3-development-20261022-2c53bccd31",
+          "packages": {
+            "torch": "2.14.1+cu132",
+            "triton": "3.8.0",
+            "transformers": null,
+            "bitsandbytes": null,
+            "safetensors": null,
+            "pytest": null,
+            "pytest-cov": null,
+            "rich": null,
+            "numpy": "2.5.4",
+            "nvidia-cublas-cu13": null,
+            "nvidia-cublas-cu12": null
+          },
+          "disk_free_gib": 94.4267349243164,
+          "memory.max": "32139902976",
+          "memory.current": "8195088384",
+          "cpu.max": "2304000 100000",
+          "gpu": "NVIDIA GeForce RTX 3090",
+          "capability": [
+            8,
+            6
+          ],
+          "native_bf16": true,
+          "cuda": "13.2",
+          "python": "3.12.15 (main, Oct 13 2026, 16:52:04) [GCC 15.3.0]",
+          "gpu_memory": [
+            25018040320,
+            25296044032
+          ]
+        }
+      },
+      "base_commit": "d48ea5073e88a85751e7ad2acacb21211983618c",
+      "uncommitted_snapshot": true
+    },
+    {
+      "phase": 3,
+      "archive": "d3-cuda-development-03-20261022.zip",
+      "verification": {
+        "kind": "offline development evidence verification, no CUDA replay",
+        "archive_sha256": "9a51934e8d67824252d4a4e7b22189aa6759f154ab709bc5f91e67d787365213",
+        "payload_hashes": 622,
+        "source_hashes": 613,
+        "passed_cases": 25,
+        "collected_equals_executed": true,
+        "zip_crc": "passed",
+        "activation_peak": {
+          "eager_allocated_peak_delta_bytes": "4194304",
+          "fused_allocated_peak_delta_bytes": "2097152",
+          "scope": "activation only, after warm-up; not whole-model VRAM"
+        },
+        "preflight": {
+          "source_verified": 613,
+          "folder": "/workspace/d3-development-20261022-c45d399c51",
+          "packages": {
+            "torch": "2.14.1+cu132",
+            "triton": "3.8.0",
+            "transformers": null,
+            "bitsandbytes": null,
+            "safetensors": null,
+            "pytest": null,
+            "pytest-cov": null,
+            "rich": null,
+            "numpy": "2.5.4",
+            "nvidia-cublas-cu13": null,
+            "nvidia-cublas-cu12": null
+          },
+          "disk_free_gib": 94.12044143676758,
+          "memory.max": "32139902976",
+          "memory.current": "9349054464",
+          "cpu.max": "2304000 100000",
+          "gpu": "NVIDIA GeForce RTX 3090",
+          "capability": [
+            8,
+            6
+          ],
+          "native_bf16": true,
+          "cuda": "13.2",
+          "python": "3.12.15 (main, Oct 13 2026, 16:52:04) [GCC 15.3.0]",
+          "gpu_memory": [
+            25018040320,
+            25296044032
+          ]
+        }
+      },
+      "base_commit": "d48ea5073e88a85751e7ad2acacb21211983618c",
+      "uncommitted_snapshot": true
+    }
+  ],
+  "memory": {
+    "shape": [
+      1024,
+      2048
+    ],
+    "dtype": "bfloat16",
+    "metric": "max_memory_allocated minus allocated baseline, after warm-up",
+    "eager_extra_peak_bytes": 4194304,
+    "triton_extra_peak_bytes": 2097152,
+    "input_already_live_bytes": 4194304,
+    "scope": "isolated activation, not total model VRAM"
+  },
+  "runtime_inventory_scope": "post-test inventory of the unchanged execution venv, not a GPU test replay",
+  "final_local_cpu_results": {
+    "development": 37,
+    "gpu_probe_structural": 16,
+    "total": 53,
+    "gpu_deselected": 25,
+    "seconds": 36.95
+  }
+}

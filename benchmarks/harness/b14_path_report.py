@@ -23,13 +23,17 @@ from __future__ import annotations
 import collections
 import gc
 import json
-import resource
 import shutil
 import sys
 import tempfile
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
+
+try:
+    import resource
+except ImportError:  # Windows does not provide the POSIX resource module.
+    resource = None  # type: ignore[assignment]
 
 try:
     from . import b13_moe_fixture as fixture
@@ -131,8 +135,13 @@ def _rss_bytes() -> int:
 
 
 def _lifetime_peak_rss_bytes() -> int:
-    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return peak if sys.platform == "darwin" else peak * 1024
+    if resource is not None:
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return peak if sys.platform == "darwin" else peak * 1024
+    # psutil exposes the peak working set in bytes on Windows.
+    import psutil
+
+    return int(psutil.Process().memory_info().peak_wset)
 
 
 def _process_io() -> Optional[Dict[str, int]]:
@@ -143,7 +152,12 @@ def _process_io() -> Optional[Dict[str, int]]:
         counters = psutil.Process().io_counters()
     except (AttributeError, NotImplementedError, psutil.Error):
         return None  # macOS has no per-process I/O counters
-    return {"read_bytes": int(counters.read_bytes), "read_chars": int(counters.read_chars)}
+    result = {}
+    for name in ("read_bytes", "read_chars"):
+        value = getattr(counters, name, None)
+        if value is not None:
+            result[name] = int(value)
+    return result or None
 
 
 class RssSampler:

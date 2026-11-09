@@ -1,0 +1,22 @@
+{
+  "status": "fail",
+  "F1_outcome": "ok",
+  "traceback": "Traceback (most recent call last):\n  File \"/root/d3-public-trainer-frozen-cd6515ac/benchmarks/harness/d3_trainer_series.py\", line 400, in child\n    record[\"result\"] = correctness(\n                       ^^^^^^^^^^^^\n  File \"/root/d3-public-trainer-frozen-cd6515ac/benchmarks/harness/d3_trainer_gate.py\", line 526, in correctness\n    positive = one_replay(\n               ^^^^^^^^^^^\n  File \"/root/d3-public-trainer-frozen-cd6515ac/benchmarks/harness/d3_trainer_gate.py\", line 470, in one_replay\n    result = wrapper.train()\n             ^^^^^^^^^^^^^^^\n  File \"/root/d3-public-trainer-frozen-cd6515ac/src/soup_cli/trainer/sft.py\", line 2349, in train\n    self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)\n  File \"/root/d3-trainer-venv/lib/python3.12/site-packages/transformers/trainer.py\", line 1562, in train\n    return inner_training_loop(\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-venv/lib/python3.12/site-packages/transformers/trainer.py\", line 1662, in _inner_training_loop\n    return self._finalize_training(trial, num_train_samples, start_time)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-venv/lib/python3.12/site-packages/transformers/trainer.py\", line 2013, in _finalize_training\n    self.control = self.callback_handler.on_train_end(self.args, self.state, self.control)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-venv/lib/python3.12/site-packages/transformers/trainer_callback.py\", line 495, in on_train_end\n    return self.call_event(\"on_train_end\", args, state, control, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-trainer-venv/lib/python3.12/site-packages/transformers/trainer_callback.py\", line 545, in call_event\n    result = getattr(callback, event)(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-public-trainer-frozen-cd6515ac/benchmarks/harness/d3_trainer_gate.py\", line 416, in on_train_end\n    self.eval_logits = tensor_record(model(input_ids=ids).logits.float())\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/d3-public-trainer-frozen-cd6515ac/benchmarks/harness/d3_trainer_gate.py\", line 43, in tensor_record\n    raise NumericalFailureError(\"nonfinite numerical evidence\")\nbenchmarks.harness.d3_trainer_gate.NumericalFailureError: nonfinite numerical evidence\n",
+  "started_cells": 1,
+  "accepted_cells": 0,
+  "formal_source": "cd6515ac503b15a111050b35db5c33768d506a9b",
+  "full_archive": {
+    "filename": "d3-public-trainer-results-cd6515ac.zip",
+    "bytes": 897498866,
+    "sha256": "08b731f604368dc03a21d7def54be095617428d03753aea4504ef65aa5309bcb",
+    "payload_in_git": false,
+    "omitted_from_small_publication": {
+      "session/correctness-dense-ordinary-native-resident/positive/oracle/step-3.safetensors": "6eeccc3afa78cc39c6afb927f1c45209ccd4cb85a772943d46c4a21ab34c9d0d",
+      "session/correctness-dense-ordinary-native-resident/positive/oracle/step-1.safetensors": "e8314921a65622ee5e8640bcf1cf7dd467c42332170681b482a5c88040170523",
+      "session/correctness-dense-ordinary-native-resident/positive/oracle/step-2.safetensors": "58fe4f12dddc5de4c97bc1822e76e271f5a6a184796eb97d142f3ffd31cf524b",
+      "session/correctness-dense-ordinary-native-resident/positive/oracle/step-4.safetensors": "5f9ca4706b8a70169e41e4f2254a0bd8c80dad140b8d0ab666660b1b2725e17f",
+      "tools-or-source/d3-public-trainer-cd6515ac.zip": "0b041edb8154cc47ae5a2c8c7dd4fac79aff44154155b6429c936e036bcc9b52"
+    },
+    "reason": "Full native tensors and redundant source ZIP are retained in the verified local/full server archive. No accepted cell or performance result is claimed."
+  }
+}

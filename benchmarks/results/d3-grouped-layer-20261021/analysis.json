@@ -1,0 +1,145 @@
+{
+  "scope": "Pinned trained-layer forward; not complete D3 or end-to-end/training acceptance",
+  "source": {
+    "git_head": "0aef6904af8b6cbbc1d9119fcf687d1d0c170f04",
+    "git_blob_sha256": {
+      "benchmarks/harness/d3_grouped_performance.py": "ae2ed8ed054bbde391d847b6c5e8ba2f06db2d6d4c233883fb40a6260a8a3f07",
+      "benchmarks/harness/d3_grouped_restore_check.py": "b68d2b87db17bae988393e96a532ddb628a09a9710284e52443e9f8894a67ec1",
+      "benchmarks/harness/d3_cublas_grouped_probe.py": "719f41641fe6aa82424084033ed1d860c02f9230644358f59e4ccfff0de3a43c",
+      "benchmarks/harness/d3_f1_controls.py": "ead6f9bbb2f0c0debea8820f1c5dbc0da302e6d259f4ec282c75271566915040",
+      "benchmarks/harness/d3_f1_mapping_probe.py": "a32bec7b3f39de405e2b61e715022b2e53501093872ab00c0ba80c0c42f84c40",
+      "benchmarks/harness/arm_validity.py": "ae7e6e5f4d4df460202c8229deb167c43a350f41538c25dc571f21a5791190f9",
+      "benchmarks/harness/b1_expert_forward_gate.py": "a18204cf966d861573f6b47115a08e9896d36f9ae4bbebe46ba347c95a616b0a",
+      "benchmarks/protocols/b1.2-expert-forward/protocol.json": "ffa940bd265fb36a5cf52f6dd06ec879003ac750fed6c80308b4c68cd818fdb8",
+      "benchmarks/protocols/d3-grouped-experts/setup-evidence.zip": "49131205199e2b85e8beb1f6bf54f7a24e6cc3131e30474ee3253bfd218710f9",
+      "src/soup_cli/utils/expert_group.py": "ebe62c73cd5fe85d59b115d18f20c8fcd8566d0e4b04fd917329c98602b23510",
+      "src/soup_cli/utils/expert_group_decode.py": "a6704db87f8d0d39f48a3c3a82b65a9e3110f3f1bb153c230243b7bb53c4b3f0",
+      "src/soup_cli/utils/expert_group_compute.py": "ad8381fcc46591aa8e3c6951f4ec52d81ab12e8451063d6443ec08fbc410d8a8",
+      "src/soup_cli/utils/expert_group_gemm.py": "4a76febd354b31c5951a3047922704ca034df311b72f529e110cf4f2b4c312e3",
+      "src/soup_cli/utils/expert_stream.py": "8bab7271dbb391322dfdb6d32dfe1e468f67a41f5809657e80f5fc955e2c88dc",
+      "src/soup_cli/utils/expert_shard.py": "00d4c856f520188d20d918fc0e354ccfac3bf0a4d85fba68cbb051194b232f1d",
+      "src/soup_cli/utils/layer_shard.py": "a29028689ace13d43fad2cd3a13fcabcabe0de6883c24d07e83485a31d90dad3",
+      "src/soup_cli/utils/layer_stream_runtime.py": "f10977bdcebb8171b8cdd9af4c569443a3d259df1903bbba04a2e22325024e12",
+      "src/soup_cli/utils/safetensors_reader.py": "42a56609c459cc3c2cd3a05f4684e53753b303b631bffc0dcb6e6a498c49822b",
+      "benchmarks/protocols/d3-grouped-experts/performance-protocol.json": "be6b06a1c0a03ac573b43c48c4b3ed476490f6dbb1dc088319beb6401cfa21ff"
+    }
+  },
+  "protocol_sha256": "be6b06a1c0a03ac573b43c48c4b3ed476490f6dbb1dc088319beb6401cfa21ff",
+  "formats": {
+    "dense": {
+      "analysis": {
+        "blocks": 5,
+        "block_ratios_B_over_A": [
+          0.9590932776712322,
+          0.9667651276492764,
+          1.000797979961506,
+          0.9147166267531293,
+          0.9271704156346509
+        ],
+        "mean_block_ratio": 0.9537086855339589,
+        "d3_accepted": false
+      },
+      "wall_reduction_percent": 4.629131446604107,
+      "wall_speedup_B_over_A": 1.0485382121062718,
+      "repeat_calculation": {
+        "sigma": 0.005213154078040652,
+        "mean_a": 0.1728995328565361,
+        "blocks_needed": 2
+      },
+      "profile_kernel_events": {
+        "A": 852,
+        "B": 756
+      },
+      "memory_maxima_bytes": {
+        "A": {
+          "peak_allocated": 31502848,
+          "peak_reserved": 46137344,
+          "peak_rss_bytes": 1272143872
+        },
+        "B": {
+          "peak_allocated": 66168320,
+          "peak_reserved": 75497472,
+          "peak_rss_bytes": 1078431744
+        }
+      }
+    },
+    "nf4": {
+      "analysis": {
+        "blocks": 5,
+        "block_ratios_B_over_A": [
+          0.9814849092400242,
+          0.975803517356017,
+          1.009763661056368,
+          0.9565804780056636,
+          0.9701880064718104
+        ],
+        "mean_block_ratio": 0.9787641144259766,
+        "d3_accepted": false
+      },
+      "wall_reduction_percent": 2.123588557402345,
+      "wall_speedup_B_over_A": 1.0216966327851913,
+      "repeat_calculation": {
+        "sigma": 0.0011007609325974642,
+        "mean_a": 0.07080427675973625,
+        "blocks_needed": 2
+      },
+      "profile_kernel_events": {
+        "A": 980,
+        "B": 788
+      },
+      "memory_maxima_bytes": {
+        "A": {
+          "peak_allocated": 35697152,
+          "peak_reserved": 46137344,
+          "peak_rss_bytes": 1322397696
+        },
+        "B": {
+          "peak_allocated": 80848384,
+          "peak_reserved": 90177536,
+          "peak_rss_bytes": 1068572672
+        }
+      }
+    },
+    "nf4-dq": {
+      "analysis": {
+        "blocks": 5,
+        "block_ratios_B_over_A": [
+          0.9390762487989658,
+          0.965110903345066,
+          0.9253508688122793,
+          0.949722929592204,
+          0.9258283336566496
+        ],
+        "mean_block_ratio": 0.9410178568410329,
+        "d3_accepted": false
+      },
+      "wall_reduction_percent": 5.898214315896711,
+      "wall_speedup_B_over_A": 1.0626790902321113,
+      "repeat_calculation": {
+        "sigma": 0.0010391197142457624,
+        "mean_a": 0.0772434318991145,
+        "blocks_needed": 2
+      },
+      "profile_kernel_events": {
+        "A": 1236,
+        "B": 788
+      },
+      "memory_maxima_bytes": {
+        "A": {
+          "peak_allocated": 35697152,
+          "peak_reserved": 46137344,
+          "peak_rss_bytes": 1341435904
+        },
+        "B": {
+          "peak_allocated": 80848384,
+          "peak_reserved": 90177536,
+          "peak_rss_bytes": 1069682688
+        }
+      }
+    }
+  },
+  "timed_arms": 60,
+  "samples": 1200,
+  "profile_arms": 6,
+  "d3_accepted": false
+}
