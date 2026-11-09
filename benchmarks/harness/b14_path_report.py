@@ -152,7 +152,12 @@ def _process_io() -> Optional[Dict[str, int]]:
         counters = psutil.Process().io_counters()
     except (AttributeError, NotImplementedError, psutil.Error):
         return None  # macOS has no per-process I/O counters
-    return {"read_bytes": int(counters.read_bytes), "read_chars": int(counters.read_chars)}
+    result = {}
+    for name in ("read_bytes", "read_chars"):
+        value = getattr(counters, name, None)
+        if value is not None:
+            result[name] = int(value)
+    return result or None
 
 
 class RssSampler:
