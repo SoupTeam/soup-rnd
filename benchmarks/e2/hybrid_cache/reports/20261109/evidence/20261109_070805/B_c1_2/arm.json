@@ -1,0 +1,40 @@
+{
+  "schema": "e2-hybrid-cache-run-v1",
+  "arm": "B_c1_2",
+  "position": 3,
+  "training_command": [
+    "benchmarks/e2/hybrid/run_hybrid.py",
+    "--config",
+    "/kaggle/working/soup-rnd/e2hc_results/20261109_070805/B_c1_2/config.yaml",
+    "--steps",
+    "6000",
+    "--output",
+    "/kaggle/working/soup-rnd/e2hc_results/20261109_070805/B_c1_2/quality.json",
+    "--seed",
+    "42",
+    "--keep-top",
+    "8",
+    "--cache-dir",
+    "/tmp/e2_hybrid_cache/B_c1_2"
+  ],
+  "started_utc": "2026-11-09T08:17:50.805154+00:00",
+  "gpus": "Tesla T4, GPU-eb5f9b1e-f21f-b6c9-184e-cc8dcef5b822, 15360 MiB, 580.178.04\nTesla T4, GPU-80dcd8ad-9932-e2a0-9ef5-f52b972c3174, 15360 MiB, 580.178.04",
+  "gpu_state_before": "0, 55, 1470 MHz, 5000 MHz, 34.42 W, 0x0000000000000000, 40 %\n1, 74, 1500 MHz, 5000 MHz, 37.85 W, 0x0000000000000000, 34 %",
+  "template_sha256": "d544f610b37d03c63b01d1e5400c60e6509ee96d1c3dbd53ce59600244ee1128",
+  "config_sha256": "f05147750d20af13ffe0401f440206fdb743d7f6a1fbe75358bab81b71ed480f",
+  "process_wall_seconds": 1160.799859046936,
+  "steps": [
+    {
+      "step": "train",
+      "exit": 0,
+      "seconds": 1160.8
+    }
+  ],
+  "gpu_state_after": "0, 55, 615 MHz, 5000 MHz, 30.99 W, 0x0000000000000000, 34 %\n1, 75, 990 MHz, 5000 MHz, 32.64 W, 0x0000000000000000, 65 %",
+  "cache_dir_at_end": {
+    "files": 2000,
+    "bytes": 1583007056
+  },
+  "finished_utc": "2026-11-09T08:37:11.951864+00:00",
+  "ok": true
+}

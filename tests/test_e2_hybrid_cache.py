@@ -193,3 +193,19 @@ def test_cache_notebook_runs_the_whole_order():
     assert "benchmarks/e2/hybrid_cache/run_arm.py" in code and "e2hc_results_" in code
     for name in cache_arm.ORDER:
         assert f'"{name}"' in code
+
+
+def test_retained_kaggle_series_replays_to_the_published_result():
+    import hashlib
+
+    report = HC / "reports" / "20261109"
+    evidence = report / "evidence"
+    result = speed.analyze(evidence / "20261109_070805")
+    published = json.loads((report / "analysis.json").read_text())
+    assert result["label"] == published["label"] == "WARM_SPEEDUP"
+    assert result["secondary_label"] == "TRAINING_SPEEDUP"
+    assert result["cycles"] == published["cycles"]
+    assert result["warm_median"] > 3.0
+    manifest = json.loads((report / "MANIFEST.json").read_text())
+    for name, digest in manifest["files"].items():
+        assert hashlib.sha256((evidence / name).read_bytes()).hexdigest() == digest, name
