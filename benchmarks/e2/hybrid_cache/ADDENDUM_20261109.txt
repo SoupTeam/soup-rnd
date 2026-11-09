@@ -1,0 +1,23 @@
+ADDENDUM 2026-11-09 to hybrid_cache/PROTOCOL.txt (the protocol itself is unchanged).
+
+What happened. The series was started on 2026-11-08 at 16:43 UTC in an interactive Kaggle
+Draft Session, not as Save Version -> Save & Run All. C and all twelve A/B runs finished
+with exit 0 (last run ended 21:59 UTC) and the notebook printed
+/kaggle/working/e2hc_results_20261108_164350.zip, 10,502,362 bytes. After the session sat
+idle and was stopped, /kaggle/working was empty: the archive was never downloaded and is
+lost. No quality.json, no validation CE, no fingerprints, no cache counters and no
+per-epoch timings were retained. Nothing in this series has been analysed.
+
+What survived. Only the printed run records: process wall seconds per run
+  C 1350.3; A_c1_1 1739.6; B_c1_1 1194.9; B_c1_2 1199.2; A_c1_2 1736.1;
+  A_c2_1 1716.5; B_c2_1 1163.4; B_c2_2 1181.4; A_c2_2 1753.1;
+  A_c3_1 1784.8; B_c3_1 1182.1; B_c3_2 1182.4; A_c3_2 1751.0.
+Per-cycle A/B ratios of these (whole process, not the protocol's measure) are 1.45, 1.48,
+1.50. They are not a result: V1-V5 cannot be checked and the decision metric (step time of
+epoch 3) is not available.
+
+Decision. The series produced no verdict, and the reason is lost data, not an outcome
+(NO_VERDICT: data lost). The whole series is run again once, unchanged, as Save Version ->
+Save & Run All, so that the output is stored with the version. The process times above
+were seen before the rerun; the rerun's verdict is taken from the protocol's own metric
+only, and the first run's times are reported beside it, not pooled with it.
