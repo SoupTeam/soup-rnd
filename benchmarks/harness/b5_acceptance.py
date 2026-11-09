@@ -73,6 +73,8 @@ def _check_environment(journal: Sequence[Mapping[str, Any]], failures: List[str]
             failures.append(f"environment: {key} is {row.get(key)!r}, the rule needs {want!r}")
     memory = row.get("vram_bytes")
     capability = row.get("compute_capability")
+    if not isinstance(row.get("gpu"), str) or not row["gpu"]:
+        failures.append("card: the environment event does not name the card")
     if row.get("device_count") != 1:
         failures.append(f"card: device_count {row.get('device_count')!r}, one card is required")
     if not isinstance(memory, int) or not CARD_MIN_BYTES <= memory <= CARD_MAX_BYTES:

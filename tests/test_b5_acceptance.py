@@ -229,3 +229,11 @@ def test_throttling_in_fewer_than_half_the_samples_keeps_the_speed() -> None:
         _with_clock(good_journal(), samples=60, throttled=29))["measured"]
 
     assert measured["tokens_per_second"]["status"] == "measured"
+
+
+def test_a_card_without_a_name_is_refused() -> None:
+    for change in ({"gpu": ""}, {"gpu": None}):
+        result = b5_acceptance.verdict(_edit(good_journal(), "environment", **change))
+
+        assert result["passed"] is False, change
+        assert "card" in _codes(result), change
