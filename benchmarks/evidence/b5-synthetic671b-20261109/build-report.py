@@ -1,3 +1,4 @@
+# ruff: noqa: E501, E731, F401  (report prose lines are not wrapped, kept as run)
 """Builds benchmarks/b5-synthetic671b-report3-20261109.md from the journals of the run.
 
 Run from the repo root: PYTHONPATH=$PWD/src python benchmarks/evidence/b5-synthetic671b-20261109/build-report.py

@@ -1,3 +1,4 @@
+# ruff: noqa: E501, E402, F401  (evidence script: sys.path set before imports, kept as run)
 """What Soup's own tier planner says about Qwen3.5-35B-A3B at a 32 GiB limit. CPU only, no weights.
 
     python -I qwen35_tier.py qwen35_plan.json

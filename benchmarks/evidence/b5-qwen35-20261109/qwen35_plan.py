@@ -1,3 +1,4 @@
+# ruff: noqa: E501, E402, E731  (evidence script: sys.path set before imports, report prose lines not wrapped)
 """Header-only cache plan for Qwen3.5-35B-A3B at a pinned revision. No weight payload is read.
 
     python -I qwen35_plan.py CONFIG_DIR OUT.json
