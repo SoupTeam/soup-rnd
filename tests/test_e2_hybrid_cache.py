@@ -69,7 +69,31 @@ def _tiny(tmp_path):
     return path
 
 
-def _train(tmp_path, model_dir, name, cache_dir):
+def _tiny_olmoe(tmp_path):
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("peft")
+    from tokenizers import Tokenizer
+    from tokenizers.models import WordLevel
+    from tokenizers.pre_tokenizers import Whitespace
+    from transformers import OlmoeConfig, OlmoeForCausalLM, PreTrainedTokenizerFast
+
+    torch.manual_seed(42)
+    path = tmp_path / "tiny_olmoe"
+    OlmoeForCausalLM(OlmoeConfig(
+        vocab_size=100, hidden_size=64, intermediate_size=64, num_hidden_layers=4,
+        num_attention_heads=4, num_key_value_heads=4, num_experts=8, num_experts_per_tok=2,
+        max_position_embeddings=256, pad_token_id=0, eos_token_id=2,
+    )).save_pretrained(path)
+    vocab = {"[PAD]": 0, "[UNK]": 1, "[EOS]": 2, **{f"token_{i}": i for i in range(3, 100)}}
+    backend = Tokenizer(WordLevel(vocab=vocab, unk_token="[UNK]"))
+    backend.pre_tokenizer = Whitespace()
+    PreTrainedTokenizerFast(
+        tokenizer_object=backend, pad_token="[PAD]", unk_token="[UNK]", eos_token="[EOS]"
+    ).save_pretrained(path)
+    return path
+
+
+def _train(tmp_path, model_dir, name, cache_dir, aux_coeff=None):
     from soup_cli.config.loader import load_config
     from soup_cli.data.loader import load_dataset
     from soup_cli.trainer.sft import SFTTrainerWrapper
@@ -81,6 +105,8 @@ def _train(tmp_path, model_dir, name, cache_dir):
     cfg["data"]["train"] = str(tmp_path / "data.jsonl")
     cfg["training"]["lora"]["top_k_layers"] = 4
     cfg["training"]["lr"] = 0.01
+    if aux_coeff is not None:
+        cfg["training"]["moe_aux_loss_coeff"] = aux_coeff
     (tmp_path / f"{name}.yaml").write_text(yaml.safe_dump(cfg))
     config = load_config(str(tmp_path / f"{name}.yaml"))
     wrapper = SFTTrainerWrapper(config, device="cpu")
@@ -209,3 +235,12 @@ def test_retained_kaggle_series_replays_to_the_published_result():
     manifest = json.loads((report / "MANIFEST.json").read_text())
     for name, digest in manifest["files"].items():
         assert hashlib.sha256((evidence / name).read_bytes()).hexdigest() == digest, name
+
+
+def test_olmoe_cache_is_bit_identical_to_no_cache_with_the_router_loss_off(tmp_path, monkeypatch):
+    model_dir = _tiny_olmoe(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    with_cache, record, _ = _train(tmp_path, model_dir, "b", tmp_path / "cache", aux_coeff=0)
+    without, _, _ = _train(tmp_path, model_dir, "c", None, aux_coeff=0)
+    assert with_cache == without
+    assert record["cache"]["hits"] > 0 and record["cache"]["files"] == record["cache"]["misses"]

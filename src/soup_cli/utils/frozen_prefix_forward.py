@@ -17,7 +17,7 @@ from transformers.masking_utils import (
     create_causal_mask,
     create_sliding_window_causal_mask,
 )
-from transformers.modeling_outputs import BaseModelOutputWithPast
+from transformers.modeling_outputs import BaseModelOutputWithPast, MoeModelOutputWithPast
 
 from soup_cli.utils.frozen_prefix_cache import (
     FrozenPrefixCache,
@@ -175,6 +175,14 @@ class FrozenPrefixRunner:
         output_attentions = kwargs.pop("output_attentions", None)
         output_hidden_states = kwargs.pop("output_hidden_states", None)
 
+        router_logits = kwargs.pop("output_router_logits", None)
+
+        if router_logits not in (None, False):
+            raise ValueError(
+                "E2 does not support output_router_logits=True: "
+                "the cached prefix has no router logits"
+            )
+
         if output_attentions not in (None, False):
             raise ValueError("E2 does not support output_attentions=True")
 
@@ -199,7 +207,7 @@ class FrozenPrefixRunner:
 
         mask_function = (
             create_causal_mask
-            if decoder.config.sliding_window is None
+            if getattr(decoder.config, "sliding_window", None) is None
             else create_sliding_window_causal_mask
         )
 
@@ -290,7 +298,14 @@ class FrozenPrefixRunner:
 
         hidden = decoder.norm(hidden)
 
-        return BaseModelOutputWithPast(
+        # The MoE head reads outputs.router_logits unconditionally; the cached prefix has
+        # none, so MoE runs set moe_aux_loss_coeff: 0 and output_router_logits stays off.
+        output_class = (
+            MoeModelOutputWithPast
+            if type(decoder).__name__ == "OlmoeModel"
+            else BaseModelOutputWithPast
+        )
+        return output_class(
             last_hidden_state=hidden,
             past_key_values=None,
         )
@@ -305,14 +320,14 @@ def install_frozen_prefix_cache(
 ):
     """Temporarily install E2 cached forward on a resident Mistral."""
 
-    from transformers import MistralModel
+    from transformers import MistralModel, OlmoeModel
 
     from soup_cli.utils.layer_stream_runtime import decoder_owner
 
     decoder = decoder_owner(model)
 
-    if not isinstance(decoder, MistralModel):
-        raise ValueError("E2 frozen-prefix cache currently supports MistralModel only")
+    if not isinstance(decoder, (MistralModel, OlmoeModel)):
+        raise ValueError("E2 frozen-prefix cache currently supports Mistral and OLMoE only")
 
     if not 0 < cutoff < len(decoder.layers):
         raise ValueError("E2 requires a nonempty frozen prefix and upper stack")
