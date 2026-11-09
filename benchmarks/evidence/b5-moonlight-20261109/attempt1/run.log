@@ -1,0 +1,98 @@
+{
+    'event': 'environment',
+    'python': '3.12.3',
+    'platform': 'Linux-6.8.0-138-generic-x86_64-with-glibc2.39',
+    'gpu': 'NVIDIA GeForce RTX 3070',
+    'device_count': 1,
+    'vram_bytes': 8277196800,
+    'compute_capability': [8, 6],
+    'dtype': 'bfloat16',
+    'quant': 'nf4',
+    'double_quant': False,
+    'expert_layout': 'per_expert',
+    'tier': 'disk',
+    'trust_remote_code': False,
+    'lora_targets': ['q_proj', 'kv_a_proj_with_mqa', 'kv_b_proj', 'o_proj'],
+    'lora_r': 8,
+    'lora_alpha': 16,
+    'lr': 0.0001,
+    'max_length': 512,
+    'steps': 4,
+    'seed': 20261109,
+    'config_sha256': 
+'1c9cd1d5fcd4c75345c57a5b1f67bbf65c298b8f08d44d5d443f9e2ebf3c845d',
+    'versions': {
+        'torch': '2.14.1+cu130',
+        'transformers': '5.20.2',
+        'peft': '0.21.2',
+        'bitsandbytes': '0.50.2',
+        'tiktoken': '0.14.0',
+        'safetensors': '0.8.0',
+        'accelerate': '1.15.0',
+        'soup-cli': None
+    },
+    'cuda': '13.0',
+    'host_ram_bytes': 270105587712,
+    'disk_free_bytes': 122944983040,
+    'source_bytes': 31924237216
+}
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+{'event': 'cache_budget', 'bytes': 18494839040}
+{
+    'event': 'phase_end',
+    'phase': 'preparation',
+    'seconds': 16.469969986006618,
+    'peak_rss_bytes': 4463886336,
+    'cache_bytes': 9947958701,
+    'disk_free_bytes': 112996773888,
+    'source_parameters': 15960110208
+}
+{'event': 'training_start'}
+{'step': 0, 'loss': 4.6883225440979, 'seconds': 26.49487054697238}
+{'step': 1, 'loss': 4.291720867156982, 'seconds': 12.291019530966878}
+{'step': 2, 'loss': 3.4114840030670166, 'seconds': 12.282154326909222}
+{'step': 3, 'loss': 3.6245882511138916, 'seconds': 11.97664473298937}
+{
+    'event': 'training_clock',
+    'samples': 62,
+    'throttled_samples': 0,
+    'reason_counts': {},
+    'unavailable_samples': 0,
+    'sm_clock_mhz': {'min': 1770, 'median': 1770.0, 'max': 1770}
+}
+{
+    'event': 'phase_end',
+    'phase': 'training',
+    'seconds': 63.2090963718947,
+    'peak_rss_bytes': 3853582336,
+    'disk_free_bytes': 112993759232
+}
+{
+    'event': 'runtime',
+    'stats': {
+        'n_layers': 27,
+        'buffers': 2,
+        'buffer_bytes': 806603264,
+        'large_buffer_bytes': 671088640,
+        'expert_buffer_bytes': 22168064,
+        'store_bytes': 1406601216,
+        'staging_bytes': 1406615552,
+        'resident_bytes': 0,
+        'host_allocated_bytes': 1406631936,
+        'accounted_peak_bytes': None,
+        'resident_tensor_bytes_served': 0,
+        'pinned': False,
+        'pinned_bytes': 0,
+        'tier': 'disk',
+        'read_ahead': 1,
+        'disk_bytes': 1850223616,
+        'layer_loads': 205,
+        'layer_restores': 189,
+        'large_loads': 9,
+        'device': 'cuda',
+        'total_params': 15960110208,
+        'expert_fetches': 18129,
+        'expert_bytes_read': 88216584192
+    }
+}
+{'event': 'complete'}
