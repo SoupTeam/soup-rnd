@@ -7,7 +7,7 @@ vastai create instance <offer> --image nvidia/cuda:13.0.0-devel-ubuntu24.04 --di
   --ssh --direct --label b5-03-moonlight --cancel-unavail --raw
     -> new_contract <instance>
 vastai attach ssh <instance> "$(cat ~/.ssh/id_ed25519.pub)"
-scp -P 47746 repo.tgz remote-setup.sh remote-run.sh root@75.156.44.149:/root/b5/
+scp -P <port> repo.tgz remote-setup.sh remote-run.sh root@<host-ip>:/root/b5/
 ssh -f ... 'cd /root/b5 && nohup bash remote-setup.sh > /root/b5/setup.log 2>&1 < /dev/null &'
 ssh -f ... 'cd /root/b5 && nohup bash remote-run.sh attempt1 > /root/b5/run-attempt1.out 2>&1 < /dev/null &'
 echo y | vastai destroy instance <instance>
