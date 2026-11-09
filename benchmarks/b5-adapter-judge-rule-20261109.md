@@ -36,6 +36,7 @@
 этого шага и значениями из `adapter_initial`. `l2_norm` в `adapter_initial` это та же норма
 по начальным значениям.
 
+Обязательное поле, которого нет или в котором не число, даёт fail с кодом `malformed`.
 Журнал B6 судья отклонит: в нём нет `adapter_initial` и `signature`. Судья B6
 (`b6_verdict.py`) и его доказательства не меняются.
 
@@ -105,6 +106,10 @@
    результаты оформляются двумя отдельными отчётами.
 
 ## Что считается выполненным
+
+Каждая причина fail начинается с кода: `zero_gradient`, `nonfinite`, `gradient_missing`,
+`no_update`, `digest_chain`, `digest_distance_clash`, `no_initial`, `too_few_steps`,
+`reload`, `signature`, `mixed_signatures`, `unparsable`, `malformed`.
 
 Журнал проходит, когда нет ни одной причины для fail. Судья печатает список причин и
 завершается с кодом 1 при fail и 0 при pass.
