@@ -666,6 +666,7 @@ PLAN_INPUT_FIELDS: tuple[str, ...] = (
     "training.minillm_pretrain_anchor_path",
     "training.mole_task_adapters",
     "training.ra_dit_retriever_model",
+    "training.stream_cache_profile",
     "training.checkpoint_eval_tasks",
     "training.eval_gate.suite",
     "training.eval_gate.baseline",

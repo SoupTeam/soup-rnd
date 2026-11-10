@@ -104,6 +104,9 @@ def test_tampered_prepared_inputs_are_rejected(tmp_path, changed):
 
 
 def _cpu_worker(rank, root, output, port):
+    import torch
+
+    torch.set_num_threads(1)
     os.environ.update({"RANK": str(rank), "LOCAL_RANK": str(rank), "WORLD_SIZE": "2",
                        "MASTER_ADDR": "127.0.0.1", "MASTER_PORT": str(port)})
     pipeline.train(Path(root), Path(output), "cpu", 2)

@@ -465,6 +465,7 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     acts = _shipped_acts()
     real_buffer, real_store = acts.aligned_buffer, acts.ActivationStore
     made, opened, handles, instances = [], [], [], []
+    resident_refs = []
 
     def record_open(kind, path, size):
         backend = spill.open_spill(kind, path, size)
@@ -478,6 +479,7 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
             assert not handle.closed
             assert os.fstat(handle.fileno()).st_size == plan.spill_file_bytes
         if made:
+            resident_refs.extend(_storage_ref(value) for value in instances[0]()._resident.values())
             raise RuntimeError("CUDA error: out of memory (injected page-lock failure)")
         made.append(real_buffer(nbytes, pin=pin))
         return made[-1]
@@ -495,7 +497,8 @@ def test_a_ring_that_fails_to_pin_after_the_file_is_open_leaves_nothing(bud, spi
     probe = _ReleaseProbe()
 
     def watch_then_release():
-        probe.refs = [_storage_ref(made[0]), lambda: instances[0]() is not None]
+        assert len(resident_refs) == plan.resident_layers * plan.k
+        probe.refs = [_storage_ref(made[0]), *resident_refs]
         made.clear()
         return probe()
 

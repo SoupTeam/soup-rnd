@@ -1,6 +1,7 @@
 """The exact prospective phase plan must be executable without GPU or rental."""
 
 import hashlib
+import os
 import time
 
 import pytest
@@ -8,6 +9,7 @@ import pytest
 from benchmarks.c3.confirmation_phases import PHASES, supervise_phase, validate_plan
 
 
+@pytest.mark.skipif(os.name != "posix", reason="requires real POSIX process groups")
 def test_whole_phase_plan_runs_through_real_supervisor(tmp_path):
     # This would have caught attempt018's 5400s-versus-1800s rejection before payment.
     validate_plan(time.time() + 7200)

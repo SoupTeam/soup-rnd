@@ -126,6 +126,21 @@ def test_reward_model_dir_change_refused(project):
     _assert_refused(manager, token)
 
 
+def test_stream_cache_profile_change_refused(project):
+    profile = project / "profile.json"
+    profile.write_text("{}", encoding="utf-8")
+    _write_config(
+        project,
+        "base: TinyLlama/TinyLlama-1.1B-Chat-v1.0\ntask: sft\nbackend: transformers\n"
+        "data:\n  train: data.jsonl\ntraining:\n  batch_size: 1\n  stream_layers: true\n"
+        "  stream_source: disk\n  stream_cache_profile: ./profile.json\n",
+    )
+    manager = ExecutionManager()
+    token = _plan(manager)
+    profile.write_text('{"version": 1}', encoding="utf-8")
+    _assert_refused(manager, token)
+
+
 def test_reward_fn_py_change_refused(project):
     reward = project / "my_reward.py"
     reward.write_text(

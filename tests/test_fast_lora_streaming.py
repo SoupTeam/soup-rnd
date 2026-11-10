@@ -115,6 +115,17 @@ def test_soup_streamed_training_matches_lora_and_reloads_adapter(
     from soup_cli.trainer.sft import SFTTrainerWrapper
     from soup_cli.utils import layer_shard, layer_stream
 
+    as_sft_config = SFTTrainerWrapper._as_sft_config
+
+    def with_full_logits(*args, **kwargs):
+        config = as_sft_config(*args, **kwargs)
+        if hasattr(config, "loss_type"):
+            # This comparison captures full logits, which chunked NLL omits.
+            config.loss_type = "nll"
+        return config
+
+    monkeypatch.setattr(SFTTrainerWrapper, "_as_sft_config", staticmethod(with_full_logits))
+
     if precision:
         # Exercise both native arithmetic modes on one Ampere GPU. Override
         # only the dtype policy, not CUDA kernels or capability reports.
@@ -159,6 +170,7 @@ def test_soup_streamed_training_matches_lora_and_reloads_adapter(
         )
         try:
             wrapper.setup({"train": rows})
+            assert wrapper.trainer.args.device.type == device.split(":", 1)[0]
             runtime = wrapper._stream_runtime
             layers = wrapper.model.get_base_model().model.layers
             assert len(layers) == 4 and runtime.pool.n == 2

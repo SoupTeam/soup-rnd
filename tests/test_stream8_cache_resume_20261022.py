@@ -129,20 +129,25 @@ def check_qwen(arm, device, dtype="float32"):
 
     from benchmarks.harness.streaming_residency_candidate import install_persistent_layers
 
+    deterministic = torch.are_deterministic_algorithms_enabled()
+    warn_only = torch.is_deterministic_algorithms_warn_only_enabled()
     torch.use_deterministic_algorithms(True)
-    reference, native = qwen_fixture(device, dtype)
-    model, runtime = qwen_fixture(device, dtype)
-    if arm in {"resident", "both"}:
-        install_persistent_layers(runtime, [2, 3])
-    state = None
-    if arm in {"retained", "both"}:
-        state = implementation().install_retention(model, [2, 3], resident=arm == "both")
-    first = run_qwen(reference, native, device, dtype)
-    second = run_qwen(model, runtime, device, dtype)
-    assert all(torch.equal(left, right) for left, right in zip(first, second, strict=True))
-    if state:
-        assert state["retained_forward_calls"] == 12
-        assert bool(state["weight_snapshot_tensors"]) == (arm == "retained")
+    try:
+        reference, native = qwen_fixture(device, dtype)
+        model, runtime = qwen_fixture(device, dtype)
+        if arm in {"resident", "both"}:
+            install_persistent_layers(runtime, [2, 3])
+        state = None
+        if arm in {"retained", "both"}:
+            state = implementation().install_retention(model, [2, 3], resident=arm == "both")
+        first = run_qwen(reference, native, device, dtype)
+        second = run_qwen(model, runtime, device, dtype)
+        assert all(torch.equal(left, right) for left, right in zip(first, second, strict=True))
+        if state:
+            assert state["retained_forward_calls"] == 12
+            assert bool(state["weight_snapshot_tensors"]) == (arm == "retained")
+    finally:
+        torch.use_deterministic_algorithms(deterministic, warn_only=warn_only)
 
 
 @pytest.mark.gpu

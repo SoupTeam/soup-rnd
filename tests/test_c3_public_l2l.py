@@ -163,6 +163,7 @@ def test_public_setup_and_optimizer_update_use_reserved_l2l_store(tmp_path, monk
         gradient_accumulation_steps=2,
         stream_source="disk",
         stream_pin=False,
+        stream_disk_kind="nvme",
         stream_partial_ram=dict(limit_bytes=10_000_000, reserved_bytes=100_000, cache_bytes=45_000),
     )
     wrapper.config = SoupConfig.model_validate(config)

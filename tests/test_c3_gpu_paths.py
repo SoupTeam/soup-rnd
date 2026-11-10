@@ -21,6 +21,7 @@ def test_cuda_fixture_path_is_within_cwd_without_expanding_allowed_roots(tmp_pat
     system_tmp.mkdir()
     monkeypatch.chdir(repo)
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(system_tmp))
 
     # Attempt014 failed at this exact relationship: a sibling of CWD, outside TMPDIR.
@@ -47,6 +48,7 @@ def test_bad_prepared_path_refused_before_download(tmp_path, monkeypatch):
     repo.mkdir()
     monkeypatch.chdir(repo)
     monkeypatch.setenv("HOME", str(repo))
+    monkeypatch.setenv("USERPROFILE", str(repo))
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(repo))
     monkeypatch.setattr(
         sys,
@@ -78,6 +80,7 @@ def test_correct_prepared_path_reaches_preparation(tmp_path, monkeypatch):
     repo.mkdir()
     monkeypatch.chdir(repo)
     monkeypatch.setenv("HOME", str(repo))
+    monkeypatch.setenv("USERPROFILE", str(repo))
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(repo))
     output = repo / ".c3_prepared"
     snapshot = tmp_path / "model"
@@ -111,6 +114,7 @@ def test_preparation_resolves_symlinked_parent_before_admission(tmp_path, monkey
     (repo / "redirect").symlink_to(outside, target_is_directory=True)
     monkeypatch.chdir(repo)
     monkeypatch.setenv("HOME", str(repo))
+    monkeypatch.setenv("USERPROFILE", str(repo))
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(repo))
     with pytest.raises(ValueError, match="must be under"):
         validate_preparation_destination(repo / "redirect" / "prepared")
