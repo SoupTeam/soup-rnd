@@ -7,7 +7,7 @@ import os
 import socket
 import subprocess
 import sys
-import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -103,19 +103,9 @@ def test_tampered_prepared_inputs_are_rejected(tmp_path, changed):
         pipeline.verify_prepared(tmp_path, config)
 
 
-def _cpu_worker(rank, root, output, port):
-    import torch
-
-    torch.set_num_threads(1)
-    os.environ.update({"RANK": str(rank), "LOCAL_RANK": str(rank), "WORLD_SIZE": "2",
-                       "MASTER_ADDR": "127.0.0.1", "MASTER_PORT": str(port)})
-    pipeline.train(Path(root), Path(output), "cpu", 2)
-
-
 @pytest.mark.integration
 def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path):
     import torch.distributed as dist
-    import torch.multiprocessing as mp
 
     if not dist.is_available() or not dist.is_gloo_available():
         pytest.skip("requires Torch distributed/Gloo")
@@ -124,17 +114,27 @@ def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
-    context = mp.spawn(_cpu_worker, (str(prepared), str(output), port), nprocs=2, join=False)
-    deadline = time.monotonic() + 120
-    try:
-        while not context.join(timeout=1):
-            if time.monotonic() >= deadline:
-                pytest.fail("CPU pipeline exceeded 120 seconds")
-    finally:
-        for process in context.processes:
-            if process.is_alive():
-                process.terminate()
-            process.join(timeout=5)
+    command = [
+        sys.executable, str(_HARNESS), "train", "--prepared", str(prepared),
+        "--output", str(output), "--device", "cpu", "--steps", "2",
+    ]
+    env = dict(os.environ, WORLD_SIZE="2", MASTER_ADDR="127.0.0.1", MASTER_PORT=str(port),
+               OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
+    if sys.platform == "darwin":
+        env["GLOO_SOCKET_IFNAME"] = "lo0"
+
+    def train_rank(rank):
+        rank_env = dict(env, RANK=str(rank), LOCAL_RANK=str(rank))
+        try:
+            return subprocess.run(
+                command, env=rank_env, capture_output=True, text=True, timeout=120,
+            )
+        except subprocess.TimeoutExpired as exc:
+            pytest.fail(f"CPU pipeline rank {rank} exceeded 120 seconds: {exc.stderr!r}")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        for result in pool.map(train_rank, range(2)):
+            assert result.returncode == 0, result.stdout + result.stderr
     result = subprocess.run([
         sys.executable, str(_HARNESS), "reload", "--prepared", str(prepared),
         "--output", str(output), "--device", "cpu",
