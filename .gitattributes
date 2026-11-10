@@ -77,3 +77,14 @@ benchmarks/g4-run.sh text eol=lf
 benchmarks/results/p3-fp8-kaggle-20261105/** -text -whitespace
 benchmarks/results/p3-bf16-bounded-investigation/** -text -whitespace
 benchmarks/results/p3-fp8-component-delivery/** -text -whitespace
+
+# These frozen pilot inputs and receipts are verified byte-for-byte across platforms.
+benchmarks/results/p3-stage2-quality/** -text -whitespace linguist-generated=true
+benchmarks/results/p3-stage2-v2/** -text -whitespace linguist-generated=true
+benchmarks/results/p3-deepseek-quality/** -text -whitespace linguist-generated=true
+benchmarks/harness/p3_realdata_*.py text eol=lf
+benchmarks/harness/p3_stage2_*.py text eol=lf
+benchmarks/harness/p3_stage2v2_*.py text eol=lf
+benchmarks/harness/p3_deepseek_quality_*.py text eol=lf
+tests/test_p3_deepseek_quality_*.py text eol=lf
+tests/test_p3_stage2_generation.py text eol=lf

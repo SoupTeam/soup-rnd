@@ -1087,6 +1087,42 @@ BF16 or public DeepSeek caller acceptance. The report separates reservations,
 observed host storage, sampled RSS and CUDA allocated/reserved peaks.
 Delivery of these two components is not DeepSeek FP8 readiness or closure of phase 0.
 
+**DeepSeek quality experiment (research-only).** The
+[paired study](../benchmarks/p3-deepseek-quality-plan.md) keeps BF16 compute in both
+arms and compares BF16 boundary storage with block64 E4M3 plus a selected-route
+Oracle. This is not FP8 matrix multiplication or public CLI admission. Both arms
+use the same fixed-order cycling pack; MBPP training data completes three cycles
+and part of a fourth. Quality evaluation compares only the two trained adapters.
+The study pins EFFICIENT_ATTENTION without fallback on native-BF16 Ampere-or-newer
+hardware. The gradient gate uses that backend for its main controls and MATH for
+the alternative noise floor on eight 64-token microbatches. Deterministic algorithms
+use `warn_only=False`; launch with `CUBLAS_WORKSPACE_CONFIG=:4096:8` before CUDA
+initialization. Training, gate and forward-scoring evidence records executed
+operators, CUDA kernel names and Q/K/V shapes. The attention-policy hash is bound
+to the study protocol and trained-adapter identity; old MATH-main receipts do not
+admit the new training path. The quality pair does not require an 8-GB fit.
+Memory reports count deduplicated owned boundary tensor-storage capacities in host
+RAM, separating payload/padding, FP32 scales, calibration vectors and Oracle storage.
+Pinned-allocation estimates and codec/Oracle temporary upper bounds are not measured
+peaks. Sampled RSS, cgroup lifetime peak and CUDA allocated/reserved peaks remain
+separate whole-process resources: they are neither summed nor attributed to activations.
+The boundary counters exclude live decoder/autograd intermediates and do not establish
+a total activation peak, 8-GB GPU / 32-GiB host fit, natural routing stability or ×50 speed.
+
+The [native Ampere smoke](../benchmarks/results/p3-deepseek-quality/efficient-vast-v1/README.md)
+records executed kernels, paired repeatability, resume and scorer qualification.
+Its tiny-model E3 numerical gate failed; this is not full-model admission or a
+quality verdict. Capacity and quality for the full-model two-arm study remain unmeasured.
+
+The [prelaunch review](../benchmarks/p3-deepseek-quality-prelaunch-review.md) and
+[operator runbook](../benchmarks/p3-deepseek-quality-pilot-runbook.md) prepare a
+separate 671B diagnostic, not permission to rent or train. Download/conversion
+bind the reviewed Hub inventory and physical NVMe/RAM admission. The gate stops
+after failed A3 or candidate E1–E3; resource timing requires its raw-verified PASS.
+Process deadlines preserve partial evidence but do not manage provider billing.
+The historical tiny E3 remains FAIL (0.05028628354277727 >0.05), without a rerun.
+Phase3 requires the user's later protocol-hash and budget approval.
+
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
 Refused when the config is read:

@@ -1,0 +1,71 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.2, pluggy-1.7.0 -- /kaggle/working/prelaunch-0h6ri0g2/py312/bin/python
+cachedir: .pytest_cache
+rootdir: /kaggle/working/prelaunch-0h6ri0g2/soup
+configfile: pyproject.toml
+collecting ... collected 10 items
+
+tests/test_p3_deepseek_quality_failfast.py::test_a3_refusal_never_executes_candidate_or_control[a3-FAIL] FAILED [ 10%]
+tests/test_p3_deepseek_quality_failfast.py::test_a3_refusal_never_executes_candidate_or_control[floor_oom-NO_VERDICT] FAILED [ 20%]
+tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[E1] FAILED [ 30%]
+tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[E2] FAILED [ 40%]
+tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[E3] FAILED [ 50%]
+tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[loss] FAILED [ 60%]
+tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[coverage] FAILED [ 70%]
+tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[candidate_oom] PASSED [ 80%]
+tests/test_p3_deepseek_quality_failfast.py::test_ga_repeat_failure_stops_before_l2l PASSED [ 90%]
+tests/test_p3_deepseek_quality_failfast.py::test_passing_candidate_still_requires_discriminating_control PASSED [100%]
+
+=================================== FAILURES ===================================
+_________ test_a3_refusal_never_executes_candidate_or_control[a3-FAIL] _________
+tests/test_p3_deepseek_quality_failfast.py:106: in test_a3_refusal_never_executes_candidate_or_control
+    assert not (output / "fp8_oracle").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/tmp/pytest-of-root/pytest-0/test_a3_refusal_never_executes0/evidence') / 'fp8_oracle').exists
+__ test_a3_refusal_never_executes_candidate_or_control[floor_oom-NO_VERDICT] ___
+tests/test_p3_deepseek_quality_failfast.py:106: in test_a3_refusal_never_executes_candidate_or_control
+    assert not (output / "fp8_oracle").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/tmp/pytest-of-root/pytest-0/test_a3_refusal_never_executes1/evidence') / 'fp8_oracle').exists
+_______ test_candidate_refusal_never_executes_discrimination_control[E1] _______
+tests/test_p3_deepseek_quality_failfast.py:119: in test_candidate_refusal_never_executes_discrimination_control
+    assert not (output / "int4_oracle").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/tmp/pytest-of-root/pytest-0/test_candidate_refusal_never_e0/evidence') / 'int4_oracle').exists
+_______ test_candidate_refusal_never_executes_discrimination_control[E2] _______
+tests/test_p3_deepseek_quality_failfast.py:119: in test_candidate_refusal_never_executes_discrimination_control
+    assert not (output / "int4_oracle").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/tmp/pytest-of-root/pytest-0/test_candidate_refusal_never_e1/evidence') / 'int4_oracle').exists
+_______ test_candidate_refusal_never_executes_discrimination_control[E3] _______
+tests/test_p3_deepseek_quality_failfast.py:119: in test_candidate_refusal_never_executes_discrimination_control
+    assert not (output / "int4_oracle").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/tmp/pytest-of-root/pytest-0/test_candidate_refusal_never_e2/evidence') / 'int4_oracle').exists
+______ test_candidate_refusal_never_executes_discrimination_control[loss] ______
+tests/test_p3_deepseek_quality_failfast.py:119: in test_candidate_refusal_never_executes_discrimination_control
+    assert not (output / "int4_oracle").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/tmp/pytest-of-root/pytest-0/test_candidate_refusal_never_e3/evidence') / 'int4_oracle').exists
+____ test_candidate_refusal_never_executes_discrimination_control[coverage] ____
+tests/test_p3_deepseek_quality_failfast.py:119: in test_candidate_refusal_never_executes_discrimination_control
+    assert not (output / "int4_oracle").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/tmp/pytest-of-root/pytest-0/test_candidate_refusal_never_e4/evidence') / 'int4_oracle').exists
+------- generated xml file: /kaggle/working/prelaunch-evidence/tests.xml -------
+=========================== short test summary info ============================
+FAILED tests/test_p3_deepseek_quality_failfast.py::test_a3_refusal_never_executes_candidate_or_control[a3-FAIL]
+FAILED tests/test_p3_deepseek_quality_failfast.py::test_a3_refusal_never_executes_candidate_or_control[floor_oom-NO_VERDICT]
+FAILED tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[E1]
+FAILED tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[E2]
+FAILED tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[E3]
+FAILED tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[loss]
+FAILED tests/test_p3_deepseek_quality_failfast.py::test_candidate_refusal_never_executes_discrimination_control[coverage]
+========================= 7 failed, 3 passed in 7.85s ==========================

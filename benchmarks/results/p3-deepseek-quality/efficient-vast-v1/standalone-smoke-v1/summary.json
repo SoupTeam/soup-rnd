@@ -1,0 +1,273 @@
+{
+  "scope": "synthetic tiny native DeepSeek-V3; no production admission or quality claim",
+  "attention_policy": {
+    "path": "benchmarks/results/p3-deepseek-quality/attention-protocol-v1.json",
+    "sha256": "fc887c5a996bd58536ef0325b61405cd73a2a83cf363fcc4156204ab180e1ed6",
+    "contract": {
+      "alternative_noise_floor_backend": "MATH",
+      "arms": [
+        "bf16_l2l",
+        "oracle_block64_e4m3"
+      ],
+      "backend_selection": "sdpa_kernel([requested_backend])",
+      "change_length_batch_or_accumulation_on_oom": false,
+      "compute_dtype": "bfloat16",
+      "created_utc": "2026-11-10T19:21:01.300363+00:00",
+      "determinism": {
+        "algorithms_enabled": true,
+        "allow_tf32": false,
+        "autocast": false,
+        "warn_only": false
+      },
+      "fallback_allowed": false,
+      "gradient_gate": {
+        "accumulation_steps": 8,
+        "main_backend": "EFFICIENT_ATTENTION",
+        "microbatch_length": 64,
+        "noise_floor_backend": "MATH",
+        "prefix_tokens": 512,
+        "thresholds_unchanged": true
+      },
+      "hardware": {
+        "minimum_cuda_capability": [
+          8,
+          0
+        ],
+        "native_bf16_required": true,
+        "offer_and_spending_limit_require_prior_approval": true,
+        "provider": "Vast.ai",
+        "t4_qualification_allowed": false
+      },
+      "layouts": [
+        {
+          "accumulation_steps": 4,
+          "batch_size": 1,
+          "length": 1024
+        },
+        {
+          "accumulation_steps": 1,
+          "batch_size": 1,
+          "length": 4096
+        }
+      ],
+      "main_backend": "EFFICIENT_ATTENTION",
+      "model": {
+        "attention_heads": 128,
+        "config_sha256": "cbf0b95dc614de208a109bb5fd4e7eed11385e9c68411d2c17db5319443035d9",
+        "id": "deepseek-ai/DeepSeek-V3",
+        "query_key_head_dim": 192,
+        "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+        "value_head_dim": 128
+      },
+      "optimizer_and_quality_criteria_unchanged": true,
+      "require_8gb_fit": false,
+      "required_execution_evidence": [
+        "observed_forward_operator",
+        "observed_backward_operator",
+        "actual_cuda_kernel_names",
+        "observed_query_key_value_shapes",
+        "dtype",
+        "device",
+        "deterministic_flags"
+      ],
+      "schema": "p3-deepseek-quality-attention-protocol-v1",
+      "scope": "Fixed backend contract before new qualification outcomes; not full-study execution admission",
+      "seed": 23,
+      "trainable_dtype": "float32",
+      "training_pack_manifest_sha256": "c7809f47dd44b1f0cb67a01db63406c381872013dc5bc8df58aedc83d68b1936"
+    }
+  },
+  "pack_sha256": "377bbf83525a9c84a4e19e577884bd30178e79b05a28bdddcee722b0ec133a4e",
+  "initial_adapter_sha256": "ef9e7990555d95f7a67238cff46623c80b311e4791ce4e0bb4ea069237004ddc",
+  "runs": [
+    {
+      "arm": "bf16_l2l",
+      "length": 1024,
+      "status": "COMPLETE",
+      "manifest_sha256": "37df7d54508dcaf19ba5016c3d560d932ab0a953a2631f6bfaf5deb5213318da"
+    },
+    {
+      "arm": "oracle_block64_e4m3",
+      "length": 1024,
+      "status": "COMPLETE",
+      "manifest_sha256": "1b607f1c58372a1a6b2097afb782a6f49c01afa66810ac3d6e99f687b42c829f"
+    },
+    {
+      "arm": "bf16_l2l",
+      "length": 4096,
+      "status": "COMPLETE",
+      "manifest_sha256": "4f864f3dcedb653299e73385f22b0c9c637c54f7a939d419d28aa69b2077ff53"
+    },
+    {
+      "arm": "oracle_block64_e4m3",
+      "length": 4096,
+      "status": "COMPLETE",
+      "manifest_sha256": "4e9fd12db8e38a5c929fa57f969486b700bc46e62528745c2ca8fb1547fcb062"
+    }
+  ],
+  "resource_only_forward": [
+    {
+      "status": "COMPLETE",
+      "input_indices": [
+        0
+      ],
+      "input_tokens": 4,
+      "batch_size": 1,
+      "width": 4,
+      "padded_input_tokens": 4,
+      "native_forward_calls": 1,
+      "planned_native_forward_calls": 1,
+      "position_count": 3,
+      "position_chunk_sizes": [
+        3
+      ],
+      "logits_estimated_peak_bytes": 6144,
+      "largest_native_logits_bytes": 384,
+      "wall_seconds": 0.04936230694875121,
+      "memory": {
+        "kind": "observed process/allocator bytes; not activation-only memory",
+        "process_rss_before_bytes": 1941676032,
+        "cuda_allocated_before_bytes": 78659072,
+        "cuda_reserved_before_bytes": 3814719488,
+        "scope": "Development inputs, native streamed forward and unlabelled FP32 log-softmax scratch. Includes model/allocator residency. No quality outcome or gradient.",
+        "wall_seconds": 0.04779448499903083,
+        "process_rss_after_bytes": 1948065792,
+        "process_rss_sampled_peak_bytes": 1948065792,
+        "process_rss_samples": 6,
+        "process_rss_sampling_interval_seconds": 0.01,
+        "process_rss_peak_kind": "sampled lower bound, short-lived peaks may be missed",
+        "process_lifetime_rss_high_water_bytes": 1950359552,
+        "cuda_allocated_peak_bytes": 81485312,
+        "cuda_reserved_peak_bytes": 3814719488,
+        "cuda_allocated_after_bytes": 78659072,
+        "cuda_reserved_after_bytes": 3814719488,
+        "sampling_errors": []
+      },
+      "attention": [
+        {
+          "backend_requested": "EFFICIENT_ATTENTION",
+          "hardware": {
+            "device": "cuda:0",
+            "name": "NVIDIA GeForce RTX 3060",
+            "capability": [
+              8,
+              6
+            ],
+            "native_bf16": true,
+            "bf16_supported": true,
+            "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)",
+            "cuda_version": "13.0"
+          },
+          "executed_sdpa_calls": 2,
+          "unique_calls": [
+            {
+              "dtype": "torch.bfloat16",
+              "device": "cuda",
+              "device_index": 0,
+              "key_dtype": "torch.bfloat16",
+              "value_dtype": "torch.bfloat16",
+              "key_device": "cuda",
+              "value_device": "cuda",
+              "key_device_index": 0,
+              "value_device_index": 0,
+              "query_shape": [
+                1,
+                128,
+                4,
+                192
+              ],
+              "key_shape": [
+                1,
+                128,
+                4,
+                192
+              ],
+              "value_shape": [
+                1,
+                128,
+                4,
+                128
+              ]
+            }
+          ],
+          "samples": [
+            {
+              "dtype": "torch.bfloat16",
+              "device": "cuda",
+              "device_index": 0,
+              "key_dtype": "torch.bfloat16",
+              "value_dtype": "torch.bfloat16",
+              "key_device": "cuda",
+              "value_device": "cuda",
+              "key_device_index": 0,
+              "value_device_index": 0,
+              "query_shape": [
+                1,
+                128,
+                4,
+                192
+              ],
+              "key_shape": [
+                1,
+                128,
+                4,
+                192
+              ],
+              "value_shape": [
+                1,
+                128,
+                4,
+                128
+              ],
+              "forward": {
+                "operators": [
+                  "aten::_efficient_attention_forward",
+                  "aten::_scaled_dot_product_efficient_attention",
+                  "aten::as_strided",
+                  "aten::empty",
+                  "aten::fill_",
+                  "aten::scaled_dot_product_attention",
+                  "aten::transpose"
+                ],
+                "cuda_kernel_names": [
+                  "fmha_cutlassF_bf16_aligned_32x128_gmem_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 32, 128, 65536, true, true>::Params)",
+                  "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+                  "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)"
+                ]
+              },
+              "backward": {
+                "operators": [],
+                "cuda_kernel_names": []
+              }
+            }
+          ],
+          "deterministic_flags": {
+            "algorithms_enabled": true,
+            "warn_only": false,
+            "allow_tf32": false,
+            "cudnn_allow_tf32": false,
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": true
+          },
+          "backend_flags": {
+            "efficient": true,
+            "math": false,
+            "flash": false,
+            "cudnn": false
+          },
+          "instrumentation": {
+            "scope": "bounded_attention_operators",
+            "max_signatures": 16,
+            "max_profiled_operations": 80,
+            "profiled_operations": 1,
+            "retains_tensors": false,
+            "full_window_trace": false,
+            "signature_limit_exceeded": false,
+            "profiling_errors": []
+          }
+        }
+      ]
+    }
+  ],
+  "status": "COMPLETE"
+}
