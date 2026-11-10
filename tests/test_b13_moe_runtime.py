@@ -13,7 +13,8 @@ resident execution always remains native eager, independent from the streamed pr
     Shard the checkpoint. ``storage``: ``"dense"``, ``"nf4"`` or ``"nf4-nested"``;
     ``layout``: ``"per_expert"`` or ``"fused"``. Returns the ``ShardIndex``.
 ``build_moe_streamed(weights, shards, *, storage="dense", dtype="float32", layout="per_expert",
-        lora_dropout=0.0, lora_config=None, device="cpu", index=None, randomize_b=True)``
+        lora_dropout=0.0, lora_config=None, device="cpu", index=None, randomize_b=True,
+        tier="ram", read_ahead=2)``
     ``build_streamed_model`` on the cache (sharded here unless ``index`` is given). Returns a
     ``MoeStreamed`` (``model``, ``runtime``, ``index``, ``lora_config``, ``weights``,
     ``shards``, ``storage``, ``dtype``); always call its ``close()``.
@@ -117,6 +118,8 @@ def build_moe_streamed(
     device: str = "cpu",
     index: Any = None,
     randomize_b: bool = True,
+    tier: str = "ram",
+    read_ahead: int = 2,
 ) -> MoeStreamed:
     from soup_cli.utils.layer_stream_runtime import build_streamed_model
 
@@ -135,6 +138,8 @@ def build_moe_streamed(
         seed=71,
         quant="none" if storage == "dense" else "nf4",
         double_quant=storage == "nf4-nested",
+        tier=tier,
+        read_ahead=read_ahead,
     )
     if randomize_b:
         fixture.randomize_adapters(model)
