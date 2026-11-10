@@ -127,7 +127,8 @@ def write_prepared(
     shard_checkpoint(str(weights), str(directory), dtype=dtype, arch="llama")
     files = {
         path.relative_to(output).as_posix(): {
-            "sha256": file_sha(path), "bytes": path.stat().st_size
+            "sha256": file_sha(path),
+            "bytes": path.stat().st_size,
         }
         for path in sorted(directory.rglob("*"))
         if path.is_file()

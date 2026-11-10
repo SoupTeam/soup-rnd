@@ -104,11 +104,15 @@ def test_tampered_prepared_inputs_are_rejected(tmp_path, changed):
 
 
 @pytest.mark.integration
-def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path):
+def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path, monkeypatch):
     import torch.distributed as dist
 
     if not dist.is_available() or not dist.is_gloo_available():
         pytest.skip("requires Torch distributed/Gloo")
+    # The model is tiny. Give each spawned rank and the reload process one
+    # compute thread so they do not compete with each other on CI runners.
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    monkeypatch.setenv("MKL_NUM_THREADS", "1")
     prepared, output = tmp_path / "prepared", tmp_path / "output"
     pipeline.prepare(prepared, True)
     with socket.socket() as listener:

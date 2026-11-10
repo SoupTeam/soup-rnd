@@ -35,7 +35,7 @@ def prepared(tmp_path):
     )
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires the POSIX comparison supervisor")
+@pytest.mark.skipif(os.name != "posix", reason="POSIX supervisor required")
 def test_prepared_cpu_series_has_identical_real_updates_and_inputs(tmp_path, prepared):
     from benchmarks.c3.isolated_compare import compare_results, run
 
