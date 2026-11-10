@@ -14,6 +14,11 @@ Removing raw files from the review diff does not remove the original Git history
 - [Kaggle T4 memory profile](stream-cache-profile-kaggle-20261107/README.md)
   records the small-model placement comparison and the reuse-startup correction.
 
+- [SQuAD 2.0 FP16 calibration](d2-squad-fp16-20261110/README.md) records all six
+  resident training arms on Kaggle T4, including NoRA and its same-fork control.
+  FastLoRA passed numerical parity and used less peak allocated VRAM with a longer
+  median step. The Liger and Unsloth numerical failures stopped the full campaign.
+
 - [32B NF4 memory profile](d2-stream-cache-profile-20261104.md) records a 4.47%
   shorter 18-update job and exact trajectory checks for the tested placements.
 
@@ -26,9 +31,8 @@ Removing raw files from the review diff does not remove the original Git history
 - [Complete-step external stack comparison](d2-stack-comparison-20261014.md):
   separate default-Boost policy, numerical drift retained, no equal-quality claim.
 
-These are distinct experiments; the historical timing does not establish the
-new Soup streaming integration's performance. NoRA and the real-data quality
-study remain open. This cleanup changes no result or acceptance criterion.
+The resident timings leave the Soup streaming integration's real-data
+performance open. The full real-data quality and convergence study also remains open.
 
 ## Archived measurements and replay
 
