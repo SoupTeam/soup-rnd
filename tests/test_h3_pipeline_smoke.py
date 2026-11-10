@@ -110,23 +110,30 @@ def _cpu_worker(rank, root, output, port):
 
 
 @pytest.mark.integration
-def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path):
+def test_real_pipeline_training_accumulation_and_fresh_reload(tmp_path, monkeypatch):
     import torch.distributed as dist
     import torch.multiprocessing as mp
 
     if not dist.is_available() or not dist.is_gloo_available():
         pytest.skip("requires Torch distributed/Gloo")
+    # The model is tiny. Give each spawned rank and the reload process one
+    # compute thread so they do not compete with each other on CI runners.
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    monkeypatch.setenv("MKL_NUM_THREADS", "1")
     prepared, output = tmp_path / "prepared", tmp_path / "output"
     pipeline.prepare(prepared, True)
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
     context = mp.spawn(_cpu_worker, (str(prepared), str(output), port), nprocs=2, join=False)
-    deadline = time.monotonic() + 120
+    # Leave room for the spawned interpreters to import Torch before Gloo's
+    # own 120-second timeout starts.
+    worker_timeout = 240
+    deadline = time.monotonic() + worker_timeout
     try:
         while not context.join(timeout=1):
             if time.monotonic() >= deadline:
-                pytest.fail("CPU pipeline exceeded 120 seconds")
+                pytest.fail(f"CPU pipeline exceeded {worker_timeout} seconds")
     finally:
         for process in context.processes:
             if process.is_alive():
