@@ -1478,6 +1478,18 @@ class StreamingSetupMixin:
         logits = estimate_logits_bytes(
             vocab_size=vocab, seq_len=seq_len, batch_size=rows, bytes_per_element=calibrated
         )
+        if getattr(tcfg, "stream_chunked_ce", False):
+            # ZERO: chunked CE holds the logits of one chunk of positions at a time,
+            # so the logits term is charged for the chunk, not the sequence. The rest
+            # of the estimate (activations, buffers, adapters) is unchanged.
+            from soup_cli.utils.stream_chunked_ce import CE_CHUNK
+
+            chunk_logits = estimate_logits_bytes(
+                vocab_size=vocab, seq_len=min(CE_CHUNK, seq_len), batch_size=rows,
+                bytes_per_element=calibrated,
+            )
+            predicted -= logits - chunk_logits
+            logits = chunk_logits
         paired = (
             "" if rows == batch else f" ({rows} rows — chosen+rejected are one concatenated tensor)"
         )

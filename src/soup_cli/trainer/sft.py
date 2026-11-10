@@ -665,6 +665,20 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             requires_remote_code=requires,
         )
 
+    @staticmethod
+    def _sft_trainer_base(tcfg: Any, sft_cls: Any) -> Any:
+        """SFTTrainer, or its chunked-CE subclass under training.stream_chunked_ce (ZERO)."""
+        if getattr(tcfg, "stream_chunked_ce", False):
+            from soup_cli.utils.stream_chunked_ce import CE_CHUNK, make_chunked_ce_trainer_class
+
+            console.print(
+                f"[green]Chunked CE:[/] the loss runs through lm_head {CE_CHUNK} positions "
+                "at a time; the full logits are never held (entropy / token-accuracy "
+                "metrics are not logged)"
+            )
+            return make_chunked_ce_trainer_class(sft_cls)
+        return sft_cls
+
     def _build_rewind_trainer(
         self,
         base_cls: Any,
@@ -1224,7 +1238,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
             and not use_audio
         ):
             self.trainer = self._build_rewind_trainer(
-                SFTTrainer,
+                self._sft_trainer_base(tcfg, SFTTrainer),
                 trainer_kwargs,
                 rows=dataset["train"],
                 output_dir=output_dir,
@@ -1232,7 +1246,7 @@ class SFTTrainerWrapper(StreamingSetupMixin):
                 grad_accum=int(tcfg.gradient_accumulation_steps),
             )
         else:
-            self.trainer = SFTTrainer(**trainer_kwargs)
+            self.trainer = self._sft_trainer_base(tcfg, SFTTrainer)(**trainer_kwargs)
 
         # The recording trainer is the last branch above, so RAFT, multipack,
         # vision, audio and a pre-tokenised dataset all skip it -- silently,

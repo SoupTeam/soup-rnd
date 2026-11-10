@@ -3767,6 +3767,19 @@ class TrainingConfig(BaseModel):
             "what was detected."
         ),
     )
+    stream_chunked_ce: bool = Field(
+        default=False,
+        description=(
+            "Experimental (ZERO): compute the streamed SFT loss in chunks of "
+            "positions through lm_head, recomputing each chunk's logits in backward, "
+            "so the full batch x seq x vocab logits tensor is never held. On a "
+            "248k-vocabulary model at seq 2048 that tensor is the largest VRAM term. "
+            "The loss equals the transformers causal-LM loss (same shift, -100 "
+            "ignore, num_items_in_batch normalisation). TRL's entropy and "
+            "mean_token_accuracy metrics are not logged. Requires stream_layers=true, "
+            "task='sft' and l2l=false."
+        ),
+    )
 
     # Sample packing — pack multiple short samples into one sequence
     packing: bool = Field(
@@ -6559,17 +6572,26 @@ class SoupConfig(BaseModel):
                 or tcfg.stream_expert_layout != "fused"
                 or tcfg.stream_disk_kind is not None
                 or tcfg.stream_pin is not None
+                or tcfg.stream_chunked_ce
             ):
                 raise ValueError(
                     "training.stream_source / training.stream_ngram_source / "
                     "training.stream_buffers / training.stream_read_ahead / "
                     "training.stream_vram_override / training.stream_vram_probe "
                     "/ training.stream_expert_layout / training.stream_disk_kind "
-                    "/ training.stream_pin set but "
+                    "/ training.stream_pin / training.stream_chunked_ce set but "
                     "stream_layers is false; set stream_layers=true to stream the "
                     "base layer-by-layer."
                 )
             return self
+        if tcfg.stream_chunked_ce:
+            if self.task != "sft":
+                raise ValueError("training.stream_chunked_ce requires task='sft'")
+            if tcfg.l2l:
+                raise ValueError(
+                    "training.stream_chunked_ce is not wired into training.l2l yet; "
+                    "drop one of them"
+                )
         if tcfg.stream_expert_layout == "per_expert":
             if self.task != "sft":
                 raise ValueError("training.stream_expert_layout='per_expert' requires task='sft'")
