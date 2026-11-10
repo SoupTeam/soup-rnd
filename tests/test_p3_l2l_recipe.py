@@ -151,6 +151,7 @@ def test_wrapper_gives_the_effective_k_to_the_c3_reservation(tmp_path, monkeypat
     config = wrapper.config.model_dump()
     config["training"].update(
         l2l=True, gradient_accumulation_steps=2, stream_source="disk", stream_pin=False,
+        stream_disk_kind="nvme",
         stream_partial_ram=dict(limit_bytes=10_000_000, reserved_bytes=100_000, cache_bytes=45_000),
     )
     wrapper.config = SoupConfig.model_validate(config)
