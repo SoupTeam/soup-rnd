@@ -1,0 +1,40 @@
+{
+  "schema": "p3-deepseek-single-smoke-v1",
+  "base": "54be201337cb7ac8ba5e58ba9ff5b55ac7b0bc81",
+  "created_utc": "2026-11-10T13:02:01.903899+00:00",
+  "controller_limit_seconds": 1800,
+  "controller_sha256": "cd681f20a2ddfc1f6b65a9964e0febb135d87cc2426f09fb2074e4455747ca9b",
+  "source_overlay_sha256": "f5d7ede76ac1cf3629179e06f5413aeff37a450b9624e307e0d00f83c00ea945",
+  "source_files_sha256": {
+    "benchmarks/harness/p3_deepseek_oracle.py": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71",
+    "benchmarks/harness/p3_deepseek_fp8_smoke.py": "87b2512f18c99dca98199984c8abfbe624863c1cb24a88f9864fa896733c6e4a",
+    "tests/test_p3_deepseek_oracle.py": "9737939eb366c01278b3800e604931c77a67adbdbba096ceff78d647ae638a36",
+    "tests/test_p3_deepseek_fp8_smoke.py": "e5f08c0795cfa8ad8286522ed3a7334b46af6d9b30a859e53f2a8dc22b0512ee",
+    "benchmarks/harness/p3_realdata_codec.py": "2e47ee7be982a23df5bd930eb2ae69fc8267d6a85019090b83bb7ba9542582e1",
+    "benchmarks/results/p3-deepseek-fp8-smoke/orchestration/kaggle_smoke_runner.py": "cd681f20a2ddfc1f6b65a9964e0febb135d87cc2426f09fb2074e4455747ca9b",
+    "benchmarks/harness/b13_moe_fixture.py": "ec909820cd418afd5fcd42dfeb4769aa55e076e4fca971364af7c6096f3ac795"
+  },
+  "scope": {
+    "candidate_only": true,
+    "synthetic_native_deepseek_v3": true,
+    "weights": "nf4-no-double-quant",
+    "compute": "bfloat16",
+    "activation_storage": "block64-e4m3",
+    "routing": "saved-sigmoid-jacobian-oracle",
+    "seed": 23,
+    "batch_size": 1,
+    "sequence_length": 64,
+    "ks": [
+      1,
+      8
+    ],
+    "optimizer_updates_per_k": 2,
+    "full_model_acceptance": false,
+    "fp16_validation": false,
+    "quality_evaluation": false
+  },
+  "quota_before": {
+    "gpu_remaining_hours": 2.66,
+    "source": "Kaggle CLI quota"
+  }
+}

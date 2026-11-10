@@ -1,0 +1,33 @@
+[{"stream_name":"stdout","time":11.443355068,"data":"=== stage oversized\n"}
+,{"stream_name":"stdout","time":15.200669898,"data":"[    3.6s] \n"}
+,{"stream_name":"stdout","time":16.077811306,"data":"[    4.5s] Found existing installation: torchao 0.10.0\n"}
+,{"stream_name":"stdout","time":16.077853851,"data":"Uninstalling torchao-0.10.0:\n"}
+,{"stream_name":"stdout","time":16.077865231,"data":"  Successfully uninstalled torchao-0.10.0\n"}
+,{"stream_name":"stdout","time":30.554749886,"data":"[   19.0s] environment: {\"platform\": \"Linux-6.18.55+-x86_64-with-glibc2.39\", \"python\": \"3.13.16\", \"cpu_model\": \"Intel(R) Xeon(R) CPU @ 2.00GHz\", \"cpu_count\": 4, \"ram_total_bytes\": 33658150912, \"ram_available_bytes\": 32263061504, \"cgroup_memory_max\": \"32212254720\", \"disk_work\": {\"total\": 8758385086464, \"used\": 7720149852160, \"free\": 1038218457088}, \"uptime\": \"20:42:54 up 6 min,  0 user,  load average: 0.21, 0.18, 0.10\", \"nvidia_smi\": \"Tesla T4, 15360 MiB, 580.178.04, 00000000:00:04.0\\nTesla T4, 15360 MiB, 580.178.04, 00000000:00:05.0\", \"torch\": \"2.11.0+cu130\", \"cuda_runtime\": \"13.0\", \"cuda_available\": true, \"gpu_count\": 2, \"gpu_name\": \"Tesla T4\", \"gpu_total_bytes\": 15636037632, \"gpu_bf16_supported\": true, \"versions\": {\"transformers\": \"5.20.2\", \"peft\": \"0.21.2\", \"safetensors\": \"0.8.0\", \"huggingface_hub\": \"1.33.0\", \"psutil\": \"5.9.5\"}}\n"}
+,{"stream_name":"stdout","time":51.467730044,"data":"[   39.9s] writing synthetic checkpoint, expert layer 11072962560 bytes\n"}
+,{"stream_name":"stdout","time":169.620364724,"data":"[  158.0s] written 22549882392 bytes\n"}
+,{"stream_name":"stdout","time":169.82722655,"data":"[  158.2s] measure device=cuda dtype=bfloat16 tier=ram seqs=(16, 512, 2048)\n"}
+,{"stream_name":"stderr","time":186.005752119,"data":"[transformers] `torch_dtype` is deprecated! Use `dtype` instead!\n"}
+,{"stream_name":"stderr","time":382.232483698,"data":"/usr/local/lib/python3.13/dist-packages/torch/profiler/profiler.py:224: UserWarning: Warning: Profiler clears events at the end of each cycle.Only events from the current cycle will be reported.To keep events across cycles, set acc_events=True.\n"}
+,{"stream_name":"stderr","time":382.233175877,"data":"  _warn_once(\n"}
+,{"stream_name":"stdout","time":416.302109497,"data":"[  404.7s] result written to /kaggle/working/result-oversized.json, ok=True\n"}
+,{"stream_name":"stdout","time":421.721054239,"data":"=== stage real\n"}
+,{"stream_name":"stdout","time":425.862362611,"data":"[    2.9s] \n"}
+,{"stream_name":"stdout","time":426.389064079,"data":"[    3.4s] WARNING: Skipping torchao as it is not installed.\n"}
+,{"stream_name":"stdout","time":433.385862176,"data":"[   10.4s] environment: {\"platform\": \"Linux-6.18.55+-x86_64-with-glibc2.39\", \"python\": \"3.13.16\", \"cpu_model\": \"Intel(R) Xeon(R) CPU @ 2.00GHz\", \"cpu_count\": 4, \"ram_total_bytes\": 33658150912, \"ram_available_bytes\": 32168296448, \"cgroup_memory_max\": \"32212254720\", \"disk_work\": {\"total\": 8758385086464, \"used\": 7720200691712, \"free\": 1038167617536}, \"uptime\": \"20:49:37 up 13 min,  0 user,  load average: 2.79, 2.85, 1.45\", \"nvidia_smi\": \"Tesla T4, 15360 MiB, 580.178.04, 00000000:00:04.0\\nTesla T4, 15360 MiB, 580.178.04, 00000000:00:05.0\", \"torch\": \"2.11.0+cu130\", \"cuda_runtime\": \"13.0\", \"cuda_available\": true, \"gpu_count\": 2, \"gpu_name\": \"Tesla T4\", \"gpu_total_bytes\": 15636037632, \"gpu_bf16_supported\": true, \"versions\": {\"transformers\": \"5.20.2\", \"peft\": \"0.21.2\", \"safetensors\": \"0.8.0\", \"huggingface_hub\": \"1.33.0\", \"psutil\": \"5.9.5\"}}\n"}
+,{"stream_name":"stderr","time":434.56850767,"data":"\rFetching 9 files:   0%|          | 0/9 [00:00\u003c?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.\n"}
+,{"stream_name":"stderr","time":516.619215024,"data":"\rFetching 9 files:  11%|█         | 1/9 [00:00\u003c00:01,  5.84it/s]\rFetching 9 files:  44%|████▍     | 4/9 [00:00\u003c00:00, 13.89it/s]\rFetching 9 files:  56%|█████▌    | 5/9 [00:20\u003c00:00, 13.89it/s]\rFetching 9 files:  67%|██████▋   | 6/9 [01:04\u003c00:42, 14.06s/it]\rFetching 9 files:  78%|███████▊  | 7/9 [01:22\u003c00:29, 14.86s/it]\rFetching 9 files: 100%|██████████| 9/9 [01:22\u003c00:00,  9.13s/it]\n"}
+,{"stream_name":"stdout","time":516.61940854,"data":"[   93.6s] downloaded to /tmp/b14/model\n"}
+,{"stream_name":"stdout","time":522.977626793,"data":"[  100.0s] measure device=cuda dtype=bfloat16 tier=ram seqs=(16, 512, 2048)\n"}
+,{"stream_name":"stderr","time":534.003499797,"data":"[transformers] The explicitly set RoPE scaling factor (config.rope_parameters['factor'] = 40) does not match the ratio implicitly set by other parameters (implicit factor = post-yarn context length / pre-yarn context length = config.max_position_embeddings / config.rope_parameters['original_max_position_embeddings'] = 2.0). Using the explicit factor (40) in YaRN. This may cause unexpected behaviour in model usage, please correct the 'original_max_position_embeddings' fields in the model config.\n"}
+,{"stream_name":"stderr","time":535.547418819,"data":"[transformers] `torch_dtype` is deprecated! Use `dtype` instead!\n"}
+,{"stream_name":"stderr","time":742.113653038,"data":"/usr/local/lib/python3.13/dist-packages/torch/profiler/profiler.py:224: UserWarning: Warning: Profiler clears events at the end of each cycle.Only events from the current cycle will be reported.To keep events across cycles, set acc_events=True.\n"}
+,{"stream_name":"stderr","time":742.114321431,"data":"  _warn_once(\n"}
+,{"stream_name":"stdout","time":958.713525355,"data":"[  535.7s] result written to /kaggle/working/result-real.json, ok=True\n"}
+,{"stream_name":"stderr","time":966.584504062,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":966.584570514,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":966.890024547,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":966.890060992,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":967.81424775,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":968.885343666,"data":"[NbConvertApp] Writing 275240 bytes to __results__.html\n"}
+]

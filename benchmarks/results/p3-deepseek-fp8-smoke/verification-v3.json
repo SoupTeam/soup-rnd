@@ -1,0 +1,202 @@
+{
+  "schema": "p3-deepseek-smoke-verification-v1",
+  "verified_utc": "2026-11-10T13:19:38.788644+00:00",
+  "status": "VERIFIED_TINY_EXECUTION_ONLY",
+  "kernel": "batyrkhan2131123/soup-deepseek-fp8-smoke-v3",
+  "admission_sha256": "e6148e0e3a54683f57d58a139cb7335d3dbd0da6e2014c1fb0f0ca61878d8110",
+  "source_overlay_sha256": "e5b65d21b54631b2a69070278fccd9bd868db41d7c8a4f513229199a4796975a",
+  "verified_artifacts": 23,
+  "current_source_matches_executed_overlay": true,
+  "source_files_sha256": {
+    "benchmarks/harness/p3_deepseek_oracle.py": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71",
+    "benchmarks/harness/p3_deepseek_fp8_smoke.py": "90eef1d4b18b3aae4f3a2f9278f19c1c6a9b91148580a963ace2dbd64ea74850",
+    "tests/test_p3_deepseek_oracle.py": "9737939eb366c01278b3800e604931c77a67adbdbba096ceff78d647ae638a36",
+    "tests/test_p3_deepseek_fp8_smoke.py": "e5f08c0795cfa8ad8286522ed3a7334b46af6d9b30a859e53f2a8dc22b0512ee",
+    "benchmarks/harness/p3_realdata_codec.py": "2e47ee7be982a23df5bd930eb2ae69fc8267d6a85019090b83bb7ba9542582e1",
+    "benchmarks/results/p3-deepseek-fp8-smoke/orchestration/kaggle_smoke_runner.py": "cd681f20a2ddfc1f6b65a9964e0febb135d87cc2426f09fb2074e4455747ca9b",
+    "benchmarks/harness/b13_moe_fixture.py": "ec909820cd418afd5fcd42dfeb4769aa55e076e4fca971364af7c6096f3ac795"
+  },
+  "tests": {
+    "tests": 121,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "ruff": "PASS",
+  "smoke_status": "SMOKE_COMPLETE",
+  "controller_wall_seconds": 449.313941422,
+  "smoke_wall_seconds": 9.55355170100006,
+  "scope": {
+    "candidate_only": true,
+    "synthetic_native_deepseek_v3": true,
+    "weights": "nf4-no-double-quant",
+    "compute": "bfloat16",
+    "activation_storage": "block64-e4m3",
+    "routing": "saved-sigmoid-jacobian-oracle",
+    "seed": 23,
+    "batch_size": 1,
+    "sequence_length": 64,
+    "ks": [
+      1,
+      8
+    ],
+    "optimizer_updates_per_k": 2,
+    "full_model_acceptance": false,
+    "fp16_validation": false,
+    "quality_evaluation": false
+  },
+  "optimizer": "SGD, lr=0.05, fresh per k",
+  "windows": [
+    {
+      "k": 1,
+      "update": 1,
+      "loss": 4.19633674621582,
+      "changed_tensors": 30,
+      "oracle_vjps": 2,
+      "seconds": 0.7133186639999849,
+      "loads": {
+        "layer_loads": 4,
+        "large_loads": 2,
+        "restores": 24,
+        "expert_fetches": 48,
+        "expert_bytes_read": 663552
+      }
+    },
+    {
+      "k": 1,
+      "update": 2,
+      "loss": 4.1956868171691895,
+      "changed_tensors": 30,
+      "oracle_vjps": 2,
+      "seconds": 0.17633978899993963,
+      "loads": {
+        "layer_loads": 3,
+        "large_loads": 2,
+        "restores": 0,
+        "expert_fetches": 48,
+        "expert_bytes_read": 663552
+      }
+    },
+    {
+      "k": 8,
+      "update": 1,
+      "loss": 4.194535791873932,
+      "changed_tensors": 30,
+      "oracle_vjps": 16,
+      "seconds": 1.2149559169999975,
+      "loads": {
+        "layer_loads": 3,
+        "large_loads": 2,
+        "restores": 0,
+        "expert_fetches": 375,
+        "expert_bytes_read": 5184000
+      }
+    },
+    {
+      "k": 8,
+      "update": 2,
+      "loss": 4.169227480888367,
+      "changed_tensors": 30,
+      "oracle_vjps": 16,
+      "seconds": 1.2267009869999583,
+      "loads": {
+        "layer_loads": 3,
+        "large_loads": 2,
+        "restores": 0,
+        "expert_fetches": 369,
+        "expert_bytes_read": 5101056
+      }
+    }
+  ],
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "packages": {
+      "torch": "2.11.0",
+      "transformers": "5.19.0",
+      "peft": "0.21.2",
+      "bitsandbytes": "0.50.2",
+      "accelerate": "1.15.0",
+      "safetensors": "0.8.0",
+      "psutil": "7.2.2",
+      "rich": "13.9.4"
+    },
+    "cuda_runtime": "13.0",
+    "cuda_device": "Tesla T4",
+    "cublas_workspace_config": ":4096:8"
+  },
+  "memory": {
+    "before": {
+      "rss_bytes": 633298944,
+      "cuda_allocated_bytes": 0,
+      "cuda_reserved_bytes": 0,
+      "cuda_peak_allocated_bytes": 0,
+      "cuda_peak_reserved_bytes": 0
+    },
+    "after_teardown": {
+      "rss_bytes": 1556254720,
+      "cuda_allocated_bytes": 67108864,
+      "cuda_reserved_bytes": 67108864,
+      "cuda_peak_allocated_bytes": 68403712,
+      "cuda_peak_reserved_bytes": 69206016
+    },
+    "sampled_peak_rss_bytes": 1556258816,
+    "rss_samples": 643,
+    "sampling_interval_seconds": 0.01,
+    "sampling_errors": [],
+    "scope": "fixture creation, training, evidence copies, adapter save and teardown",
+    "rss_claim": "sampled process RSS, not exact peak or proof of OS RSS release",
+    "cuda_claim": "allocated and reserved are separate allocator observations, not RSS"
+  },
+  "teardown": {
+    "host_budget_used_bytes": 0,
+    "model_collected": true,
+    "runtime_collected": true,
+    "cleanup_errors": [],
+    "temporary_checkpoint_and_shards_removed": true
+  },
+  "process_state_restored": true,
+  "cublas_environment_restored": true,
+  "controller_cleanup_complete": true,
+  "final_adapter": {
+    "point_k": 8,
+    "completed_updates_at_point": 2,
+    "sha256": "e08c3f4892f85ace9cc9041233f2b3c3083b9c93e1ccc0b85344385dbaeac6dd",
+    "files": {
+      "README.md": "9c71a4a55d459de50518e388a87e52aaa328286cfe6dc7dc45c334cf0dc64afd",
+      "adapter_config.json": "d389667998314dc1b8b4bea8d7555fa3111292b357976a661e3e3118b4fcaa8a",
+      "adapter_model.safetensors": "6f9b2c69169faad539d4acf9fd80f367747cb5ce6530e64eeb47b8cc4bc708d9"
+    },
+    "save_guard": "assert_streamed_adapter_saved passed"
+  },
+  "residual_cuda": {
+    "allocated_bytes": 67108864,
+    "reserved_bytes": 67108864,
+    "attribution": "NOT_ESTABLISHED",
+    "total_cuda_release_claimed": false
+  },
+  "not_claimed": [
+    "quality",
+    "noninferiority",
+    "production acceptance",
+    "FP16 support",
+    "671B fit",
+    "speedup",
+    "natural routing stability"
+  ],
+  "prior_attempts": [
+    {
+      "directory": "kaggle-v1",
+      "status": "ERROR",
+      "reason": "Ruff: five line-length errors and one unused-variable warning; no tests or training executed",
+      "verified_artifacts": 14
+    },
+    {
+      "directory": "kaggle-v2",
+      "status": "ERROR",
+      "reason": "Ruff and121tests passed; smoke evidence serialization rejected native config integer label keys",
+      "verified_artifacts": 18
+    }
+  ],
+  "raw_evidence": "kaggle-v3/deepseek-smoke-evidence"
+}

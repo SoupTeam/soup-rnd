@@ -1,0 +1,76 @@
+E501 Line too long (103 > 100)
+   --> benchmarks/harness/p3_deepseek_fp8_smoke.py:626:101
+    |
+624 |                         record["nf4_restores_total_observed"] = runtime.stats()["layer_restores"]
+625 |                         if record["nf4_restores_total_observed"] <= 0:
+626 |                             raise RuntimeError("no NF4 projection restore observed since construction")
+    |                                                                                                     ^^^
+627 |                         record["execution_counts"] = {
+628 |                             name: count - before_counts.get(name, 0)
+    |
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_deepseek_fp8_smoke.py:672:101
+    |
+670 |                     torch.cuda.synchronize()
+671 |                 except BaseException as drain_error:
+672 |                     cleanup_errors.append({"operation": "failure.cuda_drain", **_error(drain_error)})
+    |                                                                                                     ^
+673 |             traceback.clear_frames(error.__traceback__)
+674 |             raise
+    |
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_deepseek_fp8_smoke.py:703:101
+    |
+701 |                             reader._handle is None for reader in runtime.expert_readers
+702 |                         ),
+703 |                         "layer_buffers_released_by": "dropping model/runtime references after close",
+    |                                                                                                     ^
+704 |                     }
+705 |                     if not all(report["runtime_cleanup"][key] for key in (
+    |
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_deepseek_fp8_smoke.py:873:101
+    |
+871 |     parser = argparse.ArgumentParser(description=__doc__)
+872 |     parser.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
+873 |     parser.add_argument("--output", type=Path, required=True, help="new, exclusive output directory")
+    |                                                                                                     ^
+874 |     parser.add_argument("--learning-rate", type=float, default=0.05)
+875 |     args = parser.parse_args(argv)
+    |
+
+F841 Local variable `hidden` is assigned to but never used
+   --> benchmarks/harness/p3_deepseek_oracle.py:189:17
+    |
+187 |                 return weights, ids
+188 |             finally:
+189 |                 hidden = ids = weights = normalized = None
+    |                 ^^^^^^
+190 |
+191 |         @staticmethod
+    |
+help: Remove assignment to unused variable `hidden`
+    |
+188 |             finally:
+    -                 hidden = ids = weights = normalized = None
+189 +                 ids = weights = normalized = None
+190 |
+    |
+note: This is an unsafe fix and may change runtime behavior
+
+E501 Line too long (101 > 100)
+   --> benchmarks/harness/p3_deepseek_oracle.py:682:101
+    |
+680 |             record = self._check_record(pair, weight, bias)
+681 |             _require(tuple(hidden.shape) == record.hidden_shape
+682 |                      and hidden.dtype == record.hidden_dtype, "recompute hidden shape/dtype changed")
+    |                                                                                                     ^
+683 |             state = _Replay(self, pair)
+684 |             self._pending[pair] = state
+    |
+
+Found 6 errors.
+1 unsafe fix available with `--fix --unsafe-fixes`.

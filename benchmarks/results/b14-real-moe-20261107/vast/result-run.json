@@ -1,0 +1,82 @@
+{
+  "stages": {},
+  "stage": "run",
+  "source_root": "/root/src",
+  "source_sha": "0e2f4100aedb05575e13d263070ea1d050ded968",
+  "environment": {
+    "platform": "Linux-6.5.0-45-generic-x86_64-with-glibc2.35",
+    "python": "3.11.13",
+    "cpu_count": 24,
+    "ram_total_bytes": 270063095808,
+    "ram_available_bytes": 258712547328,
+    "disk_tmp": {
+      "total": 128849018880,
+      "used": 19073220608,
+      "free": 109775798272
+    },
+    "disk_working": {
+      "total": 128849018880,
+      "used": 19073220608,
+      "free": 109775798272
+    },
+    "cpu_model": "AMD Ryzen Threadripper PRO 3945WX 12-Cores",
+    "gpu_note": "CPU-only run; any GPU on the host is not used"
+  },
+  "versions": {
+    "torch": "2.7.1+cu126",
+    "transformers": "5.20.2",
+    "peft": "0.21.2",
+    "safetensors": "0.8.0",
+    "huggingface_hub": "2.4.0"
+  },
+  "definition": {
+    "failed_points": [],
+    "safetensors_bytes": 18733381272,
+    "expert_std": 0.0231308713555336,
+    "router_std": 0.057130273431539536,
+    "repo": "ByteDance-Seed/academic-ds-9B",
+    "revision": "2a205727f616995ad4aba57806f8e2d0d2f28743"
+  },
+  "batch": {
+    "rows": 2,
+    "length": 15,
+    "texts": [
+      "The capital of France is Paris, and the river Seine runs through the city.",
+      "Mixture of experts models route each token to a small subset of experts."
+    ]
+  },
+  "correctness": {
+    "logits_equal": true,
+    "loss_equal": true,
+    "grad_mismatches": [],
+    "grads_compared": 160,
+    "grads_nonzero": 160,
+    "grads_missing": [],
+    "bitwise": true,
+    "control_detected": true,
+    "verdict": "PASS",
+    "dtype": "bfloat16",
+    "experts_hit_by_layer": {
+      "1": 57,
+      "2": 62,
+      "3": 62,
+      "4": 56,
+      "5": 54,
+      "6": 54,
+      "7": 52,
+      "8": 45,
+      "9": 49,
+      "10": 44,
+      "11": 45,
+      "12": 46,
+      "13": 51,
+      "14": 51,
+      "15": 48
+    },
+    "peak_rss_bytes_after_streamed": 10667753472,
+    "peak_rss_bytes": 37880131584,
+    "seconds": 598.5853638648987
+  },
+  "ok": true,
+  "seconds_total": 603.3402228355408
+}

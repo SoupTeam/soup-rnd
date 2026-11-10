@@ -50,6 +50,7 @@ from typing import (
     Union,
 )
 
+from soup_cli.utils.expert_shard import EXPERT_LAYOUT_PER_EXPERT
 from soup_cli.utils.host_memory_budget import HostMemoryBudget, MemoryLease
 from soup_cli.utils.l2l_step import (
     LoadCounters,
@@ -62,10 +63,13 @@ from soup_cli.utils.l2l_step import (
 if TYPE_CHECKING:
     from soup_cli.utils.moe_l2l_budget import MoEL2LMemoryPlan
 
-#: Architectures ``training.l2l`` admits at launch. The L2L step itself runs more
-#: (``l2l_step.SUPPORTED_ARCHS``, which adds DeepSeek-V3); enabling those publicly is a
-#: separate decision, so this tuple does not follow the step's.
+#: Architectures ``training.l2l`` admits at launch with any weight layout.
 PUBLIC_ARCHS = ("llama", "mistral")
+
+#: Architectures ``training.l2l`` admits only with ``training.stream_expert_layout``
+#: set to ``EXPERT_LAYOUT_PER_EXPERT``: the DeepSeek-V3 step reads each routed expert from its
+#: own cache entry, which a fused layer cache does not have.
+PER_EXPERT_ARCHS = ("deepseek_v3",)
 
 logger = logging.getLogger(__name__)
 
@@ -115,14 +119,25 @@ MAX_CACHED_SHAPES = 64
 
 
 def refuse_unsupported_l2l(
-    model_config: Any, *, n_gpu: int, fp16: bool = False
+    model_config: Any, *, n_gpu: int, fp16: bool = False, expert_layout: str = "fused"
 ) -> None:
-    """Refuse at launch what the schema cannot see: the model, the GPU count, fp16."""
+    """Refuse at launch what the schema cannot see: the model, the GPU count, fp16.
+
+    ``expert_layout`` is ``training.stream_expert_layout``; DeepSeek-V3 needs ``per_expert``.
+    """
     arch = str(getattr(model_config, "model_type", ""))
-    if arch not in PUBLIC_ARCHS:
+    if arch in PER_EXPERT_ARCHS:
+        if expert_layout != EXPERT_LAYOUT_PER_EXPERT:
+            raise ValueError(
+                f"training.l2l with model_type {arch!r} requires "
+                f"training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}; "
+                f"got {expert_layout!r}."
+            )
+    elif arch not in PUBLIC_ARCHS:
         raise ValueError(
             f"training.l2l does not support model_type {arch!r}: it is enabled for "
-            f"{' and '.join(PUBLIC_ARCHS)} only."
+            f"{' and '.join(PUBLIC_ARCHS)}, and for {' and '.join(PER_EXPERT_ARCHS)} "
+            f"with training.stream_expert_layout={EXPERT_LAYOUT_PER_EXPERT!r}."
         )
     if n_gpu > 1:
         raise ValueError(
@@ -173,6 +188,8 @@ class L2LState:
     memory_plan: Optional[MoEL2LMemoryPlan] = None
     host_budget: Optional[HostMemoryBudget] = None
     _routing_lease: Optional[MemoryLease] = field(default=None, init=False, repr=False)
+    #: The recipe's effective k (``soup_cli.utils.l2l_recipe``); None when the caller gave none.
+    effective_k: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.loss is None:
@@ -224,6 +241,8 @@ class L2LState:
             "l2l_weight_restores": self.totals.restores,
             "l2l_spill_layers": int(self.spill_plan["spill_layers"]) if self.spill_plan else 0,
         }
+        if self.effective_k is not None:
+            fields["l2l_effective_k"] = self.effective_k
         # Only a runtime that streams routed experts has them to count; a dense run's log
         # keeps the fields it always had.
         if getattr(self.runtime, "expert_pool", None) is not None:
@@ -810,6 +829,7 @@ def attach_l2l_state(
     host_budget: Optional[HostMemoryBudget] = None,
     spill_dir: Optional[str] = None,
     weight_dirs: Sequence[str] = (),
+    effective_k: Optional[int] = None,
 ) -> L2LState:
     """Give a trainer from :func:`make_l2l_trainer_class` its streaming runtime.
 
@@ -837,6 +857,7 @@ def attach_l2l_state(
         activation_codec=activation_codec,
         memory_plan=memory_plan,
         host_budget=host_budget,
+        effective_k=effective_k,
         spill_dir=spill_dir,
         weight_dirs=tuple(str(path) for path in weight_dirs),
         output_dir=getattr(args, "output_dir", None),

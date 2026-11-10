@@ -1,0 +1,3866 @@
+{
+  "schema": "p3_deepseek_single_candidate_smoke_v1",
+  "status": "SMOKE_COMPLETE",
+  "scope": "synthetic tiny native DeepSeek single-candidate code execution only",
+  "not_claimed": [
+    "quality",
+    "noninferiority",
+    "production acceptance",
+    "FP16 support",
+    "671B fit",
+    "speedup",
+    "natural routing stability"
+  ],
+  "candidate": "NF4 noDQ / BF16 compute / FP32 attention LoRA / block64 E4M3 + Oracle",
+  "seed": 23,
+  "batch_size": 1,
+  "sequence_length": 64,
+  "hidden_size": 128,
+  "ks": [
+    1,
+    8
+  ],
+  "updates_per_k": 2,
+  "training_arms": 1,
+  "resident_twin": false,
+  "forced_routing": true,
+  "natural_routing_measured": false,
+  "synthetic": {
+    "weights": true,
+    "tokens": true,
+    "seed": 23,
+    "checkpoint_builder": "b13_moe_fixture.moe_weights_dir",
+    "source_model": "temporary CPU checkpoint generation, never a training arm"
+  },
+  "input_policy": "synthetic causal-LM token IDs; labels equal IDs, all shifted tokens count",
+  "seed_policy": {
+    "checkpoint": 23,
+    "adapter_materialization": 23,
+    "adapter_randomize": 23,
+    "token_generator_each_k": 23,
+    "fixture_note": "unchanged helper derives checkpoint perturbation generator as seed+1"
+  },
+  "device": "cuda",
+  "points": [
+    {
+      "k": 1,
+      "status": "SMOKE_COMPLETE",
+      "steps": [
+        {
+          "update": 1,
+          "status": "SMOKE_COMPLETE",
+          "optimizer_applied": true,
+          "input_sha256": [
+            "acf72fbd996846bf6cf325f56d893a959c4142a5982bf4cdb7ebf561fa0ace7e"
+          ],
+          "runtime_load_deltas": {
+            "layer_loads": 4,
+            "large_loads": 2,
+            "restores": 24,
+            "expert_fetches": 48,
+            "expert_bytes_read": 663552
+          },
+          "nf4_restores_total_observed": 24,
+          "execution_counts": {
+            "native_decoder_forward": 3,
+            "native_attention_forward": 3,
+            "native_moe_forward": 2,
+            "streamed_experts_forward": 2,
+            "native_decoder_recompute": 3,
+            "native_attention_recompute": 3,
+            "native_moe_recompute": 2,
+            "streamed_experts_recompute": 2
+          },
+          "execution_input_dtypes": {
+            "native_decoder": [
+              "torch.bfloat16"
+            ],
+            "native_attention": [
+              "torch.bfloat16"
+            ],
+            "native_moe": [
+              "torch.bfloat16"
+            ],
+            "streamed_experts": [
+              "torch.bfloat16"
+            ]
+          },
+          "store_execution": {
+            "payload_bytes": 24576,
+            "scale_bytes": 1536,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 512,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 26625,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 24576,
+              "scale_bytes": 1536,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 512,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 26625
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  192,
+                  2
+                ],
+                "storage_bytes": 1536,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 26112,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 3,
+            "get_calls": 3,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "losses": [
+            4.19633674621582
+          ],
+          "gradients": {
+            "trainable_tensors": 30,
+            "missing": [],
+            "nonfinite": [],
+            "zero": [],
+            "nonzero_tensors": 30,
+            "global_l2": 0.7195954958682166
+          },
+          "oracle_before_update": {
+            "complete": true,
+            "expected_pairs": 2,
+            "counts": {
+              "native_forward": 2,
+              "oracle_recompute": 2,
+              "oracle_vjp": 2
+            },
+            "host_reserved_bytes": 36352,
+            "host_reservation_bound_bytes": 36352,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 3584,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 2048,
+                "selected_sigmoid_scores": 1024,
+                "normalizers": 512,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 6
+            }
+          },
+          "before_sha256": "cd7789dcdcd2c28e9999ff700c92776b15fcdddbf01ef515ff44bf64b3f7fad1",
+          "after_sha256": "8d802be873bb484d40194bc72e71b919ecf73972c805705b930cc23b8772013c",
+          "changed_adapter_tensors": 30,
+          "adapters_finite_after_update": true,
+          "oracle_before_close": {
+            "complete": true,
+            "expected_pairs": 2,
+            "counts": {
+              "native_forward": 2,
+              "oracle_recompute": 2,
+              "oracle_vjp": 2
+            },
+            "host_reserved_bytes": 36352,
+            "host_reservation_bound_bytes": 36352,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 3584,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 2048,
+                "selected_sigmoid_scores": 1024,
+                "normalizers": 512,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 6
+            }
+          },
+          "oracle_after_close": {
+            "complete": true,
+            "expected_pairs": 2,
+            "counts": {
+              "native_forward": 2,
+              "oracle_recompute": 2,
+              "oracle_vjp": 2
+            },
+            "host_reserved_bytes": 0,
+            "host_reservation_bound_bytes": 36352,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": true,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 2048,
+                "selected_sigmoid_scores": 1024,
+                "normalizers": 512,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": true,
+              "hooks_removed": true,
+              "owned_buffers_dropped": true,
+              "synchronous_device_drains": 7
+            }
+          },
+          "store_before_close": {
+            "payload_bytes": 24576,
+            "scale_bytes": 1536,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 512,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 26625,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 24576,
+              "scale_bytes": 1536,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 512,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 26625
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  192,
+                  2
+                ],
+                "storage_bytes": 1536,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 26112,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 3,
+            "get_calls": 3,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "store_after_close": {
+            "payload_bytes": 24576,
+            "scale_bytes": 1536,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 512,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 0,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 0,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 0,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 24576,
+              "scale_bytes": 1536,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 512,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 26625
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": true,
+              "closing": false,
+              "host_lease_released": true
+            },
+            "put_calls": 3,
+            "get_calls": 3,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "host_budget_after_close_bytes": 0,
+          "cleanup_errors": [],
+          "wall_seconds": 0.7133186639999849
+        },
+        {
+          "update": 2,
+          "status": "SMOKE_COMPLETE",
+          "optimizer_applied": true,
+          "input_sha256": [
+            "10676a5b0c25700240c800a42fdfc8cb88467dca478a68e4eaacb912e3a665b7"
+          ],
+          "runtime_load_deltas": {
+            "layer_loads": 3,
+            "large_loads": 2,
+            "restores": 0,
+            "expert_fetches": 48,
+            "expert_bytes_read": 663552
+          },
+          "nf4_restores_total_observed": 24,
+          "execution_counts": {
+            "native_decoder_forward": 3,
+            "native_attention_forward": 3,
+            "native_moe_forward": 2,
+            "streamed_experts_forward": 2,
+            "native_decoder_recompute": 3,
+            "native_attention_recompute": 3,
+            "native_moe_recompute": 2,
+            "streamed_experts_recompute": 2
+          },
+          "execution_input_dtypes": {
+            "native_decoder": [
+              "torch.bfloat16"
+            ],
+            "native_attention": [
+              "torch.bfloat16"
+            ],
+            "native_moe": [
+              "torch.bfloat16"
+            ],
+            "streamed_experts": [
+              "torch.bfloat16"
+            ]
+          },
+          "store_execution": {
+            "payload_bytes": 24576,
+            "scale_bytes": 1536,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 512,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 26625,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 24576,
+              "scale_bytes": 1536,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 512,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 26625
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  192,
+                  2
+                ],
+                "storage_bytes": 1536,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 26112,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 3,
+            "get_calls": 3,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "losses": [
+            4.1956868171691895
+          ],
+          "gradients": {
+            "trainable_tensors": 30,
+            "missing": [],
+            "nonfinite": [],
+            "zero": [],
+            "nonzero_tensors": 30,
+            "global_l2": 0.622113839487121
+          },
+          "oracle_before_update": {
+            "complete": true,
+            "expected_pairs": 2,
+            "counts": {
+              "native_forward": 2,
+              "oracle_recompute": 2,
+              "oracle_vjp": 2
+            },
+            "host_reserved_bytes": 36352,
+            "host_reservation_bound_bytes": 36352,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 3584,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 2048,
+                "selected_sigmoid_scores": 1024,
+                "normalizers": 512,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 6
+            }
+          },
+          "before_sha256": "8d802be873bb484d40194bc72e71b919ecf73972c805705b930cc23b8772013c",
+          "after_sha256": "88c0435d0e05259178fdb0055696d5fe4685250e5eed2acad008b6db46657d8b",
+          "changed_adapter_tensors": 30,
+          "adapters_finite_after_update": true,
+          "oracle_before_close": {
+            "complete": true,
+            "expected_pairs": 2,
+            "counts": {
+              "native_forward": 2,
+              "oracle_recompute": 2,
+              "oracle_vjp": 2
+            },
+            "host_reserved_bytes": 36352,
+            "host_reservation_bound_bytes": 36352,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 3584,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 2048,
+                "selected_sigmoid_scores": 1024,
+                "normalizers": 512,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 6
+            }
+          },
+          "oracle_after_close": {
+            "complete": true,
+            "expected_pairs": 2,
+            "counts": {
+              "native_forward": 2,
+              "oracle_recompute": 2,
+              "oracle_vjp": 2
+            },
+            "host_reserved_bytes": 0,
+            "host_reservation_bound_bytes": 36352,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": true,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 2048,
+                "selected_sigmoid_scores": 1024,
+                "normalizers": 512,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": true,
+              "hooks_removed": true,
+              "owned_buffers_dropped": true,
+              "synchronous_device_drains": 7
+            }
+          },
+          "store_before_close": {
+            "payload_bytes": 24576,
+            "scale_bytes": 1536,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 512,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 26625,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 24576,
+              "scale_bytes": 1536,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 512,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 26625
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  192,
+                  2
+                ],
+                "storage_bytes": 1536,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 26112,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 3,
+            "get_calls": 3,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "store_after_close": {
+            "payload_bytes": 24576,
+            "scale_bytes": 1536,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 512,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 0,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 0,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 0,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 24576,
+              "scale_bytes": 1536,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 512,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 26625
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": true,
+              "closing": false,
+              "host_lease_released": true
+            },
+            "put_calls": 3,
+            "get_calls": 3,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "host_budget_after_close_bytes": 0,
+          "cleanup_errors": [],
+          "wall_seconds": 0.17633978899993963
+        }
+      ],
+      "initial_adapter_sha256": "cd7789dcdcd2c28e9999ff700c92776b15fcdddbf01ef515ff44bf64b3f7fad1",
+      "optimizer": {
+        "class": "torch.optim.SGD",
+        "lr": 0.05,
+        "momentum": 0.0,
+        "fresh_for_k": true
+      },
+      "completed_optimizer_updates": 2
+    },
+    {
+      "k": 8,
+      "status": "SMOKE_COMPLETE",
+      "steps": [
+        {
+          "update": 1,
+          "status": "SMOKE_COMPLETE",
+          "optimizer_applied": true,
+          "input_sha256": [
+            "acf72fbd996846bf6cf325f56d893a959c4142a5982bf4cdb7ebf561fa0ace7e",
+            "10676a5b0c25700240c800a42fdfc8cb88467dca478a68e4eaacb912e3a665b7",
+            "8fe8f8908729c95ad7dead0279b45395a24c4203b1c97f9b78e1ebc79b1e07be",
+            "6f76b9b4cce1b669c0cfc701d1ae22c2e4c208b7ea0007302dea27a709fc4826",
+            "320a8929fb2ade638e7e9776790070841e34c1f7932e9f5ee2124a9c7a4e211b",
+            "4bdd1ce9a7664922d28067a329a0ea5ce58397399e6c94dc9ec1659db7afbadb",
+            "d3d5cf3eb628029d24ff35330b348dce5d6511946abd284bb22488b458f0019d",
+            "fd883fad1cf502658468f13c6e0cf6bbe5c2830e5e5499ec73147786c65e80ff"
+          ],
+          "runtime_load_deltas": {
+            "layer_loads": 3,
+            "large_loads": 2,
+            "restores": 0,
+            "expert_fetches": 375,
+            "expert_bytes_read": 5184000
+          },
+          "nf4_restores_total_observed": 24,
+          "execution_counts": {
+            "native_decoder_forward": 24,
+            "native_attention_forward": 24,
+            "native_moe_forward": 16,
+            "streamed_experts_forward": 16,
+            "native_decoder_recompute": 24,
+            "native_attention_recompute": 24,
+            "native_moe_recompute": 16,
+            "streamed_experts_recompute": 16
+          },
+          "execution_input_dtypes": {
+            "native_decoder": [
+              "torch.bfloat16"
+            ],
+            "native_attention": [
+              "torch.bfloat16"
+            ],
+            "native_moe": [
+              "torch.bfloat16"
+            ],
+            "streamed_experts": [
+              "torch.bfloat16"
+            ]
+          },
+          "store_execution": {
+            "payload_bytes": 196608,
+            "scale_bytes": 12288,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 4096,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 212993,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 196608,
+              "scale_bytes": 12288,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 4096,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 212993
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  1536,
+                  2
+                ],
+                "storage_bytes": 12288,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 208896,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 24,
+            "get_calls": 24,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "losses": [
+            0.5245420932769775,
+            0.5244131684303284,
+            0.5278518199920654,
+            0.5230498909950256,
+            0.5300886631011963,
+            0.5205820202827454,
+            0.5221335887908936,
+            0.5218745470046997
+          ],
+          "gradients": {
+            "trainable_tensors": 30,
+            "missing": [],
+            "nonfinite": [],
+            "zero": [],
+            "nonzero_tensors": 30,
+            "global_l2": 0.24152759208531271
+          },
+          "oracle_before_update": {
+            "complete": true,
+            "expected_pairs": 16,
+            "counts": {
+              "native_forward": 16,
+              "oracle_recompute": 16,
+              "oracle_vjp": 16
+            },
+            "host_reserved_bytes": 61440,
+            "host_reservation_bound_bytes": 61440,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 28672,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 16384,
+                "selected_sigmoid_scores": 8192,
+                "normalizers": 4096,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 48
+            }
+          },
+          "before_sha256": "cd7789dcdcd2c28e9999ff700c92776b15fcdddbf01ef515ff44bf64b3f7fad1",
+          "after_sha256": "6d7eef3e554474dffdd8c738176dbaa077b59be65e3c2dde53eb9f1ea3eb0ae8",
+          "changed_adapter_tensors": 30,
+          "adapters_finite_after_update": true,
+          "oracle_before_close": {
+            "complete": true,
+            "expected_pairs": 16,
+            "counts": {
+              "native_forward": 16,
+              "oracle_recompute": 16,
+              "oracle_vjp": 16
+            },
+            "host_reserved_bytes": 61440,
+            "host_reservation_bound_bytes": 61440,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 28672,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 16384,
+                "selected_sigmoid_scores": 8192,
+                "normalizers": 4096,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 48
+            }
+          },
+          "oracle_after_close": {
+            "complete": true,
+            "expected_pairs": 16,
+            "counts": {
+              "native_forward": 16,
+              "oracle_recompute": 16,
+              "oracle_vjp": 16
+            },
+            "host_reserved_bytes": 0,
+            "host_reservation_bound_bytes": 61440,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": true,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 16384,
+                "selected_sigmoid_scores": 8192,
+                "normalizers": 4096,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": true,
+              "hooks_removed": true,
+              "owned_buffers_dropped": true,
+              "synchronous_device_drains": 49
+            }
+          },
+          "store_before_close": {
+            "payload_bytes": 196608,
+            "scale_bytes": 12288,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 4096,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 212993,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 196608,
+              "scale_bytes": 12288,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 4096,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 212993
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  1536,
+                  2
+                ],
+                "storage_bytes": 12288,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 208896,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 24,
+            "get_calls": 24,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "store_after_close": {
+            "payload_bytes": 196608,
+            "scale_bytes": 12288,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 4096,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 0,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 0,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 0,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 196608,
+              "scale_bytes": 12288,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 4096,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 212993
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": true,
+              "closing": false,
+              "host_lease_released": true
+            },
+            "put_calls": 24,
+            "get_calls": 24,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "host_budget_after_close_bytes": 0,
+          "cleanup_errors": [],
+          "wall_seconds": 1.2149559169999975
+        },
+        {
+          "update": 2,
+          "status": "SMOKE_COMPLETE",
+          "optimizer_applied": true,
+          "input_sha256": [
+            "c66e3f68f8841c23077133a03889d05693ed6323a77a9a10911235d026280a22",
+            "90ea7ebe60aa0815d74ca23ad7a4708266309d679a48754c419be5685b78754d",
+            "4eaf7a45424b6f36d4116d42820e11adffdddc43e591428f2133ab7d288de6e3",
+            "59539047ff9937dfe7015a2e77298a33a994cd75d125c762bc3f8c143997e202",
+            "1caaf4cdb74e2bb49afab047a82a8aff0698c73948cebc26b842b3d1dbd479cc",
+            "640e0ffcb256adcee875e394eab6c92412971c4ffe90aa492693d65749ca938f",
+            "9ed31394d6506dffdeaa65a54ce8d25a1b2c0e926cf5e1ebe73fe2795928e141",
+            "48690fa5ac49ec76513064b818091ef413aaa36741e339b26fb0954c858728f8"
+          ],
+          "runtime_load_deltas": {
+            "layer_loads": 3,
+            "large_loads": 2,
+            "restores": 0,
+            "expert_fetches": 369,
+            "expert_bytes_read": 5101056
+          },
+          "nf4_restores_total_observed": 24,
+          "execution_counts": {
+            "native_decoder_forward": 24,
+            "native_attention_forward": 24,
+            "native_moe_forward": 16,
+            "streamed_experts_forward": 16,
+            "native_decoder_recompute": 24,
+            "native_attention_recompute": 24,
+            "native_moe_recompute": 16,
+            "streamed_experts_recompute": 16
+          },
+          "execution_input_dtypes": {
+            "native_decoder": [
+              "torch.bfloat16"
+            ],
+            "native_attention": [
+              "torch.bfloat16"
+            ],
+            "native_moe": [
+              "torch.bfloat16"
+            ],
+            "streamed_experts": [
+              "torch.bfloat16"
+            ]
+          },
+          "store_execution": {
+            "payload_bytes": 196608,
+            "scale_bytes": 12288,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 4096,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 212993,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 196608,
+              "scale_bytes": 12288,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 4096,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 212993
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  1536,
+                  2
+                ],
+                "storage_bytes": 12288,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 208896,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 24,
+            "get_calls": 24,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "losses": [
+            0.5174458622932434,
+            0.5201389789581299,
+            0.5223207473754883,
+            0.5255587697029114,
+            0.5206122398376465,
+            0.5177685618400574,
+            0.5203152298927307,
+            0.5250670909881592
+          ],
+          "gradients": {
+            "trainable_tensors": 30,
+            "missing": [],
+            "nonfinite": [],
+            "zero": [],
+            "nonzero_tensors": 30,
+            "global_l2": 0.22096165555708194
+          },
+          "oracle_before_update": {
+            "complete": true,
+            "expected_pairs": 16,
+            "counts": {
+              "native_forward": 16,
+              "oracle_recompute": 16,
+              "oracle_vjp": 16
+            },
+            "host_reserved_bytes": 61440,
+            "host_reservation_bound_bytes": 61440,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 28672,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 16384,
+                "selected_sigmoid_scores": 8192,
+                "normalizers": 4096,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 48
+            }
+          },
+          "before_sha256": "6d7eef3e554474dffdd8c738176dbaa077b59be65e3c2dde53eb9f1ea3eb0ae8",
+          "after_sha256": "e08c3f4892f85ace9cc9041233f2b3c3083b9c93e1ccc0b85344385dbaeac6dd",
+          "changed_adapter_tensors": 30,
+          "adapters_finite_after_update": true,
+          "oracle_before_close": {
+            "complete": true,
+            "expected_pairs": 16,
+            "counts": {
+              "native_forward": 16,
+              "oracle_recompute": 16,
+              "oracle_vjp": 16
+            },
+            "host_reserved_bytes": 61440,
+            "host_reservation_bound_bytes": 61440,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": false,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 28672,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 16384,
+                "selected_sigmoid_scores": 8192,
+                "normalizers": 4096,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": false,
+              "hooks_removed": false,
+              "owned_buffers_dropped": false,
+              "synchronous_device_drains": 48
+            }
+          },
+          "oracle_after_close": {
+            "complete": true,
+            "expected_pairs": 16,
+            "counts": {
+              "native_forward": 16,
+              "oracle_recompute": 16,
+              "oracle_vjp": 16
+            },
+            "host_reserved_bytes": 0,
+            "host_reservation_bound_bytes": 61440,
+            "device_scratch_bound_bytes": 119056,
+            "records_remaining": 0,
+            "pending_replays": 0,
+            "closed": true,
+            "forced_routing": true,
+            "natural_routing_measured": false,
+            "oracle_semantics": "selected-sigmoid-Jacobian-at-original-forward",
+            "full_router_logits_replayed": false,
+            "first_order_only": true,
+            "failure": null,
+            "cleanup_errors": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "runtime": {
+              "torch_version": "2.11.0+cu130",
+              "transformers_version": "5.19.0"
+            },
+            "source_hashes": {
+              "native_router": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "native_moe": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+                "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+              },
+              "benchmark": {
+                "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+                "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+              }
+            },
+            "allocation": {
+              "host": {
+                "ids": 16384,
+                "selected_sigmoid_scores": 8192,
+                "normalizers": 4096,
+                "hash_staging": 32768,
+                "cpu_operation_scratch": 0
+              },
+              "operation_buffer_bound": {
+                "native_sigmoid_recovery_fp32": 2048,
+                "selected_capture_fp32": 512,
+                "normalizer_capture_fp32": 512,
+                "native_weight_validation_fp32": 1536,
+                "replay_ids": 1024,
+                "replay_scores_fp32": 512,
+                "replay_normalizers_fp32": 256,
+                "returned_ids": 1024,
+                "returned_weights_fp32": 1024,
+                "incoming_contiguous_fp32": 512,
+                "scaled_incoming_fp32": 512,
+                "normalization_backward_fp32": 3584,
+                "sigmoid_backward_fp32": 1536,
+                "scatter_logit_gradient_fp32": 2048,
+                "restored_router_weight_fp32": 4096,
+                "hidden_gradient_fp32": 32768,
+                "returned_hidden_gradient": 32768,
+                "finite_validation": 32784
+              },
+              "device_scratch_bound_bytes": 119056,
+              "maximum_simultaneous_replays": 1,
+              "host_pinned": false,
+              "max_tokens": 64,
+              "tensor_storage_only": true,
+              "exclusions": [
+                "native model outputs and expert execution",
+                "caller-owned tensors",
+                "Python bookkeeping",
+                "framework allocator caches",
+                "kernel workspaces"
+              ]
+            },
+            "cleanup": {
+              "original_forwards_restored": true,
+              "hooks_removed": true,
+              "owned_buffers_dropped": true,
+              "synchronous_device_drains": 49
+            }
+          },
+          "store_before_close": {
+            "payload_bytes": 196608,
+            "scale_bytes": 12288,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 4096,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 1,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 315521,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 212993,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 196608,
+              "scale_bytes": 12288,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 4096,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 212993
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [
+              {
+                "name": "payload.0.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.0.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.1.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.0",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.1",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.2",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.3",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.4",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.5",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.6",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "payload.2.7",
+                "device": "cpu",
+                "dtype": "torch.float8_e4m3fn",
+                "shape": [
+                  64,
+                  128
+                ],
+                "storage_bytes": 8192,
+                "pinned": true
+              },
+              {
+                "name": "scales",
+                "device": "cpu",
+                "dtype": "torch.float32",
+                "shape": [
+                  1536,
+                  2
+                ],
+                "storage_bytes": 12288,
+                "pinned": true
+              }
+            ],
+            "owned_host_storage_bytes": 208896,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": false,
+              "closing": false,
+              "host_lease_released": false
+            },
+            "put_calls": 24,
+            "get_calls": 24,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "store_after_close": {
+            "payload_bytes": 196608,
+            "scale_bytes": 12288,
+            "padding_bytes": 0,
+            "pinned_rounding_bytes": 4096,
+            "calibration_vector_bytes": 0,
+            "reservation_slack_bytes": 0,
+            "host_scratch_bytes": 0,
+            "device_persistent_bytes": 0,
+            "device_scratch_bytes": 0,
+            "production_reservation_bytes": 0,
+            "decoded_output_peak_bytes": 16384,
+            "tile_rows": 64,
+            "groups_per_row": 2,
+            "padded_hidden": 128,
+            "charged_host_bytes": 0,
+            "policy": {
+              "name": "block64_e4m3",
+              "format": "e4m3",
+              "group_size": 64,
+              "smooth": false
+            },
+            "allocation": {
+              "payload_bytes": 196608,
+              "scale_bytes": 12288,
+              "padding_bytes": 0,
+              "pinned_rounding_bytes": 4096,
+              "calibration_vector_bytes": 0,
+              "reservation_slack_bytes": 0,
+              "host_scratch_bytes": 1,
+              "device_persistent_bytes": 0,
+              "device_scratch_bytes": 315521,
+              "production_reservation_bytes": 0,
+              "decoded_output_peak_bytes": 16384,
+              "tile_rows": 64,
+              "groups_per_row": 2,
+              "padded_hidden": 128,
+              "charged_host_bytes": 212993
+            },
+            "underlying_store_class": "p3_realdata_codec._ExperimentalStore",
+            "actual_owned_storages": [],
+            "owned_host_storage_bytes": 0,
+            "owned_device_storage_bytes": 0,
+            "cleanup": {
+              "closed": true,
+              "closing": false,
+              "host_lease_released": true
+            },
+            "put_calls": 24,
+            "get_calls": 24,
+            "synchronous_transfers": true,
+            "torch_version": "2.11.0+cu130",
+            "payload_dtype": "float8_e4m3fn",
+            "scale_semantics": "FP32 group absmax; divide then multiply by format maximum",
+            "rounding": "PyTorch deterministic FP8 cast, finite clamp, no stochastic rounding",
+            "format_maximum": 448,
+            "scratch_scope": "one operation including decoded output until returned to caller",
+            "production_lease_is_partition_of_outer_lease": false
+          },
+          "host_budget_after_close_bytes": 0,
+          "cleanup_errors": [],
+          "wall_seconds": 1.2267009869999583
+        }
+      ],
+      "initial_adapter_sha256": "cd7789dcdcd2c28e9999ff700c92776b15fcdddbf01ef515ff44bf64b3f7fad1",
+      "optimizer": {
+        "class": "torch.optim.SGD",
+        "lr": 0.05,
+        "momentum": 0.0,
+        "fresh_for_k": true
+      },
+      "completed_optimizer_updates": 2
+    }
+  ],
+  "capacity_seam": "store.k = len(mb_shapes), metadata only on unchanged codec instance",
+  "routing_guard": "unchanged production L2LStep RoutingGuard remains enabled",
+  "admission": {
+    "host_available_bytes": 32073605120,
+    "host_required_bytes": 1073741824,
+    "cuda_available_bytes": 15526068224,
+    "cuda_required_bytes": 536870912,
+    "store_oracle_host_budget_bytes": 134217728,
+    "meaning": "fixed tiny-fixture admission, not a whole-process memory bound"
+  },
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "packages": {
+      "torch": "2.11.0",
+      "transformers": "5.19.0",
+      "peft": "0.21.2",
+      "bitsandbytes": "0.50.2",
+      "accelerate": "1.15.0",
+      "safetensors": "0.8.0",
+      "psutil": "7.2.2",
+      "rich": "13.9.4"
+    },
+    "cuda_runtime": "13.0",
+    "cuda_device": "Tesla T4",
+    "cublas_workspace_config": ":4096:8"
+  },
+  "process_state": {
+    "restored": true,
+    "previous_backend_flags": {
+      "deterministic": false,
+      "warn_only": false,
+      "matmul_tf32": false,
+      "cudnn_tf32": true,
+      "cudnn_benchmark": false,
+      "cudnn_deterministic": false
+    },
+    "rng_scope": "Python random and torch CPU/all available CUDA devices"
+  },
+  "source": {
+    "files": {
+      "b13_moe_fixture": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/b13_moe_fixture.py",
+        "sha256": "ec909820cd418afd5fcd42dfeb4769aa55e076e4fca971364af7c6096f3ac795"
+      },
+      "p3_realdata_codec": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_realdata_codec.py",
+        "sha256": "2e47ee7be982a23df5bd930eb2ae69fc8267d6a85019090b83bb7ba9542582e1"
+      },
+      "p3_deepseek_oracle": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_oracle.py",
+        "sha256": "d6bdc6c01bd232f3b838134ce52cf5421f0ee6f061d005ed684006ca6cb50c71"
+      },
+      "soup_cli.utils.l2l_step": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/l2l_step.py",
+        "sha256": "91e8ab95be95c9dc2caece69218eb2ffa51a8dc031042d10b0124300cc3d9d0c"
+      },
+      "soup_cli.utils.layer_shard": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/layer_shard.py",
+        "sha256": "70c9c14a01cb8e78bd46b5c895d1bb1bd26c5310521c6e494ce6b70765825061"
+      },
+      "soup_cli.utils.layer_stream_runtime": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/layer_stream_runtime.py",
+        "sha256": "1158b8bc3adae77bdd775565578e3b2b1c7107e369485d16d6de35fe2c906461"
+      },
+      "soup_cli.utils.expert_stream": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/expert_stream.py",
+        "sha256": "5d0f9d9fcaa09e081e29a11c6d901361efaecf3e7f00f611263389f2e5ff4811"
+      },
+      "soup_cli.utils.expert_shard": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/expert_shard.py",
+        "sha256": "bac0a9f36e8ea1596965a3816c46f47d7bd29152ed3c3b13445f88c1a548a334"
+      },
+      "soup_cli.utils.host_memory_budget": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/host_memory_budget.py",
+        "sha256": "d0b272a384ef75d1481eca7c251a808365a98c4bb3befb68d2c1b0fbc18a19a6"
+      },
+      "soup_cli.utils.peft_wiring": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/peft_wiring.py",
+        "sha256": "b88b725ec31dfdd5d8589bc5124c66f3905d2542b01dcdb120188963fc6769b9"
+      },
+      "soup_cli.utils.kimi_k2": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/kimi_k2.py",
+        "sha256": "553c3cfbcfd6cc87eeca083351eaafe5ff3022c649c5f076c5ee202f014f51f2"
+      },
+      "transformers.models.deepseek_v3.modeling_deepseek_v3": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/py312/lib/python3.12/site-packages/transformers/models/deepseek_v3/modeling_deepseek_v3.py",
+        "sha256": "1ef325ceed5ac2f01a2fa435aa00f9a11c6fc804bdd5431d044e30a1b506ba41"
+      },
+      "soup_cli.utils.layer_stream": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/layer_stream.py",
+        "sha256": "0e6dff5ee0cc84df5adfcc2e22ecd2a19ef894a35dae60aee3936edf32c1c0af"
+      },
+      "soup_cli.utils.l2l_rng": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/l2l_rng.py",
+        "sha256": "053a06864728c9ff712e0759d8a405f1708a417bedd4d9adad39ab8919ca0d54"
+      },
+      "soup_cli.utils.safetensors_reader": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/src/soup_cli/utils/safetensors_reader.py",
+        "sha256": "42a56609c459cc3c2cd3a05f4684e53753b303b631bffc0dcb6e6a498c49822b"
+      },
+      "driver": {
+        "path": "/kaggle/working/deepseek-smoke-4ud7i6i9/soup/benchmarks/harness/p3_deepseek_fp8_smoke.py",
+        "sha256": "90eef1d4b18b3aae4f3a2f9278f19c1c6a9b91148580a963ace2dbd64ea74850"
+      }
+    },
+    "native_router_forward_sha256": "c7fbf89339454e97a8482b72be7193e8ee45f78e343896ea7cfd94d455033a21",
+    "launcher_revision_assertion": null,
+    "identity_policy": "file hashes observed at runtime; launcher revision is not a git check"
+  },
+  "model_config": {
+    "_name_or_path": "",
+    "architectures": null,
+    "attention_bias": false,
+    "attention_dropout": 0.0,
+    "bos_token_id": 0,
+    "chunk_size_feed_forward": 0,
+    "dtype": null,
+    "eos_token_id": 1,
+    "first_k_dense_replace": 1,
+    "head_dim": 16,
+    "hidden_act": "silu",
+    "hidden_size": 128,
+    "id2label": {
+      "0": "LABEL_0",
+      "1": "LABEL_1"
+    },
+    "initializer_range": 0.02,
+    "intermediate_size": 256,
+    "is_encoder_decoder": false,
+    "kv_lora_rank": 32,
+    "label2id": {
+      "LABEL_0": 0,
+      "LABEL_1": 1
+    },
+    "max_position_embeddings": 128,
+    "model_type": "deepseek_v3",
+    "moe_intermediate_size": 64,
+    "n_group": 4,
+    "n_routed_experts": 8,
+    "n_shared_experts": 1,
+    "norm_topk_prob": true,
+    "num_attention_heads": 4,
+    "num_experts_per_tok": 2,
+    "num_hidden_layers": 3,
+    "num_key_value_heads": 4,
+    "num_nextn_predict_layers": 1,
+    "output_attentions": false,
+    "output_hidden_states": false,
+    "output_router_logits": false,
+    "pad_token_id": null,
+    "pretraining_tp": 1,
+    "problem_type": null,
+    "q_lora_rank": 32,
+    "qk_head_dim": 32,
+    "qk_nope_head_dim": 16,
+    "qk_rope_head_dim": 16,
+    "return_dict": true,
+    "rms_norm_eps": 1e-06,
+    "rope_interleave": true,
+    "rope_parameters": {
+      "rope_theta": 10000.0,
+      "rope_type": "default"
+    },
+    "routed_scaling_factor": 1.25,
+    "tie_word_embeddings": false,
+    "topk_group": 2,
+    "transformers_version": "5.19.0",
+    "use_cache": false,
+    "v_head_dim": 16,
+    "vocab_size": 64
+  },
+  "quantization": {
+    "weight_format": "nf4",
+    "double_quant": false,
+    "expert_layout": "per_expert",
+    "shard_dtype": "bfloat16",
+    "quant_device": "cuda",
+    "projection_specs": {
+      "mlp.down_proj.weight": {
+        "shape": [
+          128,
+          256
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "mlp.gate_proj.weight": {
+        "shape": [
+          256,
+          128
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "mlp.up_proj.weight": {
+        "shape": [
+          256,
+          128
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "self_attn.kv_a_proj_with_mqa.weight": {
+        "shape": [
+          48,
+          128
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "self_attn.kv_b_proj.weight": {
+        "shape": [
+          128,
+          32
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "self_attn.o_proj.weight": {
+        "shape": [
+          128,
+          64
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "self_attn.q_a_proj.weight": {
+        "shape": [
+          32,
+          128
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "self_attn.q_b_proj.weight": {
+        "shape": [
+          128,
+          32
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "mlp.shared_experts.down_proj.weight": {
+        "shape": [
+          128,
+          64
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "mlp.shared_experts.gate_proj.weight": {
+        "shape": [
+          64,
+          128
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "mlp.shared_experts.up_proj.weight": {
+        "shape": [
+          64,
+          128
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      }
+    },
+    "expert_specs": {
+      "gate_up": {
+        "shape": [
+          128,
+          128
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      },
+      "down": {
+        "shape": [
+          128,
+          64
+        ],
+        "dtype": "bfloat16",
+        "blocksize": 64,
+        "quant_type": "nf4",
+        "nested": false,
+        "nested_blocksize": 0
+      }
+    },
+    "index_sha256": "834e13405925f7a88dd84f7e0b98a593b73d2fca91fd5748cd70e8c74ea236ad",
+    "synthetic_checkpoint_sha256": "e7ef12cd9e027e47878024a4ccabd1216f89cf993a4be405f312fba7c880ec8c",
+    "dense_fallback": false
+  },
+  "precision": {
+    "compute_dtype": "bfloat16",
+    "autocast": false,
+    "base_parameter_dtype_counts": {
+      "torch.bfloat16": 17,
+      "torch.float32": 24
+    },
+    "trainable_dtype_counts": {
+      "torch.float32": 30
+    },
+    "trainable_tensors": 30,
+    "trainable_elements": 5088,
+    "targets": [
+      "q_a_proj",
+      "q_b_proj",
+      "kv_a_proj_with_mqa",
+      "kv_b_proj",
+      "o_proj"
+    ],
+    "expert_pool_dtype": "bfloat16",
+    "pool_tensor_dtype_counts": {
+      "torch.uint8": 22,
+      "torch.float32": 22,
+      "torch.bfloat16": 10
+    },
+    "expert_pool_tensor_dtype_counts": {
+      "torch.bfloat16": 2,
+      "torch.uint8": 2,
+      "torch.float32": 3
+    },
+    "attention_implementation": "sdpa",
+    "base_parameter_device_counts": {
+      "meta": 40,
+      "cuda:0": 1
+    },
+    "router_weight_and_bias_dtypes": {
+      "base_model.model.model.layers.1.mlp.gate.weight": "torch.bfloat16",
+      "base_model.model.model.layers.2.mlp.gate.weight": "torch.bfloat16",
+      "base_model.model.model.layers.1.mlp.gate.e_score_correction_bias": "torch.float32",
+      "base_model.model.model.layers.2.mlp.gate.e_score_correction_bias": "torch.float32"
+    }
+  },
+  "fixture_wall_seconds": 1.7129723550000335,
+  "runtime_before_training": {
+    "n_layers": 3,
+    "buffers": 2,
+    "buffer_bytes": 253440,
+    "large_buffer_bytes": 16384,
+    "expert_buffer_bytes": 63488,
+    "store_bytes": 166656,
+    "staging_bytes": 0,
+    "resident_bytes": 0,
+    "host_allocated_bytes": null,
+    "accounted_peak_bytes": null,
+    "resident_tensor_bytes_served": 0,
+    "pinned": false,
+    "pinned_bytes": 0,
+    "tier": "ram",
+    "read_ahead": null,
+    "disk_bytes": 0,
+    "layer_loads": 0,
+    "layer_restores": 0,
+    "large_loads": 0,
+    "device": "cuda",
+    "total_params": 640080,
+    "expert_fetches": 0,
+    "expert_bytes_read": 0
+  },
+  "final_adapter": {
+    "point_k": 8,
+    "completed_updates_at_point": 2,
+    "sha256": "e08c3f4892f85ace9cc9041233f2b3c3083b9c93e1ccc0b85344385dbaeac6dd",
+    "files": {
+      "README.md": "9c71a4a55d459de50518e388a87e52aaa328286cfe6dc7dc45c334cf0dc64afd",
+      "adapter_config.json": "d389667998314dc1b8b4bea8d7555fa3111292b357976a661e3e3118b4fcaa8a",
+      "adapter_model.safetensors": "6f9b2c69169faad539d4acf9fd80f367747cb5ce6530e64eeb47b8cc4bc708d9"
+    },
+    "save_guard": "assert_streamed_adapter_saved passed"
+  },
+  "runtime_after_training": {
+    "n_layers": 3,
+    "buffers": 2,
+    "buffer_bytes": 253440,
+    "large_buffer_bytes": 16384,
+    "expert_buffer_bytes": 63488,
+    "store_bytes": 166656,
+    "staging_bytes": 0,
+    "resident_bytes": 0,
+    "host_allocated_bytes": null,
+    "accounted_peak_bytes": null,
+    "resident_tensor_bytes_served": 0,
+    "pinned": false,
+    "pinned_bytes": 0,
+    "tier": "ram",
+    "read_ahead": null,
+    "disk_bytes": 0,
+    "layer_loads": 31,
+    "layer_restores": 24,
+    "large_loads": 9,
+    "device": "cuda",
+    "total_params": 640080,
+    "expert_fetches": 840,
+    "expert_bytes_read": 11612160
+  },
+  "execution_hooks_remaining": 0,
+  "runtime_cleanup": {
+    "prime_hook_removed": true,
+    "expert_pool_closed": true,
+    "expert_reader_handles_closed": true,
+    "layer_buffers_released_by": "dropping model/runtime references after close"
+  },
+  "teardown": {
+    "host_budget_used_bytes": 0,
+    "model_collected": true,
+    "runtime_collected": true,
+    "cleanup_errors": [],
+    "temporary_checkpoint_and_shards_removed": true
+  },
+  "cublas_environment_restored": true,
+  "memory": {
+    "before": {
+      "rss_bytes": 633298944,
+      "cuda_allocated_bytes": 0,
+      "cuda_reserved_bytes": 0,
+      "cuda_peak_allocated_bytes": 0,
+      "cuda_peak_reserved_bytes": 0
+    },
+    "after_teardown": {
+      "rss_bytes": 1556254720,
+      "cuda_allocated_bytes": 67108864,
+      "cuda_reserved_bytes": 67108864,
+      "cuda_peak_allocated_bytes": 68403712,
+      "cuda_peak_reserved_bytes": 69206016
+    },
+    "sampled_peak_rss_bytes": 1556258816,
+    "rss_samples": 643,
+    "sampling_interval_seconds": 0.01,
+    "sampling_errors": [],
+    "scope": "fixture creation, training, evidence copies, adapter save and teardown",
+    "rss_claim": "sampled process RSS, not exact peak or proof of OS RSS release",
+    "cuda_claim": "allocated and reserved are separate allocator observations, not RSS"
+  },
+  "wall_seconds": 9.55355170100006
+}
