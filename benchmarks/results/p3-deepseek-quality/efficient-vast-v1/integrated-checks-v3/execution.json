@@ -1,0 +1,39 @@
+[
+  {
+    "name": "ruff",
+    "argv": [
+      "/root/p3-efficient-smoke/env/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "src/soup_cli/",
+      "scripts/",
+      "tests/",
+      "benchmarks/",
+      "--output-format=concise"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.22071576118469238
+  },
+  {
+    "name": "tests",
+    "argv": [
+      "/root/p3-efficient-smoke/env/bin/python",
+      "-m",
+      "pytest",
+      "-o",
+      "addopts=",
+      "tests/test_p3_deepseek_quality_eval.py",
+      "tests/test_p3_deepseek_quality_timing.py",
+      "-v",
+      "--tb=short",
+      "--junitxml=/root/p3-efficient-smoke/integrated-checks-v3/tests.xml"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 16.089027643203735
+  },
+  {
+    "name": "standalone_smoke",
+    "returncode": 0
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "ruff",
+    "argv": [
+      "/root/p3-efficient-smoke/env/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "src/soup_cli/",
+      "scripts/",
+      "tests/",
+      "benchmarks/",
+      "--output-format=concise"
+    ],
+    "returncode": 1,
+    "elapsed_seconds": 0.33052539825439453
+  },
+  {
+    "name": "tests",
+    "argv": [
+      "/root/p3-efficient-smoke/env/bin/python",
+      "-m",
+      "pytest",
+      "-o",
+      "addopts=",
+      "tests/test_p3_deepseek_quality_attention.py",
+      "tests/test_p3_deepseek_quality_data.py",
+      "tests/test_p3_deepseek_quality_eval.py",
+      "tests/test_p3_deepseek_quality_gate.py",
+      "tests/test_p3_deepseek_quality_kaggle.py",
+      "tests/test_p3_deepseek_quality_model.py",
+      "tests/test_p3_deepseek_quality_timing.py",
+      "tests/test_p3_deepseek_quality_train.py",
+      "tests/test_issue833_gpu_marker.py",
+      "-v",
+      "--tb=short",
+      "--junitxml=/root/p3-efficient-smoke/integrated-checks-v1/tests.xml"
+    ],
+    "returncode": 1,
+    "elapsed_seconds": 297.1697642803192
+  }
+]

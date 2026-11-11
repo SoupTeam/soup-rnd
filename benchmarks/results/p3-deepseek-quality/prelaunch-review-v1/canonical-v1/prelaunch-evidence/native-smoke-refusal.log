@@ -1,0 +1,35 @@
+Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific 
+admission, a full-model gate, E3, quality evidence or phase-3 budget approval.
+{
+  "schema": "p3-deepseek-quality-smoke-v1",
+  "status": "FAILED",
+  "scope": "Synthetic tiny native DeepSeek-V3 and attention fixtures only; NOT scientific admission, a full-model gate, E3, quality evidence or phase-3 budget approval.",
+  "scientific_admission": false,
+  "quality_evaluated": false,
+  "test_fixture": true,
+  "device": "cuda",
+  "dtype": "bfloat16",
+  "seed": 23,
+  "attempts": [],
+  "training_lengths": [
+    1024,
+    4096
+  ],
+  "steps_per_arm_and_length": 3,
+  "first_scheduler_learning_rate": 0,
+  "retry_allowed": false,
+  "deadline": "Caller must use the process-only stage helper; no in-process hard deadline.",
+  "failed_stage": "native_admission",
+  "error": {
+    "type": "ValueError",
+    "message": "attention qualification requires available CUDA"
+  },
+  "wall_seconds": 3.6830297220000148,
+  "files": {
+    "FAILED.json": "a88a34c0378ef79df26e3aadee8fba9bfef51e4be53f51bea603be4f6a8263e1",
+    "RUNNING.json": "0bdfc3646e12d9e41d0623fd3b6e6feaec76992b7b7e014598a917c5310ac1b4",
+    "driver.py.txt": "57c0d9dd705ce214cb342521fc2d036f4a5e2d625ff043da9b41a9058067a0d4"
+  }
+}
+Smoke refused/failed: RuntimeError: smoke FAILED; evidence preserved at 
+/kaggle/working/prelaunch-evidence/native-refusal

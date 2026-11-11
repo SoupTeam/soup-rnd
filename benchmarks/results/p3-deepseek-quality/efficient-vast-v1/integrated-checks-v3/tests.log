@@ -1,0 +1,66 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.2, pluggy-1.7.0 -- /root/p3-efficient-smoke/env/bin/python
+cachedir: .pytest_cache
+rootdir: /root/p3-efficient-smoke/integrated-source-v3
+configfile: pyproject.toml
+collecting ... collected 50 items
+
+tests/test_p3_deepseek_quality_eval.py::test_streamed_tiny_v3_matches_resident_frozen_scores PASSED [  2%]
+tests/test_p3_deepseek_quality_eval.py::test_streamed_nll_matches_frozen_response_eos_policy PASSED [  4%]
+tests/test_p3_deepseek_quality_eval.py::test_base_mode_removes_nonzero_lora_effect_without_opening_adapter PASSED [  6%]
+tests/test_p3_deepseek_quality_eval.py::test_runtime_refuses_extra_hook_and_oracle_forward PASSED [  8%]
+tests/test_p3_deepseek_quality_eval.py::test_scoring_preserves_rng_modes_and_padding_on_failure PASSED [ 10%]
+tests/test_p3_deepseek_quality_eval.py::test_wrong_adapter_manifest_hash_rejected_before_tensor_load PASSED [ 12%]
+tests/test_p3_deepseek_quality_eval.py::test_adapter_file_tampering_unlisted_weights_and_exact_tensor_load PASSED [ 14%]
+tests/test_p3_deepseek_quality_eval.py::test_adapter_wrong_source_and_missing_tensor_fail_without_partial_copy PASSED [ 16%]
+tests/test_p3_deepseek_quality_eval.py::test_exact_shards_reject_gap_overlap_reorder_and_hash_changes PASSED [ 18%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[policy] PASSED [ 20%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[missing_batches] PASSED [ 22%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[empty_attention] PASSED [ 24%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[math] PASSED [ 26%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[missing_forward] PASSED [ 28%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[failed_batch] PASSED [ 30%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[executor_source] PASSED [ 32%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_refuses_rehashed_attention_contract_corruption[policy_source] PASSED [ 34%]
+tests/test_p3_deepseek_quality_eval.py::test_native_admission_refuses_workspace_before_cuda_probe[None] PASSED [ 36%]
+tests/test_p3_deepseek_quality_eval.py::test_native_admission_refuses_workspace_before_cuda_probe[:16:8] PASSED [ 38%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_requires_complete_once_only_coverage_and_exports_statistics_rows PASSED [ 40%]
+tests/test_p3_deepseek_quality_eval.py::test_secondary_nll_pairs_preserve_targets_and_candidate_minus_baseline PASSED [ 42%]
+tests/test_p3_deepseek_quality_eval.py::test_unfrozen_trained_or_base_test_evaluation_fails_before_loading[False] PASSED [ 44%]
+tests/test_p3_deepseek_quality_eval.py::test_unfrozen_trained_or_base_test_evaluation_fails_before_loading[True] PASSED [ 46%]
+tests/test_p3_deepseek_quality_eval.py::test_existing_output_is_preserved PASSED [ 48%]
+tests/test_p3_deepseek_quality_eval.py::test_streamed_native_padded_vocabulary_keeps_all_probability_mass PASSED [ 50%]
+tests/test_p3_deepseek_quality_eval.py::test_pairing_rejects_changed_rows_reordered_ids_and_adapter_swap PASSED [ 52%]
+tests/test_p3_deepseek_quality_eval.py::test_protocol_hash_freezes_metric_and_training_scope PASSED [ 54%]
+tests/test_p3_deepseek_quality_eval.py::test_cli_pair_requires_all_frozen_endpoints_and_writes_statistics_rows PASSED [ 56%]
+tests/test_p3_deepseek_quality_eval.py::test_endpoint_cli_executes_native_fixture_and_preserves_complete_evidence PASSED [ 58%]
+tests/test_p3_deepseek_quality_eval.py::test_ledger_nf4_session_executes_frozen_reducer_on_native_tiny_v3 PASSED [ 60%]
+tests/test_p3_deepseek_quality_eval.py::test_streamed_choice_char_normalization_and_multitoken_lambada PASSED [ 62%]
+tests/test_p3_deepseek_quality_eval.py::test_frozen_measured_schedule_changes_only_approved_fields PASSED [ 64%]
+tests/test_p3_deepseek_quality_eval.py::test_shard_bounds_never_drop_or_expand_tasks[True-2] PASSED [ 66%]
+tests/test_p3_deepseek_quality_eval.py::test_shard_bounds_never_drop_or_expand_tasks[0-False] PASSED [ 68%]
+tests/test_p3_deepseek_quality_eval.py::test_shard_bounds_never_drop_or_expand_tasks[-1-2] PASSED [ 70%]
+tests/test_p3_deepseek_quality_eval.py::test_shard_bounds_never_drop_or_expand_tasks[2-2] PASSED [ 72%]
+tests/test_p3_deepseek_quality_eval.py::test_shard_bounds_never_drop_or_expand_tasks[0-5] PASSED [ 74%]
+tests/test_p3_deepseek_quality_eval.py::test_frozen_hellaswag_subsample_uses_hash_rank_not_first_source_rows PASSED [ 76%]
+tests/test_p3_deepseek_quality_eval.py::test_untrained_base_quality_refused_before_data_or_model_loading[False-boolq_dev] PASSED [ 78%]
+tests/test_p3_deepseek_quality_eval.py::test_untrained_base_quality_refused_before_data_or_model_loading[False-arc] PASSED [ 80%]
+tests/test_p3_deepseek_quality_eval.py::test_untrained_base_quality_refused_before_data_or_model_loading[False-gsm8k] PASSED [ 82%]
+tests/test_p3_deepseek_quality_eval.py::test_untrained_base_quality_refused_before_data_or_model_loading[True-boolq_dev] PASSED [ 84%]
+tests/test_p3_deepseek_quality_eval.py::test_untrained_base_quality_refused_before_data_or_model_loading[True-arc] PASSED [ 86%]
+tests/test_p3_deepseek_quality_eval.py::test_untrained_base_quality_refused_before_data_or_model_loading[True-gsm8k] PASSED [ 88%]
+tests/test_p3_deepseek_quality_timing.py::test_resource_chunks_preserve_adapter_and_modes_without_targets PASSED [ 90%]
+tests/test_p3_deepseek_quality_timing.py::test_expired_timing_deadline_refuses_and_restores_caller PASSED [ 92%]
+tests/test_p3_deepseek_quality_timing.py::test_invalid_native_positions_refused_before_inference[positions0] PASSED [ 94%]
+tests/test_p3_deepseek_quality_timing.py::test_invalid_native_positions_refused_before_inference[positions1] PASSED [ 96%]
+tests/test_p3_deepseek_quality_timing.py::test_invalid_native_positions_refused_before_inference[positions2] PASSED [ 98%]
+tests/test_p3_deepseek_quality_timing.py::test_later_forward_failure_keeps_completed_and_failed_batch_evidence PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_p3_deepseek_quality_eval.py::test_endpoint_cli_executes_native_fixture_and_preserves_complete_evidence
+  /root/p3-efficient-smoke/env/lib/python3.12/site-packages/torch/profiler/profiler.py:224: UserWarning: Warning: Profiler clears events at the end of each cycle.Only events from the current cycle will be reported.To keep events across cycles, set acc_events=True.
+    _warn_once(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /root/p3-efficient-smoke/integrated-checks-v3/tests.xml --
+======================== 50 passed, 1 warning in 12.33s ========================

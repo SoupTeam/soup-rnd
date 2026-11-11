@@ -1,0 +1,511 @@
+{
+  "adapter_after_sha256": "73c382a8fb68fad04288329f1e99428532278b264a25e5cd6aa43c5994a20eaf",
+  "adapter_before_sha256": "73c382a8fb68fad04288329f1e99428532278b264a25e5cd6aa43c5994a20eaf",
+  "adapter_unchanged": true,
+  "attention": {
+    "backend_flags": {
+      "cudnn": false,
+      "efficient": true,
+      "flash": false,
+      "math": false
+    },
+    "backend_requested": "EFFICIENT_ATTENTION",
+    "deterministic_flags": {
+      "algorithms_enabled": true,
+      "allow_tf32": false,
+      "cudnn_allow_tf32": false,
+      "cudnn_benchmark": false,
+      "cudnn_deterministic": true,
+      "warn_only": false
+    },
+    "executed_sdpa_calls": 48,
+    "hardware": {
+      "bf16_supported": true,
+      "capability": [
+        8,
+        6
+      ],
+      "cuda_version": "13.0",
+      "device": "cuda:0",
+      "name": "NVIDIA GeForce RTX 3060",
+      "native_bf16": true,
+      "native_bf16_check": "torch.cuda.is_bf16_supported(including_emulation=False)"
+    },
+    "instrumentation": {
+      "full_window_trace": false,
+      "max_profiled_operations": 80,
+      "max_signatures": 16,
+      "profiled_operations": 2,
+      "profiling_errors": [],
+      "retains_tensors": false,
+      "scope": "bounded_attention_operators",
+      "signature_limit_exceeded": false
+    },
+    "samples": [
+      {
+        "backward": {
+          "cuda_kernel_names": [
+            "fmha_cutlassB_bf16_aligned_64x64_k32_seqaligned_sm80(PyTorchMemEffAttention::AttentionBackwardKernel<cutlass::arch::Sm80, cutlass::bfloat16_t, true, false, true, 64, 64, 32, true>::Params)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)"
+          ],
+          "operators": [
+            "aten::_efficient_attention_backward",
+            "aten::_scaled_dot_product_efficient_attention_backward",
+            "aten::as_strided",
+            "aten::empty",
+            "aten::fill_",
+            "aten::transpose"
+          ]
+        },
+        "device": "cuda",
+        "device_index": 0,
+        "dtype": "torch.bfloat16",
+        "forward": {
+          "cuda_kernel_names": [
+            "fmha_cutlassF_bf16_aligned_64x64_rf_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 64, 64, 64, true, true>::Params)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+            "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)"
+          ],
+          "operators": [
+            "aten::_efficient_attention_forward",
+            "aten::_scaled_dot_product_efficient_attention",
+            "aten::as_strided",
+            "aten::empty",
+            "aten::fill_",
+            "aten::scaled_dot_product_attention",
+            "aten::transpose"
+          ]
+        },
+        "key_device": "cuda",
+        "key_device_index": 0,
+        "key_dtype": "torch.bfloat16",
+        "key_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "query_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "value_device": "cuda",
+        "value_device_index": 0,
+        "value_dtype": "torch.bfloat16",
+        "value_shape": [
+          1,
+          2,
+          64,
+          8
+        ]
+      }
+    ],
+    "unique_calls": [
+      {
+        "device": "cuda",
+        "device_index": 0,
+        "dtype": "torch.bfloat16",
+        "key_device": "cuda",
+        "key_device_index": 0,
+        "key_dtype": "torch.bfloat16",
+        "key_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "query_shape": [
+          1,
+          2,
+          64,
+          16
+        ],
+        "value_device": "cuda",
+        "value_device_index": 0,
+        "value_dtype": "torch.bfloat16",
+        "value_shape": [
+          1,
+          2,
+          64,
+          8
+        ]
+      }
+    ]
+  },
+  "backend_requested": "EFFICIENT_ATTENTION",
+  "cleanup_errors": [],
+  "diagnostic_errors": [],
+  "gradient_artifact": {
+    "bytes": 16393,
+    "path": "gradients.pt",
+    "sha256": "958b9682b7e1974bb6e28ca52cd6532156b39da356b2aafb50105ca8fef56a73"
+  },
+  "gradient_checks": {
+    "base_model.model.model.layers.0.self_attn.kv_a_proj_with_mqa.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.kv_a_proj_with_mqa.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 48,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        24,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.kv_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.kv_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.o_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.o_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_a_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_a_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        16,
+        2
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.0.self_attn.q_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_a_proj_with_mqa.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_a_proj_with_mqa.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 48,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        24,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.kv_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.o_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.o_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_a_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_a_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        16,
+        2
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.1.self_attn.q_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_a_proj_with_mqa.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_a_proj_with_mqa.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 48,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        24,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.kv_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.o_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.o_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_a_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        32
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_a_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        16,
+        2
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_b_proj.lora_A.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 32,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        2,
+        16
+      ]
+    },
+    "base_model.model.model.layers.2.self_attn.q_b_proj.lora_B.default.weight": {
+      "dtype": "torch.float32",
+      "elements": 64,
+      "finite": true,
+      "nonzero": true,
+      "present": true,
+      "shape": [
+        32,
+        2
+      ]
+    }
+  },
+  "host_budget_after_close_bytes": 0,
+  "host_budget_bytes": 2147483648,
+  "initial_adapter_sha256": "1fb33861b1230d66af06243d55a609198f20e888c72ede050321457986557ace",
+  "instrumentation": "synchronous per-pair CPU transfer, SHA256 and disk archive; included in wall time, not a training speed measurement",
+  "layer_forward_counts": [
+    8,
+    8,
+    8
+  ],
+  "losses": [
+    0.5176165103912354,
+    0.48394110798835754,
+    0.5263094305992126,
+    0.5263094305992126,
+    0.5263094305992126,
+    0.5263094305992126,
+    0.5263094305992126,
+    0.5263094305992126
+  ],
+  "name": "ga_repeat",
+  "optimizer_applied": false,
+  "routing_guard": "ordinary_streamed_GA",
+  "runtime_load_deltas": {
+    "expert_bytes_read": 331776,
+    "expert_fetches": 384,
+    "large_loads": 16,
+    "layer_loads": 24,
+    "restores": 0
+  },
+  "status": "COMPLETE",
+  "valid_target_count": 498,
+  "wall_seconds": 2.363820186816156
+}

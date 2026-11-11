@@ -964,8 +964,8 @@ existing configs. Report:
 [`benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md`](../benchmarks/probe-vast-rtx3060-l2l-smollm2-ticket04.md).
 
 **Internal MoE boundary (B1.3).** The internal step and trainer attachment also
-run native DeepSeek-V3 with per-expert storage; the public launch guard below
-still admits only Llama/Mistral. Non-expert LoRA trains through frozen routed
+run native DeepSeek-V3 with per-expert storage; the public launch guard admits
+Llama/Mistral, and DeepSeek-V3 only with `stream_expert_layout: per_expert`. Non-expert LoRA trains through frozen routed
 experts using one shared weight arena. Each hit expert is read for no-grad
 forward, grad recompute and expert backward: three reads per micro-batch, not
 one expert read per window. Expert activations must be stateless; registered
@@ -1087,6 +1087,42 @@ BF16 or public DeepSeek caller acceptance. The report separates reservations,
 observed host storage, sampled RSS and CUDA allocated/reserved peaks.
 Delivery of these two components is not DeepSeek FP8 readiness or closure of phase 0.
 
+**DeepSeek quality experiment (research-only).** The
+[paired study](../benchmarks/p3-deepseek-quality-plan.md) keeps BF16 compute in both
+arms and compares BF16 boundary storage with block64 E4M3 plus a selected-route
+Oracle. This is not FP8 matrix multiplication or public CLI admission. Both arms
+use the same fixed-order cycling pack; MBPP training data completes three cycles
+and part of a fourth. Quality evaluation compares only the two trained adapters.
+The study pins EFFICIENT_ATTENTION without fallback on native-BF16 Ampere-or-newer
+hardware. The gradient gate uses that backend for its main controls and MATH for
+the alternative noise floor on eight 64-token microbatches. Deterministic algorithms
+use `warn_only=False`; launch with `CUBLAS_WORKSPACE_CONFIG=:4096:8` before CUDA
+initialization. Training, gate and forward-scoring evidence records executed
+operators, CUDA kernel names and Q/K/V shapes. The attention-policy hash is bound
+to the study protocol and trained-adapter identity; old MATH-main receipts do not
+admit the new training path. The quality pair does not require an 8-GB fit.
+Memory reports count deduplicated owned boundary tensor-storage capacities in host
+RAM, separating payload/padding, FP32 scales, calibration vectors and Oracle storage.
+Pinned-allocation estimates and codec/Oracle temporary upper bounds are not measured
+peaks. Sampled RSS, cgroup lifetime peak and CUDA allocated/reserved peaks remain
+separate whole-process resources: they are neither summed nor attributed to activations.
+The boundary counters exclude live decoder/autograd intermediates and do not establish
+a total activation peak, 8-GB GPU / 32-GiB host fit, natural routing stability or ×50 speed.
+
+The [native Ampere smoke](../benchmarks/results/p3-deepseek-quality/efficient-vast-v1/README.md)
+records executed kernels, paired repeatability, resume and scorer qualification.
+Its tiny-model E3 numerical gate failed; this is not full-model admission or a
+quality verdict. Capacity and quality for the full-model two-arm study remain unmeasured.
+
+The [prelaunch review](../benchmarks/p3-deepseek-quality-prelaunch-review.md) and
+[operator runbook](../benchmarks/p3-deepseek-quality-pilot-runbook.md) prepare a
+separate 671B diagnostic, not permission to rent or train. Download/conversion
+bind the reviewed Hub inventory and physical NVMe/RAM admission. The gate stops
+after failed A3 or candidate E1–E3; resource timing requires its raw-verified PASS.
+Process deadlines preserve partial evidence but do not manage provider billing.
+The historical tiny E3 remains FAIL (0.05028628354277727 >0.05), without a rerun.
+Phase3 requires the user's later protocol-hash and budget approval.
+
 **Limits.** Unsupported combinations stop the run with a message instead of switching L2L off.
 
 Refused when the config is read:
@@ -1171,6 +1207,20 @@ training:
   l2l: true
   l2l_spill_dir: /mnt/nvme1/soup-spill   # optional; default <output>/_l2l_spill
 ```
+
+### L2L recipe: effective k and activation codec
+
+`training.l2l_activation_codec` (`none` or `fp8_e4m3`, default `none`) and `training.l2l_auto_k`
+(default `false`) are valid only with `l2l: true`, `stream_layers: true` and `task: sft`; the
+config is refused otherwise. The schema accepts `fp8_e4m3` and `l2l_auto_k: true`, but the
+launch refuses both with a clear error until the FP8 store and the memory planner exist. The
+defaults change nothing.
+
+The effective k is the one number the run uses for the HF training arguments, the loss scale,
+the activation store capacity, the C3 reservation and the log (`l2l_effective_k`). Today it
+equals `gradient_accumulation_steps`. The run writes it and the codec to
+`<output>/l2l_recipe.json` before training. Resuming a checkpoint with another effective k or
+codec is refused; a run with no saved recipe resumes as before.
 
 In the earlier A4 v3 configuration (RTX 3090 on PCIe 3.0, Mistral-7B NF4, seq 512, k 2-4,
 ring 4, one virtual disk), slowdown averaged +2.5% and +1.7%, with 95% upper bounds +6.1%

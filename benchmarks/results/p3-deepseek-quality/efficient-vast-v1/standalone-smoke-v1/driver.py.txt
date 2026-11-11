@@ -1,0 +1,70 @@
+"""Synthetic native-V3 smoke; not a full-model gate or quality result."""
+import json
+from pathlib import Path
+import time
+
+from rich.console import Console
+
+from benchmarks.harness import p3_deepseek_quality_attention as attention
+from benchmarks.harness import p3_deepseek_quality_model as model_api
+from benchmarks.harness import p3_deepseek_quality_timing as timing
+from benchmarks.harness import p3_deepseek_quality_train as train
+from tests.test_p3_deepseek_quality_model import _checkpoint
+from tests.test_p3_deepseek_quality_train import study_pack
+
+root = Path('/root/p3-efficient-smoke/standalone-smoke-v1')
+root.mkdir(exist_ok=False)
+(root / 'driver.py.txt').write_bytes(Path(__file__).read_bytes())
+console = Console()
+
+
+class Directories:
+    def mktemp(self, name):
+        target = root / name
+        target.mkdir(exist_ok=False)
+        return target
+
+
+pack, pack_hash = study_pack.__wrapped__(Directories())
+source = _checkpoint(root, exact_mla=True)
+cache = root / 'cache'
+initial = root / 'initial.safetensors'
+with train._deterministic_run(), model_api.open_session(source, cache, prepare=True) as session:
+    model_api.write_initial_adapter(session.model, initial)
+summary = {
+    'scope': 'synthetic tiny native DeepSeek-V3; no production admission or quality claim',
+    'attention_policy': attention.policy_identity(),
+    'pack_sha256': pack_hash,
+    'initial_adapter_sha256': model_api.sha256(initial),
+    'runs': [],
+}
+for length in (1024, 4096):
+    for arm in train.ARMS:
+        output = root / (arm + '-L' + str(length))
+        manifest = train.run_training(
+            source=source, cache=cache, pack=pack, pack_sha256=pack_hash,
+            initial_adapter=initial, arm=arm, length=length, steps=3,
+            output=output, device='cuda', test_fixture=True,
+        )
+        if manifest['status'] != 'COMPLETE':
+            raise RuntimeError('tiny native training did not complete: ' + str(output))
+        record = {
+            'arm': arm, 'length': length, 'status': manifest['status'],
+            'manifest_sha256': model_api.sha256(output / 'manifest.json'),
+        }
+        summary['runs'].append(record)
+        console.print(json.dumps(record))
+        (root / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+
+from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained(pack.parent / 'train-fixture', local_files_only=True)
+with model_api.open_session(source, cache) as session:
+    model_api.load_initial_adapter(session.model, initial)
+    summary['resource_only_forward'] = timing.time_inputs(
+        session, tokenizer, [{'input_ids': [3, 4, 5, 3], 'positions': [1, 2, 3]}],
+        max_tokens_per_batch=4, deadline=time.monotonic() + 120,
+    )
+summary['status'] = 'COMPLETE'
+(root / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+console.print('Standalone native smoke COMPLETE; no full-model or quality admission.')
