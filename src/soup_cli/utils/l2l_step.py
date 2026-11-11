@@ -177,6 +177,25 @@ def sft_head(labels: Sequence[Any], n_items: int) -> LossHead:
     return head
 
 
+def sft_chunked_head(
+    labels: Sequence[Any], n_items: int, chunk: Optional[int] = None
+) -> LossHead:
+    """The SFT head with ``training.stream_chunked_ce``: ``norm``, then the chunked causal-LM
+    loss over ``n_items``, so a window never holds one micro-batch's full logits.
+    ``chunk`` is the positions per chunk (None: ``CE_CHUNK``)."""
+    from soup_cli.utils.stream_chunked_ce import CE_CHUNK, chunked_causal_lm_loss
+
+    size = CE_CHUNK if chunk is None else int(chunk)
+
+    def head(causal: Any, owner: Any, hidden: Any, mb: int) -> Any:
+        return chunked_causal_lm_loss(
+            owner.norm(hidden), causal.lm_head, labels[mb], num_items_in_batch=n_items,
+            chunk=size,
+        )
+
+    return head
+
+
 @dataclass
 class ReferencePass:
     """A gradient-free pass over the same layers, after each layer's policy micro-batches.

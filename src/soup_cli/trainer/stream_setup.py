@@ -1293,15 +1293,20 @@ class StreamingSetupMixin:
         import torch
 
         from soup_cli.trainer.l2l_trainer import (
+            SFT_CHUNKED_WINDOW_LOSS,
             attach_l2l_state,
             make_l2l_trainer_class,
             refuse_unsupported_l2l,
             unready_task_warning,
         )
         from soup_cli.utils.layer_stream import resolve_stream_dtype
+        from soup_cli.utils.stream_chunked_ce import stream_loss_impl
 
         base = self.model.get_base_model() if hasattr(self.model, "get_base_model") else self.model
         tcfg = getattr(getattr(self, "config", None), "training", None)
+        if loss is None and stream_loss_impl(tcfg) == "chunked":
+            # ZERO: the SFT window with the chunked head (schema: sft only, never with CCE).
+            loss = SFT_CHUNKED_WINDOW_LOSS
         refuse_unsupported_l2l(
             base.config,
             n_gpu=int(training_args.n_gpu),

@@ -50,6 +50,7 @@ from soup_cli.utils.l2l_step import (
     LossHead,
     ReferencePass,
     as_passes,
+    sft_chunked_head,
     sft_head,
 )
 
@@ -349,6 +350,11 @@ class WindowLoss:
 
 SFT_WINDOW_LOSS = WindowLoss(
     divide_by="items", read_window=_window_tensors, make_head=sft_head
+)
+
+#: SFT with ``training.stream_chunked_ce``: the same window and scale, a chunked head.
+SFT_CHUNKED_WINDOW_LOSS = WindowLoss(
+    divide_by="items", read_window=_window_tensors, make_head=sft_chunked_head
 )
 
 

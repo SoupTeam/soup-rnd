@@ -959,7 +959,10 @@ training:
   and silently ignored under streaming). CCE's default gradient filtering is kept. Its Triton
   kernel needs 96 KiB of shared memory per block, so it does **not** run on a T4 / sm75 (64 KiB):
   the run stops with `OutOfResources`. Use `stream_chunked_ce` there.
-- Both are mutually exclusive, need `task: sft`, and are not wired into `training.l2l` yet. TRL's
+- Both are mutually exclusive and need `task: sft`. With `training.l2l`, `stream_chunked_ce`
+  makes the window's head use the same chunked loss (a CPU test checks that the L2L step equals
+  gradient accumulation with the chunked loss bit for bit on a hybrid `qwen3_5` decoder);
+  `use_cut_ce` is not wired into `training.l2l` yet. TRL's
   `entropy` and `mean_token_accuracy` metrics are not logged (they need the full logits);
   `num_tokens` is. The pre-flight forecast and `stream_vram_probe` use the selected loss.
 

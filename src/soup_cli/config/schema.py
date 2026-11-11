@@ -3776,8 +3776,8 @@ class TrainingConfig(BaseModel):
             "248k-vocabulary model at seq 2048 that tensor is the largest VRAM term. "
             "The loss equals the transformers causal-LM loss (same shift, -100 "
             "ignore, num_items_in_batch normalisation). TRL's entropy and "
-            "mean_token_accuracy metrics are not logged. Requires stream_layers=true, "
-            "task='sft' and l2l=false."
+            "mean_token_accuracy metrics are not logged. Requires stream_layers=true "
+            "and task='sft'; with l2l the window's head uses the same chunked loss."
         ),
     )
 
@@ -6602,11 +6602,6 @@ class SoupConfig(BaseModel):
         if tcfg.stream_chunked_ce:
             if self.task != "sft":
                 raise ValueError("training.stream_chunked_ce requires task='sft'")
-            if tcfg.l2l:
-                raise ValueError(
-                    "training.stream_chunked_ce is not wired into training.l2l yet; "
-                    "drop one of them"
-                )
         if tcfg.stream_expert_layout == "per_expert":
             if self.task != "sft":
                 raise ValueError("training.stream_expert_layout='per_expert' requires task='sft'")

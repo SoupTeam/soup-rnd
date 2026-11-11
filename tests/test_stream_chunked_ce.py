@@ -111,9 +111,9 @@ def test_schema_refuses_without_streaming() -> None:
         _cfg(stream="false")
 
 
-def test_schema_refuses_l2l() -> None:
-    with pytest.raises(Exception, match="stream_chunked_ce"):
-        _cfg(l2l="true")
+def test_schema_accepts_l2l() -> None:
+    cfg = _cfg(l2l="true")
+    assert cfg.training.stream_chunked_ce is True and cfg.training.l2l is True
 
 
 def test_schema_default_off() -> None:
