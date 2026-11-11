@@ -48,6 +48,7 @@ from rich.console import Console
 
 from benchmarks.harness import p3_deepseek_quality_attention as attention
 from benchmarks.harness import p3_deepseek_quality_model as model_api
+from benchmarks.harness.p3_deepseek_quality_profiles import get_profile
 
 ARMS = ("bf16_l2l", "oracle_block64_e4m3")
 OPTIMIZER = {
@@ -74,6 +75,100 @@ def _object_hash(value: Any) -> str:
     return hashlib.sha256(_canonical(value)).hexdigest()
 
 
+def _require_profile(value: dict, profile_id: str, context: str) -> None:
+    get_profile(profile_id)
+    if not isinstance(value, dict) or value.get("profile_id", "deepseek-v3") != profile_id:
+        raise ValueError(f"{context} profile differs from selected profile")
+
+
+def _require_moonlight_budget(value: dict) -> None:
+    budget = value.get("budget")
+    if not isinstance(budget, dict):
+        raise ValueError("Moonlight frozen budget record required")
+
+    def finite_cost(cost: Any) -> bool:
+        return type(cost) in (int, float) and math.isfinite(cost) and cost >= 0
+
+    upper = budget.get("upper_bound_total_usd")
+    adjustments = budget.get("adjustments")
+    if (any(type(budget.get(name)) is not int for name in (
+                "limit_usd", "compute_stop_usd", "closeout_reserve_usd"))
+            or budget.get("limit_usd") != 15 or budget.get("compute_stop_usd") != 14
+            or budget.get("closeout_reserve_usd") != 1
+            or not finite_cost(upper) or upper > 15 or not isinstance(adjustments, list)):
+        raise ValueError(
+            "Moonlight frozen budget must retain the $15 total and $1 closeout reserve")
+    lengths = value.get("training", {}).get("lengths")
+    if lengths not in ([1024, 4096], [1024]):
+        raise ValueError("Moonlight protocol must retain L1024 and only budget-omit the L4096 pair")
+    expected_actions = (["hellaswag_prefix", "omit_L4096_pair"] if lengths == [1024]
+                        else ["hellaswag_prefix"] if adjustments else [])
+    if [item.get("action") if isinstance(item, dict) else None
+        for item in adjustments] != expected_actions:
+        raise ValueError(
+            "Moonlight budget cuts must reduce HellaSwag before omitting the L4096 pair")
+    previous = None
+    for item in adjustments:
+        before, after = item.get("upper_bound_before_usd"), item.get("upper_bound_after_usd")
+        if (not finite_cost(before) or not finite_cost(after) or before <= 15
+                or after > before or (previous is not None and before != previous)):
+            raise ValueError("Moonlight budget adjustment estimates are missing or inconsistent")
+        if item["action"] == "hellaswag_prefix":
+            count = item.get("after_n")
+            if (item.get("before_n") != 10042 or type(count) is not int or not 0 < count < 10042
+                    or value.get("loglik", {}).get("hellaswag_n") != count):
+                raise ValueError("Moonlight HellaSwag prefix cut differs from frozen scoring count")
+        elif after > 15:
+            raise ValueError("Moonlight omitted-length budget must fit the approved total")
+        previous = after
+    if previous is not None and upper != previous:
+        raise ValueError("Moonlight final budget does not match its last ordered adjustment")
+    if not adjustments and value.get("loglik", {}).get("hellaswag_n") != 10042:
+        raise ValueError("Moonlight HellaSwag reduction requires a frozen budget adjustment")
+
+
+def require_study_profile(value: dict, *, profile_id: str = "deepseek-v3") -> None:
+    """Keep Moonlight's diagnostic gate and fixed paired study independent of V3 defaults."""
+    profile = get_profile(profile_id)
+    _require_profile(value, profile_id, "frozen protocol")
+    if profile_id == "deepseek-v3":
+        return
+    training = value.get("training", {})
+    if (value.get("numerical_gate_blocks_quality") is not False
+            or value.get("arms") != list(ARMS)
+            or not isinstance(training, dict)
+            or training.get("seed") != 23 or type(training.get("steps")) is not int
+            or training["steps"] != 64
+            or training.get("input_tokens_per_step") != 4096
+            or type(training.get("micro_batch_size")) is not int
+            or training.get("micro_batch_size") != 1
+            or training.get("optimizer") != OPTIMIZER
+            or training.get("scheduler") != {
+                "name": "cosine", "warmup_steps": 2, "horizon": 64}
+            or value.get("model") != {"model_id": profile.model_id,
+                                      "revision": profile.revision}):
+        raise ValueError("Moonlight protocol requires both diagnostic-gate arms and 64 fixed steps")
+    _require_moonlight_budget(value)
+    admission = model_api.native_aux_admission(profile_id)
+    if admission is None or value.get("aux_admission") != admission:
+        raise ValueError("Moonlight protocol lacks the approved auxiliary admission binding")
+    for name in ("source", "cache", "tokenizer"):
+        _require_profile(value.get(name), profile_id, f"Moonlight protocol {name}")
+    if value["source"].get("aux_admission") != admission:
+        raise ValueError("Moonlight protocol source auxiliary admission differs")
+
+
+def _gate_admission(result: dict, digest: str, *, profile_id: str = "deepseek-v3") -> dict:
+    """Preserve the verdict returned by load_gate, never turn a diagnostic failure into PASS."""
+    _require_profile(result, profile_id, "gradient gate")
+    verdict = result.get("verdict")
+    allowed = ("PASS",) if profile_id == "deepseek-v3" else ("PASS", "FAIL", "NO_VERDICT")
+    if verdict not in allowed:
+        raise ValueError("gradient gate numerical verdict is not admitted for this profile")
+    return {"profile_id": profile_id, "manifest_sha256": digest, "overall": verdict,
+            "environment": result["environment"], "attention_policy": result["attention_policy"]}
+
+
 def _write_json(path: Path, value: Any) -> None:
     with path.open("x", encoding="utf-8", newline="\n") as stream:
         stream.write(json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n")
@@ -88,16 +183,18 @@ def _append_row(path: Path, row: dict[str, Any]) -> None:
         os.fsync(stream.fileno())
 
 
-def _save_tensors(path: Path, values: dict[str, Any], *, schema: str) -> dict[str, str]:
+def _save_tensors(
+    path: Path, values: dict[str, Any], *, schema: str, profile_id: str = "deepseek-v3",
+) -> dict[str, str]:
     from safetensors.torch import save
 
     tensors = {name: value.detach().cpu().contiguous() for name, value in values.items()}
-    payload = save(tensors, metadata={"schema": schema})
+    payload = save(tensors, metadata={"schema": schema, "profile_id": profile_id})
     with path.open("xb") as stream:
         stream.write(payload)
         stream.flush()
         os.fsync(stream.fileno())
-    return {"path": path.name, "sha256": model_api.sha256(path)}
+    return {"profile_id": profile_id, "path": path.name, "sha256": model_api.sha256(path)}
 
 
 def _error(error: BaseException) -> dict[str, str]:
@@ -157,8 +254,11 @@ def new_optimizer(parameters: dict[str, Any], steps: int) -> tuple[Any, Any]:
     return optimizer, scheduler
 
 
-def _gradients(parameters: dict[str, Any], capture: bool) -> tuple[dict, dict, float]:
+def _gradients(
+    parameters: dict[str, Any], capture: bool, *, profile_id: str = "deepseek-v3",
+) -> tuple[dict, dict, float]:
     import torch
+    diagnostic_zeros = get_profile(profile_id).profile_id == "moonlight-16b-a3b"
 
     evidence, copies = {}, {}
     squared = []
@@ -170,7 +270,7 @@ def _gradients(parameters: dict[str, Any], capture: bool) -> tuple[dict, dict, f
         if not bool(torch.isfinite(gradient).all()):
             raise ValueError(f"nonfinite gradient: {name}")
         nonzero = int(torch.count_nonzero(gradient))
-        if nonzero == 0:
+        if nonzero == 0 and not diagnostic_zeros:
             raise ValueError(f"zero attention adapter gradient: {name}")
         value = gradient.detach().cpu().contiguous()
         _, identity = model_api.adapter_digest({name: value})
@@ -181,7 +281,7 @@ def _gradients(parameters: dict[str, Any], capture: bool) -> tuple[dict, dict, f
         if capture:
             copies[name] = value.clone()
     norm = math.sqrt(math.fsum(squared))
-    if not math.isfinite(norm) or norm <= 0:
+    if not math.isfinite(norm) or (norm <= 0 and not diagnostic_zeros):
         raise ValueError("nonfinite or zero global gradient norm")
     return evidence, copies, norm
 
@@ -280,6 +380,7 @@ def _activation_storage_evidence(storage: dict, oracle: dict | None) -> dict:
 def run_window(
     session: model_api.ModelSession, window: dict, *, arm: str, optimizer: Any = None,
     scheduler: Any = None, capture_gradients: bool = False, host_limit_bytes: int | None = None,
+    profile_id: str = "deepseek-v3",
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """One real production L2L forward/backward and optional validated AdamW update.
 
@@ -298,7 +399,7 @@ def run_window(
     from soup_cli.utils.l2l_step import L2LStep, capture_layer_call, model_parts
 
     record: dict[str, Any] = {
-        "status": "FAILED", "arm": arm, "optimizer_applied": False,
+        "profile_id": profile_id, "status": "FAILED", "arm": arm, "optimizer_applied": False,
         "attention_backend": attention.MAIN_BACKEND, "autocast": False,
         "routing_guard": {"enabled": True, "implementation": "production unchanged",
                           "outcome": "NOT_COMPLETED", "natural_routing_measured": False},
@@ -314,12 +415,13 @@ def run_window(
     labels: list[Any] = []
     calls: list[Any] = []
     try:
+        _require_profile(session.metadata, profile_id, "training session")
         if arm not in ARMS:
             raise ValueError("unknown quality arm")
         if session.closed or session.metadata["precision"]["compute_dtype"] != "bfloat16":
             raise ValueError("paired training requires an open BF16-compute session")
         target = str(session.runtime.device)
-        record["attention_policy"] = attention.policy_identity()
+        record["attention_policy"] = attention.policy_identity(profile_id)
         record["hardware"] = attention.require_ampere_cuda(target)
         if scheduler is not None and optimizer is None:
             raise ValueError("scheduler requires its optimizer")
@@ -364,8 +466,9 @@ def run_window(
             "raw gradient evidence, clipping, optimizer and scheduler. Excludes model/cache "
             "construction, window teardown, checkpoint serialization and final adapter save."
         ))
-        with (memory, attention.attention_execution(attention.MAIN_BACKEND, device=target)
-              as observation, torch.autocast(device_type=device, enabled=False)):
+        with (memory, attention.attention_execution(
+            attention.MAIN_BACKEND, device=target, profile_id=profile_id,
+        ) as observation, torch.autocast(device_type=device, enabled=False)):
             ids = [torch.tensor(batch["input_ids"], dtype=torch.long, device=device)
                    for batch in info["window"]["micro_batches"]]
             labels = [torch.tensor(batch["labels"], dtype=torch.long, device=device)
@@ -435,7 +538,8 @@ def run_window(
                 probe.require_complete()
             record["activation_storage"] = _activation_storage_evidence(
                 storage, record.get("oracle_before_update"))
-            gradient_evidence, gradients, norm = _gradients(parameters, capture_gradients)
+            gradient_evidence, gradients, norm = _gradients(
+                parameters, capture_gradients, profile_id=profile_id)
             record["gradients"] = gradient_evidence
             record["gradient_norm_before_clip"] = norm
             record["learning_rate_used"] = (
@@ -457,7 +561,8 @@ def run_window(
             record["adapter_after_sha256"] = model_api.adapter_digest(parameters)[0]
             changed = record["adapter_before_sha256"] != record["adapter_after_sha256"]
             record["adapter_changed"] = changed
-            if optimizer is not None and record["learning_rate_used"] > 0 and not changed:
+            if (profile_id == "deepseek-v3" and optimizer is not None
+                    and record["learning_rate_used"] > 0 and not changed):
                 raise ValueError("positive-LR update did not change any adapter")
             if optimizer is not None and record["learning_rate_used"] == 0 and changed:
                 raise ValueError("LR0 warmup update unexpectedly changed the adapter")
@@ -623,17 +728,18 @@ def _restore_rng(state: dict[str, Any]) -> None:
         torch.cuda.set_rng_state_all(state["torch_cuda"])
 
 
-def _execution_identity(device: str) -> dict[str, Any]:
+def _execution_identity(device: str, *, profile_id: str = "deepseek-v3") -> dict[str, Any]:
     import torch
 
     hardware = attention.require_ampere_cuda(device)
-    attention_policy = attention.policy_identity()
+    attention_policy = attention.policy_identity(profile_id)
 
     modules = (
         "benchmarks.harness.p3_deepseek_quality_attention",
         "benchmarks.harness.p3_deepseek_quality_model",
         "benchmarks.harness.p3_deepseek_quality_train",
         "benchmarks.harness.p3_deepseek_quality_data",
+        "benchmarks.harness.p3_deepseek_quality_profiles",
         "benchmarks.harness.p3_deepseek_fp8_smoke", "benchmarks.harness.p3_deepseek_oracle",
         "benchmarks.harness.p3_realdata_codec", "benchmarks.harness.p3_stage2_training",
         "benchmarks.harness.p3_fp8_smoke", "benchmarks.harness.l2l_schedule",
@@ -664,6 +770,7 @@ def _execution_identity(device: str) -> dict[str, Any]:
         "name", "capability", "bf16_supported", "native_bf16",
     )}
     return {
+        "profile_id": profile_id,
         "source_files": sources, "packages": packages, "python": sys.version,
         "gate_environment": environment, "hardware": hardware,
         "device": torch.device(device).type, "cuda_version": torch.version.cuda,
@@ -682,8 +789,14 @@ def require_gate_environment(gate_environment: dict, live_environment: dict) -> 
 
 def require_gate_binding(
     result: dict, *, model_metadata: dict, initial_sha256: str, execution_identity: dict,
+    profile_id: str = "deepseek-v3",
 ) -> None:
     """Bind an already raw-verified full gate to this live execution."""
+    _require_profile(result, profile_id, "gradient gate")
+    _require_profile(execution_identity, profile_id, "execution")
+    for name, value in (("model", model_metadata), ("source", model_metadata.get("source")),
+                        ("cache", model_metadata.get("cache"))):
+        _require_profile(value, profile_id, name)
     if result.get("attention_policy") != execution_identity["attention_policy"]:
         raise ValueError("gradient gate attention policy differs from live execution")
     if (result.get("model") != model_metadata
@@ -715,12 +828,16 @@ def _require_gate_workload(result: dict, parameters: dict[str, Any], window: dic
 def _protocol(
     path: Path | None, digest: str | None, *, steps: int, length: int, pack_sha256: str,
     initial_sha256: str, pilot: bool, test_fixture: bool,
+    profile_id: str = "deepseek-v3",
 ) -> tuple[dict | None, str | None]:
-    attention_policy = attention.policy_identity()
+    profile = get_profile(profile_id)
+    attention_policy = attention.policy_identity(profile_id)
     if pilot:
         if steps != 1 or path is not None or digest is not None:
             raise ValueError("prefreeze pilot admits exactly one step and no frozen training claim")
         return None, None
+    if profile_id == "moonlight-16b-a3b" and steps != 64:
+        raise ValueError("Moonlight training requires exactly 64 steps per retained arm")
     if test_fixture and path is None and digest is None:
         return None, None
     if path is None or not model_api._hex(digest) or model_api.sha256(path) != digest:
@@ -728,6 +845,7 @@ def _protocol(
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError("protocol must be an object")
+    _require_profile(value, profile_id, "frozen protocol")
     if value.get("attention_policy") != attention_policy:
         raise ValueError("frozen protocol attention policy differs from the approved contract")
     if (value.get("schema") != "p3-deepseek-quality-protocol-v1"
@@ -748,9 +866,10 @@ def _protocol(
             or length not in lengths
             or value.get("pack_sha256") != pack_sha256
             or value.get("initial_adapter_sha256") != initial_sha256
-            or value.get("model") != {"model_id": model_api.MODEL_ID,
-                                      "revision": model_api.REVISION}):
+            or value.get("model") != {"model_id": profile.model_id,
+                                      "revision": profile.revision}):
         raise ValueError("frozen protocol training/model/data/adapter identity differs")
+    require_study_profile(value, profile_id=profile_id)
     return value, digest
 
 
@@ -779,7 +898,8 @@ def _save_checkpoint(
     folder = model_api._child(root, f"checkpoints/step-{completed_steps:06d}")
     folder.mkdir(parents=True, exist_ok=False)
     _save_tensors(
-        folder / "adapter.safetensors", parameters, schema="quality-checkpoint-adapter-v1")
+        folder / "adapter.safetensors", parameters, schema="quality-checkpoint-adapter-v1",
+        profile_id=identity.get("profile_id", "deepseek-v3"))
     state = {
         "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(),
         "rng": _rng_state(), "completed_steps": completed_steps, "pack_cursor": completed_steps,
@@ -792,6 +912,7 @@ def _save_checkpoint(
         os.fsync(stream.fileno())
     manifest = {
         "schema": "p3-deepseek-quality-checkpoint-v1", "status": "COMPLETE",
+        "profile_id": identity.get("profile_id", "deepseek-v3"),
         "completed_steps": completed_steps, "pack_cursor": completed_steps,
         "identity": identity, "run_identity_sha256": _object_hash(identity),
         "adapter_sha256": model_api.adapter_digest(parameters)[0], "digest_chain": digest_chain,
@@ -840,8 +961,10 @@ def _journal_rows(path: Path, committed: list[dict]) -> dict[str, Any]:
 
 def load_resume(
     root: Path, *, identity: dict, infrastructure_event: Path,
+    profile_id: str = "deepseek-v3",
 ) -> tuple[Path, dict, dict]:
     """Admit only an unterminated attempt and its newest complete validated checkpoint."""
+    _require_profile(identity, profile_id, "resume identity")
     root = Path(os.path.realpath(root))
     if (root / "manifest.json").exists() or (root / "FAILED.json").exists():
         raise ValueError("terminal COMPLETE/FAILED attempts cannot resume")
@@ -853,6 +976,7 @@ def load_resume(
         if not isinstance(event.get(name), str) or not event[name].strip():
             raise ValueError(f"infrastructure event lacks {name}")
     running = json.loads((root / "RUNNING.json").read_text(encoding="utf-8"))
+    _require_profile(running, profile_id, "running receipt")
     require_resume_identity(running.get("identity"), identity)
     digest = _object_hash(identity)
     if running.get("run_identity_sha256") != digest or event.get("run_identity_sha256") != digest:
@@ -868,6 +992,7 @@ def load_resume(
         raise ValueError("instance-loss resume requires at least one complete checkpoint")
     step, folder = max(complete)
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    _require_profile(manifest, profile_id, "checkpoint")
     require_resume_identity(manifest.get("identity"), identity)
     if (manifest.get("schema") != "p3-deepseek-quality-checkpoint-v1"
             or manifest.get("status") != "COMPLETE" or manifest.get("completed_steps") != step
@@ -885,6 +1010,7 @@ def load_resume(
         if not path.is_file() or model_api.sha256(path) != expected:
             raise ValueError("checkpoint step-1 gradient evidence hash mismatch")
     gradient_receipt = json.loads((root / "step-1-gradients.json").read_text(encoding="utf-8"))
+    _require_profile(gradient_receipt, profile_id, "step-1 gradients")
     if gradient_receipt.get("sha256") != gradient_files["step-1-gradients.safetensors"]:
         raise ValueError("step-1 gradient descriptor differs from committed file digest")
     rows = manifest.get("rows")
@@ -893,16 +1019,18 @@ def load_resume(
     chain = identity["initial_parameter_sha256"]
     previous_adapter = identity["initial_parameter_sha256"]
     for index, row in enumerate(rows, 1):
+        _require_profile(row, profile_id, "checkpoint step")
         if (row.get("step") != index or row.get("status") != "COMPLETE"
                 or row.get("adapter_before_sha256") != previous_adapter
                 or row.get("previous_digest_chain") != chain):
             raise ValueError("checkpoint step or adapter digest chain is broken")
         if (row.get("attention_backend") != attention.MAIN_BACKEND
-                or row.get("attention_policy") != attention.policy_identity()):
+                or row.get("attention_policy") != attention.policy_identity(profile_id)):
             raise ValueError("checkpoint attention policy/backend differs from training")
         attention.require_execution_evidence(
             row.get("attention"), backend=attention.MAIN_BACKEND, dtype="bfloat16",
             min_calls=row.get("k", 1),
+            profile_id=profile_id,
         )
         chain = _chain(chain, row)
         if row.get("digest_chain") != chain:
@@ -929,7 +1057,9 @@ def _restore_checkpoint(
         if model_api.sha256(model_api._child(folder, name)) != expected:
             raise ValueError("checkpoint changed between admission and restoration")
 
-    model_api.load_checkpoint_adapter(session.model, folder / "adapter.safetensors")
+    model_api.load_checkpoint_adapter(
+        session.model, folder / "adapter.safetensors",
+        profile_id=manifest.get("profile_id", "deepseek-v3"))
     if model_api.adapter_digest(model_api.trainable_parameters(session.model))[0] != manifest[
         "adapter_sha256"
     ]:
@@ -974,13 +1104,17 @@ def _save_final_adapter(session: model_api.ModelSession, root: Path, identity: d
              for path in sorted(folder.rglob("*")) if path.is_file()}
     value = {
         "schema": "p3-deepseek-quality-adapter-v1", "files": files,
-        "identity": {"source": session.metadata["source"], "cache": session.metadata["cache"],
+        "profile_id": identity.get("profile_id", "deepseek-v3"),
+        "identity": {"profile_id": identity.get("profile_id", "deepseek-v3"),
+                     "source": session.metadata["source"], "cache": session.metadata["cache"],
                      "length": identity["length"], "seed": 23, "arm": identity["arm"],
                      "initial_adapter_sha256": identity["initial_adapter_sha256"],
                      "pack_sha256": identity["pack_sha256"],
                      "protocol_sha256": identity["protocol_sha256"],
                      "attention_policy": identity["attention_policy"],
-                     "completed_steps": completed_steps},
+                     "completed_steps": completed_steps,
+                     **({"tokenizer": identity["tokenizer"]}
+                        if "tokenizer" in identity else {})},
         "save_guard": "assert_streamed_adapter_saved passed",
         "parameter_sha256": model_api.adapter_digest(
             model_api.trainable_parameters(session.model))[0],
@@ -998,6 +1132,7 @@ def run_training(
     gate: Path | None = None, gate_sha256: str | None = None,
     pilot_prefreeze: bool = False, test_fixture: bool = False,
     host_limit_bytes: int | None = None,
+    profile_id: str = "deepseek-v3",
 ) -> dict[str, Any]:
     """Run one immutable study arm; Python-only fixture admission never reaches the CLI."""
     from benchmarks.harness.p3_deepseek_quality_data import load_pack
@@ -1005,18 +1140,24 @@ def run_training(
     output = Path(os.path.realpath(output))
     output.mkdir(parents=True, exist_ok=False)
     report: dict[str, Any] = {"schema": "p3-deepseek-quality-run-v1", "status": "FAILED",
-                              "arm": arm, "length": length, "seed": 23, "completed_steps": 0}
+                              "profile_id": profile_id, "arm": arm, "length": length,
+                              "seed": 23, "completed_steps": 0}
     rows: list[dict] = []
     session = None
     failure = None
     try:
+        get_profile(profile_id)
+        if profile_id == "moonlight-16b-a3b" and not pilot_prefreeze and steps != 64:
+            raise ValueError("Moonlight training requires exactly 64 steps per retained arm")
         if arm not in ARMS or length not in (1024, 4096) or type(steps) is not int or steps < 1:
             raise ValueError("requires a named arm, L1024 or L4096 and positive step count")
         if device != "cuda":
             raise ValueError("training requires native Ampere CUDA BF16, including tiny fixtures")
         if (resume is None) != (infrastructure_event is None):
             raise ValueError("resume requires both prior output and infrastructure event")
-        windows, pack_manifest = load_pack(pack, pack_sha256, length=length, steps=steps)
+        windows, pack_manifest = load_pack(
+            pack, pack_sha256, length=length, steps=steps, profile_id=profile_id)
+        _require_profile(pack_manifest, profile_id, "training pack")
         if pack_manifest.get("test_only") and not test_fixture:
             raise ValueError("production training refuses test-only tokenizer packs")
         if pack_manifest.get("exhaustion_policy") != (
@@ -1027,39 +1168,47 @@ def run_training(
         frozen, protocol_sha256 = _protocol(
             protocol, protocol_sha256, steps=steps, length=length, pack_sha256=pack_sha256,
             initial_sha256=initial_sha256, pilot=pilot_prefreeze, test_fixture=test_fixture,
+            profile_id=profile_id,
         )
         with _terminal_signals(), _deterministic_run():
-            report["attention_policy"] = attention.policy_identity()
+            report["attention_policy"] = attention.policy_identity(profile_id)
             report["hardware"] = attention.require_ampere_cuda(device)
-            session = model_api.open_session(source, cache, device=device, prepare=prepare)
+            session = model_api.open_session(
+                source, cache, device=device, prepare=prepare, profile_id=profile_id)
+            _require_profile(session.metadata, profile_id, "training session")
             if not test_fixture:
-                model_api.require_production_source(session.metadata["source"])
-            execution_identity = _execution_identity(device)
+                model_api.require_production_source(
+                    session.metadata["source"], profile_id=profile_id)
+            execution_identity = _execution_identity(device, profile_id=profile_id)
             gate_admission = None
             if not test_fixture:
                 from benchmarks.harness.p3_deepseek_quality_gate import load_gate
 
                 if gate is None or not model_api._hex(gate_sha256):
                     raise ValueError("production/pilot training requires a hash-admitted gate")
-                gate_result = load_gate(gate, gate_sha256)
+                gate_result = load_gate(gate, gate_sha256, profile_id=profile_id)
                 require_gate_binding(
                     gate_result, model_metadata=session.metadata, initial_sha256=initial_sha256,
-                    execution_identity=execution_identity,
+                    execution_identity=execution_identity, profile_id=profile_id,
                 )
                 if gate_result.get("pack", {}).get("manifest_sha256") != pack_sha256:
                     raise ValueError("gate training pack mismatch")
                 gate_windows = (windows if length == 1024 else load_pack(
-                    pack, pack_sha256, length=1024, steps=1)[0])
+                    pack, pack_sha256, length=1024, steps=1, profile_id=profile_id)[0])
                 _require_gate_workload(
                     gate_result, model_api.trainable_parameters(session.model), gate_windows[0])
-                gate_admission = {"manifest_sha256": gate_sha256, "overall": "PASS",
-                                  "environment": gate_result["environment"],
-                                  "attention_policy": gate_result["attention_policy"]}
+                gate_admission = _gate_admission(gate_result, gate_sha256, profile_id=profile_id)
             if frozen is not None:
                 for name in ("source", "cache"):
                     if name in frozen and frozen[name] != session.metadata[name]:
                         raise ValueError(f"frozen protocol {name} identity differs")
-            loaded_sha = model_api.load_initial_adapter(session.model, initial_adapter)
+                if profile_id != "deepseek-v3":
+                    if (frozen["tokenizer"] != pack_manifest.get("tokenizer")
+                            or frozen["aux_admission"]
+                            != session.metadata["source"].get("aux_admission")):
+                        raise ValueError("frozen protocol tokenizer/auxiliary admission differs")
+            loaded_sha = model_api.load_initial_adapter(
+                session.model, initial_adapter, profile_id=profile_id)
             if loaded_sha != initial_sha256:
                 raise ValueError("shared initial adapter changed during admission")
             parameters = model_api.trainable_parameters(session.model)
@@ -1068,6 +1217,8 @@ def run_training(
             if not pilot_prefreeze and steps < 2:
                 raise ValueError("a non-pilot arm must include a positive-LR optimizer update")
             identity = {
+                "profile_id": profile_id,
+                "tokenizer": pack_manifest.get("tokenizer"),
                 "source": session.metadata["source"], "cache": session.metadata["cache"],
                 "precision": session.metadata["precision"], "pack_sha256": pack_sha256,
                 "initial_adapter_sha256": initial_sha256,
@@ -1090,6 +1241,7 @@ def run_training(
             if resume is not None:
                 folder, checkpoint, resume_evidence = load_resume(
                     resume, identity=identity, infrastructure_event=infrastructure_event,
+                    profile_id=profile_id,
                 )
                 _restore_checkpoint(session, folder, checkpoint, optimizer, scheduler)
                 cursor, chain = checkpoint["completed_steps"], checkpoint["digest_chain"]
@@ -1119,6 +1271,7 @@ def run_training(
                 )
             running = {
                 "schema": "p3-deepseek-quality-running-v1", "identity": identity,
+                "profile_id": profile_id,
                 "run_identity_sha256": _object_hash(identity), "resumed_from_step": cursor,
                 "infrastructure_loss": resume_evidence,
             }
@@ -1148,6 +1301,7 @@ def run_training(
                 record, gradients = run_window(
                     session, windows[index], arm=arm, optimizer=optimizer, scheduler=scheduler,
                     capture_gradients=index == 0, host_limit_bytes=host_limit_bytes,
+                    profile_id=profile_id,
                 )
                 record["step"] = index + 1
                 record["previous_digest_chain"] = chain
@@ -1157,8 +1311,9 @@ def run_training(
                     gradient_receipt = _save_tensors(
                         output / "step-1-gradients.safetensors", gradients,
                         schema="p3-deepseek-quality-preclip-gradients-v1",
+                        profile_id=profile_id,
                     )
-                    gradient_receipt.update(parameters=record["gradients"],
+                    gradient_receipt.update(profile_id=profile_id, parameters=record["gradients"],
                                             window_json_sha256=record["window_json_sha256"])
                     _write_json(output / "step-1-gradients.json", gradient_receipt)
                 gradients.clear()
@@ -1180,6 +1335,7 @@ def run_training(
                     or delta["final_parameter_sha256"] != final["parameter_sha256"]):
                 raise ValueError("initial/final adapter delta parameter identities differ")
             delta["final_adapter_manifest_sha256"] = final["manifest_sha256"]
+            delta["profile_id"] = profile_id
             _write_json(output / "adapter-delta.json", delta)
             report.update(
                 status="COMPLETE", completed_steps=steps, digest_chain=chain,
@@ -1199,7 +1355,9 @@ def run_training(
         report["error"] = _error(error)
         report["status"] = "FAILED"
         report["resumable"] = False
-        _write_json(output / "FAILED.json", {"error": _error(error), "resumable": False})
+        _write_json(output / "FAILED.json", {
+            "profile_id": profile_id, "error": _error(error), "resumable": False,
+        })
         if isinstance(error, WindowFailureError):
             _write_json(output / "failed-window.json", error.record)
             report["failed_window"] = error.record
@@ -1214,7 +1372,7 @@ def run_training(
                 report["resumable"] = False
                 if not (output / "FAILED.json").exists():
                     _write_json(output / "FAILED.json", {
-                        "error": _error(error), "resumable": False,
+                        "profile_id": profile_id, "error": _error(error), "resumable": False,
                     })
                 if failure is None:
                     failure = error
@@ -1241,11 +1399,15 @@ def _initial_command(args: argparse.Namespace) -> dict:
         attention.require_ampere_cuda(args.device)
         with model_api.open_session(
             Path(args.source), Path(args.cache), device=args.device, prepare=args.prepare,
+            profile_id=args.profile_id,
         ) as session:
-            model_api.require_production_source(session.metadata["source"])
-            receipt = model_api.write_initial_adapter(session.model, output)
-            receipt.update(source=session.metadata["source"], cache=session.metadata["cache"],
-                           attention_policy=attention.policy_identity())
+            model_api.require_production_source(
+                session.metadata["source"], profile_id=args.profile_id)
+            receipt = model_api.write_initial_adapter(
+                session.model, output, profile_id=args.profile_id)
+            receipt.update(profile_id=args.profile_id, source=session.metadata["source"],
+                           cache=session.metadata["cache"],
+                           attention_policy=attention.policy_identity(args.profile_id))
             _write_json(receipt_path, receipt)
             return receipt
 
@@ -1256,6 +1418,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     initial = bool(arguments and arguments[0] == "initial-adapter")
     if initial:
         arguments = arguments[1:]
+    parser.add_argument("--profile", dest="profile_id",
+                        choices=("deepseek-v3", "moonlight-16b-a3b"), default="deepseek-v3")
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--cache", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)

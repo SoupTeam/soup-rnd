@@ -37,6 +37,8 @@ from rich.console import Console
 from . import p3_deepseek_quality_attention as attention_policy
 from . import p3_stage2_generation as generation
 from . import p3_stage2v2_loglik as frozen
+from .p3_deepseek_quality_profiles import get_profile
+from .p3_deepseek_quality_train import _require_profile, require_study_profile
 
 DATA_MANIFEST_SHA256 = "07f3c65cce76d0b209ce20aff7b096857077ac906156ac4ecf2c7955141b2b81"
 SCORING_PROTOCOL_SHA256 = "685fa5bee528969d9b2eef423c90280d179432ba017fbebed12b687f608a8249"
@@ -119,30 +121,35 @@ def _scoring_protocol(path: Path | None = None) -> tuple[dict, dict]:
     return value, {"path": str(path), "sha256": SCORING_PROTOCOL_SHA256}
 
 
-def _source_files() -> dict:
+def _source_files(*, profile_id: str = "deepseek-v3") -> dict:
     names = (
         __name__, frozen.__name__, generation.__name__, attention_policy.__name__,
         "benchmarks.harness.p3_stage2_dataset", "benchmarks.harness.p3_deepseek_quality_model",
         "benchmarks.harness.p3_deepseek_quality_data", "soup_cli.utils.layer_stream_runtime",
+        "benchmarks.harness.p3_deepseek_quality_profiles",
+        "benchmarks.harness.p3_deepseek_quality_train",
         "soup_cli.utils.expert_stream", "transformers.models.deepseek_v3.modeling_deepseek_v3",
     )
     sources = {name: _hash(Path(sys.modules[name].__file__)) for name in names
                if name in sys.modules and getattr(sys.modules[name], "__file__", None)}
-    policy = attention_policy.policy_identity()
+    policy = attention_policy.policy_identity(profile_id)
     sources[policy["path"]] = policy["sha256"]
     return sources
 
 
-def admit_protocol(path: Path, expected: str, reference: dict) -> dict:
+def admit_protocol(
+    path: Path, expected: str, reference: dict, *, profile_id: str = "deepseek-v3",
+) -> dict:
     _require(_digest(expected) and path.is_file() and _hash(path) == expected,
              "DeepSeek protocol SHA256 mismatch")
     value = _json(path)
+    _require_profile(value, profile_id, "frozen protocol")
     _require(value.get("schema") == "p3-deepseek-quality-protocol-v1",
              "DeepSeek protocol freeze required")
     _require(value.get("status") == "FROZEN", "protocol freeze required")
     _require(value.get("include_base_model_evaluation") is False,
              "study protocol must forbid untrained base evaluation")
-    _require(value.get("attention_policy") == attention_policy.policy_identity(),
+    _require(value.get("attention_policy") == attention_policy.policy_identity(profile_id),
              "frozen attention policy missing or changed")
     policy = value.get("loglik", {})
     measured = {"hellaswag_n", "max_tokens_per_batch", "deadline_seconds"}
@@ -165,6 +172,7 @@ def admit_protocol(path: Path, expected: str, reference: dict) -> dict:
              and training["steps"] > 0, "frozen training seed/lengths/steps required")
     _require(all(_digest(value.get(name)) for name in ("initial_adapter_sha256", "pack_sha256")),
              "frozen initial adapter and pack identities required")
+    require_study_profile(value, profile_id=profile_id)
     _require(_hash(path) == expected, "protocol changed during admission")
     return value
 
@@ -199,12 +207,14 @@ def admit_tasks(
     }
 
 
-def admit_adapter(root: Path, expected: str) -> dict:
+def admit_adapter(root: Path, expected: str, *, profile_id: str = "deepseek-v3") -> dict:
     """Bind every saved file before opening tensors or modifying the live model."""
     path = root / "manifest.json"
     _require(_digest(expected) and path.is_file() and _hash(path) == expected,
              "adapter manifest file SHA256 mismatch")
     value = _json(path)
+    profile = get_profile(profile_id)
+    _require_profile(value, profile_id, "final adapter")
     _require(value.get("schema") == "p3-deepseek-quality-adapter-v1",
              "final adapter manifest required")
     files, identity = value.get("files"), value.get("identity")
@@ -220,6 +230,15 @@ def admit_adapter(root: Path, expected: str) -> dict:
              and isinstance(identity.get("source"), dict) and bool(identity["source"])
              and isinstance(identity.get("cache"), dict) and bool(identity["cache"]),
              "complete final adapter identity required")
+    _require_profile(identity, profile_id, "final adapter identity")
+    for name in ("source", "cache"):
+        _require_profile(identity[name], profile_id, f"final adapter {name}")
+    if profile_id != "deepseek-v3":
+        _require(identity["completed_steps"] == 64,
+                 "Moonlight final adapter must complete exactly 64 steps")
+        _require_profile(identity.get("tokenizer"), profile_id, "final adapter tokenizer")
+        _require(identity.get("attention_policy") == attention_policy.policy_identity(profile_id),
+                 "Moonlight final adapter attention policy differs")
     for name, digest in files.items():
         target = _child(root, name)
         _require(_digest(digest) and target.is_file() and _hash(target) == digest,
@@ -230,7 +249,7 @@ def admit_adapter(root: Path, expected: str) -> dict:
             _require(name in files, f"unlisted adapter weight file: {name}")
             _require(name == "adapter_model.safetensors", "unexpected adapter weight file")
     config = _json(_child(root, "adapter_config.json"))
-    targets = {"q_a_proj", "q_b_proj", "kv_a_proj_with_mqa", "kv_b_proj", "o_proj"}
+    targets = set(profile.lora_targets)
     _require(config.get("peft_type") == "LORA" and config.get("r") == 2
              and config.get("lora_alpha") == 4 and config.get("lora_dropout") == 0
              and config.get("bias") == "none" and set(config.get("target_modules", [])) == targets
@@ -241,8 +260,13 @@ def admit_adapter(root: Path, expected: str) -> dict:
     return value
 
 
-def configure_adapter(session: Any, root: Path | None, expected: str | None) -> dict:
+def configure_adapter(
+    session: Any, root: Path | None, expected: str | None, *, profile_id: str = "deepseek-v3",
+) -> dict:
     """Base mode zeroes B in memory. Final mode copies an exact, validated PEFT state."""
+    _require_profile(session.metadata, profile_id, "evaluation session")
+    _require(profile_id == "deepseek-v3" or root is not None,
+             "Moonlight untrained base quality scoring is forbidden")
     import torch
 
     from .p3_deepseek_quality_model import trainable_parameters
@@ -262,7 +286,7 @@ def configure_adapter(session: Any, root: Path | None, expected: str | None) -> 
             for value in factors:
                 value.zero_()
         return {"mode": "base", "adapter_manifest_sha256": None, "zero_lora_B": True}
-    manifest = admit_adapter(root, expected)
+    manifest = admit_adapter(root, expected, profile_id=profile_id)
     identity = manifest["identity"]
     _require(all(identity[key] == session.metadata[key] for key in ("source", "cache")),
              "adapter source/cache identity mismatch")
@@ -278,11 +302,11 @@ def configure_adapter(session: Any, root: Path | None, expected: str | None) -> 
                  and not target.is_meta and bool(torch.isfinite(source).all().item()),
                  f"adapter tensor shape/dtype/finite mismatch: {saved}")
     # Recheck bytes after tensor loading, before the first copy. Never accept a partial load.
-    admit_adapter(root, expected)
+    admit_adapter(root, expected, profile_id=profile_id)
     with torch.no_grad():
         for saved, live in names.items():
             parameters[live].copy_(tensors[saved])
-    return {"mode": "final", "adapter_manifest_sha256": expected,
+    return {"mode": "final", "profile_id": profile_id, "adapter_manifest_sha256": expected,
             "files": manifest["files"], **identity}
 
 
@@ -301,8 +325,17 @@ def _module_nodes(model: Any) -> list[tuple[str, Any]]:
     return nodes
 
 
-def admit_runtime(session: Any, tokenizer: Any, *, test_fixture: bool = False) -> dict:
+def admit_runtime(
+    session: Any, tokenizer: Any, *, test_fixture: bool = False,
+    profile_id: str = "deepseek-v3",
+) -> dict:
     """Allow only production streaming substitutions, never arbitrary runtime hooks."""
+    profile = get_profile(profile_id)
+    metadata = getattr(session, "metadata", {})
+    _require_profile(metadata, profile_id, "scoring session")
+    for name in ("source", "cache"):
+        if profile_id != "deepseek-v3" or name in metadata:
+            _require_profile(metadata.get(name), profile_id, f"scoring {name}")
     import torch
 
     from soup_cli.utils import layer_stream_runtime as streaming
@@ -355,6 +388,10 @@ def admit_runtime(session: Any, tokenizer: Any, *, test_fixture: bool = False) -
     device = torch.device(runtime.device)
     _require(device.type in ("cpu", "cuda") and model.config.vocab_size >= len(tokenizer),
              "runtime device/tokenizer vocabulary mismatch")
+    if profile_id != "deepseek-v3" and not test_fixture:
+        _require(model.config.vocab_size == profile.shape["vocab_size"]
+                 and len(tokenizer) == profile.tokenizer.vocabulary_size,
+                 "native head/tokenizer vocabulary differs from selected profile")
     if device.type == "cuda":
         _require(device.index in (None, 0) and torch.cuda.current_device() == 0,
                  "CUDA-visible device 0 only")
@@ -369,7 +406,8 @@ def admit_runtime(session: Any, tokenizer: Any, *, test_fixture: bool = False) -
     for slot in runtime.pool.buffers:
         _require(all("float8" not in str(value.dtype) for value in slot.values()),
                  "FP8 streamed buffer refused")
-    return {"class": f"{type(runtime).__module__}.{type(runtime).__qualname__}",
+    return {"profile_id": profile_id,
+            "class": f"{type(runtime).__module__}.{type(runtime).__qualname__}",
             "device": str(device), "tier": runtime.tier, "n_layers": len(layers),
             "expert_layers": len(experts), "nf4_forward_substitutions": substituted,
             "tokenizer_vocabulary_size": len(tokenizer),
@@ -403,13 +441,15 @@ class _ScoringModel:
     here and no model method or frozen admission function is replaced.
     """
 
-    def __init__(self, session: Any, *, test_fixture: bool) -> None:
+    def __init__(self, session: Any, *, test_fixture: bool,
+                 profile_id: str = "deepseek-v3") -> None:
         import torch
 
         self.model = session.model
         self.config = session.model.config
         self.device = torch.device(session.runtime.device)
         self.test_fixture = test_fixture
+        self.profile_id = profile_id
         self.attention_reports: list[dict] = []
 
     def get_input_embeddings(self) -> Any:
@@ -420,7 +460,7 @@ class _ScoringModel:
             return self.model(**kwargs)
         # Reset the bounded observer per forward, not per variable-length shard.
         with attention_policy.attention_execution(
-            attention_policy.MAIN_BACKEND, device=str(self.device),
+            attention_policy.MAIN_BACKEND, device=str(self.device), profile_id=self.profile_id,
         ) as observation:
             try:
                 result = self.model(**kwargs)
@@ -433,10 +473,11 @@ class _ScoringModel:
 @contextmanager
 def _scoring_session(
     session: Any, tokenizer: Any, *, test_fixture: bool = False,
+    profile_id: str = "deepseek-v3",
 ) -> Iterator[_ScoringModel]:
     import torch
 
-    identity = admit_runtime(session, tokenizer, test_fixture=test_fixture)
+    identity = admit_runtime(session, tokenizer, test_fixture=test_fixture, profile_id=profile_id)
     model = session.model
     flags = generation._precision_flags()
     warn_only = torch.is_deterministic_algorithms_warn_only_enabled()
@@ -462,7 +503,8 @@ def _scoring_session(
         with torch.inference_mode(), torch.autocast("cpu", enabled=False), torch.autocast(
             "cuda", enabled=False,
         ):
-            yield _ScoringModel(session, test_fixture=identity["test_fixture"])
+            yield _ScoringModel(
+                session, test_fixture=identity["test_fixture"], profile_id=profile_id)
     finally:
         for config, snapshot in snapshots:
             if vars(config) != snapshot:
@@ -483,8 +525,9 @@ def _scoring_session(
                    or torch.is_deterministic_algorithms_warn_only_enabled() != warn_only)
         if changed:
             frozen._restore_precision(flags, warn_only)
-        _require(admit_runtime(session, tokenizer, test_fixture=test_fixture) == identity,
-                 "runtime identity changed during scoring")
+        _require(admit_runtime(
+            session, tokenizer, test_fixture=test_fixture, profile_id=profile_id) == identity,
+            "runtime identity changed during scoring")
         for name, value, counter, dtype, device, requires_grad in parameters:
             _require(value._version == counter and value.dtype == dtype and value.device == device
                      and value.requires_grad == requires_grad,
@@ -497,8 +540,11 @@ def _score(
     session: Any, tokenizer: Any, encode: Callable[[], list[dict]], *, max_tokens_per_batch: int,
     test_fixture: bool = False, observer: Callable[[dict], None] | None = None,
     deadline: float | None = None,
+    profile_id: str = "deepseek-v3",
 ) -> list[dict]:
-    with _scoring_session(session, tokenizer, test_fixture=test_fixture) as model:
+    with _scoring_session(
+        session, tokenizer, test_fixture=test_fixture, profile_id=profile_id,
+    ) as model:
         def observed_batch(event: dict) -> None:
             reports = model.attention_reports
             model.attention_reports = []
@@ -516,30 +562,31 @@ def _score(
 
 def score_requests(
     session: Any, tokenizer: Any, requests: list[tuple[str, str]], *, max_tokens_per_batch: int,
-    test_fixture: bool = False,
+    test_fixture: bool = False, profile_id: str = "deepseek-v3",
 ) -> list[dict]:
     return _score(
         session, tokenizer, lambda: frozen._request_tokens(tokenizer, requests),
-        max_tokens_per_batch=max_tokens_per_batch, test_fixture=test_fixture,
+        max_tokens_per_batch=max_tokens_per_batch, test_fixture=test_fixture, profile_id=profile_id,
     )
 
 
 def teacher_forced_nll(
     session: Any, tokenizer: Any, prompt: str, response: str, *, test_fixture: bool = False,
+    profile_id: str = "deepseek-v3",
 ) -> dict:
     encoded = frozen._document_tokens(tokenizer, [(prompt, response)])
     results = _score(
         session, tokenizer, lambda: encoded,
         max_tokens_per_batch=max(frozen.DEFAULT_MAX_TOKENS_PER_BATCH, len(encoded[0]["input_ids"])),
-        test_fixture=test_fixture,
+        test_fixture=test_fixture, profile_id=profile_id,
     )
     return frozen._nll(results[0])
 
 
-def _load_tokenizer(source: Path) -> tuple[Any, dict]:
+def _load_tokenizer(source: Path, *, profile_id: str = "deepseek-v3") -> tuple[Any, dict]:
     from .p3_deepseek_quality_data import load_tokenizer
 
-    return load_tokenizer(source)
+    return load_tokenizer(source, profile_id=profile_id)
 
 
 def run_endpoint(
@@ -547,11 +594,13 @@ def run_endpoint(
     output: Path, adapter: Path | None = None, adapter_sha256: str | None = None,
     protocol: Path | None = None, protocol_sha256: str | None = None,
     scoring_protocol: Path | None = None, length: int = 1024, device: str = "cuda",
+    profile_id: str = "deepseek-v3",
+    tokenizer_dir: Path | None = None,
 ) -> dict:
     """Score once through BF16 streamed inference, with a failure manifest on refusal."""
     output.mkdir(parents=True, exist_ok=False)
     result: dict[str, Any] = {
-        "schema": "p3-deepseek-quality-eval-v1", "status": "STARTED",
+        "schema": "p3-deepseek-quality-eval-v1", "status": "STARTED", "profile_id": profile_id,
         "selected_shard_complete": False, "endpoint": endpoint, "length": length, "seed": 23,
         "protocol_sha256": protocol_sha256, "fp8": False, "oracle": False,
         "include_base_model_evaluation": False,
@@ -560,6 +609,7 @@ def run_endpoint(
     started = time.monotonic()
     stage = "freeze"
     try:
+        get_profile(profile_id)
         _require((protocol is None) == (protocol_sha256 is None),
                  "protocol path/hash pair required")
         _require((adapter is None) == (adapter_sha256 is None), "adapter path/hash pair required")
@@ -569,7 +619,7 @@ def run_endpoint(
                  "production scorer admits trained-arm evaluation endpoints only")
         _require(protocol is not None, "DeepSeek protocol freeze required before trained outcomes")
         reference, reference_identity = _scoring_protocol(scoring_protocol)
-        study = admit_protocol(protocol, protocol_sha256, reference)
+        study = admit_protocol(protocol, protocol_sha256, reference, profile_id=profile_id)
         result["attention_policy"] = study["attention_policy"]
         _require(length in study["training"]["lengths"], "length not kept by frozen protocol")
         policy = study["loglik"]
@@ -581,7 +631,8 @@ def run_endpoint(
         result.update(binding=binding, scoring_protocol=reference_identity,
                       loglik=policy, scoring=reference["scoring"])
         stage = "adapter admission"
-        adapter_manifest = admit_adapter(adapter, adapter_sha256) if adapter else None
+        adapter_manifest = (admit_adapter(adapter, adapter_sha256, profile_id=profile_id)
+                            if adapter else None)
         if adapter_manifest is not None:
             identity = adapter_manifest["identity"]
             _require(identity["protocol_sha256"] == protocol_sha256 and identity["length"] == length
@@ -595,20 +646,31 @@ def run_endpoint(
         from .p3_deepseek_quality_model import open_session, require_production_source
 
         result["hardware"] = _admit_native_execution(device)
-        session = open_session(source, cache, device=device, dtype="bfloat16", prepare=False)
-        require_production_source(session.metadata["source"])
+        session = open_session(source, cache, device=device, dtype="bfloat16", prepare=False,
+                               profile_id=profile_id)
+        profile_options = {} if profile_id == "deepseek-v3" else {"profile_id": profile_id}
+        require_production_source(session.metadata["source"], **profile_options)
         result["model"] = copy.deepcopy(session.metadata)
-        tokenizer, token_identity = _load_tokenizer(source)
+        tokenizer_root = source if tokenizer_dir is None else tokenizer_dir
+        tokenizer, token_identity = _load_tokenizer(tokenizer_root, **profile_options)
+        _require_profile(token_identity, profile_id, "evaluation tokenizer")
+        if profile_id != "deepseek-v3":
+            _require(all(study[name] == session.metadata[name] for name in ("source", "cache"))
+                     and study["tokenizer"] == token_identity,
+                     "frozen protocol source/cache/tokenizer differs from evaluation")
+            _require(identity.get("tokenizer") == token_identity,
+                     "final adapter tokenizer differs from frozen evaluation")
         result["tokenizer"] = token_identity
-        result["source_files_sha256"] = _source_files()
-        result["runtime"] = admit_runtime(session, tokenizer)
-        result["adapter_identity"] = configure_adapter(session, adapter, adapter_sha256)
+        result["source_files_sha256"] = _source_files(profile_id=profile_id)
+        result["runtime"] = admit_runtime(session, tokenizer, profile_id=profile_id)
+        result["adapter_identity"] = configure_adapter(
+            session, adapter, adapter_sha256, profile_id=profile_id)
         result["arm"] = result["adapter_identity"].get("arm", "base")
         stage = "scoring"
         events = []
         common = {"max_tokens_per_batch": policy["max_tokens_per_batch"],
                   "observer": lambda event: events.append({**event, "endpoint": endpoint}),
-                  "deadline": started + policy["deadline_seconds"]}
+                  "deadline": started + policy["deadline_seconds"], "profile_id": profile_id}
         try:
             if endpoint in SECONDARY:
                 scores = _score(
@@ -633,7 +695,8 @@ def run_endpoint(
         finally:
             _write_rows(output / "batches.jsonl", events)
         scored_rows = [
-            {"endpoint": endpoint, "task_id": row["task_id"], "task_index": start + index,
+            {"profile_id": profile_id, "endpoint": endpoint, "task_id": row["task_id"],
+             "task_index": start + index,
              "length": length, "seed": 23, "adapter_identity": result["adapter_identity"],
              "source_row_sha256": row["source_row_sha256"],
              "task_sha256": generation._object_hash(row),
@@ -648,13 +711,13 @@ def run_endpoint(
         )
         _require(binding == rebound, "task binding changed during scoring")
         if adapter:
-            admit_adapter(adapter, adapter_sha256)
+            admit_adapter(adapter, adapter_sha256, profile_id=profile_id)
         if protocol:
-            admit_protocol(protocol, protocol_sha256, reference)
-        _require(all(descriptor["sha256"] == _hash(source / name)
+            admit_protocol(protocol, protocol_sha256, reference, profile_id=profile_id)
+        _require(all(descriptor["sha256"] == _hash(tokenizer_root / name)
                      for name, descriptor in token_identity["files"].items()),
                  "tokenizer changed during scoring")
-        _require(_source_files() == result["source_files_sha256"],
+        _require(_source_files(profile_id=profile_id) == result["source_files_sha256"],
                  "scoring source changed during execution")
         result["runtime_stats"] = session.runtime.stats()
         _write_rows(output / "rows.jsonl", scored_rows)
@@ -676,7 +739,7 @@ def run_endpoint(
     return result
 
 
-def _read_shard(root: Path) -> tuple[dict, list[dict]]:
+def _read_shard(root: Path, *, profile_id: str = "deepseek-v3") -> tuple[dict, list[dict]]:
     value = _json(root / "manifest.json")
     payload = {key: entry for key, entry in value.items() if key != "manifest_payload_sha256"}
     _require(value.get("manifest_payload_sha256") == generation._object_hash(payload),
@@ -684,6 +747,7 @@ def _read_shard(root: Path) -> tuple[dict, list[dict]]:
     _require(value.get("schema") == "p3-deepseek-quality-eval-v1"
              and value.get("status") == "COMPLETE" and value.get("selected_shard_complete") is True,
              "incomplete shard refused")
+    _require_profile(value, profile_id, "evaluation shard")
     for name, descriptor in value.get("files", {}).items():
         path = _child(root, name)
         _require(path.is_file() and _hash(path) == descriptor.get("sha256")
@@ -696,23 +760,28 @@ def _read_shard(root: Path) -> tuple[dict, list[dict]]:
     return value, rows
 
 
-def _collect(paths: Sequence[Path], arm: str) -> dict[tuple, tuple[dict, list[dict]]]:
+def _collect(
+    paths: Sequence[Path], arm: str, *, profile_id: str = "deepseek-v3",
+) -> dict[tuple, tuple[dict, list[dict]]]:
     _require(bool(paths), "empty shard coverage")
     cells: dict[tuple, list[tuple[dict, list[dict]]]] = {}
     for path in paths:
-        manifest, rows = _read_shard(path)
+        manifest, rows = _read_shard(path, profile_id=profile_id)
         _require(manifest.get("arm") == arm, "arm identity mismatch")
         key = (manifest.get("endpoint"), manifest.get("length"), manifest.get("seed"))
         _require(key[0] in (*PRIMARY, *SECONDARY) and type(key[1]) is int
                  and key[1] in (1024, 4096) and key[2] == 23, "cell identity mismatch")
         identity = manifest.get("adapter_identity", {})
+        _require_profile(identity, profile_id, "shard adapter identity")
+        _require_profile(manifest.get("tokenizer", {}), profile_id, "shard tokenizer")
+        _require_profile(manifest.get("model"), profile_id, "shard model")
         _require(identity.get("mode") == "final" and identity.get("arm") == arm
                  and identity.get("length") == key[1] and identity.get("seed") == key[2]
                  and identity.get("protocol_sha256") == manifest.get("protocol_sha256")
                  and all(_digest(identity.get(field)) for field in (
                      "adapter_manifest_sha256", "initial_adapter_sha256", "pack_sha256",
                      "protocol_sha256")), "final adapter identity missing from shard")
-        policy = attention_policy.policy_identity()
+        policy = attention_policy.policy_identity(profile_id)
         _require(identity.get("attention_policy") == policy
                  and manifest.get("attention_policy") == policy,
                  "shard attention policy missing or changed")
@@ -739,6 +808,7 @@ def _collect(paths: Sequence[Path], arm: str) -> dict[tuple, tuple[dict, list[di
                 attention_policy.require_execution_evidence(
                     report, backend=attention_policy.MAIN_BACKEND,
                     dtype="bfloat16", backward=False,
+                    profile_id=profile_id,
                 )
         _require(isinstance(identity.get("source"), dict) and bool(identity["source"])
                  and isinstance(identity.get("cache"), dict) and bool(identity["cache"])
@@ -746,6 +816,13 @@ def _collect(paths: Sequence[Path], arm: str) -> dict[tuple, tuple[dict, list[di
                  and identity["cache"] == manifest.get("model", {}).get("cache")
                  and type(identity.get("completed_steps")) is int
                  and identity["completed_steps"] > 0, "adapter/model identity mismatch")
+        for name in ("source", "cache"):
+            _require_profile(identity[name], profile_id, f"shard adapter {name}")
+        if profile_id != "deepseek-v3":
+            _require(identity["completed_steps"] == 64,
+                     "Moonlight shard adapter must complete exactly 64 steps")
+            _require(identity.get("tokenizer") == manifest.get("tokenizer"),
+                     "Moonlight adapter/evaluation tokenizer identity differs")
         cells.setdefault(key, []).append((manifest, rows))
     complete = {}
     for key, shards in cells.items():
@@ -768,6 +845,7 @@ def _collect(paths: Sequence[Path], arm: str) -> dict[tuple, tuple[dict, list[di
                      and [row.get("task_id") for row in rows] == binding["ordered_task_ids"],
                      "incomplete or overlapping shard coverage")
             for index, row in enumerate(rows, start=cursor):
+                _require_profile(row, profile_id, "score row")
                 _require(row.get("endpoint") == key[0] and row.get("length") == key[1]
                          and row.get("seed") == key[2] and row.get("task_index") == index
                          and row.get("adapter_identity") == manifest["adapter_identity"],
@@ -811,10 +889,11 @@ def _collect(paths: Sequence[Path], arm: str) -> dict[tuple, tuple[dict, list[di
 
 
 def pair_shards(
-    baseline: Sequence[Path], candidate: Sequence[Path],
+    baseline: Sequence[Path], candidate: Sequence[Path], *, profile_id: str = "deepseek-v3",
 ) -> tuple[list[dict], list[dict]]:
     """Require full identical endpoint task coverage and one adapter per arm/cell."""
-    left, right = _collect(baseline, ARMS[0]), _collect(candidate, ARMS[1])
+    left = _collect(baseline, ARMS[0], profile_id=profile_id)
+    right = _collect(candidate, ARMS[1], profile_id=profile_id)
     _require(set(left) == set(right), "paired cell coverage mismatch")
     primary, secondary = [], []
     for key in sorted(left):
@@ -838,6 +917,8 @@ def pair_shards(
                      == candidate_row.get("source_row_sha256"), "paired task source mismatch")
             row = {"benchmark": key[0], "length": key[1], "seed": key[2],
                    "task_id": baseline_row["task_id"]}
+            if profile_id != "deepseek-v3":
+                row["profile_id"] = profile_id
             if key[0] in PRIMARY:
                 primary.append({**row, "baseline_pass": baseline_row["pass"],
                                 "candidate_pass": candidate_row["pass"]})
@@ -859,13 +940,15 @@ def pair(
     *, baseline: Sequence[Path], candidate: Sequence[Path], output: Path,
     data_root: Path, protocol: Path, protocol_sha256: str,
     scoring_protocol: Path | None = None,
+    profile_id: str = "deepseek-v3",
 ) -> dict:
     """Assemble all six frozen endpoints for every kept length, never a subset verdict."""
     output.mkdir(parents=True, exist_ok=False)
-    result: dict[str, Any] = {"schema": "p3-deepseek-quality-pairs-v1", "status": "STARTED"}
+    result: dict[str, Any] = {"schema": "p3-deepseek-quality-pairs-v1", "status": "STARTED",
+                              "profile_id": profile_id}
     try:
         reference, reference_identity = _scoring_protocol(scoring_protocol)
-        study = admit_protocol(protocol, protocol_sha256, reference)
+        study = admit_protocol(protocol, protocol_sha256, reference, profile_id=profile_id)
         policy = study["loglik"]
         inputs = [{"path": str(root / "manifest.json"), "sha256": _hash(root / "manifest.json")}
                   for root in (*baseline, *candidate)]
@@ -882,7 +965,7 @@ def pair(
             )
             tasks[endpoint] = rows, binding
         for paths, arm in ((baseline, ARMS[0]), (candidate, ARMS[1])):
-            cells = _collect(paths, arm)
+            cells = _collect(paths, arm, profile_id=profile_id)
             _require(set(cells) == required, "complete frozen six-endpoint cell coverage required")
             adapters_by_length = {}
             for key, (shard, scored_rows) in cells.items():
@@ -898,6 +981,11 @@ def pair(
                          and all(identity[name] == study[name] for name in (
                              "initial_adapter_sha256", "pack_sha256")),
                          "frozen training adapter identity mismatch")
+                if profile_id != "deepseek-v3":
+                    _require(all(identity[name] == study[name]
+                                 for name in ("source", "cache", "tokenizer"))
+                             and shard["tokenizer"] == study["tokenizer"],
+                             "Moonlight frozen source/cache/tokenizer identity differs")
                 previous = adapters_by_length.setdefault(key[1], identity)
                 _require(previous == identity, "adapter changed between endpoints")
                 for task, scored in zip(rows, scored_rows, strict=True):
@@ -907,10 +995,10 @@ def pair(
                              and scored.get("task_sha256") == generation._object_hash(task)
                              and scored.get("task_scoring") == task_scoring,
                              "frozen task coverage/content mismatch")
-        primary, secondary = pair_shards(baseline, candidate)
+        primary, secondary = pair_shards(baseline, candidate, profile_id=profile_id)
         _require(all(_hash(Path(item["path"])) == item["sha256"] for item in inputs),
                  "input shard changed during pairing")
-        admit_protocol(protocol, protocol_sha256, reference)
+        admit_protocol(protocol, protocol_sha256, reference, profile_id=profile_id)
         for endpoint, (rows, binding) in tasks.items():
             _, rechecked = admit_tasks(
                 data_root, endpoint, 0, len(rows),
@@ -951,6 +1039,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     endpoint.add_argument("--protocol", type=Path)
     endpoint.add_argument("--protocol-sha256")
     endpoint.add_argument("--scoring-protocol", type=Path)
+    endpoint.add_argument("--tokenizer-dir", type=Path)
     endpoint.add_argument("--length", type=int, choices=(1024, 4096), default=1024)
     endpoint.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
     pairing = commands.add_parser("pair")
@@ -961,6 +1050,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     pairing.add_argument("--protocol", type=Path, required=True)
     pairing.add_argument("--protocol-sha256", required=True)
     pairing.add_argument("--scoring-protocol", type=Path)
+    for command_parser in (endpoint, pairing):
+        command_parser.add_argument("--profile", dest="profile_id",
+                                    choices=("deepseek-v3", "moonlight-16b-a3b"),
+                                    default="deepseek-v3")
     values = vars(parser.parse_args(argv))
     command = values.pop("command")
     try:

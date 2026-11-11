@@ -1,0 +1,289 @@
+# Moonlight-16B-A3B: сравнение качества BF16 и FP8 + Oracle вместо DeepSeek-V3 671B
+
+> **Для агента-исполнителя.** Задачи выполнять по порядку, каждая заканчивается проверкой и коммитом.
+> Код и тесты проекта не запускать на рабочей станции. CPU-проверки выполнять удалённо на Kaggle CPU
+> тем же способом, что в `benchmarks/results/p3-deepseek-quality/prelaunch-review-v1/`. Аренда GPU и
+> скачивание весов разрешены заранее в пределах **$15 всего**, см. раздел «Заранее выданное разрешение».
+
+## Заранее выданное разрешение ($15)
+
+Пользователь 2026-11-11 заранее разрешил без отдельного ответа: скачивание весов Moonlight (включая
+проверку эталонной реализации), одну аренду Vast и полный прогон (a → b → c → d → обучение → оценка),
+если **всё вместе укладывается в $15**: проверка эталонной реализации, аренда, хранение, трафик,
+выгрузка и удаление. Условия:
+
+- Протокол замораживается и хешируется до аренды. SHA256 и смета записываются в журнал и в отчёт
+  до первого результата качества. Ответ пользователя не ждать.
+- Верхняя граница сметы (не середина диапазона) должна быть не больше $15. Если нет, сначала
+  урезать в таком порядке: (1) префикс HellaSwag в замороженном порядке, (2) без пары L4096.
+  Каждое урезание записать в протокол до хеша. Если и так не укладывается, не арендовать и ждать
+  пользователя. Не урезать шаги обучения, не менять пороги и правило решения.
+- Жёсткая остановка вычислений при $14 учтённых расходов, $1 резерв на выгрузку и удаление. Лимит не
+  повышать.
+- Остальные остановки из плана в силе, включая расхождения токенизатора и эталона до аренды.
+
+**Цель.** На реальной предобученной MoE `moonshotai/Moonlight-16B-A3B` провести сравнение качества,
+как в Granite v2: независимо дообучить BF16 L2L и FP8 block64 + Oracle от одного начального LoRA и
+сравнить их на замороженных задачах v2 по правилу v2. Численный gate прогоняется полностью, но только
+как диагностика: его FAIL обучение и оценку не останавливает. Полный прогон 671B откладывается.
+Поведение PR #61 не меняется.
+
+**Почему эта модель.** В её `config.json` указаны `DeepseekV3ForCausalLM` и `model_type: deepseek_v3`.
+Совпадают: MLA (`kv_lora_rank` 512, Q/K 192, V 128), sigmoid + `noaux_tc`, общие эксперты и dense-слой в
+начале. Отличаются: 16 голов вместо 128, 64 эксперта с top-6 вместо 256 с top-8, `q_lora_rank: null`
+(один `q_proj` вместо `q_a_proj`/`q_b_proj`), 27 слоёв, BF16-веса вместо FP8, tiktoken-токенизатор.
+DeepSeek-V2-Lite и V2 используют softmax-маршрутизацию V2 и дальше от V3.
+
+**Архитектура.** Один набор модулей `p3_deepseek_quality_*` с неизменяемым профилем модели. Профиль
+`deepseek-v3` переносит текущие константы без изменений, поэтому тесты #61 проходят как есть. Каждый
+receipt (source, cache, pack, gate, train, timing) записывает `profile_id`. Receipt одного профиля
+отказывается в другом.
+
+**Стек.** Python 3.12.3 и стек из `prelaunch-review-v1/canonical-v3/verifier.py.txt`, плюс `tiktoken` только
+в окружении конвертации и проверки токенизатора.
+
+## Неизменные правила
+
+- Не менять пороги E1/E2/E3, правило A3, B1/L64/k8, prefix 512, шесть проходов, INT4-контроль,
+  L1024/k4 и L4096/k1, LR0 первого шага, seed 23, NF4 noDQ `per_expert`, LoRA r2/alpha4, BF16 compute,
+  строгий EFFICIENT (MATH только для floor) и `warn_only=False`.
+- Tiny E3 остаётся **FAIL 0.05028628354277727 > 0.05**. DeepSeek-V3 671B помечается «не запускался,
+  отложен». Вердикт Moonlight идёт отдельной строкой и не заменяет ни один из них.
+- Численный FAIL gate (A3, E1, E2, E3, дискриминация INT4) записывается как диагностика и ничего
+  не останавливает. Пороги не менять, gate не повторять ради PASS.
+- Плечо останавливают только технические отказы: NaN/Inf в loss или градиентах, отсутствующий Oracle
+  VJP, отказ RoutingGuard, OOM, потеря доказательств. Такое плечо недействительно, его пару не считать.
+  Лимит денег или времени останавливает всё. Без повторов, без изменения L/B/k.
+- Kaggle T4/P100 не подходят для нативных этапов (нет нативного BF16). Только Ampere и новее.
+- В рабочем пути нет `trust_remote_code=True`. Исключение только для изолированной проверки
+  соответствия в задаче 3.
+
+## Пин источника (Hub API, 2026-11-11)
+
+| Поле | Значение |
+| --- | --- |
+| Репозиторий / ревизия | `moonshotai/Moonlight-16B-A3B` / `476b36a473d4467f94469414bef6cee75c9c8172` |
+| Лицензия | MIT |
+| Веса | 27 файлов `model-{1..27}-of-27.safetensors`, 31 920 879 456 байт, 15 960 111 936 BF16-параметров |
+| Метаданные к скачиванию | `config.json` (blob `884b0b151c22df50797e9392f1f1f968abfa0019`), `model.safetensors.index.json` (`5a1b46de3d2e062948cd2883d56960711a1a16d3`), `generation_config.json` (`0434d33d917b3d0c95e4f19a225c61b98f1e34de`), `tokenizer_config.json` (`6eee45b6e1ff757799cf1da5d52d0c266d5894c3`), `tiktoken.model` (LFS sha256 `b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103`) |
+| Только для справки, не исполняется в рабочем пути | `modeling_deepseek.py` (`a72d8b7d904ebc28aab13be12bbb5f0469a41be7`), `tokenization_moonshot.py` (`6c4903cc80d4e347ba5e25d57160268edd7ee1e4`) |
+| Shape | hidden 2048, 27 слоёв, 64 routed + 2 shared эксперта, top-6, `first_k_dense_replace` 1, vocab 163840, `q_lora_rank` null, `kv_lora_rank` 512, 16 голов |
+| Специальные id | BOS 163584 `[BOS]`, EOS 163585 `[EOS]`, PAD 163838 `[PAD]`, UNK 163839 `[UNK]` |
+
+LFS sha256 каждого шарда взять из `https://huggingface.co/api/models/moonshotai/Moonlight-16B-A3B/revision/476b36a473d4467f94469414bef6cee75c9c8172?blobs=true`
+и записать в инвентарь. README, `figures/` и `.py` не скачивать.
+
+## Ветка
+
+`research/p3-moonlight-quality` от `research/p3-deepseek-quality` (`e6fa7136`). PR ставится поверх #61.
+
+## Задача 1. Профиль модели и пин Moonlight
+
+**Файлы.** Создать `benchmarks/harness/p3_deepseek_quality_profiles.py`,
+`benchmarks/results/p3-moonlight-quality/source-inventory-v1.json`, `tests/test_p3_deepseek_quality_profiles.py`.
+Изменить `p3_deepseek_quality_model.py` (`MODEL_ID`, `REVISION`, `SOURCE_BYTES`, `SOURCE_PARAMETERS`,
+`TARGETS`, `_FULL_SHAPE`, `SOURCE_INVENTORY_SHA256`, проверки «163 shards»), `p3_deepseek_quality_prepare.py`
+(`WEIGHTS`, метаданные, `MIN_FREE_BYTES`, `MIN_RAM_BYTES`) и `p3_deepseek_quality_data.py` (пин токенизатора, id).
+
+**Интерфейс.**
+
+```python
+@dataclass(frozen=True)
+class TokenizerPin:
+    files: Mapping[str, Mapping[str, object]]  # name -> {"bytes": int, "sha256": str}
+    vocabulary_size: int                       # len(tokenizer)
+    bos_id: int
+    eos_id: int
+    pad_id: int
+
+@dataclass(frozen=True)
+class ModelProfile:
+    profile_id: str            # "deepseek-v3" | "moonlight-16b-a3b"
+    model_id: str
+    revision: str
+    weight_files: frozenset[str]
+    weight_bytes: int
+    parameters: int
+    shape: Mapping[str, object]  # те же ключи, что у текущего _FULL_SHAPE
+    lora_targets: tuple[str, ...]
+    attention_heads: int
+    qk_head_dim: int
+    v_head_dim: int
+    source_inventory_sha256: str
+    attention_protocol_sha256: str
+    tokenizer: TokenizerPin
+    min_free_bytes: int
+    min_ram_bytes: int
+
+PROFILES: Mapping[str, ModelProfile]
+def get_profile(profile_id: str) -> ModelProfile: ...
+```
+
+- Moonlight: `lora_targets = ("q_proj", "kv_a_proj_with_mqa", "kv_b_proj", "o_proj")`. При загрузке
+  сравнивать с результатом `soup_cli.utils.peft_wiring._moe_targets` для фактического конфига и
+  отказывать при расхождении (заменяет проверку `model.py:319`).
+- Moonlight: `min_free_bytes = 150 * 10**9`, `min_ram_bytes = 32 * 1024**3`. [INFERENCE] Источник
+  32 ГБ, NF4-кэш около 9 ГБ, плюс spill и запас.
+- Все CLI получают `--profile {deepseek-v3,moonlight-16b-a3b}` со значением по умолчанию `deepseek-v3`,
+  поэтому команды runbook #61 остаются верными. Значение записывается в каждый receipt.
+
+**Тесты.** Receipt источника Moonlight отказывается при допуске DeepSeek и наоборот. Gate одного
+профиля отказывается в train и timing другого. Расхождение размера одного шарда в Hub-инвентаре
+отказывает до скачивания. Все 14 существующих файлов `test_p3_deepseek_quality_*.py` проходят без правок.
+
+## Задача 2. Fast-токенизатор и пакет данных
+
+У Moonlight есть только медленный tiktoken-токенизатор с собственным кодом. Пакет данных требует
+fast-токенизатор с offsets и `trust_remote_code=False`.
+
+**Файлы.** Создать `benchmarks/harness/p3_moonlight_tokenizer.py` (CLI `convert` и `parity`) и
+`tests/test_p3_moonlight_tokenizer.py`. Изменить `p3_deepseek_quality_data.py`: пин, id и проверку
+словаря брать из профиля.
+
+1. Конвертировать `tiktoken.model` через `transformers.convert_slow_tokenizer.TikTokenConverter` с
+   точным `pat_str` из `tokenization_moonshot.py` и специальными токенами из `added_tokens_decoder`.
+   Сгенерировать `tokenizer_config.json` с `tokenizer_class: PreTrainedTokenizerFast` и id из таблицы.
+   Выходной каталог назвать ревизией, как требует `load_tokenizer`.
+2. Проверить совпадение на всех 7801 строках обучения (prompt, response, полный документ) и на всех
+   текстах замороженных v2 dev/eval-запросов. Эталон: `tiktoken.Encoding(...).encode(text, disallowed_special=())`,
+   то есть служебные строки в тексте считаются обычным текстом, как в текущей политике данных. id
+   должны совпасть полностью, offsets должны точно восстанавливать фрагменты текста. При любом
+   расхождении отказ, и план останавливается. Приблизительные offsets не допускаются.
+3. Вторая генерация на том же стеке должна совпасть байт в байт. Записать SHA256 сгенерированных
+   `tokenizer.json`/`tokenizer_config.json` и фактические `len(tokenizer)`/BOS/EOS/PAD в профиль.
+   Каждый id в пакете должен быть меньше `vocab_size` модели (163840).
+4. Собрать пакет существующим CLI `p3_deepseek_quality_data --profile moonlight-16b-a3b` и записать
+   новый SHA256 манифеста пакета.
+
+**Тесты.** Внесённое расхождение в слиянии (merge) отказывает parity. Чужая ревизия или изменённый хеш
+файла токенизатора отказывают. Повторная генерация детерминирована.
+
+## Задача 3. Модель, внимание и Oracle
+
+**Файлы.** Изменить `p3_deepseek_quality_model.py`, `p3_deepseek_quality_attention.py`,
+`p3_deepseek_quality_gate.py:1222`, `p3_deepseek_quality_smoke.py:150`. Создать
+`benchmarks/results/p3-moonlight-quality/attention-protocol-v1.json` и
+`benchmarks/harness/p3_moonlight_reference_parity.py`.
+
+- Источник BF16. Отказ, если есть `quantization_config` или тензоры `weight_scale_inv`. Строгое
+  покрытие ключей при загрузке: отказ при missing или unexpected, включая `e_score_correction_bias`
+  всех 26 MoE-слоёв.
+- В `config.json` Moonlight есть `aux_loss_alpha: 0.001` и `seq_aux: true`. Обновлённый пользователем
+  критерий допуска: **нет численного потребителя** на закреплённом `transformers==5.19.0`, колесо и
+  сохранённые исходники сверены с RECORD. Проверить `models/deepseek_v3/` (modeling и configuration),
+  используемые пути Soup streaming/L2L и PEFT. Не должно быть кода, который превращает эти поля в
+  слагаемое loss или меняет маршрутизацию. Найденные места перечислить с файлами и строками.
+- Разрешены общая валидация конфига в `configuration_utils.py` и `modeling_rope_utils.py` при
+  инициализации, а также защитные чтения Oracle в `p3_deepseek_oracle.py:460-462` (`_check_config`,
+  вызывается из pre-hook `:467`) и `:473-474` (kwargs). Oracle не менять и не ослаблять; после
+  нормализации эти проверки должны видеть `0`/`None` и пропускать.
+- На tiny-модели native `deepseek_v3` без Oracle сохранить маршрутизацию Moonlight: sigmoid,
+  `noaux_tc`, `n_group=1`, `topk_group=1`, 64 routed эксперта, top-6, scaling 2.446. Для каждого
+  режима FP32 и BF16 сравнить прогоны с `aux_loss_alpha=0.001, seq_aux=true` и без обоих полей,
+  с одинаковыми весами, LoRA и входами. Loss, логиты, выбранные эксперты и все градиенты LoRA
+  должны совпасть побитово. При невыполнении любого условия остановиться и ждать пользователя.
+- Только после допуска одинаково удалить оба поля из runtime-конфига обоих плеч, до сборки модели
+  и подключения Oracle. В receipt источника записать для каждого поля
+  `{"field": ..., "source_value": ..., "runtime": "absent", "reason": "no numerical consumer in pinned native deepseek_v3; generic config validation read only"}`.
+  Проверить прохождение неизменённых `_check_config` и pre-hook Oracle. Предыдущую остановку
+  сохранить как историческое свидетельство старого критерия; новый критерий включить в протокол
+  до его хеширования.
+- Внимание: 16 голов, Q/K 192, V 128. Проверка исполнения gate `[1, heads, L, 128]` и smoke берут
+  значения из профиля. Новый протокол внимания: поля DeepSeek v1 без изменений, кроме блока `model`
+  (id, ревизия, SHA256 конфига, `attention_heads: 16`) и `training_pack_manifest_sha256`.
+- Проверка соответствия нативной реализации (удалённо, CPU, FP32): первые два слоя (0 dense, 1 MoE) и
+  эмбеддинги из реальных шардов. Нужные шарды определяются по index, это примерно 2 ГБ весов, и это
+  первое скачивание весов, оно входит в заранее выданные $15. Нативный `transformers==5.19.0` сравнивается с
+  `modeling_deepseek.py` (blob выше), запущенным в отдельном venv с `transformers==4.46.3`, на 64 токенах
+  из пакета. Условия приёма: одинаковые top-6 эксперты для каждого токена в слое 1, максимальное
+  отклонение выхода слоя 1 не больше 1e-4 от его max abs [INFERENCE: порог выбран для FP32]. При
+  расхождении остановка.
+
+**Тесты.** Цели `q_proj` для `q_lora_rank=None`. Отсутствующий `e_score_correction_bias` отказывает.
+Найденный потребитель aux-поля отказывает. Неверное число голов в доказательствах исполнения
+отказывает gate.
+
+## Задача 4. Подготовка, runbook, смета
+
+- `prepare download|convert --profile moonlight-16b-a3b`: инвентарь, свободное место и RAM из профиля.
+  Хранилище по-прежнему физический NVMe без overlay. Скачиваются только 27 шардов и 5 файлов метаданных.
+- Создать `benchmarks/p3-moonlight-quality-runbook.md` по образцу `p3-deepseek-quality-pilot-runbook.md`:
+  порядок a→f, команды с `--profile moonlight-16b-a3b`, правила остановки, выгрузка, удаление инстанса и тома.
+- Требования к машине: Ampere+ с 24 ГБ, не меньше 32 GiB RAM, не меньше 150 ГБ свободного прямого NVMe.
+- Смета для согласования, нужна свежая котировка Vast. Всё [INFERENCE]: a+b 0.2–0.6 ч, c 0.25–0.5 ч,
+  d (gate) 0.5–2 ч, обучение 4 × 64 шага, оценка 4 адаптеров на полных задачах v2, выгрузка и
+  удаление. Обучение и оценку оценить из замеренной стоимости шага и forward с учётом повторного
+  чтения экспертов на каждый микробатч. Предложить один общий лимит и дедлайн на всю аренду. Если
+  дорого, дать варианты урезания с ценой и запасом `precision_scenarios`: меньше шагов, префикс
+  HellaSwag в замороженном порядке, без пары L4096. В пределах $15 выбирать по разделу «Заранее
+  выданное разрешение», выше $15 решает пользователь.
+
+## Задача 5. Проверка без аренды и PR
+
+- Удалённый CPU-верификатор строится по `canonical-v3/verifier.py.txt` с добавлением `tiktoken`:
+  - Ruff (`src/soup_cli/ scripts/ tests/ benchmarks/harness/`);
+  - все `tests/test_p3_deepseek_quality_*.py` и новые тесты;
+  - CLI-проверки Moonlight: отказ скачивания без одобрения, отказ timing без gate, отказ нативного smoke на CPU;
+  - live Hub-проверка Moonlight: инвентарь и HEAD, скачивается только `config.json`, 0 байт весов;
+  - конвертация токенизатора и проверка совпадения на всём корпусе;
+  - проверка соответствия нативной реализации (входит в разрешение $15).
+- Доказательства сохранять в `benchmarks/results/p3-moonlight-quality/prelaunch-review-v1/` с привязкой к
+  SHA256 исходников, как в canonical-v3.
+- PR поверх #61 с явной пометкой: без запуска, отдельный вердикт, 671B отложен.
+
+## Задача 6. Заморозка протокола (до любого результата качества)
+
+Создать `benchmarks/results/p3-moonlight-quality/protocol-v1.json` по образцу
+`benchmarks/harness/p3_stage2v2_protocol.py`. Записать:
+
+- профиль, хеши источника, кэша, токенизатора, пакета, начального адаптера и attention policy;
+- новый критерий отсутствия численного потребителя aux-полей, разрешённые чтения и SHA256 доказательств
+  исходников/RECORD, побитового FP32/BF16 сравнения и прохождения неизменённых защит Oracle;
+- плечи `bf16_l2l` и `oracle_block64_e4m3`, seed 23, L1024/k4 и L4096/k1, B1, 64 шага по 4096 токенов,
+  AdamW lr 2e-4, betas (0.9, 0.999), eps 1e-8, weight decay 0.01, clip 1.0, HF cosine warmup 2, горизонт 64;
+- пакет с циклическим повтором как в Granite (`cycle_fixed_order_record_identity_cycle_and_final_cutoff`);
+- оценку: HellaSwag, ARC, BoolQ, LAMBADA (основные), NLL GSM8K-v2 и MBPP-test (вторичные); скоринг
+  v2 без BOS, `add_special_tokens=False`, FP32 log-prob; данные `07f3c65c…2b81`;
+- правило: `summarize_pairs` (margin 0.01, alpha 0.025, union bound), затем `apply_informativeness_gate`
+  (floor +0.05, chance v2); `include_base_model_evaluation: false`;
+- `numerical_gate_blocks_quality: false` и список технических отказов, останавливающих плечо.
+
+Записать SHA256 протокола и смету в журнал и отчёт до первого результата качества. Если верхняя
+граница сметы не больше $15, продолжать без ответа пользователя. Иначе ждать его «ок».
+
+## Задача 7. Платный прогон (в пределах $15 без ответа, выше только после «ок»)
+
+Одна аренда, порядок a → b → c → d → обучение → оценка. d (gate, шесть проходов) выполняется
+полностью и записывается. Его FAIL не останавливает следующие этапы. Доказательства выгружать после
+каждого этапа, в конце удалить инстанс и том и подтвердить их отсутствие.
+
+- Обучение: четыре независимых прогона (2 плеча × 2 длины) от одного начального адаптера, 64 шага.
+  Сохранять состояние после каждого шага и уметь продолжить при потере инстанса.
+- Оценка каждого финального адаптера на всех задачах протокола, шардами. Целыми считаются только пары.
+- Сборка: пары строк → `summarize_pairs` → `apply_informativeness_gate`.
+
+В отчёте отдельными строками:
+
+- вердикт качества Moonlight (gated и статистический), таблица всех ячеек, NLL;
+- вердикт gate Moonlight: A3, E1/E2/E3 и INT4-контроль (диагностика);
+- loss по шагам и норма изменения адаптера для обоих плеч;
+- время, RSS, cgroup и CUDA-пики по каждому проходу, шагу и оценке; фактические расходы и
+  подтверждение удаления;
+- неизменный tiny FAIL и «DeepSeek-V3 671B: отложен»;
+- ограничения: один seed, около 4 эпох по MBPP-train у обоих плеч, rank-2 LoRA.
+
+## Перенос на 671B
+
+Результат не переносится на 671B: память, время и маршрутизация 256/top-8 там не проверены.
+
+## Условия остановки
+
+| Условие | Действие |
+| --- | --- |
+| Fast-токенизатор расходится с tiktoken | Стоп до аренды. Пакет данных с приблизительными offsets не строить |
+| Обнаружен численный потребитель aux-полей или нет побитового равенства loss/логитов/экспертов/LoRA-градиентов в FP32 либо BF16 | Стоп до аренды. Разрешённые общая валидация и защиты Oracle перечислены в задаче 3; Oracle не менять |
+| Нативная реализация расходится с эталоном | Стоп до аренды |
+| Падает любой тест #61 | Исправить без изменения поведения профиля `deepseek-v3` |
+| Численный FAIL gate | Записать как диагностику, продолжать обучение и оценку |
+| Технический отказ плеча (NaN/Inf, нет Oracle VJP, RoutingGuard, OOM) | Плечо недействительно, выгрузить доказательства, без повторов |
+| Лимит денег или времени | Выгрузить доказательства, удалить инстанс и том |
