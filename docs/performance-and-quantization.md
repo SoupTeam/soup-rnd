@@ -747,10 +747,7 @@ B5 ran three checks of the experimental `training.stream_expert_layout: per_expe
 
 Limits of the synthetic run: the weights and tokens are random, so the losses say nothing about quality, and random routing differs from the routing of real text. The speed does not transfer to the real model. The real DeepSeek-V3 run from [B6](../benchmarks/b6-giant-moe-20261028.md) used other hardware, dtype and sequence length, so report 3 lists the two speeds without comparing them.
 
-**Two open findings on `stream_source: ram`, from report 2.** This branch fixes neither.
-
-- The early check in `stream_setup.py:893-912` uses the coarse estimate (20.22 GB) and understates the Qwen3.5-35B-A3B cache by 3.3 times, because fused experts stay in bf16 under NF4 (true cache 67.3 GB). Confirmed by calculation. `soup train` was not run on this model.
-- After sharding, `stream_setup.py:1065` takes `plan.tier`, so with `stream_source: ram` and a plan of `disk` the run may continue on disk instead of refusing. Inferred from reading the code, not reproduced.
+**Early RAM check.** For Qwen3.5-35B-A3B the pre-flight estimate before sharding is 20.2 GB and the cache is 67.3 GB, so a `stream_source: ram` refusal comes only after the download and the shard write. After sharding, the refusal uses the actual store size. A test for this is in #62.
 
 ### FP8 source checkpoints (research track B3)
 
