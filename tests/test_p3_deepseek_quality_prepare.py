@@ -437,14 +437,15 @@ def test_download_writes_identity_only_after_all_payloads_and_retains_failure(
                                location="https://cdn.example/" + name)
 
     def payload(url, path, descriptor):
-        if path.name.endswith(".safetensors"):
+        name = path.name.removesuffix(prepare.PARTIAL_SUFFIX)
+        if name.endswith(".safetensors"):
             state["shards"] += 1
             if failure == "payload":
                 path.write_bytes(b"partial payload")
                 raise OSError("network interrupted")
             path.write_bytes(b"one bounded fixture payload")
         else:
-            path.write_bytes(b"invalid" if failure == "metadata" else contents[path.name])
+            path.write_bytes(b"invalid" if failure == "metadata" else contents[name])
 
     real_local = prepare.local_descriptor
 
@@ -476,7 +477,9 @@ def test_download_writes_identity_only_after_all_payloads_and_retains_failure(
     assert (source / "checkpoint-identity.json").exists() is (failure is None)
     assert state["shards"] == (1 if failure == "payload" else 0 if failure else 163)
     if failure == "payload":
-        assert (source / "model-00001-of-000163.safetensors").read_bytes() == b"partial payload"
+        assert (source / "model-00001-of-000163.safetensors.partial").read_bytes() == (
+            b"partial payload")
+        assert not (source / "model-00001-of-000163.safetensors").exists()
 
 
 @pytest.mark.parametrize("length,payload", [("5", b"short"), ("4", b"too long"),
@@ -584,3 +587,291 @@ def test_source_admission_rejects_tiny_checkpoint_before_model_load(tmp_path: Pa
     (source / "model-00001-of-000163.safetensors").write_bytes(b"not production")
     with pytest.raises(ValueError, match="production"):
         prepare.admit_source(source)
+
+
+def test_resume_credit_is_explicit_and_does_not_weaken_the_free_space_floor() -> None:
+    memory = {"effective_bytes": 64 * 2**30}
+    with pytest.raises(ValueError, match="1.4TB"):
+        prepare.require_capacity(prepare.MIN_FREE_BYTES - 1, memory)
+    with pytest.raises(ValueError, match="1.4TB"):
+        prepare.require_capacity(prepare.MIN_FREE_BYTES - 11, memory, reused_bytes=10)
+    prepare.require_capacity(prepare.MIN_FREE_BYTES - 10, memory, reused_bytes=10)
+    with pytest.raises(ValueError, match="RAM"):
+        prepare.require_capacity(prepare.MIN_FREE_BYTES, {"effective_bytes": 1}, reused_bytes=5)
+
+
+def test_convert_missing_cache_parent_refuses_with_failed_manifest(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    source = tmp_path / model_api.REVISION
+    source.mkdir()
+    cache = tmp_path / "absent-parent" / "cache"
+    monkeypatch.setattr(prepare, "admit_machine", lambda *args, **kwargs: {"admitted": True})
+    monkeypatch.setattr(prepare, "admit_source", lambda path: {"production_qualified": True})
+    args = SimpleNamespace(approved_pilot=True, source=str(source), cache=str(cache),
+                           output=str(tmp_path / "receipt"))
+    with pytest.raises(ValueError, match="cache parent directory must already exist"):
+        prepare.convert(args)
+    manifest = json.loads((tmp_path / "receipt/manifest.json").read_text())
+    assert manifest["status"] == "FAILED"
+    assert manifest["error"]["type"] == "ValueError"
+    assert "cache parent directory must already exist" in manifest["error"]["message"]
+    assert not cache.parent.exists()
+
+
+def test_parser_exposes_resume_only_on_download() -> None:
+    parser = prepare.build_parser()
+    base = ["--source", "s", "--output", "o", "--approved-pilot"]
+    assert parser.parse_args(["download", *base]).resume is False
+    assert parser.parse_args(["download", *base, "--resume"]).resume is True
+    with pytest.raises(SystemExit):
+        parser.parse_args(["convert", *base, "--cache", "c", "--resume"])
+
+
+class _DownloadEnv:
+    """Small-size fake Hub: 163 tiny shards plus the real metadata file names."""
+
+    def __init__(self, tmp_path: Path, monkeypatch, *, wrong_shape: bool = False) -> None:
+        import sys
+
+        self.info = _hub_info()
+        self.contents = {
+            "config.json": json.dumps({"model_type": "deepseek_v3",
+                                      "hidden_size": 1 if wrong_shape else 7168,
+                                      "num_hidden_layers": 61, "n_routed_experts": 256,
+                                      "num_experts_per_tok": 8, "first_k_dense_replace": 3,
+                                      "vocab_size": 129280, "q_lora_rank": 1536,
+                                      "kv_lora_rank": 512}).encode(),
+            "generation_config.json": b'{"eos_token_id":1}',
+            "tokenizer.json": b'{"model":{"type":"BPE"}}',
+            "tokenizer_config.json": b'{"eos_token":"EOS"}',
+            "model.safetensors.index.json": json.dumps({"weight_map": {
+                f"tensor.{number}": f"model-{number:05d}-of-000163.safetensors"
+                for number in range(1, 164)}}).encode(),
+        }
+        for number in range(1, 164):
+            self.contents[f"model-{number:05d}-of-000163.safetensors"] = (
+                f"shard payload {number:05d}".encode())
+        for row in self.info.siblings:
+            payload = self.contents.get(row.rfilename)
+            if payload is None:
+                continue
+            row.size = len(payload)
+            if row.rfilename.endswith(".safetensors"):
+                row.lfs = SimpleNamespace(sha256=hashlib.sha256(payload).hexdigest(),
+                                          size=len(payload))
+                row.blob_id = None
+            else:
+                row.blob_id = hashlib.sha1(
+                    b"blob " + str(len(payload)).encode() + b"\0" + payload).hexdigest()
+        pin = {
+            row.rfilename: {"bytes": row.size,
+                            "hub_etag": row.lfs.sha256 if row.lfs is not None else row.blob_id,
+                            "hub_sha256": row.lfs.sha256 if row.lfs is not None else None}
+            for row in self.info.siblings
+        }
+        monkeypatch.setattr(model_api, "source_inventory", lambda: pin)
+        monkeypatch.setattr(model_api, "SOURCE_BYTES", sum(
+            pin[name]["bytes"] for name in prepare.WEIGHTS))
+        self.inventory = prepare.hub_inventory(self.info)
+        self.heads: dict[str, int] = {}
+        self.payload_calls: list[str] = []
+        self.sleeps: list[int] = []
+        self.hub_constructed = 0
+        self.script: dict[str, list[BaseException]] = {}
+
+        def head(url, *, token):
+            name = url.rsplit("/", 1)[1]
+            self.heads[name] = self.heads.get(name, 0) + 1
+            row = self.inventory[name]
+            return SimpleNamespace(commit_hash=model_api.REVISION, etag=row["hub_etag"],
+                                   size=row["bytes"], location="https://cdn.example/" + name)
+
+        def payload(url, path, descriptor):
+            name = path.name.removesuffix(prepare.PARTIAL_SUFFIX)
+            self.payload_calls.append(name)
+            with path.open("xb") as stream:  # a leftover partial must have been deleted
+                stream.write(self.contents[name][:3])
+                queue = self.script.get(name)
+                if queue:
+                    raise queue.pop(0)
+                stream.write(self.contents[name][3:])
+
+        def hub(**kwargs):
+            self.hub_constructed += 1
+            return SimpleNamespace(model_info=lambda *args, **kw: self.info)
+
+        monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(
+            HfApi=hub, get_hf_file_metadata=head,
+            hf_hub_url=lambda model, name, **kwargs: "https://hub.example/" + name))
+        monkeypatch.setattr(prepare, "admit_machine", self._admit)
+        monkeypatch.setattr(prepare, "admit_source", lambda source: {"production_qualified": True})
+        monkeypatch.setattr(prepare, "_stream_download", payload)
+        monkeypatch.setattr(prepare, "_sleep", self.sleeps.append)
+        self.credits: list[int] = []
+        self.source = tmp_path / model_api.REVISION
+        self.output = tmp_path / "receipt"
+        self.tmp_path = tmp_path
+
+    def _admit(self, target, *, download=False, reused_bytes=0):
+        self.credits.append(reused_bytes)
+        return {"admitted": True}
+
+    def args(self, *, resume: bool = False, output: str = "receipt") -> SimpleNamespace:
+        return SimpleNamespace(approved_pilot=True, source=str(self.source),
+                               output=str(self.tmp_path / output), resume=resume)
+
+    def receipt(self, name: str, output: str = "receipt") -> dict:
+        return json.loads((self.tmp_path / output / f"{name}.receipt.json").read_text())
+
+
+SHARD_ONE = "model-00001-of-000163.safetensors"
+SHARD_TWO = "model-00002-of-000163.safetensors"
+
+
+@pytest.mark.parametrize("transient", ["truncated", "urlerror", "timeout", "reset"])
+def test_transient_download_failures_are_retried_and_attempts_recorded(
+    tmp_path: Path, monkeypatch, transient: str,
+) -> None:
+    import urllib.error
+
+    env = _DownloadEnv(tmp_path, monkeypatch)
+    errors = {
+        "truncated": prepare.TruncatedPayloadError("downloaded payload is truncated"),
+        "urlerror": urllib.error.URLError("temporary failure"),
+        "timeout": TimeoutError("read timed out"),
+        "reset": ConnectionResetError("reset by peer"),
+    }
+    env.script[SHARD_ONE] = [errors[transient], errors[transient]]
+    prepare.download(env.args())
+    assert env.sleeps == [10, 30]
+    assert env.receipt(SHARD_ONE)["attempts"] == 3
+    assert env.receipt(SHARD_TWO)["attempts"] == 1
+    # One inventory HEAD plus a fresh signed-URL HEAD per attempt.
+    assert env.heads[SHARD_ONE] == 4
+    assert not list(env.source.glob("*.partial"))
+    assert (env.source / SHARD_ONE).read_bytes() == env.contents[SHARD_ONE]
+    assert json.loads((env.output / "manifest.json").read_text())["status"] == "PASS"
+
+
+def test_transient_failure_is_bounded_to_three_attempts(tmp_path: Path, monkeypatch) -> None:
+    env = _DownloadEnv(tmp_path, monkeypatch)
+    env.script[SHARD_ONE] = [prepare.TruncatedPayloadError("cut") for _ in range(3)]
+    with pytest.raises(prepare.TruncatedPayloadError):
+        prepare.download(env.args())
+    assert env.payload_calls.count(SHARD_ONE) == 3
+    assert env.sleeps == [10, 30]
+    assert not (env.source / SHARD_ONE).exists()
+    assert json.loads((env.output / "manifest.json").read_text())["status"] == "FAILED"
+
+
+@pytest.mark.parametrize("error", [
+    ValueError("download response byte length differs from verified Hub metadata"),
+    ValueError("downloaded payload exceeds verified Hub byte size"),
+    InterruptedError("preparation interrupted by signal 15"),
+    OSError("disk write failed"),
+])
+def test_integrity_and_interruption_failures_are_never_retried(
+    tmp_path: Path, monkeypatch, error: BaseException,
+) -> None:
+    env = _DownloadEnv(tmp_path, monkeypatch)
+    env.script[SHARD_ONE] = [error]
+    with pytest.raises(type(error)):
+        prepare.download(env.args())
+    assert env.payload_calls.count(SHARD_ONE) == 1
+    assert env.sleeps == []
+    assert not (env.source / SHARD_ONE).exists()
+    assert json.loads((env.output / "manifest.json").read_text())["status"] == "FAILED"
+
+
+def test_interrupted_error_is_not_classified_transient() -> None:
+    assert prepare._is_transient(ConnectionResetError("x"))
+    assert not prepare._is_transient(InterruptedError("x"))
+    assert not prepare._is_transient(ValueError("Content-Length mismatch"))
+    assert not prepare._is_transient(KeyboardInterrupt())
+
+
+def test_resume_reuses_verified_shard_and_redownloads_partial(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    env = _DownloadEnv(tmp_path, monkeypatch)
+    env.source.mkdir()
+    for name, payload in env.contents.items():
+        if name == SHARD_ONE or name in ("config.json", "tokenizer.json"):
+            (env.source / name).write_bytes(payload)
+    (env.source / f"{SHARD_TWO}.partial").write_bytes(b"torn")
+    manifest = prepare.download(env.args(resume=True))
+    assert manifest["status"] == "PASS" and manifest["resumed"] is True
+    assert manifest["reused_files"] == sorted([SHARD_ONE, "config.json", "tokenizer.json"])
+    assert SHARD_ONE not in env.payload_calls and "config.json" not in env.payload_calls
+    assert env.payload_calls.count(SHARD_TWO) == 1
+    assert (env.source / SHARD_TWO).read_bytes() == env.contents[SHARD_TWO]
+    assert not list(env.source.glob("*.partial"))
+    reused = env.receipt(SHARD_ONE)
+    assert reused["resumed"] is True
+    assert reused["sha256_origin"] == "locally_hashed_on_resume"
+    assert reused["sha256"] == env.inventory[SHARD_ONE]["hub_sha256"]
+    assert env.receipt("config.json")["resumed"] is True
+    assert "resumed" not in env.receipt(SHARD_TWO)
+    assert env.receipt(SHARD_TWO)["attempts"] == 1
+    # Capacity credit equals exactly the verified reused bytes.
+    assert env.credits == [sum(env.inventory[name]["bytes"] for name in manifest["reused_files"])]
+    # The completed source identity keeps the reviewed provenance pin vocabulary.
+    identity = json.loads((env.source / "checkpoint-identity.json").read_text())
+    model_api._require_source_provenance(identity["source_files"])
+
+
+def test_resume_still_checks_metadata_before_first_weight(tmp_path: Path, monkeypatch) -> None:
+    env = _DownloadEnv(tmp_path, monkeypatch, wrong_shape=True)
+    env.source.mkdir()
+    for name in prepare.REQUIRED_METADATA:  # Hub-identical bytes, reused on resume
+        (env.source / name).write_bytes(env.contents[name])
+    with pytest.raises(ValueError, match="production DeepSeek-V3 shape"):
+        prepare.download(env.args(resume=True))
+    assert not any(name.endswith(".safetensors") for name in env.payload_calls)
+
+
+@pytest.mark.parametrize("problem", ["unknown", "completed", "bad_hash", "bad_size", "subdir"])
+def test_resume_refuses_unsafe_source_before_any_payload(
+    tmp_path: Path, monkeypatch, problem: str,
+) -> None:
+    env = _DownloadEnv(tmp_path, monkeypatch)
+    env.source.mkdir()
+    (env.source / SHARD_ONE).write_bytes(env.contents[SHARD_ONE])
+    if problem == "unknown":
+        (env.source / "notes.txt").write_text("not mine")
+    elif problem == "completed":
+        (env.source / "checkpoint-identity.json").write_text("{}")
+    elif problem == "bad_hash":
+        (env.source / SHARD_ONE).write_bytes(b"X" * len(env.contents[SHARD_ONE]))
+    elif problem == "bad_size":
+        (env.source / SHARD_ONE).write_bytes(b"short")
+    else:
+        (env.source / "nested").mkdir()
+    before = {path.name: path.read_bytes() for path in env.source.iterdir() if path.is_file()}
+    with pytest.raises(ValueError, match="resume"):
+        prepare.download(env.args(resume=True))
+    assert env.payload_calls == []
+    assert env.hub_constructed == 0
+    assert {path.name: path.read_bytes()
+            for path in env.source.iterdir() if path.is_file()} == before
+    assert json.loads((env.output / "manifest.json").read_text())["status"] == "FAILED"
+
+
+def test_resume_requires_an_existing_source_directory(tmp_path: Path, monkeypatch) -> None:
+    env = _DownloadEnv(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="resume"):
+        prepare.download(env.args(resume=True))
+    assert env.payload_calls == [] and env.hub_constructed == 0
+
+
+def test_existing_source_without_resume_refuses_even_with_valid_files(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    env = _DownloadEnv(tmp_path, monkeypatch)
+    env.source.mkdir()
+    (env.source / SHARD_ONE).write_bytes(env.contents[SHARD_ONE])
+    with pytest.raises(FileExistsError):
+        prepare.download(env.args())
+    assert env.payload_calls == [] and env.hub_constructed == 0
+    assert (env.source / SHARD_ONE).read_bytes() == env.contents[SHARD_ONE]

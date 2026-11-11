@@ -109,7 +109,9 @@ Bare module names in this table are under `benchmarks/harness/`.
 
 ## Review checklist before any rental
 
-- [ ] The team lead reviewed the complete source and the unchanged prerequisites.
+- [ ] The team lead reviewed the complete source and the unchanged prerequisites
+      (provenance: `results/p3-deepseek-quality/README.md`).
+- [ ] The code is frozen at the reviewed commit; the rental runs only that commit.
 - [ ] No credentials, private provider responses or unneeded binary archives enter Git.
 - [ ] Frozen protocol/input bytes retain their published hashes across checkout.
 - [ ] New CPU regressions and command smokes have current source-bound evidence.
@@ -139,6 +141,22 @@ Bare module names in this table are under `benchmarks/harness/`.
 - The default frozen scoring protocol must exist in this checkout. A missing
   input cannot silently resolve through a sibling worktree; an explicitly
   supplied protocol path still requires the pinned content hash.
+
+### Team-lead review (2026-11-11)
+
+- Download is resumable. Each file is written via `<name>.partial`, fsynced and
+  atomically renamed. Transient transport errors retry up to three attempts per
+  file with a fresh signed URL; integrity errors and interrupts never retry.
+  `download --resume` reuses only complete files whose local SHA256 matches the
+  pinned Hub LFS hash; the stage-a time allocation stays shared.
+- Code freeze before rental: `load_gate` binds `source_files_sha256` to the
+  executing checkout, so a post-gate harness edit invalidates the gate. The
+  runbook forbids hotfixes on the rental.
+- `convert` refuses a missing cache parent with an explicit message and a FAILED
+  manifest. A second signal during timeout handling no longer replaces
+  `TIMED_OUT` (exit 124); it is recorded as `interrupted_after_timeout`.
+- Provenance of the 17 prerequisite modules is documented with their v1/v2
+  protocol bindings.
 
 The process wrapper supports non-detaching commands in its original process
 group; it is not containment for children that create a new session. Provider

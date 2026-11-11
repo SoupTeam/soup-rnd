@@ -98,10 +98,14 @@ def run_stage(argv: list[str], *, output: Path, seconds: float) -> dict[str, Any
                 except subprocess.TimeoutExpired:
                     pass
     except BaseException as error:
-        record["status"] = (
-            "INTERRUPTED" if isinstance(error, (InterruptedError, KeyboardInterrupt)) else "FAILED"
-        )
-        record["error"] = {"type": type(error).__name__, "message": str(error)}
+        detail = {"type": type(error).__name__, "message": str(error)}
+        is_interruption = isinstance(error, (InterruptedError, KeyboardInterrupt))
+        if is_interruption and record["status"] == "TIMED_OUT":
+            # The deadline already decided the outcome; keep it and record the interruption.
+            record["interrupted_after_timeout"] = detail
+        else:
+            record["status"] = "INTERRUPTED" if is_interruption else "FAILED"
+            record["error"] = detail
     finally:
         # Do not let a second termination interrupt child cleanup and evidence publication.
         for number in handlers:

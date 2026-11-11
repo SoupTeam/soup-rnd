@@ -8,13 +8,17 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.client
 import json
 import os
 import re
 import shutil
 import signal
+import socket
+import stat
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import asdict
@@ -37,6 +41,20 @@ WEIGHTS = frozenset(f"model-{number:05d}-of-000163.safetensors" for number in ra
 MIN_FREE_BYTES = 1_400_000_000_000
 MIN_RAM_BYTES = 64 * 2**30
 MAX_METADATA_BYTES = 32 * 2**20
+PARTIAL_SUFFIX = ".partial"
+DOWNLOAD_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = (10, 30)
+
+
+class TruncatedPayloadError(ValueError):
+    """The connection ended before the verified byte count: a transient transport failure."""
+
+
+_TRANSIENT_ERRORS = (
+    urllib.error.URLError, TimeoutError, socket.timeout, http.client.IncompleteRead,
+    ConnectionError, TruncatedPayloadError,
+)
+_sleep = time.sleep
 
 
 def safe_child(root: Path, name: str) -> Path:
@@ -303,14 +321,16 @@ def inspect_ram(
             "capacity_scope": "physical RAM bounded by visible cgroup limits, not swap"}
 
 
-def require_capacity(free_bytes: int, memory: dict[str, Any]) -> None:
-    if free_bytes < MIN_FREE_BYTES:
+def require_capacity(free_bytes: int, memory: dict[str, Any], *, reused_bytes: int = 0) -> None:
+    if free_bytes + reused_bytes < MIN_FREE_BYTES:
         raise ValueError("preparation requires at least 1.4TB free on the admitted local NVMe")
     if memory["effective_bytes"] < MIN_RAM_BYTES:
         raise ValueError("preparation requires at least 64GiB effective host/cgroup RAM")
 
 
-def admit_machine(target: Path, *, download: bool = False) -> dict[str, Any]:
+def admit_machine(
+    target: Path, *, download: bool = False, reused_bytes: int = 0,
+) -> dict[str, Any]:
     if sys.platform != "linux":
         raise ValueError("production preparation requires Linux physical NVMe provenance")
     if not Path("/data").is_dir() or not _inside(Path("/data"), target):
@@ -321,10 +341,11 @@ def admit_machine(target: Path, *, download: bool = False) -> dict[str, Any]:
         existing = existing.parent
     free = shutil.disk_usage(existing).free
     if download:
-        require_capacity(free, memory)
+        require_capacity(free, memory, reused_bytes=reused_bytes)
     elif memory["effective_bytes"] < MIN_RAM_BYTES:
         raise ValueError("conversion requires at least 64GiB effective host/cgroup RAM")
     return {"storage": storage, "memory": memory, "free_bytes_before": free,
+            "reused_bytes_credit": reused_bytes,
             "minimum_download_free_bytes": MIN_FREE_BYTES,
             "minimum_effective_ram_bytes": MIN_RAM_BYTES}
 
@@ -419,7 +440,7 @@ def _stream_download(url: str, path: Path, descriptor: dict[str, Any]) -> None:
         while remaining:
             chunk = response.read(min(4 * 2**20, remaining))
             if not chunk:
-                raise ValueError("downloaded payload is truncated")
+                raise TruncatedPayloadError("downloaded payload is truncated")
             stream.write(chunk)
             remaining -= len(chunk)
         if response.read(1):
@@ -444,15 +465,117 @@ def _check_metadata(source: Path) -> None:
             raise ValueError(f"downloaded metadata must be a nonempty JSON object: {name}")
 
 
+def _fsync_directory(directory: Path) -> None:
+    if os.name != "posix":
+        return
+    descriptor = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _is_transient(error: BaseException) -> bool:
+    """Transport failures worth a fresh signed URL; never interruptions or integrity errors."""
+    return not isinstance(error, InterruptedError) and isinstance(error, _TRANSIENT_ERRORS)
+
+
+def _download_file(
+    source: Path, name: str, descriptor: dict[str, Any], head: Any,
+) -> int:
+    """Write one file atomically via ``<name>.partial``; return the attempt count used."""
+    final, partial = safe_child(source, name), safe_child(source, f"{name}{PARTIAL_SUFFIX}")
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        if partial.is_symlink() or partial.exists():
+            partial.unlink()
+        try:
+            metadata = head(name)
+            verify_head(metadata, descriptor)
+            _stream_download(metadata.location, partial, descriptor)
+        except Exception as error:
+            if not _is_transient(error) or attempt == DOWNLOAD_ATTEMPTS:
+                raise
+            _sleep(RETRY_BACKOFF_SECONDS[attempt - 1])
+            continue
+        if final.is_symlink() or final.exists():
+            raise FileExistsError(final)
+        os.replace(partial, final)
+        _fsync_directory(source)
+        return attempt
+    raise AssertionError("unreachable: the final attempt returns or raises")
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while block := stream.read(4 * 2**20):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _scan_resume(
+    source: Path, raw_source: str, pin: dict[str, dict[str, Any]],
+) -> tuple[list[Path], list[str]]:
+    """Read-only structural admission of an interrupted source directory."""
+    if Path(raw_source).is_symlink() or source.is_symlink() or not source.is_dir():
+        raise ValueError("--resume requires an existing real source directory")
+    if os.path.lexists(source / "checkpoint-identity.json"):
+        raise ValueError("--resume refused: source already contains checkpoint-identity.json")
+    partials, finals = [], []
+    for entry in sorted(os.scandir(source), key=lambda item: item.name):
+        status = entry.stat(follow_symlinks=False)
+        if entry.is_symlink() or not stat.S_ISREG(status.st_mode):
+            raise ValueError(f"--resume refused: not a regular file: {entry.name}")
+        base = entry.name.removesuffix(PARTIAL_SUFFIX)
+        if base not in pin:
+            raise ValueError(f"--resume refused: unexpected file in source: {entry.name}")
+        if base == entry.name:
+            if status.st_size != pin[base]["bytes"]:
+                raise ValueError(f"--resume refused: complete file has the wrong size: {base}")
+            finals.append(base)
+        else:
+            partials.append(Path(entry.path))
+    return partials, finals
+
+
+def _verify_reused(source: Path, name: str, remote: dict[str, Any]) -> dict[str, Any]:
+    path = safe_child(source, name)
+    record = local_descriptor(path, remote)
+    if name in WEIGHTS:
+        if _sha256_file(path) != remote["hub_sha256"]:
+            raise ValueError(f"--resume refused: local SHA256 differs from Hub LFS hash: {name}")
+        record = {**record, "sha256_origin": "locally_hashed_on_resume"}
+    return {**record, "resumed": True}
+
+
 def download(args: argparse.Namespace) -> dict[str, Any]:
     output, manifest, started = _begin(args, "download")
+    resume = bool(getattr(args, "resume", False))
     try:
         source = _source_path(args.source)
         _separate(source, output)
-        if source.exists():
+        reused: dict[str, dict[str, Any]] = {}
+        partials: list[Path] = []
+        finals: list[str] = []
+        pin: dict[str, dict[str, Any]] = {}
+        credit = 0
+        if resume:
+            pin = model_api.source_inventory()
+            partials, finals = _scan_resume(source, args.source, pin)
+            credit = sum(pin[name]["bytes"] for name in finals)
+        elif source.exists():
             raise FileExistsError(source)
         manifest["source_path"] = str(source)
-        manifest["machine"] = admit_machine(source, download=True)
+        manifest["resumed"] = resume
+        manifest["machine"] = admit_machine(source, download=True, reused_bytes=credit)
+        if resume:
+            # Any verification failure below refuses the whole run, so the provisional
+            # capacity credit is never spent on an unverified file.
+            for partial in partials:
+                partial.unlink()
+            for name in finals:
+                reused[name] = _verify_reused(source, name, pin[name])
+            manifest["reused_files"] = sorted(reused)
         from huggingface_hub import HfApi, get_hf_file_metadata, hf_hub_url
 
         info = HfApi(token=False).model_info(
@@ -466,20 +589,33 @@ def download(args: argparse.Namespace) -> dict[str, Any]:
             "model_id": model_api.MODEL_ID, "revision": model_api.REVISION,
             "files": inventory, "all_head_commit_etag_size_verified": True,
         })
-        source.mkdir(parents=True, exist_ok=False)
+        if not resume:
+            source.mkdir(parents=True, exist_ok=False)
+
+        def head(file_name: str) -> Any:
+            return get_hf_file_metadata(
+                hf_hub_url(model_api.MODEL_ID, file_name, revision=model_api.REVISION),
+                token=False)
+
         records = {}
         metadata_names = sorted(set(inventory) - WEIGHTS)
         for name in [*metadata_names, *sorted(WEIGHTS)]:
             if name in WEIGHTS and not records.keys() & WEIGHTS:
                 _check_metadata(source)
-            path = safe_child(source, name)
-            metadata = get_hf_file_metadata(
-                hf_hub_url(model_api.MODEL_ID, name, revision=model_api.REVISION), token=False)
-            verify_head(metadata, inventory[name])
-            _stream_download(metadata.location, path, inventory[name])
-            records[name] = local_descriptor(path, inventory[name])
-            write_json(output / f"{name}.receipt.json", records[name])
-        receipt = source_receipt(records)
+            if name in reused:
+                records[name] = reused[name]
+                file_receipt = {**records[name], "attempts": 0}
+            else:
+                attempts = _download_file(source, name, inventory[name], head)
+                records[name] = local_descriptor(safe_child(source, name), inventory[name])
+                file_receipt = {**records[name], "attempts": attempts}
+            write_json(output / f"{name}.receipt.json", file_receipt)
+        receipt = source_receipt({
+            name: {key: value for key, value in record.items() if key != "resumed"}
+            | ({"sha256_origin": "hub_lfs_content_identity_not_locally_hashed"}
+               if name in WEIGHTS else {})
+            for name, record in records.items()
+        })
         write_json(source / "checkpoint-identity.json", receipt)
         identity = admit_source(source)
         manifest.update(
@@ -571,6 +707,9 @@ def convert(args: argparse.Namespace) -> dict[str, Any]:
         _separate(source, cache, output)
         if cache.exists():
             raise FileExistsError(cache)
+        if cache.parent.is_symlink() or not cache.parent.is_dir():
+            raise ValueError(
+                "cache parent directory must already exist on the admitted /data volume")
         manifest.update(source_path=str(source), cache_path=str(cache), shard_threads=8,
                         quant="nf4", double_quant=False, expert_layout="per_expert",
                         compute_dtype="bfloat16", device="cuda", seed=23)
@@ -655,6 +794,11 @@ def build_parser() -> argparse.ArgumentParser:
                            help="operator asserts pilot approval; not external approval proof")
         if command == "convert":
             child.add_argument("--cache", required=True, help="fresh per-expert NF4 cache")
+        else:
+            child.add_argument(
+                "--resume", action="store_true",
+                help="continue an interrupted download in the existing source directory; every "
+                     "complete file is re-verified and .partial files are discarded")
     return parser
 
 

@@ -82,6 +82,14 @@ On the control machine, package only the reviewed commit and record its identity
 : "${REVIEWED_COMMIT:?Set the full team-lead-approved Git commit}"
 git archive --format=tar.gz --output=p3-pilot-source.tar.gz "$REVIEWED_COMMIT"
 printf '%s\n' "$REVIEWED_COMMIT" > p3-pilot-source.commit
+```
+
+Code freeze: the rental runs only `REVIEWED_COMMIT`. `load_gate` binds
+`source_files_sha256` to the executing checkout, so any harness edit after stage d
+invalidates the gate. No hotfixes on the rental: if a fix is needed, stop, upload
+evidence, tear down and request a new review.
+
+```bash
 sha256sum p3-pilot-source.tar.gz > p3-pilot-source.tar.gz.sha256
 ```
 
@@ -343,12 +351,41 @@ export_evidence "${RUN_ID}-a" "evidence/$RUN_ID/a-process" "evidence/$RUN_ID/a-d
 
 Require child `manifest.json` status PASS and all per-file receipts. Preserve
 `hub-inventory.json`, per-file hashes/ETags and `checkpoint-identity.json` identity
-via the receipt. Do not reuse a partial download, substitute R1 or change revision.
-A failed attempt ends this pilot.
+via the receipt. Do not substitute R1 or change revision.
+
+Each file is written to `<name>.partial`, fsynced and atomically renamed, so a
+final-named file is always complete. A transient transport failure (timeout,
+connection reset, URL error, short read) is retried automatically, up to three
+attempts per file with 10 s then 30 s backoff; every attempt deletes the partial
+and fetches a fresh signed URL. Integrity errors (size/length/ETag/encoding/
+non-HTTPS) and operator interrupts are never retried. Receipts record `attempts`.
+
+If the stage still fails or is killed (for example the deadline), do not delete
+the source directory. Resume with a fresh output directory and the same source:
+
+```bash
+: "${REMAINING_SECONDS:?Set 18900 minus elapsed seconds of all previous a attempts}"
+python -m benchmarks.harness.p3_deepseek_quality_stage \
+    --output "$EVIDENCE/a2-process" --seconds "$REMAINING_SECONDS" -- \
+    python -m benchmarks.harness.p3_deepseek_quality_prepare download \
+    --source "$SOURCE" --output "$EVIDENCE/a2-download" --approved-pilot --resume
+export_evidence "${RUN_ID}-a2" "evidence/$RUN_ID/a2-process" "evidence/$RUN_ID/a2-download"
+```
+
+`--resume` refuses a source with unknown files, a symlink, or an existing
+`checkpoint-identity.json`. It deletes `.partial` files, verifies every complete
+file (size, locally computed SHA256 against the Hub LFS hash for weights, metadata
+against Hub identity; this local re-hash of reused shards takes time on the same
+budget) and refuses on any mismatch without deleting it. Verified bytes are
+credited toward the 1.4 TB free-space requirement. Resumed attempts share stage a's
+single 18900 s allocation: set `REMAINING_SECONDS` to 18900 minus the elapsed
+seconds of all previous a attempts. Without `--resume`, an existing source is still
+refused.
 
 ## b, convert once and use its initial adapter
 
 ```bash
+mkdir -p "$(dirname "$CACHE")"
 python -m benchmarks.harness.p3_deepseek_quality_stage \
     --output "$EVIDENCE/b-process" --seconds 9000 -- \
     python -m benchmarks.harness.p3_deepseek_quality_prepare convert \

@@ -20,10 +20,33 @@ no private Kaggle dataset is required to reconstruct the training pack. Tokenize
 metadata comes from the pinned Hub revision after runtime approval, not another
 checkpoint. The runbook checks the rebuilt pack's fixed manifest identity.
 
-The 17 copied Granite prerequisite modules are unchanged. Every hash in
-`prerequisites-v1.json` matches its v1/v2 frozen protocol entry. Scoped Git
-attributes preserve those LF sources and exact JSON/JSONL receipt bytes. Generated
-data is folded in GitHub's diff so reviewers can focus on implementation first.
+### Provenance of the 17 copied prerequisite modules
+
+These `benchmarks/harness/p3_realdata_*` and `p3_stage2*` modules (~13.3k lines)
+were never committed to any branch of this repository. They come from the
+uncommitted Granite stage-2 research worktree on `feat/fp8-activation-storage`
+(#57, head `54be2013`), where the v1 and v2 studies ran. Their identity is
+therefore bound by content hash, not by a Git commit:
+
+- `../p3-stage2-quality/frozen-study-protocol-v1.json` (SHA256 `170c0b70…`, frozen
+  2026-11-06) and `../p3-stage2-v2/p3-stage2-v2-protocol.json` (SHA256 `685fa5be…`,
+  frozen 2026-11-09) each list `source_files_sha256` for the modules they executed.
+- `prerequisites-v1.json` records which protocol binds each file. All 17 files in
+  this PR match those entries byte for byte (13 in v1 and v2; four v2-only).
+- The v2 protocol additionally rechecks its `source_files_sha256` at load time
+  (`p3_stage2v2_loglik.py`), so a changed copy refuses before scoring.
+
+Review scope: the pilot imports five of them directly: `p3_stage2_dataset`
+(`p3_deepseek_quality_data`), `p3_stage2_training` (data, train),
+`p3_stage2_generation` and `p3_stage2v2_data` (eval) and `p3_stage2v2_loglik`
+(eval, timing). Ten more are their transitive imports. `p3_stage2_statistics` and
+`p3_stage2v2_decision` are reached only by the later phase 3 decision rule, not by
+the pilot. These modules are unchanged frozen research code; review them as
+pinned inputs, not as new implementation.
+
+Scoped Git attributes preserve those LF sources and exact JSON/JSONL receipt bytes.
+Generated data is folded in GitHub's diff so reviewers can focus on
+implementation first.
 
 `source-inventory-v1.json` was derived from the public
 [Hugging Face revision metadata](https://huggingface.co/api/models/deepseek-ai/DeepSeek-V3/revision/e815299b0bcbac849fa540c768ef21845365c9eb?blobs=true).

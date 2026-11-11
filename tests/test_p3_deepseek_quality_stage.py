@@ -47,6 +47,38 @@ def test_timeout_kills_term_ignoring_child_and_keeps_output(tmp_path):
     assert result["provider_cleanup_performed"] is False
 
 
+def test_interruption_during_timeout_handling_keeps_timed_out_status(tmp_path, monkeypatch):
+    from benchmarks.harness import p3_deepseek_quality_stage as stage
+
+    real_killpg = os.killpg
+
+    def killpg(pid, number):
+        if number == signal.SIGTERM:
+            raise InterruptedError("stage interrupted by signal 15")
+        return real_killpg(pid, number)
+
+    monkeypatch.setattr(stage.os, "killpg", killpg)
+    code = (
+        "import os,signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+        "os.write(1,b'entered'); time.sleep(60)"
+    )
+    monkeypatch.setattr(sys, "argv", [
+        "stage", "--output", str(tmp_path / "stage"), "--seconds", "2", "--",
+        sys.executable, "-c", code,
+    ])
+    assert stage.main() == 124
+    result = json.loads((tmp_path / "stage" / "result.json").read_text())
+    assert result["status"] == "TIMED_OUT"
+    assert result["interrupted_after_timeout"] == {
+        "type": "InterruptedError", "message": "stage interrupted by signal 15"}
+    assert "error" not in result
+    assert result["cleanup"]["child_reaped"] is True
+    assert result["cleanup"]["group_signal"] == "SIGKILL sent"
+    assert result["returncode"] == -signal.SIGKILL
+    manifest = json.loads((tmp_path / "stage" / "manifest.json").read_text())
+    assert manifest["status"] == "TIMED_OUT"
+
+
 def test_success_is_not_a_gate_or_budget_admission(tmp_path):
     from benchmarks.harness.p3_deepseek_quality_stage import run_stage
 
