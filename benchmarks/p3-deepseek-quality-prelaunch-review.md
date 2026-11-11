@@ -2,16 +2,17 @@
 
 ## Scope and authorization
 
-This PR prepares a separate DeepSeek-V3 671B diagnostic. It does not authorize a
-rental, a download of model weights, the pilot itself, retention after the pilot,
-or phase 3 training/evaluation. Team-lead review and the user's explicit approval
-of the selected price, spending cap and deadline must precede paid execution.
+This PR prepares the DeepSeek-V3 671B diagnostic. On 2026-11-11 the user approved
+running the pilot on the full 671B checkpoint; no smaller substitute model is
+used. That approval does not cover retention after the pilot or phase 3
+training/evaluation. Paid execution starts after team-lead review and the user's
+confirmation of a fresh offer, its price, spending cap and deadline.
 
-The proposed envelope is USD 90 and 96 elapsed hours. It is not approved. Stop
-computation at USD 87 or hour 95, leaving USD 3 and one hour for evidence and
-teardown. The operator tracks cumulative compute, root storage, local-volume
-storage and traffic. There is no automated provider budget or rental controller.
-The process deadline helper cannot enforce provider billing or delete a rental.
+The proposed envelope is USD 90 and 96 elapsed hours. Stop computation at USD 87
+or hour 95, leaving USD 3 and one hour for evidence and teardown. The operator
+tracks cumulative compute, root storage, local-volume storage and traffic. There
+is no automated provider budget or rental controller. The process deadline
+helper cannot enforce provider billing or delete a rental.
 
 The recorded tiny E3 remains **FAIL: 0.05028628354277727 > 0.05**. Its artifacts,
 threshold and fixture are immutable. A future full-model verdict is a separate
@@ -28,7 +29,7 @@ Pilot-specific work starts after merge commit
 `364d003bfa0cc83f02a716e687b5cc7b41056be8`, which also incorporates the already-main
 B14 work from #58/#59. Compare that commit with the PR head to isolate this pilot;
 the GitHub base diff also includes those inherited main changes. Retarget to
-`main` after #57 is integrated. Neither code review nor merge authorizes execution.
+`main` after #57 is integrated. Merge alone does not start execution.
 
 The [CPU evidence index](results/p3-deepseek-quality/prelaunch-review-v1/README.md)
 identifies the tested source snapshots, actual commands and untested native paths.

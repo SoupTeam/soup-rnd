@@ -2,20 +2,22 @@
 
 ## Authority and immutable results
 
-This is an operator procedure, not authorization to run it. This PR performs no
-rental, model download, native qualification or full-model execution. First obtain
-team-lead approval of the complete PR and the user's explicit approval of a fresh
-selected offer, its total price, spending cap and elapsed deadline. The separate
-small Ampere smoke approval does not cover this pilot. `--approved-pilot` is only
-an operator acknowledgement. It cannot grant permission or prove human approval.
+This is the operator procedure for the approved DeepSeek-V3 671B pilot. On
+2026-11-11 the user approved running it on the full 671B checkpoint. This PR
+itself performs no rental, model download, native qualification or full-model
+execution. Before creating resources, obtain team-lead approval of the complete
+PR and the user's confirmation of a fresh selected offer, its total price,
+spending cap and elapsed deadline. The separate small Ampere smoke approval does
+not cover this pilot. `--approved-pilot` is only an operator acknowledgement. It
+cannot grant permission or prove human approval.
 
-The proposal in `results/p3-deepseek-quality/pilot-cost-proposal-v1/` is **not
-approved**. Its quote was captured at 2026-11-10T21:19:04.112718+00:00. It proposes
-USD 90 and 96 hours from the first paid resource, with computation stopped by
-USD 87 or hour 95. Reserve USD 3 and one hour for evidence and teardown. A quote
-is not a booking promise. Refresh availability, machine/volume pairing, rates,
-traffic terms and capacity before presenting the price for approval. A missing or
-changed offer requires a new decision, not a silent substitution.
+The proposal in `results/p3-deepseek-quality/pilot-cost-proposal-v1/` was quoted
+at 2026-11-10T21:19:04.112718+00:00. It proposes USD 90 and 96 hours from the
+first paid resource, with computation stopped by USD 87 or hour 95. Reserve USD 3
+and one hour for evidence and teardown. A quote is not a booking promise. Refresh
+availability, machine/volume pairing, rates, traffic terms and capacity before
+confirming the price. A missing or changed offer requires a new decision, not a
+silent substitution.
 
 The historical tiny E3 is permanently **FAIL: 0.05028628354277727 > 0.05**. Do not
 rerun its gate, recalculate its E3, alter its fixture or replace its evidence.

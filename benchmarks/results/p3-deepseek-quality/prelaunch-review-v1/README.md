@@ -70,16 +70,18 @@ private provider launch metadata, authentication, repeated source ZIPs and cache
 are excluded. The output manifests do not include their own digest or the
 separately preserved `verifier.py.txt`.
 
-## Explicitly not executed or authorized
+## Not executed by this PR
 
 - No Vast instance, paid pilot, 688.6GB weight download or NF4 conversion.
 - No native smoke for the changed revision and no full-model gradient gate.
 - No long step, base-model quality scoring or phase3 training/evaluation.
 - No repeat, recalculation or replacement of tiny E3: it remains
   **FAIL 0.05028628354277727 >0.05** in the unchanged historical evidence.
-- No approval of the proposed USD90 /96h envelope, retention or phase3 protocol.
+- No retention after the pilot and no phase3 protocol approval. The user approved
+  the 671B pilot itself on 2026-11-11; the offer, cap and deadline are confirmed
+  at launch against the USD90 /96h proposal.
 
-The full-model pilot must follow the reviewed runbook after price approval. CPU
+The full-model pilot must follow the reviewed runbook. CPU
 success cannot bypass native Ampere/BF16/EFFICIENT admission, a failed full gate,
 OOM, the spending cap or the deadline. Provider accounting, evidence upload and
 verified instance plus volume deletion remain operator responsibilities; the

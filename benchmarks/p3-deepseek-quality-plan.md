@@ -12,9 +12,10 @@
 
 ## Current prelaunch state
 
-The full-model pilot is a separate diagnostic, pending team-lead code review and
-the user's price/cap/deadline approval. The USD90/96-hour envelope is a proposal,
-not an authorization. Previous small-smoke and USD40 approvals do not extend it.
+The full-model pilot is a separate diagnostic. The user approved running it on
+DeepSeek-V3 671B (2026-11-11); it still waits for team-lead code review and
+launch-time confirmation of the offer, cap and deadline against the USD90/96-hour
+proposal. Previous small-smoke and USD40 approvals do not extend to it.
 Preparation, strict attention, data, gate, paired training, resource timing and
 scoring code are now present. This revision has no full-model execution receipt.
 

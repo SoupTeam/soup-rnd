@@ -1,8 +1,8 @@
 # DeepSeek diagnostic: inputs and review evidence
 
 Start with the [prelaunch review](../../p3-deepseek-quality-prelaunch-review.md) and
-[operator runbook](../../p3-deepseek-quality-pilot-runbook.md). This checkout does
-not authorize rental, model-weight download, a pilot or phase3 execution.
+[operator runbook](../../p3-deepseek-quality-pilot-runbook.md). The user approved
+the 671B pilot on 2026-11-11; this checkout performs no rental or phase3 execution.
 
 ## Reproducible inputs
 
