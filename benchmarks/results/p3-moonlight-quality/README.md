@@ -2,7 +2,7 @@
 
 ## Execution authority
 
-The user approved the restored [plan](../../p3-moonlight-quality-plan.md) on 2026-11-11, including remote pre-rental reference checks and one Vast rental within **USD 15 total**. Computation must stop at USD 14, preserving USD 1 for export and deletion. Before rental, publish the frozen protocol SHA256 and a conservative upper cost bound. If necessary, reduce only the frozen-order HellaSwag prefix, then omit the L4096 pair; keep 64 training steps, thresholds and the v2 decision rule unchanged. If the upper bound still exceeds USD 15, do not rent.
+The user approved the restored [plan](../../p3-moonlight-quality-plan.md) on 2026-11-11, including remote reference checks and one Vast rental within **USD 15 total**. An explicit [two-stage amendment](preparation-authorization-v1.json) now permits preparation and short resource measurements for **at most USD 1 inside that total**. Freeze scientific settings and a preparation upper bound before rental; freeze actual artifact hashes, the measured whole-workload upper bound and permitted scope cuts before numerical gate, training or evaluation. Compute stops at USD 14, preserving USD 1 for export/deletion. Reduce only HellaSwag under the frozen v2 rule, then omit the L4096 pair; keep 64 steps, thresholds and the decision rule unchanged. If the measured upper bound still exceeds USD 15, export and delete the preparation resources.
 
 Work is on `research/p3-moonlight-quality`, based on the current reviewed parent `8bc5826d370b349993e790dcc7643aa7f4b489d4`. PR #61 and its branch are unchanged. The plan's older parenthetical `e6fa7136` predates the retained download/review fixes.
 
@@ -18,7 +18,7 @@ Work is on `research/p3-moonlight-quality`, based on the current reviewed parent
 | Existing v2 analysis tests and summary CLI | **PASS**: 241 passed, no skips; synthetic paired summaries, NLL direction and same-size hash-tamper refusal verified |
 | Ordinary CI with Rich 14.0.0 | **PASS**: 732 passed; 50 CUDA skips plus one explicit scientific-stack skip; production admission still refuses the changed package |
 | Native/reference model comparison | **PASS**: exact ordered top-6 on all 64 tokens; max error `2.086162567138672e-7` ≤ `0.00011039664745330811` |
-| Moonlight quality, gated verdict | **NOT RUN**; actual cache/initial-adapter hashes and an admitted whole-workload cost bound remain unavailable |
+| Moonlight quality, gated verdict | **NOT RUN**; bounded preparation/measurement is authorized, final artifact and measured cost admission is pending |
 | Moonlight quality, statistical verdict | NOT RUN |
 | Moonlight numerical gate | **NOT RUN (0/6)**; A3, E1/E2/E3 and INT4 control have no Moonlight result |
 | Per-step loss and adapter-change norm | NOT RUN |
@@ -75,7 +75,7 @@ The aux check was not weakened or repeated. Oracle and runtime configs were not 
 | L4096 / k1 | BF16 L2L | 0/64 | NOT RUN | NOT RUN | NOT RUN |
 | L4096 / k1 | FP8 block64 + Oracle | 0/64 | NOT RUN | NOT RUN | NOT RUN |
 
-No baseline model was evaluated. The numerical gate's non-blocking rule remains unchanged. Reference admission passed; final verification and artifact/cost freeze remain pending. Planned limits remain one seed and rank-2 LoRA. The planned approximately four MBPP-train cycles were not executed.
+No baseline model was evaluated. The numerical gate's non-blocking rule remains unchanged. CPU verification and reference admission passed; actual artifact/cost freeze awaits the explicitly authorized bounded preparation and measurement. Planned limits remain one seed and rank-2 LoRA. The planned approximately four MBPP-train cycles were not executed.
 
 ## Resources and retained evidence
 
@@ -121,11 +121,11 @@ The [actual headers of all 27 pinned shards](source-headers-v1.json), SHA256 `e8
 
 Source admission now requires the observed legacy shape. Native/reference constructors still regenerate their unchanged `[32]` nonpersistent buffers; checkpoint frequencies are not injected into either model. Shape-incomparable frequency differences are explicitly unavailable diagnostics, never an acceptance threshold. Corrected v3 packet admission: `8338566f276ad08eb56221b225a264174fa0046c7c0dde3707bce154eba9bc5d`. No numerical tolerance or gate rule was changed.
 
-## Rental remains unadmitted
+## Historical rental blocker and explicit amendment
 
-The plan requires protocol freeze before rental and actual cache/shared-initial-adapter hashes in that protocol. Those production artifacts do not exist; the supported preparation route creates them on an admitted native-BF16 GPU. No recipe hash, placeholder or post-freeze backfill is substituted.
+The original pre-rental artifact-hash requirement was circular: the production CUDA preparation creates the cache and shared initial adapter only after rental. This was reported rather than replacing artifact hashes with recipe hashes or placeholders. The user then explicitly approved two-stage freeze and at most $1 preparation/measurement within the unchanged total.
 
-[Read-only quote v2](prelaunch-review-v1/quote-only-v2.json) records RTX 3090 offer `56970728` and same-machine local-volume offer `56970732`: GPU + 32 GiB root + 180 GiB volume total **$0.275555556/hour**, ingress $0.005208333/GB, egress $0.0078125/GB. This is not a reserved offer or an admitted whole-workload upper estimate. Historical Granite dense-BF16 T4 timings are retained, but are not Moonlight disk-L2L measurements. No scope reduction is frozen.
+The historical [read-only quote v2](prelaunch-review-v1/quote-only-v2.json) is not a reservation or a current workload estimate. Fresh instance/volume pricing, the preparation ceiling and scientific-settings SHA256 must be recorded before creating the one rental. No final scope cut or whole-workload cost is inferred from Granite dense-BF16 T4 timings.
 
 [Final resource inspection](prelaunch-review-v1/resource-closeout-v3.json), `2026-11-11T16:43:53.726305+00:00`: no resources were created by this Moonlight run; provider returned one unrelated running instance and no volumes. No deletion call was made against that instance. Moonlight cost remains **$0**. The $15 total/$14 compute/$1 closeout constraints are unchanged.
 
@@ -147,4 +147,14 @@ The first final packet omitted the existing `p3_stage2v2_results.py` dependency 
 
 [Compact raw scientific proofs](prelaunch-review-v1/scientific-proofs-v1/manifest.json) preserve all 35 auxiliary-comparison tensor artifacts, both reference workers' outputs, residuals and comparison reports. Full original archives, expanded temporary evidence and duplicate source packets are not added to Git. The source kernels are private; authorized access is required for their complete retained outputs.
 
-The public Soup CLI/API is unchanged; no product changelog entry is needed. Full-repository pytest and native Ampere execution remain unrun. Proceeding to paid work requires an explicit amendment resolving the pre-rental artifact-hash dependency and permission for a bounded runtime calibration, or already-qualified artifacts and measurements. No final study protocol, scope cut or rental was invented.
+The public Soup CLI/API is unchanged; no product changelog entry is needed. Full-repository pytest and native Ampere execution remain unrun. The explicit amendment now authorizes bounded preparation/measurement after pre-rental settings/cost freeze. Final actual-artifact protocol, measured scope admission, gate, training and quality results are still pending; none is claimed by the CPU verification.
+
+## Pre-rental freeze after explicit authorization
+
+Scientific-settings SHA256: `f71d5e0ba4f4de381bfb20447410458a89c588572343314cb998ec031ff4c74b`.
+Preparation-ledger SHA256: `0f9bfaf8a1ae15a8cbf22318c14c02155221a463b3d6ca604b11bb44782a7bd2`.
+Deployment archive SHA256: `d0ff819e27bdcea710b0cdea6a4e16f3fb8121e3100d7271ecc391ce4013a1df`.
+
+The original RTX 3090 offer became unavailable before creation. The frozen replacement is RTX 4090 offer `58143447`, machine `155543`, matching 220 GiB volume offer `59075301`, plus 32 GiB root. Combined hourly price is $0.526296296; ingress/egress $0.00390625/GB. The conservative preparation upper bound is **$0.952534722**, including at most 45 minutes from creation, 128 GB ingress, 2 GB egress and $0.05 contingency. Per-command maxima do not extend that absolute deadline. This is preparation admission only, not a whole-study estimate or quality result.
+
+The exact resource-probe SHA256 is `1aca198c7eceb81b9856f58351091e362635c9a64ebe4b7be539a12dc8905eed`. The existing OpenSSH/SCP client will pull evidence to persistent local storage and verify each archive SHA256; no new uploader, rental controller or automatic deleter is installed.

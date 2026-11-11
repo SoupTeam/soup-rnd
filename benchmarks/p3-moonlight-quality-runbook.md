@@ -12,14 +12,14 @@ Required, with complete retained evidence:
 2. The amended no-numerical-consumer proof on Transformers 5.19.0, matching wheel RECORD: exact FP32/BF16 loss, logits, ordered expert choices and every LoRA gradient. Keep the unchanged Oracle guards. Both runtime configurations omit only the admitted auxiliary pair before either native construction or Oracle attachment.
 3. Two real checkpoint layers and 64 pack tokens pass the isolated FP32 reference comparison. Expert choices must agree exactly; layer-1 output max-absolute error must not exceed `1e-4 * reference_max_abs`. A mismatch stops before rental; no threshold changes or retry for PASS.
 4. Remote CPU integration passes, including all original PR #61 tests, the new tests, Ruff, CLI refusals and live Hub metadata. Workstation project execution is prohibited.
-5. Reviewed code, immutable protocol SHA256, complete upper-bound cost estimate, evidence destination and deletion permissions are recorded before rental.
+5. Reviewed code, immutable scientific-settings SHA256, preparation upper bound at most $1, evidence destination and deletion permissions are recorded before rental. The final artifact-bound protocol and measured whole-workload upper bound must be frozen before stage d, training or evaluation.
 6. Qualify the separate remote statistics environment with `scipy==1.15.3` and exercise the summary APIs below before freeze. This is the planned pin in [the v2 plan](p3-stage2-v2-plan.md), not an installed-environment receipt. The observed `integration-reference-v2/evidence/packages.log` has no SciPy. Retain the new interpreter/package inventory and API evidence before calling analysis executable.
 
-### Unresolved freeze dependency
+### Explicitly approved two-stage freeze
 
-The plan requires protocol freeze **before rental** and actual source/cache/initial-adapter identities in that protocol. The production preparation path creates the CUDA NF4 cache and shared initial adapter in stage b, after rental. No admitted production cache or initial adapter exists yet. CPU/tiny artifacts do not satisfy this requirement.
+The user explicitly approved [bounded preparation and resource measurement](results/p3-moonlight-quality/preparation-authorization-v1.json). Freeze scientific settings and their SHA256 before the one rental. Preparation a+b, technical smoke and short resource-only measurements together may consume at most **$1 accounted expense within the unchanged $15 total**.
 
-Until this dependency is resolved explicitly, **do not create an instance or volume**. Do not put a recipe hash in place of an artifact hash, insert a placeholder, or rewrite the frozen protocol after preparation. The procedure below is conditional on a valid pre-rental protocol; it does not authorize moving freeze past stage b. See the current [result status](results/p3-moonlight-quality/README.md).
+Stage b creates the actual production cache and one shared initial adapter. Record their real identities and measured resource evidence, then freeze the final protocol and upper total estimate before any numerical gate, training or quality evaluation. Never substitute recipe hashes or placeholders for artifact hashes, or backfill an already frozen final protocol. If permitted scope reductions cannot fit the remaining allowance, export and delete the owned resources without starting scientific work.
 
 The initial reference admission downloaded and hash-verified 2.006757520 GB, then stopped before either model worker because the declared legacy `inv_freq` shape was wrong. [The 27 range headers](results/p3-moonlight-quality/source-headers-v1.json) show 5344 BF16 tensors and 27 legacy `[64]` buffers (1728 elements); excluding them leaves 15960110208 checkpoint tensor elements, including persistent router biases. After correcting that declaration, the first actual numerical comparison [passed](results/p3-moonlight-quality/reference-admission-v1.json): all ordered top-6 choices matched; max error `2.086162567138672e-7` was below `0.00011039664745330811`. Neither constructor's native nonpersistent `[32]` buffers were overwritten. No numerical comparator retry or tolerance change occurred; shape-incomparable buffer diagnostics are not a parity criterion.
 
@@ -31,7 +31,7 @@ Use a fresh on-demand offer and a matching local-volume offer on the same machin
 
 Preparation itself binds the target's `st_dev` through `/proc/self/mountinfo` and `/sys/dev/block` to a writable ext4/xfs mount and a direct PCIe NVMe controller with `rotational: 0`. It refuses overlay/network storage, device mapper/RAID, hidden sysfs and ambiguous mounts. It also bounds physical RAM by visible cgroup limits. If the offer cannot expose that evidence for `$SOURCE` and `$CACHE`, stop rather than treating a provider label or throughput number as admission.
 
-If the upper estimate exceeds $15, first reduce the frozen-order HellaSwag prefix, then omit the complete L4096 pair if still necessary. Record each before/after estimate and reduction in the protocol **before hashing**. Never change 64 steps, thresholds, scoring or the decision rule. If the permitted reductions still exceed $15, do not rent.
+If the measured upper total estimate exceeds $15, first reduce HellaSwag using the frozen v2 selection rule, then omit the complete L4096 pair if still necessary. Record each before/after estimate and reduction in the final protocol **before hashing**. Never change 64 steps, thresholds, scoring or the decision rule. If the permitted reductions still exceed $15, export and delete the one preparation rental; do not begin stage d, training or evaluation.
 
 Record a single absolute UTC compute deadline and stage allowances in the cost ledger. Every command must fit its full allowance, remaining traffic and closeout reserve. Include raw-gate readmission, pairing, setup, evidence transfers and teardown, not just training. `--seconds` bounds the child process, then the helper allows up to ten seconds to reap it; price that cleanup margin too. Evaluation also checks the frozen `loglik.deadline_seconds` from its own start. Inspect provider charges before/after commands and transfers, and at least every 15 minutes during long commands. If supervision, billing visibility or evidence transfer is lost, stop. Do not install a rental controller, watchdog, uploader or automatic deleter.
 
@@ -43,21 +43,18 @@ Production commands in a through f run on the admitted Linux rental, never the w
 
 The observed environment is Python 3.12.3, Torch distribution `2.11.0`, runtime `2.11.0+cu130`, Transformers 5.19.0, PEFT 0.21.2, bitsandbytes 0.50.2, Accelerate 1.15.0, safetensors 0.8.0, tokenizers 0.23.3, NumPy 2.1.3, Rich 13.9.4, psutil 7.2.2 and Hugging Face Hub 2.4.0. The full inventory and installation inputs are [packages.log](results/p3-moonlight-quality/prelaunch-review-v1/integration-reference-v2/evidence/packages.log) and [bootstrap.py](results/p3-moonlight-quality/prelaunch-review-v1/integration-reference-v2/evidence/bootstrap.py). They also pin `tiktoken==0.14.0`, `regex==2026.11.9` and `blobfile==3.1.0` for tokenizer conversion/parity. Do not guess newer versions or copy the old pilot's setup. Record the rental image, driver, interpreter, wheel/source hashes and complete installed inventory; keep them unchanged through gate, training and evaluation. The separate SciPy analysis environment remains subject to admission item 6.
 
-Set these operator variables from the frozen cost ledger. `RUN_ID`, allowances and receiver coordinates are operator inputs, not artifact identities. `PROTOCOL_SHA256` must identify an existing admitted file. `protocol-v1.json` below is its required deployment destination, not a file that this runbook has created. The missing production cache/initial hashes still block rental.
+Set these operator variables from the frozen preparation ledger. `RUN_ID`, allowances and receiver coordinates are operator inputs, not artifact identities. `SETTINGS_SHA256` must identify the existing pre-rental scientific-settings file. Final `PROTOCOL_SHA256` and scientific-stage allowances are set only after measured scope admission, before stage d. No final artifact hash is invented during preparation.
 
 ```bash
 set -u
 umask 077
 : "${RUN_ID:?Recorded unique run identifier}"
-: "${PROTOCOL_SHA256:?Immutable pre-rental SHA256 from the ledger}"
+: "${SETTINGS_SHA256:?Immutable scientific-settings SHA256 recorded before rental}"
 : "${A_SECONDS:?Frozen stage-a allowance}"
 : "${B_SECONDS:?Frozen stage-b allowance}"
 : "${C_SECONDS:?Frozen stage-c allowance}"
-: "${D_SECONDS:?Frozen six-pass gate allowance}"
-: "${READMIT_SECONDS:?Frozen raw-evidence readmission allowance}"
-: "${PAIR_SECONDS:?Frozen pairing allowance}"
-: "${TRAIN_SECONDS:?Frozen allowance for the selected complete 64-step arm}"
-: "${EVAL_SECONDS:?Frozen allowance for the selected evaluation shard}"
+# D_SECONDS, READMIT_SECONDS, PAIR_SECONDS, TRAIN_SECONDS and EVAL_SECONDS are
+# fixed by the measured final scope admission before stage d, not guessed here.
 : "${VIRTUAL_ENV:?Admitted Python 3.12.3 environment, already installed}"
 : "${EVIDENCE_SSH_TARGET:?Approved user@host evidence receiver}"
 : "${EVIDENCE_REMOTE_DIR:?Existing private absolute receiver directory without spaces}"
@@ -72,6 +69,7 @@ export CACHE="$ROOT/cache/476b36a473d4467f94469414bef6cee75c9c8172"
 export TOKENIZER="$ROOT/tokenizer/476b36a473d4467f94469414bef6cee75c9c8172"
 export PACK="$ROOT/pack"
 export PACK_SHA256=2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4
+export SETTINGS="$REPO/benchmarks/results/p3-moonlight-quality/scientific-settings-v1.json"
 export PROTOCOL="$REPO/benchmarks/results/p3-moonlight-quality/protocol-v1.json"
 export SCORING_PROTOCOL="$REPO/benchmarks/results/p3-stage2-v2/p3-stage2-v2-protocol.json"
 export DATA="$REPO/benchmarks/results/p3-stage2-v2/data-build-kaggle-v1/evidence/data"
@@ -90,7 +88,7 @@ mkdir -p "$EVIDENCE/setup"
 cd "$REPO"
 python --version
 python -m pip freeze > "$EVIDENCE/setup/packages.txt"
-printf '%s  %s\n' "$PROTOCOL_SHA256" "$PROTOCOL" | sha256sum -c -
+printf '%s  %s\n' "$SETTINGS_SHA256" "$SETTINGS" | sha256sum -c -
 printf '%s  %s\n' \
   685fa5bee528969d9b2eef423c90280d179432ba017fbebed12b687f608a8249 "$SCORING_PROTOCOL" \
   07f3c65cce76d0b209ce20aff7b096857077ac906156ac4ecf2c7955141b2b81 "$DATA/manifest.json" \
@@ -201,7 +199,7 @@ export INITIAL="$EVIDENCE/b-convert/initial-adapter.safetensors"
 export_evidence "${RUN_ID}-b" "evidence/$RUN_ID/b-process" "evidence/$RUN_ID/b-convert"
 ```
 
-Require `b-convert/manifest.json.status: PASS`, `session_closed: true`, NF4/noDQ/per-expert/disk, BF16 compute and FP32 rank-2/alpha-4 adapters. The manifest records `session.source`, `session.cache`, `session.precision`, `initial_adapter`, `resources.memory` and `resources.cgroup`; the adapter payload is `b-convert/initial-adapter.safetensors`. Compare the production identities with the already frozen protocol, including the adapter's file SHA256; mismatch stops, never updates the protocol. This is one shared initial adapter, not a separately regenerated initializer for each arm. `$CACHE` must not exist before convert, and its parent must already exist on the same admitted `/data` NVMe as source.
+Require `b-convert/manifest.json.status: PASS`, `session_closed: true`, NF4/noDQ/per-expert/disk, BF16 compute and FP32 rank-2/alpha-4 adapters. The manifest records `session.source`, `session.cache`, `session.precision`, `initial_adapter`, `resources.memory` and `resources.cgroup`; the adapter payload is `b-convert/initial-adapter.safetensors`. Bind these actual production identities and adapter file SHA256 into the final protocol after resource measurement, before stage d. Once frozen, any mismatch stops rather than updating that protocol. This is one shared initial adapter, not a separately regenerated initializer for each arm. `$CACHE` must not exist before convert, and its parent must already exist on the same admitted `/data` NVMe as source.
 
 ## c: technical smoke
 
@@ -216,6 +214,24 @@ export_evidence "${RUN_ID}-c" "evidence/$RUN_ID/c-process" "evidence/$RUN_ID/c-s
 ```
 
 Require `c-smoke/manifest.json.status: COMPLETE` and clean teardown for every required technical attempt. Smoke probes the selected Moonlight attention dimensions but trains a separate tiny `deepseek-v3` qualification fixture, three steps per arm and length. Its `qualification_only: true`, `test_fixture: true`, `quality_evaluated: false` and `full_model_parity_evaluated: false` must remain explicit. It does not load `$SOURCE`/`$CACHE`, evaluate Moonlight quality or replace historical tiny E3. Do not relax dimensions, native-BF16 admission, routing or attention fallback restrictions.
+
+### Bounded measurement and final freeze
+
+Run only the pre-rental hash-bound resource probes within the same $1 preparation envelope. They use the production source/cache/initial adapter with unchanged native admission, attention policy, Oracle and RoutingGuard. Training probes measure one accumulation step without an optimizer update and must prove unchanged live/file adapter identities. Inference probes use unlabelled development inputs and retain timing/shape/resource evidence, not predictions, accuracy or NLL. These are neither extra training steps nor a scientific gate or base-model quality evaluation.
+
+Use the tokenizer-only frozen workload inventory to price every retained endpoint and adapter, including expert rereads, setup, serialization, raw-gate readmission, transfers and deletion. Preserve full-set physical order and the existing v2 hash-ranked selection order used for HellaSwag cuts; invent no new selection rule. Record any allowed reductions before hashing the final protocol. The final total upper bound must include already accrued preparation costs.
+
+Before stage d, record the actual source/cache/initial hashes, immutable final protocol SHA256, upper total cost at most $15, absolute compute deadline and every remaining allowance. Require all of the following:
+
+```bash
+: "${PROTOCOL_SHA256:?Final artifact-bound protocol SHA256 from measured admission}"
+: "${D_SECONDS:?Frozen six-pass gate allowance}"
+: "${READMIT_SECONDS:?Frozen raw-evidence readmission allowance}"
+: "${PAIR_SECONDS:?Frozen pairing allowance}"
+: "${TRAIN_SECONDS:?Frozen allowance for a complete 64-step arm}"
+: "${EVAL_SECONDS:?Frozen allowance for an evaluation shard}"
+printf '%s  %s\n' "$PROTOCOL_SHA256" "$PROTOCOL" | sha256sum -c -
+```
 
 ## d: all six numerical passes, diagnostic only
 

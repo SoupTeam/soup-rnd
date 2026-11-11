@@ -1,0 +1,161 @@
+{
+  "DeepSeek-V3 671B": "отложен",
+  "admissions": {
+    "aux_contract_sha256": "12e9a1f548d3192035f5781e0d568642480a94a383d48fb1f5373a8f2e178cd0",
+    "aux_report_sha256": "3b56a594a381822bd33c11cea01d6ff5b1d2ef9508522924f148b1431f62f27a",
+    "reference_report_sha256": "861bb9eed846b05bdbcae6c30ef3934d805230245652a7a30b7d11cf94852569",
+    "repeat_accepted_scientific_preflights": false,
+    "tokenizer_parity_checks": 348941
+  },
+  "arms": [
+    "bf16_l2l",
+    "oracle_block64_e4m3"
+  ],
+  "attention_policy_sha256": "b7ec8f56ca073a1397a7d4579d6b32550b18b148c67a9f1be2fbc50c873d1363",
+  "budget": {
+    "closeout_reserve_usd": 1,
+    "compute_stop_usd": 14,
+    "limit_usd": 15,
+    "maximum_rentals": 1,
+    "on_unaffordable_measured_scope": "export and delete owned instance and volume; do not start scientific work",
+    "preparation_cap_usd": 1
+  },
+  "evaluation": {
+    "data_manifest_sha256": "07f3c65cce76d0b209ce20aff7b096857077ac906156ac4ecf2c7955141b2b81",
+    "decision": {
+      "floor_offset": 0.05,
+      "functions": [
+        "summarize_pairs",
+        "apply_informativeness_gate"
+      ],
+      "margin": 0.01,
+      "one_sided_alpha": 0.025,
+      "simultaneous_bound": "union_bound"
+    },
+    "frozen_v2_protocol_sha256": "685fa5bee528969d9b2eef423c90280d179432ba017fbebed12b687f608a8249",
+    "full_endpoint_counts": {
+      "arc": 3548,
+      "boolq": 3270,
+      "gsm8k": 1288,
+      "hellaswag": 10042,
+      "lambada": 5153,
+      "mbpp": 494
+    },
+    "inference_for_both_arms": "BF16 without FP8 or Oracle",
+    "loglik": {
+      "add_special_tokens": false,
+      "deadline_seconds": 2700,
+      "hellaswag_n": 10042,
+      "logits_memory_limit_bytes": 536870912,
+      "logprob_dtype": "float32",
+      "max_tokens_per_batch": 8192,
+      "nll_label_policy": "p3_stage2_dataset._encode_document",
+      "padding": "right",
+      "prepend_bos": false,
+      "reduction_chunk_tokens": 128
+    },
+    "scope_changes_permitted_only_before_final_hash": [
+      "HellaSwag prefix using unchanged v2 hash-ranked selection",
+      "omit complete L4096 pair after HellaSwag reduction if necessary"
+    ],
+    "scoring": {
+      "acc_norm_denominator": "choice_character_length_without_leading_space",
+      "lambada_pass": "every_target_token_is_greedy_argmax",
+      "metrics": {
+        "arc": "acc_norm",
+        "boolq": "acc",
+        "gsm8k": "nll",
+        "hellaswag": "acc_norm",
+        "lambada": "acc",
+        "mbpp": "nll"
+      },
+      "multiple_choice_continuation": "one_leading_space_plus_choice",
+      "reference": "lm-evaluation-harness-v0.4.9-zero-shot",
+      "row_drop": false,
+      "task_templates": "hash_bound_B1_context_choices_target_fields_unchanged",
+      "truncation": false
+    }
+  },
+  "final_protocol_requirement": "Record actual production source/cache/shared-initial hashes, measured total upper cost and permitted reductions before any numerical gate/training/quality evaluation; no placeholders or backfill",
+  "historical_tiny": {
+    "E3": 0.05028628354277727,
+    "rerun": false,
+    "threshold": 0.05,
+    "verdict": "FAIL"
+  },
+  "implementation_commit": "9bd8a6b2ae3503044802f22f3930332127b0df51",
+  "include_base_model_evaluation": false,
+  "model": {
+    "id": "moonshotai/Moonlight-16B-A3B",
+    "inventory_sha256": "372baec885e52e89d26895f79759758b9600b67c518f80761c437e0f5e08a5ee",
+    "revision": "476b36a473d4467f94469414bef6cee75c9c8172"
+  },
+  "not_final_artifact_bound_protocol": true,
+  "numerical_gate": {
+    "accumulation": 8,
+    "batch": 1,
+    "length": 64,
+    "numeric_fail_is_diagnostic_only": true,
+    "passes": 6,
+    "prefix_tokens": 512,
+    "rerun_for_pass": false,
+    "thresholds_and_assessors": "unchanged hash-bound published implementation"
+  },
+  "numerical_gate_blocks_quality": false,
+  "profile_id": "moonlight-16b-a3b",
+  "recorded_utc": "2026-11-11T17:48:45.211786+00:00",
+  "schema": "p3-moonlight-scientific-settings-v1",
+  "status": "FROZEN_SCIENTIFIC_SETTINGS_BEFORE_RENTAL",
+  "technical_stops": [
+    "NaN/Inf",
+    "missing Oracle VJP",
+    "RoutingGuard refusal",
+    "OOM",
+    "evidence loss or contradictory cleanup"
+  ],
+  "training": {
+    "activation_block_size": 64,
+    "adapter_dtype": "float32",
+    "alpha": 4,
+    "base_quantization": "NF4",
+    "compute_dtype": "bfloat16",
+    "double_quant": false,
+    "expert_layout": "per_expert",
+    "fp8_format": "E4M3",
+    "independent_runs": true,
+    "input_tokens_per_step": 4096,
+    "length_accumulation_pairs": [
+      [
+        1024,
+        4
+      ],
+      [
+        4096,
+        1
+      ]
+    ],
+    "micro_batch_size": 1,
+    "optimizer": {
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "clip_max_norm": 1.0,
+      "eps": 1e-08,
+      "lr": 0.0002,
+      "name": "AdamW",
+      "weight_decay": 0.01
+    },
+    "pack_policy": "cycle_fixed_order_record_identity_cycle_and_final_cutoff",
+    "pack_sha256": "2d142c8f1641bd55173910311744455a79c4be5c9152cf181673d3965247cee4",
+    "rank": 2,
+    "scheduler": {
+      "horizon": 64,
+      "name": "cosine",
+      "warmup_steps": 2
+    },
+    "seed": 23,
+    "shared_initial_adapter": true,
+    "steps": 64
+  }
+}
