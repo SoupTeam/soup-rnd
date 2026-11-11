@@ -2,26 +2,26 @@
 
 ## Final source-bound result
 
-`canonical-v3/prelaunch-evidence/run.json` is **COMPLETE**. The remote Kaggle CPU
+`review-fix-v1/prelaunch-evidence/run.json` is **COMPLETE**. The remote Kaggle CPU
 run used Python3.12.3, with CUDA hidden and the native quality device set to CPU.
 The exact package set is in `packages.log`; the bootstrap and commands are in
-`canonical-v3/verifier.py.txt`.
+`review-fix-v1/verifier.py.txt`.
 
 Source admission SHA256:
-`51e5f99ddefb3e9abe004513744703f1694f354c6dfeb3769a76216639c0f44b`.
+`064ed79ed4cb43143f9f832e190c27dd79b2184114d7ce034480bc586240e6ee`.
 The runner verifies that digest, the source ZIP digest, its complete member set
-and every member's SHA256 before executing. The packet uses canonical Git bytes
-from base `364d003bfa0cc83f02a716e687b5cc7b41056be8` plus the explicitly selected
-new pilot source, tests and frozen-input closure. It does not execute workstation
-checkout code. Compare implementation, tests and frozen-input Git blobs, not
-Windows newline-translated files, against `execution-admission.json`.
-Documentation is not part of the executable validation claim.
-[`git-source-binding-v1.json`](git-source-binding-v1.json) records the 61 explicit
-source/test/input Git blob IDs and SHA256 values compared with that remote packet.
+and every member's SHA256 before executing. The packet takes every member's bytes
+from Git commit `78a2b5e130119b59e7039ada5f38b5bbbf975903` (recorded as
+`git_commit` in `execution-admission.json`), the team-lead review fixes on top of
+the reviewed PR. It does not execute workstation checkout code. Documentation is
+not part of the executable validation claim. Relative to `canonical-v3`, only
+`p3_deepseek_quality_prepare.py`, `p3_deepseek_quality_stage.py` and their two
+test files changed. [`git-source-binding-v1.json`](git-source-binding-v1.json)
+binds the earlier `canonical-v3` packet.
 
 | Check | Observed result |
 | --- | --- |
-| All 14 `test_p3_deepseek_quality_*.py` files | 536 passed, 46 skipped; 174.67s pytest time |
+| All 14 `test_p3_deepseek_quality_*.py` files | 559 passed, 46 skipped; 99.74s pytest time |
 | `ruff check src/soup_cli/ scripts/ tests/ benchmarks/harness/` | All checks passed |
 | Download CLI without `--approved-pilot` | Nonzero exit before creating output |
 | Real process-stage success | Child output retained; exit0 |
@@ -56,7 +56,8 @@ scientific PASS was selected. No historical tiny gate or its E3 was rerun.
 | `green/` | Intermediate implementation: 485 passed, 46 skipped; clean Ruff and real CLI smokes; superseded by review fixes |
 | `canonical-v1/` | Canonical Git-byte packet: 536 passed, 46 skipped; live Hub smoke passed; two smoke-module Ruff errors retained |
 | `canonical-v2/` | Corrected import ordering and line wrapping; tests, lint and command smokes passed |
-| `canonical-v3/` | Final implementation: removed implicit sibling-worktree scoring input; tests, lint and all command/admission smokes passed |
+| `canonical-v3/` | Removed implicit sibling-worktree scoring input; tests, lint and all command/admission smokes passed |
+| `review-fix-v1/` | Final: team-lead review fixes (resumable download, stage status precedence, cache-parent refusal); 559 passed, 46 skipped; lint and all smokes passed |
 
 The older packets used different source snapshots and verification scopes; their
 manifests must not be presented as final-source validation. In
