@@ -1605,6 +1605,13 @@ class StreamingSetupMixin:
         from soup_cli.utils.layer_stream import decide_measured_fit
         from soup_cli.utils.layer_stream_runtime import measure_step_peak_bytes
 
+        loss_fn = None
+        if getattr(getattr(getattr(self, "config", None), "training", None), "stream_chunked_ce", False):
+            # ZERO: measure the step that will run, with the chunked loss, not the
+            # full-logits loss the flag exists to avoid.
+            from soup_cli.utils.stream_chunked_ce import chunked_model_loss
+
+            loss_fn = chunked_model_loss
         try:
             peak = measure_step_peak_bytes(
                 model,
@@ -1612,6 +1619,7 @@ class StreamingSetupMixin:
                 seq_len=plan.seq_len,
                 vocab_size=plan.vocab_size,
                 device=str(self.device),
+                loss_fn=loss_fn,
             )
         except Exception:
             # measure_step_peak_bytes validates its own arguments and raises

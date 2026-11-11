@@ -76,6 +76,16 @@ def _causal_parts(model: Any) -> tuple[Any, Any]:
 _DECODER_KEYS = ("input_ids", "attention_mask", "position_ids")
 
 
+def chunked_model_loss(model: Any, input_ids: Any) -> Any:
+    """Labels-equal-inputs causal-LM loss of ``model`` through the chunked path.
+
+    The shape of the VRAM probe's step (``measure_step_peak_bytes(loss_fn=...)``).
+    """
+    decoder, head = _causal_parts(model)
+    hidden = decoder(input_ids=input_ids, use_cache=False).last_hidden_state
+    return chunked_causal_lm_loss(hidden, head, input_ids)
+
+
 def make_chunked_ce_trainer_class(base_cls: type) -> type:
     """Subclass ``base_cls`` (TRL's SFTTrainer or a subclass) with a chunked-CE ``compute_loss``.
 

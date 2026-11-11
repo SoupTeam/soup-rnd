@@ -8,6 +8,7 @@ from soup_cli.config.loader import load_config_from_string
 from soup_cli.utils.stream_chunked_ce import (
     IGNORE_INDEX,
     chunked_causal_lm_loss,
+    chunked_model_loss,
     make_chunked_ce_trainer_class,
 )
 
@@ -119,3 +120,19 @@ def test_schema_default_off() -> None:
     cfg = load_config_from_string(_BASE.format(task="sft", stream="true", l2l="false", extra="")
                                   .replace("  stream_chunked_ce: true\n", ""))
     assert cfg.training.stream_chunked_ce is False
+
+
+def test_probe_loss_matches_model_loss() -> None:
+    """The VRAM probe's loss_fn computes the same loss as model(labels=ids)."""
+    model = _tiny_qwen35()
+    ids = torch.randint(0, 300, (2, 40), generator=torch.Generator().manual_seed(3))
+    assert torch.allclose(chunked_model_loss(model, ids), model(input_ids=ids, labels=ids).loss,
+                          rtol=1e-6, atol=0)
+
+
+def test_probe_accepts_loss_fn_and_is_cpu_noop() -> None:
+    from soup_cli.utils.layer_stream_runtime import measure_step_peak_bytes
+
+    model = _tiny_qwen35()
+    assert measure_step_peak_bytes(model, rows=1, seq_len=8, vocab_size=300, device="cpu",
+                                   loss_fn=chunked_model_loss) is None
